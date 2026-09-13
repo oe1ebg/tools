@@ -1216,8 +1216,8 @@
       // Path segments must be encoded individually and rejoined with a
       // literal "/" — encoding the combined "ASSOC/CODE" key turns the
       // separator into "%2F", which both sites' routers don't treat as a
-      // path boundary (e.g. sotamaps.org/summit/OE%2FTI-521 doesn't resolve).
-      `<a href="https://www.sotamaps.org/summit/${encodeURIComponent(group.associationCode)}/${encodeURIComponent(group.summitCode)}" target="_blank" rel="noopener">sotamaps ↗</a> · ` +
+      // path boundary (e.g. sotadata.org.uk/en/summit/OE%2FTI-521 doesn't resolve).
+      `<a href="https://www.sotadata.org.uk/en/summit/${encodeURIComponent(group.associationCode)}/${encodeURIComponent(group.summitCode)}" target="_blank" rel="noopener">sotadata ↗</a> · ` +
       `<a href="https://sotl.as/summits/${encodeURIComponent(group.associationCode)}/${encodeURIComponent(group.summitCode)}" target="_blank" rel="noopener">sotl.as ↗</a>` +
       `</div>` +
       // Popups now open on hover (see renderMarkers()), so this is the
@@ -1341,6 +1341,7 @@
     const pinned = state.candidates.has(entry.key);
     const isRef = entry.key === state.referenceKey;
     const meta = summitMetaLine(entry);
+    const { assoc, code } = splitSummitKey(entry.key);
     const refBtn = isRef
       ? `<button type="button" class="btn-ref" data-allsummit-clearref>clear reference</button>`
       : `<button type="button" class="btn-ref" data-allsummit-setref>set as reference</button>`;
@@ -1349,9 +1350,32 @@
       : `<button type="button" class="btn-ref" data-allsummit-pin>pin this summit</button>`;
     return `<div class="sota-popup">` +
       `<div class="popup-title">${escapeHtml(entry.name)} <span class="code">${escapeHtml(entry.key)}</span></div>` +
-      (meta ? `<div class="popup-meta">${escapeHtml(meta)}</div>` : '') +
+      `<div class="popup-meta">${meta ? escapeHtml(meta) + ' · ' : ''}` +
+      // Same "encode each segment, join with a literal /" as the main popup
+      // builder — encoding the combined key turns the separator into
+      // "%2F", which neither site's router treats as a path boundary.
+      `<a href="https://www.sotadata.org.uk/en/summit/${encodeURIComponent(assoc)}/${encodeURIComponent(code)}" target="_blank" rel="noopener">sotadata ↗</a> · ` +
+      `<a href="https://sotl.as/summits/${encodeURIComponent(assoc)}/${encodeURIComponent(code)}" target="_blank" rel="noopener">sotl.as ↗</a>` +
+      `</div>` +
       `<div class="popup-ref">${refBtn} ${pinBtn}</div>` +
       `</div>`;
+  }
+
+  // Matches sotl.as's own summit-dot coloring exactly (its "summits_circles_all"
+  // map layer, found in its style JSON — e.g. src/assets/basemapat.json in
+  // manuelkasper/sotlas-frontend): color by SOTA points value rather than a
+  // single flat color, white stroke, semi-transparent. SOTA's points tiers
+  // are always one of these six; the fallback only matters for odd data.
+  function sotlasPointsColor(points){
+    switch (points){
+      case 1: return '#4d7a20';
+      case 2: return '#6da536';
+      case 4: return '#aea727';
+      case 6: return '#efa818';
+      case 8: return '#dc5d04';
+      case 10: return '#c8101e';
+      default: return '#000';
+    }
   }
 
   function renderAllSummitsOverlay(){
@@ -1377,11 +1401,11 @@
     for (const entry of inView){
       const marker = L.circleMarker([entry.lat, entry.lon], {
         renderer: allSummitsRenderer,
-        radius: 4,
-        weight: 1,
+        radius: 9,
+        weight: 2,
         color: '#fff',
-        fillColor: cssVar('--text-dim'),
-        fillOpacity: 0.9,
+        fillColor: sotlasPointsColor(entry.points),
+        fillOpacity: 0.8,
       }).bindPopup(() => buildAllSummitPopupHtml(entry)); // a function, not a string: re-evaluated on each open so pin/reference state stays current
       marker.on('popupopen', (e) => {
         const el = e.popup.getElement();
@@ -1736,7 +1760,7 @@
   function checkPastRangeNote(to){
     const todayUtc = new Date().toISOString().slice(0, 10);
     if (to && to < todayUtc){
-      addWarning(`You're viewing a fully past date range — SOTA's alerts feed only shows planned activations, not confirmed ones (and this tool doesn't have a historical archive). For a summit's actual activation history, open its popup and use the "sotamaps ↗" or "sotl.as ↗" link.`);
+      addWarning(`You're viewing a fully past date range — SOTA's alerts feed only shows planned activations, not confirmed ones (and this tool doesn't have a historical archive). For a summit's actual activation history, open its popup and use the "sotadata ↗" or "sotl.as ↗" link.`);
     }
   }
 

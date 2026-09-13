@@ -174,7 +174,7 @@ entirely instead of needing a proxy.
   set it as reference right there, and see how it stacks up against
   currently-alerted summits without leaving the search box. Pinned summits
   persist in `localStorage` across visits; each has its own info-card popup
-  (name, alt, points, sotamaps/sotl.as links, remove-pin button). Both the
+  (name, alt, points, sotadata/sotl.as links, remove-pin button). Both the
   search-result cards (before pinning) and the pinned-summits list (after)
   show an "alert: <time> · <callsign> (<name>)" line whenever that summit
   currently has one, via a shared `formatAlertsBrief()` helper — so you can
@@ -192,7 +192,7 @@ entirely instead of needing a proxy.
   any alert whose own summit coordinates aren't resolvable.
 - **Past-date note** — this tool has no historical archive (see below), so
   selecting a fully past date range shows an inline note pointing to each
-  summit's own "sotamaps ↗" / "sotl.as ↗" link (already in every popup) for
+  summit's own "sotadata ↗" / "sotl.as ↗" link (already in every popup) for
   its actual activation history, rather than pretending to have that data.
 - **"Find in view" (OSM/Overpass area search)** — some OSM peak nodes carry
   a `communication:amateur_radio:sota` tag with the summit's SOTA reference
@@ -421,6 +421,18 @@ default per-marker SVG, which visibly lags once you're placing hundreds of
 them. Any summit already shown as a "real" pin (alerted, pinned, or the
 reference) is excluded here, so pinning one from this overlay doesn't
 leave a redundant gray dot under its new, more prominent marker.
+
+**Dot color matches sotl.as exactly**, not a generic muted gray — pulled
+from its own map style JSON (e.g. `src/assets/basemapat.json` in
+`manuelkasper/sotlas-frontend`, the `summits_circles_all` layer): color by
+SOTA points value rather than one flat color (dark green at 1pt through
+red at 10pt), white stroke, semi-transparent (`sotlasPointsColor()`).
+Checked against the live dataset: every summit's `points` is one of the six
+values that layer defines (1/2/4/6/8/10), so the `#000` fallback for an
+unexpected value essentially never triggers. Its popup also links out to
+both `sotadata.org.uk` and `sotl.as`, same as the alert/pinned-summit popups
+(same "encode each path segment separately" fix — encoding the combined
+key breaks both sites' routers the same way it did before).
 
 ## Shareable link
 
