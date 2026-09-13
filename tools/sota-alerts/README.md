@@ -90,7 +90,8 @@ entirely instead of needing a proxy.
 ## Features
 
 - **Alerts map + date range** — filters within whatever near-term window
-  SOTA's feed currently returns; own callsign(s) highlighted green.
+  SOTA's feed currently returns; own callsign(s) highlighted green. A
+  "today" button jumps both from/to to the current UTC date in one click.
 - **Hover-to-open info cards** — every marker's popup opens on hover, not
   just click (closes on mouseout, debounced ~200ms so moving the cursor
   from the marker into the popup itself to click a link/button doesn't
@@ -112,10 +113,57 @@ entirely instead of needing a proxy.
   than a separate floating label — showing the same numbers in two
   overlapping boxes at once was redundant once the popup became
   hover-visible; the line itself remains purely the visual/spatial aid. The
-  reference marker itself is drawn larger, filled with a dedicated `--route`
-  color (not `--warn`/amber, which blends into OpenTopoMap's browns/contour
-  lines), and has a small, deliberately subtle pulsing ring behind it —
-  enough to catch the eye among other pins without being distracting.
+  reference marker itself is drawn largest (32×42, vs. 26×34 default) and
+  filled with a dedicated `--route` color. Pinned/candidate summits get
+  their own tier (28×37) filled with `--candidate`. Both went through a
+  couple of iterations that added a drop-shadow glow and/or an outline on
+  top of the fill color — every one of those turned out too subtle to
+  actually notice; a plain, solid, different fill color per state reads far
+  more clearly than an effect layered on an unchanged color. Priority when
+  a summit is more than one of these at once (reference/candidate/own/
+  default) is just source order in the CSS: reference > candidate > own >
+  default — there's only ever one reference, many summits can be pinned or
+  "yours", so the rarer state should win. The pinned-summits list row and
+  the alert-list's reference row use matching left-border accents for the
+  same two states.
+
+  **The 4-color pin palette is a validated categorical scheme**, not
+  eyeballed hex values — built with the dataviz skill's CVD-simulation
+  validator (`scripts/validate_palette.js`), run in `--pairs all` mode
+  since map pins are exactly the "any two categories can sit side by side"
+  case (not just adjacent-in-a-list). That check caught something real:
+  the *original* candidate violet and default blue failed hard in dark mode
+  (CVD ΔE 1.9 under protanopia, normal-vision ΔE 9.8 — both well under the
+  safety floor of 6/15). Swapping candidate to yellow clears every hard
+  gate in both modes:
+
+  | Category | Hue | Light | Dark |
+  |---|---|---|---|
+  | default | blue | `#2a78d6` (`--pin-default`) | `#3987e5` |
+  | own | green | `#008300` (`--own`) | `#008300` |
+  | reference | yellow | `#eda100` (`--route`) | `#c98500` |
+  | pinned/candidate | magenta | `#e87ba4` (`--candidate`) | `#d55181` |
+
+  (Reference and pinned/candidate later swapped roles on the same
+  validated hue pair — yellow reads better than pink for "the one summit
+  you're comparing everything else against"; re-running the validator
+  confirmed the other 3 documented hues not already in use — violet, aqua,
+  orange, red — each fail a hard gate against blue/green/yellow in at
+  least one mode, so this pair is genuinely the only passing option left
+  in the 8-hue documented system, just reassigned.)
+
+  `--pin-default` is a separate variable from `--accent` (the toolbar's
+  button/link color) on purpose — the pin palette changing shouldn't
+  restyle buttons sitewide, and the validated blue is a different exact
+  shade from `--accent`'s existing `#526cfe`. Two WARN-band results remain
+  (both legal only with secondary encoding, which this app already has):
+  a light-mode contrast-vs-surface warning for yellow/magenta against a
+  flat surface, mitigated by the pin's own white outline stroke giving
+  edge contrast regardless of fill lightness; and a dark-mode CVD warning
+  between green/yellow in the 6–8 floor band, mitigated by the existing
+  size difference (the reference pin is already drawn largest) plus every
+  marker's identity always being confirmable via its popup, never
+  color-alone.
 - **Pin a summit (search-and-pin)** — the toolbar search box hits
   `/api/summits/search/{term}` (name or code) and lets you pin any summit as
   a candidate marker/list entry, independent of whether it currently has an
@@ -131,7 +179,17 @@ entirely instead of needing a proxy.
   show an "alert: <time> · <callsign> (<name>)" line whenever that summit
   currently has one, via a shared `formatAlertsBrief()` helper — so you can
   tell at a glance, without opening the marker's popup, whether a candidate
-  is actually active right now.
+  is actually active right now. Every "alt · pts" summary line (popup,
+  pinned-summits list, search-result cards) now also includes the summit's
+  Maidenhead grid locator when SOTA's API supplies one (`summitMetaLine()`)
+  — it was already being fetched and simply discarded before.
+- **Sort by distance to reference** — the alert list panel always puts your
+  own alerts first, but *within* that, once a reference is set it now
+  sorts by distance to it (closest first) instead of by time — that's the
+  actual question this tool exists to answer. A small "sorted by distance
+  to <name>" note appears above the list so it's clear why the order
+  changed. Falls back to chronological order with no reference set, or for
+  any alert whose own summit coordinates aren't resolvable.
 - **Past-date note** — this tool has no historical archive (see below), so
   selecting a fully past date range shows an inline note pointing to each
   summit's own "sotamaps ↗" / "sotl.as ↗" link (already in every popup) for
@@ -292,6 +350,49 @@ visitor, not something that should override a view you already chose and
 left behind last time. First-ever visit (nothing saved yet) still behaves
 as before: fit to whatever alerts/candidates are currently in view, or fall
 back to geolocation if there's nothing to fit to.
+
+## "View on sotl.as"
+
+A toolbar button opens sotl.as (SOTA's own third-party map, with the actual
+MapTiler "Outdoor" style and richer summit data than this tool tries to
+replicate) centered on whatever area this map is currently showing.
+sotl.as has a dedicated route for exactly this,
+`/map/coordinates/{lat},{lon}/{zoom}` — confirmed against its own source
+(`manuelkasper/sotlas-frontend`'s router, not guessed) and tested live
+(200, serves the SPA shell at that route). Coordinates are in `lat,lon`
+order in the URL — sotl.as reverses this internally for Mapbox GL's
+`[lng,lat]` convention, so getting the order right here matters
+(`sotlasUrlForCurrentView()`).
+
+## Shareable link
+
+A "share" toolbar button (`buildShareUrl()`) copies a URL encoding the
+current date range, reference summit, pinned summits, and band/mode filter
+as plain query parameters (`?from=...&to=...&ref=...&pins=...&bands=...
+&modes=...`) — deliberately *not* a compressed/opaque blob, since the
+expected state is small and staying human-readable/debuggable was worth
+more than a few saved bytes. Summit keys (which contain `/`) are handled by
+`URLSearchParams`'s own encoding, verified round-trip against real keys.
+
+Deliberately excluded: own callsign(s), theme, tile layer, and time-display
+format — those are about how *you* like to look at things, not what's being
+looked at, and a shared link silently overriding a recipient's own settings
+would be surprising.
+
+On load (`applySharedStateFromUrl()`), pins from the URL are *merged* into
+whatever's already pinned locally — never replacing it, since opening
+someone else's shared link shouldn't wipe out summits you'd pinned
+yourself. Each pin key is resolved via the same per-summit API call used
+by search results (verified live against real and deliberately-bogus
+keys); a summit that can't be resolved surfaces as a warning rather than
+failing silently. The reference is implicitly added to the pin set too, for
+the same "needs its own marker" reason as the search-result "set as
+reference" button. Applying a shared link forces the initial view to frame
+itself to the shared content (overriding "restore my last view", which
+otherwise takes priority for a returning visitor with nothing shared). The
+query string is stripped via `history.replaceState` once applied, so it
+doesn't linger and go stale — "share" always builds a fresh link from
+current state rather than treating the URL as continuously live.
 
 ## Files
 

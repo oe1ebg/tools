@@ -14,7 +14,7 @@
     --text-dim: #00000099;
     --accent: #526cfe;
     --accent-dim: #6b78d0;
-    --own: #1f9d55;
+    --own: #008300;
     --warn: #9a6700;
     --err: #c62828;
     --header-bg: rgba(255,255,255,.72);
@@ -22,8 +22,15 @@
     --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, Menlo, monospace;
     color-scheme: light;
     --leaflet-layers-icon-filter: none;
-    --candidate: #8b5cf6;
-    --route: #d6007f;
+    /* Pin/marker categorical colors, validated with the dataviz skill's
+       CVD-simulation checker (all-pairs mode, since any two pin categories
+       can sit side by side on the map) — see docs/sota-alerts-README.md.
+       --pin-default is separate from --accent on purpose: --accent is the
+       toolbar's button/link color and shouldn't change just because the
+       pin palette does. */
+    --pin-default: #2a78d6;
+    --candidate: #e87ba4;
+    --route: #eda100;
   }
   @media (prefers-color-scheme: dark){
     /* Without this, native form-control chrome (the <input type=date>
@@ -38,14 +45,15 @@
       --text-dim: hsla(225,15%,90%,.5);
       --accent: #526cfe;
       --accent-dim: #9aa8f5;
-      --own: #4ade80;
+      --own: #008300;
       --warn: #e0b35c;
       --err: #e0776b;
       --header-bg: rgba(12,13,15,.72);
       color-scheme: dark;
       --leaflet-layers-icon-filter: invert(1) hue-rotate(180deg);
-      --candidate: #a78bfa;
-      --route: #ff4fc3;
+      --pin-default: #3987e5;
+      --candidate: #d55181;
+      --route: #c98500;
     }
   }
   /* Explicit light/dark override (higher specificity than the bare :root rules
@@ -60,14 +68,15 @@
     --text-dim: hsla(225,15%,90%,.5);
     --accent: #526cfe;
     --accent-dim: #9aa8f5;
-    --own: #4ade80;
+    --own: #008300;
     --warn: #e0b35c;
     --err: #e0776b;
     --header-bg: rgba(12,13,15,.72);
     color-scheme: dark;
     --leaflet-layers-icon-filter: invert(1) hue-rotate(180deg);
-    --candidate: #a78bfa;
-    --route: #ff4fc3;
+    --pin-default: #3987e5;
+    --candidate: #d55181;
+    --route: #c98500;
   }
   :root[data-theme="light"]{
     --bg: #ffffff;
@@ -77,14 +86,15 @@
     --text-dim: #00000099;
     --accent: #526cfe;
     --accent-dim: #6b78d0;
-    --own: #1f9d55;
+    --own: #008300;
     --warn: #9a6700;
     --err: #c62828;
     --header-bg: rgba(255,255,255,.72);
     color-scheme: light;
     --leaflet-layers-icon-filter: none;
-    --candidate: #8b5cf6;
-    --route: #d6007f;
+    --pin-default: #2a78d6;
+    --candidate: #e87ba4;
+    --route: #eda100;
   }
   *{ box-sizing: border-box; }
   html,body{ height:100%; }
@@ -307,7 +317,14 @@
     background:var(--bg-raised);
     border-bottom:1px solid var(--line);
   }
+  .list-item.candidate{ border-left-color:var(--candidate); }
   .list-item.candidate .li-top b{ color:var(--candidate); }
+  /* A pinned summit that's also the current reference (common now that
+     "set as reference" implicitly pins) should read as reference first —
+     matches the map marker, where .reference's fill/size also wins over
+     .candidate's. Needs to be explicit since .is-ref and .candidate have
+     equal selector specificity and .candidate is declared later. */
+  .list-item.is-ref.candidate{ border-left-color:var(--route); }
   .list-item .btn-ref{ margin-top:.3em; }
 
   @media (max-width: 760px){
@@ -328,42 +345,19 @@
   .leaflet-control-layers-separator{ border-color:var(--line); }
 
   .sota-pin{ width:26px; height:34px; }
-  .sota-pin svg{ width:100%; height:100%; display:block; } /* the <svg> has no size of its own — this makes the wrapping div's width/height (below) the actual source of truth for icon size, which the .reference rule then overrides */
-  .sota-pin.default path{ fill:var(--accent); }
+  .sota-pin svg{ width:100%; height:100%; display:block; } /* the <svg> has no size of its own — this makes the wrapping div's width/height (below) the actual source of truth for icon size, which the .reference/.candidate rules then override */
+  .sota-pin.default path{ fill:var(--pin-default); }
   .sota-pin.own path{ fill:var(--own); }
-  .sota-pin.candidate{ filter: drop-shadow(0 0 3px var(--candidate)) drop-shadow(0 0 3px var(--candidate)); }
-  /* The reference pin's fill wins over own/default (there's only ever one
-     reference, so it should be unmistakable at a glance), it's drawn
-     larger, and uses --route (not --warn/amber) — amber blends into
-     OpenTopoMap's browns/contour lines the same way it did for the
-     distance line before that was switched to --route, so the pin now
-     matches the line for the same reason. A pulsing ring behind the tip
-     (::after, the classic "you are here" map-pin treatment) adds a
-     motion cue that a static color/size change alone doesn't give you —
-     easier to spot among a cluster of other pins at a glance. */
-  .sota-pin.reference{
-    width:32px; height:42px;
-    position:relative;
-    filter: drop-shadow(0 0 4px var(--route)) drop-shadow(0 0 4px var(--route));
-  }
+  /* Plain, solid fill colors — a drop-shadow glow/outline turned out too
+     subtle to notice twice in a row, so each state just gets its own
+     unmistakable pin color instead of a color plus an effect layered on
+     top. Priority when a summit is more than one of these at once:
+     reference > candidate > own > default (there's only ever one
+     reference; many summits can be pinned or "yours"). */
+  .sota-pin.candidate{ width:28px; height:37px; }
+  .sota-pin.candidate path{ fill:var(--candidate); }
+  .sota-pin.reference{ width:32px; height:42px; }
   .sota-pin.reference path{ fill:var(--route); }
-  .sota-pin.reference.candidate{ filter: drop-shadow(0 0 4px var(--route)) drop-shadow(0 0 3px var(--candidate)); }
-  .sota-pin.reference::after{
-    content:'';
-    position:absolute;
-    left:50%; bottom:-5px;
-    width:10px; height:10px;
-    margin-left:-5px;
-    border-radius:50%;
-    background:var(--route);
-    opacity:.35;
-    z-index:-1;
-    animation: sota-ref-pulse 2.4s ease-out infinite;
-  }
-  @keyframes sota-ref-pulse{
-    from{ transform:scale(1); opacity:.35; }
-    to{ transform:scale(2.2); opacity:0; }
-  }
   .sota-pin circle{ fill:#fff; }
 
   .sota-popup{ font-size:12px; max-width:20em; }
@@ -423,6 +417,7 @@
     <label for="range-to">to (UTC)</label>
     <input id="range-to" type="date">
   </div>
+  <button type="button" id="btn-today" title="jump the date range to today (UTC)">today</button>
   <div class="field">
     <label for="callsigns-input">my callsign(s)</label>
     <input id="callsigns-input" type="text" placeholder="OE1ABC, OE1ABC/P">
@@ -436,6 +431,8 @@
   <span id="stats"></span>
   <span id="ref-indicator"></span>
   <div class="spacer"></div>
+  <button id="btn-share" title="copy a link that reproduces this date range, reference summit, and pinned summits">share</button>
+  <button id="btn-open-sotlas" title="open sotl.as, centered on the same area this map is currently showing">view on sotl.as ↗</button>
   <button id="btn-locate" title="center the map on your current location">locate me</button>
   <button id="btn-refresh-alerts">refresh alerts</button>
   <button id="btn-refresh-summits" title="force re-fetch of summit coordinates, bypassing the local cache">refresh summit data</button>
@@ -800,7 +797,7 @@
   }
 
   function candidateFromSearchResult(r){
-    return { key: r.summitCode, ...splitSummitKey(r.summitCode), name: r.name, altM: r.altM, points: r.points, lat: r.latitude, lon: r.longitude };
+    return { key: r.summitCode, ...splitSummitKey(r.summitCode), name: r.name, altM: r.altM, points: r.points, lat: r.latitude, lon: r.longitude, locator: r.locator || null };
   }
 
   // asReference: also select it as the distance/elevation reference point.
@@ -819,6 +816,85 @@
     state.candidates.delete(key);
     saveCandidates(state.candidates);
     renderAll();
+  }
+
+  /* ---------- shareable link ---------- */
+
+  // Display preferences (theme, tile layer, time format, own callsigns)
+  // deliberately aren't included — those are about how *you* like to look
+  // at things, not what's being looked at, and a shared link silently
+  // overriding a recipient's own settings would be surprising.
+  function buildShareUrl(){
+    const params = new URLSearchParams();
+    const from = document.getElementById('range-from').value;
+    const to = document.getElementById('range-to').value;
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    if (state.referenceKey) params.set('ref', state.referenceKey);
+    if (state.candidates.size) params.set('pins', [...state.candidates.keys()].join(','));
+    if (state.selectedBands.size) params.set('bands', [...state.selectedBands].join(','));
+    if (state.selectedModes.size) params.set('modes', [...state.selectedModes].join(','));
+    const url = new URL(location.href);
+    url.search = params.toString();
+    url.hash = '';
+    return url.toString();
+  }
+
+  // Applies from/ref/pins/bands/modes found in the URL's query string, if
+  // any, at startup. Pins are *merged* into whatever's already pinned
+  // locally, never replacing it — opening someone else's shared link
+  // shouldn't wipe out summits you'd already pinned yourself. Returns
+  // whether anything was actually applied, so init() knows to force-frame
+  // the view to it (overriding the "restore my last view" default).
+  async function applySharedStateFromUrl(){
+    const params = new URLSearchParams(location.search);
+    if (![...params.keys()].length) return false;
+
+    const from = params.get('from');
+    const to = params.get('to');
+    if (from) document.getElementById('range-from').value = from;
+    if (to) document.getElementById('range-to').value = to;
+
+    if (params.has('bands')){
+      state.selectedBands = new Set(params.get('bands').split(',').filter(Boolean));
+      saveStringSet(LS_KEY_BANDS, state.selectedBands);
+    }
+    if (params.has('modes')){
+      state.selectedModes = new Set(params.get('modes').split(',').filter(Boolean));
+      saveStringSet(LS_KEY_MODES, state.selectedModes);
+    }
+
+    const refKey = params.get('ref');
+    const pinKeys = new Set((params.get('pins') || '').split(',').filter(Boolean));
+    // The reference always needs its own marker to mean anything (distance/
+    // elevation math needs its coordinates), so make sure it gets resolved
+    // as a pin too, same as clicking "set as reference" in a search result.
+    if (refKey) pinKeys.add(refKey);
+
+    const toFetch = [...pinKeys].filter(k => !state.candidates.has(k));
+    const resolved = await Promise.all(toFetch.map(async key => {
+      const { assoc, code } = splitSummitKey(key);
+      try {
+        const summit = await fetchSummit(assoc, code);
+        return summit ? { key, assoc, code, ...summit } : null;
+      } catch (err) {
+        console.error(`shared-link summit lookup failed for ${key}:`, err);
+        return null;
+      }
+    }));
+    let anyMissing = false;
+    resolved.forEach(cand => { if (cand) state.candidates.set(cand.key, cand); else anyMissing = true; });
+    if (toFetch.length) saveCandidates(state.candidates);
+    if (anyMissing) addWarning("some summits from the shared link couldn't be found and were skipped.");
+
+    if (refKey && state.candidates.has(refKey)) state.referenceKey = refKey;
+    else if (refKey) addWarning(`the shared link's reference summit (${refKey}) couldn't be found.`);
+
+    // Strip the query string once applied — otherwise it'd linger and go
+    // stale the moment anything changes locally; "share" always builds a
+    // fresh link from current state rather than treating the URL as live.
+    history.replaceState(null, '', location.pathname + location.hash);
+    return true;
   }
 
   /* ---------- summit coordinate lookup (per-summit API call, cached in localStorage) ---------- */
@@ -843,6 +919,7 @@
       points: data.points,
       lat: data.latitude,
       lon: data.longitude,
+      locator: data.locator || null,
       fetchedAt: Date.now(),
     };
   }
@@ -963,6 +1040,17 @@
     } catch { /* ignore */ }
   }
 
+  // sotl.as's router (verified against its own source, manuelkasper/
+  // sotlas-frontend) has a dedicated route for this exact purpose:
+  // /map/coordinates/{lat},{lon}/{zoom} — "lat,lon" order (it reverses
+  // this internally for Mapbox GL's [lng,lat] convention), zoom as a plain
+  // number. Confirmed live (200, serves the SPA shell at that route).
+  function sotlasUrlForCurrentView(){
+    const c = map.getCenter();
+    const zoom = Math.round(map.getZoom() * 10) / 10;
+    return `https://sotl.as/map/coordinates/${c.lat.toFixed(5)},${c.lng.toFixed(5)}/${zoom}`;
+  }
+
   function initMap(){
     const savedView = loadSavedMapView();
     map = L.map('map', { worldCopyJump: true })
@@ -1033,12 +1121,14 @@
 
   function markerIcon(isOwn, isRef, isCandidate){
     const cls = ['sota-pin', isOwn ? 'own' : 'default', isRef ? 'reference' : '', isCandidate ? 'candidate' : ''].filter(Boolean).join(' ');
-    // The reference pin is drawn larger (see CSS .sota-pin.reference) —
-    // iconSize/iconAnchor/popupAnchor must match that actual rendered size
-    // or Leaflet's positioning math (which anchor point sits on the real
-    // lat/lon) will be based on the wrong box and the pin will look
-    // slightly offset from where it's actually pointing.
-    const [w, h] = isRef ? [32, 42] : [26, 34];
+    // Reference and candidate pins are drawn larger than a plain default
+    // one (see the CSS .sota-pin.reference/.candidate rules; reference
+    // wins if a summit is both) — iconSize/iconAnchor/popupAnchor must
+    // match whichever size actually applies or Leaflet's positioning math
+    // (which anchor point sits on the real lat/lon) will be based on the
+    // wrong box and the pin will look slightly offset from where it's
+    // actually pointing.
+    const [w, h] = isRef ? [32, 42] : isCandidate ? [28, 37] : [26, 34];
     return L.divIcon({
       className: '',
       html: `<div class="${cls}">${PIN_SVG}</div>`,
@@ -1046,6 +1136,15 @@
       iconAnchor: [w / 2, h],
       popupAnchor: [0, -Math.round(h * 30 / 34)],
     });
+  }
+
+  // Shared "480m · 8 pts · JN67dn" summary line, used by the marker popup,
+  // the pinned-summits list, and search-result cards. `locator` (Maidenhead
+  // grid) comes straight from the SOTA API but was previously fetched and
+  // discarded — hams commonly want it alongside lat/lon.
+  function summitMetaLine(s){
+    return [s.altM ? `${s.altM}m` : null, s.points != null ? `${s.points} pts` : null, s.locator || null]
+      .filter(Boolean).join(' · ');
   }
 
   // Great-circle distance in km between two lat/lon points (haversine).
@@ -1086,8 +1185,7 @@
           (a.comments ? `<div class="comment">${escapeHtml(a.comments)}</div>` : '') +
           `</div>`;
       }).join('');
-    const altPts = [summit.altM ? `${summit.altM}m` : null, summit.points != null ? `${summit.points} pts` : null]
-      .filter(Boolean).join(' · ');
+    const altPts = summitMetaLine(summit);
     const isRef = group.key === referenceKey;
     const refBtn = isRef
       ? `<button type="button" class="btn-ref" data-clear-ref>clear reference</button>`
@@ -1195,18 +1293,38 @@
 
   /* ---------- list panel ---------- */
 
+  function distanceToRefForAlert(a, refSummit, summitMap){
+    const summit = summitMap.get(`${a.associationCode}/${a.summitCode}`);
+    if (!summit) return null;
+    return haversineKm(summit.lat, summit.lon, refSummit.lat, refSummit.lon);
+  }
+
   function renderAlertList(alerts, ownSet, summitMap, referenceKey){
     const el = document.getElementById('list-items');
     if (!alerts.length){
       el.innerHTML = '<div class="list-empty">no alerts in range</div>';
       return;
     }
+    // Own alerts always come first regardless of sort mode; within each
+    // group, sort by distance to the reference (closest first) once one
+    // is set — that's the actual question this tool exists to answer —
+    // falling back to chronological order otherwise or where a summit's
+    // own coordinates aren't resolvable.
+    const refSummit = referenceKey ? summitMap.get(referenceKey) : null;
     const sorted = alerts.slice().sort((a, b) => {
       const aOwn = isOwnAlert(a, ownSet), bOwn = isOwnAlert(b, ownSet);
       if (aOwn !== bOwn) return aOwn ? -1 : 1;
+      if (refSummit){
+        const da = distanceToRefForAlert(a, refSummit, summitMap);
+        const db = distanceToRefForAlert(b, refSummit, summitMap);
+        if (da != null && db != null && da !== db) return da - db;
+      }
       return a.dateActivated.localeCompare(b.dateActivated);
     });
-    el.innerHTML = sorted.map(a => {
+    const sortNote = refSummit
+      ? `<div class="list-section-title">sorted by distance to ${escapeHtml(refSummit.name)}</div>`
+      : '';
+    el.innerHTML = sortNote + sorted.map(a => {
       const own = isOwnAlert(a, ownSet);
       const key = `${a.associationCode}/${a.summitCode}`;
       const isRef = key === referenceKey;
@@ -1239,7 +1357,7 @@
     el.innerHTML = '<div class="list-section-title">pinned summits</div>' + [...candidates.values()].map(c => {
       const isRef = c.key === referenceKey;
       const diff = referenceDiff(c, isRef ? null : referenceKey, summitMap);
-      const altPts = [c.altM ? `${c.altM}m` : null, c.points != null ? `${c.points} pts` : null].filter(Boolean).join(' · ');
+      const altPts = summitMetaLine(c);
       // Same alert set the map/popup would show for this summit right now
       // (currentGroups is band/mode-filtered, unlike alertsForSummitInRange).
       const alertBrief = formatAlertsBrief((currentGroups.get(c.key) || {}).alerts || []);
@@ -1315,7 +1433,7 @@
     panel.innerHTML = cands.slice(0, 30).map(cand => {
       const pinned = state.candidates.has(cand.key);
       const isRef = cand.key === state.referenceKey;
-      const altPts = [cand.altM ? `${cand.altM}m` : null, cand.points != null ? `${cand.points} pts` : null].filter(Boolean).join(' · ');
+      const altPts = summitMetaLine(cand);
       const alertBrief = formatAlertsBrief(alertsForSummitInRange(cand.key));
       return `<div class="search-result">` +
         `<div class="search-result-top">` +
@@ -1595,9 +1713,29 @@
     // leave the current pan/zoom alone — see renderAll()'s fitView param).
     document.getElementById('range-from').addEventListener('change', () => renderAll(true));
     document.getElementById('range-to').addEventListener('change', () => renderAll(true));
+    document.getElementById('btn-today').addEventListener('click', () => {
+      const todayUtc = new Date().toISOString().slice(0, 10);
+      document.getElementById('range-from').value = todayUtc;
+      document.getElementById('range-to').value = todayUtc;
+      renderAll(true); // date range change: re-frame the view, same as editing the fields directly
+    });
     document.getElementById('callsigns-input').addEventListener('change', e => {
       persistOwnCallsigns(e.target.value);
       renderAll();
+    });
+    document.getElementById('btn-share').addEventListener('click', async () => {
+      const btn = document.getElementById('btn-share');
+      const url = buildShareUrl();
+      const original = btn.textContent;
+      let copied = false;
+      try { await navigator.clipboard.writeText(url); copied = true; }
+      catch { /* clipboard blocked/unavailable — fall back to a manually-copyable prompt below */ }
+      if (!copied) window.prompt('copy this share link:', url);
+      btn.textContent = copied ? 'link copied ✓' : 'link ready ✓';
+      setTimeout(() => { btn.textContent = original; }, 2000);
+    });
+    document.getElementById('btn-open-sotlas').addEventListener('click', () => {
+      window.open(sotlasUrlForCurrentView(), '_blank', 'noopener');
     });
     document.getElementById('btn-locate').addEventListener('click', async () => {
       const btn = document.getElementById('btn-locate');
@@ -1702,17 +1840,28 @@
     // for a first-time visitor, not something that should override a view
     // the visitor already chose and left behind last time.
     const hasSavedView = !!loadSavedMapView();
+    // A shared link (see applySharedStateFromUrl()) explicitly asks to look
+    // at something specific, which should win over "restore my last view"
+    // the same way it wins over "start from nothing" — reassigned below
+    // once we know; read by the geolocation callback via closure, so it's
+    // declared before that's registered.
+    let appliedSharedState = false;
     // Not awaited: geolocation (permission prompt + fix) can take a while
     // and shouldn't block loading alerts. If it resolves before there's
     // anything else to show, use it; if it resolves after, it's a no-op
     // (real data already framed the view — see renderMarkers()).
     tryGeolocate().then(loc => {
       state.userLocation = loc;
-      if (loc && !hasSavedView && markerLayer.getLayers().length === 0) map.setView([loc.lat, loc.lon], USER_LOCATION_ZOOM);
+      if (loc && !hasSavedView && !appliedSharedState && markerLayer.getLayers().length === 0){
+        map.setView([loc.lat, loc.lon], USER_LOCATION_ZOOM);
+      }
     });
+    appliedSharedState = await applySharedStateFromUrl();
     await loadAlerts();
     await loadSummits(false);
-    renderAll(!hasSavedView); // first-ever visit: frame to whatever's there; returning visitor: keep their restored view
+    // first-ever visit or a shared link: frame to whatever's there;
+    // otherwise (returning visitor, no shared link) keep their restored view
+    renderAll(appliedSharedState || !hasSavedView);
   }
 
   init();
