@@ -192,6 +192,7 @@
   }
   button:hover, .btn:hover{ background:rgba(82,108,254,0.1); }
   button:disabled{ color:var(--text-dim); border-color:var(--line); cursor:not-allowed; }
+  button.active{ background:var(--accent); color:#fff; }
   input[type=text], input[type=date]{
     font-family:var(--font-ui);
     font-size:12px;
@@ -208,6 +209,7 @@
   #callsigns-input{ width:16em; }
   input[type=date]{ min-width:9.5em; }
   #stats{ color:var(--text-dim); white-space:nowrap; }
+  #all-summits-note{ color:var(--text-dim); font-size:11px; }
   #stats b{ color:var(--text); font-weight:600; }
   #ref-indicator{ color:var(--route); white-space:nowrap; font-weight:600; }
   #ref-indicator button{ padding:0 .3em; font-size:11px; border:none; color:var(--text-dim); }
@@ -437,6 +439,8 @@
   <button id="btn-refresh-alerts">refresh alerts</button>
   <button id="btn-refresh-summits" title="force re-fetch of summit coordinates, bypassing the local cache">refresh summit data</button>
   <button id="btn-toggle-bandmode">bands/modes ▾</button>
+  <button type="button" id="btn-toggle-all-summits" title="show every SOTA summit in the current view (not just alerted/pinned ones) — built at site build time, no live SOTA API calls">all summits</button>
+  <span id="all-summits-note"></span>
   <button id="btn-toggle-list">list ▾</button>
 </div>
 
@@ -975,6 +979,11 @@
   let currentGroups = new Map(); // this render's summit key -> {alerts, ...}, used by the pinned-summits list to show "alert: ..." without a separate lookup
   let popupCloseTimer = null; // debounce for hover-close, so moving from a marker into its own popup content doesn't slam it shut first
   let summitSearchDebounceTimer = null; // debounce for auto-search-as-you-type in the "pin a summit" box
+  let allSummitsData = null;    // the full ~172k-summit dataset (docs/scripts/fetch_summits.py's output), lazy-loaded once on first use
+  let allSummitsLoading = null; // in-flight load promise, so rapid toggling can't trigger duplicate fetches
+  let allSummitsEnabled = false;
+  let allSummitsLayer = null;
+  let allSummitsRenderer = null; // a single shared canvas renderer — hundreds of individual SVG nodes (Leaflet's default) visibly lag; canvas doesn't
 
   function cssVar(name){
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -1100,6 +1109,14 @@
     });
 
     markerLayer = L.layerGroup().addTo(map);
+
+    // A single shared canvas renderer for the "all summits" overlay —
+    // Leaflet's default per-marker SVG rendering visibly lags once you're
+    // placing hundreds of circle markers; routing them through one canvas
+    // element instead keeps it smooth.
+    allSummitsRenderer = L.canvas();
+    allSummitsLayer = L.layerGroup();
+    map.on('moveend', () => { if (allSummitsEnabled) renderAllSummitsOverlay(); });
 
     map.on('popupopen', (e) => {
       const el = e.popup.getElement();
@@ -1288,6 +1305,103 @@
       // only with none pinned yet) — fall back to the visitor's own
       // location rather than leaving the map wherever it happened to be.
       map.setView([state.userLocation.lat, state.userLocation.lon], USER_LOCATION_ZOOM);
+    }
+  }
+
+  /* ---------- "all summits" overlay ----------
+     Built at site build time (docs/scripts/fetch_summits.py downloads and
+     trims SOTA's full summit database — storage.sota.org.uk doesn't allow
+     browser fetches at all, see the README), shipped as a same-origin
+     static asset. Loading it hits our own site, never SOTA's API, and it's
+     loaded at most once per session (lazily, only if this is ever turned
+     on) — this is the whole point: browsing every summit shouldn't cost
+     SOTA anything beyond the one build-time download. */
+
+  const ALL_SUMMITS_URL = 'data/summits.json';
+  const ALL_SUMMITS_MIN_ZOOM = 9; // below this, a viewport can contain tens of thousands of summits — ask to zoom in rather than choke the renderer
+  const ALL_SUMMITS_MAX_MARKERS = 800;
+
+  async function loadAllSummitsData(){
+    if (allSummitsData) return allSummitsData;
+    if (allSummitsLoading) return allSummitsLoading;
+    allSummitsLoading = (async () => {
+      const res = await fetch(ALL_SUMMITS_URL);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    })();
+    try {
+      allSummitsData = await allSummitsLoading;
+      return allSummitsData;
+    } finally {
+      allSummitsLoading = null;
+    }
+  }
+
+  function buildAllSummitPopupHtml(entry){
+    const pinned = state.candidates.has(entry.key);
+    const isRef = entry.key === state.referenceKey;
+    const meta = summitMetaLine(entry);
+    const refBtn = isRef
+      ? `<button type="button" class="btn-ref" data-allsummit-clearref>clear reference</button>`
+      : `<button type="button" class="btn-ref" data-allsummit-setref>set as reference</button>`;
+    const pinBtn = pinned
+      ? `<button type="button" class="btn-ref danger" data-allsummit-unpin>remove pin</button>`
+      : `<button type="button" class="btn-ref" data-allsummit-pin>pin this summit</button>`;
+    return `<div class="sota-popup">` +
+      `<div class="popup-title">${escapeHtml(entry.name)} <span class="code">${escapeHtml(entry.key)}</span></div>` +
+      (meta ? `<div class="popup-meta">${escapeHtml(meta)}</div>` : '') +
+      `<div class="popup-ref">${refBtn} ${pinBtn}</div>` +
+      `</div>`;
+  }
+
+  function renderAllSummitsOverlay(){
+    if (!allSummitsLayer) return;
+    allSummitsLayer.clearLayers();
+    document.getElementById('all-summits-note').textContent = '';
+    if (!allSummitsEnabled || !allSummitsData) return;
+    if (map.getZoom() < ALL_SUMMITS_MIN_ZOOM){
+      document.getElementById('all-summits-note').textContent = 'zoom in further to show all summits here';
+      return;
+    }
+    const bounds = map.getBounds();
+    // Skip anything already shown as a "real" pin (alerted, pinned, or the
+    // reference) — those already have their own, more prominent marker;
+    // showing a second dim dot underneath would just be visual clutter.
+    const inView = allSummitsData.filter(s =>
+      bounds.contains([s.lat, s.lon]) && !state.summitMap.has(s.key));
+    if (inView.length > ALL_SUMMITS_MAX_MARKERS){
+      document.getElementById('all-summits-note').textContent =
+        `${inView.length} summits in view — zoom in further to show them`;
+      return;
+    }
+    for (const entry of inView){
+      const marker = L.circleMarker([entry.lat, entry.lon], {
+        renderer: allSummitsRenderer,
+        radius: 4,
+        weight: 1,
+        color: '#fff',
+        fillColor: cssVar('--text-dim'),
+        fillOpacity: 0.9,
+      }).bindPopup(() => buildAllSummitPopupHtml(entry)); // a function, not a string: re-evaluated on each open so pin/reference state stays current
+      marker.on('popupopen', (e) => {
+        const el = e.popup.getElement();
+        if (!el) return;
+        const setBtn = el.querySelector('[data-allsummit-setref]');
+        if (setBtn) setBtn.addEventListener('click', () => {
+          pinCandidate({ ...entry, ...splitSummitKey(entry.key) }, { asReference: true });
+          marker.closePopup();
+        });
+        const clearBtn = el.querySelector('[data-allsummit-clearref]');
+        if (clearBtn) clearBtn.addEventListener('click', () => { state.referenceKey = null; renderAll(); marker.closePopup(); });
+        const pinBtn = el.querySelector('[data-allsummit-pin]');
+        if (pinBtn) pinBtn.addEventListener('click', () => {
+          pinCandidate({ ...entry, ...splitSummitKey(entry.key) });
+          marker.closePopup();
+        });
+        const unpinBtn = el.querySelector('[data-allsummit-unpin]');
+        if (unpinBtn) unpinBtn.addEventListener('click', () => { unpinCandidate(entry.key); marker.closePopup(); });
+      });
+      marker.addTo(allSummitsLayer);
     }
   }
 
@@ -1654,6 +1768,7 @@
     renderMarkers(groups, state.summitMap, ownSet, state.referenceKey, state.candidates, fitView);
     renderAlertList(visible, ownSet, state.summitMap, state.referenceKey);
     renderCandidatesList(state.candidates, state.summitMap, state.referenceKey);
+    renderAllSummitsOverlay(); // re-exclude/-include summits that just became (un)pinned or the reference
     updateStats(visible, groups, ownSet);
   }
 
@@ -1759,6 +1874,34 @@
     });
     document.getElementById('btn-toggle-bandmode').addEventListener('click', () => {
       document.getElementById('bandmode-panel').classList.toggle('show');
+    });
+    document.getElementById('btn-toggle-all-summits').addEventListener('click', async () => {
+      const btn = document.getElementById('btn-toggle-all-summits');
+      allSummitsEnabled = !allSummitsEnabled;
+      btn.classList.toggle('active', allSummitsEnabled);
+      if (!allSummitsEnabled){
+        allSummitsLayer.clearLayers();
+        map.removeLayer(allSummitsLayer);
+        document.getElementById('all-summits-note').textContent = '';
+        return;
+      }
+      allSummitsLayer.addTo(map);
+      if (!allSummitsData){
+        btn.disabled = true;
+        document.getElementById('all-summits-note').textContent = 'loading…';
+        try { await loadAllSummitsData(); }
+        catch (err) {
+          allSummitsEnabled = false;
+          btn.classList.remove('active');
+          map.removeLayer(allSummitsLayer);
+          addWarning(`could not load the all-summits data (${err.message}). It's a build-time-generated file — if you're running this locally without having run "just fetch", it won't exist yet.`);
+          document.getElementById('all-summits-note').textContent = '';
+          btn.disabled = false;
+          return;
+        }
+        btn.disabled = false;
+      }
+      renderAllSummitsOverlay();
     });
     document.getElementById('btn-clear-bandmode').addEventListener('click', () => {
       state.selectedBands.clear();

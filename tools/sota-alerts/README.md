@@ -364,6 +364,64 @@ order in the URL — sotl.as reverses this internally for Mapbox GL's
 `[lng,lat]` convention, so getting the order right here matters
 (`sotlasUrlForCurrentView()`).
 
+## "All summits" overlay — every SOTA summit, zero live SOTA API traffic
+
+An "all summits" toggle shows every summit currently in view — not just
+alerted/pinned ones — as small gray dots, sourced from SOTA's own
+authoritative database rather than the sparse OSM-tagged subset "find in
+view" uses. The trick is *when* the data gets fetched:
+
+- **`storage.sota.org.uk/summitslist.csv`** (the full database, ~180,000
+  summits) has no CORS support for browser requests at all (verified live,
+  see the CORS findings section above) — a visitor's browser could never
+  fetch this directly regardless of how carefully it asked.
+- Even if it could, ~180,000 individual summits is not something every
+  visitor's browser should download fresh on every page load — that's
+  exactly the "too much traffic" the feature needed to avoid.
+
+So it's fetched **once, at site build time**, not by the browser at all:
+`docs/scripts/fetch_summits.py` downloads the CSV server-side (no CORS
+issue there — it's not a browser request), trims each row to just
+`{key, name, lat, lon, altM, points}`, drops summits outside their
+`ValidFrom`/`ValidTo` window, and writes the result to
+`docs/docs/sota-alerts/data/summits.json` — a same-origin static asset
+shipped with the site. Live-tested: ~182,000 CSV rows → 172,121 valid
+summits → 16.2MB JSON (3.2MB gzipped). The browser fetches this exactly
+like any other page asset, lazily and only once per session, the first
+time "all summits" is turned on.
+
+**Caching across builds**: re-downloading 24MB on every routine rebuild
+during development would be its own kind of "too much traffic," so the
+script caches the raw CSV (keyed by mtime, 7-day max age matching SOTA's
+own weekly refresh cadence — set `SOTA_SUMMITS_FORCE_REFRESH=1` to bypass)
+in `docs/.cache/sota-summits/`, mounted as a BuildKit cache volume in the
+Dockerfile (`RUN --mount=type=cache,target=/srv/docs/.cache/sota-summits`,
+the same pattern already used there for `uv`'s cache, Zensical's own build
+cache, and JupyterLite's cache) so it survives across image rebuilds
+without being baked into the image itself. `just fetch` (and anything that
+depends on it — `just docs-preview`, `docker build`) regenerates it
+locally the same way, using a plain gitignored directory instead of a
+BuildKit mount. `just fetch` is split into `fetch-notebooks` +
+`fetch-summits` specifically so `just serve` (the fast, Markdown-only dev
+server) can depend on just the cheap/cached `fetch-summits` step — this
+tool needs that data to work at all, but pulling in the much heavier
+notebook-fetch pipeline just for that would defeat the point of `serve`
+being the fast path. `just build`/`docs-preview`/`docker build` all still
+get the full `fetch` (both).
+
+**Rendering**: capped to viewport + a minimum zoom (9) and a hard count
+cap (800) — a wide-open view can contain tens of thousands of summits,
+which would choke the browser regardless of data source; both cases show
+a small inline note asking to zoom in rather than silently doing nothing.
+Filtering the full dataset by the current viewport bounds is a plain
+array `.filter()` — measured at ~3ms for a regional view over the full
+172k-summit set, no spatial index needed. Markers are `L.circleMarker`s
+routed through one shared `L.canvas()` renderer rather than Leaflet's
+default per-marker SVG, which visibly lags once you're placing hundreds of
+them. Any summit already shown as a "real" pin (alerted, pinned, or the
+reference) is excluded here, so pinning one from this overlay doesn't
+leave a redundant gray dot under its new, more prominent marker.
+
 ## Shareable link
 
 A "share" toolbar button (`buildShareUrl()`) copies a URL encoding the
