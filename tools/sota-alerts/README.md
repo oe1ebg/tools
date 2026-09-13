@@ -382,13 +382,23 @@ view" uses. The trick is *when* the data gets fetched:
 So it's fetched **once, at site build time**, not by the browser at all:
 `docs/scripts/fetch_summits.py` downloads the CSV server-side (no CORS
 issue there — it's not a browser request), trims each row to just
-`{key, name, lat, lon, altM, points}`, drops summits outside their
-`ValidFrom`/`ValidTo` window, and writes the result to
-`docs/docs/sota-alerts/data/summits.json` — a same-origin static asset
-shipped with the site. Live-tested: ~182,000 CSV rows → 172,121 valid
-summits → 16.2MB JSON (3.2MB gzipped). The browser fetches this exactly
-like any other page asset, lazily and only once per session, the first
-time "all summits" is turned on.
+`{key, name, lat, lon, altM, points, bonusPoints}` (the last one omitted
+when zero), drops summits outside their `ValidFrom`/`ValidTo` window, and
+writes the result to `docs/docs/sota-alerts/data/summits.json` — a
+same-origin static asset shipped with the site. Live-tested: ~182,000 CSV
+rows → 172,121 currently-valid summits → 16.2MB JSON (3.2MB gzipped). The
+browser fetches this exactly like any other page asset, lazily and only
+once per session, the first time "all summits" is turned on.
+
+Bonus points are real per-summit data, not derivable from the points tier
+alone — checked live against the raw CSV: a fixed +3 bonus shows up across
+*every* points tier (1/2/4/6/8/10), affecting 96,282 of the 172,121 valid
+summits, not tied to any one tier. They're shown in `summitMetaLine()`
+alongside the base points (`"10 pts (+3 bonus)"`) wherever that helper is
+used — but in practice this only ever appears on "all summits" overlay
+entries, since the per-summit and search API endpoints used for alerts/
+pinned-candidate summits elsewhere in the app don't expose bonus points at
+all (checked live — absent from both response shapes).
 
 **Caching across builds**: re-downloading 24MB on every routine rebuild
 during development would be its own kind of "too much traffic," so the

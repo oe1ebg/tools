@@ -93,6 +93,17 @@ def parse_summits(raw: str) -> list[dict]:
                 entry["points"] = int(points)
             except ValueError:
                 pass
+        # Real per-summit data, not derivable from points alone — checked
+        # live: bonus points (always exactly 3 where present) show up at
+        # every points tier (1/2/4/6/8/10), not just for one of them.
+        bonus_points = row.get("BonusPoints")
+        if bonus_points:
+            try:
+                bonus = int(bonus_points)
+                if bonus:
+                    entry["bonusPoints"] = bonus
+            except ValueError:
+                pass
         summits.append(entry)
     return summits
 

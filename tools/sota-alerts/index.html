@@ -1160,7 +1160,17 @@
   // grid) comes straight from the SOTA API but was previously fetched and
   // discarded — hams commonly want it alongside lat/lon.
   function summitMetaLine(s){
-    return [s.altM ? `${s.altM}m` : null, s.points != null ? `${s.points} pts` : null, s.locator || null]
+    let ptsPart = null;
+    if (s.points != null){
+      ptsPart = `${s.points} pts`;
+      // Real per-summit data (a fixed bonus tied to certain summits, not
+      // derivable from the points tier alone — checked live, it shows up
+      // across every points tier, not just one), only ever present on
+      // entries sourced from the "all summits" bulk data, since the
+      // per-summit/search API endpoints used elsewhere don't expose it.
+      if (s.bonusPoints) ptsPart += ` (+${s.bonusPoints} bonus)`;
+    }
+    return [s.altM ? `${s.altM}m` : null, ptsPart, s.locator || null]
       .filter(Boolean).join(' · ');
   }
 
