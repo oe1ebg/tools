@@ -208,12 +208,59 @@
   }
   #callsigns-input{ width:16em; }
   input[type=date]{ min-width:9.5em; }
-  #stats{ color:var(--text-dim); white-space:nowrap; }
   #all-summits-note{ color:var(--text-dim); font-size:11px; }
+  .spacer{ flex:1; }
+
+  /* A single-line status bar under the toolbar, always its own row —
+     previously #stats/#ref-indicator lived inline in the toolbar's flex-wrap
+     flow, where they'd land in an arbitrary, sometimes visually orphaned
+     spot mid-row depending on viewport width and how many buttons wrapped
+     around them. */
+  #statusbar{
+    display:flex;
+    align-items:center;
+    gap:.3em 1em;
+    padding:.4em .8em;
+    background:var(--bg);
+    border-bottom:1px solid var(--line);
+    font-size:12px;
+  }
+  #stats{ color:var(--text-dim); }
   #stats b{ color:var(--text); font-weight:600; }
   #ref-indicator{ color:var(--route); white-space:nowrap; font-weight:600; }
   #ref-indicator button{ padding:0 .3em; font-size:11px; border:none; color:var(--text-dim); }
-  .spacer{ flex:1; }
+
+  /* Grouped "date range" control: from/to inputs presented as one pill
+     (same visual language as .toggle-group) with an arrow between them,
+     rather than two separately-labeled "from (UTC)"/"to (UTC)" fields
+     repeating "(UTC)" and reading as unrelated. */
+  .date-range-group{
+    display:flex;
+    align-items:stretch;
+    border:1px solid var(--line);
+    border-radius:.3rem;
+    overflow:hidden;
+    background:var(--bg);
+  }
+  .date-range-group input[type=date]{
+    border:none;
+    border-radius:0;
+    background:transparent;
+  }
+  .date-range-group input[type=date]:focus{
+    outline:1px solid var(--accent);
+    outline-offset:-2px;
+    z-index:1;
+  }
+  .date-range-arrow{
+    display:flex;
+    align-items:center;
+    padding:0 .5em;
+    color:var(--text-dim);
+    border-left:1px solid var(--line);
+    border-right:1px solid var(--line);
+    font-size:11px;
+  }
 
   #warnings{
     display:none;
@@ -412,12 +459,12 @@
   <h1>SOTA ALERTS MAP</h1>
   <span class="sep">/</span>
   <div class="field">
-    <label for="range-from">from (UTC)</label>
-    <input id="range-from" type="date">
-  </div>
-  <div class="field">
-    <label for="range-to">to (UTC)</label>
-    <input id="range-to" type="date">
+    <label for="range-from">date range (UTC)</label>
+    <div class="date-range-group">
+      <input id="range-from" type="date" aria-label="from date (UTC)">
+      <span class="date-range-arrow">→</span>
+      <input id="range-to" type="date" aria-label="to date (UTC)">
+    </div>
   </div>
   <button type="button" id="btn-today" title="jump the date range to today (UTC)">today</button>
   <div class="field">
@@ -430,8 +477,6 @@
     <button type="button" id="btn-summit-search">search</button>
     <button type="button" id="btn-area-search" title="find summits tagged in OpenStreetMap within the current map view (coverage is partial)">find in view</button>
   </div>
-  <span id="stats"></span>
-  <span id="ref-indicator"></span>
   <div class="spacer"></div>
   <button id="btn-share" title="copy a link that reproduces this date range, reference summit, and pinned summits">share</button>
   <button id="btn-open-sotlas" title="open sotl.as, centered on the same area this map is currently showing">view on sotl.as ↗</button>
@@ -442,6 +487,11 @@
   <button type="button" id="btn-toggle-all-summits" title="show every SOTA summit in the current view (not just alerted/pinned ones) — built at site build time, no live SOTA API calls">all summits</button>
   <span id="all-summits-note"></span>
   <button id="btn-toggle-list">list ▾</button>
+</div>
+
+<div id="statusbar">
+  <span id="stats"></span>
+  <span id="ref-indicator"></span>
 </div>
 
 <div id="search-panel"></div>
