@@ -381,6 +381,59 @@
     #list-panel{ width:auto; max-height:40vh; border-left:none; border-top:1px solid var(--line); }
   }
 
+  /* #toolbar-controls/.field-actions are only meaningful at phone widths
+     (below) — display:contents here makes both wrappers invisible to
+     layout otherwise, so their children behave exactly as if the wrappers
+     didn't exist and desktop/tablet toolbar layout is untouched. */
+  .mobile-only{ display:none; }
+  #toolbar-controls{ display:contents; }
+  .field-actions{ display:contents; }
+
+  /* Phone layout: the toolbar's filters/actions are the main thing eating
+     vertical space that should go to the map (confirmed live at 390×844 —
+     they pushed the map below the fold entirely), so they collapse behind
+     "filters ▾" by default; only the title and that toggle stay in the
+     always-visible row. Also fixes #site-header wrapping the "back to
+     site" link's own text mid-word at narrow widths (it was shrinking
+     along with everything else with nowhere else to give). */
+  @media (max-width: 600px){
+    #site-header{ flex-wrap:wrap; }
+    .badge{ flex-basis:100%; order:10; white-space:normal; }
+
+    .mobile-only{ display:inline-flex; }
+
+    #toolbar-controls{
+      display:none;
+      flex-direction:column;
+      align-items:stretch;
+      width:100%;
+      gap:.6em;
+      margin-top:.4em;
+    }
+    #toolbar-controls.show{ display:flex; }
+    #toolbar-controls .field{ flex-direction:column; align-items:stretch; gap:.25em; }
+    #toolbar-controls .date-range-group input[type=date]{ min-width:0; flex:1; }
+    #toolbar-controls #callsigns-input,
+    #toolbar-controls #summit-search{ width:auto; }
+    #toolbar-controls .field-actions{ display:flex; gap:.4em; }
+    #toolbar-controls .field-actions button{ flex:1; }
+    #toolbar-controls .spacer{ display:none; }
+    #toolbar-controls > button{ width:100%; }
+
+    /* Bigger touch targets — the desktop sizing (padding:.35em) measures
+       out to a ~22px tall hit area, well under the ~44px platform
+       guideline for a touch target. */
+    button, .btn{ padding:.6em .8em; font-size:13px; }
+    input[type=text], input[type=date]{ padding:.6em .6em; font-size:13px; }
+
+    /* Search/"find in view" result cards: the name text and "set as
+       reference"/"+ pin" buttons were squeezed into one row (space-between)
+       — fine on desktop, cramped on a phone-width card. */
+    .search-result-top{ flex-wrap:wrap; }
+    .search-result-actions{ width:100%; }
+    .search-result-actions button{ flex:1; }
+  }
+
   /* Leaflet overrides so popups/controls follow the page's own light/dark theme
      instead of Leaflet's hardcoded white/black defaults. */
   .leaflet-popup-content-wrapper, .leaflet-popup-tip{ background:var(--bg); color:var(--text); }
@@ -458,35 +511,45 @@
 <div id="toolbar">
   <h1>SOTA ALERTS MAP</h1>
   <span class="sep">/</span>
-  <div class="field">
-    <label for="range-from">date range (UTC)</label>
-    <div class="date-range-group">
-      <input id="range-from" type="date" aria-label="from date (UTC)">
-      <span class="date-range-arrow">→</span>
-      <input id="range-to" type="date" aria-label="to date (UTC)">
+  <!-- Hidden except at phone widths (see the max-width:600px media query) —
+       everything below collapses behind this on a phone so the map gets
+       the screen instead of a wall of controls; desktop/tablet render
+       #toolbar-controls' children as if this wrapper weren't there at all
+       (display:contents), so this button and class have zero effect there. -->
+  <button type="button" id="btn-toggle-toolbar" class="mobile-only" aria-expanded="false">filters ▾</button>
+  <div id="toolbar-controls">
+    <div class="field">
+      <label for="range-from">date range (UTC)</label>
+      <div class="date-range-group">
+        <input id="range-from" type="date" aria-label="from date (UTC)">
+        <span class="date-range-arrow">→</span>
+        <input id="range-to" type="date" aria-label="to date (UTC)">
+      </div>
     </div>
+    <button type="button" id="btn-today" title="jump the date range to today (UTC)">today</button>
+    <div class="field">
+      <label for="callsigns-input">my callsign(s)</label>
+      <input id="callsigns-input" type="text" placeholder="OE1ABC, OE1ABC/P">
+    </div>
+    <div class="field">
+      <label for="summit-search">pin a summit</label>
+      <input id="summit-search" type="text" placeholder="name or code…">
+      <div class="field-actions">
+        <button type="button" id="btn-summit-search">search</button>
+        <button type="button" id="btn-area-search" title="find summits tagged in OpenStreetMap within the current map view (coverage is partial)">find in view</button>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <button id="btn-share" title="copy a link that reproduces this date range, reference summit, and pinned summits">share</button>
+    <button id="btn-open-sotlas" title="open sotl.as, centered on the same area this map is currently showing">view on sotl.as ↗</button>
+    <button id="btn-locate" title="center the map on your current location">locate me</button>
+    <button id="btn-refresh-alerts">refresh alerts</button>
+    <button id="btn-refresh-summits" title="force re-fetch of summit coordinates, bypassing the local cache">refresh summit data</button>
+    <button id="btn-toggle-bandmode">bands/modes ▾</button>
+    <button type="button" id="btn-toggle-all-summits" title="show every SOTA summit in the current view (not just alerted/pinned ones) — built at site build time, no live SOTA API calls">all summits</button>
+    <span id="all-summits-note"></span>
+    <button id="btn-toggle-list">list ▾</button>
   </div>
-  <button type="button" id="btn-today" title="jump the date range to today (UTC)">today</button>
-  <div class="field">
-    <label for="callsigns-input">my callsign(s)</label>
-    <input id="callsigns-input" type="text" placeholder="OE1ABC, OE1ABC/P">
-  </div>
-  <div class="field">
-    <label for="summit-search">pin a summit</label>
-    <input id="summit-search" type="text" placeholder="name or code…">
-    <button type="button" id="btn-summit-search">search</button>
-    <button type="button" id="btn-area-search" title="find summits tagged in OpenStreetMap within the current map view (coverage is partial)">find in view</button>
-  </div>
-  <div class="spacer"></div>
-  <button id="btn-share" title="copy a link that reproduces this date range, reference summit, and pinned summits">share</button>
-  <button id="btn-open-sotlas" title="open sotl.as, centered on the same area this map is currently showing">view on sotl.as ↗</button>
-  <button id="btn-locate" title="center the map on your current location">locate me</button>
-  <button id="btn-refresh-alerts">refresh alerts</button>
-  <button id="btn-refresh-summits" title="force re-fetch of summit coordinates, bypassing the local cache">refresh summit data</button>
-  <button id="btn-toggle-bandmode">bands/modes ▾</button>
-  <button type="button" id="btn-toggle-all-summits" title="show every SOTA summit in the current view (not just alerted/pinned ones) — built at site build time, no live SOTA API calls">all summits</button>
-  <span id="all-summits-note"></span>
-  <button id="btn-toggle-list">list ▾</button>
 </div>
 
 <div id="statusbar">
@@ -2036,6 +2099,13 @@
     document.getElementById('btn-refresh-summits').addEventListener('click', async () => {
       await loadSummits(true);
       renderAll();
+    });
+    document.getElementById('btn-toggle-toolbar').addEventListener('click', () => {
+      const controls = document.getElementById('toolbar-controls');
+      const btn = document.getElementById('btn-toggle-toolbar');
+      const shown = controls.classList.toggle('show');
+      btn.setAttribute('aria-expanded', String(shown));
+      btn.textContent = shown ? 'filters ▴' : 'filters ▾';
     });
     document.getElementById('btn-toggle-list').addEventListener('click', () => {
       document.getElementById('list-panel').classList.toggle('show');
