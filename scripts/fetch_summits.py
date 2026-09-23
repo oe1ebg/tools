@@ -24,6 +24,16 @@ DOCS_DIR = Path(__file__).resolve().parent.parent
 CACHE_DIR = DOCS_DIR / ".cache" / "sota-summits"
 CACHE_CSV_PATH = CACHE_DIR / "summitslist.csv"
 OUTPUT_PATH = DOCS_DIR / "docs" / "sota-alerts" / "data" / "summits.json"
+# A much smaller sibling of summits.json, keyed for O(1) lookup by summit
+# code and used as a static-first source for per-summit coordinate
+# resolution (see index.html's resolveSummits()) — checked before ever
+# calling api2.sota.org.uk/api/summits/{assoc}/{code} live, since summit
+# coordinates barely change and this turns a cold cache's tens-to-hundreds
+# of live per-summit requests into zero for any summit already in this
+# weekly-refreshed list. Array-of-tuples rather than one-object-per-summit
+# (i.e. summits.json's own shape): ~9.8MB vs ~17.8MB for the identical
+# fields, purely from not repeating key names in every entry.
+LOOKUP_OUTPUT_PATH = DOCS_DIR / "docs" / "sota-alerts" / "data" / "summit-lookup.json"
 
 
 def fetch_csv_text() -> str:
@@ -108,6 +118,13 @@ def parse_summits(raw: str) -> list[dict]:
     return summits
 
 
+def build_lookup_rows(summits: list[dict]) -> list[list]:
+    return [
+        [s["key"], s["lat"], s["lon"], s["name"], s.get("altM"), s.get("points"), s.get("bonusPoints")]
+        for s in summits
+    ]
+
+
 def main() -> None:
     raw = fetch_csv_text()
     summits = parse_summits(raw)
@@ -115,6 +132,10 @@ def main() -> None:
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT_PATH.write_text(json.dumps(summits, separators=(",", ":")), encoding="utf-8")
     print(f"fetch_summits: wrote {len(summits)} summits to {OUTPUT_PATH}")
+
+    lookup_rows = build_lookup_rows(summits)
+    LOOKUP_OUTPUT_PATH.write_text(json.dumps(lookup_rows, separators=(",", ":")), encoding="utf-8")
+    print(f"fetch_summits: wrote {len(lookup_rows)} lookup rows to {LOOKUP_OUTPUT_PATH}")
 
 
 if __name__ == "__main__":

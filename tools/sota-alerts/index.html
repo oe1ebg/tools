@@ -474,6 +474,11 @@
 
   const ALERTS_URL = 'https://api2.sota.org.uk/api/alerts';
   const summitUrl = (assoc, code) => `https://api2.sota.org.uk/api/summits/${encodeURIComponent(assoc)}/${encodeURIComponent(code)}`;
+  // Same-origin, build-time-generated (docs/scripts/fetch_summits.py) sibling
+  // of the "all summits" overlay's summits.json, but keyed for lookup and
+  // much smaller (~9.8MB vs ~17.7MB) since it's fetched on essentially every
+  // session rather than lazily on-demand — see resolveSummits() below.
+  const SUMMIT_LOOKUP_URL = 'data/summit-lookup.json';
 
   const LS_KEY_CALLSIGNS = 'sota-alerts-callsigns';
   const LS_KEY_SUMMIT_CACHE = 'sota-alerts-summit-cache';
@@ -784,12 +789,18 @@
     catch { addWarning('could not save your pinned summits locally (storage full or blocked).'); }
   }
 
-  async function searchSummits(term){
-    const res = await fetch(summitSearchUrl(term));
+  async function searchSummits(term, signal){
+    const res = await fetch(summitSearchUrl(term), { signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     return Array.isArray(data) ? data : [];
   }
+
+  // Session-only, case-insensitive memoization of search results — retyping/
+  // backspacing to a term already searched (common while narrowing a query)
+  // shouldn't re-hit the API for the exact same string.
+  const summitSearchCache = new Map();
+  let summitSearchAbortController = null; // cancels a still-in-flight search when a newer one supersedes it, so a slow response to an earlier keystroke can't overwrite a later one's results
 
   // The search endpoint returns a combined "ASSOC/CODE" summitCode (unlike
   // the alerts feed, which has associationCode/summitCode as separate
@@ -875,19 +886,18 @@
     // as a pin too, same as clicking "set as reference" in a search result.
     if (refKey) pinKeys.add(refKey);
 
-    const toFetch = [...pinKeys].filter(k => !state.candidates.has(k));
-    const resolved = await Promise.all(toFetch.map(async key => {
-      const { assoc, code } = splitSummitKey(key);
-      try {
-        const summit = await fetchSummit(assoc, code);
-        return summit ? { key, assoc, code, ...summit } : null;
-      } catch (err) {
-        console.error(`shared-link summit lookup failed for ${key}:`, err);
-        return null;
-      }
-    }));
+    // Routed through resolveSummits() (static-lookup-first, live API as
+    // fallback, concurrency-capped) rather than a raw per-key fetchSummit()
+    // loop — a shared link with many pins shouldn't fire an unbounded
+    // Promise.all of live requests any more than loading alerts should.
+    const toFetch = [...pinKeys].filter(k => !state.candidates.has(k)).map(key => ({ key, ...splitSummitKey(key) }));
+    const resolvedMap = await resolveSummits(toFetch, false);
     let anyMissing = false;
-    resolved.forEach(cand => { if (cand) state.candidates.set(cand.key, cand); else anyMissing = true; });
+    for (const e of toFetch){
+      const summit = resolvedMap.get(e.key);
+      if (summit) state.candidates.set(e.key, { key: e.key, assoc: e.assoc, code: e.code, ...summit });
+      else anyMissing = true;
+    }
     if (toFetch.length) saveCandidates(state.candidates);
     if (anyMissing) addWarning("some summits from the shared link couldn't be found and were skipped.");
 
@@ -901,7 +911,40 @@
     return true;
   }
 
-  /* ---------- summit coordinate lookup (per-summit API call, cached in localStorage) ---------- */
+  /* ---------- summit coordinate lookup (static-first, live API as fallback, cached in localStorage) ---------- */
+
+  let summitLookupData = null;    // Map<key, record> built from SUMMIT_LOOKUP_URL, lazy-loaded once on first use
+  let summitLookupLoading = null; // in-flight load promise, so concurrent resolveSummits() calls can't trigger duplicate fetches
+
+  // Same same-origin/lazy/memoized pattern as loadAllSummitsData() below, but
+  // for the small keyed lookup rather than the full overlay dataset.
+  async function loadSummitLookupData(){
+    if (summitLookupData) return summitLookupData;
+    if (summitLookupLoading) return summitLookupLoading;
+    summitLookupLoading = (async () => {
+      const res = await fetch(SUMMIT_LOOKUP_URL);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const rows = await res.json();
+      const map = new Map();
+      for (const [key, lat, lon, name, altM, points, bonusPoints] of rows){
+        const rec = { name, lat, lon, locator: null };
+        if (altM != null) rec.altM = altM;
+        if (points != null) rec.points = points;
+        if (bonusPoints != null) rec.bonusPoints = bonusPoints;
+        map.set(key, rec);
+      }
+      return map;
+    })();
+    try {
+      summitLookupData = await summitLookupLoading;
+    } catch (err) {
+      console.error('summit lookup data failed to load, falling back to the live API for every summit:', err);
+      summitLookupData = new Map(); // empty, not null — don't retry the failing fetch on every resolveSummits() call
+    } finally {
+      summitLookupLoading = null;
+    }
+    return summitLookupData;
+  }
 
   function loadSummitCache(){
     try { return JSON.parse(localStorage.getItem(LS_KEY_SUMMIT_CACHE) || '{}'); }
@@ -928,11 +971,16 @@
     };
   }
 
-  // Resolves {key, assoc, code} entries to summit records, using a
-  // localStorage cache (TTL-based) and fetching only what's missing/stale,
-  // with a small concurrency pool so a busy day doesn't fire 100+ requests
-  // at once. Returns a Map<key, summitRecord> (entries with no coordinates
-  // or a failed lookup are simply absent — never guessed at).
+  // Resolves {key, assoc, code} entries to summit records: localStorage
+  // cache first (TTL-based), then the static build-time lookup (free —
+  // same-origin, already loaded), and only what's missing from *both* goes
+  // to the live per-summit API, through a small concurrency pool so a busy
+  // day doesn't fire 100+ requests at once. `force` (the "refresh summits"
+  // button) skips straight to the live API for every entry, same as before
+  // — it exists precisely to get authoritative fresh data, not whatever the
+  // last weekly build happened to have. Returns a Map<key, summitRecord>
+  // (entries with no coordinates or a failed lookup are simply absent —
+  // never guessed at).
   async function resolveSummits(entries, force){
     const cache = loadSummitCache();
     const now = Date.now();
@@ -946,11 +994,29 @@
         toFetch.push(e);
       }
     }
-    let idx = 0;
+
     let cacheChanged = false;
+    let stillMissing = toFetch;
+    if (!force && toFetch.length){
+      const lookup = await loadSummitLookupData();
+      stillMissing = [];
+      for (const e of toFetch){
+        const found = lookup.get(e.key);
+        if (found){
+          const record = { ...found, fetchedAt: now };
+          result.set(e.key, record);
+          cache[e.key] = record;
+          cacheChanged = true;
+        } else {
+          stillMissing.push(e);
+        }
+      }
+    }
+
+    let idx = 0;
     async function worker(){
-      while (idx < toFetch.length){
-        const e = toFetch[idx++];
+      while (idx < stillMissing.length){
+        const e = stillMissing[idx++];
         try {
           const summit = await fetchSummit(e.assoc, e.code);
           if (summit){
@@ -963,7 +1029,7 @@
         }
       }
     }
-    const workers = Array.from({ length: Math.min(FETCH_POOL_SIZE, toFetch.length) }, worker);
+    const workers = Array.from({ length: Math.min(FETCH_POOL_SIZE, stillMissing.length) }, worker);
     await Promise.all(workers);
     if (cacheChanged) saveSummitCache(cache);
     return result;
@@ -1623,12 +1689,30 @@
 
   async function doSummitSearch(term){
     const panel = document.getElementById('search-panel');
-    if (!term.trim()){ panel.innerHTML = ''; panel.classList.remove('show'); return; }
+    const trimmed = term.trim();
+    if (!trimmed){ panel.innerHTML = ''; panel.classList.remove('show'); return; }
+
+    const cacheKey = trimmed.toLowerCase();
+    const cached = summitSearchCache.get(cacheKey);
+    if (cached){
+      renderPinCandidateResults(cached.map(candidateFromSearchResult).filter(c => c.lat != null), 'no summits found.');
+      return;
+    }
+
+    if (summitSearchAbortController) summitSearchAbortController.abort();
+    const controller = new AbortController();
+    summitSearchAbortController = controller;
+
     panel.innerHTML = '<div class="search-hint">searching…</div>';
     panel.classList.add('show');
     let results;
-    try { results = await searchSummits(term.trim()); }
-    catch (err) { panel.innerHTML = `<div class="search-hint">search failed (${escapeHtml(err.message)}).</div>`; return; }
+    try { results = await searchSummits(trimmed, controller.signal); }
+    catch (err) {
+      if (err.name === 'AbortError') return; // superseded by a newer search
+      panel.innerHTML = `<div class="search-hint">search failed (${escapeHtml(err.message)}).</div>`;
+      return;
+    }
+    summitSearchCache.set(cacheKey, results);
     renderPinCandidateResults(results.map(candidateFromSearchResult).filter(c => c.lat != null), 'no summits found.');
   }
 

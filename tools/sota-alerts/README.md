@@ -75,15 +75,16 @@ without needing an actual browser):
   this file from this site would be blocked by CORS.**
 
 **Consequence for the design:** rather than downloading/caching the full CSV
-(which turned out to be a dead end for a pure static page anyway), summit
-coordinates are looked up one summit at a time via
-`GET https://api2.sota.org.uk/api/summits/{associationCode}/{summitCode}`,
-which returns `latitude`/`longitude` plus name/altitude/points and has the
-same open CORS policy as the alerts endpoint. Only summit codes actually
-referenced by the currently-loaded alerts are looked up — typically tens to
-low hundreds, not 179,500 — with a small (6-way) concurrency cap and a
-`localStorage` cache (30-day TTL, since summit metadata rarely changes) so
-repeat visits don't refetch. This is simpler and more robust than the
+client-side (which turned out to be a dead end for a pure static page
+anyway), summit coordinates are resolved static-first from a small keyed
+subset of that same CSV, generated at build time — see "Static-first summit
+lookup" below — with `GET https://api2.sota.org.uk/api/summits/{assoc}/
+{summitCode}` (returns `latitude`/`longitude` plus name/altitude/points, same
+open CORS policy as the alerts endpoint) called live only for whatever isn't
+in that static set: summits created after the last weekly build, or
+deliberately-bogus codes some alerts contain. A small (6-way) concurrency cap
+and a `localStorage` cache (30-day TTL) still apply on top, for whichever
+path resolved a given summit. This is simpler and more robust than the raw
 CSV-caching approach originally planned, and sidesteps the CORS block
 entirely instead of needing a proxy.
 
@@ -165,11 +166,17 @@ entirely instead of needing a proxy.
   marker's identity always being confirmable via its popup, never
   color-alone.
 - **Pin a summit (search-and-pin)** — the toolbar search box hits
-  `/api/summits/search/{term}` (name or code) and lets you pin any summit as
-  a candidate marker/list entry, independent of whether it currently has an
-  alert, *or* set it as the reference directly from the result card (which
-  implicitly pins it too, so the reference always has a visible marker —
-  see `pinCandidate(cand, {asReference:true})`). This is what makes the
+  `/api/summits/search/{term}` (name or code, debounced 350ms while typing,
+  ≥3 characters) and lets you pin any summit as a candidate marker/list
+  entry, independent of whether it currently has an alert, *or* set it as
+  the reference directly from the result card (which implicitly pins it
+  too, so the reference always has a visible marker — see
+  `pinCandidate(cand, {asReference:true})`). Results are memoized per exact
+  search term for the session (retyping/backspacing to the same term
+  doesn't re-hit the API), and a still-in-flight search is aborted the
+  moment a newer one supersedes it, so a slow response to an earlier
+  keystroke can't clobber a later one's results (`doSummitSearch()`). This
+  is what makes the
   tool useful even with zero alerts of your own: search a candidate summit,
   set it as reference right there, and see how it stacks up against
   currently-alerted summits without leaving the search box. Pinned summits
@@ -235,8 +242,12 @@ entirely instead of needing a proxy.
   window, no query parameters. Fields used: `dateActivated` (UTC),
   `associationCode`, `summitCode`, `activatingCallsign`, `frequency`,
   `comments`.
-- Summit coordinates: `https://api2.sota.org.uk/api/summits/{assoc}/{code}`,
-  one call per distinct summit referenced by the loaded alerts.
+- Summit coordinates: static-first from the build-time
+  `data/summit-lookup.json` (see below), falling back to
+  `https://api2.sota.org.uk/api/summits/{assoc}/{code}` live for whatever
+  isn't in it — typically just the odd bogus/placeholder summit code an
+  alert contains, not "one call per distinct summit referenced by the
+  loaded alerts" as it used to be.
 - Summit search (for pinning candidates):
   `https://api2.sota.org.uk/api/summits/search/{term}` — same CORS policy,
   returns full summit records (including lat/lon) directly, so pinning a
@@ -363,6 +374,39 @@ sotl.as has a dedicated route for exactly this,
 order in the URL — sotl.as reverses this internally for Mapbox GL's
 `[lng,lat]` convention, so getting the order right here matters
 (`sotlasUrlForCurrentView()`).
+
+## Static-first summit lookup — near-zero live per-summit API traffic
+
+`docs/scripts/fetch_summits.py` (the same build-time script behind the "all
+summits" overlay, below) also writes `docs/docs/sota-alerts/data/summit-
+lookup.json`: a small, keyed sibling of `summits.json` — `[key, lat, lon,
+name, altM, points, bonusPoints]` tuples rather than one object per summit,
+~9.8MB vs ~17.7MB for the same fields, purely from not repeating key names
+per entry. `resolveSummits()` in `index.html` checks this (lazy-loaded,
+memoized once per session) *before* ever calling
+`api2.sota.org.uk/api/summits/{assoc}/{code}` live, for anything not already
+in the `localStorage` cache. Only summits missing from the static set —
+created after the last weekly build, or a deliberately-bogus code some
+alerts contain (seen live: `ZL3/CB-XXX`) — fall through to the live API.
+
+Verified live (via a headless-Chromium session against a full alert load,
+~470 distinct summits across the whole rolling-window feed once you include
+alerts outside the default date filter): **1 live per-summit call fired**,
+for exactly the one bogus code above; everything else resolved from the
+static file. Before this, a cold cache meant a live call *per distinct
+summit* — this was the single largest source of live SOTA API traffic this
+tool generated, per an API-load audit (see git history for
+`docs/docs/sota-alerts/AGENTS.md`).
+
+The "refresh summit data" button still deliberately bypasses *both* caches
+(static and `localStorage`) and re-fetches every on-screen summit live —
+it exists precisely to get authoritative fresh data on demand, not whatever
+the last weekly build happened to have.
+
+The shared-link pin resolver (`applySharedStateFromUrl()`) is routed through
+the same `resolveSummits()` (static-first, concurrency-capped), rather than
+firing an unbounded `Promise.all` of live per-key requests as it did
+previously.
 
 ## "All summits" overlay — every SOTA summit, zero live SOTA API traffic
 
@@ -510,10 +554,14 @@ README avoids).
   changes substantially.
 - Frequency/mode is shown as SOTA's free-text string, not parsed into
   structured band/mode pairs.
-- If `storage.sota.org.uk` ever opens up CORS, or SOTA ships a smaller
-  per-association summit export, the per-summit API-call approach could be
-  revisited — it was chosen because the CSV route was blocked, not because
-  it's obviously better at scale.
+- The live per-summit API call is now only a fallback (see "Static-first
+  summit lookup" above) for whatever's missing from the weekly build-time
+  snapshot — mainly newly-created summits and bogus/placeholder codes. If
+  `storage.sota.org.uk` ever opens up CORS for browser requests, the
+  `summit-lookup.json` build step could fetch straight from the browser
+  instead, but there'd be little reason to: it already sidesteps the CORS
+  block, and shipping it pre-built keeps ~180,000 rows off of a visitor's
+  first page load.
 - No true "browse all summits" from SOTA's own API — search-and-pin plus
   the OSM/Overpass "find in view" feature (see Features above) cover this
   partially; a real bulk/region listing endpoint doesn't appear to exist on
