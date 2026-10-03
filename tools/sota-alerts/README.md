@@ -51,9 +51,8 @@ changes materially, revisit: reach out to SOTA management via
   a real archive would mean a scheduled job and persistent storage
   somewhere — a different, backend-shaped project, not a static page.
 - **No backend/proxy.** The `oe1ebg/` site is a static Zensical site served
-  by plain nginx (its own container, `oe1ebg/Dockerfile`), plus a separate
-  standalone GitHub Pages deployment (see the top-level `AGENTS.md`). There's no server-side code
-  to add a proxy to without touching both deployment paths.
+  by plain nginx (its own container, `oe1ebg/Dockerfile`). There's no
+  server-side code to add a proxy to.
 
 ## CORS findings (verified live, not assumed — this determined the whole architecture)
 
