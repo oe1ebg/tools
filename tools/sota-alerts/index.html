@@ -24,7 +24,7 @@
     --leaflet-layers-icon-filter: none;
     /* Pin/marker categorical colors, validated with the dataviz skill's
        CVD-simulation checker (all-pairs mode, since any two pin categories
-       can sit side by side on the map) — see docs/sota-alerts-README.md.
+       can sit side by side on the map) — see oe1ebg/sota-alerts-README.md.
        --pin-default is separate from --accent on purpose: --accent is the
        toolbar's button/link color and shouldn't change just because the
        pin palette does. */
@@ -587,7 +587,7 @@
 
   const ALERTS_URL = 'https://api2.sota.org.uk/api/alerts';
   const summitUrl = (assoc, code) => `https://api2.sota.org.uk/api/summits/${encodeURIComponent(assoc)}/${encodeURIComponent(code)}`;
-  // Same-origin, build-time-generated (docs/scripts/fetch_summits.py) sibling
+  // Same-origin, build-time-generated (oe1ebg/scripts/fetch_summits.py) sibling
   // of the "all summits" overlay's summits.json, but keyed for lookup and
   // much smaller (~9.8MB vs ~17.7MB) since it's fetched on essentially every
   // session rather than lazily on-demand — see resolveSummits() below.
@@ -1158,7 +1158,7 @@
   let currentGroups = new Map(); // this render's summit key -> {alerts, ...}, used by the pinned-summits list to show "alert: ..." without a separate lookup
   let popupCloseTimer = null; // debounce for hover-close, so moving from a marker into its own popup content doesn't slam it shut first
   let summitSearchDebounceTimer = null; // debounce for auto-search-as-you-type in the "pin a summit" box
-  let allSummitsData = null;    // the full ~172k-summit dataset (docs/scripts/fetch_summits.py's output), lazy-loaded once on first use
+  let allSummitsData = null;    // the full ~172k-summit dataset (oe1ebg/scripts/fetch_summits.py's output), lazy-loaded once on first use
   let allSummitsLoading = null; // in-flight load promise, so rapid toggling can't trigger duplicate fetches
   let allSummitsEnabled = false;
   let allSummitsLayer = null;
@@ -1498,7 +1498,7 @@
   }
 
   /* ---------- "all summits" overlay ----------
-     Built at site build time (docs/scripts/fetch_summits.py downloads and
+     Built at site build time (oe1ebg/scripts/fetch_summits.py downloads and
      trims SOTA's full summit database — storage.sota.org.uk doesn't allow
      browser fetches at all, see the README), shipped as a same-origin
      static asset. Loading it hits our own site, never SOTA's API, and it's

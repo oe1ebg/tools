@@ -8,10 +8,10 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
-# Powers the SOTA Alerts Map's "all summits" overlay (docs/docs/sota-alerts/),
+# Powers the SOTA Alerts Map's "all summits" overlay (oe1ebg/docs/sota-alerts/),
 # so the browser never has to fetch this itself: storage.sota.org.uk doesn't
 # send CORS headers for browser requests (verified live — see
-# docs/sota-alerts-README.md), and even if it did, ~180,000 individual
+# oe1ebg/sota-alerts-README.md), and even if it did, ~180,000 individual
 # summits is not something a visitor's browser should be downloading fresh
 # on every page load. Fetched once here, at build time, and cached across
 # rebuilds (see CACHE_DIR below) so iterating locally or rebuilding the

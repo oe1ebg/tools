@@ -50,8 +50,8 @@ changes materially, revisit: reach out to SOTA management via
   window the API currently returns; it cannot show dates outside it. Adding
   a real archive would mean a scheduled job and persistent storage
   somewhere — a different, backend-shaped project, not a static page.
-- **No backend/proxy.** The `docs/` site is a static Zensical site served
-  by plain nginx (its own container, `docs/Dockerfile`), plus a separate
+- **No backend/proxy.** The `oe1ebg/` site is a static Zensical site served
+  by plain nginx (its own container, `oe1ebg/Dockerfile`), plus a separate
   standalone GitHub Pages deployment (see the top-level `AGENTS.md`). There's no server-side code
   to add a proxy to without touching both deployment paths.
 
@@ -277,7 +277,7 @@ entirely instead of needing a proxy.
 ## Leaflet vendoring
 
 Leaflet **1.9.4** (`dist/leaflet.js`, `dist/leaflet.css`), downloaded from
-unpkg and committed under `docs/docs/sota-alerts/vendor/leaflet/`, referenced
+unpkg and committed under `oe1ebg/docs/sota-alerts/vendor/leaflet/`, referenced
 by relative path (not a CDN) — keeping the app shell itself free of live
 external dependencies, matching the ADIF editor's ethos. OSM map tiles and
 the two SOTA API endpoints are still live network calls by necessity — there
@@ -377,8 +377,8 @@ order in the URL — sotl.as reverses this internally for Mapbox GL's
 
 ## Static-first summit lookup — near-zero live per-summit API traffic
 
-`docs/scripts/fetch_summits.py` (the same build-time script behind the "all
-summits" overlay, below) also writes `docs/docs/sota-alerts/data/summit-
+`oe1ebg/scripts/fetch_summits.py` (the same build-time script behind the "all
+summits" overlay, below) also writes `oe1ebg/docs/sota-alerts/data/summit-
 lookup.json`: a small, keyed sibling of `summits.json` — `[key, lat, lon,
 name, altM, points, bonusPoints]` tuples rather than one object per summit,
 ~9.8MB vs ~17.7MB for the same fields, purely from not repeating key names
@@ -396,7 +396,7 @@ for exactly the one bogus code above; everything else resolved from the
 static file. Before this, a cold cache meant a live call *per distinct
 summit* — this was the single largest source of live SOTA API traffic this
 tool generated, per an API-load audit (see git history for
-`docs/docs/sota-alerts/AGENTS.md`).
+`oe1ebg/docs/sota-alerts/AGENTS.md`).
 
 The "refresh summit data" button still deliberately bypasses *both* caches
 (static and `localStorage`) and re-fetches every on-screen summit live —
@@ -424,11 +424,11 @@ view" uses. The trick is *when* the data gets fetched:
   exactly the "too much traffic" the feature needed to avoid.
 
 So it's fetched **once, at site build time**, not by the browser at all:
-`docs/scripts/fetch_summits.py` downloads the CSV server-side (no CORS
+`oe1ebg/scripts/fetch_summits.py` downloads the CSV server-side (no CORS
 issue there — it's not a browser request), trims each row to just
 `{key, name, lat, lon, altM, points, bonusPoints}` (the last one omitted
 when zero), drops summits outside their `ValidFrom`/`ValidTo` window, and
-writes the result to `docs/docs/sota-alerts/data/summits.json` — a
+writes the result to `oe1ebg/docs/sota-alerts/data/summits.json` — a
 same-origin static asset shipped with the site. Live-tested: ~182,000 CSV
 rows → 172,121 currently-valid summits → 16.2MB JSON (3.2MB gzipped). The
 browser fetches this exactly like any other page asset, lazily and only
@@ -448,19 +448,19 @@ all (checked live — absent from both response shapes).
 during development would be its own kind of "too much traffic," so the
 script caches the raw CSV (keyed by mtime, 7-day max age matching SOTA's
 own weekly refresh cadence — set `SOTA_SUMMITS_FORCE_REFRESH=1` to bypass)
-in `docs/.cache/sota-summits/`, mounted as a BuildKit cache volume in the
-`docs/Dockerfile` (`RUN --mount=type=cache,target=/srv/docs/.cache/sota-summits`,
+in `oe1ebg/.cache/sota-summits/`, mounted as a BuildKit cache volume in the
+`oe1ebg/Dockerfile` (`RUN --mount=type=cache,target=/srv/oe1ebg/.cache/sota-summits`,
 the same pattern already used there for `uv`'s cache, Zensical's own build
 cache, and JupyterLite's cache) so it survives across image rebuilds
 without being baked into the image itself. `just fetch` (and anything that
-depends on it — `just docs-preview`, `docker build`) regenerates it
+depends on it — `just oe1ebg-preview`, `docker build`) regenerates it
 locally the same way, using a plain gitignored directory instead of a
 BuildKit mount. `just fetch` is split into `fetch-notebooks` +
 `fetch-summits` specifically so `just serve` (the fast, Markdown-only dev
 server) can depend on just the cheap/cached `fetch-summits` step — this
 tool needs that data to work at all, but pulling in the much heavier
 notebook-fetch pipeline just for that would defeat the point of `serve`
-being the fast path. `just build`/`docs-preview`/`docker build` all still
+being the fast path. `just build`/`oe1ebg-preview`/`docker build` all still
 get the full `fetch` (both).
 
 **Rendering**: capped to viewport + a minimum zoom (9) and a hard count
@@ -521,11 +521,11 @@ current state rather than treating the URL as continuously live.
 ## Files
 
 - `index.html` — the entire tool. Open directly in any browser, or serve via
-  `just docs-serve` / `just docs-preview` from `docs/`.
+  `just oe1ebg-serve` / `just oe1ebg-preview` from `oe1ebg/`.
 - `vendor/leaflet/` — vendored Leaflet 1.9.4 (`leaflet.js`, `leaflet.css`,
   `LICENSE`).
 
-This README lives outside `docs/docs/` (the Zensical `docs_dir`) — a
+This README lives outside `oe1ebg/docs/` (the Zensical `docs_dir`) — a
 `README.md` inside a `docs_dir` subdirectory is treated as that section's
 index page and would silently hide the raw HTML content served from the
 same directory (see the top-level `AGENTS.md`, same trap the ADIF editor's
@@ -574,7 +574,7 @@ README avoids).
   tried — an environment-specific quirk in that one HTTP client, not
   something reproducible via curl. This couldn't be resolved or ruled out
   for real browsers from this environment (no browser available to test
-  directly) — check it works in an actual browser via `just docs-serve`
+  directly) — check it works in an actual browser via `just oe1ebg-serve`
   before relying on it.
 - No S2S (summit-to-summit) QSO-level data or chaser locator information —
   investigated, and this doesn't appear to be available via any public,

@@ -4,7 +4,7 @@ Guidance for AI agents working in this directory. For the full design
 rationale, feature list, and the SOTA API Terms-of-Service decision (this
 tool was built with AI assistance and talks directly to `api2.sota.org.uk`
 — read that section before extending API usage further), see
-`docs/sota-alerts-README.md`. This file is the shorter, agent-facing
+`oe1ebg/sota-alerts-README.md`. This file is the shorter, agent-facing
 complement: a concrete API-call inventory and the constraints to preserve
 when touching this code.
 
@@ -31,7 +31,7 @@ No `setInterval`/polling of any endpoint anywhere in `index.html`.
 
 ## Static-first summit coordinate resolution
 
-`docs/scripts/fetch_summits.py` downloads SOTA's full summit CSV once at
+`oe1ebg/scripts/fetch_summits.py` downloads SOTA's full summit CSV once at
 build time (already required for the "all summits" overlay) and now writes
 **two** files instead of one:
 
@@ -60,14 +60,14 @@ pin resolution) is routed through the same `resolveSummits()` rather than
 its own fetch loop — keep it that way rather than reintroducing a
 parallel, uncapped `Promise.all` of live calls.
 
-**If you regenerate the summit data:** run `docs/scripts/fetch_summits.py`
-(or `just fetch-summits` from `docs/`) — it writes both files from one CSV
+**If you regenerate the summit data:** run `oe1ebg/scripts/fetch_summits.py`
+(or `just fetch-summits` from `oe1ebg/`) — it writes both files from one CSV
 parse, so there's no separate step to remember.
 
 ## Verifying changes to this tool
 
-There's no test suite. Verify by actually running it: `just docs-serve`
-(or `just --justfile docs/Justfile serve` from the repo root) from `docs/`,
+There's no test suite. Verify by actually running it: `just oe1ebg-serve`
+(or `just --justfile oe1ebg/Justfile serve` from the repo root) from `oe1ebg/`,
 then drive a headless Chromium against `http://localhost:8000/sota-alerts/`
 (`puppeteer-core` against the system Chrome works fine here — no
 `playwright`/`chromium-cli` install was available when this was last
