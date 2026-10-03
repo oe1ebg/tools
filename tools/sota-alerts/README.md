@@ -452,16 +452,16 @@ in `oe1ebg/.cache/sota-summits/`, mounted as a BuildKit cache volume in the
 `oe1ebg/Dockerfile` (`RUN --mount=type=cache,target=/srv/oe1ebg/.cache/sota-summits`,
 the same pattern already used there for `uv`'s cache, Zensical's own build
 cache, and JupyterLite's cache) so it survives across image rebuilds
-without being baked into the image itself. `just fetch` (and anything that
-depends on it — `just oe1ebg preview`, `docker build`) regenerates it
-locally the same way, using a plain gitignored directory instead of a
-BuildKit mount. `just fetch` is split into `fetch-notebooks` +
+without being baked into the image itself. `just fetch-summits` (and
+anything that depends on it — `just serve`, `just build`, `just preview`)
+regenerates it locally the same way, using a plain gitignored directory
+instead of a BuildKit mount. Fetching is split into `fetch-notebooks` +
 `fetch-summits` specifically so `just serve` (the fast, Markdown-only dev
 server) can depend on just the cheap/cached `fetch-summits` step — this
 tool needs that data to work at all, but pulling in the much heavier
 notebook-fetch pipeline just for that would defeat the point of `serve`
-being the fast path. `just build`/`oe1ebg preview`/`docker build` all still
-get the full `fetch` (both).
+being the fast path. `just build`/`just preview`/`docker build` all still
+run both.
 
 **Rendering**: capped to viewport + a minimum zoom (9) and a hard count
 cap (800) — a wide-open view can contain tens of thousands of summits,
