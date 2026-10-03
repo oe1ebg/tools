@@ -453,14 +453,14 @@ in `oe1ebg/.cache/sota-summits/`, mounted as a BuildKit cache volume in the
 the same pattern already used there for `uv`'s cache, Zensical's own build
 cache, and JupyterLite's cache) so it survives across image rebuilds
 without being baked into the image itself. `just fetch` (and anything that
-depends on it — `just oe1ebg-preview`, `docker build`) regenerates it
+depends on it — `just oe1ebg preview`, `docker build`) regenerates it
 locally the same way, using a plain gitignored directory instead of a
 BuildKit mount. `just fetch` is split into `fetch-notebooks` +
 `fetch-summits` specifically so `just serve` (the fast, Markdown-only dev
 server) can depend on just the cheap/cached `fetch-summits` step — this
 tool needs that data to work at all, but pulling in the much heavier
 notebook-fetch pipeline just for that would defeat the point of `serve`
-being the fast path. `just build`/`oe1ebg-preview`/`docker build` all still
+being the fast path. `just build`/`oe1ebg preview`/`docker build` all still
 get the full `fetch` (both).
 
 **Rendering**: capped to viewport + a minimum zoom (9) and a hard count
@@ -521,7 +521,7 @@ current state rather than treating the URL as continuously live.
 ## Files
 
 - `index.html` — the entire tool. Open directly in any browser, or serve via
-  `just oe1ebg-serve` / `just oe1ebg-preview` from `oe1ebg/`.
+  `just oe1ebg serve` / `just oe1ebg preview` from the repo root.
 - `vendor/leaflet/` — vendored Leaflet 1.9.4 (`leaflet.js`, `leaflet.css`,
   `LICENSE`).
 
@@ -574,7 +574,7 @@ README avoids).
   tried — an environment-specific quirk in that one HTTP client, not
   something reproducible via curl. This couldn't be resolved or ruled out
   for real browsers from this environment (no browser available to test
-  directly) — check it works in an actual browser via `just oe1ebg-serve`
+  directly) — check it works in an actual browser via `just oe1ebg serve`
   before relying on it.
 - No S2S (summit-to-summit) QSO-level data or chaser locator information —
   investigated, and this doesn't appear to be available via any public,

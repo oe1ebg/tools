@@ -66,8 +66,8 @@ parse, so there's no separate step to remember.
 
 ## Verifying changes to this tool
 
-There's no test suite. Verify by actually running it: `just oe1ebg-serve`
-(or `just --justfile oe1ebg/Justfile serve` from the repo root) from `oe1ebg/`,
+There's no test suite. Verify by actually running it: `just serve` from
+`oe1ebg/` (or `just oe1ebg serve` from the repo root),
 then drive a headless Chromium against `http://localhost:8000/sota-alerts/`
 (`puppeteer-core` against the system Chrome works fine here — no
 `playwright`/`chromium-cli` install was available when this was last
