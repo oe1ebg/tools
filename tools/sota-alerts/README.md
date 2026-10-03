@@ -50,9 +50,9 @@ changes materially, revisit: reach out to SOTA management via
   window the API currently returns; it cannot show dates outside it. Adding
   a real archive would mean a scheduled job and persistent storage
   somewhere — a different, backend-shaped project, not a static page.
-- **No backend/proxy.** This repo is two static sites (Hugo + Zensical)
-  behind nginx, plus a separate standalone GitHub Pages deployment of the
-  `docs/` site (see the top-level `AGENTS.md`). There's no server-side code
+- **No backend/proxy.** The `docs/` site is a static Zensical site served
+  by plain nginx (its own container, `docs/Dockerfile`), plus a separate
+  standalone GitHub Pages deployment (see the top-level `AGENTS.md`). There's no server-side code
   to add a proxy to without touching both deployment paths.
 
 ## CORS findings (verified live, not assumed — this determined the whole architecture)
@@ -449,7 +449,7 @@ during development would be its own kind of "too much traffic," so the
 script caches the raw CSV (keyed by mtime, 7-day max age matching SOTA's
 own weekly refresh cadence — set `SOTA_SUMMITS_FORCE_REFRESH=1` to bypass)
 in `docs/.cache/sota-summits/`, mounted as a BuildKit cache volume in the
-Dockerfile (`RUN --mount=type=cache,target=/srv/docs/.cache/sota-summits`,
+`docs/Dockerfile` (`RUN --mount=type=cache,target=/srv/docs/.cache/sota-summits`,
 the same pattern already used there for `uv`'s cache, Zensical's own build
 cache, and JupyterLite's cache) so it survives across image rebuilds
 without being baked into the image itself. `just fetch` (and anything that
