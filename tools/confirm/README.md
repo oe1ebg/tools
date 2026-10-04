@@ -363,6 +363,56 @@ implementation differs, the reason is given below.
 - **No map** (the brief's maps are optional). If one is added later, it
   must work offline.
 
+## Map view ("Karte")
+
+The "Karte" button in a log opens an offline map above the table. It is
+drawn by the vendored Leaflet 1.9.4 (`docs/confirm/vendor/leaflet/`, a copy
+of the one in `sota-alerts`, BSD-2) on a **vector outline basemap, without
+any tiles**.
+
+- **Basemap data.** `scripts/build_map_data.py` (`just build-map`, part of
+  `build-confirm`) writes `docs/confirm/data/vienna-map.json`, about
+  530 KiB:
+  - the 23 district boundaries from Stadt Wien (WFS
+    `ogdwien:BEZIRKSGRENZEOGD`, CC BY 4.0), cached for 30 days
+    (`VIENNA_MAP_FORCE_REFRESH=1` forces a refresh);
+  - main roads and the larger waters (Donau, Neue Donau, Donaukanal, Alte
+    Donau, …) from OpenStreetMap (ODbL), as a **committed snapshot**
+    `oe1ebg/map-osm.json`, refreshed with `just refresh-map`. Overpass is
+    unreliable, and CI has no cache.
+  - All geometry is simplified (Ramer–Douglas–Peucker, 8–10 m) and rounded
+    to 5 decimals.
+- **Layers:** districts with their numbers, waters, roads, and a 6-character
+  Maidenhead grid that can be switched on. The layer menu is always open on
+  wide screens; on phones it collapses to a text "Ebenen" button instead of
+  Leaflet's image icon.
+- **Pins:** one per station, at its latest check-in with a resolved
+  location. A low or ambiguous match is drawn as a hollow, dashed circle,
+  and a number on the pin shows repeat check-ins. Stations without a
+  location are listed under the map.
+- **Hover** (or tap on touch screens, which opens a popup instead) shows
+  the callsign plus the name from the callsign list, the resolved location
+  with PLZ and locator, and every check-in of that station. A click also
+  highlights the station's rows in the table.
+- **Own position:**
+  - the header's "Eigener QTH" if it resolves with "high" confidence or
+    better, otherwise the centre of "Eigener Locator", with the locator
+    square drawn and the note "Locator-Mitte";
+  - drawn as a larger, highlighted star marker;
+  - the map re-fits its bounds when the own position changes.
+- **Updates:** the map updates live when lines are saved, edited, deleted
+  or restored. It is only redrawn when entries or the header actually
+  change, not on every keystroke.
+- **No requests while running:** no tile layers, no image icons (pins are
+  CSS `divIcon`s), and Leaflet's layer-toggle PNG is disabled in CSS. The
+  offline test enforces this, and the browser test checks that no image or
+  foreign request happens. `vendor/` is precached and inlined into
+  `confirm-offline.html`.
+- **Stacking:** `#map` has its own stacking context (`isolation:isolate`),
+  so Leaflet's internal z-indices stay below the sticky header.
+- **Coverage:** only stations whose location resolved can have a pin, and
+  the location lookup is Vienna-only.
+
 ## Code layout
 
 - `index.html`: the markup and CSS. It uses the same theme variables and
@@ -380,6 +430,8 @@ implementation differs, the reason is given below.
 - `js/locationui.js`: the Standort panel and the shared candidate list.
 - `js/repeaters.js` / `js/repeaterui.js`: repeater search (pure) and the
   "Relais suchen" widget.
+- `js/mapdata.js` / `js/mapview.js`: the map view (pure helpers / Leaflet
+  UI); `vendor/leaflet/`: unmodified Leaflet 1.9.4.
 - `js/locfield.js`: the log's `location` field (resolve while typing,
   auto-select or pick, auto-fill PLZ).
 - `js/location/`: the lookup engine (see above).
@@ -408,7 +460,9 @@ just fetch-callsigns # (cached) callsign list -> docs/confirm/data/callsigns-oe.
 just build-location  # (cached) Vienna addresses + POI snapshot -> docs/confirm/data/vienna-locations.json
 just refresh-pois    # re-query Overpass, rewrite the committed location-pois.json
 just fetch-repeaters # (cached) ÖVSV repeater list -> docs/confirm/data/repeaters-at.json
-just build-confirm   # fetch-callsigns + fetch-repeaters + build-location, then precache.js + confirm-offline.html
+just build-map       # (cached) district boundaries + OSM snapshot -> docs/confirm/data/vienna-map.json
+just refresh-map     # re-query Overpass, rewrite the committed map-osm.json
+just build-confirm   # fetch-callsigns + fetch-repeaters + build-location + build-map, then precache.js + confirm-offline.html
 just preview         # full build, serve site/ at localhost:8000/confirm/
 ```
 

@@ -35,6 +35,19 @@ EXCLUDE = {"sw.js", PRECACHE_NAME, "AGENTS.md", BUNDLE_NAME}
 IMPORT_RE = re.compile(r"^import\s*\{[^}]*\}\s*from\s*['\"](\./[^'\"]+)['\"];?[ \t]*\n", re.M)
 EXPORT_RE = re.compile(r"^export\s+(?=(async\s+)?(function|const|let|class)\b)", re.M)
 SCRIPT_BLOCK_RE = re.compile(r"<!-- CONFIRM-SCRIPT-BEGIN -->.*?<!-- CONFIRM-SCRIPT-END -->", re.S)
+VENDOR_BLOCK_RE = re.compile(r"<!-- CONFIRM-VENDOR-BEGIN -->(.*?)<!-- CONFIRM-VENDOR-END -->", re.S)
+VENDOR_REF_RE = re.compile(r'<link rel="stylesheet" href="([^"]+)">|<script src="([^"]+)"></script>')
+
+
+def inline_vendor(block: str) -> str:
+    """Third-party files (vendor/, e.g. Leaflet) as inline <style>/<script>."""
+    def sub(m: re.Match) -> str:
+        css, js = m.group(1), m.group(2)
+        text = (CONFIRM_DIR / (css or js)).read_text(encoding="utf-8")
+        if css:
+            return f"<style>\n{text.replace('</style', '<\\/style')}\n</style>"
+        return f"<script>\n{text.replace('</script', '<\\/script')}\n</script>"
+    return VENDOR_REF_RE.sub(sub, block)
 
 
 def module_order(entry: Path) -> list[Path]:
@@ -93,6 +106,9 @@ def build_bundle() -> str:
     html, n = SCRIPT_BLOCK_RE.subn(lambda _m: f"{data}<script>\n{js}</script>", html)
     if n != 1:
         raise SystemExit("index.html: CONFIRM-SCRIPT markers not found")
+    html, n = VENDOR_BLOCK_RE.subn(lambda m: inline_vendor(m.group(1)), html)
+    if n != 1:
+        raise SystemExit("index.html: CONFIRM-VENDOR markers not found")
     # No manifest (meaningless on file://); icon inlined so the file is self-contained.
     html = re.sub(r'\s*<link rel="manifest"[^>]*>', "", html)
     icon = base64.b64encode((CONFIRM_DIR / "icon.svg").read_bytes()).decode()

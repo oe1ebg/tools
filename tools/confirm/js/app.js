@@ -15,7 +15,9 @@ import { toCSV, toADIF, toSummary } from './export.js';
 import { loadDataFile } from './data.js';
 import { buildCallbook, lookupCall, suggestCalls } from './callbook.js';
 import { $, el, fill, popover } from './dom.js';
-import { initLocationPanel } from './locationui.js';
+import { initLocationPanel, loadLocationIndex } from './locationui.js';
+import { locate } from './location/index.js';
+import { openMap, closeMap, refreshMap, mapVisible } from './mapview.js';
 import { createLocationField, describeLocation } from './locfield.js';
 import { repeaterSearchWidget, loadRepeaterIndex } from './repeaterui.js';
 import { sourceItem } from './sources.js';
@@ -454,6 +456,8 @@ async function openEvent(id) {
 
 async function leaveEvent() {
   if (!state.event) return;
+  closeMap();
+  $('#btn-map').classList.remove('active');
   await flushDraft();
   await flushHeader();
   if (!state.readOnly && stats(state.entries).total) await takeSnapshot('beim Verlassen');
@@ -512,6 +516,7 @@ function onHeaderChange(h) {
   state.event.header = h;
   $('#hdr-sum').textContent = headerSummary(h);
   updateRepeaterDefault();
+  maybeRefreshMap(); // own position follows "Eigener QTH" / "Eigener Locator"
   clearTimeout(state.headerTimer);
   state.headerTimer = setTimeout(flushHeader, 400);
 }
@@ -835,6 +840,43 @@ function overrideOf(snap) {
   return { repeaterCall, repeaterFreq, repeaterShift, repeaterTone };
 }
 
+/* --- map view --- */
+
+function mapContext() {
+  const tpl = templateFor(state.event.template);
+  return {
+    event: state.event,
+    header: state.event.header || {},
+    entries: state.entries,
+    describe: e => describeEntry(e, tpl),
+    callInfo: call => callbookName(call),
+    // The own QTH counts only if it resolves confidently.
+    resolve: async text => {
+      const idx = await loadLocationIndex();
+      return idx ? locate(idx, text, { autoSelect: 'high' }).autoSelect : null;
+    },
+    // Tap/click on a pin: highlight that station's rows in the table.
+    onPick: call => {
+      renderLog(call);
+      document.querySelector('#log-body tr.match')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    },
+  };
+}
+
+async function toggleMap() {
+  const btn = $('#btn-map');
+  if (mapVisible()) {
+    closeMap();
+    btn.classList.remove('active');
+  } else {
+    btn.classList.add('active');
+    // openMap draws the current state; don't redraw (and close a just-opened
+    // popup) on the next renderLog().
+    mapSig = currentMapSig();
+    await openMap(mapContext());
+  }
+}
+
 async function saveEntry() {
   if (state.readOnly) return;
   const f = readForm();
@@ -1031,8 +1073,26 @@ async function restoreDraft() {
 
 /* --- log table --- */
 
+// Redraw the map only when entries or the header actually changed —
+// renderLog() also runs on every keystroke in the callsign field.
+let mapSig = '';
+function currentMapSig() {
+  const h = state.event.header || {};
+  return [state.event.id, state.entries.length, h.myQth, h.myGrid, h.station, h.operator,
+    ...state.entries.map(e => `${e.updated}${e.deleted || ''}`)].join('|');
+}
+
+function maybeRefreshMap() {
+  if (!mapVisible()) return;
+  const sig = currentMapSig();
+  if (sig === mapSig) return;
+  mapSig = sig;
+  refreshMap(mapContext());
+}
+
 function renderLog(highlightCall) {
   if (!state.event) return;
+  maybeRefreshMap();
   const tpl = templateFor(state.event.template);
   const nums = checkinNumbers(state.entries);
   const live = liveSorted(state.entries).reverse();
@@ -1315,6 +1375,7 @@ function wire() {
     state.headerTimer = setTimeout(flushHeader, 400);
   });
   document.querySelectorAll('[data-export]').forEach(b => b.addEventListener('click', () => doExport(b.dataset.export)));
+  $('#btn-map').addEventListener('click', toggleMap);
   const sep = $('#csv-sep');
   sep.value = localStorage.getItem(CSV_SEP_KEY) || ';';
   sep.addEventListener('change', () => localStorage.setItem(CSV_SEP_KEY, sep.value));
@@ -1403,6 +1464,7 @@ async function main() {
   }
   loadCallbook();
   loadRepeaterFooter();
+  fill($('#st-map'), sourceItem('districts', 'Karte'), ' · ', sourceItem('leaflet', 'Kartenbibliothek'));
   route();
 }
 

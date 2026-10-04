@@ -20,6 +20,18 @@ export const DATA_SOURCES = {
     license: 'CC BY 4.0',
     licenseUrl: 'https://creativecommons.org/licenses/by/4.0/deed.de',
   },
+  districts: {
+    label: 'Stadt Wien – Bezirksgrenzen',
+    url: 'https://www.data.gv.at/katalog/dataset/2ee6b8bf-6292-413c-bb8b-bd22dbb2ad4b',
+    license: 'CC BY 4.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by/4.0/deed.de',
+  },
+  leaflet: {
+    label: 'Leaflet',
+    url: 'https://leafletjs.com/',
+    license: 'BSD-2',
+    licenseUrl: 'https://github.com/Leaflet/Leaflet/blob/main/LICENSE',
+  },
   osm: {
     label: '© OpenStreetMap-Mitwirkende',
     url: 'https://www.openstreetmap.org/copyright',

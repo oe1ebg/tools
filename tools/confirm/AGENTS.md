@@ -60,6 +60,22 @@ addresses contiguous per street), the per-address arrays
   `tests/location-search.test.mjs` updated. They run against a synthetic
   dataset (always) and against the real data (when it has been built).
 
+`data/vienna-map.json` is built by `scripts/build_map_data.py` (schema 1).
+It contains `bounds`, `districts[{nr, name, label:[lat,lon], rings}]`,
+`water[{name, rings}]`, `roads[{c: motorway|trunk|primary|secondary, p}]`
+and `meta`. All coordinates are `[lat, lon]` (Leaflet order), rounded to
+5 decimals.
+
+## Map rules
+
+- **Never** use `L.tileLayer`, `L.imageOverlay`, `L.icon` or a default
+  `L.marker`, because each of those requests images or tiles. Markers must
+  use `L.divIcon`. `tests/confirm-offline.test.mjs` checks this.
+- Keep Leaflet's layer-toggle PNG disabled in CSS
+  (`.leaflet-control-layers-toggle{ background-image:none }`).
+- `vendor/` holds unmodified third-party code and is exempt from the
+  external-URL scan. Don't put our own code there.
+
 ## Verify a change
 
 1. Run `just test` (from `oe1ebg/`).
