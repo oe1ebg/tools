@@ -14,11 +14,11 @@ const snapA = headerSnapshot(header);
 const snapB = headerSnapshot({ ...header, operator: 'OE1ABC' });
 const entries = [
   { id: 'a', seq: 1, call: 'OE1AAA', ts: '2026-10-04T10:00:05Z', viaRepeater: true, snap: snapA,
-    fields: { plz: '1030', address: 'Währinger Straße 1', siren: 'innen_zu', atalert: 'ja', platform: 'ios' }, note: '' },
+    fields: { plz: '1030', address: 'Währinger Straße 1', siren_closed: '2', siren_open: '1', siren_outside: '1', atalert: 'ja', platform: 'ios', os_version: 'ios17' }, note: '' },
   { id: 'b', seq: 2, call: 'OE1BBB', ts: '2026-10-04T10:01:00Z', viaRepeater: false, snap: snapB,
-    fields: { plz: '1100', address: '', siren: 'nicht', atalert: 'nein', platform: 'android' }, note: 'Hinweis "laut"' },
+    fields: { plz: '1100', address: '', siren_closed: '5', siren_open: '4', siren_outside: '3', atalert: 'nein', platform: 'android', os_version: 'android14' }, note: 'Hinweis "laut"' },
   { id: 'c', seq: 3, call: 'OE1AAA', ts: '2026-10-04T10:02:00Z', viaRepeater: true, snap: snapA,
-    fields: { plz: '1030', siren: 'aussen', atalert: 'ja' }, note: '' },
+    fields: { plz: '1030', siren_closed: '3', siren_outside: '1', atalert: 'ja' }, note: '' },
   { id: 'd', seq: 4, call: 'OE1DDD', ts: '2026-10-04T10:03:00Z', viaRepeater: false, snap: snapA, fields: {}, note: '', deleted: '2026-10-04T10:04:00Z' },
 ];
 
@@ -42,15 +42,19 @@ test('CSV has BOM, header, check-in numbers, per-line snapshots, escaping', () =
   const lines = csv.slice(1).trim().split('\r\n');
   const cols = lines[0].split(';');
   assert.deepEqual(cols.slice(0, 5), ['zeitstempel_utc', 'zeitstempel_lokal', 'nr', 'checkin_nr', 'rufzeichen'], 'time first');
-  assert.ok(cols.includes('siren') && cols.includes('ueber_relais') && cols.includes('relais'));
+  for (const c of ['siren_closed', 'siren_open', 'siren_outside', 'os_version', 'ueber_relais', 'relais']) assert.ok(cols.includes(c), c);
   assert.equal(lines.length, 4, 'deleted line excluded');
   const row = i => Object.fromEntries(cols.map((c, j) => [c, lines[i].split(';')[j]]));
   assert.equal(row(1).zeitstempel_utc, '2026-10-04T10:00:05Z');
   assert.equal(row(1).zeitstempel_lokal, '2026-10-04T12:00:05+02:00');
   assert.equal(row(1).checkin_nr, '1');
   assert.equal(row(3).checkin_nr, '2');
-  assert.equal(row(1).siren, 'innen, Fenster zu');
+  assert.equal(row(1).siren_closed, '2');
+  assert.equal(row(1).siren_outside, '1');
   assert.equal(row(1).platform, '', 'platform only shown when AT-Alert not received');
+  assert.equal(row(1).os_version, '', 'version hidden too: depends on the hidden platform (transitive)');
+  assert.equal(row(2).platform, 'Android');
+  assert.equal(row(2).os_version, 'Android 14');
   assert.equal(row(1).relais, 'OE1XUU');
   assert.equal(row(1).freq_mhz, '431.35');
   assert.equal(row(2).operator, 'OE1ABC');
@@ -78,7 +82,10 @@ test('ADIF: valid lengths, operator/station, repeater marking, APP fields', () =
   assert.equal(a.FREQ_RX, '438.95');
   assert.equal(a.BAND_RX, '70cm');
   assert.equal(a.MODE, 'FM');
-  assert.equal(a.APP_OE1EBG_SIREN, 'innen_zu');
+  assert.equal(a.APP_OE1EBG_SIREN_CLOSED, '2');
+  assert.equal(a.APP_OE1EBG_SIREN_OUTSIDE, '1');
+  assert.match(a.COMMENT, /Sirene innen, Fenster zu: 2/);
+  assert.equal(a.APP_OE1EBG_OS_VERSION, undefined, 'hidden with platform');
   assert.equal(a.APP_OE1EBG_PLZ, '1030');
   assert.equal(a.APP_OE1EBG_ADDRESS, 'Waehringer Strasse 1');
   assert.equal(a.APP_OE1EBG_PLATFORM, undefined);
@@ -89,6 +96,7 @@ test('ADIF: valid lengths, operator/station, repeater marking, APP fields', () =
   assert.equal(b.FREQ, '145.5');
   assert.equal(b.BAND, '2m');
   assert.equal(b.APP_OE1EBG_PLATFORM, 'android');
+  assert.equal(b.APP_OE1EBG_OS_VERSION, 'android14');
   assert.equal(c.APP_OE1EBG_CHECKIN, '2');
 });
 
@@ -114,9 +122,12 @@ test('summary counts unique stations and latest answers per station', () => {
   assert.match(s, /2026-10-04 10:00–10:02 UTC/);
   assert.match(toSummary(event, entries, 'local'), /2026-10-04 12:00–12:02 UTC\+2/);
   assert.match(s, /OE1AAA, OE1BBB/);
-  assert.match(s, /nur im Freien: 1/);
-  assert.match(s, /1030: 1 Stn\., AT-Alert 1\/1/);
-  assert.match(s, /Android: 1/);
+  // latest check-in per station: OE1AAA (3 / – / 1), OE1BBB (5 / 4 / 3)
+  assert.match(s, /innen, Fenster zu: Ø 4,0 \(n=2; 1× 3, 1× 5\)/);
+  assert.match(s, /innen, Fenster offen: Ø 4,0 \(n=1; 1× 4\)/);
+  assert.match(s, /im Freien: Ø 2,0 \(n=2; 1× 1, 1× 3\)/);
+  assert.match(s, /Nicht erhalten nach Plattform\/Version:\n  Android 14: 1/);
+  assert.match(s, /1030: 1 Stn\., AT-Alert 1\/1; Sirene Ø innen, Fenster zu 3,0 \/ innen, Fenster offen – \/ im Freien 1,0/);
 });
 
 test('location field: resolved location in CSV columns and ADIF GRIDSQUARE/LAT/LON', async () => {

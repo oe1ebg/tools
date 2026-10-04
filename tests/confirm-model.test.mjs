@@ -96,3 +96,16 @@ test('typed corrections are interpreted in the display mode', () => {
   assert.equal(parseTimeInput('25:00', 'utc', base), null);
   assert.equal(parseTimeInput('gestern', 'local', base), null);
 });
+
+test('templates: transitive visibility and platform-dependent version options', async () => {
+  const { templateFor, fieldVisible, currentOptions, fieldDisplay } = await import('../docs/confirm/js/templates.js');
+  const tpl = templateFor('zivilschutz');
+  const f = k => tpl.fields.find(x => x.key === k);
+  assert.ok(fieldVisible(f('os_version'), { atalert: 'nein', platform: 'ios' }, tpl));
+  assert.ok(!fieldVisible(f('os_version'), { atalert: 'ja', platform: 'ios' }, tpl), 'hidden when its parent is hidden');
+  assert.ok(!fieldVisible(f('os_version'), { atalert: 'nein', platform: 'andere' }, tpl));
+  assert.ok(currentOptions(f('os_version'), { platform: 'ios' }).every(o => o[0].startsWith('ios')));
+  assert.ok(currentOptions(f('os_version'), { platform: 'android' }).some(o => o[1] === 'Android 16'));
+  assert.equal(fieldDisplay(f('os_version'), 'ios26'), 'iOS 26');
+  assert.deepEqual(['siren_closed', 'siren_open', 'siren_outside'].map(k => f(k).options.map(o => o[0]).join('')), ['12345', '12345', '12345']);
+});

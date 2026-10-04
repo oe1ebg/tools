@@ -56,7 +56,7 @@ function exportRows(event, entries) {
       rufzeichen: e.call,
       ts: e.ts,
     };
-    for (const f of tpl.fields) row[f.key] = fieldVisible(f, e.fields) ? fieldDisplay(f, e.fields?.[f.key]) : '';
+    for (const f of tpl.fields) row[f.key] = fieldVisible(f, e.fields, tpl) ? fieldDisplay(f, e.fields?.[f.key]) : '';
     if (hasLocationField(tpl)) Object.assign(row, locColumns(e.loc));
     Object.assign(row, {
       ueber_relais: e.viaRepeater ? 'ja' : 'nein',
@@ -155,7 +155,7 @@ export function toADIF(event, entries, createdIso = new Date().toISOString()) {
       }
     }
     for (const f of tpl.fields) {
-      if (!fieldVisible(f, e.fields)) continue;
+      if (!fieldVisible(f, e.fields, tpl)) continue;
       const raw = e.fields?.[f.key];
       if (raw === undefined || raw === null || raw === '') continue;
       if (f.adif) {
@@ -181,10 +181,20 @@ export function toADIF(event, entries, createdIso = new Date().toISOString()) {
   return out;
 }
 
+// Average (German decimal comma), count and distribution of 1-5 grades.
+export function gradeStats(rows, key) {
+  const vals = rows.map(r => parseInt(r[key], 10)).filter(n => n >= 1 && n <= 5);
+  if (!vals.length) return null;
+  const avg = (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1).replace('.', ',');
+  const dist = [1, 2, 3, 4, 5].map(g => [g, vals.filter(v => v === g).length]).filter(([, c]) => c).map(([g, c]) => `${c}× ${g}`).join(', ');
+  return { avg, n: vals.length, dist };
+}
+
+// key: row property name or a function row -> value.
 function countBy(rows, key) {
   const m = new Map();
   for (const r of rows) {
-    const v = r[key] || '—';
+    const v = (typeof key === 'function' ? key(r) : r[key]) || '—';
     m.set(v, (m.get(v) || 0) + 1);
   }
   return [...m.entries()].sort((a, b) => b[1] - a[1]);
@@ -230,14 +240,22 @@ export function toSummary(event, entries, timeMode = 'utc') {
     const latest = new Map();
     for (const r of rows) latest.set(r.rufzeichen, r);
     const per = [...latest.values()];
-    lines.push('', 'Sirene:');
-    for (const [k, n] of countBy(per, 'siren')) lines.push(`  ${k}: ${n}`);
+    const tpl = templateFor(event.template);
+    const grades = tpl.fields.filter(f => f.grade);
+    const short = f => f.label.replace(/^Sirene /, '');
+    lines.push('', 'Sirene (Schulnote 1 = sehr gut hörbar … 5 = nicht hörbar):');
+    for (const f of grades) {
+      const g = gradeStats(per, f.key);
+      lines.push(`  ${short(f)}: ${g ? `Ø ${g.avg} (n=${g.n}; ${g.dist})` : 'keine Angaben'}`);
+    }
     lines.push('AT-Alert:');
     for (const [k, n] of countBy(per, 'atalert')) lines.push(`  ${k}: ${n}`);
     const noAlert = per.filter(r => r.atalert === 'nicht erhalten');
     if (noAlert.length) {
-      lines.push('Nicht erhalten nach Plattform:');
-      for (const [k, n] of countBy(noAlert, 'platform')) lines.push(`  ${k}: ${n}`);
+      lines.push('Nicht erhalten nach Plattform/Version:');
+      for (const [k, n] of countBy(noAlert, r => (r.os_version && r.os_version !== 'weiß nicht' ? r.os_version : [r.platform, r.os_version].filter(Boolean).join(' – ')))) {
+        lines.push(`  ${k}: ${n}`);
+      }
     }
     lines.push('Nach PLZ:');
     const byPlz = new Map();
@@ -248,8 +266,8 @@ export function toSummary(event, entries, timeMode = 'utc') {
     }
     for (const [plz, rs] of [...byPlz.entries()].sort()) {
       const alert = rs.filter(r => r.atalert === 'erhalten').length;
-      const sirens = countBy(rs, 'siren').map(([k, n]) => `${k} ${n}`).join(', ');
-      lines.push(`  ${plz}: ${rs.length} Stn., AT-Alert ${alert}/${rs.length}; Sirene: ${sirens}`);
+      const sirens = grades.map(f => `${short(f)} ${gradeStats(rs, f.key)?.avg ?? '–'}`).join(' / ');
+      lines.push(`  ${plz}: ${rs.length} Stn., AT-Alert ${alert}/${rs.length}; Sirene Ø ${sirens}`);
     }
   }
   return lines.join('\n') + '\n';

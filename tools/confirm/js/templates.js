@@ -5,7 +5,24 @@
 // Field types: text, rst, radio (options [value, label]), location (free
 // text resolved with the offline Vienna lookup; the resolution is stored on
 // the line as `loc`, and `plzKey` names a field that gets the resolved PLZ).
-// `showIf` hides a field unless another field has the given value.
+// `showIf` hides a field unless another field has the given value (or one
+// of the given values). `optionsBy: [fieldKey, { value: options }]` makes
+// a radio field's options depend on another field. `grade` marks school
+// grades 1-5 (averaged in the summary).
+
+// School grades for the siren test: 1 = sehr gut hörbar ... 5 = nicht hörbar.
+const GRADES = [['1', '1'], ['2', '2'], ['3', '3'], ['4', '4'], ['5', '5']];
+const GRADE_HINT = 'Schulnote: 1 = sehr gut hörbar, 2 = gut, 3 = befriedigend, 4 = kaum, 5 = nicht hörbar';
+
+// Major OS versions offered for the AT-Alert question (newest first).
+// Values carry the platform prefix so "iOS 17" and "Android 17" differ.
+const OS_VERSIONS = {
+  ios: [['ios27', 'iOS 27'], ['ios26', 'iOS 26'], ['ios18', 'iOS 18'], ['ios17', 'iOS 17'], ['ios16', 'iOS 16'],
+    ['ios15', 'iOS 15'], ['ios_old', 'iOS älter'], ['ios_unknown', 'weiß nicht']],
+  android: [['android17', 'Android 17'], ['android16', 'Android 16'], ['android15', 'Android 15'], ['android14', 'Android 14'],
+    ['android13', 'Android 13'], ['android12', 'Android 12'], ['android11', 'Android 11'], ['android10', 'Android 10'],
+    ['android_old', 'Android älter'], ['android_unknown', 'weiß nicht']],
+};
 
 export const TEMPLATES = [
   {
@@ -34,15 +51,10 @@ export const TEMPLATES = [
     fields: [
       { key: 'address', label: 'Standort (Adresse, Ort, PLZ, Locator)', type: 'location', size: 28, plzKey: 'plz' },
       { key: 'plz', label: 'PLZ', type: 'text', size: 5, inputmode: 'numeric' },
-      {
-        key: 'siren', label: 'Sirene hörbar', type: 'radio',
-        options: [
-          ['innen_zu', 'innen, Fenster zu'],
-          ['innen_offen', 'innen, Fenster offen'],
-          ['aussen', 'nur im Freien'],
-          ['nicht', 'nicht hörbar'],
-        ],
-      },
+      // Audibility of the warning siren, one school grade (1-5) per situation.
+      { key: 'siren_closed', label: 'Sirene innen, Fenster zu', type: 'radio', options: GRADES, grade: true, hint: GRADE_HINT },
+      { key: 'siren_open', label: 'Sirene innen, Fenster offen', type: 'radio', options: GRADES, grade: true, hint: GRADE_HINT },
+      { key: 'siren_outside', label: 'Sirene im Freien', type: 'radio', options: GRADES, grade: true, hint: GRADE_HINT },
       {
         key: 'atalert', label: 'AT-Alert', type: 'radio',
         options: [['ja', 'erhalten'], ['nein', 'nicht erhalten']],
@@ -50,6 +62,11 @@ export const TEMPLATES = [
       {
         key: 'platform', label: 'Handy', type: 'radio', showIf: ['atalert', 'nein'],
         options: [['android', 'Android'], ['ios', 'iOS'], ['andere', 'andere']],
+      },
+      {
+        // Major OS version; the options depend on the chosen platform.
+        key: 'os_version', label: 'Version', type: 'radio', showIf: ['platform', ['ios', 'android']],
+        optionsBy: ['platform', OS_VERSIONS],
       },
     ],
   },
@@ -63,17 +80,34 @@ export function templateFor(key) {
   return TEMPLATES.find(t => t.key === key) || TEMPLATES[0];
 }
 
-export function fieldVisible(field, values) {
+// Pass the template to make visibility transitive: a field depending on a
+// hidden field is hidden too (os_version -> platform -> atalert).
+export function fieldVisible(field, values, tpl) {
   if (!field.showIf) return true;
   const [k, v] = field.showIf;
-  return values?.[k] === v;
+  const ok = Array.isArray(v) ? v.includes(values?.[k]) : values?.[k] === v;
+  if (!ok || !tpl) return ok;
+  const parent = tpl.fields.find(f => f.key === k);
+  return parent ? fieldVisible(parent, values, tpl) : ok;
+}
+
+// All options of a radio field, across groups for `optionsBy` fields.
+export function fieldOptions(field) {
+  return field.optionsBy ? Object.values(field.optionsBy[1]).flat() : field.options || [];
+}
+
+// The options to offer given the current values (`optionsBy` fields).
+export function currentOptions(field, values) {
+  if (!field.optionsBy) return field.options || [];
+  const [k, groups] = field.optionsBy;
+  return groups[values?.[k]] || [];
 }
 
 // Human-readable value of a field ("innen, Fenster zu" instead of "innen_zu").
 export function fieldDisplay(field, value) {
   if (value === undefined || value === null || value === '') return '';
   if (field.type === 'radio') {
-    const opt = field.options.find(o => o[0] === value);
+    const opt = fieldOptions(field).find(o => o[0] === value);
     return opt ? opt[1] : String(value);
   }
   return String(value);

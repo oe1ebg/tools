@@ -237,6 +237,8 @@
   .radio-group input:checked + span{ color:var(--accent); font-weight:600; }
   .radio-group label:has(input:checked){ border-color:var(--accent); background:var(--accent-soft); }
   .radio-group label:has(input:focus-visible){ outline:2px solid var(--accent); }
+  .radio-group label[hidden]{ display:none; }
+  .radio-group.grade label{ min-width:2.1em; text-align:center; font-family:var(--font-mono); font-weight:600; }
   #form-status{ min-height:1.4em; margin-top:.5em; font-size:13px; }
   #form-status.ok{ color:var(--ok); }
   #form-status.err{ color:var(--err); font-weight:600; }

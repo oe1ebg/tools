@@ -10,7 +10,7 @@ import {
   MODES, modeInfo, headerSnapshot, emptyHeader, checkinNumbers, previousCheckins,
   liveSorted, stats,
 } from './model.js';
-import { TEMPLATES, templateFor, fieldVisible, fieldDisplay } from './templates.js';
+import { TEMPLATES, templateFor, fieldVisible, fieldDisplay, fieldOptions, currentOptions } from './templates.js';
 import { toCSV, toADIF, toSummary } from './export.js';
 import { loadDataFile } from './data.js';
 import { buildCallbook, lookupCall, suggestCalls } from './callbook.js';
@@ -529,8 +529,8 @@ function buildEntryFields() {
   for (const f of tpl.fields) {
     let control;
     if (f.type === 'radio') {
-      control = el('div', { class: 'radio-group', role: 'radiogroup', 'aria-label': f.label },
-        f.options.map(([v, l]) => {
+      control = el('div', { class: f.grade ? 'radio-group grade' : 'radio-group', role: 'radiogroup', 'aria-label': f.label, title: f.hint },
+        fieldOptions(f).map(([v, l]) => {
           const r = el('input', { type: 'radio', name: `f_${f.key}`, value: v });
           // Clicking the selected option again clears it (radios can't otherwise be unset).
           r.addEventListener('click', () => {
@@ -538,7 +538,7 @@ function buildEntryFields() {
             else box.querySelectorAll(`input[name="f_${f.key}"]`).forEach(o => { o.dataset.was = o === r ? '1' : ''; });
             onFormInput();
           });
-          return el('label', {}, r, el('span', {}, l));
+          return el('label', { 'data-value': v }, r, el('span', {}, l));
         }));
     } else {
       control = el('input', {
@@ -614,7 +614,18 @@ function updateFieldVisibility() {
   const vals = readFields();
   for (const f of tpl.fields) {
     const lab = document.querySelector(`#f-fields [data-field="${f.key}"]`);
-    if (lab) lab.hidden = !fieldVisible(f, vals);
+    if (lab) lab.hidden = !fieldVisible(f, vals, tpl);
+    if (f.optionsBy && lab) {
+      // Offer only the options for the current choice (e.g. iOS versions);
+      // a selection that no longer fits is cleared.
+      const allowed = new Set(currentOptions(f, vals).map(o => o[0]));
+      lab.querySelectorAll('label[data-value]').forEach(l => {
+        const ok = allowed.has(l.dataset.value);
+        l.hidden = !ok;
+        const r = l.querySelector('input');
+        if (!ok && r.checked) { r.checked = false; r.dataset.was = ''; }
+      });
+    }
   }
 }
 
@@ -779,7 +790,7 @@ function callbookName(call) {
 function describeEntry(e, tpl) {
   const bits = [`Nr. ${e.seq}`, fmtTime(e.ts, false)];
   for (const f of tpl.fields) {
-    const v = fieldVisible(f, e.fields) ? fieldDisplay(f, e.fields?.[f.key]) : '';
+    const v = fieldVisible(f, e.fields, tpl) ? fieldDisplay(f, e.fields?.[f.key]) : '';
     if (v) bits.push(`${f.label}: ${v}`);
   }
   if (e.loc) bits.push(`→ ${describeLocation(e.loc)}`);
@@ -1012,7 +1023,7 @@ function renderLog(highlightCall) {
       el('td', { class: 'mono' }, String(e.seq)),
       el('td', { class: 'call' }, e.call, n > 1 ? el('span', { class: 'badge', title: `Check-in Nr. ${n}` }, `${n}×`) : null,
         callbookName(e.call) ? el('div', { class: 'cb-name' }, callbookName(e.call)) : null),
-      tpl.fields.map(f => el('td', {}, fieldVisible(f, e.fields) ? fieldDisplay(f, e.fields?.[f.key]) : '',
+      tpl.fields.map(f => el('td', {}, fieldVisible(f, e.fields, tpl) ? fieldDisplay(f, e.fields?.[f.key]) : '',
         f.type === 'location' && e.loc ? el('div', { class: 'loc-sub' }, `→ ${describeLocation(e.loc)}`) : null,
         f.type === 'location' && !e.loc && e.fields?.[f.key] ? el('div', { class: 'loc-sub unresolved' }, 'nicht zugeordnet') : null)),
       el('td', {}, e.viaRepeater
