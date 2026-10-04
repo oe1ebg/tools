@@ -107,6 +107,13 @@ Zensical `docs_dir` would take over that section's index route (see
     siren grades 1–5 map directly), and **Backspace/Delete** clears the
     group.
   - **Esc** discards the line (with undo).
+- **The log header works the same way** (in a log and in "+ Neues Log"):
+  Enter moves on (from the last header field to the callsign), info lines
+  sit under the fields (callsign list for Operator/Station, locator
+  check), "Eigener QTH" uses the offline location lookup and fills an
+  empty "Eigener Locator", "Relais" has the repeater dropdown, and
+  "Betriebsart" is a chip group (digits pick). In "+ Neues Log",
+  Shift+Enter creates the log and Esc cancels; plain Enter never submits.
 - **Stable layout.** The info lines under the callsign and location fields
   (name, warnings, resolution) sit in a slot with a fixed height of two
   lines. They are truncated, with the full text in the tooltip, so no input
@@ -232,8 +239,10 @@ voice repeaters, 54 KiB) from the **ÖVSV repeater database**
   (`REPEATERS_FORCE_REFRESH=1` forces a refresh). If the API is down and
   there is no cache, the build continues **without** a repeater list: the
   header fields can still be filled in by hand, and the UI says so.
-- **In the tool.** A **"Relais suchen"** box sits in the Relais section of
-  the log header, for new events and existing logs.
+- **In the tool.** The **"Relais"** field in the log header (for new
+  events and existing logs) is also the search box: typing opens a
+  completion dropdown (↓/Enter, like the per-line repeater in the entry
+  form), and the line under the field describes the repeater it holds.
   - **Search terms:** callsign (`OE1XUU`, `xuu`), site or town
     (`Kahlenberg`, `Krems`), frequency (output or input: `438.95`, or
     `145` for the whole MHz, GHz repeaters included), band (`2m`, `70cm`)
@@ -472,9 +481,12 @@ any tiles**.
   location. A low or ambiguous match is drawn as a hollow, dashed circle,
   and a number on the pin shows repeat check-ins. Stations without a
   location are listed under the map.
-- **Hover** (or tap on touch screens, which opens a popup instead) shows
-  the callsign plus the name from the callsign list, the resolved location
-  with PLZ and locator, and every check-in of that station. A click also
+- **Hover** (or tap on touch screens, which opens a popup instead) shows a
+  short card: callsign, number of check-ins and the name from the callsign
+  list, the resolved location with PLZ and locator, and the latest three
+  check-ins as one line each (number, time and the template's key values
+  in short form, from `shortSummary()` and the fields' `short` labels in
+  `js/templates.js`). The table has the full details. A click also
   highlights the station's rows in the table.
 - **Own position:**
   - the header's "Eigener QTH" if it resolves with "high" confidence or
@@ -512,7 +524,7 @@ any tiles**.
 - `js/dom.js`: small DOM and clipboard helpers.
 - `js/locationui.js`: the Standort panel and the shared candidate list.
 - `js/repeaters.js` / `js/repeaterui.js`: repeater search (pure) and the
-  "Relais suchen" widget.
+  dropdown on the header's "Relais" field.
 - `js/mapdata.js` / `js/mapview.js`: the map view (pure helpers / Leaflet
   UI); `vendor/leaflet/`: unmodified Leaflet 1.9.4.
 - `js/locfield.js`: the log's `location` field (resolve while typing,

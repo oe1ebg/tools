@@ -109,3 +109,15 @@ test('templates: transitive visibility and platform-dependent version options', 
   assert.equal(fieldDisplay(f('os_version'), 'ios26'), 'iOS 26');
   assert.deepEqual(['siren_closed', 'siren_open', 'siren_outside'].map(k => f(k).options.map(o => o[0]).join('')), ['12345', '12345', '12345']);
 });
+
+test('templates: short summary for map cards', async () => {
+  const { templateFor, shortSummary } = await import('../docs/confirm/js/templates.js');
+  const z = templateFor('zivilschutz');
+  assert.equal(shortSummary(z, { address: 'Stephansplatz 1', plz: '1010', siren_closed: '2', siren_open: '1', siren_outside: '1', atalert: 'nein', platform: 'android', os_version: 'android14' }),
+    'Sirene zu 2 offen 1 außen 1 · AT-Alert nicht erhalten · Android 14');
+  assert.equal(shortSummary(z, { siren_outside: '3', atalert: 'ja', platform: 'ios', os_version: 'ios17' }),
+    'Sirene außen 3 · AT-Alert erhalten', 'hidden platform/version are left out');
+  assert.equal(shortSummary(z, { atalert: 'nein', platform: 'andere' }), 'AT-Alert nicht erhalten · andere');
+  assert.equal(shortSummary(templateFor('rst'), { rst_rcvd: '59', rst_sent: '57', name: 'Franz', qth: 'Wien' }), 'erh. 59 · geg. 57 · Franz');
+  assert.equal(shortSummary(templateFor('calls'), { qth: 'Wien' }), '');
+});

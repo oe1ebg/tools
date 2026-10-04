@@ -8,7 +8,9 @@
 // `showIf` hides a field unless another field has the given value (or one
 // of the given values). `optionsBy: [fieldKey, { value: options }]` makes
 // a radio field's options depend on another field. `grade` marks school
-// grades 1-5 (averaged in the summary).
+// grades 1-5 (averaged in the summary). `short` is the label in compact
+// views (map cards; '' = value only, missing = left out there); fields with
+// the same `group` are shown together under that name.
 
 // School grades for the siren test: 1 = sehr gut hörbar ... 5 = nicht hörbar.
 const GRADES = [['1', '1'], ['2', '2'], ['3', '3'], ['4', '4'], ['5', '5']];
@@ -38,9 +40,9 @@ export const TEMPLATES = [
     label: 'Rufzeichen + RST',
     hint: 'Rapport, optional Name und QTH',
     fields: [
-      { key: 'rst_rcvd', label: 'RST erh.', type: 'rst', adif: 'RST_RCVD' },
-      { key: 'rst_sent', label: 'RST geg.', type: 'rst', adif: 'RST_SENT' },
-      { key: 'name', label: 'Name', type: 'text', adif: 'NAME' },
+      { key: 'rst_rcvd', label: 'RST erh.', type: 'rst', adif: 'RST_RCVD', short: 'erh.' },
+      { key: 'rst_sent', label: 'RST geg.', type: 'rst', adif: 'RST_SENT', short: 'geg.' },
+      { key: 'name', label: 'Name', type: 'text', adif: 'NAME', short: '' },
       { key: 'qth', label: 'QTH / Standort', type: 'location', size: 22, adif: 'QTH' },
     ],
   },
@@ -52,20 +54,20 @@ export const TEMPLATES = [
       { key: 'address', label: 'Standort (Adresse, Ort, PLZ, Locator)', type: 'location', size: 28, plzKey: 'plz' },
       { key: 'plz', label: 'PLZ', type: 'text', size: 5, inputmode: 'numeric' },
       // Audibility of the warning siren, one school grade (1-5) per situation.
-      { key: 'siren_closed', label: 'Sirene innen, Fenster zu', type: 'radio', options: GRADES, grade: true, hint: GRADE_HINT },
-      { key: 'siren_open', label: 'Sirene innen, Fenster offen', type: 'radio', options: GRADES, grade: true, hint: GRADE_HINT },
-      { key: 'siren_outside', label: 'Sirene im Freien', type: 'radio', options: GRADES, grade: true, hint: GRADE_HINT },
+      { key: 'siren_closed', label: 'Sirene innen, Fenster zu', type: 'radio', options: GRADES, grade: true, hint: GRADE_HINT, group: 'Sirene', short: 'zu' },
+      { key: 'siren_open', label: 'Sirene innen, Fenster offen', type: 'radio', options: GRADES, grade: true, hint: GRADE_HINT, group: 'Sirene', short: 'offen' },
+      { key: 'siren_outside', label: 'Sirene im Freien', type: 'radio', options: GRADES, grade: true, hint: GRADE_HINT, group: 'Sirene', short: 'außen' },
       {
-        key: 'atalert', label: 'AT-Alert', type: 'radio',
+        key: 'atalert', label: 'AT-Alert', type: 'radio', short: 'AT-Alert',
         options: [['ja', 'erhalten'], ['nein', 'nicht erhalten']],
       },
       {
-        key: 'platform', label: 'Handy', type: 'radio', showIf: ['atalert', 'nein'],
+        key: 'platform', label: 'Handy', type: 'radio', showIf: ['atalert', 'nein'], short: '',
         options: [['android', 'Android'], ['ios', 'iOS'], ['andere', 'andere']],
       },
       {
         // Major OS version; the options depend on the chosen platform.
-        key: 'os_version', label: 'Version', type: 'radio', showIf: ['platform', ['ios', 'android']],
+        key: 'os_version', label: 'Version', type: 'radio', showIf: ['platform', ['ios', 'android']], short: '',
         optionsBy: ['platform', OS_VERSIONS],
       },
     ],
@@ -111,4 +113,26 @@ export function fieldDisplay(field, value) {
     return opt ? opt[1] : String(value);
   }
   return String(value);
+}
+
+// Compact one-line summary of a line's values for the map cards, e.g.
+// "Sirene zu 2 offen 1 außen 1 · AT-Alert nicht erhalten · Android 14".
+// Only fields with a `short` label; a value that the next one repeats
+// ("Android", then "Android 14") is dropped.
+export function shortSummary(tpl, values) {
+  const parts = [];
+  let group = null;
+  for (const f of tpl.fields) {
+    if (f.short === undefined || !fieldVisible(f, values, tpl)) continue;
+    const v = fieldDisplay(f, values?.[f.key]);
+    if (!v) continue;
+    const text = f.short ? `${f.short} ${v}` : v;
+    if (f.group && group === f.group) {
+      parts[parts.length - 1] += ` ${text}`;
+      continue;
+    }
+    group = f.group || null;
+    parts.push(f.group ? `${f.group} ${text}` : text);
+  }
+  return parts.filter((p, i) => !(parts[i + 1] || '').startsWith(p)).join(' · ');
 }

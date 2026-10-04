@@ -247,6 +247,10 @@ export function createLocationField({ input, plzInput, chip, results, onChange }
       pop.hide();
     },
     isPrefilled: () => !!prefilled,
+    // Resolve the current text again (e.g. a value restored on opening).
+    refresh() {
+      resolve();
+    },
     // Suggestions for the dropdown while the field is empty or prefilled.
     setOptions(list) {
       options = list || [];

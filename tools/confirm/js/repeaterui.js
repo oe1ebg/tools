@@ -1,7 +1,8 @@
-// "Relais suchen" in the log header: search all Austrian voice repeaters
+// Repeater lookup for the log header: search all Austrian voice repeaters
 // (offline list) and fill callsign, output frequency, shift, CTCSS and mode.
 
-import { el, fill } from './dom.js';
+import { el, fill, popover } from './dom.js';
+import { normalizeCall } from './model.js';
 import { loadDataFile } from './data.js';
 import { buildRepeaterIndex, searchRepeaters, positionFromLocator, formatShift, formatMHz } from './repeaters.js';
 
@@ -27,56 +28,72 @@ export function describeRepeater(r, distKm) {
   ].filter(Boolean).join(' · ');
 }
 
+// Completion on the header's "Relais" field, like the per-line repeater in
+// the entry form: type a callsign, place or frequency (or focus the empty
+// field with an own locator set: nearest first) and pick from the dropdown
+// (↓, Enter). The line under the field describes the chosen repeater.
 // getHeader(): current header values; onPick(repeater): apply it.
-export function repeaterSearchWidget(getHeader, onPick) {
-  const input = el('input', {
-    class: 'rpt-q', size: 30, autocomplete: 'off', spellcheck: 'false',
-    placeholder: 'Rufzeichen, Ort, Frequenz, Band, DMR/FM …',
-  });
-  const results = el('div', { class: 'rpt-results' });
-  const status = el('span', { class: 'hint' });
+export function attachRepeaterSearch({ input, pop, info, getHeader, onPick }) {
+  const dd = popover(input, pop);
   let timer = null;
+  let seq = 0;
 
-  async function run() {
+  async function renderInfo() {
+    const call = normalizeCall(input.value);
+    const idx = call ? await loadRepeaterIndex() : null;
+    const r = idx?.list.find(x => x.call === call);
+    info.className = 'ac-info';
+    if (r) {
+      info.classList.add('known');
+      info.textContent = describeRepeater(r).split(' · ').slice(1).join(' · ');
+    } else if (call) {
+      info.classList.add('unknown');
+      info.textContent = idx ? 'nicht in der ÖVSV-Liste – Frequenzen von Hand eintragen' : '';
+    } else {
+      info.textContent = '';
+    }
+    info.title = info.textContent;
+  }
+
+  async function suggest() {
+    const my = ++seq;
     const idx = await loadRepeaterIndex();
+    if (my !== seq) return;
     if (!idx) {
-      status.textContent = 'Relaisliste nicht verfügbar – Felder manuell ausfüllen.';
+      fill(pop);
+      dd.update();
       return;
     }
     const h = getHeader();
     const position = positionFromLocator(h.myGrid);
     const q = input.value.trim();
-    status.textContent = `${idx.list.length} österreichische Sprach-Relais (ÖVSV, Stand ${idx.retrieved.slice(0, 10)})${position ? ', sortiert nach Entfernung zu ' + h.myGrid : ''}`;
-    results.replaceChildren();
-    if (!q && !position) {
-      results.append(el('div', { class: 'hint' }, 'Tipp: eigenen Locator eintragen, dann werden die nächsten Relais angezeigt.'));
-      return;
-    }
-    const hits = searchRepeaters(idx, q, { position, limit: 8 });
-    if (!hits.length) results.append(el('div', { class: 'hint' }, 'Kein Relais gefunden.'));
-    for (const { r, distKm } of hits) {
-      results.append(el('button', {
-        type: 'button', class: `rpt-hit${r.status !== 'active' ? ' inactive' : ''}`,
+    // Nothing to offer while the field holds the repeater already applied
+    // (Enter then simply moves on instead of picking another one).
+    const applied = q && normalizeCall(q) === h.repeaterCall && h.repeaterFreq;
+    const list = !applied && (q || position) ? searchRepeaters(idx, q, { position, limit: 8 }) : [];
+    fill(pop, list.length ? [
+      el('div', { class: 'ac-head' }, `${q ? 'Relais' : `Nächste Relais zu ${h.myGrid}`} (ÖVSV, Stand ${idx.retrieved.slice(0, 10)}; ↓, Enter):`),
+      list.map(({ r, distKm }) => el('button', {
+        type: 'button', class: 'ac-item',
         title: [r.comment, r.echolink ? `EchoLink ${r.echolink}` : null, r.cc ? `Colorcode ${r.cc}` : null, r.locator].filter(Boolean).join(' · '),
         onclick: () => {
           onPick(r);
-          input.value = '';
-          fill(results, el('div', { class: 'hint ok' }, `✓ ${describeRepeater(r, distKm)} übernommen`));
+          input.value = r.call;
+          fill(pop);
+          dd.hide();
+          renderInfo();
+          input.focus();
         },
-      }, describeRepeater(r, distKm)));
-    }
+      }, el('b', {}, r.call), el('small', {}, describeRepeater(r, distKm).split(' · ').slice(1).join(' · ')))),
+    ] : []);
+    dd.update();
   }
-  input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(run, 120); });
-  input.addEventListener('focus', run);
-  // Enter takes the first hit instead of submitting the surrounding form.
-  input.addEventListener('keydown', ev => {
-    if (ev.key === 'Enter') {
-      ev.preventDefault();
-      results.querySelector('button.rpt-hit')?.click();
-    }
-  });
 
-  return el('div', { class: 'rpt-search' },
-    el('label', { class: 'field', style: 'flex:1;min-width:16em' }, el('span', {}, 'Relais suchen (alle österreichischen Relais)'), input),
-    status, results);
+  input.addEventListener('input', () => {
+    renderInfo();
+    clearTimeout(timer);
+    timer = setTimeout(suggest, 120);
+  });
+  input.addEventListener('focus', suggest);
+  return { refresh: renderInfo };
 }

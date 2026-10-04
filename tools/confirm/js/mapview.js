@@ -76,14 +76,21 @@ function drawBase() {
     { collapsed: narrow(), position: 'topright' }).addTo(mapInst);
 }
 
+const TIP_CHECKINS = 3; // newest check-ins listed on a card
+
+// Short card: call and name, where, and the latest check-ins in one line
+// each (the table has the full details).
 function stationTip(s, ctx) {
   const loc = s.loc;
   const name = ctx.callInfo(s.call);
+  const n = s.checkins.length;
+  const shown = s.checkins.slice(-TIP_CHECKINS);
   return el('div', { class: 'pin-tip-body' },
-    el('div', { class: 'pin-tip-head' }, el('b', {}, s.call), name ? ` – ${name}` : null),
-    el('div', {}, `${loc.label}${loc.postcode && !loc.label.includes(loc.postcode) ? ', ' + loc.postcode : ''} · ${loc.maidenhead}`,
-      loc.confidence === 'low' || loc.confidence === 'ambiguous' ? el('span', { class: 'pin-tip-warn' }, ' (unsichere Zuordnung)') : null),
-    el('ul', {}, s.checkins.map(e => el('li', {}, ctx.describe(e)))));
+    el('div', { class: 'pin-tip-head' }, el('b', {}, s.call), n > 1 ? ` ${n}×` : null, name ? ` – ${name}` : null),
+    el('div', { class: 'pin-tip-loc' }, `${loc.label}${loc.postcode && !loc.label.includes(loc.postcode) ? ', ' + loc.postcode : ''} · ${loc.maidenhead}`,
+      loc.confidence === 'low' || loc.confidence === 'ambiguous' ? el('span', { class: 'pin-tip-warn' }, ' (unsicher)') : null),
+    el('ul', {}, n > shown.length ? el('li', { class: 'pin-tip-more' }, `+ ${n - shown.length} frühere`) : null,
+      shown.map(e => el('li', {}, ctx.describe(e)))));
 }
 
 function drawPins(ctx) {
@@ -102,7 +109,7 @@ function drawPins(ctx) {
     });
     const m = L.marker([s.loc.lat, s.loc.lon], { icon, title: s.call, keyboard: true, riseOnHover: true });
     if (canHover()) m.bindTooltip(() => stationTip(s, ctx), { sticky: true, direction: 'top', className: 'pin-tip', offset: [0, -8] });
-    m.bindPopup(() => stationTip(s, ctx), { className: 'pin-tip', maxWidth: 360, autoPanPadding: [24, 24] });
+    m.bindPopup(() => stationTip(s, ctx), { className: 'pin-tip', maxWidth: 280, autoPanPadding: [24, 24] });
     m.on('click', () => ctx.onPick(s.call));
     m.addTo(pinGroup);
     pts.push([s.loc.lat, s.loc.lon]);

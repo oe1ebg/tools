@@ -10,16 +10,17 @@ import {
   MODES, modeInfo, headerSnapshot, emptyHeader, checkinNumbers, previousCheckins,
   liveSorted, stats,
 } from './model.js';
-import { TEMPLATES, templateFor, fieldVisible, fieldDisplay, fieldOptions, currentOptions } from './templates.js';
+import { TEMPLATES, templateFor, fieldVisible, fieldDisplay, fieldOptions, currentOptions, shortSummary } from './templates.js';
 import { toCSV, toADIF, toSummary } from './export.js';
 import { loadDataFile } from './data.js';
 import { buildCallbook, lookupCall, suggestCalls } from './callbook.js';
 import { $, el, fill, popover, focusNext } from './dom.js';
 import { initLocationPanel, loadLocationIndex } from './locationui.js';
 import { locate } from './location/index.js';
+import { isValidLocator, isLocatorPrefix, locatorPrecisionName } from './location/maidenhead.js';
 import { openMap, closeMap, refreshMap, mapVisible } from './mapview.js';
 import { createLocationField, describeLocation, locationOptions } from './locfield.js';
-import { repeaterSearchWidget, loadRepeaterIndex } from './repeaterui.js';
+import { attachRepeaterSearch, loadRepeaterIndex } from './repeaterui.js';
 import { sourceItem } from './sources.js';
 import { createLineRepeater } from './linerepeater.js';
 import { headerFromRepeater, formatShift } from './repeaters.js';
@@ -223,70 +224,198 @@ const HEADER_FIELDS = [
   { sub: 'Station' },
   { key: 'operator', label: 'Operator', call: true, size: 9 },
   { key: 'station', label: 'Station (für)', call: true, size: 9 },
-  { key: 'myGrid', label: 'Eigener Locator', size: 7 },
-  { key: 'myQth', label: 'Eigener QTH', size: 14 },
+  { key: 'myQth', label: 'Eigener QTH', qth: true, size: 18 },
+  { key: 'myGrid', label: 'Eigener Locator', grid: true, size: 8 },
   { sub: 'Frequenz' },
   { key: 'freq', label: 'Frequenz MHz', size: 9, inputmode: 'decimal' },
-  { key: 'mode', label: 'Betriebsart', select: MODES.map(m => [m.key, m.label]) },
+  { key: 'mode', label: 'Betriebsart', radio: MODES.map(m => [m.key, m.label]) },
   { sub: 'Relais' },
-  { key: 'viaRepeater', label: 'Standard: über Relais', check: true },
-  { key: 'repeaterCall', label: 'Relais-Rufzeichen', call: true, size: 9 },
+  { key: 'viaRepeater', label: 'über Relais', check: true },
+  { key: 'repeaterCall', label: 'Relais (Rufzeichen, Ort, Frequenz)', call: true, repeater: true, size: 11 },
   { key: 'repeaterFreq', label: 'Relais-Ausgabe MHz', size: 9, inputmode: 'decimal' },
   { key: 'repeaterShift', label: 'Shift MHz (z. B. -0.6)', size: 6, inputmode: 'decimal' },
   { key: 'repeaterTone', label: 'CTCSS Hz', size: 6, inputmode: 'decimal' },
 ];
 
+// The header form (log view and "Neues Log") works like the entry form:
+// info lines in fixed-height slots under the fields, completion dropdowns
+// (QTH: offline location lookup, Relais: ÖVSV list), Betriebsart as chips.
+// onChange(header) is called only when a value actually changed.
 function buildHeaderForm(container, header, onChange) {
-  container.replaceChildren();
+  fill(container);
+  const id = k => `${container.id}-${k}`;
+  const hints = {};
+  let rptSearch = null;
+  let qthField = null;
+  let qthTouched = false;
+  let last = null; // set after building: opening a log never counts as a change
+  const emit = () => {
+    renderHeaderHints(container);
+    const h = readHeaderForm(container);
+    const sig = JSON.stringify(h);
+    if (sig === last) return;
+    last = sig;
+    onChange(h);
+  };
+
   for (const f of HEADER_FIELDS) {
     if (f.sub) {
       container.append(el('div', { class: 'sub' }, f.sub));
-      if (f.sub === 'Relais') {
-        container.append(repeaterSearchWidget(() => readHeaderForm(container), r => {
-          const next = headerFromRepeater(r, readHeaderForm(container));
-          writeHeaderForm(container, next);
-          onChange(next);
-        }));
-      }
       continue;
     }
-    let input;
     if (f.check) {
-      input = el('input', { type: 'checkbox', name: f.key, checked: !!header[f.key] });
-      container.append(el('label', { class: 'check' }, input, f.label));
-    } else {
-      if (f.select) {
-        input = el('select', { name: f.key }, f.select.map(([v, l]) => el('option', { value: v, selected: header[f.key] === v }, l)));
-      } else {
-        input = el('input', { name: f.key, value: header[f.key] || '', size: f.size, inputmode: f.inputmode, spellcheck: 'false' });
-        if (f.call) input.style.textTransform = 'uppercase';
-      }
-      container.append(el('label', { class: 'field' }, el('span', {}, f.label), input));
+      const input = el('input', { type: 'checkbox', 'data-hkey': f.key, checked: !!header[f.key] });
+      input.addEventListener('change', emit);
+      container.append(el('div', { class: 'field' }, el('span', {}, 'Standard'), el('label', { class: 'check' }, input, f.label)));
+      continue;
     }
-    input.addEventListener(f.check || f.select ? 'change' : 'input', () => onChange(readHeaderForm(container)));
+    if (f.radio) {
+      const name = id(f.key);
+      // A stored mode that is no longer in the list stays selectable.
+      const opts = header[f.key] && !f.radio.some(o => o[0] === header[f.key]) ? [...f.radio, [header[f.key], header[f.key]]] : f.radio;
+      const group = el('div', { class: 'radio-group', role: 'radiogroup', 'aria-label': f.label },
+        opts.map(([v, l]) => {
+          const r = el('input', { type: 'radio', name, value: v, 'data-hkey': f.key, checked: header[f.key] === v });
+          r.addEventListener('change', emit);
+          r.addEventListener('keydown', ev => radioKey(ev, [...group.querySelectorAll('input')], emit, false));
+          return el('label', { 'data-value': v }, r, el('span', {}, l));
+        }));
+      container.append(el('div', { class: 'field' }, el('span', {}, f.label), group));
+      continue;
+    }
+    const input = el('input', {
+      id: id(f.key), 'data-hkey': f.key, value: header[f.key] || '', size: f.size, inputmode: f.inputmode,
+      spellcheck: 'false', autocomplete: 'off', class: f.call ? 'call-input' : f.grid ? 'grid-input' : null,
+      autocapitalize: f.call || f.grid ? 'characters' : null,
+    });
+    input.addEventListener('input', emit);
+    const hasPop = f.qth || f.repeater;
+    const hasHint = hasPop || f.call || f.grid;
+    const pop = hasPop ? el('div', { class: 'ac-pop' }) : null;
+    const info = hasHint ? el('div', { class: 'ac-info', 'aria-live': 'polite' }) : null;
+    if (info) hints[f.key] = info;
+    if (info) {
+      info.id = `${id(f.key)}-info`;
+      input.setAttribute('aria-describedby', info.id);
+    }
+    container.append(el('div', { class: 'field ac-field' },
+      el('label', { for: input.id }, f.label),
+      hasPop ? el('div', { class: 'ac-wrap' }, input, pop) : input,
+      info ? el('div', { class: 'ac-hints' }, info) : null));
+    if (f.repeater) {
+      rptSearch = attachRepeaterSearch({
+        input, pop, info,
+        getHeader: () => readHeaderForm(container),
+        onPick: r => {
+          writeHeaderForm(container, headerFromRepeater(r, readHeaderForm(container)));
+          emit();
+        },
+      });
+    }
+    if (f.qth) {
+      input.addEventListener('input', () => { qthTouched = true; });
+      qthField = createLocationField({
+        input, results: pop, chip: info,
+        // A resolved QTH fills an empty (or earlier auto-filled) locator —
+        // only after editing the QTH, never just by opening a log.
+        onChange: () => {
+          if (qthTouched) fillGridFromQth(container, qthField.get());
+          emit();
+        },
+      });
+    }
   }
+  container._hdr = { hints, rptSearch, qthField };
+  last = JSON.stringify(readHeaderForm(container));
+  renderHeaderHints(container);
+  rptSearch?.refresh();
+  if (header.myQth) qthField?.refresh();
+}
+
+// Locator from the resolved own QTH: subsquare, or only the square for
+// areas (PLZ, Bezirk) that span several subsquares.
+function fillGridFromQth(container, loc) {
+  const grid = container.querySelector('[data-hkey="myGrid"]');
+  if (!(grid.value === '' || grid.dataset.autofill === grid.value)) return;
+  const v = loc ? (loc.areaLocators?.length > 1 ? loc.maidenhead.slice(0, 4) : loc.maidenhead) : '';
+  grid.value = v;
+  grid.dataset.autofill = v;
+}
+
+// Info lines under the header's callsign and locator fields (QTH and
+// Relais keep their own, from the location field and repeater search).
+function renderHeaderHints(container) {
+  const hints = container._hdr?.hints;
+  if (!hints) return;
+  for (const key of ['operator', 'station']) {
+    const call = normalizeCall(container.querySelector(`[data-hkey="${key}"]`).value);
+    const line = callbookLine(call);
+    const info = hints[key];
+    if (call && !isPlausibleCall(call)) {
+      info.className = 'ac-info warn';
+      info.textContent = 'Ungewöhnliches Rufzeichen';
+    } else {
+      info.className = `ac-info ${line.cls}`.trim();
+      info.textContent = line.text;
+    }
+    info.title = line.title || info.textContent;
+  }
+  const grid = container.querySelector('[data-hkey="myGrid"]');
+  const g = grid.value.trim();
+  const info = hints.myGrid;
+  info.className = 'ac-info';
+  if (!g) {
+    info.textContent = '';
+  } else if (isValidLocator(g)) {
+    info.classList.add('known');
+    info.textContent = `✓ ${locatorPrecisionName(g.length)}${grid.dataset.autofill === grid.value ? ' (aus QTH)' : ''}`;
+  } else {
+    info.classList.add('warn');
+    info.textContent = isLocatorPrefix(g) ? 'unvollständig (z. B. JN88ee)' : 'kein gültiger Locator (z. B. JN88ee)';
+  }
+  info.title = info.textContent;
 }
 
 function writeHeaderForm(container, h) {
   for (const f of HEADER_FIELDS) {
     if (f.sub) continue;
-    const input = container.querySelector(`[name="${f.key}"]`);
+    if (f.radio) {
+      container.querySelectorAll(`[data-hkey="${f.key}"]`).forEach(r => { r.checked = r.value === h[f.key]; });
+      continue;
+    }
+    const input = container.querySelector(`[data-hkey="${f.key}"]`);
     if (!input) continue;
     if (f.check) input.checked = !!h[f.key];
     else input.value = h[f.key] ?? '';
   }
+  container._hdr?.rptSearch?.refresh();
 }
 
 function readHeaderForm(container) {
   const h = emptyHeader();
   for (const f of HEADER_FIELDS) {
     if (f.sub) continue;
-    const input = container.querySelector(`[name="${f.key}"]`);
+    if (f.radio) {
+      const c = container.querySelector(`[data-hkey="${f.key}"]:checked`);
+      if (c) h[f.key] = c.value;
+      continue;
+    }
+    const input = container.querySelector(`[data-hkey="${f.key}"]`);
     if (!input) continue;
     if (f.check) h[f.key] = input.checked;
     else h[f.key] = f.call ? normalizeCall(input.value) : input.value.trim();
   }
   return h;
+}
+
+// Enter moves to the next field (as in the entry form); `last` is called
+// when Enter is pressed in the last field.
+function headerKeys(container, last) {
+  container.addEventListener('keydown', ev => {
+    if (ev.key !== 'Enter' || ev.shiftKey || ev.isComposing || ev.target.tagName !== 'INPUT') return;
+    ev.preventDefault();
+    if (!focusNext(container, ev.target)) last?.();
+  });
 }
 
 function headerSummary(h) {
@@ -553,7 +682,8 @@ function buildEntryFields() {
             else box.querySelectorAll(`input[name="f_${f.key}"]`).forEach(o => { o.dataset.was = o === r ? '1' : ''; });
             onFormInput();
           });
-          r.addEventListener('keydown', ev => radioKey(ev, f.key));
+          r.addEventListener('keydown', ev => radioKey(ev,
+            [...box.querySelectorAll(`input[name="f_${f.key}"]`)].filter(x => !x.closest('label').hidden), onFormInput));
           return el('label', { 'data-value': v }, r, el('span', {}, l));
         }));
     } else {
@@ -593,15 +723,15 @@ function buildEntryFields() {
   updateRepeaterDefault();
 }
 
-// Keyboard on a radio group: digits pick the n-th visible option (grades
-// 1-5 map directly), Backspace/Delete clears the group.
-function radioKey(ev, key) {
-  const radios = [...document.querySelectorAll(`#f-fields input[name="f_${key}"]`)].filter(r => !r.closest('label').hidden);
+// Keyboard on a radio group (its visible radios): digits pick the n-th
+// option (grades 1-5 map directly), Backspace/Delete clears the group
+// (unless clearable is false).
+function radioKey(ev, radios, after, clearable = true) {
   let pick;
   if (/^[1-9]$/.test(ev.key) && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
     pick = radios[Number(ev.key) - 1];
     if (!pick) return;
-  } else if (ev.key !== 'Backspace' && ev.key !== 'Delete') {
+  } else if (!clearable || (ev.key !== 'Backspace' && ev.key !== 'Delete')) {
     return;
   }
   ev.preventDefault();
@@ -610,7 +740,7 @@ function radioKey(ev, key) {
     r.dataset.was = r.checked ? '1' : '';
   }
   (pick || ev.target).focus();
-  onFormInput();
+  after();
 }
 
 function readFields() {
@@ -743,6 +873,29 @@ function fmtStand(iso) {
   return m ? `${m[3]}.${m[2]}.${m[1]}` : iso || '?';
 }
 
+// The callsign list's line for a call: { cls, text, title }.
+function callbookLine(call) {
+  const book = state.callbook;
+  if (!book || !call) return { cls: '', text: '' };
+  const { entry, base, isOE } = lookupCall(book, call);
+  if (entry) {
+    return {
+      cls: 'known',
+      text: entry[1] || entry[2]
+        ? `${entry[0]} · ${[entry[1], entry[2]].filter(Boolean).join(' · ')}`
+        : `${entry[0]} · in der Rufzeichenliste (Angaben nicht veröffentlicht)`,
+    };
+  }
+  if (isOE && base.length >= 4) {
+    return {
+      cls: 'unknown',
+      text: `nicht in Rufzeichenliste (${fmtStand(book.stand)}) – Tippfehler?`,
+      title: `${base} ist nicht in der Rufzeichenliste (Stand ${fmtStand(book.stand)}) – Tippfehler? Speichern ist trotzdem möglich.`,
+    };
+  }
+  return { cls: '', text: '' };
+}
+
 // Name/location from the callsign list under the call field, typo
 // suggestions, and auto-fill of empty Name/QTH template fields.
 function renderCallbookInfo(call) {
@@ -758,20 +911,11 @@ function renderCallbookInfo(call) {
     autofillFromCallbook(null);
     return;
   }
-  const { entry, base, isOE } = lookupCall(book, call);
-  if (entry) {
-    info.className = 'ac-info known';
-    info.textContent = entry[1] || entry[2]
-      ? `${entry[0]} · ${[entry[1], entry[2]].filter(Boolean).join(' · ')}`
-      : `${entry[0]} · in der Rufzeichenliste (Angaben nicht veröffentlicht)`;
-  } else if (isOE && base.length >= 4) {
-    info.className = 'ac-info unknown';
-    info.textContent = `nicht in Rufzeichenliste (${fmtStand(book.stand)}) – Tippfehler?`;
-    info.title = `${base} ist nicht in der Rufzeichenliste (Stand ${fmtStand(book.stand)}) – Tippfehler? Speichern ist trotzdem möglich.`;
-  } else {
-    info.textContent = '';
-  }
-  if (info.textContent && !info.title) info.title = info.textContent;
+  const { entry } = lookupCall(book, call);
+  const line = callbookLine(call);
+  info.className = `ac-info ${line.cls}`.trim();
+  info.textContent = line.text;
+  info.title = line.title || line.text;
   autofillFromCallbook(entry);
   if (!entry && !state.readOnly) {
     const list = suggestCalls(book, call, 8);
@@ -878,7 +1022,7 @@ function mapContext() {
     event: state.event,
     header: state.event.header || {},
     entries: state.entries,
-    describe: e => describeEntry(e, tpl),
+    describe: e => [`Nr. ${e.seq}`, fmtTime(e.ts, false), shortSummary(tpl, e.fields)].filter(Boolean).join(' · '),
     callInfo: call => callbookName(call),
     // The own QTH counts only if it resolves confidently.
     resolve: async text => {
@@ -1382,6 +1526,20 @@ function wire() {
   }));
   $('#btn-new-event').addEventListener('click', () => openNewEventForm());
   $('#btn-cancel-new').addEventListener('click', () => { $('#new-event').hidden = true; });
+  // Same keys as the entry form: Enter = next field, Shift+Enter = create,
+  // Esc = cancel (open dropdowns take Enter/Esc first).
+  headerKeys($('#new-event'));
+  $('#new-event').addEventListener('keydown', ev => {
+    if (ev.key === 'Enter' && ev.shiftKey && !ev.isComposing) {
+      ev.preventDefault();
+      $('#new-event').requestSubmit();
+    } else if (ev.key === 'Escape') {
+      $('#new-event').hidden = true;
+      $('#btn-new-event').focus();
+    }
+  });
+  // Log header: Enter in the last field goes on to the callsign.
+  headerKeys($('#log-header'), () => $('#f-call').focus());
   $('#new-event').addEventListener('submit', ev => {
     ev.preventDefault();
     const form = ev.target;
@@ -1460,6 +1618,8 @@ async function loadCallbook() {
   fill($('#st-callbook'), state.callbook
     ? sourceItem('callsigns', `Stand ${fmtStand(state.callbook.stand)}, ${state.callbook.calls.length} OE-Rufzeichen`)
     : 'Rufzeichenliste nicht verfügbar');
+  renderHeaderHints($('#new-header'));
+  renderHeaderHints($('#log-header'));
   if (state.event) {
     updateCallFeedback();
     renderLog();

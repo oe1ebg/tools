@@ -34,7 +34,8 @@ are in `oe1ebg/confirm-README.md`.
   - Enter in the input picks the first item. Pass
     `{ enterPicksFirst: false }` where the items are only guesses that
     could replace valid input (the callsign typo suggestions).
-- **Keyboard-only entry form.**
+- **Keyboard-only entry form** (the log header and "+ Neues Log" follow
+  the same rules; `headerKeys()` in `js/app.js`).
   - Shift+Enter saves from any control.
   - Enter moves on with `focusNext()`.
   - Don't add Tab stops inside the info lines under fields.

@@ -207,8 +207,16 @@
     background:var(--bg-raised);
   }
   .grid-form{ display:flex; flex-wrap:wrap; gap:.6em 1em; align-items:flex-end; }
+  /* header fields: top-aligned like the entry form, hints never move inputs */
+  #log-header, #new-header{ align-items:flex-start; }
+  /* fields with an info line get room for it (it wraps to the field width) */
+  #log-header .ac-field:has(.ac-hints), #new-header .ac-field:has(.ac-hints){ min-width:15em; }
+  #log-header .ac-field:has(.ac-pop), #new-header .ac-field:has(.ac-pop){ min-width:20em; }
+  .call-input, .grid-input{ font-family:var(--font-mono); }
+  .call-input{ text-transform:uppercase; }
   .grid-form .sub{ width:100%; font-size:11px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.06em; margin-top:.4em; }
   label.check{ display:flex; align-items:center; gap:.35em; font-size:13px; }
+  div.field > label.check{ text-transform:none; letter-spacing:0; color:var(--text); }
 
   /* ---------- log view ---------- */
   #log-title{ font-size:18px; font-weight:600; border:1px solid transparent; background:none; min-width:12em; flex:1; max-width:32em; }
@@ -301,11 +309,6 @@
   .lc-note{ font-size:12px; color:var(--warn); }
   .lc-actions{ display:flex; gap:.35em; flex-wrap:wrap; margin-top:.35em; }
   button.mini{ font-size:12px; padding:.15em .55em; }
-  .rpt-search{ width:100%; display:flex; flex-wrap:wrap; gap:.3em 1em; align-items:flex-end; }
-  .rpt-search > .hint{ flex-basis:100%; }
-  .rpt-results{ flex-basis:100%; display:flex; flex-direction:column; gap:.2em; }
-  button.rpt-hit{ text-align:left; font-family:var(--font-mono); font-size:12px; background:var(--bg); }
-  button.rpt-hit.inactive{ opacity:.65; }
   .rpt-line-row{ display:flex; gap:.4em; align-items:center; }
   #f-rpt-q{ font-family:var(--font-mono); text-transform:uppercase; }
   #f-rpt-q.override{ border-color:var(--warn); color:var(--warn); font-weight:600; }
@@ -347,10 +350,13 @@
   .map-own{ border-radius:50%; background:var(--warn); border:3px solid var(--bg); box-shadow:0 0 0 3px var(--warn), 0 2px 8px #0006;
     display:flex !important; align-items:center; justify-content:center; color:#fff; font-size:15px; }
   .leaflet-tooltip.pin-tip, .pin-tip .leaflet-popup-content-wrapper{ background:var(--bg); color:var(--text); border:1px solid var(--accent); }
-  .pin-tip-body{ font-size:12px; max-width:340px; white-space:normal; }
-  .pin-tip-head{ font-size:13px; margin-bottom:.2em; }
+  .pin-tip-body{ font-size:12px; width:max-content; max-width:260px; white-space:normal; }
+  .pin-tip-head{ font-size:13px; }
+  .pin-tip-loc{ color:var(--text-dim); }
   .pin-tip-body b{ font-family:var(--font-mono); }
-  .pin-tip-body ul{ margin:.3em 0 0; padding-left:1.1em; }
+  .pin-tip-body ul{ margin:.25em 0 0; padding:0; list-style:none; }
+  .pin-tip-body li + li{ margin-top:.1em; }
+  .pin-tip-more{ color:var(--text-dim); }
   .pin-tip-warn{ color:var(--warn); }
   #btn-map.active{ border-color:var(--accent); color:var(--accent); }
   .csv-group{ display:inline-flex; }
@@ -445,8 +451,9 @@
       </div>
       <div id="new-header" class="grid-form" style="margin-top:.6em"></div>
       <div class="toolbar" style="margin:1em 0 0">
-        <button type="submit" class="primary">Log anlegen</button>
-        <button type="button" id="btn-cancel-new">Abbrechen</button>
+        <button type="submit" class="primary" title="Log anlegen (Shift+Enter, aus jedem Feld)">Log anlegen ⇧⏎</button>
+        <button type="button" id="btn-cancel-new">Abbrechen (Esc)</button>
+        <span class="hint">Tab/Enter nächstes Feld · ↓ Vorschläge, Enter übernimmt</span>
       </div>
     </form>
 
@@ -475,7 +482,8 @@
       <summary><b>Header</b> <span class="hdr-sum" id="hdr-sum"></span></summary>
       <div class="body">
         <div id="log-header" class="grid-form"></div>
-        <p class="hint">Änderungen am Header gelten für neue Zeilen. Bereits geloggte Zeilen behalten Operator, Station, Frequenz und Relais vom Zeitpunkt des Eintrags.</p>
+        <p class="hint">Änderungen am Header gelten für neue Zeilen. Bereits geloggte Zeilen behalten Operator, Station, Frequenz und Relais vom Zeitpunkt des Eintrags.<br>
+          Tastatur: Tab/Enter nächstes Feld · ↓ Vorschläge, Enter übernimmt · Ziffern bei Betriebsart</p>
       </div>
     </details>
 
