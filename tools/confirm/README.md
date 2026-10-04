@@ -2,8 +2,10 @@
 
 A browser-based logbook for nets where stations only check in: confirmation
 traffic after a broadcast ("Bestätigungsverkehr nach Rundspruch"), RST
-rounds, and structured surveys like the Zivilschutz-Probealarm (PLZ,
-address, siren audibility, AT-Alert received, phone platform). It is served
+rounds, and structured surveys like the Zivilschutz-Probealarm (location
+and PLZ; siren audibility as a school grade 1–5 for each of inside with
+windows closed / inside with windows open / outside; AT-Alert received;
+and if not, the phone platform and its major version). It is served
 at `https://oe1ebg.at/confirm/`, and the source is in `docs/confirm/`.
 
 This file sits outside `docs/` on purpose: a `README.md` inside the
@@ -132,8 +134,10 @@ Zensical `docs_dir` would take over that section's index route (see
     into `COMMENT`. `APP_OE1EBG_CHECKIN` and `APP_OE1EBG_EVENT` are added as
     well.
 - **Zusammenfassung.** A plain-text report: the list of unique calls and,
-  for the Probealarm, counts per siren category, AT-Alert, platform and PLZ.
-  Only each station's latest check-in is counted.
+  for the Probealarm, the average siren grade with its distribution per
+  situation, AT-Alert received/not received, "not received" by platform
+  and major version, and a line per PLZ (AT-Alert ratio and average
+  grades). Only each station's latest check-in is counted.
 
 ## Callsign list
 
