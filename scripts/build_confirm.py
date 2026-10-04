@@ -7,8 +7,9 @@ import os
 import re
 from pathlib import Path
 
-# Build step for the offline confirmation log (oe1ebg/content/confirm/). Runs
-# before `zensical build`, which then copies the generated files into site/.
+# Build step for the offline confirmation log (oe1ebg/tools/confirm/). Runs
+# before scripts/stage_tools.py and `zensical build`, which copy the generated
+# files into content/confirm/ and then site/.
 # Stdlib only. Produces three git-ignored files:
 #
 # 1. confirm-offline.html — the whole tool in ONE file (all js/ modules and
@@ -20,7 +21,7 @@ from pathlib import Path
 #    unique and use only single-statement `import {...} from './x.js';`.
 #
 # 2. precache.js — the service worker's file list plus a content-hash
-#    version (see content/confirm/sw.js). Any change to any shipped file
+#    version (see tools/confirm/sw.js). Any change to any shipped file
 #    changes the version, which makes browsers install the new version in
 #    the background (activated only when the user clicks "Update").
 #
@@ -38,14 +39,15 @@ from pathlib import Path
 #    same object inlined.
 
 OE1EBG_DIR = Path(__file__).resolve().parent.parent
-CONFIRM_DIR = OE1EBG_DIR / "content" / "confirm"
+CONFIRM_DIR = OE1EBG_DIR / "tools" / "confirm"
 BUNDLE_NAME = "confirm-offline.html"
 PRECACHE_NAME = "precache.js"
 BUILD_INFO_NAME = "build-info.js"
 
 # Not precached by the service worker. The single-file bundle duplicates
 # everything else (incl. the multi-MB data), so it's only a download.
-EXCLUDE = {"sw.js", PRECACHE_NAME, "AGENTS.md", BUNDLE_NAME, BUILD_INFO_NAME}
+# Markdown (README.md, AGENTS.md) isn't published at all (scripts/stage_tools.py).
+EXCLUDE = {"sw.js", PRECACHE_NAME, BUNDLE_NAME, BUILD_INFO_NAME}
 # Precached, but not part of the content hash (see build-info.js above).
 UNHASHED = [BUILD_INFO_NAME]
 
@@ -147,7 +149,7 @@ def build_bundle(build: dict) -> str:
 def shipped_files() -> list[Path]:
     files = []
     for p in sorted(CONFIRM_DIR.rglob("*")):
-        if p.is_file() and p.name not in EXCLUDE and not p.name.startswith("."):
+        if p.is_file() and p.name not in EXCLUDE and p.suffix != ".md" and not p.name.startswith("."):
             files.append(p)
     return files
 

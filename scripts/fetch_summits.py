@@ -8,10 +8,10 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
-# Powers the SOTA Alerts Map's "all summits" overlay (oe1ebg/content/sota-alerts/),
+# Powers the SOTA Alerts Map's "all summits" overlay (oe1ebg/tools/sota-alerts/),
 # so the browser never has to fetch this itself: storage.sota.org.uk doesn't
 # send CORS headers for browser requests (verified live — see
-# oe1ebg/sota-alerts-README.md), and even if it did, ~180,000 individual
+# oe1ebg/tools/sota-alerts/README.md), and even if it did, ~180,000 individual
 # summits is not something a visitor's browser should be downloading fresh
 # on every page load. Fetched once here, at build time, and cached across
 # rebuilds (see CACHE_DIR below) so iterating locally or rebuilding the
@@ -23,7 +23,7 @@ CACHE_MAX_AGE_SECONDS = 7 * 24 * 60 * 60  # matches SOTA's own weekly (Sunday) r
 DOCS_DIR = Path(__file__).resolve().parent.parent
 CACHE_DIR = DOCS_DIR / ".cache" / "sota-summits"
 CACHE_CSV_PATH = CACHE_DIR / "summitslist.csv"
-OUTPUT_PATH = DOCS_DIR / "content" / "sota-alerts" / "data" / "summits.json"
+OUTPUT_PATH = DOCS_DIR / "tools" / "sota-alerts" / "data" / "summits.json"
 # A much smaller sibling of summits.json, keyed for O(1) lookup by summit
 # code and used as a static-first source for per-summit coordinate
 # resolution (see index.html's resolveSummits()) — checked before ever
@@ -33,7 +33,7 @@ OUTPUT_PATH = DOCS_DIR / "content" / "sota-alerts" / "data" / "summits.json"
 # weekly-refreshed list. Array-of-tuples rather than one-object-per-summit
 # (i.e. summits.json's own shape): ~9.8MB vs ~17.8MB for the identical
 # fields, purely from not repeating key names in every entry.
-LOOKUP_OUTPUT_PATH = DOCS_DIR / "content" / "sota-alerts" / "data" / "summit-lookup.json"
+LOOKUP_OUTPUT_PATH = DOCS_DIR / "tools" / "sota-alerts" / "data" / "summit-lookup.json"
 
 
 def fetch_csv_text() -> str:

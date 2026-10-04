@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { stationsForMap, ownPosition, maidenheadGridLines } from '../content/confirm/js/mapdata.js';
-import { mapLinkUrls, mapLinkZoom } from '../content/confirm/js/sources.js';
+import { stationsForMap, ownPosition, maidenheadGridLines } from '../tools/confirm/js/mapdata.js';
+import { mapLinkUrls, mapLinkZoom } from '../tools/confirm/js/sources.js';
 
 test('map links: Google Maps / OSM URLs, 5 decimals, zoom by type', () => {
   const u = mapLinkUrls(48.2083012, 16.37, 18);
@@ -56,7 +56,7 @@ test('maidenheadGridLines: 6-char squares covering Vienna', () => {
   assert.ok(g.lines.length >= 10);
 });
 
-const real = new URL('../content/confirm/data/vienna-map.json', import.meta.url);
+const real = new URL('../tools/confirm/data/vienna-map.json', import.meta.url);
 test('generated basemap is plausible and small', { skip: !existsSync(real) && 'run `just build-map` first' }, () => {
   const raw = readFileSync(real, 'utf8');
   assert.ok(raw.length < 2 * 1024 * 1024, `${raw.length} bytes`);

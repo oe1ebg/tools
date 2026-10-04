@@ -3,7 +3,7 @@
 // only (data/vienna-locations.json, scripts/build_location_data.py). PLZ and
 // political Bezirke: all of Austria, with the locator squares they cover
 // (data/austria-areas.json, scripts/build_austria_areas.py; optional).
-// Design: oe1ebg/confirm-README.md.
+// Design: oe1ebg/tools/confirm/README.md.
 //
 //   const idx = buildLocationIndex(data, areas);
 //   locate(idx, 'Waehringerstr 42 1180')   -> { evidence, results, autoSelect }

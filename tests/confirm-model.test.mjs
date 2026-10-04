@@ -5,7 +5,7 @@ import {
   normalizeCall, isPlausibleCall, parseUtcInput, splitUtc, bandForMHz,
   checkinNumbers, previousCheckins, stats, lineFrequencies, headerSnapshot,
   splitTime, zoneLabel, isoUtc, isoWithOffset, parseTimeInput,
-} from '../content/confirm/js/model.js';
+} from '../tools/confirm/js/model.js';
 
 test('normalizeCall uppercases and strips junk', () => {
   assert.equal(normalizeCall(' oe1ebg '), 'OE1EBG');
@@ -98,7 +98,7 @@ test('typed corrections are interpreted in the display mode', () => {
 });
 
 test('templates: transitive visibility and platform-dependent version options', async () => {
-  const { templateFor, fieldVisible, currentOptions, fieldDisplay } = await import('../content/confirm/js/templates.js');
+  const { templateFor, fieldVisible, currentOptions, fieldDisplay } = await import('../tools/confirm/js/templates.js');
   const tpl = templateFor('zivilschutz');
   const f = k => tpl.fields.find(x => x.key === k);
   assert.ok(fieldVisible(f('os_version'), { atalert: 'nein', platform: 'ios' }, tpl));
@@ -111,7 +111,7 @@ test('templates: transitive visibility and platform-dependent version options', 
 });
 
 test('templates: short summary for map cards', async () => {
-  const { templateFor, shortSummary } = await import('../content/confirm/js/templates.js');
+  const { templateFor, shortSummary } = await import('../tools/confirm/js/templates.js');
   const z = templateFor('zivilschutz');
   assert.equal(shortSummary(z, { address: 'Stephansplatz 1', plz: '1010', siren_closed: '2', siren_open: '1', siren_outside: '1', atalert: 'nein', platform: 'android', os_version: 'android14' }),
     'Sirene zu 2 offen 1 außen 1 · AT-Alert nicht erhalten · Android 14');

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { locationOptions } from '../content/confirm/js/locfield.js';
+import { locationOptions } from '../tools/confirm/js/locfield.js';
 
 const loc = {
   type: 'address', label: 'Quellenstraße 10', street: 'Quellenstraße', houseNumber: '10',

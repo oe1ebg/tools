@@ -101,8 +101,10 @@ typed by hand.
 
 - `index.html` — the entire tool. Open directly in any browser, no server
   required. The filename matters: it's what gets served at the pretty URL
-  `/adif/` on the docs site (see the top-level `AGENTS.md` for why this
-  file itself lives outside `oe1ebg/content/`, the published `docs_dir`).
+  `/adif/` on oe1ebg.at. The source lives in `oe1ebg/tools/adif/` and is
+  copied into the Zensical `docs_dir` at build time by
+  `scripts/stage_tools.py`, without this README (a `README.md` inside the
+  `docs_dir` would become the section's index page and hide `index.html`).
 
 ## Zensical integration
 
@@ -112,7 +114,7 @@ use this file:
 
 **1. Standalone page.** Drop it in, e.g.:
 ```
-content/tools/adif-editor.html
+docs/tools/adif-editor.html
 ```
 Builds to `yoursite.org/tools/adif-editor.html`, no Material theme chrome.
 

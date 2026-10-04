@@ -4,7 +4,7 @@ Guidance for AI agents working in this directory. For the full design
 rationale, feature list, and the SOTA API Terms-of-Service decision (this
 tool was built with AI assistance and talks directly to `api2.sota.org.uk`
 — read that section before extending API usage further), see
-`oe1ebg/sota-alerts-README.md`. This file is the shorter, agent-facing
+`oe1ebg/tools/sota-alerts/README.md`. This file is the shorter, agent-facing
 complement: a concrete API-call inventory and the constraints to preserve
 when touching this code.
 

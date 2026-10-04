@@ -1,5 +1,5 @@
 // UI for the offline confirmation-traffic log (Bestätigungsverkehr).
-// Persistence rules (see oe1ebg/confirm-README.md): every saved line is
+// Persistence rules (see oe1ebg/tools/confirm/README.md): every saved line is
 // written to storage before the UI reports it as saved; edits keep the old
 // version in `revisions`; deletes are soft; the half-typed line is kept as a
 // draft. Nothing here ever talks to the network.

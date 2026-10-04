@@ -7,10 +7,10 @@ import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
-import { commitUrl, versionItems, REPO_URL } from '../content/confirm/js/sources.js';
+import { commitUrl, versionItems, REPO_URL } from '../tools/confirm/js/sources.js';
 
 const OE1EBG = join(dirname(fileURLToPath(import.meta.url)), '..');
-const DIR = join(OE1EBG, "content", 'confirm');
+const DIR = join(OE1EBG, 'tools', 'confirm');
 const GENERATED = new Set(['confirm-offline.html', 'precache.js', 'build-info.js']);
 // Dataset/licence links and map links: <a href> targets only, never fetched.
 const LINK_ONLY = 'js/sources.js';

@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pdfplumber
 
-# Austrian callsign list for the confirmation log (oe1ebg/content/confirm/):
+# Austrian callsign list for the confirmation log (oe1ebg/tools/confirm/):
 # autocomplete with name + location, and a "not in the list — typo?" hint.
 # Built here, at build time, because the tool must work 100% offline.
 #
@@ -19,7 +19,7 @@ import pdfplumber
 # Amateurfunkstellen" (§ 150 TKG 2021), a ~260-page PDF republished about
 # monthly under a changing file name, linked from AMATEUR_PAGE. No
 # machine-readable version or maintained git mirror exists (searched
-# 2026-10-04, see oe1ebg/confirm-README.md). Every licensed station is
+# 2026-10-04, see oe1ebg/tools/confirm/README.md). Every licensed station is
 # listed; holders who opted out of publication appear as "*-*-*" but keep
 # their callsign, so the list is complete for "is this a valid OE call".
 #
@@ -36,7 +36,7 @@ CACHE_MAX_AGE_SECONDS = 7 * 24 * 60 * 60
 OE1EBG_DIR = Path(__file__).resolve().parent.parent
 CACHE_DIR = OE1EBG_DIR / ".cache" / "callsigns"
 STATE_PATH = CACHE_DIR / "latest.json"  # {"url", "pdf", "fetched"}
-OUTPUT_PATH = OE1EBG_DIR / "content" / "confirm" / "data" / "callsigns-oe.json"
+OUTPUT_PATH = OE1EBG_DIR / "tools" / "confirm" / "data" / "callsigns-oe.json"
 
 
 def log(msg: str) -> None:

@@ -1,7 +1,7 @@
 # AGENTS.md — Bestätigungsverkehr (confirmation log)
 
 This is the short, agent-facing guide. Design rationale and the feature list
-are in `oe1ebg/confirm-README.md`.
+are in `oe1ebg/tools/confirm/README.md`.
 
 ## Rules to keep
 
