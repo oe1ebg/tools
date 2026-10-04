@@ -102,6 +102,42 @@ Zensical `docs_dir` would take over that section's index route (see
   for the Probealarm, counts per siren category, AT-Alert, platform and PLZ.
   Only each station's latest check-in is counted.
 
+## Callsign list
+
+`scripts/fetch_callsigns.py` (`just fetch-callsigns`, part of `build-confirm`)
+builds `docs/confirm/data/callsigns-oe.json` at build time. It is about
+7,200 OE calls, 320 KiB.
+
+- **Source.** The Fernmeldebüro's *Rufzeichenliste österreichischer
+  Amateurfunkstellen* (§ 150 TKG 2021), a roughly 260-page PDF. Its link is
+  taken from `https://www.fb.gv.at/Funk/amateurfunkdienst.html`, because the
+  file name changes with every edition ("…_Stand_100926.pdf"). The list is
+  republished roughly monthly.
+- **Search for alternatives (2026-10-04).** There is no machine-readable
+  version and no maintained git mirror. `apachler/aprscaching` parses the
+  same PDF but keeps only the callsigns; OE3SPR's "OE Ham Calls" blog posts
+  monthly diffs with no repo behind them; the rest is outdated.
+- **Parsing.** `pdfplumber` table extraction takes about 15 s. The PDF and
+  its parsed form are cached in `.cache/callsigns/` (7-day max age;
+  `CALLSIGNS_FORCE_REFRESH=1` bypasses the cache, and a failed refresh falls
+  back to the cached PDF). The build fails if fewer than 1,000 calls are
+  parsed, because that means the PDF layout has changed.
+- **Published data.** Callsign, name and location (Standort) only, with no
+  street addresses and no licence class. Holders who opted out of
+  publication (`*-*-*`) stay in the list as a callsign without details, so
+  "not in the list" really means "not a licensed OE station on that date".
+- **In the tool.**
+  - The name and location appear under the callsign field.
+  - An OE call that isn't in the list gets a soft warning, "nicht in der
+    Rufzeichenliste (Stand …) – Tippfehler?". Saving is never blocked.
+  - "Meinten Sie" offers suggestions: prefix matches first, then calls one
+    edit away (substitution, insertion, deletion or swapped letters).
+  - Empty Name/QTH template fields are auto-filled; values the operator
+    typed are never overwritten.
+  - The name and location are also shown under each call in the log.
+  - Portable forms (`OE1EBG/P`, `HB9/OE1EBG`) are looked up by their base
+    call.
+
 ## Code layout
 
 - `index.html`: the markup and CSS. It uses the same theme variables and
@@ -112,6 +148,9 @@ Zensical `docs_dir` would take over that section's index route (see
   numbering).
 - `js/templates.js`: the template field definitions.
 - `js/export.js`: CSV, ADIF and summary output.
+- `js/callbook.js`: callsign lookup and suggestions (pure functions).
+- `js/data.js`: loads `data/*.json` (inlined as `globalThis.CONFIRM_DATA`
+  in the offline bundle).
 
 Unlike the other tools, the JS lives in separate files: plain ES modules
 with no dependencies, so the node tests in `oe1ebg/tests/` can import them.
@@ -125,8 +164,6 @@ exported as `APP_OE1EBG_<KEY>`.
 
 ## Planned next
 
-- Austrian callsign cache: built at build time from the Fernmeldebüro list,
-  for autocomplete with name and QTH.
 - Offline Vienna location lookup: address, PLZ, POI, locator and coordinates
   converted to PLZ, coordinates and locator, with fuzzy matching. It will
   appear as a `location` field type in the Probealarm template.
@@ -138,7 +175,8 @@ exported as `APP_OE1EBG_<KEY>`.
 
 ```sh
 just test            # node --test tests/ (model, export, offline guarantees + bundle)
-just build-confirm   # regenerate precache.js + confirm-offline.html
+just fetch-callsigns # (cached) callsign list -> docs/confirm/data/callsigns-oe.json
+just build-confirm   # fetch-callsigns, then regenerate precache.js + confirm-offline.html
 just preview         # full build, serve site/ at localhost:8000/confirm/
 ```
 

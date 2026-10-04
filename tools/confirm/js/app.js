@@ -12,6 +12,8 @@ import {
 } from './model.js';
 import { TEMPLATES, templateFor, fieldVisible, fieldDisplay } from './templates.js';
 import { toCSV, toADIF, toSummary } from './export.js';
+import { loadDataFile } from './data.js';
+import { buildCallbook, lookupCall, suggestCalls } from './callbook.js';
 
 const THEME_KEY = 'oe1ebg-confirm-theme';
 const CSV_SEP_KEY = 'oe1ebg-confirm-csv-sep';
@@ -50,6 +52,7 @@ const state = {
   draftTimer: null,
   headerTimer: null,
   channel: null,
+  callbook: null,     // Austrian callsign list (data/callsigns-oe.json), null until loaded
 };
 
 /* ---------------------------------------------------------------- errors */
@@ -509,7 +512,9 @@ function writeFields(values) {
         r.dataset.was = r.checked ? '1' : '';
       });
     } else {
-      document.querySelector(`#f-fields input[name="f_${f.key}"]`).value = v;
+      const input = document.querySelector(`#f-fields input[name="f_${f.key}"]`);
+      input.value = v;
+      input.dataset.autofill = ''; // explicitly set values are never auto-replaced
     }
   }
   updateFieldVisibility();
@@ -567,6 +572,7 @@ function onFormInput() {
 function updateCallFeedback() {
   const call = normalizeCall($('#f-call').value);
   $('#call-warn').textContent = call && !isPlausibleCall(call) ? 'Ungewöhnliches Rufzeichen – trotzdem speicherbar.' : '';
+  renderCallbookInfo(call);
   const prev = previousCheckins(state.entries, call, state.editingId);
   const box = $('#repeat-box');
   if (!prev.length) {
@@ -588,6 +594,72 @@ function updateCallFeedback() {
     box.hidden = false;
   }
   renderLog(call);
+}
+
+function fmtStand(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+  return m ? `${m[3]}.${m[2]}.${m[1]}` : iso || '?';
+}
+
+// Name/location from the callsign list under the call field, typo
+// suggestions, and auto-fill of empty Name/QTH template fields.
+function renderCallbookInfo(call) {
+  const info = $('#call-info');
+  const sug = $('#call-suggest');
+  info.className = '';
+  sug.replaceChildren();
+  const book = state.callbook;
+  if (!book || !call) {
+    info.textContent = '';
+    autofillFromCallbook(null);
+    return;
+  }
+  const { entry, base, isOE } = lookupCall(book, call);
+  if (entry) {
+    info.className = 'known';
+    info.textContent = entry[1] || entry[2]
+      ? `${entry[0]} · ${[entry[1], entry[2]].filter(Boolean).join(' · ')}`
+      : `${entry[0]} · in der Rufzeichenliste (Angaben nicht veröffentlicht)`;
+  } else if (isOE && base.length >= 4) {
+    info.className = 'unknown';
+    info.textContent = `${base} ist nicht in der Rufzeichenliste (Stand ${fmtStand(book.stand)}) – Tippfehler? Speichern ist trotzdem möglich.`;
+  } else {
+    info.textContent = '';
+  }
+  autofillFromCallbook(entry);
+  if (!entry && !state.readOnly) {
+    const list = suggestCalls(book, call, 6);
+    if (list.length) {
+      sug.append(el('span', { class: 'hint' }, 'Meinten Sie: '));
+      for (const c of list) {
+        sug.append(el('button', { type: 'button', class: 'sug', title: [c[1], c[2]].filter(Boolean).join(', '), onclick: () => {
+          $('#f-call').value = c[0];
+          onFormInput();
+          $('#f-call').focus();
+        } }, c[0], c[1] ? el('small', {}, ' ' + c[1]) : null));
+      }
+    }
+  }
+}
+
+// Fill template fields named "name"/"qth" from the list, but only while they
+// are empty or still hold a previous auto-filled value — never overwrite
+// what the operator typed.
+function autofillFromCallbook(entry) {
+  const map = { name: entry ? entry[1] : '', qth: entry ? entry[2] : '' };
+  for (const [key, value] of Object.entries(map)) {
+    const input = document.querySelector(`#f-fields input[name="f_${key}"]`);
+    if (!input) continue;
+    if (input.value === '' || input.dataset.autofill === input.value) {
+      input.value = value || '';
+      input.dataset.autofill = value || '';
+    }
+  }
+}
+
+function callbookName(call) {
+  const e = state.callbook && lookupCall(state.callbook, call).entry;
+  return e ? [e[1], e[2]].filter(Boolean).join(', ') : '';
 }
 
 function describeEntry(e, tpl) {
@@ -797,7 +869,8 @@ function renderLog(highlightCall) {
     body.append(el('tr', { class: [e.call === call && call ? 'match' : '', e.id === state.editingId ? 'editing' : ''].join(' ').trim() || null },
       el('td', { class: 'mono' }, String(e.seq)),
       el('td', { class: 'mono', title: date }, time),
-      el('td', { class: 'call' }, e.call, n > 1 ? el('span', { class: 'badge', title: `Check-in Nr. ${n}` }, `${n}×`) : null),
+      el('td', { class: 'call' }, e.call, n > 1 ? el('span', { class: 'badge', title: `Check-in Nr. ${n}` }, `${n}×`) : null,
+        callbookName(e.call) ? el('div', { class: 'cb-name' }, callbookName(e.call)) : null),
       tpl.fields.map(f => el('td', {}, fieldVisible(f, e.fields) ? fieldDisplay(f, e.fields?.[f.key]) : '')),
       el('td', {}, e.viaRepeater ? el('span', { class: 'rpt' }, s.repeaterCall || 'ja') : '–'),
       el('td', {}, e.note || ''),
@@ -1072,6 +1145,18 @@ function wire() {
   window.addEventListener('hashchange', route);
 }
 
+async function loadCallbook() {
+  const data = await loadDataFile('callsigns-oe.json');
+  state.callbook = buildCallbook(data);
+  $('#st-callbook').textContent = state.callbook
+    ? `Rufzeichenliste Stand ${fmtStand(state.callbook.stand)} (${state.callbook.calls.length} OE-Rufzeichen, Quelle: Fernmeldebüro)`
+    : 'Rufzeichenliste nicht verfügbar';
+  if (state.event) {
+    updateCallFeedback();
+    renderLog();
+  }
+}
+
 async function main() {
   initTheme();
   state.store = await openStorage();
@@ -1091,6 +1176,7 @@ async function main() {
   initPersistence();
   initOffline();
   await refreshLastHeader();
+  loadCallbook();
   route();
 }
 

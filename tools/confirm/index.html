@@ -209,7 +209,14 @@
   #form-status{ min-height:1.4em; margin-top:.5em; font-size:13px; }
   #form-status.ok{ color:var(--ok); }
   #form-status.err{ color:var(--err); font-weight:600; }
-  #call-warn{ color:var(--warn); font-size:12px; min-height:1em; }
+  #call-warn{ color:var(--warn); font-size:12px; }
+  #call-info{ font-size:13px; min-height:1.3em; margin-top:.3em; }
+  #call-info.known{ color:var(--ok); }
+  #call-info.unknown{ color:var(--warn); font-weight:600; }
+  #call-suggest{ display:flex; flex-wrap:wrap; gap:.3em; align-items:center; }
+  #call-suggest button.sug{ font-family:var(--font-mono); padding:.15em .5em; }
+  #call-suggest button.sug small{ font-family:var(--font-ui); color:var(--text-dim); }
+  .cb-name{ font-family:var(--font-ui); font-weight:400; font-size:11px; color:var(--text-dim); white-space:normal; }
   #repeat-box{
     margin-top:.7em; padding:.6em .8em; border-radius:6px;
     border:2px solid var(--warn); background:var(--warn-soft);
@@ -340,7 +347,7 @@
     <form id="entry-form" autocomplete="off">
       <div class="row">
         <label class="field"><span>Rufzeichen</span>
-          <input id="f-call" autocapitalize="characters" spellcheck="false" autocomplete="off" aria-describedby="call-warn">
+          <input id="f-call" autocapitalize="characters" spellcheck="false" autocomplete="off" aria-describedby="call-info call-warn">
         </label>
         <div id="f-fields" class="row"></div>
         <label class="check"><input type="checkbox" id="f-rpt"> über Relais <span class="rpt" id="f-rpt-call"></span></label>
@@ -351,6 +358,8 @@
         <button type="submit" class="primary" id="btn-save">Speichern ⏎</button>
         <button type="button" id="btn-cancel-edit" hidden>Abbrechen (Esc)</button>
       </div>
+      <div id="call-info" aria-live="polite"></div>
+      <div id="call-suggest"></div>
       <div id="call-warn"></div>
       <div id="repeat-box" hidden></div>
       <div id="form-status" role="status"></div>
@@ -385,7 +394,7 @@
 
 <footer>
   Läuft vollständig offline im Browser; alle Daten bleiben auf diesem Gerät (<span id="st-backend">?</span>).
-  Regelmäßig als CSV/ADIF/JSON sichern. · Version <span id="st-version">dev</span>
+  Regelmäßig als CSV/ADIF/JSON sichern. · <span id="st-callbook">Rufzeichenliste wird geladen…</span> · Version <span id="st-version">dev</span>
   <span id="offline-file-link"> · <a href="confirm-offline.html" download="bestaetigungsverkehr-offline.html">Offline-Datei für USB-Stick/Laptop herunterladen</a> (einzelne HTML-Datei, läuft ohne Server)</span>
 </footer>
 

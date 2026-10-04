@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import json
 import re
 from pathlib import Path
 
@@ -9,8 +10,8 @@ from pathlib import Path
 # before `zensical build`, which then copies the generated files into site/.
 # Stdlib only. Produces two git-ignored files:
 #
-# 1. confirm-offline.html — the whole tool in ONE file (all js/ modules and,
-#    once they exist, all data/ files inlined). Copy it to a USB stick or
+# 1. confirm-offline.html — the whole tool in ONE file (all js/ modules and
+#    all data/*.json files inlined, so run the data fetch scripts first). Copy it to a USB stick or
 #    laptop and open it via file://, where neither service workers nor ES
 #    module scripts work. Modules are "bundled" by plain concatenation in
 #    dependency order with import lines and `export` keywords stripped,
@@ -63,10 +64,23 @@ def bundle_js() -> str:
     return "(() => {\n'use strict';\n" + "\n".join(parts) + "\n})();\n"
 
 
+def inline_data() -> str:
+    """data/*.json as globalThis.CONFIRM_DATA (read by js/data.js)."""
+    data_dir = CONFIRM_DIR / "data"
+    files = sorted(data_dir.glob("*.json")) if data_dir.exists() else []
+    if not files:
+        return ""
+    payload = {p.name: json.loads(p.read_text(encoding="utf-8")) for p in files}
+    # "<" escaped so no string in the data can close the <script> element.
+    text = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).replace("<", "\\u003c")
+    return f"<script>\nglobalThis.CONFIRM_DATA = {text};\n</script>\n"
+
+
 def build_bundle() -> str:
     html = (CONFIRM_DIR / "index.html").read_text(encoding="utf-8")
     js = bundle_js().replace("</script", "<\\/script")
-    html, n = SCRIPT_BLOCK_RE.subn(lambda _m: f"<script>\n{js}</script>", html)
+    data = inline_data()
+    html, n = SCRIPT_BLOCK_RE.subn(lambda _m: f"{data}<script>\n{js}</script>", html)
     if n != 1:
         raise SystemExit("index.html: CONFIRM-SCRIPT markers not found")
     # No manifest (meaningless on file://); icon inlined so the file is self-contained.

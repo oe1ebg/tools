@@ -24,6 +24,14 @@ are in `oe1ebg/confirm-README.md`.
 - **Relative paths only.** The directory is planned to move to `/tools/`
   later.
 
+## Data
+
+`data/callsigns-oe.json` is built by `scripts/fetch_callsigns.py` and holds
+`{stand, source, calls: [[call, name, location], ...]}`. Keep it free of
+street addresses. `js/data.js` loads every data file, so new data files only
+need to be loaded through it; the service worker precache and the offline
+bundle pick up `data/*.json` automatically.
+
 ## Verify a change
 
 1. Run `just test` (from `oe1ebg/`).
