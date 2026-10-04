@@ -1,0 +1,116 @@
+# Curated vocabulary for the offline Vienna location lookup in the
+# confirmation log (docs/confirm/). Read by scripts/build_location_data.py.
+# Keep this list small: official street names come from Stadt Wien's
+# address data and landmarks from OpenStreetMap; this file only adds what
+# operators actually say on the air and the sources don't contain.
+
+# The 23 districts. `names` are matched as whole words in operator input
+# ("Favoriten Quellenstr" -> district 10). Numbers ("3. Bezirk", "3 Bez",
+# "Bezirk 3") are recognized by the parser without being listed here.
+[[district]]
+nr = 1
+names = ["Innere Stadt", "Innenstadt"]
+[[district]]
+nr = 2
+names = ["Leopoldstadt"]
+[[district]]
+nr = 3
+names = ["Landstraße"]
+[[district]]
+nr = 4
+names = ["Wieden"]
+[[district]]
+nr = 5
+names = ["Margareten"]
+[[district]]
+nr = 6
+names = ["Mariahilf"]
+[[district]]
+nr = 7
+names = ["Neubau"]
+[[district]]
+nr = 8
+names = ["Josefstadt"]
+[[district]]
+nr = 9
+names = ["Alsergrund"]
+[[district]]
+nr = 10
+names = ["Favoriten"]
+[[district]]
+nr = 11
+names = ["Simmering"]
+[[district]]
+nr = 12
+names = ["Meidling"]
+[[district]]
+nr = 13
+names = ["Hietzing"]
+[[district]]
+nr = 14
+names = ["Penzing"]
+[[district]]
+nr = 15
+names = ["Rudolfsheim-Fünfhaus", "Rudolfsheim", "Fünfhaus"]
+[[district]]
+nr = 16
+names = ["Ottakring"]
+[[district]]
+nr = 17
+names = ["Hernals"]
+[[district]]
+nr = 18
+names = ["Währing"]
+[[district]]
+nr = 19
+names = ["Döbling"]
+[[district]]
+nr = 20
+names = ["Brigittenau"]
+[[district]]
+nr = 21
+names = ["Floridsdorf"]
+[[district]]
+nr = 22
+names = ["Donaustadt"]
+[[district]]
+nr = 23
+names = ["Liesing"]
+
+# Landmarks missing from (or not findable in) the OSM extract, with their
+# own coordinates (WGS84).
+[[place]]
+name = "Vienna International Centre"
+aliases = ["VIC", "UNO City", "UNO-City", "UNO", "UNO Wien"]
+category = "landmark"
+lat = 48.23465
+lon = 16.41622
+
+# Extra names for something that IS in the data, resolved at build time by
+# exact name (street or landmark). `prefer` picks among several landmarks
+# with that name by OSM category.
+[[alias]]
+alias = "DI"
+target = "Donauinsel"
+prefer = "place=island"
+[[alias]]
+alias = "Steffl"
+target = "Stephansdom"
+[[alias]]
+alias = "Hbf"
+target = "Wien Hauptbahnhof"
+[[alias]]
+alias = "Hauptbahnhof"
+target = "Wien Hauptbahnhof"
+[[alias]]
+alias = "Westbahnhof"
+target = "Wien Westbahnhof"
+[[alias]]
+alias = "Happel-Stadion"
+target = "Ernst-Happel-Stadion"
+[[alias]]
+alias = "Praterstadion"
+target = "Ernst-Happel-Stadion"
+[[alias]]
+alias = "Schönbrunn"
+target = "Schloss Schönbrunn"

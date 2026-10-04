@@ -28,8 +28,9 @@ CONFIRM_DIR = OE1EBG_DIR / "docs" / "confirm"
 BUNDLE_NAME = "confirm-offline.html"
 PRECACHE_NAME = "precache.js"
 
-# Not shipped to / cached by the browser.
-EXCLUDE = {"sw.js", PRECACHE_NAME, "AGENTS.md"}
+# Not precached by the service worker. The single-file bundle duplicates
+# everything else (incl. the multi-MB data), so it's only a download.
+EXCLUDE = {"sw.js", PRECACHE_NAME, "AGENTS.md", BUNDLE_NAME}
 
 IMPORT_RE = re.compile(r"^import\s*\{[^}]*\}\s*from\s*['\"](\./[^'\"]+)['\"];?[ \t]*\n", re.M)
 EXPORT_RE = re.compile(r"^export\s+(?=(async\s+)?(function|const|let|class)\b)", re.M)
@@ -52,9 +53,18 @@ def module_order(entry: Path) -> list[Path]:
     return order
 
 
+TOP_DECL_RE = re.compile(r"^(?:export\s+)?(?:async\s+)?(?:function\*?|const|let|class)\s+([A-Za-z_$][\w$]*)", re.M)
+
+
 def bundle_js() -> str:
     parts = []
+    declared: dict[str, str] = {}
     for path in module_order(CONFIRM_DIR / "js" / "app.js"):
+        for name in TOP_DECL_RE.findall(path.read_text(encoding="utf-8")):
+            if name in declared:
+                raise SystemExit(f"top-level name {name!r} declared in both {declared[name]} and {path.name} "
+                                 "— the offline bundle shares one scope; rename one")
+            declared[name] = path.name
         src = path.read_text(encoding="utf-8")
         src = IMPORT_RE.sub("", src)
         src = EXPORT_RE.sub("", src)

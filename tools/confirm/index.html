@@ -240,6 +240,28 @@
     font-size:11px; font-weight:700; background:var(--warn); color:var(--bg);
   }
   .rpt{ font-size:11px; color:var(--accent); }
+
+  /* ---------- location lookup ---------- */
+  #loc-examples button{ margin-right:.7em; font-size:12px; }
+  #loc-results{ display:grid; gap:.5em; margin-top:.7em; }
+  .hint.ok{ color:var(--ok); }
+  .hint.err{ color:var(--err); font-weight:600; }
+  .loc-cand{ border:1px solid var(--line); border-left:4px solid var(--line); border-radius:6px; padding:.5em .8em; background:var(--bg); }
+  .loc-cand.conf-exact, .loc-cand.conf-high{ border-left-color:var(--ok); }
+  .loc-cand.conf-likely{ border-left-color:var(--accent); }
+  .loc-cand.conf-ambiguous, .loc-cand.conf-low{ border-left-color:var(--warn); }
+  .loc-cand.auto{ box-shadow:0 0 0 2px var(--ok) inset; }
+  .lc-head{ display:flex; gap:.5em; align-items:baseline; flex-wrap:wrap; }
+  .lc-type{ font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-dim); }
+  .lc-conf{ font-size:11px; padding:0 .45em; border-radius:999px; border:1px solid currentColor; }
+  .conf-exact .lc-conf, .conf-high .lc-conf{ color:var(--ok); }
+  .conf-likely .lc-conf{ color:var(--accent); }
+  .conf-ambiguous .lc-conf, .conf-low .lc-conf{ color:var(--warn); }
+  .lc-meta{ font-family:var(--font-mono); font-size:13px; margin:.15em 0; }
+  .lc-why, .lc-detail{ font-size:12px; color:var(--text-dim); }
+  .lc-note{ font-size:12px; color:var(--warn); }
+  .lc-actions{ display:flex; gap:.35em; flex-wrap:wrap; margin-top:.35em; }
+  button.mini{ font-size:12px; padding:.15em .55em; }
   details.misc{ margin-top:1.2em; }
   details.misc summary{ cursor:pointer; color:var(--text-dim); }
   details.misc ul{ font-size:13px; }
@@ -274,6 +296,7 @@
   <span class="spacer"></span>
   <span id="st-offline" class="chip">offline: prüfe…</span>
   <span id="st-storage" class="chip">Speicher: prüfe…</span>
+  <button id="btn-loc" type="button" title="Offline-Standortsuche Wien: Adresse, Ort, PLZ, Koordinaten, Locator">📍 Standort</button>
   <button id="btn-update" class="primary" hidden title="Neue Version installieren (Daten bleiben erhalten)">Update verfügbar</button>
   <div id="theme-toggle" role="group" aria-label="Farbschema">
     <button type="button" data-theme-choice="light">hell</button>
@@ -285,6 +308,22 @@
 <main>
   <div id="banner" class="banner err" role="alert" hidden></div>
   <noscript><div class="banner err">Dieses Werkzeug benötigt JavaScript.</div></noscript>
+
+  <!-- ===== Standortsuche (offline, Wien) ===== -->
+  <section id="loc-panel" class="panel no-print" hidden>
+    <div class="toolbar" style="margin-bottom:.5em">
+      <h1>Standortsuche Wien</h1>
+      <span id="loc-status" class="hint"></span>
+      <span class="spacer"></span>
+      <label class="check">Locator
+        <select id="loc-prec"><option value="4">4</option><option value="6">6</option><option value="8">8</option></select> Zeichen
+      </label>
+      <button type="button" id="loc-close">schließen</button>
+    </div>
+    <input id="loc-q" placeholder="Adresse, Ort, PLZ, Koordinaten oder Maidenhead-Locator" autocomplete="off" spellcheck="false" style="width:100%;font-size:16px">
+    <div class="hint" id="loc-examples-wrap">Beispiele: <span id="loc-examples"></span></div>
+    <div id="loc-results"></div>
+  </section>
 
   <!-- ===== Ereignisse ===== -->
   <section id="view-events" hidden>
@@ -394,8 +433,8 @@
 
 <footer>
   Läuft vollständig offline im Browser; alle Daten bleiben auf diesem Gerät (<span id="st-backend">?</span>).
-  Regelmäßig als CSV/ADIF/JSON sichern. · <span id="st-callbook">Rufzeichenliste wird geladen…</span> · Version <span id="st-version">dev</span>
-  <span id="offline-file-link"> · <a href="confirm-offline.html" download="bestaetigungsverkehr-offline.html">Offline-Datei für USB-Stick/Laptop herunterladen</a> (einzelne HTML-Datei, läuft ohne Server)</span>
+  Regelmäßig als CSV/ADIF/JSON sichern. · <span id="st-callbook">Rufzeichenliste wird geladen…</span> · <span id="st-location"></span> · Version <span id="st-version">dev</span>
+  <span id="offline-file-link"> · <a href="confirm-offline.html" download="bestaetigungsverkehr-offline.html">Offline-Datei für USB-Stick/Laptop herunterladen</a> (eine HTML-Datei mit allen Daten, ~5 MB, läuft ohne Server; Download nur online)</span>
 </footer>
 
 <!-- CONFIRM-SCRIPT-BEGIN -->

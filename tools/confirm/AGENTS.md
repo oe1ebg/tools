@@ -32,6 +32,19 @@ street addresses. `js/data.js` loads every data file, so new data files only
 need to be loaded through it; the service worker precache and the offline
 bundle pick up `data/*.json` automatically.
 
+`data/vienna-locations.json` is built by `scripts/build_location_data.py`
+(schema 1). It contains `plz[]`, `streets[[name, start, count]]` (with
+addresses contiguous per street), the per-address arrays
+`hn`/`ap`/`ad`/`alat`/`alon` (integer 1e-5° offsets from
+`latBase`/`lonBase`), `places[[name, category, lat, lon, alts]]`,
+`districts`, `aliases` and `meta`.
+
+- **Changing the format:** bump `schema` and update `buildLocationIndex()`.
+- **Normalization** exists only in `js/location/normalize.js`.
+- **Ranking changes** need the tests in
+  `tests/location-search.test.mjs` updated. They run against a synthetic
+  dataset (always) and against the real data (when it has been built).
+
 ## Verify a change
 
 1. Run `just test` (from `oe1ebg/`).

@@ -14,6 +14,8 @@ import { TEMPLATES, templateFor, fieldVisible, fieldDisplay } from './templates.
 import { toCSV, toADIF, toSummary } from './export.js';
 import { loadDataFile } from './data.js';
 import { buildCallbook, lookupCall, suggestCalls } from './callbook.js';
+import { $, el } from './dom.js';
+import { initLocationPanel } from './locationui.js';
 
 const THEME_KEY = 'oe1ebg-confirm-theme';
 const CSV_SEP_KEY = 'oe1ebg-confirm-csv-sep';
@@ -21,25 +23,6 @@ const SNAPSHOT_EVERY = 10;   // full JSON snapshot of an event every N saved lin
 const SNAPSHOT_KEEP = 5;     // ... keeping the newest N per event
 const EXPORT_NUDGE_AFTER = 25;
 const BACKUP_FORMAT = 'oe1ebg-confirm-backup';
-
-const $ = sel => document.querySelector(sel);
-
-// Tiny DOM builder: el('td', { class: 'x', onclick: fn }, 'text', childNode)
-function el(tag, attrs, ...children) {
-  const node = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs || {})) {
-    if (v === undefined || v === null || v === false) continue;
-    if (k.startsWith('on')) node.addEventListener(k.slice(2), v);
-    else if (k === 'class') node.className = v;
-    else if (k in node && typeof v !== 'string') node[k] = v;
-    else node.setAttribute(k, v === true ? '' : v);
-  }
-  for (const c of children.flat()) {
-    if (c === undefined || c === null || c === false) continue;
-    node.append(c instanceof Node ? c : String(c));
-  }
-  return node;
-}
 
 const state = {
   store: null,
@@ -1172,6 +1155,7 @@ async function main() {
     b.hidden = false;
   }
   wire();
+  initLocationPanel();
   initChannel();
   initPersistence();
   initOffline();

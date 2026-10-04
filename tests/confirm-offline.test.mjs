@@ -50,6 +50,7 @@ test('offline bundle builds into one self-contained, parseable file', () => {
   assert.ok(existsSync(join(DIR, 'precache.js')));
   const pre = readFileSync(join(DIR, 'precache.js'), 'utf8');
   assert.match(pre, /version: "[0-9a-f]{12}"/);
-  for (const f of ['"./"', '"index.html"', '"js/app.js"', '"confirm-offline.html"', '"manifest.webmanifest"']) assert.ok(pre.includes(f), f);
+  for (const f of ['"./"', '"index.html"', '"js/app.js"', '"manifest.webmanifest"']) assert.ok(pre.includes(f), f);
   assert.ok(!pre.includes('"sw.js"'));
+  assert.ok(!pre.includes('"confirm-offline.html"'), 'bundle is a download, not precached');
 });
