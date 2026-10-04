@@ -30,6 +30,16 @@ are in `oe1ebg/confirm-README.md`.
   renders an array as "[object HTMLLIElement]" and `null` as the text
   "null". That was the bug in the recycle bin and snapshot lists.
 - **Completion dropdowns** use `popover(input, list)` from `js/dom.js`.
+  - Their items are not Tab stops (`update()` sets `tabIndex=-1`).
+  - Enter in the input picks the first item. Pass
+    `{ enterPicksFirst: false }` where the items are only guesses that
+    could replace valid input (the callsign typo suggestions).
+- **Keyboard-only entry form.**
+  - Shift+Enter saves from any control.
+  - Enter moves on with `focusNext()`.
+  - Don't add Tab stops inside the info lines under fields.
+  - Keep those info lines inside the fixed-height `.ac-hints` slot, so the
+    inputs never move.
 - **Relative paths only.** The directory is planned to move to `/tools/`
   later.
 

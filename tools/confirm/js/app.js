@@ -14,11 +14,11 @@ import { TEMPLATES, templateFor, fieldVisible, fieldDisplay, fieldOptions, curre
 import { toCSV, toADIF, toSummary } from './export.js';
 import { loadDataFile } from './data.js';
 import { buildCallbook, lookupCall, suggestCalls } from './callbook.js';
-import { $, el, fill, popover } from './dom.js';
+import { $, el, fill, popover, focusNext } from './dom.js';
 import { initLocationPanel, loadLocationIndex } from './locationui.js';
 import { locate } from './location/index.js';
 import { openMap, closeMap, refreshMap, mapVisible } from './mapview.js';
-import { createLocationField, describeLocation } from './locfield.js';
+import { createLocationField, describeLocation, locationOptions } from './locfield.js';
 import { repeaterSearchWidget, loadRepeaterIndex } from './repeaterui.js';
 import { sourceItem } from './sources.js';
 import { createLineRepeater } from './linerepeater.js';
@@ -553,6 +553,7 @@ function buildEntryFields() {
             else box.querySelectorAll(`input[name="f_${f.key}"]`).forEach(o => { o.dataset.was = o === r ? '1' : ''; });
             onFormInput();
           });
+          r.addEventListener('keydown', ev => radioKey(ev, f.key));
           return el('label', { 'data-value': v }, r, el('span', {}, l));
         }));
     } else {
@@ -565,13 +566,13 @@ function buildEntryFields() {
     // Radio groups get a <div>, not a <label>: nested labels would make a
     // click on the caption select the first option.
     if (f.type === 'location') {
-      // Completion dropdown right under the input; status + memory below it.
+      // Completion dropdown right under the input; the status line below it
+      // has a fixed height, so nothing in the form moves when it changes.
       control.id = `f_${f.key}`;
       box.append(el('div', { class: 'field ac-field', 'data-field': f.key },
         el('label', { for: control.id }, f.label),
         el('div', { class: 'ac-wrap' }, control, el('div', { class: 'ac-pop loc-pop' })),
-        el('div', { class: 'ac-info loc-chip' }),
-        el('div', { class: 'ac-info', id: 'call-station' })));
+        el('div', { class: 'ac-hints' }, el('div', { class: 'ac-info loc-chip' }))));
       continue;
     }
     box.append(el(f.type === 'radio' ? 'div' : 'label', { class: 'field', 'data-field': f.key }, el('span', {}, f.label), control));
@@ -590,6 +591,26 @@ function buildEntryFields() {
   }
   updateFieldVisibility();
   updateRepeaterDefault();
+}
+
+// Keyboard on a radio group: digits pick the n-th visible option (grades
+// 1-5 map directly), Backspace/Delete clears the group.
+function radioKey(ev, key) {
+  const radios = [...document.querySelectorAll(`#f-fields input[name="f_${key}"]`)].filter(r => !r.closest('label').hidden);
+  let pick;
+  if (/^[1-9]$/.test(ev.key) && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+    pick = radios[Number(ev.key) - 1];
+    if (!pick) return;
+  } else if (ev.key !== 'Backspace' && ev.key !== 'Delete') {
+    return;
+  }
+  ev.preventDefault();
+  for (const r of radios) {
+    r.checked = r === pick;
+    r.dataset.was = r.checked ? '1' : '';
+  }
+  (pick || ev.target).focus();
+  onFormInput();
 }
 
 function readFields() {
@@ -673,7 +694,7 @@ function clearForm() {
   state.editingId = null;
   $('#entry-form').classList.remove('editing');
   $('#btn-discard').textContent = 'Verwerfen (Esc)';
-  $('#btn-save').textContent = 'Speichern ⏎';
+  $('#btn-save').textContent = 'Speichern ⇧⏎';
   if ($('#form-status .edit-tag')) $('#form-status').replaceChildren();
   updateRepeaterDefault();
   updateCallFeedback();
@@ -693,7 +714,7 @@ function updateCallFeedback() {
   const call = normalizeCall($('#f-call').value);
   $('#call-warn').textContent = call && !isPlausibleCall(call) ? 'Ungewöhnliches Rufzeichen – trotzdem speicherbar.' : '';
   renderCallbookInfo(call);
-  renderStationMemory(call);
+  updateLocationOptions(call);
   const prev = previousCheckins(state.entries, call, state.editingId);
   const box = $('#repeat-box');
   if (!prev.length) {
@@ -728,6 +749,7 @@ function renderCallbookInfo(call) {
   const info = $('#call-info');
   const sug = $('#call-suggest');
   info.className = 'ac-info';
+  info.title = '';
   sug.replaceChildren();
   state.callPop?.update();
   const book = state.callbook;
@@ -744,10 +766,12 @@ function renderCallbookInfo(call) {
       : `${entry[0]} · in der Rufzeichenliste (Angaben nicht veröffentlicht)`;
   } else if (isOE && base.length >= 4) {
     info.className = 'ac-info unknown';
-    info.textContent = `${base} ist nicht in der Rufzeichenliste (Stand ${fmtStand(book.stand)}) – Tippfehler? Speichern ist trotzdem möglich.`;
+    info.textContent = `nicht in Rufzeichenliste (${fmtStand(book.stand)}) – Tippfehler?`;
+    info.title = `${base} ist nicht in der Rufzeichenliste (Stand ${fmtStand(book.stand)}) – Tippfehler? Speichern ist trotzdem möglich.`;
   } else {
     info.textContent = '';
   }
+  if (info.textContent && !info.title) info.title = info.textContent;
   autofillFromCallbook(entry);
   if (!entry && !state.readOnly) {
     const list = suggestCalls(book, call, 8);
@@ -756,6 +780,7 @@ function renderCallbookInfo(call) {
         list.map(c => el('button', { type: 'button', class: 'ac-item', onclick: () => {
           $('#f-call').value = c[0];
           onFormInput();
+          prefillLocation();
           state.callPop.hide();
           $('#f-call').focus();
         } }, el('b', {}, c[0]), el('small', {}, [c[1], c[2]].filter(Boolean).join(' · ') || 'Angaben nicht veröffentlicht'))));
@@ -772,7 +797,7 @@ function autofillFromCallbook(entry) {
   for (const [key, value] of Object.entries(map)) {
     const input = document.querySelector(`#f-fields input[name="f_${key}"]`);
     // A location field is the station's current QTH, not its licence
-    // address — offered as an option instead (renderStationMemory).
+    // address — offered in its dropdown instead (updateLocationOptions).
     if (!input || input.classList.contains('loc-input')) continue;
     if (input.value === '' || input.dataset.autofill === input.value) {
       input.value = value || '';
@@ -781,20 +806,25 @@ function autofillFromCallbook(entry) {
   }
 }
 
-// Last known location of this station (from any earlier event), with a
-// button to take it over into an empty location field.
-function renderStationMemory(call) {
-  const box = $('#call-station');
-  if (!box) return; // template without a location field
+// Location suggestions for this station in the location field's dropdown:
+// its last known location (from any earlier event) and the callsign-list city.
+function updateLocationOptions(call) {
   const lf = state.locField;
-  const rec = call && state.stations.get(call);
-  const listed = call && state.callbook && lookupCall(state.callbook, call).entry;
-  const canAdopt = lf && lf.isEmpty() && !state.readOnly;
-  fill(box,
-    rec ? el('div', {}, `zuletzt: ${describeLocation(rec.loc)} (${splitTime(rec.at, timeMode()).date}) `,
-      canAdopt ? el('button', { type: 'button', class: 'link', onclick: () => { lf.adopt(rec.loc); renderStationMemory(call); } }, 'übernehmen') : null) : null,
-    listed && listed[2] && canAdopt ? el('div', {}, `laut Rufzeichenliste: ${listed[2]} `,
-      el('button', { type: 'button', class: 'link', onclick: () => { lf.setText(listed[2]); renderStationMemory(call); } }, 'übernehmen')) : null);
+  if (!lf) return; // template without a location field
+  const rec = call && !state.readOnly ? state.stations.get(call) : null;
+  const listed = call && !state.readOnly && state.callbook && lookupCall(state.callbook, call).entry;
+  lf.setOptions(locationOptions(rec, listed ? listed[2] : ''));
+}
+
+// When the callsign field is left: put the station's last location into an
+// empty location field (marked as a suggestion; typing replaces it). Not
+// while typing the call, and never on save, so nothing unseen is logged.
+function prefillLocation() {
+  const lf = state.locField;
+  if (!lf || state.readOnly || state.editingId) return;
+  const rec = state.stations.get(normalizeCall($('#f-call').value));
+  if (rec?.loc) lf.prefill(rec.loc, rec.at);
+  else lf.clearPrefill();
 }
 
 function callbookName(call) {
@@ -962,7 +992,7 @@ function startEdit(id) {
   $('#f-time').value = `${date} ${time}`;
   $('#entry-form').classList.add('editing');
   $('#btn-discard').textContent = 'Bearbeitung abbrechen (Esc)';
-  $('#btn-save').textContent = `Nr. ${e.seq} speichern ⏎`;
+  $('#btn-save').textContent = `Nr. ${e.seq} speichern ⇧⏎`;
   $('#form-status').className = '';
   fill($('#form-status'), el('span', { class: 'edit-tag' }, `Bearbeite Nr. ${e.seq} – die alte Fassung wird aufbewahrt.`));
   updateCallFeedback();
@@ -1109,7 +1139,7 @@ function renderLog(highlightCall) {
   const body = $('#log-body');
   body.replaceChildren();
   if (!live.length) {
-    body.append(el('tr', {}, el('td', { colspan: String(tpl.fields.length + 7), class: 'empty' }, 'Noch keine Einträge. Rufzeichen eingeben und Enter drücken.')));
+    body.append(el('tr', {}, el('td', { colspan: String(tpl.fields.length + 7), class: 'empty' }, 'Noch keine Einträge. Rufzeichen eingeben und Shift+Enter drücken.')));
     return;
   }
   for (const e of live) {
@@ -1383,18 +1413,26 @@ function wire() {
   const form = $('#entry-form');
   form.addEventListener('submit', ev => { ev.preventDefault(); saveEntry(); });
   form.addEventListener('input', onFormInput);
-  // Enter saves from any control (radios/checkboxes don't submit natively).
+  // Keyboard-only logging (one hand is on the microphone):
+  // Shift+Enter saves from any control, including dropdown items and radios;
+  // Enter in a field moves to the next one (an open dropdown takes Enter
+  // first and picks a suggestion); Esc discards.
   form.addEventListener('keydown', ev => {
-    if (ev.key === 'Enter' && !ev.isComposing && ev.target.tagName === 'INPUT') {
+    if (ev.key === 'Enter' && !ev.isComposing && ev.shiftKey) {
       ev.preventDefault();
       saveEntry();
+    } else if (ev.key === 'Enter' && !ev.isComposing && ev.target.tagName === 'INPUT') {
+      ev.preventDefault();
+      focusNext(form, ev.target);
     } else if (ev.key === 'Escape' && !ev.defaultPrevented) {
       // (Open completion dropdowns handle Esc themselves and stop it here.)
       discardForm();
     }
   });
+  $('#f-call').addEventListener('change', prefillLocation);
   $('#f-rpt').addEventListener('change', () => { $('#f-rpt').dataset.touched = '1'; });
-  state.callPop = popover($('#f-call'), $('#call-suggest'));
+  // Typo suggestions are guesses: Enter takes one only after ↓.
+  state.callPop = popover($('#f-call'), $('#call-suggest'), { enterPicksFirst: false });
   state.lineRpt = createLineRepeater({
     checkbox: $('#f-rpt'), input: $('#f-rpt-q'), sug: $('#f-rpt-sug'),
     getHeader: () => state.event?.header || emptyHeader(),

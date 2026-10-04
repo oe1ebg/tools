@@ -46,14 +46,18 @@ export async function copyToClipboard(text) {
 
 // Completion dropdown directly under an input: shown while the input (or
 // the dropdown) has focus and there is something in it. ↓ moves into the
-// list, ↑/↓ within it, Esc closes. Pointer-down on the list doesn't steal
+// list, ↑/↓ within it, Enter picks, Esc closes. The items are not Tab stops
+// (Tab goes on to the next field). Pointer-down on the list doesn't steal
 // focus from the input, so a click always registers (also in Safari).
-export function popover(input, pop) {
+// enterPicksFirst: Enter in the input takes the first item; set it to false
+// where the items are only guesses that must not replace valid input.
+export function popover(input, pop, { enterPicksFirst = true } = {}) {
   pop.hidden = true;
   const focusInside = () => document.activeElement === input || pop.contains(document.activeElement);
   const api = {
     // Call after changing the dropdown's content.
     update() {
+      pop.querySelectorAll('button').forEach(b => { b.tabIndex = -1; });
       pop.hidden = !pop.childElementCount || !focusInside();
     },
     hide() {
@@ -70,6 +74,9 @@ export function popover(input, pop) {
     if (ev.key === 'ArrowDown') {
       const b = pop.querySelector('button');
       if (b) { ev.preventDefault(); b.focus(); }
+    } else if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing && enterPicksFirst) {
+      const b = pop.querySelector('button');
+      if (b) { ev.preventDefault(); ev.stopPropagation(); b.click(); }
     } else if (ev.key === 'Escape') {
       ev.stopPropagation();
       api.hide();
@@ -92,4 +99,29 @@ export function popover(input, pop) {
     }
   });
   return api;
+}
+
+// Move focus to the next control of a form, the way Tab would (used for
+// Enter = next field). Skips hidden/disabled controls, dropdown items and
+// tabindex=-1; a radio group counts once (its checked radio, else its first
+// visible one).
+export function focusNext(container, from) {
+  const visible = n => !n.disabled && n.tabIndex >= 0 && !n.closest('[hidden], .ac-pop') && n.getClientRects().length > 0;
+  const controls = [];
+  const groups = new Set();
+  for (const n of container.querySelectorAll('input, select, textarea, button')) {
+    if (!visible(n)) continue;
+    if (n.type === 'radio') {
+      if (groups.has(n.name)) continue;
+      const radios = [...container.querySelectorAll(`input[type=radio][name="${n.name}"]`)].filter(visible);
+      groups.add(n.name);
+      controls.push(radios.find(r => r.checked) || radios[0]);
+    } else {
+      controls.push(n);
+    }
+  }
+  const i = controls.findIndex(n => n === from || (from.type === 'radio' && n.type === 'radio' && n.name === from.name));
+  const next = controls[i + 1];
+  if (next) next.focus();
+  return next || null;
 }

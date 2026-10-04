@@ -94,6 +94,23 @@ Zensical `docs_dir` would take over that section's index route (see
   all of it back, so an accidental Esc costs nothing. While editing a line
   it cancels the edit and leaves the line unchanged. Esc first closes an
   open completion dropdown.
+- **Keyboard only** (one hand is on the microphone):
+  - **Tab** and **Enter** move to the next field. Dropdown items and the
+    small link buttons are not Tab stops.
+  - **↓** opens a field's dropdown list, and **Enter** takes the highlighted
+    item. In the location and repeater fields, Enter takes the first item
+    even without ↓.
+  - **Shift+Enter** saves the line from anywhere in the form: any field,
+    a radio group or a dropdown item. Plain Enter only saves on the
+    "Speichern" button, which is where Enter ends up after the last field.
+  - On radio groups, the **digits 1–9** pick the n-th visible option (the
+    siren grades 1–5 map directly), and **Backspace/Delete** clears the
+    group.
+  - **Esc** discards the line (with undo).
+- **Stable layout.** The info lines under the callsign and location fields
+  (name, warnings, resolution) sit in a slot with a fixed height of two
+  lines. They are truncated, with the full text in the tooltip, so no input
+  moves while typing.
 - **No destructive edits.** Editing a line stores the previous version in
   `revisions`. Deleting is a soft delete (the line gets a `deleted`
   timestamp) with undo and a recycle bin, for lines and for events alike.
@@ -176,8 +193,9 @@ builds `docs/confirm/data/callsigns-oe.json` at build time. It is about
   - The name and location appear directly under the callsign field.
   - **Short forms:** `1ABC` finds OE1ABC first, then OE<other digit>ABC;
     `ABC` finds OE<any digit>ABC, then calls whose suffix starts with
-    ABC. The suggestions appear as a dropdown under the field (↓, Enter,
-    Esc).
+    ABC. The suggestions appear as a dropdown under the field (↓, then
+    Enter; Esc). Enter alone does not take a suggestion here, so a correct
+    call that isn't in the list is never replaced.
   - An OE call that isn't in the list gets a soft warning, "nicht in der
     Rufzeichenliste (Stand …) – Tippfehler?". Saving is never blocked.
   - "Meinten Sie" offers suggestions: prefix matches first, then calls one
@@ -185,8 +203,8 @@ builds `docs/confirm/data/callsigns-oe.json` at build time. It is about
   - An empty Name field is auto-filled; values the operator typed are never
     overwritten. The licence location is **not** written into a QTH
     location field, because it isn't necessarily where the station is
-    now. It is offered under the field instead ("laut Rufzeichenliste:
-    1220 Wien – übernehmen"), next to the last known location.
+    now. It is offered in the location field's dropdown instead ("laut
+    Rufzeichenliste: 1220 Wien", ↓/Enter), next to the last known location.
   - The name and location are also shown under each call in the log.
   - Portable forms (`OE1EBG/P`, `HB9/OE1EBG`) are looked up by their base
     call.
@@ -336,9 +354,17 @@ implementation differs, the reason is given below.
   empty or still holds an earlier auto-filled value. A PLZ the operator
   typed is never overwritten.
 - **Station memory** (IndexedDB store `stations`, schema v2). Every resolved
-  location is remembered per callsign, across events. On the next check-in
-  the tool shows "Zuletzt bekannter Standort: …" with an "übernehmen"
-  button.
+  location is remembered per callsign, across events.
+  - On the next check-in, **leaving the callsign field prefills** an empty
+    location field with the last location. It is marked "↺ vorgeschlagen
+    (zuletzt …)", and its text is selected, so typing replaces it and Tab
+    keeps it.
+  - A different callsign replaces the suggestion, and an empty one removes
+    it. Text the operator typed is never overwritten.
+  - Nothing is prefilled while the call is being typed, on Shift+Enter
+    straight from the callsign field, or while editing a line.
+  - Other suggestions, such as the licence-list city, appear in the field's
+    dropdown (↓, Enter).
 - **Export.** The CSV gains the columns `standort_aufgeloest`, `lat`, `lon`,
   `locator`, `standort_konfidenz` and `standort_quelle`. ADIF gets
   `GRIDSQUARE`, `LAT`/`LON` (`N048 12.500` format), `APP_OE1EBG_LOCATION`

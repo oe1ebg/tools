@@ -169,6 +169,13 @@
   .ac-info.known{ color:var(--ok); }
   .ac-info.unknown, .ac-info.warn{ color:var(--warn); }
   .ac-info button.link{ font-size:12px; }
+  .ac-info.prefilled{ color:var(--accent); font-style:italic; }
+  /* fixed-height slot for the info lines in the entry form: appearing or
+     changing hints never move any input (full text in the title) */
+  .ac-hints{ width:0; min-width:100%; height:calc(2 * 1.35 * 12px); overflow:hidden; font-size:12px; line-height:1.35; }
+  .ac-hints .ac-info{ display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; overflow-wrap:anywhere; }
+  .ac-hints .ac-info:empty{ display:none; }
+  #call-info, #call-warn{ -webkit-line-clamp:1; }
 
   .banner{
     padding:.6em 1em; margin-bottom:1em; border-radius:4px;
@@ -222,7 +229,11 @@
     background:var(--bg-raised);
   }
   #entry-form.editing{ border-color:var(--warn); }
-  #entry-form .row{ display:flex; flex-wrap:wrap; gap:.6em 1em; align-items:flex-end; }
+  /* top-aligned: hints under one field never shift the inputs next to it */
+  #entry-form .row{ display:flex; flex-wrap:wrap; gap:.6em 1em; align-items:flex-start; }
+  #entry-form .field > span, #entry-form div.field > label{ white-space:nowrap; }
+  .form-actions .rpt-line-row{ gap:.6em; }
+  .kbd-hint{ margin-top:.2em; }
   #f-call{
     font-family:var(--font-mono); font-size:24px; font-weight:600;
     text-transform:uppercase; width:9em; padding:.2em .4em;
@@ -478,8 +489,10 @@
             <input id="f-call" autocapitalize="characters" spellcheck="false" autocomplete="off" aria-describedby="call-info call-warn">
             <div id="call-suggest" class="ac-pop"></div>
           </div>
-          <div id="call-info" class="ac-info" aria-live="polite"></div>
-          <div id="call-warn" class="ac-info warn"></div>
+          <div class="ac-hints">
+            <div id="call-info" class="ac-info" aria-live="polite"></div>
+            <div id="call-warn" class="ac-info warn"></div>
+          </div>
         </div>
         <div id="f-fields" class="row"></div>
         <div class="field rpt-line"><span>Relais (Standard: Header)</span>
@@ -492,11 +505,16 @@
           </div>
         </div>
         <label class="field" style="flex:1;min-width:10em"><span>Notiz</span><input id="f-note"></label>
-        <button type="submit" class="primary" id="btn-save">Speichern ⏎</button>
-        <button type="button" id="btn-discard" title="Alle Eingaben dieser Zeile verwerfen (mit Rückgängig)">Verwerfen (Esc)</button>
+        <div class="field form-actions"><span>&nbsp;</span>
+          <div class="rpt-line-row">
+            <button type="submit" class="primary" id="btn-save" title="Zeile speichern (Shift+Enter, aus jedem Feld)">Speichern ⇧⏎</button>
+            <button type="button" id="btn-discard" title="Alle Eingaben dieser Zeile verwerfen (mit Rückgängig)">Verwerfen (Esc)</button>
+          </div>
+        </div>
       </div>
       <div id="repeat-box" hidden></div>
       <div id="form-status" role="status"></div>
+      <div class="hint kbd-hint">Tastatur: Tab/Enter nächstes Feld · ↓ Vorschläge, Enter übernimmt · 1–5 bei Auswahlfeldern, ⌫ leert · Shift+Enter speichern · Esc verwerfen</div>
     </form>
 
     <section id="map-panel" class="no-print" hidden>

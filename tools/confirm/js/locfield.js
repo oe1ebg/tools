@@ -3,7 +3,9 @@
 // a dropdown under the field; choosing one fills in the full address and
 // the PLZ (the originally typed text is kept in `loc.input`). An automatic
 // match keeps the typed text. Logging is never blocked: an unresolved
-// location is saved as text.
+// location is saved as text. Once the callsign is known, the field can be
+// prefilled with the station's last location, and other suggestions (e.g.
+// the licence-list city) are offered in the dropdown while it is empty.
 
 import { el, fill, popover } from './dom.js';
 import { loadLocationIndex, renderCandidates, autoSelectLevel } from './locationui.js';
@@ -38,6 +40,27 @@ export function locationFieldText(r) {
   return r.label;
 }
 
+// "2026-09-27T19:42:07Z" -> "27.09.2026"
+function fmtDay(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || '');
+  return m ? `${m[3]}.${m[2]}.${m[1]}` : '';
+}
+
+// Dropdown suggestions for a station: its last logged location (stations
+// store) and the city from the callsign list, unless that is the same text.
+export function locationOptions(rec, listedCity) {
+  const out = [];
+  if (rec?.loc) {
+    out.push({ label: `zuletzt: ${locationFieldText(rec.loc)}`, detail: [fmtDay(rec.at), describeLocation(rec.loc)].filter(Boolean).join(' · '), loc: rec.loc });
+  }
+  const city = (listedCity || '').trim();
+  const same = t => (t || '').trim().toLowerCase() === city.toLowerCase();
+  if (city && !(rec?.loc && (same(locationFieldText(rec.loc)) || same(rec.loc.input)))) {
+    out.push({ label: `laut Rufzeichenliste: ${city}`, detail: 'Wohnort laut Lizenz', text: city });
+  }
+  return out;
+}
+
 // Elements: input (the field), results (its dropdown), chip (status line
 // under the field), plzInput (optional PLZ field to fill). onChange is
 // called whenever the resolution changes (for draft saving).
@@ -47,20 +70,52 @@ export function createLocationField({ input, plzInput, chip, results, onChange }
   let loc = null;
   let timer = null;
   let seq = 0;
+  let prefilled = null; // { at, src } while the field holds an untouched prefill
+  let options = [];     // suggestions shown while the field is empty or prefilled
 
   function renderChip() {
     const text = input.value.trim();
     chip.className = chipBase;
-    if (loc) {
+    if (loc && prefilled) {
+      chip.classList.add('prefilled');
+      const t = `↺ vorgeschlagen (zuletzt ${fmtDay(prefilled.at)}): ${describeLocation(loc)} – Tippen ersetzt`;
+      chip.textContent = t;
+      chip.title = t;
+    } else if (loc) {
       chip.classList.add(`conf-${loc.confidence}`);
-      fill(chip,
-        `✓ ${describeLocation(loc)} (${loc.manual ? 'gewählt' : 'automatisch'}, ${LOC_CONF_TEXT[loc.confidence] || loc.confidence}) `,
-        el('button', { type: 'button', class: 'link', onclick: () => { setLoc(null); input.focus(); resolve(); } }, 'ändern'));
+      const t = `✓ ${describeLocation(loc)} (${loc.manual ? 'gewählt' : 'automatisch'}, ${LOC_CONF_TEXT[loc.confidence] || loc.confidence}) `;
+      fill(chip, t,
+        el('button', { type: 'button', class: 'link', tabindex: '-1', onclick: () => { setLoc(null); input.focus(); resolve(); } }, 'ändern'));
+      chip.title = t;
     } else if (text) {
       chip.classList.add('unresolved');
       chip.textContent = 'nicht zugeordnet – wird als Text gespeichert';
+      chip.title = '';
     } else {
       chip.textContent = '';
+      chip.title = '';
+    }
+  }
+
+  // The suggestions (if any) as the dropdown content; the one already
+  // prefilled isn't repeated.
+  function renderOptions() {
+    const list = options.filter(o => !prefilled || o.loc !== prefilled.src);
+    fill(results, list.length ? [
+      el('div', { class: 'ac-head' }, prefilled ? 'Oder (↓, Enter):' : 'Vorschläge (↓, Enter):'),
+      list.map(o => el('button', { type: 'button', class: 'ac-item', onclick: () => pickOption(o) },
+        el('b', {}, o.label), o.detail ? el('small', {}, o.detail) : null)),
+    ] : []);
+    pop.update();
+  }
+
+  function pickOption(o) {
+    if (o.loc) {
+      ctl.adopt(o.loc);
+      pop.hide();
+      input.focus();
+    } else {
+      ctl.setText(o.text);
     }
   }
 
@@ -96,8 +151,7 @@ export function createLocationField({ input, plzInput, chip, results, onChange }
     const text = input.value.trim();
     const my = ++seq;
     if (!text) {
-      results.replaceChildren();
-      pop.update();
+      renderOptions();
       setLoc(null);
       return;
     }
@@ -117,17 +171,22 @@ export function createLocationField({ input, plzInput, chip, results, onChange }
 
   input.addEventListener('input', () => {
     loc = null;
+    prefilled = null;
     renderChip();
     clearTimeout(timer);
     timer = setTimeout(resolve, 200);
   });
 
-  return {
+  // A prefilled text is selected on focus: typing replaces it, Tab keeps it.
+  input.addEventListener('focus', () => { if (prefilled) input.select(); });
+
+  const ctl = {
     get: () => loc,
     // Restore a stored resolution (edit / draft) without re-resolving.
     set(value) {
       clearTimeout(timer);
       loc = value || null;
+      prefilled = null;
       results.replaceChildren();
       pop.hide();
       if (plzInput && loc) plzInput.dataset.autofill = plzInput.value === loc.postcode ? loc.postcode : '';
@@ -137,6 +196,7 @@ export function createLocationField({ input, plzInput, chip, results, onChange }
       clearTimeout(timer);
       seq++;
       loc = null;
+      prefilled = null;
       results.replaceChildren();
       pop.hide();
       if (plzInput) plzInput.dataset.autofill = '';
@@ -145,6 +205,9 @@ export function createLocationField({ input, plzInput, chip, results, onChange }
     isEmpty: () => !loc && !input.value.trim(),
     // Take over a stored location (e.g. the station's last known one).
     adopt(value) {
+      clearTimeout(timer);
+      seq++;
+      prefilled = null;
       input.value = locationFieldText(value);
       setLoc({ ...value, manual: true }, true);
       results.replaceChildren();
@@ -154,8 +217,35 @@ export function createLocationField({ input, plzInput, chip, results, onChange }
     setText(text) {
       input.value = text;
       loc = null;
+      prefilled = null;
       input.focus();
       resolve();
     },
+    // Suggest a stored location (the station's last one) — only into an
+    // empty field or over an earlier, untouched suggestion.
+    prefill(value, at) {
+      if (!(ctl.isEmpty() || prefilled)) return;
+      ctl.adopt(value);
+      prefilled = { at, src: value };
+      renderChip();
+      renderOptions();
+      if (document.activeElement === input) input.select();
+    },
+    // Remove an untouched suggestion (the callsign changed).
+    clearPrefill() {
+      if (!prefilled) return;
+      input.value = '';
+      prefilled = null;
+      setLoc(null);
+      results.replaceChildren();
+      pop.hide();
+    },
+    isPrefilled: () => !!prefilled,
+    // Suggestions for the dropdown while the field is empty or prefilled.
+    setOptions(list) {
+      options = list || [];
+      if (!input.value.trim() || prefilled) renderOptions();
+    },
   };
+  return ctl;
 }
