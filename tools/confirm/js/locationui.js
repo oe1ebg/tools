@@ -6,6 +6,7 @@ import { $, el, fill, copyToClipboard } from './dom.js';
 import { loadDataFile } from './data.js';
 import { buildLocationIndex, locate } from './location/index.js';
 import { latLonToMaidenhead } from './location/maidenhead.js';
+import { sourceItem, standDate } from './sources.js';
 
 const LOC_PREC_KEY = 'oe1ebg-confirm-locator-precision';
 const LOC_AUTO_KEY = 'oe1ebg-confirm-location-autoselect';
@@ -212,6 +213,14 @@ export function initLocationPanel() {
     const idx = await loadLocationIndex();
     const foot = $('#st-location');
     if (!foot) return;
-    foot.textContent = idx ? `Wien: ${await locationStatusText()} · ${idx.meta.attribution}` : 'Wien-Daten nicht verfügbar';
+    if (!idx) {
+      foot.textContent = 'Wien-Daten nicht verfügbar';
+      return;
+    }
+    const n = new Intl.NumberFormat('de-AT');
+    fill(foot,
+      sourceItem('addresses', `${n.format(idx.counts.addresses)} Adressen, Stand ${standDate(idx.meta.addresses_retrieved)}`),
+      ' · ',
+      sourceItem('osm', `${n.format(idx.counts.places)} Orte, Stand ${standDate(idx.meta.places_retrieved)}`));
   }, 800);
 }

@@ -9,6 +9,9 @@ are in `oe1ebg/confirm-README.md`.
   another host, no CDN `<script>`/`<link>`, no web fonts and no map tiles.
   Data must be produced at build time, under `data/`, and listed in the
   precache. `tests/confirm-offline.test.mjs` fails on any external URL.
+  The one exception is `js/sources.js`: links to the datasets and licences
+  shown in the footer, which are only `<a href>` targets and never fetched.
+  The test also checks that this file contains no request APIs.
 - **Never lose user data.** The IndexedDB schema is at v2; v2 added the
   `stations` store.
   - Writes go through `store.tx()`, and the UI may only show success after

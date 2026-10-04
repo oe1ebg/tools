@@ -11,6 +11,8 @@ import vm from 'node:vm';
 const OE1EBG = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIR = join(OE1EBG, 'docs', 'confirm');
 const GENERATED = new Set(['confirm-offline.html', 'precache.js']);
+// Dataset/licence links for the footer: <a href> targets only, never fetched.
+const LINK_ONLY = 'js/sources.js';
 
 function walk(d) {
   return readdirSync(d).flatMap(n => {
@@ -23,7 +25,7 @@ test('no external URLs in shipped confirm sources', () => {
   const offenders = [];
   for (const p of walk(DIR)) {
     const name = p.slice(DIR.length + 1);
-    if (GENERATED.has(name) || !/\.(js|html|webmanifest|svg|css)$/.test(name)) continue;
+    if (GENERATED.has(name) || name === LINK_ONLY || !/\.(js|html|webmanifest|svg|css)$/.test(name)) continue;
     const src = readFileSync(p, 'utf8');
     for (const m of src.matchAll(/(?:https?:)?\/\/[a-z0-9.-]+\.[a-z]{2,}[^\s"'<>)]*/gi)) {
       // XML namespace in the SVG is an identifier, not a request.
@@ -32,6 +34,13 @@ test('no external URLs in shipped confirm sources', () => {
     }
   }
   assert.deepEqual(offenders, []);
+});
+
+test('the link-only module really only provides links', () => {
+  const src = readFileSync(join(DIR, LINK_ONLY), 'utf8');
+  const code = src.replace(/\/\/.*$/gm, ''); // comments may mention "fetched"
+  assert.ok(!/\bfetch\s*\(|\bimport\s*\(|XMLHttpRequest|importScripts|sendBeacon|\bsrc\s*:/.test(code), 'no request APIs');
+  assert.match(src, /href: url/);
 });
 
 test('offline bundle builds into one self-contained, parseable file', () => {

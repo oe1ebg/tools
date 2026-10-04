@@ -17,7 +17,8 @@ import { buildCallbook, lookupCall, suggestCalls } from './callbook.js';
 import { $, el, fill, popover } from './dom.js';
 import { initLocationPanel } from './locationui.js';
 import { createLocationField, describeLocation } from './locfield.js';
-import { repeaterSearchWidget } from './repeaterui.js';
+import { repeaterSearchWidget, loadRepeaterIndex } from './repeaterui.js';
+import { sourceItem } from './sources.js';
 import { createLineRepeater } from './linerepeater.js';
 import { headerFromRepeater, formatShift } from './repeaters.js';
 
@@ -1301,13 +1302,20 @@ function wire() {
 async function loadCallbook() {
   const data = await loadDataFile('callsigns-oe.json');
   state.callbook = buildCallbook(data);
-  $('#st-callbook').textContent = state.callbook
-    ? `Rufzeichenliste Stand ${fmtStand(state.callbook.stand)} (${state.callbook.calls.length} OE-Rufzeichen, Quelle: Fernmeldebüro)`
-    : 'Rufzeichenliste nicht verfügbar';
+  fill($('#st-callbook'), state.callbook
+    ? sourceItem('callsigns', `Stand ${fmtStand(state.callbook.stand)}, ${state.callbook.calls.length} OE-Rufzeichen`)
+    : 'Rufzeichenliste nicht verfügbar');
   if (state.event) {
     updateCallFeedback();
     renderLog();
   }
+}
+
+async function loadRepeaterFooter() {
+  const idx = await loadRepeaterIndex();
+  fill($('#st-repeaters'), idx
+    ? sourceItem('repeaters', `Stand ${fmtStand(idx.retrieved.slice(0, 10))}, ${idx.list.length} Sprach-Relais`)
+    : 'Relaisliste nicht verfügbar');
 }
 
 async function main() {
@@ -1338,6 +1346,7 @@ async function main() {
     console.warn('stations', e);
   }
   loadCallbook();
+  loadRepeaterFooter();
   route();
 }
 
