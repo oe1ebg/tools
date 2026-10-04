@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bestätigungsverkehr</title>
+<meta name="theme-color" content="#526cfe">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<!-- CONFIRM-STYLE-BEGIN -->
+<style>
+  :root{
+    --bg: #ffffff;
+    --bg-raised: #f5f5f5;
+    --line: #00000017;
+    --text: #000000de;
+    --text-dim: #00000099;
+    --accent: #526cfe;
+    --accent-dim: #6b78d0;
+    --accent-soft: #526cfe1a;
+    --ok: #2e7d32;
+    --warn: #9a6700;
+    --warn-soft: #f9a8251f;
+    --err: #c62828;
+    --err-soft: #c628281a;
+    --header-bg: rgba(255,255,255,.72);
+    --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg: hsla(225,15%,5%,1);
+      --bg-raised: hsla(225,20%,10%,1);
+      --line: hsla(225,15%,90%,.14);
+      --text: hsla(225,15%,90%,.82);
+      --text-dim: hsla(225,15%,90%,.5);
+      --accent: #526cfe;
+      --accent-dim: #9aa8f5;
+      --accent-soft: #526cfe2e;
+      --ok: #7bc47f;
+      --warn: #e0b35c;
+      --warn-soft: #e0b35c1f;
+      --err: #e0776b;
+      --err-soft: #e0776b24;
+      --header-bg: rgba(12,13,15,.72);
+    }
+  }
+  /* Explicit light/dark override set via the theme toggle (same scheme as
+     the ADIF editor): every theme-dependent variable is repeated here. */
+  :root[data-theme="dark"]{
+    --bg: hsla(225,15%,5%,1);
+    --bg-raised: hsla(225,20%,10%,1);
+    --line: hsla(225,15%,90%,.14);
+    --text: hsla(225,15%,90%,.82);
+    --text-dim: hsla(225,15%,90%,.5);
+    --accent: #526cfe;
+    --accent-dim: #9aa8f5;
+    --accent-soft: #526cfe2e;
+    --ok: #7bc47f;
+    --warn: #e0b35c;
+    --warn-soft: #e0b35c1f;
+    --err: #e0776b;
+    --err-soft: #e0776b24;
+    --header-bg: rgba(12,13,15,.72);
+  }
+  :root[data-theme="light"]{
+    --bg: #ffffff;
+    --bg-raised: #f5f5f5;
+    --line: #00000017;
+    --text: #000000de;
+    --text-dim: #00000099;
+    --accent: #526cfe;
+    --accent-dim: #6b78d0;
+    --accent-soft: #526cfe1a;
+    --ok: #2e7d32;
+    --warn: #9a6700;
+    --warn-soft: #f9a8251f;
+    --err: #c62828;
+    --err-soft: #c628281a;
+    --header-bg: rgba(255,255,255,.72);
+  }
+  *{ box-sizing: border-box; }
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font-ui);
+    font-size:14px;
+    line-height:1.4;
+  }
+  [hidden]{ display:none !important; }
+  #site-header{
+    position:sticky; top:0; z-index:10;
+    display:flex; align-items:center; gap:.6em; flex-wrap:wrap;
+    padding:.5em 1em;
+    background:var(--header-bg);
+    backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);
+  }
+  #site-header a{ color:var(--text-dim); text-decoration:none; }
+  #site-header a:hover{ color:var(--accent); }
+  #site-header .title{ font-weight:600; letter-spacing:.04em; }
+  .spacer{ flex:1; }
+  .chip{
+    font-size:11px; padding:.15em .55em; border-radius:999px;
+    border:1px solid var(--line); color:var(--text-dim); white-space:nowrap;
+  }
+  .chip.ok{ color:var(--ok); border-color:currentColor; }
+  .chip.warn{ color:var(--warn); border-color:currentColor; }
+  .chip.err{ color:var(--err); border-color:currentColor; }
+  #theme-toggle{ display:inline-flex; border:1px solid var(--line); border-radius:4px; overflow:hidden; }
+  #theme-toggle button{
+    background:none; border:none; color:var(--text-dim); font:inherit; font-size:11px;
+    padding:.2em .6em; cursor:pointer;
+  }
+  #theme-toggle button:not(:first-child){ border-left:1px solid var(--line); }
+  #theme-toggle button.active{ background:var(--accent-soft); color:var(--accent); }
+
+  main{ max-width:1200px; margin:0 auto; padding:1em; }
+  h1{ font-size:18px; margin:0; letter-spacing:.03em; }
+  .toolbar{ display:flex; align-items:center; gap:.5em; flex-wrap:wrap; margin-bottom:1em; }
+  button, .btn{
+    font:inherit; font-size:13px;
+    background:var(--bg-raised); color:var(--text);
+    border:1px solid var(--line); border-radius:4px;
+    padding:.35em .8em; cursor:pointer;
+  }
+  button:hover:not(:disabled){ border-color:var(--accent); color:var(--accent); }
+  button:disabled{ opacity:.45; cursor:default; }
+  button.primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  button.primary:hover:not(:disabled){ color:#fff; filter:brightness(1.1); }
+  button.danger:hover:not(:disabled){ border-color:var(--err); color:var(--err); }
+  button.link{ background:none; border:none; padding:0; color:var(--accent); }
+  input[type=text], input:not([type]), select, textarea{
+    font:inherit; color:var(--text); background:var(--bg);
+    border:1px solid var(--line); border-radius:4px; padding:.35em .5em;
+  }
+  input:focus, select:focus, textarea:focus{ outline:2px solid var(--accent); outline-offset:-1px; }
+  label.field, div.field{ display:flex; flex-direction:column; gap:.15em; font-size:11px; color:var(--text-dim); }
+  label.field > span, div.field > span{ text-transform:uppercase; letter-spacing:.05em; }
+
+  .banner{
+    padding:.6em 1em; margin-bottom:1em; border-radius:4px;
+    border:1px solid currentColor;
+  }
+  .banner.err{ color:var(--err); background:var(--err-soft); font-weight:600; }
+  .banner.warn{ color:var(--warn); background:var(--warn-soft); }
+  .banner button{ margin-left:.6em; }
+
+  /* ---------- events view ---------- */
+  .tabs{ display:inline-flex; border:1px solid var(--line); border-radius:4px; overflow:hidden; }
+  .tabs button{ border:none; border-radius:0; background:none; }
+  .tabs button.active{ background:var(--accent-soft); color:var(--accent); }
+  #event-list{ list-style:none; margin:0; padding:0; display:grid; gap:.6em; }
+  .event-card{
+    border:1px solid var(--line); border-radius:6px; padding:.7em 1em;
+    display:flex; gap:1em; align-items:center; flex-wrap:wrap;
+    background:var(--bg-raised);
+  }
+  .event-card .info{ flex:1; min-width:16em; }
+  .event-card .t{ font-weight:600; font-size:15px; }
+  .event-card .meta{ color:var(--text-dim); font-size:12px; }
+  .event-card .actions{ display:flex; gap:.4em; flex-wrap:wrap; }
+  .empty{ color:var(--text-dim); padding:2em; text-align:center; }
+  .panel{
+    border:1px solid var(--line); border-radius:6px; padding:1em; margin-bottom:1em;
+    background:var(--bg-raised);
+  }
+  .grid-form{ display:flex; flex-wrap:wrap; gap:.6em 1em; align-items:flex-end; }
+  .grid-form .sub{ width:100%; font-size:11px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.06em; margin-top:.4em; }
+  label.check{ display:flex; align-items:center; gap:.35em; font-size:13px; }
+
+  /* ---------- log view ---------- */
+  #log-title{ font-size:18px; font-weight:600; border:1px solid transparent; background:none; min-width:12em; flex:1; max-width:32em; }
+  #log-title:hover{ border-color:var(--line); }
+  .stat{ font-family:var(--font-mono); font-size:13px; color:var(--text-dim); }
+  .stat b{ color:var(--text); font-size:15px; }
+  details.hdr{ margin-bottom:1em; border:1px solid var(--line); border-radius:6px; background:var(--bg-raised); }
+  details.hdr > summary{ cursor:pointer; padding:.55em 1em; list-style:none; display:flex; gap:.6em; align-items:center; flex-wrap:wrap; }
+  details.hdr > summary::-webkit-details-marker{ display:none; }
+  details.hdr > summary::before{ content:"▸"; color:var(--text-dim); }
+  details.hdr[open] > summary::before{ content:"▾"; }
+  details.hdr .body{ padding:0 1em 1em; }
+  .hdr-sum{ font-family:var(--font-mono); font-size:13px; }
+  .hint{ font-size:12px; color:var(--text-dim); }
+
+  #entry-form{
+    border:2px solid var(--accent); border-radius:8px; padding:.8em 1em; margin-bottom:1em;
+    background:var(--bg-raised);
+  }
+  #entry-form.editing{ border-color:var(--warn); }
+  #entry-form .row{ display:flex; flex-wrap:wrap; gap:.6em 1em; align-items:flex-end; }
+  #f-call{
+    font-family:var(--font-mono); font-size:24px; font-weight:600;
+    text-transform:uppercase; width:9em; padding:.2em .4em;
+  }
+  #f-time{ font-family:var(--font-mono); width:12em; }
+  .clock{ font-family:var(--font-mono); font-size:12px; color:var(--text-dim); }
+  .radio-group{ display:flex; flex-wrap:wrap; gap:.25em; }
+  .radio-group label{
+    font-size:13px; color:var(--text); text-transform:none; letter-spacing:0;
+    border:1px solid var(--line); border-radius:4px; padding:.3em .6em; cursor:pointer;
+    background:var(--bg); user-select:none;
+  }
+  .radio-group input{ position:absolute; opacity:0; width:0; height:0; }
+  .radio-group input:checked + span{ color:var(--accent); font-weight:600; }
+  .radio-group label:has(input:checked){ border-color:var(--accent); background:var(--accent-soft); }
+  .radio-group label:has(input:focus-visible){ outline:2px solid var(--accent); }
+  #form-status{ min-height:1.4em; margin-top:.5em; font-size:13px; }
+  #form-status.ok{ color:var(--ok); }
+  #form-status.err{ color:var(--err); font-weight:600; }
+  #call-warn{ color:var(--warn); font-size:12px; min-height:1em; }
+  #repeat-box{
+    margin-top:.7em; padding:.6em .8em; border-radius:6px;
+    border:2px solid var(--warn); background:var(--warn-soft);
+  }
+  #repeat-box .head{ font-weight:700; color:var(--warn); margin-bottom:.3em; }
+  #repeat-box ul{ margin:.2em 0 .4em; padding-left:1.2em; font-size:13px; }
+  .edit-tag{ font-weight:700; color:var(--warn); }
+
+  .table-wrap{ overflow-x:auto; border:1px solid var(--line); border-radius:6px; }
+  table.log{ width:100%; border-collapse:collapse; font-size:13px; }
+  table.log th, table.log td{ padding:.35em .6em; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
+  table.log th{ font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-dim); background:var(--bg-raised); position:sticky; top:0; }
+  table.log td.mono{ font-family:var(--font-mono); white-space:nowrap; }
+  table.log td.call{ font-family:var(--font-mono); font-weight:600; font-size:14px; white-space:nowrap; }
+  table.log tr.match td{ background:var(--warn-soft); }
+  table.log tr.editing td{ background:var(--accent-soft); }
+  table.log td.act{ white-space:nowrap; text-align:right; }
+  table.log td.act button{ padding:.1em .45em; font-size:12px; }
+  .badge{
+    display:inline-block; margin-left:.35em; padding:0 .4em; border-radius:999px;
+    font-size:11px; font-weight:700; background:var(--warn); color:var(--bg);
+  }
+  .rpt{ font-size:11px; color:var(--accent); }
+  details.misc{ margin-top:1.2em; }
+  details.misc summary{ cursor:pointer; color:var(--text-dim); }
+  details.misc ul{ font-size:13px; }
+
+  dialog{ border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--text); max-width:min(48em, 95vw); width:100%; }
+  dialog::backdrop{ background:#0006; }
+  dialog textarea{ width:100%; height:18em; font-family:var(--font-mono); font-size:12px; }
+
+  footer{ max-width:1200px; margin:2em auto 1em; padding:0 1em; font-size:11px; color:var(--text-dim); }
+  footer a{ color:inherit; }
+
+  @media (max-width: 640px){
+    main{ padding:.6em; }
+    #f-call{ width:100%; }
+    #site-header .title{ display:none; }
+  }
+  @media print{
+    #site-header, .toolbar button, #entry-form, details.hdr > summary::before, .no-print, footer, table.log td.act, table.log th.act{ display:none !important; }
+    details.hdr .body{ display:none; }
+    body{ background:#fff; color:#000; font-size:11px; }
+    .table-wrap{ border:none; }
+    table.log th{ position:static; }
+  }
+</style>
+<!-- CONFIRM-STYLE-END -->
+</head>
+<body>
+
+<header id="site-header">
+  <a href="../">← oe1ebg.at</a>
+  <span class="title">BESTÄTIGUNGSVERKEHR</span>
+  <span class="spacer"></span>
+  <span id="st-offline" class="chip">offline: prüfe…</span>
+  <span id="st-storage" class="chip">Speicher: prüfe…</span>
+  <button id="btn-update" class="primary" hidden title="Neue Version installieren (Daten bleiben erhalten)">Update verfügbar</button>
+  <div id="theme-toggle" role="group" aria-label="Farbschema">
+    <button type="button" data-theme-choice="light">hell</button>
+    <button type="button" data-theme-choice="auto">auto</button>
+    <button type="button" data-theme-choice="dark">dunkel</button>
+  </div>
+</header>
+
+<main>
+  <div id="banner" class="banner err" role="alert" hidden></div>
+  <noscript><div class="banner err">Dieses Werkzeug benötigt JavaScript.</div></noscript>
+
+  <!-- ===== Ereignisse ===== -->
+  <section id="view-events" hidden>
+    <div class="toolbar">
+      <h1>Ereignisse</h1>
+      <div class="tabs" id="event-tabs">
+        <button type="button" data-tab="active" class="active">Aktiv</button>
+        <button type="button" data-tab="archived">Archiv</button>
+        <button type="button" data-tab="deleted">Papierkorb</button>
+      </div>
+      <span class="spacer"></span>
+      <button type="button" id="btn-new-event" class="primary">+ Neues Ereignis</button>
+      <button type="button" id="btn-import">Sicherung importieren…</button>
+      <input type="file" id="import-file" accept=".json,application/json" hidden>
+      <button type="button" id="btn-backup-all">Alle sichern (JSON)</button>
+    </div>
+
+    <form id="new-event" class="panel" hidden autocomplete="off">
+      <div class="grid-form">
+        <label class="field" style="flex:1;min-width:16em"><span>Titel</span>
+          <input name="title" required placeholder="z. B. Rundspruch OE1 – Bestätigungsverkehr">
+        </label>
+        <label class="field"><span>Vorlage</span><select name="template" id="new-template"></select></label>
+      </div>
+      <div id="new-header" class="grid-form" style="margin-top:.6em"></div>
+      <div class="toolbar" style="margin:1em 0 0">
+        <button type="submit" class="primary">Ereignis anlegen</button>
+        <button type="button" id="btn-cancel-new">Abbrechen</button>
+      </div>
+    </form>
+
+    <ul id="event-list"></ul>
+  </section>
+
+  <!-- ===== Log ===== -->
+  <section id="view-log" hidden>
+    <div class="toolbar">
+      <button type="button" id="btn-back">← Ereignisse</button>
+      <input id="log-title" aria-label="Titel des Ereignisses">
+      <span class="stat"><b id="st-unique">0</b> Stationen · <b id="st-total">0</b> Check-ins</span>
+      <span class="spacer"></span>
+      <span id="export-nudge" class="chip warn" hidden></span>
+      <button type="button" data-export="csv">CSV</button>
+      <button type="button" data-export="adif">ADIF</button>
+      <button type="button" data-export="summary">Zusammenfassung</button>
+      <button type="button" data-export="json" title="Vollständige Sicherung dieses Ereignisses">Sicherung (JSON)</button>
+      <button type="button" data-export="print">Drucken</button>
+    </div>
+
+    <div id="lock-banner" class="banner warn" hidden></div>
+
+    <details class="hdr" id="hdr-panel">
+      <summary><b>Logkopf</b> <span class="hdr-sum" id="hdr-sum"></span></summary>
+      <div class="body">
+        <div id="log-header" class="grid-form"></div>
+        <p class="hint">Änderungen am Logkopf gelten für neue Zeilen. Bereits geloggte Zeilen behalten Operator, Station, Frequenz und Relais vom Zeitpunkt des Eintrags.</p>
+      </div>
+    </details>
+
+    <form id="entry-form" autocomplete="off">
+      <div class="row">
+        <label class="field"><span>Rufzeichen</span>
+          <input id="f-call" autocapitalize="characters" spellcheck="false" autocomplete="off" aria-describedby="call-warn">
+        </label>
+        <div id="f-fields" class="row"></div>
+        <label class="check"><input type="checkbox" id="f-rpt"> über Relais <span class="rpt" id="f-rpt-call"></span></label>
+        <label class="field" style="flex:1;min-width:10em"><span>Notiz</span><input id="f-note"></label>
+        <label class="field"><span>Zeit UTC <span class="clock" id="clock"></span></span>
+          <input id="f-time" placeholder="automatisch" title="Leer lassen = beim Speichern. Korrektur: HH:MM oder JJJJ-MM-TT HH:MM (UTC)">
+        </label>
+        <button type="submit" class="primary" id="btn-save">Speichern ⏎</button>
+        <button type="button" id="btn-cancel-edit" hidden>Abbrechen (Esc)</button>
+      </div>
+      <div id="call-warn"></div>
+      <div id="repeat-box" hidden></div>
+      <div id="form-status" role="status"></div>
+    </form>
+
+    <div class="table-wrap">
+      <table class="log">
+        <thead id="log-head"></thead>
+        <tbody id="log-body"></tbody>
+      </table>
+    </div>
+
+    <details class="misc no-print" id="trash-panel">
+      <summary>Gelöschte Zeilen und automatische Sicherungen</summary>
+      <ul id="trash-list"></ul>
+      <ul id="snapshot-list"></ul>
+    </details>
+  </section>
+</main>
+
+<dialog id="dlg">
+  <form method="dialog">
+    <h3 id="dlg-title" style="margin-top:0"></h3>
+    <textarea id="dlg-text" readonly></textarea>
+    <div class="toolbar" style="margin:.8em 0 0">
+      <button type="button" id="dlg-copy" class="primary">In Zwischenablage kopieren</button>
+      <button value="close">Schließen</button>
+      <span id="dlg-status" class="hint"></span>
+    </div>
+  </form>
+</dialog>
+
+<footer>
+  Läuft vollständig offline im Browser; alle Daten bleiben auf diesem Gerät (<span id="st-backend">?</span>).
+  Regelmäßig als CSV/ADIF/JSON sichern. · Version <span id="st-version">dev</span>
+  <span id="offline-file-link"> · <a href="confirm-offline.html" download="bestaetigungsverkehr-offline.html">Offline-Datei für USB-Stick/Laptop herunterladen</a> (einzelne HTML-Datei, läuft ohne Server)</span>
+</footer>
+
+<!-- CONFIRM-SCRIPT-BEGIN -->
+<script type="module" src="js/app.js"></script>
+<!-- CONFIRM-SCRIPT-END -->
+</body>
+</html>
