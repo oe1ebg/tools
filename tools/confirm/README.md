@@ -6,9 +6,9 @@ rounds, and structured surveys like the Zivilschutz-Probealarm (location
 and PLZ; siren audibility as a school grade 1–5 for each of inside with
 windows closed / inside with windows open / outside; AT-Alert received;
 and if not, the phone platform and its major version). It is served
-at `https://oe1ebg.at/confirm/`, and the source is in `docs/confirm/`.
+at `https://oe1ebg.at/confirm/`, and the source is in `content/confirm/`.
 
-This file sits outside `docs/` on purpose: a `README.md` inside the
+This file sits outside `content/` on purpose: a `README.md` inside the
 Zensical `docs_dir` would take over that section's index route (see
 `adif-editor-README.md`).
 
@@ -293,7 +293,7 @@ also shows in print).
 ## Callsign list
 
 `scripts/fetch_callsigns.py` (`just fetch-callsigns`, part of `build-confirm`)
-builds `docs/confirm/data/callsigns-oe.json` at build time. It is about
+builds `content/confirm/data/callsigns-oe.json` at build time. It is about
 7,200 OE calls, 320 KiB.
 
 - **Source.** The Fernmeldebüro's *Rufzeichenliste österreichischer
@@ -337,7 +337,7 @@ builds `docs/confirm/data/callsigns-oe.json` at build time. It is about
 ## Repeater list (all of Austria)
 
 `scripts/fetch_repeaters.py` (`just fetch-repeaters`, part of
-`build-confirm`) builds `docs/confirm/data/repeaters-at.json` (about 230
+`build-confirm`) builds `content/confirm/data/repeaters-at.json` (about 230
 voice repeaters, 54 KiB) from the **ÖVSV repeater database**
 (<https://repeater.oevsv.at>, code at <https://github.com/oevsv/repeater-db>).
 
@@ -430,7 +430,7 @@ fires. The compact dropdown in the log's location field has no links.
   both mirrors returned 504s. CI builds also have no persistent cache, so
   the regular build never contacts Overpass. To update the landmarks, run
   `just refresh-pois` and commit the result.
-- **Output.** `docs/confirm/data/vienna-locations.json` is 4.7 MB raw and
+- **Output.** `content/confirm/data/vienna-locations.json` is 4.7 MB raw and
   1.2 MB with gzip. nginx now gzips JSON, JS and CSS. The data is columnar:
   street table plus per-address arrays, with integer coordinates in units of
   1e-5°. The file also records source, retrieval time and attribution
@@ -493,7 +493,7 @@ the Bezirk. A PLZ outside Vienna plus a street ("2340 Hauptstraße") gives
 the PLZ area with a note, since there are no street data outside Vienna.
 Vienna PLZ and district results carry the same locator coverage.
 
-**Data** (`scripts/build_austria_areas.py`): `docs/confirm/data/austria-areas.json`,
+**Data** (`scripts/build_austria_areas.py`): `content/confirm/data/austria-areas.json`,
 ~300 KB raw / ~90 KB gzip, 2,232 PLZ and 117 Bezirke.
 
 | Source | What | Licence |
@@ -584,12 +584,12 @@ Vienna PLZ and district results carry the same locator coverage.
 ## Map view ("Karte")
 
 The "Karte" button in a log opens an offline map above the table. It is
-drawn by the vendored Leaflet 1.9.4 (`docs/confirm/vendor/leaflet/`, a copy
+drawn by the vendored Leaflet 1.9.4 (`content/confirm/vendor/leaflet/`, a copy
 of the one in `sota-alerts`, BSD-2) on a **vector outline basemap, without
 any tiles**.
 
 - **Basemap data.** `scripts/build_map_data.py` (`just build-map`, part of
-  `build-confirm`) writes `docs/confirm/data/vienna-map.json`, about
+  `build-confirm`) writes `content/confirm/data/vienna-map.json`, about
   530 KiB:
   - the 23 district boundaries from Stadt Wien (WFS
     `ogdwien:BEZIRKSGRENZEOGD`, CC BY 4.0), cached for 30 days
@@ -682,11 +682,11 @@ exported as `APP_OE1EBG_<KEY>`.
 
 ```sh
 just test            # node --test tests/ (model, export, offline guarantees + bundle)
-just fetch-callsigns # (cached) callsign list -> docs/confirm/data/callsigns-oe.json
-just build-location  # (cached) Vienna addresses + POI snapshot -> docs/confirm/data/vienna-locations.json
+just fetch-callsigns # (cached) callsign list -> content/confirm/data/callsigns-oe.json
+just build-location  # (cached) Vienna addresses + POI snapshot -> content/confirm/data/vienna-locations.json
 just refresh-pois    # re-query Overpass, rewrite the committed location-pois.json
-just fetch-repeaters # (cached) ÖVSV repeater list -> docs/confirm/data/repeaters-at.json
-just build-map       # (cached) district boundaries + OSM snapshot -> docs/confirm/data/vienna-map.json
+just fetch-repeaters # (cached) ÖVSV repeater list -> content/confirm/data/repeaters-at.json
+just build-map       # (cached) district boundaries + OSM snapshot -> content/confirm/data/vienna-map.json
 just refresh-map     # re-query Overpass, rewrite the committed map-osm.json
 just build-confirm   # fetch-callsigns + fetch-repeaters + build-location + build-map, then precache.js + build-info.js + confirm-offline.html
 just preview         # full build, serve site/ at localhost:8000/confirm/

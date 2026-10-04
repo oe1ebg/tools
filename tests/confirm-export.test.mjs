@@ -2,9 +2,9 @@
 process.env.TZ = 'Europe/Vienna';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { toCSV, toADIF, toSummary, adifAscii, toKML, xmlEscape, KML_MIME } from '../docs/confirm/js/export.js';
-import { stationsForMap } from '../docs/confirm/js/mapdata.js';
-import { headerSnapshot } from '../docs/confirm/js/model.js';
+import { toCSV, toADIF, toSummary, adifAscii, toKML, xmlEscape, KML_MIME } from '../content/confirm/js/export.js';
+import { stationsForMap } from '../content/confirm/js/mapdata.js';
+import { headerSnapshot } from '../content/confirm/js/model.js';
 
 const header = {
   operator: 'OE1EBG', station: 'OE1XKS', freq: '145.500', mode: 'FM', myGrid: 'JN88ef', myQth: 'Wien',
@@ -134,7 +134,7 @@ test('summary counts unique stations and latest answers per station', () => {
 });
 
 test('location field: resolved location in CSV columns and ADIF GRIDSQUARE/LAT/LON', async () => {
-  const { adifLatLon } = await import('../docs/confirm/js/export.js');
+  const { adifLatLon } = await import('../content/confirm/js/export.js');
   assert.equal(adifLatLon(48.20833, true), 'N048 12.500');
   assert.equal(adifLatLon(16.37310, false), 'E016 22.386');
   assert.equal(adifLatLon(-33.8688, true), 'S033 52.128');

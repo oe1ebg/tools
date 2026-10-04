@@ -7,7 +7,7 @@ import os
 import re
 from pathlib import Path
 
-# Build step for the offline confirmation log (oe1ebg/docs/confirm/). Runs
+# Build step for the offline confirmation log (oe1ebg/content/confirm/). Runs
 # before `zensical build`, which then copies the generated files into site/.
 # Stdlib only. Produces three git-ignored files:
 #
@@ -20,7 +20,7 @@ from pathlib import Path
 #    unique and use only single-statement `import {...} from './x.js';`.
 #
 # 2. precache.js — the service worker's file list plus a content-hash
-#    version (see docs/confirm/sw.js). Any change to any shipped file
+#    version (see content/confirm/sw.js). Any change to any shipped file
 #    changes the version, which makes browsers install the new version in
 #    the background (activated only when the user clicks "Update").
 #
@@ -38,7 +38,7 @@ from pathlib import Path
 #    same object inlined.
 
 OE1EBG_DIR = Path(__file__).resolve().parent.parent
-CONFIRM_DIR = OE1EBG_DIR / "docs" / "confirm"
+CONFIRM_DIR = OE1EBG_DIR / "content" / "confirm"
 BUNDLE_NAME = "confirm-offline.html"
 PRECACHE_NAME = "precache.js"
 BUILD_INFO_NAME = "build-info.js"

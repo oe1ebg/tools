@@ -102,7 +102,7 @@ typed by hand.
 - `index.html` — the entire tool. Open directly in any browser, no server
   required. The filename matters: it's what gets served at the pretty URL
   `/adif/` on the docs site (see the top-level `AGENTS.md` for why this
-  file itself lives outside `oe1ebg/docs/`, the published `docs_dir`).
+  file itself lives outside `oe1ebg/content/`, the published `docs_dir`).
 
 ## Zensical integration
 
@@ -112,7 +112,7 @@ use this file:
 
 **1. Standalone page.** Drop it in, e.g.:
 ```
-docs/tools/adif-editor.html
+content/tools/adif-editor.html
 ```
 Builds to `yoursite.org/tools/adif-editor.html`, no Material theme chrome.
 

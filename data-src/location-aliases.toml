@@ -1,5 +1,5 @@
 # Curated vocabulary for the offline Vienna location lookup in the
-# confirmation log (docs/confirm/). Read by scripts/build_location_data.py.
+# confirmation log (content/confirm/). Read by scripts/build_location_data.py.
 # Keep this list small: official street names come from Stadt Wien's
 # address data and landmarks from OpenStreetMap; this file only adds what
 # operators actually say on the air and the sources don't contain.

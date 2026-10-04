@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { buildRepeaterIndex, searchRepeaters, headerFromRepeater, formatShift, formatMHz, positionFromLocator } from '../docs/confirm/js/repeaters.js';
-import { emptyHeader } from '../docs/confirm/js/model.js';
+import { buildRepeaterIndex, searchRepeaters, headerFromRepeater, formatShift, formatMHz, positionFromLocator } from '../content/confirm/js/repeaters.js';
+import { emptyHeader } from '../content/confirm/js/model.js';
 
 const R = (call, site, city, lat, lon, band, out, inp, modes, extra = {}) =>
   ({ call, site, city, lat, lon, locator: '', band, out, in: inp, shift: Math.round((inp - out) * 1e4) / 1e4, ctcss: null, modes, status: 'active', ...extra });
@@ -77,7 +77,7 @@ test('formatting', () => {
   assert.equal(formatMHz(145.6125), '145.6125');
 });
 
-const real = new URL('../docs/confirm/data/repeaters-at.json', import.meta.url);
+const real = new URL('../content/confirm/data/repeaters-at.json', import.meta.url);
 test('generated repeater list is plausible', { skip: !existsSync(real) && 'run `just fetch-repeaters` first' }, () => {
   const data = JSON.parse(readFileSync(real, 'utf8'));
   assert.ok(data.repeaters.length > 100);

@@ -6,9 +6,9 @@ import assert from 'node:assert/strict';
 import {
   checkinNumbers, previousCheckins, stats, liveSorted, liveCheckins, isComment, headerSnapshot, emptyHeader,
   newComment, headerChangeMarkers, operatorShifts, COMMENT_CATEGORIES, CAT_FREQ, CAT_HANDOVER,
-} from '../docs/confirm/js/model.js';
-import { toCSV, toADIF, toKML, toSummary } from '../docs/confirm/js/export.js';
-import { stationsForMap } from '../docs/confirm/js/mapdata.js';
+} from '../content/confirm/js/model.js';
+import { toCSV, toADIF, toKML, toSummary } from '../content/confirm/js/export.js';
+import { stationsForMap } from '../content/confirm/js/mapdata.js';
 
 const header = {
   ...emptyHeader(), operator: 'OE1ABC', station: 'OE1XKS', freq: '145.500', mode: 'FM', myGrid: 'JN88ef',

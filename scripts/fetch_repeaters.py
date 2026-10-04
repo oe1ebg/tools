@@ -7,7 +7,7 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
-# All Austrian voice repeaters for the confirmation log (docs/confirm/):
+# All Austrian voice repeaters for the confirmation log (content/confirm/):
 # search/select the "Relais" in the log header and fill in callsign, output
 # frequency, shift, CTCSS and mode — offline, so built here.
 #
@@ -33,7 +33,7 @@ MODES = [("fm", "FM"), ("dmr", "DMR"), ("c4fm", "C4FM"), ("dstar", "DSTAR"), ("t
 
 OE1EBG_DIR = Path(__file__).resolve().parent.parent
 CACHE_DIR = OE1EBG_DIR / ".cache" / "repeaters"
-OUTPUT_PATH = OE1EBG_DIR / "docs" / "confirm" / "data" / "repeaters-at.json"
+OUTPUT_PATH = OE1EBG_DIR / "content" / "confirm" / "data" / "repeaters-at.json"
 
 
 def log(msg: str) -> None:

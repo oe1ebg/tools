@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { latLonToMaidenhead, maidenheadToBounds, isValidLocator, isLocatorPrefix, formatLocator } from '../docs/confirm/js/location/maidenhead.js';
+import { latLonToMaidenhead, maidenheadToBounds, isValidLocator, isLocatorPrefix, formatLocator } from '../content/confirm/js/location/maidenhead.js';
 
 test('known locators', () => {
   assert.equal(latLonToMaidenhead(48.2083, 16.3731, 6), 'JN88ee');   // Stephansplatz

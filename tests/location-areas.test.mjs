@@ -4,8 +4,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { buildLocationIndex, locate, lookupMaidenhead } from '../docs/confirm/js/location/index.js';
-import { latLonToMaidenhead } from '../docs/confirm/js/location/maidenhead.js';
+import { buildLocationIndex, locate, lookupMaidenhead } from '../content/confirm/js/location/index.js';
+import { latLonToMaidenhead } from '../content/confirm/js/location/maidenhead.js';
 
 function vienna() {
   const S = 1e5, B = (v, base) => Math.round((v - base) * S);
@@ -147,8 +147,8 @@ test('without austria-areas.json everything still works Vienna-only', () => {
   assert.equal(locate(v, 'Quellenstraße 10').results[0].type, 'address');
 });
 
-const REAL_V = new URL('../docs/confirm/data/vienna-locations.json', import.meta.url);
-const REAL_A = new URL('../docs/confirm/data/austria-areas.json', import.meta.url);
+const REAL_V = new URL('../content/confirm/data/vienna-locations.json', import.meta.url);
+const REAL_A = new URL('../content/confirm/data/austria-areas.json', import.meta.url);
 const haveReal = existsSync(REAL_V) && existsSync(REAL_A);
 
 test('real data: every PLZ and Bezirk resolves', { skip: !haveReal && 'data not built (just build-confirm)' }, () => {

@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { buildLocationIndex, locate, lookupCoordinates, lookupMaidenhead } from '../docs/confirm/js/location/index.js';
+import { buildLocationIndex, locate, lookupCoordinates, lookupMaidenhead } from '../content/confirm/js/location/index.js';
 
 function synthetic() {
   const S = 1e5, B = (v, base) => Math.round((v - base) * S);
@@ -130,7 +130,7 @@ test('weak fuzzy matches are never auto-selected', () => {
 });
 
 // --- real data -------------------------------------------------------
-const realPath = new URL('../docs/confirm/data/vienna-locations.json', import.meta.url);
+const realPath = new URL('../content/confirm/data/vienna-locations.json', import.meta.url);
 const haveReal = existsSync(realPath);
 test('real data: brief examples', { skip: !haveReal && 'run `just build-location` first' }, () => {
   const real = buildLocationIndex(JSON.parse(readFileSync(realPath, 'utf8')));

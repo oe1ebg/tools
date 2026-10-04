@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pdfplumber
 
-# Austrian callsign list for the confirmation log (oe1ebg/docs/confirm/):
+# Austrian callsign list for the confirmation log (oe1ebg/content/confirm/):
 # autocomplete with name + location, and a "not in the list — typo?" hint.
 # Built here, at build time, because the tool must work 100% offline.
 #
@@ -36,7 +36,7 @@ CACHE_MAX_AGE_SECONDS = 7 * 24 * 60 * 60
 OE1EBG_DIR = Path(__file__).resolve().parent.parent
 CACHE_DIR = OE1EBG_DIR / ".cache" / "callsigns"
 STATE_PATH = CACHE_DIR / "latest.json"  # {"url", "pdf", "fetched"}
-OUTPUT_PATH = OE1EBG_DIR / "docs" / "confirm" / "data" / "callsigns-oe.json"
+OUTPUT_PATH = OE1EBG_DIR / "content" / "confirm" / "data" / "callsigns-oe.json"
 
 
 def log(msg: str) -> None:

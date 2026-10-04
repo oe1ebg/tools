@@ -12,12 +12,12 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
-# Offline Vienna location data for the confirmation log (docs/confirm/):
+# Offline Vienna location data for the confirmation log (content/confirm/):
 # lets the browser turn "Waehringerstr 42", "1100 Quellenstr", "Donauturm",
 # "JN88ee" or "48.21, 16.37" into PLZ / coordinates / Maidenhead locator
 # without any network access. Everything the runtime needs is produced
 # here, at build time (see oe1ebg/confirm-README.md, "Vienna location
-# lookup"). Output: docs/confirm/data/vienna-locations.json.
+# lookup"). Output: content/confirm/data/vienna-locations.json.
 #
 # Sources:
 # - Stadt Wien "Adressen Standorte Wien" (WFS layer ogdwien:ADRESSENOGD,
@@ -37,7 +37,7 @@ from pathlib import Path
 # Address downloads are cached in .cache/vienna-location/ (30 days;
 # VIENNA_LOCATION_FORCE_REFRESH=1 bypasses). A failed refresh falls back to
 # the cache. Text normalization happens at runtime in the browser
-# (docs/confirm/js/location/normalize.js) so it exists in exactly one place.
+# (content/confirm/js/location/normalize.js) so it exists in exactly one place.
 
 WFS_URL = (
     "https://data.wien.gv.at/daten/geo?service=WFS&request=GetFeature&version=1.1.0"
@@ -86,7 +86,7 @@ OE1EBG_DIR = Path(__file__).resolve().parent.parent
 CACHE_DIR = OE1EBG_DIR / ".cache" / "vienna-location"
 ALIASES_PATH = OE1EBG_DIR / "location-aliases.toml"
 POIS_SNAPSHOT_PATH = OE1EBG_DIR / "location-pois.json"
-OUTPUT_PATH = OE1EBG_DIR / "docs" / "confirm" / "data" / "vienna-locations.json"
+OUTPUT_PATH = OE1EBG_DIR / "content" / "confirm" / "data" / "vienna-locations.json"
 
 
 def log(msg: str) -> None:

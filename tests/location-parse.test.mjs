@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseLocationInput } from '../docs/confirm/js/location/parse.js';
-import { foldName, searchKeys, normalizeHouseNumber } from '../docs/confirm/js/location/normalize.js';
+import { parseLocationInput } from '../content/confirm/js/location/parse.js';
+import { foldName, searchKeys, normalizeHouseNumber } from '../content/confirm/js/location/normalize.js';
 
 const districts = new Map([['favoriten', 10], ['landstrasse', 3], ['doebling', 19]]);
 const P = (s, d) => {

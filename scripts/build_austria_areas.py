@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 # Offline Austria-wide PLZ and Bezirk areas for the confirmation log's
-# location lookup (docs/confirm/): "2340", "Mödling", "Bezirk Baden",
+# location lookup (content/confirm/): "2340", "Mödling", "Bezirk Baden",
 # "Graz" -> centre + Maidenhead locators covering the area (with the share of
 # addresses per locator square). Vienna streets/landmarks stay in
 # vienna-locations.json (scripts/build_location_data.py); this file only adds
@@ -32,7 +32,7 @@ from pathlib import Path
 # Like location-pois.json, the processed result is a COMMITTED snapshot
 # (oe1ebg/austria-areas.json), so regular/CI builds never download 100 MB:
 # - default run (`just build-areas`): validate the snapshot and write the
-#   compact docs/confirm/data/austria-areas.json. No network.
+#   compact content/confirm/data/austria-areas.json. No network.
 # - `--refresh` (`just refresh-areas`): download both sources (cached in
 #   .cache/austria-areas/, 30 days; AUSTRIA_AREAS_FORCE_REFRESH=1 bypasses,
 #   a failed refresh falls back to the cache), aggregate, rewrite the
@@ -45,7 +45,7 @@ CACHE_MAX_AGE_SECONDS = 30 * 24 * 60 * 60
 OE1EBG_DIR = Path(__file__).resolve().parent.parent
 CACHE_DIR = OE1EBG_DIR / ".cache" / "austria-areas"
 SNAPSHOT_PATH = OE1EBG_DIR / "austria-areas.json"
-OUTPUT_PATH = OE1EBG_DIR / "docs" / "confirm" / "data" / "austria-areas.json"
+OUTPUT_PATH = OE1EBG_DIR / "content" / "confirm" / "data" / "austria-areas.json"
 
 # Bundesland by the first GKZ digit (short forms as used in addresses).
 STATES = ["", "Bgld.", "Ktn.", "NÖ", "OÖ", "Sbg.", "Stmk.", "T", "Vbg.", "W"]
@@ -85,7 +85,7 @@ def cached_download(name: str, url: str) -> Path:
 
 
 def maidenhead(lat: float, lon: float, precision: int = 6) -> str:
-    """Same algorithm as docs/confirm/js/location/maidenhead.js."""
+    """Same algorithm as content/confirm/js/location/maidenhead.js."""
     lon += 180
     lat += 90
     out = chr(65 + int(lon // 20)) + chr(65 + int(lat // 10))

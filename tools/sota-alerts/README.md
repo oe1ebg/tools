@@ -276,7 +276,7 @@ entirely instead of needing a proxy.
 ## Leaflet vendoring
 
 Leaflet **1.9.4** (`dist/leaflet.js`, `dist/leaflet.css`), downloaded from
-unpkg and committed under `oe1ebg/docs/sota-alerts/vendor/leaflet/`, referenced
+unpkg and committed under `oe1ebg/content/sota-alerts/vendor/leaflet/`, referenced
 by relative path (not a CDN) — keeping the app shell itself free of live
 external dependencies, matching the ADIF editor's ethos. OSM map tiles and
 the two SOTA API endpoints are still live network calls by necessity — there
@@ -377,7 +377,7 @@ order in the URL — sotl.as reverses this internally for Mapbox GL's
 ## Static-first summit lookup — near-zero live per-summit API traffic
 
 `oe1ebg/scripts/fetch_summits.py` (the same build-time script behind the "all
-summits" overlay, below) also writes `oe1ebg/docs/sota-alerts/data/summit-
+summits" overlay, below) also writes `oe1ebg/content/sota-alerts/data/summit-
 lookup.json`: a small, keyed sibling of `summits.json` — `[key, lat, lon,
 name, altM, points, bonusPoints]` tuples rather than one object per summit,
 ~9.8MB vs ~17.7MB for the same fields, purely from not repeating key names
@@ -395,7 +395,7 @@ for exactly the one bogus code above; everything else resolved from the
 static file. Before this, a cold cache meant a live call *per distinct
 summit* — this was the single largest source of live SOTA API traffic this
 tool generated, per an API-load audit (see git history for
-`oe1ebg/docs/sota-alerts/AGENTS.md`).
+`oe1ebg/content/sota-alerts/AGENTS.md`).
 
 The "refresh summit data" button still deliberately bypasses *both* caches
 (static and `localStorage`) and re-fetches every on-screen summit live —
@@ -427,7 +427,7 @@ So it's fetched **once, at site build time**, not by the browser at all:
 issue there — it's not a browser request), trims each row to just
 `{key, name, lat, lon, altM, points, bonusPoints}` (the last one omitted
 when zero), drops summits outside their `ValidFrom`/`ValidTo` window, and
-writes the result to `oe1ebg/docs/sota-alerts/data/summits.json` — a
+writes the result to `oe1ebg/content/sota-alerts/data/summits.json` — a
 same-origin static asset shipped with the site. Live-tested: ~182,000 CSV
 rows → 172,121 currently-valid summits → 16.2MB JSON (3.2MB gzipped). The
 browser fetches this exactly like any other page asset, lazily and only
@@ -524,7 +524,7 @@ current state rather than treating the URL as continuously live.
 - `vendor/leaflet/` — vendored Leaflet 1.9.4 (`leaflet.js`, `leaflet.css`,
   `LICENSE`).
 
-This README lives outside `oe1ebg/docs/` (the Zensical `docs_dir`) — a
+This README lives outside `oe1ebg/content/` (the Zensical `docs_dir`) — a
 `README.md` inside a `docs_dir` subdirectory is treated as that section's
 index page and would silently hide the raw HTML content served from the
 same directory (see the top-level `AGENTS.md`, same trap the ADIF editor's
