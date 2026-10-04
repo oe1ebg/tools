@@ -34,7 +34,7 @@ Zensical `docs_dir` would take over that section's index route (see
   saved, or taken from a typed correction. The display mode never changes
   what is stored.
 - **UTC / Lokal toggle** in the page header, remembered in `localStorage`.
-  - It controls the time column, the clock, the time field's label and
+  - It controls the time column (UTC shown with a trailing `Z`, e.g. `19:30:00Z`), the clock, the time field's label and
     edit prefill, status messages, the repeat-check-in box, the recycle bin
     and the summary.
   - Local times are labelled with the offset that applied at that moment

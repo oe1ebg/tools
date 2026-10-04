@@ -1006,6 +1006,7 @@ function renderLog(highlightCall) {
     const showDate = date !== splitTime(live[0].ts, timeMode()).date;
     body.append(el('tr', { class: [e.call === call && call ? 'match' : '', e.id === state.editingId ? 'editing' : ''].join(' ').trim() || null },
       el('td', { class: 'mono', title: `${isoUtc(e.ts)} (gespeichert, UTC)` }, showDate ? el('span', { class: 'date' }, date + ' ') : null, time,
+        timeMode() === 'utc' ? 'Z' : null, // ISO/military notation for UTC; local times keep the column's offset
         timeMode() === 'local' && zoneLabel(e.ts, 'local') !== zoneLabel(nowIso(), 'local') ? el('span', { class: 'date' }, ' ' + zoneLabel(e.ts, 'local')) : null),
       el('td', { class: 'mono' }, String(e.seq)),
       el('td', { class: 'call' }, e.call, n > 1 ? el('span', { class: 'badge', title: `Check-in Nr. ${n}` }, `${n}×`) : null,
