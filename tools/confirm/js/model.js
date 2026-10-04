@@ -90,7 +90,7 @@ export function modeInfo(key) {
 // (operator change, switching repeater) never rewrite history.
 export const SNAPSHOT_KEYS = [
   'operator', 'station', 'freq', 'mode', 'myGrid', 'myQth',
-  'repeaterCall', 'repeaterFreq', 'repeaterShift',
+  'repeaterCall', 'repeaterFreq', 'repeaterShift', 'repeaterTone',
 ];
 
 export function headerSnapshot(header) {
@@ -102,7 +102,7 @@ export function headerSnapshot(header) {
 export function emptyHeader() {
   return {
     operator: '', station: '', freq: '', mode: 'FM', myGrid: '', myQth: '',
-    viaRepeater: false, repeaterCall: '', repeaterFreq: '', repeaterShift: '',
+    viaRepeater: false, repeaterCall: '', repeaterFreq: '', repeaterShift: '', repeaterTone: '',
   };
 }
 

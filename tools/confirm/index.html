@@ -262,6 +262,11 @@
   .lc-note{ font-size:12px; color:var(--warn); }
   .lc-actions{ display:flex; gap:.35em; flex-wrap:wrap; margin-top:.35em; }
   button.mini{ font-size:12px; padding:.15em .55em; }
+  .rpt-search{ width:100%; display:flex; flex-wrap:wrap; gap:.3em 1em; align-items:flex-end; }
+  .rpt-search > .hint{ flex-basis:100%; }
+  .rpt-results{ flex-basis:100%; display:flex; flex-direction:column; gap:.2em; }
+  button.rpt-hit{ text-align:left; font-family:var(--font-mono); font-size:12px; background:var(--bg); }
+  button.rpt-hit.inactive{ opacity:.65; }
   #loc-field{ margin-top:.6em; }
   #loc-field-chip{ font-size:13px; min-height:1.3em; }
   #loc-field-chip.conf-exact, #loc-field-chip.conf-high{ color:var(--ok); }

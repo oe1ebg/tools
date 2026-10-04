@@ -145,6 +145,46 @@ builds `docs/confirm/data/callsigns-oe.json` at build time. It is about
   - Portable forms (`OE1EBG/P`, `HB9/OE1EBG`) are looked up by their base
     call.
 
+## Repeater list (all of Austria)
+
+`scripts/fetch_repeaters.py` (`just fetch-repeaters`, part of
+`build-confirm`) builds `docs/confirm/data/repeaters-at.json` (about 230
+voice repeaters, 54 KiB) from the **ÖVSV repeater database**
+(<https://repeater.oevsv.at>, code at <https://github.com/oevsv/repeater-db>).
+
+- **API.** PostgREST, with an OpenAPI description at `/api/`.
+  - `/trx` lists every transceiver: frequencies, modes, CTCSS, status,
+    channel, site name.
+  - `/site` lists sites with WGS84 coordinates, locator and altitude.
+  - `/trx_list`, `/trx_type` and `/site_type` are joined views, but only of
+    active entries.
+  - We join `/trx` and `/site` ourselves and keep `type_of_station =
+    repeater_voice` with status active, planned or inactive. Historic and
+    obsolete entries are dropped.
+- **Field meaning.** `frequency_tx` is the repeater's output (what you
+  listen on), `frequency_rx` its input (what you transmit on), so
+  shift = rx − tx. `ctcss_rx` is the tone the repeater needs.
+- **Caching.** Cached in `.cache/repeaters/` for 7 days
+  (`REPEATERS_FORCE_REFRESH=1` forces a refresh). If the API is down and
+  there is no cache, the build continues **without** a repeater list: the
+  header fields can still be filled in by hand, and the UI says so.
+- **In the tool.** A **"Relais suchen"** box sits in the Relais section of
+  the log header, for new events and existing logs.
+  - **Search terms:** callsign (`OE1XUU`, `xuu`), site or town
+    (`Kahlenberg`, `Krems`), frequency (output or input: `438.95`, or
+    `145` for the whole MHz, GHz repeaters included), band (`2m`, `70cm`)
+    and mode (`DMR`, `C4FM`, …), in any combination.
+  - **Sorting:** with your own locator set, results are sorted by distance,
+    and an empty search lists the nearest repeaters.
+  - **Picking one** fills in the repeater callsign, output frequency, shift
+    and CTCSS. It also ticks "über Relais", sets a mode the repeater
+    supports, and fills the direct frequency if that was empty.
+  - **Existing lines are unaffected:** each line keeps its own copy of the
+    header, so the new repeater only applies to lines logged after the
+    change.
+- **Export.** CTCSS goes to CSV (`relais_ctcss`) and to the ADIF `COMMENT`.
+  `FREQ`/`FREQ_RX` are computed from output and shift.
+
 ## Vienna location lookup (offline)
 
 The **📍 Standort** panel takes imperfect operator input and turns it into
@@ -270,6 +310,8 @@ implementation differs, the reason is given below.
   in the offline bundle).
 - `js/dom.js`: small DOM and clipboard helpers.
 - `js/locationui.js`: the Standort panel and the shared candidate list.
+- `js/repeaters.js` / `js/repeaterui.js`: repeater search (pure) and the
+  "Relais suchen" widget.
 - `js/locfield.js`: the log's `location` field (resolve while typing,
   auto-select or pick, auto-fill PLZ).
 - `js/location/`: the lookup engine (see above).
@@ -297,7 +339,8 @@ just test            # node --test tests/ (model, export, offline guarantees + b
 just fetch-callsigns # (cached) callsign list -> docs/confirm/data/callsigns-oe.json
 just build-location  # (cached) Vienna addresses + POI snapshot -> docs/confirm/data/vienna-locations.json
 just refresh-pois    # re-query Overpass, rewrite the committed location-pois.json
-just build-confirm   # fetch-callsigns + build-location, then precache.js + confirm-offline.html
+just fetch-repeaters # (cached) ÖVSV repeater list -> docs/confirm/data/repeaters-at.json
+just build-confirm   # fetch-callsigns + fetch-repeaters + build-location, then precache.js + confirm-offline.html
 just preview         # full build, serve site/ at localhost:8000/confirm/
 ```
 

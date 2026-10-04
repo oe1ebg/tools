@@ -17,6 +17,8 @@ import { buildCallbook, lookupCall, suggestCalls } from './callbook.js';
 import { $, el } from './dom.js';
 import { initLocationPanel } from './locationui.js';
 import { createLocationField, describeLocation } from './locfield.js';
+import { repeaterSearchWidget } from './repeaterui.js';
+import { headerFromRepeater, formatShift } from './repeaters.js';
 
 const THEME_KEY = 'oe1ebg-confirm-theme';
 const CSV_SEP_KEY = 'oe1ebg-confirm-csv-sep';
@@ -174,12 +176,23 @@ const HEADER_FIELDS = [
   { key: 'repeaterCall', label: 'Relais-Rufzeichen', call: true, size: 9 },
   { key: 'repeaterFreq', label: 'Relais-Ausgabe MHz', size: 9, inputmode: 'decimal' },
   { key: 'repeaterShift', label: 'Shift MHz (z. B. -0.6)', size: 6, inputmode: 'decimal' },
+  { key: 'repeaterTone', label: 'CTCSS Hz', size: 6, inputmode: 'decimal' },
 ];
 
 function buildHeaderForm(container, header, onChange) {
   container.replaceChildren();
   for (const f of HEADER_FIELDS) {
-    if (f.sub) { container.append(el('div', { class: 'sub' }, f.sub)); continue; }
+    if (f.sub) {
+      container.append(el('div', { class: 'sub' }, f.sub));
+      if (f.sub === 'Relais') {
+        container.append(repeaterSearchWidget(() => readHeaderForm(container), r => {
+          const next = headerFromRepeater(r, readHeaderForm(container));
+          writeHeaderForm(container, next);
+          onChange(next);
+        }));
+      }
+      continue;
+    }
     let input;
     if (f.check) {
       input = el('input', { type: 'checkbox', name: f.key, checked: !!header[f.key] });
@@ -194,6 +207,16 @@ function buildHeaderForm(container, header, onChange) {
       container.append(el('label', { class: 'field' }, el('span', {}, f.label), input));
     }
     input.addEventListener(f.check || f.select ? 'change' : 'input', () => onChange(readHeaderForm(container)));
+  }
+}
+
+function writeHeaderForm(container, h) {
+  for (const f of HEADER_FIELDS) {
+    if (f.sub) continue;
+    const input = container.querySelector(`[name="${f.key}"]`);
+    if (!input) continue;
+    if (f.check) input.checked = !!h[f.key];
+    else input.value = h[f.key] ?? '';
   }
 }
 
@@ -216,7 +239,9 @@ function headerSummary(h) {
   const f = [h.freq && `${h.freq} MHz`, modeInfo(h.mode)?.label].filter(Boolean).join(' ');
   if (f) parts.push(f);
   if (h.viaRepeater || h.repeaterCall) {
-    parts.push(`${h.viaRepeater ? 'via' : 'Relais'} ${h.repeaterCall || 'Relais'}${h.repeaterFreq ? ' ' + h.repeaterFreq : ''}`);
+    const shift = h.repeaterShift !== '' && h.repeaterShift !== undefined ? formatShift(parseFloat(h.repeaterShift)) : '';
+    parts.push(`${h.viaRepeater ? 'via' : 'Relais'} ${h.repeaterCall || 'Relais'}${h.repeaterFreq ? ' ' + h.repeaterFreq : ''}`
+      + `${shift ? ' ' + shift : ''}${h.repeaterTone ? ', CTCSS ' + h.repeaterTone : ''}`);
   }
   return parts.join(' · ') || '(noch leer – Operator und Station eintragen)';
 }

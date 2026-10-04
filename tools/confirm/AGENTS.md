@@ -33,6 +33,12 @@ street addresses. `js/data.js` loads every data file, so new data files only
 need to be loaded through it; the service worker precache and the offline
 bundle pick up `data/*.json` automatically.
 
+`data/repeaters-at.json` is built by `scripts/fetch_repeaters.py` and holds
+`{source, retrieved, repeaters: [{call, site, city, lat, lon, locator, alt,
+band, out, in, shift, ctcss, modes[], status, ch?, cc?, echolink?,
+comment?}]}`. `out` is the repeater's output and `in` its input
+(shift = in − out). `modes` uses the keys of `MODES` in `js/model.js`.
+
 `data/vienna-locations.json` is built by `scripts/build_location_data.py`
 (schema 1). It contains `plz[]`, `streets[[name, start, count]]` (with
 addresses contiguous per street), the per-address arrays

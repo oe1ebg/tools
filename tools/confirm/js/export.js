@@ -60,6 +60,7 @@ function exportRows(event, entries) {
     Object.assign(row, {
       ueber_relais: e.viaRepeater ? 'ja' : 'nein',
       relais: e.viaRepeater ? s.repeaterCall : '',
+      relais_ctcss: e.viaRepeater ? s.repeaterTone || '' : '',
       notiz: e.note || '',
       operator: s.operator,
       station: s.station,
@@ -81,7 +82,7 @@ export function toCSV(event, entries, sep = ';') {
     'nr', 'checkin_nr', 'datum_utc', 'zeit_utc', 'rufzeichen',
     ...tpl.fields.map(f => f.key),
     ...(hasLocationField(tpl) ? LOC_COLS : []),
-    'ueber_relais', 'relais', 'notiz', 'operator', 'station',
+    'ueber_relais', 'relais', 'relais_ctcss', 'notiz', 'operator', 'station',
     'freq_mhz', 'freq_rx_mhz', 'band', 'mode', 'my_locator', 'ereignis',
   ];
   const lines = [cols.join(sep)];
@@ -144,8 +145,8 @@ export function toADIF(event, entries, createdIso = new Date().toISOString()) {
     rec += adifField('MY_CITY', s.myQth);
     if (e.viaRepeater) {
       rec += adifField('PROP_MODE', 'RPT');
-      const rpt = [s.repeaterCall, s.repeaterFreq && `${s.repeaterFreq} MHz`, s.repeaterShift && `Shift ${s.repeaterShift}`]
-        .filter(Boolean).join(' ');
+      const rpt = [s.repeaterCall, s.repeaterFreq && `${s.repeaterFreq} MHz`, s.repeaterShift && `Shift ${s.repeaterShift}`,
+        s.repeaterTone && `CTCSS ${s.repeaterTone}`].filter(Boolean).join(' ');
       if (rpt) {
         rec += adifField(`APP_${ADIF_PROGRAM_ID}_REPEATER`, s.repeaterCall || rpt);
         comment.push(`via Relais ${rpt}`);
