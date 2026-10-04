@@ -153,3 +153,33 @@ test('templates without a location field have no location columns', () => {
   const ev = { id: 'r', title: 'Runde', template: 'calls', header };
   assert.ok(!toCSV(ev, []).includes('standort_aufgeloest'));
 });
+
+test('per-line repeater override: snapshot values drive CSV, ADIF and summary', () => {
+  const base = headerSnapshot(header); // header repeater OE1XUU 438.950 -7.6
+  const ovSnap = { ...base, repeaterCall: 'OE3XSA', repeaterFreq: '145.700', repeaterShift: '-0.6', repeaterTone: '162.2', repeaterOverride: true };
+  const ev = { id: 'n', title: 'Verbundübung', template: 'calls', header };
+  const es = [
+    { id: '1', seq: 1, call: 'OE1AAA', ts: '2026-10-04T10:00:00Z', viaRepeater: true, snap: base, fields: {}, note: '' },
+    { id: '2', seq: 2, call: 'OE3BBB', ts: '2026-10-04T10:01:00Z', viaRepeater: true, snap: ovSnap, fields: {}, note: '' },
+    { id: '3', seq: 3, call: 'OE3CCC', ts: '2026-10-04T10:02:00Z', viaRepeater: true, snap: ovSnap, fields: {}, note: '' },
+    { id: '4', seq: 4, call: 'OE1DDD', ts: '2026-10-04T10:03:00Z', viaRepeater: false, snap: base, fields: {}, note: '' },
+  ];
+  const lines = toCSV(ev, es).slice(1).trim().split('\r\n');
+  const cols = lines[0].split(';');
+  const row = i => Object.fromEntries(cols.map((c, j) => [c, lines[i].split(';')[j]]));
+  assert.equal(row(1).relais, 'OE1XUU');
+  assert.equal(row(1).relais_quelle, 'Logkopf');
+  assert.equal(row(2).relais, 'OE3XSA');
+  assert.equal(row(2).relais_quelle, 'Zeile');
+  assert.equal(row(2).freq_rx_mhz, '145.7');
+  assert.equal(row(4).relais_quelle, '');
+  const recs = parseADIF(toADIF(ev, es));
+  assert.equal(recs[0].APP_OE1EBG_REPEATER, 'OE1XUU');
+  assert.equal(recs[0].FREQ_RX, '438.95');
+  assert.equal(recs[1].APP_OE1EBG_REPEATER, 'OE3XSA');
+  assert.equal(recs[1].FREQ, '145.1');
+  assert.equal(recs[1].FREQ_RX, '145.7');
+  assert.match(recs[1].COMMENT, /CTCSS 162.2/);
+  const sum = toSummary(ev, es);
+  assert.match(sum, /Nach Relais:\n  OE3XSA: 2 \(OE3BBB, OE3CCC\)\n  OE1XUU: 1 \(OE1AAA\)\n  direkt: 1 \(OE1DDD\)/);
+});

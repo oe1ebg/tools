@@ -208,6 +208,22 @@ voice repeaters, 54 KiB) from the **ÖVSV repeater database**
   - **Existing lines are unaffected:** each line keeps its own copy of the
     header, so the new repeater only applies to lines logged after the
     change.
+- **Per-line repeater** (exercises over a linked repeater network).
+  - The header's repeater is the default for every line: the "Relais"
+    field in the entry form shows it as its placeholder ("OE1XUU (Kopf)").
+  - To log a station that came in on a different repeater, type its
+    callsign (an exact match is taken immediately, e.g. `OE3XSA`), or a
+    site or frequency and pick from the suggestions. An unknown callsign
+    is stored as entered, and the frequencies then come from the header.
+  - The line's header snapshot then holds that repeater's callsign, output
+    frequency, shift and CTCSS (`repeaterOverride: true`), so ADIF
+    `FREQ`/`FREQ_RX` are correct per line.
+  - After saving, the field goes back to the header default. A line that
+    uses a different repeater is highlighted in the log. When editing, the
+    line's own repeater is shown; clearing the field reverts to the header
+    repeater.
+  - CSV column `relais_quelle` is `Logkopf` or `Zeile`. The summary lists
+    the stations per repeater ("Nach Relais: OE3XSA: 2 (…), OE1XUU: 1, direkt: 1").
 - **Export.** CTCSS goes to CSV (`relais_ctcss`) and to the ADIF `COMMENT`.
   `FREQ`/`FREQ_RX` are computed from output and shift.
 

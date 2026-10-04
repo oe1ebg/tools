@@ -62,6 +62,7 @@ function exportRows(event, entries) {
       ueber_relais: e.viaRepeater ? 'ja' : 'nein',
       relais: e.viaRepeater ? s.repeaterCall : '',
       relais_ctcss: e.viaRepeater ? s.repeaterTone || '' : '',
+      relais_quelle: e.viaRepeater ? (s.repeaterOverride ? 'Zeile' : 'Logkopf') : '',
       notiz: e.note || '',
       operator: s.operator,
       station: s.station,
@@ -83,7 +84,7 @@ export function toCSV(event, entries, sep = ';') {
     'zeitstempel_utc', 'zeitstempel_lokal', 'nr', 'checkin_nr', 'rufzeichen',
     ...tpl.fields.map(f => f.key),
     ...(hasLocationField(tpl) ? LOC_COLS : []),
-    'ueber_relais', 'relais', 'relais_ctcss', 'notiz', 'operator', 'station',
+    'ueber_relais', 'relais', 'relais_ctcss', 'relais_quelle', 'notiz', 'operator', 'station',
     'freq_mhz', 'freq_rx_mhz', 'band', 'mode', 'my_locator', 'ereignis',
   ];
   const lines = [cols.join(sep)];
@@ -209,6 +210,20 @@ export function toSummary(event, entries, timeMode = 'utc') {
   const calls = [];
   for (const r of rows) if (!seen.has(r.rufzeichen)) { seen.add(r.rufzeichen); calls.push(r.rufzeichen); }
   lines.push(calls.join(', '));
+
+  // Which repeater the stations came in on (e.g. linked-network exercises).
+  if (rows.some(r => r.ueber_relais === 'ja')) {
+    const by = new Map();
+    for (const r of rows) {
+      const k = r.ueber_relais === 'ja' ? (r.relais || 'Relais (unbekannt)') : 'direkt';
+      if (!by.has(k)) by.set(k, new Set());
+      by.get(k).add(r.rufzeichen);
+    }
+    lines.push('', 'Nach Relais:');
+    for (const [k, set] of [...by.entries()].sort((a, b) => b[1].size - a[1].size)) {
+      lines.push(`  ${k}: ${set.size} (${[...set].join(', ')})`);
+    }
+  }
 
   if (event.template === 'zivilschutz') {
     // Only the latest check-in per station counts for the statistics.

@@ -272,6 +272,12 @@
   .rpt-results{ flex-basis:100%; display:flex; flex-direction:column; gap:.2em; }
   button.rpt-hit{ text-align:left; font-family:var(--font-mono); font-size:12px; background:var(--bg); }
   button.rpt-hit.inactive{ opacity:.65; }
+  .rpt-line-row{ display:flex; gap:.4em; align-items:center; }
+  #f-rpt-q{ font-family:var(--font-mono); text-transform:uppercase; }
+  #f-rpt-q.override{ border-color:var(--warn); color:var(--warn); font-weight:600; }
+  #f-rpt-sug{ display:flex; flex-wrap:wrap; gap:.25em; }
+  #f-rpt-sug button.rpt-hit{ font-size:11px; }
+  .rpt.override{ color:var(--warn); font-weight:600; }
   #loc-field{ margin-top:.6em; }
   #loc-field-chip{ font-size:13px; min-height:1.3em; }
   #loc-field-chip.conf-exact, #loc-field-chip.conf-high{ color:var(--ok); }
@@ -421,7 +427,12 @@
           <input id="f-call" autocapitalize="characters" spellcheck="false" autocomplete="off" aria-describedby="call-info call-warn">
         </label>
         <div id="f-fields" class="row"></div>
-        <label class="check"><input type="checkbox" id="f-rpt"> über Relais <span class="rpt" id="f-rpt-call"></span></label>
+        <div class="field rpt-line"><span>Relais (Standard: Logkopf)</span>
+          <div class="rpt-line-row">
+            <label class="check" title="Diese Station kommt über ein Relais"><input type="checkbox" id="f-rpt"> über</label>
+            <input id="f-rpt-q" size="11" autocomplete="off" spellcheck="false" title="Leer = Relais aus dem Logkopf. Anderes Relais: Rufzeichen, Ort oder Frequenz eingeben.">
+          </div>
+        </div>
         <label class="field" style="flex:1;min-width:10em"><span>Notiz</span><input id="f-note"></label>
         <button type="submit" class="primary" id="btn-save">Speichern ⏎</button>
         <button type="button" id="btn-cancel-edit" hidden>Abbrechen (Esc)</button>
@@ -429,6 +440,7 @@
       <div id="call-info" aria-live="polite"></div>
       <div id="call-suggest"></div>
       <div id="call-station"></div>
+      <div id="f-rpt-sug"></div>
       <div id="call-warn"></div>
       <div id="repeat-box" hidden></div>
       <div id="loc-field" hidden>

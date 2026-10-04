@@ -18,6 +18,7 @@ import { $, el } from './dom.js';
 import { initLocationPanel } from './locationui.js';
 import { createLocationField, describeLocation } from './locfield.js';
 import { repeaterSearchWidget } from './repeaterui.js';
+import { createLineRepeater } from './linerepeater.js';
 import { headerFromRepeater, formatShift } from './repeaters.js';
 
 const THEME_KEY = 'oe1ebg-confirm-theme';
@@ -42,6 +43,7 @@ const state = {
   callbook: null,     // Austrian callsign list (data/callsigns-oe.json), null until loaded
   stations: new Map(), // call -> { call, loc, at, eventTitle }: last known location per station
   locField: null,     // controller of the template's location field, if any
+  lineRpt: null,      // per-line repeater override (entry form)
 };
 
 /* ---------------------------------------------------------------- errors */
@@ -605,7 +607,7 @@ function updateFieldVisibility() {
 
 function updateRepeaterDefault() {
   const h = state.event.header || {};
-  $('#f-rpt-call').textContent = h.repeaterCall ? `(${h.repeaterCall})` : '';
+  state.lineRpt?.refreshDefault();
   if (!state.editingId && !$('#f-rpt').dataset.touched) $('#f-rpt').checked = !!h.viaRepeater;
 }
 
@@ -614,6 +616,7 @@ function readForm() {
     call: normalizeCall($('#f-call').value),
     fields: readFields(),
     viaRepeater: $('#f-rpt').checked,
+    rptOverride: state.lineRpt ? state.lineRpt.get() : null,
     note: $('#f-note').value.trim(),
     time: $('#f-time').value.trim(),
     loc: state.locField ? state.locField.get() : null,
@@ -627,6 +630,7 @@ function clearForm() {
   writeFields({});
   state.locField?.clear();
   delete $('#f-rpt').dataset.touched;
+  state.lineRpt?.reset();
   state.editingId = null;
   $('#entry-form').classList.remove('editing');
   $('#btn-cancel-edit').hidden = true;
@@ -774,6 +778,25 @@ function resolveTime(text, fallbackIso) {
   return iso ? { iso } : { error: true };
 }
 
+// A line's header snapshot with its own repeater, if one was chosen.
+// Clearing an override on edit falls back to the current header repeater.
+function lineSnapshot(base, override, header) {
+  const snap = { ...base };
+  if (override) return { ...snap, ...override, repeaterOverride: true };
+  if (snap.repeaterOverride) {
+    const h = headerSnapshot(header);
+    for (const k of ['repeaterCall', 'repeaterFreq', 'repeaterShift', 'repeaterTone']) snap[k] = h[k];
+  }
+  delete snap.repeaterOverride;
+  return snap;
+}
+
+function overrideOf(snap) {
+  if (!snap?.repeaterOverride) return null;
+  const { repeaterCall, repeaterFreq, repeaterShift, repeaterTone } = snap;
+  return { repeaterCall, repeaterFreq, repeaterShift, repeaterTone };
+}
+
 async function saveEntry() {
   if (state.readOnly) return;
   const f = readForm();
@@ -798,13 +821,14 @@ async function saveEntry() {
   let entry;
   let nextEvent = ev;
   if (editing) {
-    entry = { ...editing, call: f.call, fields: f.fields, loc: f.loc, viaRepeater: f.viaRepeater, note: f.note, ts: t.iso, updated: nowIso() };
+    entry = { ...editing, call: f.call, fields: f.fields, loc: f.loc, viaRepeater: f.viaRepeater, note: f.note, ts: t.iso, updated: nowIso(),
+      snap: lineSnapshot(editing.snap, f.rptOverride, ev.header) };
     ops.push({ store: 'revisions', put: { id: newId(), eventId: ev.id, entryId: editing.id, savedAt: nowIso(), reason: 'edit', data: editing } });
   } else {
     entry = {
       id: newId(), eventId: ev.id, seq: ev.nextSeq || 1, ts: t.iso,
       call: f.call, fields: f.fields, loc: f.loc, viaRepeater: f.viaRepeater, note: f.note,
-      snap: headerSnapshot(ev.header), created: nowIso(), updated: nowIso(), deleted: null,
+      snap: lineSnapshot(headerSnapshot(ev.header), f.rptOverride, ev.header), created: nowIso(), updated: nowIso(), deleted: null,
     };
     nextEvent = { ...ev, nextSeq: entry.seq + 1, updated: nowIso() };
     ops.push({ store: 'events', put: nextEvent });
@@ -852,6 +876,7 @@ function startEdit(id) {
   state.locField?.set(e.loc);
   $('#f-rpt').checked = !!e.viaRepeater;
   $('#f-rpt').dataset.touched = '1';
+  state.lineRpt?.set(overrideOf(e.snap));
   $('#f-note').value = e.note || '';
   const { date, time } = splitTime(e.ts, timeMode());
   $('#f-time').value = `${date} ${time}`;
@@ -926,6 +951,7 @@ async function restoreDraft() {
   state.locField?.set(d.form.loc);
   $('#f-rpt').checked = !!d.form.viaRepeater;
   $('#f-rpt').dataset.touched = '1';
+  state.lineRpt?.set(d.form.rptOverride);
   $('#f-note').value = d.form.note || '';
   $('#f-time').value = d.form.time || '';
   updateCallFeedback();
@@ -971,7 +997,12 @@ function renderLog(highlightCall) {
       tpl.fields.map(f => el('td', {}, fieldVisible(f, e.fields) ? fieldDisplay(f, e.fields?.[f.key]) : '',
         f.type === 'location' && e.loc ? el('div', { class: 'loc-sub' }, `→ ${describeLocation(e.loc)}`) : null,
         f.type === 'location' && !e.loc && e.fields?.[f.key] ? el('div', { class: 'loc-sub unresolved' }, 'nicht zugeordnet') : null)),
-      el('td', {}, e.viaRepeater ? el('span', { class: 'rpt' }, s.repeaterCall || 'ja') : '–'),
+      el('td', {}, e.viaRepeater
+        ? el('span', {
+          class: s.repeaterOverride ? 'rpt override' : 'rpt',
+          title: [s.repeaterOverride ? 'anderes Relais als im Logkopf' : 'Relais aus dem Logkopf', s.repeaterFreq && `${s.repeaterFreq} MHz`, s.repeaterShift && `Shift ${s.repeaterShift}`, s.repeaterTone && `CTCSS ${s.repeaterTone}`].filter(Boolean).join(' · '),
+        }, s.repeaterCall || 'ja')
+        : '–'),
       el('td', {}, e.note || ''),
       el('td', { class: 'mono' }, s.operator && s.station && s.operator !== s.station ? `${s.operator}/${s.station}` : s.operator || s.station || ''),
       el('td', { class: 'act' },
@@ -1228,6 +1259,11 @@ function wire() {
     }
   });
   $('#f-rpt').addEventListener('change', () => { $('#f-rpt').dataset.touched = '1'; });
+  state.lineRpt = createLineRepeater({
+    checkbox: $('#f-rpt'), input: $('#f-rpt-q'), sug: $('#f-rpt-sug'),
+    getHeader: () => state.event?.header || emptyHeader(),
+    onChange: scheduleDraft,
+  });
   $('#btn-cancel-edit').addEventListener('click', () => { clearForm(); scheduleDraft(); $('#f-call').focus(); });
 
   $('#dlg-copy').addEventListener('click', async () => {
