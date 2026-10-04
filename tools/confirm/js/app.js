@@ -657,7 +657,7 @@ function clearForm() {
   state.lineRpt?.reset();
   state.editingId = null;
   $('#entry-form').classList.remove('editing');
-  $('#btn-cancel-edit').hidden = true;
+  $('#btn-discard').textContent = 'Verwerfen (Esc)';
   $('#btn-save').textContent = 'Speichern ⏎';
   if ($('#form-status .edit-tag')) $('#form-status').replaceChildren();
   updateRepeaterDefault();
@@ -909,7 +909,7 @@ function startEdit(id) {
   const { date, time } = splitTime(e.ts, timeMode());
   $('#f-time').value = `${date} ${time}`;
   $('#entry-form').classList.add('editing');
-  $('#btn-cancel-edit').hidden = false;
+  $('#btn-discard').textContent = 'Bearbeitung abbrechen (Esc)';
   $('#btn-save').textContent = `Nr. ${e.seq} speichern ⏎`;
   $('#form-status').className = '';
   fill($('#form-status'), el('span', { class: 'edit-tag' }, `Bearbeite Nr. ${e.seq} – die alte Fassung wird aufbewahrt.`));
@@ -969,20 +969,52 @@ async function flushDraft() {
   }
 }
 
+// Put a saved form state (draft, or discarded input being undone) back.
+function applyFormState(form, editingId) {
+  if (editingId && state.entries.some(e => e.id === editingId)) startEdit(editingId);
+  $('#f-call').value = form.call || '';
+  writeFields(form.fields);
+  state.locField?.set(form.loc);
+  $('#f-rpt').checked = !!form.viaRepeater;
+  $('#f-rpt').dataset.touched = '1';
+  state.lineRpt?.set(form.rptOverride);
+  $('#f-note').value = form.note || '';
+  $('#f-time').value = form.time || '';
+  updateFieldVisibility();
+  updateCallFeedback();
+}
+
+// Throw away everything typed for the current line (or cancel an edit),
+// with a one-click undo — an accidental Esc must not cost any input.
+function discardForm() {
+  if (state.readOnly) return;
+  const form = readForm();
+  const editingId = state.editingId;
+  if (!editingId && formIsEmpty(form) && !form.loc && !form.rptOverride) {
+    $('#f-call').focus();
+    return;
+  }
+  const editedSeq = editingId ? state.entries.find(e => e.id === editingId)?.seq : null;
+  clearForm();
+  scheduleDraft(); // empty form -> the stored draft is removed
+  const status = $('#form-status');
+  status.className = 'ok';
+  fill(status,
+    editingId ? `Bearbeitung von Nr. ${editedSeq} abgebrochen – die Zeile bleibt unverändert. ` : 'Eingaben verworfen. ',
+    el('button', { type: 'button', class: 'link', onclick: () => {
+      applyFormState(form, editingId);
+      scheduleDraft();
+      status.replaceChildren();
+      $('#f-call').focus();
+    } }, 'Rückgängig'));
+  $('#f-call').focus();
+}
+
 async function restoreDraft() {
   if (state.readOnly || !state.event) return;
   const d = await state.store.get('drafts', state.event.id);
   if (!d || !d.form) return;
-  if (d.editingId && state.entries.some(e => e.id === d.editingId)) startEdit(d.editingId);
-  $('#f-call').value = d.form.call || '';
-  writeFields(d.form.fields);
-  state.locField?.set(d.form.loc);
-  $('#f-rpt').checked = !!d.form.viaRepeater;
-  $('#f-rpt').dataset.touched = '1';
-  state.lineRpt?.set(d.form.rptOverride);
-  $('#f-note').value = d.form.note || '';
-  $('#f-time').value = d.form.time || '';
-  updateCallFeedback();
+  applyFormState(d.form, d.editingId);
   $('#form-status').className = 'ok';
   $('#form-status').textContent = `Nicht gespeicherte Eingabe von ${fmtTime(d.savedAt)} wiederhergestellt.`;
 }
@@ -1282,9 +1314,9 @@ function wire() {
     if (ev.key === 'Enter' && !ev.isComposing && ev.target.tagName === 'INPUT') {
       ev.preventDefault();
       saveEntry();
-    } else if (ev.key === 'Escape' && state.editingId) {
-      clearForm();
-      scheduleDraft();
+    } else if (ev.key === 'Escape' && !ev.defaultPrevented) {
+      // (Open completion dropdowns handle Esc themselves and stop it here.)
+      discardForm();
     }
   });
   $('#f-rpt').addEventListener('change', () => { $('#f-rpt').dataset.touched = '1'; });
@@ -1294,7 +1326,7 @@ function wire() {
     getHeader: () => state.event?.header || emptyHeader(),
     onChange: scheduleDraft,
   });
-  $('#btn-cancel-edit').addEventListener('click', () => { clearForm(); scheduleDraft(); $('#f-call').focus(); });
+  $('#btn-discard').addEventListener('click', discardForm);
 
   $('#dlg-copy').addEventListener('click', async () => {
     $('#dlg-status').textContent = (await copyText($('#dlg-text').value)) ? 'kopiert ✓' : 'Kopieren nicht möglich – Text markieren und manuell kopieren.';

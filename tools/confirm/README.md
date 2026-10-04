@@ -86,6 +86,12 @@ Zensical `docs_dir` would take over that section's index route (see
 - **Drafts.** The half-typed line is saved as a draft (debounced 300 ms, and
   flushed on `visibilitychange`/`pagehide`), then restored after a reload or
   crash.
+- **Discarding input.** "Verwerfen (Esc)" clears everything typed for the
+  current line: fields, resolved location, per-line repeater, time
+  correction and the stored draft. It offers **Rückgängig** (undo) to put
+  all of it back, so an accidental Esc costs nothing. While editing a line
+  it cancels the edit and leaves the line unchanged. Esc first closes an
+  open completion dropdown.
 - **No destructive edits.** Editing a line stores the previous version in
   `revisions`. Deleting is a soft delete (the line gets a `deleted`
   timestamp) with undo and a recycle bin, for lines and for events alike.
