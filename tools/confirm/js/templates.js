@@ -2,7 +2,9 @@
 // repeater flag and note. Field `adif` names a standard ADIF field; fields
 // without one are exported as APP_OE1EBG_<KEY> (see export.js).
 //
-// Field types: text, rst, radio (options [value, label]).
+// Field types: text, rst, radio (options [value, label]), location (free
+// text resolved with the offline Vienna lookup; the resolution is stored on
+// the line as `loc`, and `plzKey` names a field that gets the resolved PLZ).
 // `showIf` hides a field unless another field has the given value.
 
 export const TEMPLATES = [
@@ -26,10 +28,10 @@ export const TEMPLATES = [
   {
     key: 'zivilschutz',
     label: 'Zivilschutz-Probealarm',
-    hint: 'PLZ, Adresse, Sirene, AT-Alert',
+    hint: 'Standort/PLZ (Wien offline aufgelöst), Sirene, AT-Alert',
     fields: [
+      { key: 'address', label: 'Standort (Adresse, Ort, PLZ, Locator)', type: 'location', size: 28, plzKey: 'plz' },
       { key: 'plz', label: 'PLZ', type: 'text', size: 5, inputmode: 'numeric' },
-      { key: 'address', label: 'Adresse', type: 'text', size: 22 },
       {
         key: 'siren', label: 'Sirene hörbar', type: 'radio',
         options: [
@@ -50,6 +52,10 @@ export const TEMPLATES = [
     ],
   },
 ];
+
+export function hasLocationField(tpl) {
+  return tpl.fields.some(f => f.type === 'location');
+}
 
 export function templateFor(key) {
   return TEMPLATES.find(t => t.key === key) || TEMPLATES[0];

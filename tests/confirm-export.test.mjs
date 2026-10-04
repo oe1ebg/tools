@@ -112,3 +112,38 @@ test('summary counts unique stations and latest answers per station', () => {
   assert.match(s, /1030: 1 Stn\., AT-Alert 1\/1/);
   assert.match(s, /Android: 1/);
 });
+
+test('location field: resolved location in CSV columns and ADIF GRIDSQUARE/LAT/LON', async () => {
+  const { adifLatLon } = await import('../docs/confirm/js/export.js');
+  assert.equal(adifLatLon(48.20833, true), 'N048 12.500');
+  assert.equal(adifLatLon(16.37310, false), 'E016 22.386');
+  assert.equal(adifLatLon(-33.8688, true), 'S033 52.128');
+  assert.equal(adifLatLon(-0.9999999, false), 'W001 00.000'); // 59.999994' rounds up -> carry into degrees
+  const loc = { type: 'address', label: 'Währinger Straße 40-42', postcode: '1090', district: 9, lat: 48.221, lon: 16.35663,
+    maidenhead: 'JN88ef', source: 'vienna-ogd', confidence: 'exact', manual: false, input: 'Waehringerstr 42' };
+  const es = [{ ...entries[0], loc, fields: { ...entries[0].fields, address: 'Waehringerstr 42', plz: '1090' } }, entries[1]];
+  const csv = toCSV(event, es, ';').slice(1).trim().split('\r\n');
+  const cols = csv[0].split(';');
+  for (const c of ['standort_aufgeloest', 'lat', 'lon', 'locator', 'standort_konfidenz', 'standort_quelle']) assert.ok(cols.includes(c), c);
+  const row = Object.fromEntries(cols.map((c, j) => [c, csv[1].split(';')[j]]));
+  assert.equal(row.address, 'Waehringerstr 42', 'operator input kept as entered');
+  assert.equal(row.standort_aufgeloest, 'Währinger Straße 40-42');
+  assert.equal(row.locator, 'JN88ef');
+  assert.equal(row.lat, '48.22100');
+  assert.equal(row.standort_konfidenz, 'exakt');
+  assert.equal(row.standort_quelle, 'automatisch');
+  const row2 = Object.fromEntries(cols.map((c, j) => [c, csv[2].split(';')[j]]));
+  assert.equal(row2.locator, '', 'unresolved line has empty location columns');
+  const [a, b] = parseADIF(toADIF(event, es));
+  assert.equal(a.GRIDSQUARE, 'JN88ef');
+  assert.equal(a.LAT, 'N048 13.260');
+  assert.equal(a.LON, 'E016 21.398');
+  assert.equal(a.APP_OE1EBG_LOCATION, 'Waehringer Strasse 40-42');
+  assert.match(a.COMMENT, /Standort: Waehringer Strasse 40-42 \(exakt\)/);
+  assert.equal(b.GRIDSQUARE, undefined);
+});
+
+test('templates without a location field have no location columns', () => {
+  const ev = { id: 'r', title: 'Runde', template: 'calls', header };
+  assert.ok(!toCSV(ev, []).includes('standort_aufgeloest'));
+});

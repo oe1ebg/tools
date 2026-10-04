@@ -2,9 +2,34 @@
 // its entries — no DOM — so they're unit-tested in oe1ebg/tests/.
 
 import { liveSorted, checkinNumbers, splitUtc, lineFrequencies, bandForMHz, modeInfo, stats } from './model.js';
-import { templateFor, fieldVisible, fieldDisplay } from './templates.js';
+import { templateFor, fieldVisible, fieldDisplay, hasLocationField } from './templates.js';
 
 export const ADIF_PROGRAM_ID = 'OE1EBG';
+
+const LOC_CONF_DE = { exact: 'exakt', high: 'hoch', likely: 'wahrscheinlich', ambiguous: 'mehrdeutig', low: 'unsicher' };
+const LOC_COLS = ['standort_aufgeloest', 'lat', 'lon', 'locator', 'standort_konfidenz', 'standort_quelle'];
+
+function locColumns(loc) {
+  if (!loc) return { standort_aufgeloest: '', lat: '', lon: '', locator: '', standort_konfidenz: '', standort_quelle: '' };
+  return {
+    standort_aufgeloest: loc.label,
+    lat: loc.lat.toFixed(5),
+    lon: loc.lon.toFixed(5),
+    locator: loc.maidenhead,
+    standort_konfidenz: LOC_CONF_DE[loc.confidence] || loc.confidence || '',
+    standort_quelle: loc.manual ? 'gewählt' : 'automatisch',
+  };
+}
+
+// ADIF LAT/LON: "N048 12.498" / "E016 22.386"
+export function adifLatLon(v, isLat) {
+  const hemi = isLat ? (v < 0 ? 'S' : 'N') : (v < 0 ? 'W' : 'E');
+  const a = Math.abs(v);
+  let deg = Math.floor(a);
+  let min = Math.round((a - deg) * 60 * 1000) / 1000;
+  if (min >= 60) { deg += 1; min = 0; }
+  return `${hemi}${String(deg).padStart(3, '0')} ${min.toFixed(3).padStart(6, '0')}`;
+}
 
 function csvCell(val, sep) {
   const s = val === undefined || val === null ? '' : String(val);
@@ -31,6 +56,7 @@ function exportRows(event, entries) {
       rufzeichen: e.call,
     };
     for (const f of tpl.fields) row[f.key] = fieldVisible(f, e.fields) ? fieldDisplay(f, e.fields?.[f.key]) : '';
+    if (hasLocationField(tpl)) Object.assign(row, locColumns(e.loc));
     Object.assign(row, {
       ueber_relais: e.viaRepeater ? 'ja' : 'nein',
       relais: e.viaRepeater ? s.repeaterCall : '',
@@ -54,6 +80,7 @@ export function toCSV(event, entries, sep = ';') {
   const cols = [
     'nr', 'checkin_nr', 'datum_utc', 'zeit_utc', 'rufzeichen',
     ...tpl.fields.map(f => f.key),
+    ...(hasLocationField(tpl) ? LOC_COLS : []),
     'ueber_relais', 'relais', 'notiz', 'operator', 'station',
     'freq_mhz', 'freq_rx_mhz', 'band', 'mode', 'my_locator', 'ereignis',
   ];
@@ -134,6 +161,13 @@ export function toADIF(event, entries, createdIso = new Date().toISOString()) {
         rec += adifField(`APP_${ADIF_PROGRAM_ID}_${f.key.toUpperCase()}`, raw);
         comment.push(`${f.label}: ${fieldDisplay(f, raw)}`);
       }
+    }
+    if (e.loc) {
+      rec += adifField('GRIDSQUARE', e.loc.maidenhead);
+      rec += adifField('LAT', adifLatLon(e.loc.lat, true));
+      rec += adifField('LON', adifLatLon(e.loc.lon, false));
+      rec += adifField(`APP_${ADIF_PROGRAM_ID}_LOCATION`, e.loc.label);
+      comment.push(`Standort: ${e.loc.label} (${LOC_CONF_DE[e.loc.confidence] || e.loc.confidence})`);
     }
     rec += adifField(`APP_${ADIF_PROGRAM_ID}_CHECKIN`, String(nums.get(e.id)));
     rec += adifField(`APP_${ADIF_PROGRAM_ID}_EVENT`, event.title);

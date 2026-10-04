@@ -75,7 +75,12 @@ Zensical `docs_dir` would take over that section's index route (see
   (`snap`), so changing the operator or repeater mid-event never rewrites
   older lines.
 - **Schema versions.** The IndexedDB schema is versioned. Add a migration
-  branch in `openIdb()` and never drop stores.
+  branch in `openIdb()` and never drop stores. v2 added `stations` (last
+  known location per callsign). The browser tests check that a v1 database
+  from PR 1 upgrades with its data intact.
+- **Load failure.** If the app code fails to load on the very first visit
+  (a flaky connection, before anything is cached), a banner asks the user
+  to reload instead of leaving a dead page.
 - **Backups.** JSON backups can be made per event or for all events, and
   imported again. On import, an event whose id already exists is imported
   as a copy with fresh ids; nothing is overwritten.
@@ -203,6 +208,34 @@ implementation differs, the reason is given below.
   - **Locator → PLZ:** address counts per PLZ inside the box, plus the PLZ
     at the centre.
 
+### In the log: the `location` field (Probealarm template)
+
+- **Free text, always kept.** The operator types what they hear, e.g.
+  "Zehnter, Quellenstraße 10" or "Kahlenberg". The text is resolved while
+  typing (debounced 200 ms) and is always saved exactly as entered.
+- **Resolution stored alongside.** The chosen result is saved on the line
+  as `loc`: type, label, street, house number, PLZ, district, lat/lon,
+  6-character locator, source, confidence, manual-or-auto flag, and the
+  input it came from.
+- **Auto vs. pick.** The best candidate is only taken automatically at or
+  above the setting **"Im Log automatisch übernehmen ab"** in the Standort
+  panel: exakt / **hoch** (default) / wahrscheinlich / nie. Otherwise the
+  candidates are shown, and the operator picks one with "Übernehmen" (↓
+  jumps from the field into the list).
+- **Never blocking.** Lines without a resolution are saved and marked
+  "nicht zugeordnet" in the log.
+- **PLZ.** The PLZ field is filled from the resolution, but only while it is
+  empty or still holds an earlier auto-filled value. A PLZ the operator
+  typed is never overwritten.
+- **Station memory** (IndexedDB store `stations`, schema v2). Every resolved
+  location is remembered per callsign, across events. On the next check-in
+  the tool shows "Zuletzt bekannter Standort: …" with an "übernehmen"
+  button.
+- **Export.** The CSV gains the columns `standort_aufgeloest`, `lat`, `lon`,
+  `locator`, `standort_konfidenz` and `standort_quelle`. ADIF gets
+  `GRIDSQUARE`, `LAT`/`LON` (`N048 12.500` format), `APP_OE1EBG_LOCATION`
+  and the resolution in `COMMENT`.
+
 ### Differences from the brief
 
 - **Compact JSON with in-memory indexes instead of SQLite/WASM.**
@@ -237,6 +270,8 @@ implementation differs, the reason is given below.
   in the offline bundle).
 - `js/dom.js`: small DOM and clipboard helpers.
 - `js/locationui.js`: the Standort panel and the shared candidate list.
+- `js/locfield.js`: the log's `location` field (resolve while typing,
+  auto-select or pick, auto-fill PLZ).
 - `js/location/`: the lookup engine (see above).
 
 Unlike the other tools, the JS lives in separate files: plain ES modules
@@ -251,8 +286,6 @@ exported as `APP_OE1EBG_<KEY>`.
 
 ## Planned next
 
-- A `location` field type for the Probealarm template that uses the lookup
-  (PR 3b).
 - Moving all standalone tools into a common `/tools/` directory. All paths
   in the tool are relative, so a move means only a `git mv` plus a nav entry
   change.

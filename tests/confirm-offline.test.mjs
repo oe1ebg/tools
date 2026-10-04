@@ -42,11 +42,13 @@ test('offline bundle builds into one self-contained, parseable file', () => {
   const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
   // app bundle, plus the inlined data/ files when they have been built
   const hasData = existsSync(join(DIR, 'data')) && readdirSync(DIR + '/data').some(n => n.endsWith('.json'));
-  assert.equal(scripts.length, hasData ? 2 : 1);
+  // load-failure fallback, (inlined data/ when built), app bundle
+  assert.equal(scripts.length, hasData ? 3 : 2);
   const app = scripts[scripts.length - 1];
   assert.ok(!/^\s*(import|export)\b/m.test(app));
+  assert.match(app, /CONFIRM_STARTED = true/);
   for (const src of scripts) new vm.Script(src); // throws on syntax errors
-  if (hasData) assert.match(scripts[0], /^\s*globalThis\.CONFIRM_DATA = \{/);
+  if (hasData) assert.match(scripts[1], /^\s*globalThis\.CONFIRM_DATA = \{/);
   assert.ok(existsSync(join(DIR, 'precache.js')));
   const pre = readFileSync(join(DIR, 'precache.js'), 'utf8');
   assert.match(pre, /version: "[0-9a-f]{12}"/);

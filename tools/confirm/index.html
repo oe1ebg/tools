@@ -262,6 +262,18 @@
   .lc-note{ font-size:12px; color:var(--warn); }
   .lc-actions{ display:flex; gap:.35em; flex-wrap:wrap; margin-top:.35em; }
   button.mini{ font-size:12px; padding:.15em .55em; }
+  #loc-field{ margin-top:.6em; }
+  #loc-field-chip{ font-size:13px; min-height:1.3em; }
+  #loc-field-chip.conf-exact, #loc-field-chip.conf-high{ color:var(--ok); }
+  #loc-field-chip.conf-likely{ color:var(--accent); }
+  #loc-field-chip.conf-ambiguous, #loc-field-chip.conf-low, #loc-field-chip.unresolved{ color:var(--warn); }
+  #loc-field-results{ display:grid; gap:.35em; margin-top:.35em; grid-template-columns:repeat(auto-fill, minmax(18em, 1fr)); }
+  #loc-field-results .loc-cand{ padding:.35em .6em; }
+  #loc-field-results > .hint{ grid-column:1 / -1; }
+  #loc-field-results .lc-why{ display:none; }
+  #call-station{ font-size:12px; color:var(--text-dim); }
+  .loc-sub{ font-size:11px; color:var(--text-dim); }
+  .loc-sub.unresolved{ color:var(--warn); }
   details.misc{ margin-top:1.2em; }
   details.misc summary{ cursor:pointer; color:var(--text-dim); }
   details.misc ul{ font-size:13px; }
@@ -317,6 +329,9 @@
       <span class="spacer"></span>
       <label class="check">Locator
         <select id="loc-prec"><option value="4">4</option><option value="6">6</option><option value="8">8</option></select> Zeichen
+      </label>
+      <label class="check" title="Ab welcher Sicherheit das Standortfeld im Log den besten Treffer selbst übernimmt">Im Log automatisch übernehmen ab
+        <select id="loc-auto"><option value="exact">exakt</option><option value="high">hoch</option><option value="likely">wahrscheinlich</option><option value="never">nie</option></select>
       </label>
       <button type="button" id="loc-close">schließen</button>
     </div>
@@ -399,8 +414,13 @@
       </div>
       <div id="call-info" aria-live="polite"></div>
       <div id="call-suggest"></div>
+      <div id="call-station"></div>
       <div id="call-warn"></div>
       <div id="repeat-box" hidden></div>
+      <div id="loc-field" hidden>
+        <div id="loc-field-chip"></div>
+        <div id="loc-field-results"></div>
+      </div>
       <div id="form-status" role="status"></div>
     </form>
 
@@ -437,8 +457,19 @@
   <span id="offline-file-link"> · <a href="confirm-offline.html" download="bestaetigungsverkehr-offline.html">Offline-Datei für USB-Stick/Laptop herunterladen</a> (eine HTML-Datei mit allen Daten, ~5 MB, läuft ohne Server; Download nur online)</span>
 </footer>
 
+<script>
+  // If the app code fails to load (flaky connection on the very first
+  // visit, before it is cached), say so instead of showing a dead page.
+  function confirmLoadFailed() {
+    if (window.CONFIRM_STARTED) return;
+    var b = document.getElementById('banner');
+    b.textContent = 'Das Werkzeug konnte nicht vollständig geladen werden (Verbindung?). Bitte die Seite neu laden – danach ist es offline verfügbar.';
+    b.hidden = false;
+  }
+  setTimeout(confirmLoadFailed, 8000);
+</script>
 <!-- CONFIRM-SCRIPT-BEGIN -->
-<script type="module" src="js/app.js"></script>
+<script type="module" src="js/app.js" onerror="confirmLoadFailed()"></script>
 <!-- CONFIRM-SCRIPT-END -->
 </body>
 </html>

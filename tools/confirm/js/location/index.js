@@ -371,7 +371,8 @@ function finish(results, opts) {
 
 /* ------------------------------------------------------------------ main entry */
 
-// opts.autoSelect: minimum confidence to auto-pick results[0] ('exact' | 'high' | 'likely').
+// opts.autoSelect: minimum confidence to auto-pick results[0] ('exact' | 'high' | 'likely';
+// anything else, e.g. 'none', disables auto-selection). opts.limit: max results.
 export function locate(idx, input, opts = {}) {
   // District names ("Favoriten Quellenstr") are only peeled off when the
   // text as a whole isn't already a known name ("UNO City", "Landstraßer Gürtel").
@@ -383,7 +384,9 @@ export function locate(idx, input, opts = {}) {
   const pack = results => ({
     evidence: ev,
     results,
-    autoSelect: results[0] && CONFIDENCE_ORDER.indexOf(results[0].confidence) >= CONFIDENCE_ORDER.indexOf(minConf) ? results[0] : null,
+    // An unknown level (e.g. 'none') never auto-selects.
+    autoSelect: results[0] && CONFIDENCE_ORDER.includes(minConf)
+      && CONFIDENCE_ORDER.indexOf(results[0].confidence) >= CONFIDENCE_ORDER.indexOf(minConf) ? results[0] : null,
   });
 
   if (ev.latitude !== undefined) {

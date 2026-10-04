@@ -8,6 +8,7 @@ import { buildLocationIndex, locate } from './location/index.js';
 import { latLonToMaidenhead } from './location/maidenhead.js';
 
 const LOC_PREC_KEY = 'oe1ebg-confirm-locator-precision';
+const LOC_AUTO_KEY = 'oe1ebg-confirm-location-autoselect';
 const CONF_LABEL = { exact: 'exakt', high: 'hoch', likely: 'wahrscheinlich', ambiguous: 'mehrdeutig', low: 'unsicher' };
 const TYPE_LABEL = { address: 'Adresse', street: 'Straße', poi: 'Ort', coordinate: 'Koordinate', maidenhead: 'Locator', district: 'Bezirk', postcode: 'PLZ' };
 const SOURCE_LABEL = { 'vienna-ogd': 'Stadt Wien', osm: 'OpenStreetMap', computed: 'berechnet', alias: 'kuratiert' };
@@ -36,6 +37,13 @@ export function loadLocationIndex() {
 export function locatorPrecision() {
   const v = parseInt(localStorage.getItem(LOC_PREC_KEY) || '6', 10);
   return [4, 6, 8].includes(v) ? v : 6;
+}
+
+// Minimum confidence at which the log's location field takes the best
+// candidate automatically: 'exact' | 'high' (default) | 'likely' | 'never'.
+export function autoSelectLevel() {
+  const v = localStorage.getItem(LOC_AUTO_KEY) || 'high';
+  return ['exact', 'high', 'likely', 'never'].includes(v) ? v : 'high';
 }
 
 export function locatorFor(r, precision = locatorPrecision()) {
@@ -141,6 +149,9 @@ export function initLocationPanel() {
   const results = $('#loc-results');
   const prec = $('#loc-prec');
   prec.value = String(locatorPrecision());
+  const auto = $('#loc-auto');
+  auto.value = autoSelectLevel();
+  auto.addEventListener('change', () => localStorage.setItem(LOC_AUTO_KEY, auto.value));
   $('#loc-examples').replaceChildren(...EXAMPLES.map(q => el('button', { type: 'button', class: 'link', onclick: () => { input.value = q; run(); } }, q)));
 
   let timer = null;

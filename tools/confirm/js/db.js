@@ -7,12 +7,13 @@
 //
 // Stores: events, entries, revisions (old versions of edited lines),
 // drafts (keyed by eventId: the half-typed line), snapshots (periodic full
-// backups of an event). Nothing user-entered is ever hard-deleted: lines and
+// backups of an event), stations (v2; keyed by callsign: last known
+// location of a station across events). Nothing user-entered is ever hard-deleted: lines and
 // events are soft-deleted via a `deleted` timestamp; only drafts and
 // rotated-out snapshots are actually removed.
 
 const DB_NAME = 'oe1ebg-confirm';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const LS_PREFIX = 'oe1ebg-confirm:v1:';
 
 export const STORES = {
@@ -21,7 +22,9 @@ export const STORES = {
   revisions: { keyPath: 'id', byEvent: true },
   drafts: { keyPath: 'eventId', byEvent: false },
   snapshots: { keyPath: 'id', byEvent: true },
+  stations: { keyPath: 'call', byEvent: false },
 };
+const V1_STORES = ['events', 'entries', 'revisions', 'drafts', 'snapshots'];
 
 function reqPromise(req) {
   return new Promise((resolve, reject) => {
@@ -42,12 +45,13 @@ function openIdb() {
     // Schema migrations: add a branch per version, never drop user data.
     req.onupgradeneeded = ev => {
       const db = req.result;
-      if (ev.oldVersion < 1) {
-        for (const [name, def] of Object.entries(STORES)) {
-          const os = db.createObjectStore(name, { keyPath: def.keyPath });
-          if (def.byEvent) os.createIndex('eventId', 'eventId');
-        }
-      }
+      const create = name => {
+        const def = STORES[name];
+        const os = db.createObjectStore(name, { keyPath: def.keyPath });
+        if (def.byEvent) os.createIndex('eventId', 'eventId');
+      };
+      if (ev.oldVersion < 1) V1_STORES.forEach(create);
+      if (ev.oldVersion < 2) create('stations');
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);

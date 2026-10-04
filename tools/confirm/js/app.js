@@ -16,6 +16,7 @@ import { loadDataFile } from './data.js';
 import { buildCallbook, lookupCall, suggestCalls } from './callbook.js';
 import { $, el } from './dom.js';
 import { initLocationPanel } from './locationui.js';
+import { createLocationField, describeLocation } from './locfield.js';
 
 const THEME_KEY = 'oe1ebg-confirm-theme';
 const CSV_SEP_KEY = 'oe1ebg-confirm-csv-sep';
@@ -36,6 +37,8 @@ const state = {
   headerTimer: null,
   channel: null,
   callbook: null,     // Austrian callsign list (data/callsigns-oe.json), null until loaded
+  stations: new Map(), // call -> { call, loc, at, eventTitle }: last known location per station
+  locField: null,     // controller of the template's location field, if any
 };
 
 /* ---------------------------------------------------------------- errors */
@@ -461,11 +464,22 @@ function buildEntryFields() {
       control = el('input', {
         name: `f_${f.key}`, size: f.type === 'rst' ? 3 : f.size || 12,
         inputmode: f.type === 'rst' ? 'numeric' : f.inputmode, spellcheck: 'false',
+        class: f.type === 'location' ? 'loc-input' : null, autocomplete: 'off',
       });
     }
     // Radio groups get a <div>, not a <label>: nested labels would make a
     // click on the caption select the first option.
     box.append(el(f.type === 'radio' ? 'div' : 'label', { class: 'field', 'data-field': f.key }, el('span', {}, f.label), control));
+  }
+  state.locField?.destroy();
+  state.locField = null;
+  const lf = tpl.fields.find(f => f.type === 'location');
+  if (lf) {
+    state.locField = createLocationField({
+      input: box.querySelector(`input[name="f_${lf.key}"]`),
+      plzInput: lf.plzKey ? box.querySelector(`input[name="f_${lf.plzKey}"]`) : null,
+      onChange: scheduleDraft,
+    });
   }
   updateFieldVisibility();
   updateRepeaterDefault();
@@ -525,6 +539,7 @@ function readForm() {
     viaRepeater: $('#f-rpt').checked,
     note: $('#f-note').value.trim(),
     time: $('#f-time').value.trim(),
+    loc: state.locField ? state.locField.get() : null,
   };
 }
 
@@ -533,11 +548,13 @@ function clearForm() {
   $('#f-note').value = '';
   $('#f-time').value = '';
   writeFields({});
+  state.locField?.clear();
   delete $('#f-rpt').dataset.touched;
   state.editingId = null;
   $('#entry-form').classList.remove('editing');
   $('#btn-cancel-edit').hidden = true;
   $('#btn-save').textContent = 'Speichern ⏎';
+  if ($('#form-status .edit-tag')) $('#form-status').replaceChildren();
   updateRepeaterDefault();
   updateCallFeedback();
 }
@@ -556,6 +573,7 @@ function updateCallFeedback() {
   const call = normalizeCall($('#f-call').value);
   $('#call-warn').textContent = call && !isPlausibleCall(call) ? 'Ungewöhnliches Rufzeichen – trotzdem speicherbar.' : '';
   renderCallbookInfo(call);
+  renderStationMemory(call);
   const prev = previousCheckins(state.entries, call, state.editingId);
   const box = $('#repeat-box');
   if (!prev.length) {
@@ -640,6 +658,21 @@ function autofillFromCallbook(entry) {
   }
 }
 
+// Last known location of this station (from any earlier event), with a
+// button to take it over into an empty location field.
+function renderStationMemory(call) {
+  const box = $('#call-station');
+  box.replaceChildren();
+  const rec = call && state.stations.get(call);
+  if (!rec) return;
+  const lf = state.locField;
+  const emptyField = lf && !lf.get() && !document.querySelector('#f-fields .loc-input')?.value.trim();
+  box.append(`Zuletzt bekannter Standort: ${describeLocation(rec.loc)} (${splitUtc(rec.at).date}, ${rec.eventTitle}) `,
+    emptyField && !state.readOnly
+      ? el('button', { type: 'button', class: 'link', onclick: () => { lf.adopt(rec.loc); renderStationMemory(call); } }, 'übernehmen')
+      : null);
+}
+
 function callbookName(call) {
   const e = state.callbook && lookupCall(state.callbook, call).entry;
   return e ? [e[1], e[2]].filter(Boolean).join(', ') : '';
@@ -652,6 +685,7 @@ function describeEntry(e, tpl) {
     const v = fieldVisible(f, e.fields) ? fieldDisplay(f, e.fields?.[f.key]) : '';
     if (v) bits.push(`${f.label}: ${v}`);
   }
+  if (e.loc) bits.push(`→ ${describeLocation(e.loc)}`);
   bits.push(e.viaRepeater ? `via ${e.snap?.repeaterCall || 'Relais'}` : 'direkt');
   if (e.note) bits.push(`„${e.note}“`);
   return bits.join(' · ');
@@ -693,12 +727,12 @@ async function saveEntry() {
   let entry;
   let nextEvent = ev;
   if (editing) {
-    entry = { ...editing, call: f.call, fields: f.fields, viaRepeater: f.viaRepeater, note: f.note, ts: t.iso, updated: nowIso() };
+    entry = { ...editing, call: f.call, fields: f.fields, loc: f.loc, viaRepeater: f.viaRepeater, note: f.note, ts: t.iso, updated: nowIso() };
     ops.push({ store: 'revisions', put: { id: newId(), eventId: ev.id, entryId: editing.id, savedAt: nowIso(), reason: 'edit', data: editing } });
   } else {
     entry = {
       id: newId(), eventId: ev.id, seq: ev.nextSeq || 1, ts: t.iso,
-      call: f.call, fields: f.fields, viaRepeater: f.viaRepeater, note: f.note,
+      call: f.call, fields: f.fields, loc: f.loc, viaRepeater: f.viaRepeater, note: f.note,
       snap: headerSnapshot(ev.header), created: nowIso(), updated: nowIso(), deleted: null,
     };
     nextEvent = { ...ev, nextSeq: entry.seq + 1, updated: nowIso() };
@@ -706,6 +740,9 @@ async function saveEntry() {
   }
   ops.push({ store: 'entries', put: entry });
   ops.push({ store: 'drafts', del: ev.id });
+  // Remember the station's location for future check-ins (any event).
+  const stationRec = f.loc ? { call: f.call, loc: f.loc, at: t.iso, eventTitle: ev.title } : null;
+  if (stationRec) ops.push({ store: 'stations', put: stationRec });
 
   $('#btn-save').disabled = true;
   clearTimeout(state.draftTimer);
@@ -720,6 +757,7 @@ async function saveEntry() {
   }
   $('#btn-save').disabled = false;
   state.event = nextEvent;
+  if (stationRec) state.stations.set(stationRec.call, stationRec);
   const i = state.entries.findIndex(e => e.id === entry.id);
   if (i >= 0) state.entries[i] = entry; else state.entries.push(entry);
   const n = checkinNumbers(state.entries).get(entry.id);
@@ -740,6 +778,7 @@ function startEdit(id) {
   state.editingId = id;
   $('#f-call').value = e.call;
   writeFields(e.fields);
+  state.locField?.set(e.loc);
   $('#f-rpt').checked = !!e.viaRepeater;
   $('#f-rpt').dataset.touched = '1';
   $('#f-note').value = e.note || '';
@@ -813,6 +852,7 @@ async function restoreDraft() {
   if (d.editingId && state.entries.some(e => e.id === d.editingId)) startEdit(d.editingId);
   $('#f-call').value = d.form.call || '';
   writeFields(d.form.fields);
+  state.locField?.set(d.form.loc);
   $('#f-rpt').checked = !!d.form.viaRepeater;
   $('#f-rpt').dataset.touched = '1';
   $('#f-note').value = d.form.note || '';
@@ -854,7 +894,9 @@ function renderLog(highlightCall) {
       el('td', { class: 'mono', title: date }, time),
       el('td', { class: 'call' }, e.call, n > 1 ? el('span', { class: 'badge', title: `Check-in Nr. ${n}` }, `${n}×`) : null,
         callbookName(e.call) ? el('div', { class: 'cb-name' }, callbookName(e.call)) : null),
-      tpl.fields.map(f => el('td', {}, fieldVisible(f, e.fields) ? fieldDisplay(f, e.fields?.[f.key]) : '')),
+      tpl.fields.map(f => el('td', {}, fieldVisible(f, e.fields) ? fieldDisplay(f, e.fields?.[f.key]) : '',
+        f.type === 'location' && e.loc ? el('div', { class: 'loc-sub' }, `→ ${describeLocation(e.loc)}`) : null,
+        f.type === 'location' && !e.loc && e.fields?.[f.key] ? el('div', { class: 'loc-sub unresolved' }, 'nicht zugeordnet') : null)),
       el('td', {}, e.viaRepeater ? el('span', { class: 'rpt' }, s.repeaterCall || 'ja') : '–'),
       el('td', {}, e.note || ''),
       el('td', { class: 'mono' }, s.operator && s.station && s.operator !== s.station ? `${s.operator}/${s.station}` : s.operator || s.station || ''),
@@ -1141,6 +1183,7 @@ async function loadCallbook() {
 }
 
 async function main() {
+  globalThis.CONFIRM_STARTED = true;
   initTheme();
   state.store = await openStorage();
   if (!state.store) {
@@ -1160,6 +1203,11 @@ async function main() {
   initPersistence();
   initOffline();
   await refreshLastHeader();
+  try {
+    state.stations = new Map((await state.store.getAll('stations')).map(r => [r.call, r]));
+  } catch (e) {
+    console.warn('stations', e);
+  }
   loadCallbook();
   route();
 }

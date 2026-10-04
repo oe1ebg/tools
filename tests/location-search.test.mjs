@@ -150,3 +150,9 @@ test('real data: brief examples', { skip: !haveReal && 'run `just build-location
   for (const q of ['Wahringerstrase 42', 'Favoriten Quellenstr', 'Donauinsel JN88ge', 'Kahlenberg']) R(q);
   assert.ok((performance.now() - t) / 4 < 100);
 });
+
+test('autoSelect levels: unknown level never auto-selects', () => {
+  assert.ok(locate(idx, 'Donauturm', { autoSelect: 'likely' }).autoSelect);
+  assert.equal(locate(idx, 'Donauturm', { autoSelect: 'none' }).autoSelect, null);
+  assert.equal(locate(idx, 'Donauturm', { autoSelect: 'never' }).autoSelect, null);
+});

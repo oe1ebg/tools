@@ -9,7 +9,8 @@ are in `oe1ebg/confirm-README.md`.
   another host, no CDN `<script>`/`<link>`, no web fonts and no map tiles.
   Data must be produced at build time, under `data/`, and listed in the
   precache. `tests/confirm-offline.test.mjs` fails on any external URL.
-- **Never lose user data.**
+- **Never lose user data.** The IndexedDB schema is at v2; v2 added the
+  `stations` store.
   - Writes go through `store.tx()`, and the UI may only show success after
     the promise resolves.
   - Edits store a revision first, and deletes are soft (`deleted`
