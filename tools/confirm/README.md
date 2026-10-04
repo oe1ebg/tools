@@ -27,6 +27,31 @@ Zensical `docs_dir` would take over that section's index route (see
    again is clearly marked, and its earlier answers are shown. Export is CSV
    and ADIF.
 
+## Time: always an ISO timestamp, displayed in UTC or local time
+
+- **Storage.** Every line stores `ts`, an **ISO 8601 UTC timestamp**
+  (`2026-10-04T19:42:07.123Z`). It is set automatically when the line is
+  saved, or taken from a typed correction. The display mode never changes
+  what is stored.
+- **UTC / Lokal toggle** in the page header, remembered in `localStorage`.
+  - It controls the time column, the clock, the time field's label and
+    edit prefill, status messages, the repeat-check-in box, the recycle bin
+    and the summary.
+  - Local times are labelled with the offset that applied at that moment
+    (`UTC+2` in summer, `UTC+1` in winter).
+  - **A typed correction** (`HH:MM`, or `JJJJ-MM-TT HH:MM`) is read in the
+    current mode. A local time that doesn't exist because of the DST switch
+    is rejected. A half-typed correction is converted, not reinterpreted,
+    when the mode is switched.
+- **The time is always the first column:** in the log table, as the first
+  field of the entry form (the cursor still starts in the callsign field),
+  and in the CSV.
+  - The CSV starts with `zeitstempel_utc` (`2026-10-04T19:42:07Z`) and
+    `zeitstempel_lokal` (`2026-10-04T21:42:07+02:00`). Both are ISO 8601,
+    with the offset written out, so spreadsheets can't misread them.
+  - ADIF stays in UTC (`QSO_DATE`/`TIME_ON`), as the ADIF specification
+    requires.
+
 ## How it is used offline
 
 - **Installable app.** `sw.js` caches every shipped file when it installs,
@@ -88,7 +113,8 @@ Zensical `docs_dir` would take over that section's index route (see
 ## Export
 
 - **CSV.** UTF-8 with a BOM so Excel shows umlauts correctly, `;` as the
-  separator. There is one row per check-in with `checkin_nr`, the template
+  separator. There is one row per check-in. It starts with the ISO
+  timestamps `zeitstempel_utc` and `zeitstempel_lokal`, then `checkin_nr`, the template
   fields as display text, the repeater flag and callsign, and the operator,
   station, frequency, band and mode as they were when the line was logged.
 - **ADIF 3.1.7 (`.adi`).** The output is ASCII only, with German characters

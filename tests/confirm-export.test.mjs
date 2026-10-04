@@ -1,3 +1,5 @@
+// Local-time expectations assume Vienna; set before any Date is created.
+process.env.TZ = 'Europe/Vienna';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { toCSV, toADIF, toSummary, adifAscii } from '../docs/confirm/js/export.js';
@@ -39,10 +41,12 @@ test('CSV has BOM, header, check-in numbers, per-line snapshots, escaping', () =
   assert.ok(csv.startsWith('﻿'));
   const lines = csv.slice(1).trim().split('\r\n');
   const cols = lines[0].split(';');
-  assert.deepEqual(cols.slice(0, 5), ['nr', 'checkin_nr', 'datum_utc', 'zeit_utc', 'rufzeichen']);
+  assert.deepEqual(cols.slice(0, 5), ['zeitstempel_utc', 'zeitstempel_lokal', 'nr', 'checkin_nr', 'rufzeichen'], 'time first');
   assert.ok(cols.includes('siren') && cols.includes('ueber_relais') && cols.includes('relais'));
   assert.equal(lines.length, 4, 'deleted line excluded');
   const row = i => Object.fromEntries(cols.map((c, j) => [c, lines[i].split(';')[j]]));
+  assert.equal(row(1).zeitstempel_utc, '2026-10-04T10:00:05Z');
+  assert.equal(row(1).zeitstempel_lokal, '2026-10-04T12:00:05+02:00');
   assert.equal(row(1).checkin_nr, '1');
   assert.equal(row(3).checkin_nr, '2');
   assert.equal(row(1).siren, 'innen, Fenster zu');
@@ -107,6 +111,8 @@ test('adifAscii', () => {
 test('summary counts unique stations and latest answers per station', () => {
   const s = toSummary(event, entries);
   assert.match(s, /2 Stationen, 3 Check-ins/);
+  assert.match(s, /2026-10-04 10:00–10:02 UTC/);
+  assert.match(toSummary(event, entries, 'local'), /2026-10-04 12:00–12:02 UTC\+2/);
   assert.match(s, /OE1AAA, OE1BBB/);
   assert.match(s, /nur im Freien: 1/);
   assert.match(s, /1030: 1 Stn\., AT-Alert 1\/1/);

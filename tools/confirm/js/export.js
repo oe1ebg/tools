@@ -1,7 +1,7 @@
 // CSV / ADIF / plain-text summary export. Pure functions over an event and
 // its entries — no DOM — so they're unit-tested in oe1ebg/tests/.
 
-import { liveSorted, checkinNumbers, splitUtc, lineFrequencies, bandForMHz, modeInfo, stats } from './model.js';
+import { liveSorted, checkinNumbers, splitUtc, splitTime, zoneLabel, isoUtc, isoWithOffset, lineFrequencies, bandForMHz, modeInfo, stats } from './model.js';
 import { templateFor, fieldVisible, fieldDisplay, hasLocationField } from './templates.js';
 
 export const ADIF_PROGRAM_ID = 'OE1EBG';
@@ -45,15 +45,16 @@ function exportRows(event, entries) {
   const tpl = templateFor(event.template);
   const nums = checkinNumbers(entries);
   return liveSorted(entries).map(e => {
-    const { date, time } = splitUtc(e.ts);
     const { tx, rx } = lineFrequencies(e);
     const s = e.snap || {};
+    // Time always first, as ISO 8601: UTC and local with explicit offset.
     const row = {
+      zeitstempel_utc: isoUtc(e.ts),
+      zeitstempel_lokal: isoWithOffset(e.ts),
       nr: e.seq,
       checkin_nr: nums.get(e.id),
-      datum_utc: date,
-      zeit_utc: time,
       rufzeichen: e.call,
+      ts: e.ts,
     };
     for (const f of tpl.fields) row[f.key] = fieldVisible(f, e.fields) ? fieldDisplay(f, e.fields?.[f.key]) : '';
     if (hasLocationField(tpl)) Object.assign(row, locColumns(e.loc));
@@ -79,7 +80,7 @@ export function toCSV(event, entries, sep = ';') {
   const rows = exportRows(event, entries);
   const tpl = templateFor(event.template);
   const cols = [
-    'nr', 'checkin_nr', 'datum_utc', 'zeit_utc', 'rufzeichen',
+    'zeitstempel_utc', 'zeitstempel_lokal', 'nr', 'checkin_nr', 'rufzeichen',
     ...tpl.fields.map(f => f.key),
     ...(hasLocationField(tpl) ? LOC_COLS : []),
     'ueber_relais', 'relais', 'relais_ctcss', 'notiz', 'operator', 'station',
@@ -188,8 +189,8 @@ function countBy(rows, key) {
   return [...m.entries()].sort((a, b) => b[1] - a[1]);
 }
 
-// Plain text for pasting into a net report / mail.
-export function toSummary(event, entries) {
+// Plain text for pasting into a net report / mail; times in `timeMode`.
+export function toSummary(event, entries, timeMode = 'utc') {
   const rows = exportRows(event, entries);
   const st = stats(entries);
   const h = event.header || {};
@@ -198,7 +199,10 @@ export function toSummary(event, entries) {
   const who = [h.operator && `Operator ${h.operator}`, h.station && `für ${h.station}`].filter(Boolean).join(' ');
   if (who) lines.push(who);
   const first = rows[0], last = rows[rows.length - 1];
-  if (first) lines.push(`${first.datum_utc} ${first.zeit_utc.slice(0, 5)}–${last.zeit_utc.slice(0, 5)} UTC`);
+  if (first) {
+    const a = splitTime(first.ts, timeMode), b = splitTime(last.ts, timeMode);
+    lines.push(`${a.date} ${a.time.slice(0, 5)}–${b.date !== a.date ? b.date + ' ' : ''}${b.time.slice(0, 5)} ${zoneLabel(first.ts, timeMode)}`);
+  }
   lines.push(`${st.unique} Stationen, ${st.total} Check-ins`);
   lines.push('');
   const seen = new Set();

@@ -1,8 +1,10 @@
+process.env.TZ = 'Europe/Vienna'; // local-time tests assume Vienna (CET/CEST)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   normalizeCall, isPlausibleCall, parseUtcInput, splitUtc, bandForMHz,
   checkinNumbers, previousCheckins, stats, lineFrequencies, headerSnapshot,
+  splitTime, zoneLabel, isoUtc, isoWithOffset, parseTimeInput,
 } from '../docs/confirm/js/model.js';
 
 test('normalizeCall uppercases and strips junk', () => {
@@ -66,4 +68,31 @@ test('line frequencies: repeater uses output + shift', () => {
   assert.deepEqual(lineFrequencies({ viaRepeater: false, snap }), { tx: 145.5, rx: null });
   const noOut = headerSnapshot({ freq: '145,6' });
   assert.deepEqual(lineFrequencies({ viaRepeater: true, snap: noOut }), { tx: 145.6, rx: 145.6 });
+});
+
+test('time display modes; storage stays ISO UTC', () => {
+  const summer = '2026-10-04T19:42:07.123Z', winter = '2026-12-24T23:30:00.000Z';
+  assert.deepEqual(splitTime(summer, 'utc'), { date: '2026-10-04', time: '19:42:07' });
+  assert.deepEqual(splitTime(summer, 'local'), { date: '2026-10-04', time: '21:42:07' });
+  assert.deepEqual(splitTime(winter, 'local'), { date: '2026-12-25', time: '00:30:00' }, 'date rolls over in local time');
+  assert.equal(zoneLabel(summer, 'utc'), 'UTC');
+  assert.equal(zoneLabel(summer, 'local'), 'UTC+2');
+  assert.equal(zoneLabel(winter, 'local'), 'UTC+1');
+  assert.equal(isoUtc(summer), '2026-10-04T19:42:07Z');
+  assert.equal(isoWithOffset(summer), '2026-10-04T21:42:07+02:00');
+  assert.equal(isoWithOffset(winter), '2026-12-25T00:30:00+01:00');
+});
+
+test('typed corrections are interpreted in the display mode', () => {
+  const base = '2026-10-04T19:42:07.000Z'; // 21:42 local
+  assert.equal(parseTimeInput('19:30', 'utc', base), '2026-10-04T19:30:00.000Z');
+  assert.equal(parseTimeInput('21:30', 'local', base), '2026-10-04T19:30:00.000Z');
+  assert.equal(parseTimeInput('2026-10-04 21:30:15', 'local', base), '2026-10-04T19:30:15.000Z');
+  assert.equal(parseTimeInput('2026-12-25 00:30', 'local', base), '2026-12-24T23:30:00.000Z');
+  // HH:MM uses the base date *in that mode*: 23:30 UTC on Dec 24 is Dec 25 locally.
+  assert.equal(parseTimeInput('00:45', 'local', '2026-12-24T23:30:00.000Z'), '2026-12-24T23:45:00.000Z');
+  assert.equal(parseTimeInput('2026-03-29 02:30', 'local', base), null, 'skipped by DST');
+  assert.equal(parseTimeInput('2026-02-30 10:00', 'utc', base), null);
+  assert.equal(parseTimeInput('25:00', 'utc', base), null);
+  assert.equal(parseTimeInput('gestern', 'local', base), null);
 });

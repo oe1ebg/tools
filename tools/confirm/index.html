@@ -108,6 +108,11 @@
   .chip.ok{ color:var(--ok); border-color:currentColor; }
   .chip.warn{ color:var(--warn); border-color:currentColor; }
   .chip.err{ color:var(--err); border-color:currentColor; }
+  #time-toggle{ display:inline-flex; border:1px solid var(--line); border-radius:4px; overflow:hidden; }
+  #time-toggle button{ background:none; border:none; border-radius:0; color:var(--text-dim); font-size:11px; padding:.2em .6em; }
+  #time-toggle button + button{ border-left:1px solid var(--line); }
+  #time-toggle button.active{ background:var(--accent-soft); color:var(--accent); }
+  table.log td .date{ font-size:11px; color:var(--text-dim); }
   #theme-toggle{ display:inline-flex; border:1px solid var(--line); border-radius:4px; overflow:hidden; }
   #theme-toggle button{
     background:none; border:none; color:var(--text-dim); font:inherit; font-size:11px;
@@ -315,6 +320,10 @@
   <span id="st-storage" class="chip">Speicher: prüfe…</span>
   <button id="btn-loc" type="button" title="Offline-Standortsuche Wien: Adresse, Ort, PLZ, Koordinaten, Locator">📍 Standort</button>
   <button id="btn-update" class="primary" hidden title="Neue Version installieren (Daten bleiben erhalten)">Update verfügbar</button>
+  <div id="time-toggle" class="seg" role="group" aria-label="Zeitanzeige" title="Anzeige und Eingabe der Zeit. Gespeichert wird immer ein ISO-8601-Zeitstempel (UTC).">
+    <button type="button" data-time-mode="utc">UTC</button>
+    <button type="button" data-time-mode="local">Lokal</button>
+  </div>
   <div id="theme-toggle" role="group" aria-label="Farbschema">
     <button type="button" data-theme-choice="light">hell</button>
     <button type="button" data-theme-choice="auto">auto</button>
@@ -405,15 +414,15 @@
 
     <form id="entry-form" autocomplete="off">
       <div class="row">
+        <label class="field"><span><span id="time-label">Zeit UTC</span> <span class="clock" id="clock"></span></span>
+          <input id="f-time" placeholder="automatisch">
+        </label>
         <label class="field"><span>Rufzeichen</span>
           <input id="f-call" autocapitalize="characters" spellcheck="false" autocomplete="off" aria-describedby="call-info call-warn">
         </label>
         <div id="f-fields" class="row"></div>
         <label class="check"><input type="checkbox" id="f-rpt"> über Relais <span class="rpt" id="f-rpt-call"></span></label>
         <label class="field" style="flex:1;min-width:10em"><span>Notiz</span><input id="f-note"></label>
-        <label class="field"><span>Zeit UTC <span class="clock" id="clock"></span></span>
-          <input id="f-time" placeholder="automatisch" title="Leer lassen = beim Speichern. Korrektur: HH:MM oder JJJJ-MM-TT HH:MM (UTC)">
-        </label>
         <button type="submit" class="primary" id="btn-save">Speichern ⏎</button>
         <button type="button" id="btn-cancel-edit" hidden>Abbrechen (Esc)</button>
       </div>

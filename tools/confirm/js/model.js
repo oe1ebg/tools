@@ -46,6 +46,69 @@ export function parseUtcInput(text) {
   return dt.toISOString();
 }
 
+// Display/input time mode: 'utc' or 'local'. Storage is ALWAYS an ISO 8601
+// UTC timestamp (entry.ts); the mode only changes what is shown and how a
+// typed correction is interpreted.
+function pad2(n) {
+  return String(n).padStart(2, '0');
+}
+
+export function splitTime(iso, mode = 'utc') {
+  if (mode !== 'local') return splitUtc(iso);
+  const d = new Date(iso);
+  if (isNaN(d)) return { date: '', time: '' };
+  return {
+    date: `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`,
+    time: `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`,
+  };
+}
+
+// "UTC" or the local offset at that instant, e.g. "UTC+2" (summer) / "UTC+1".
+export function zoneLabel(iso, mode = 'utc') {
+  if (mode !== 'local') return 'UTC';
+  const off = -new Date(iso || Date.now()).getTimezoneOffset();
+  const h = Math.trunc(Math.abs(off) / 60), m = Math.abs(off) % 60;
+  return `UTC${off < 0 ? '−' : '+'}${h}${m ? ':' + pad2(m) : ''}`;
+}
+
+// ISO 8601 without milliseconds: "2026-10-04T10:00:05Z".
+export function isoUtc(iso) {
+  const d = new Date(iso);
+  return isNaN(d) ? '' : d.toISOString().replace(/\.\d{3}Z$/, 'Z');
+}
+
+// ISO 8601 in local time with explicit offset: "2026-10-04T12:00:05+02:00".
+export function isoWithOffset(iso) {
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  const { date, time } = splitTime(iso, 'local');
+  const off = -d.getTimezoneOffset();
+  const sign = off < 0 ? '-' : '+';
+  return `${date}T${time}${sign}${pad2(Math.trunc(Math.abs(off) / 60))}:${pad2(Math.abs(off) % 60)}`;
+}
+
+// Typed time correction in the given mode: "HH:MM[:SS]" (date taken from
+// baseIso in that mode) or "YYYY-MM-DD HH:MM[:SS]". Returns ISO UTC or null.
+export function parseTimeInput(text, mode, baseIso) {
+  const t = String(text ?? '').trim();
+  let m = t.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  let y, mo, d, h, mi, sec;
+  if (m) {
+    [y, mo, d] = splitTime(baseIso, mode).date.split('-').map(Number);
+    [h, mi, sec] = [+m[1], +m[2], +(m[3] || 0)];
+  } else {
+    m = t.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+    if (!m) return null;
+    [y, mo, d, h, mi, sec] = [+m[1], +m[2], +m[3], +m[4], +m[5], +(m[6] || 0)];
+  }
+  if (h > 23 || mi > 59 || sec > 59) return null;
+  const dt = mode === 'local' ? new Date(y, mo - 1, d, h, mi, sec) : new Date(Date.UTC(y, mo - 1, d, h, mi, sec));
+  const back = splitTime(dt.toISOString(), mode);
+  // Reject impossible dates (Feb 30) and local times skipped by DST.
+  if (isNaN(dt) || back.date !== `${y}-${pad2(mo)}-${pad2(d)}` || back.time !== `${pad2(h)}:${pad2(mi)}:${pad2(sec)}`) return null;
+  return dt.toISOString();
+}
+
 // ADIF band plan (MHz), restricted to amateur bands plausible for nets.
 const BANDS = [
   ['160m', 1.8, 2.0], ['80m', 3.5, 4.0], ['60m', 5.06, 5.45], ['40m', 7.0, 7.3],

@@ -6,7 +6,7 @@
 
 import { openStorage, requestPersistence } from './db.js';
 import {
-  normalizeCall, isPlausibleCall, newId, nowIso, splitUtc, parseUtcInput,
+  normalizeCall, isPlausibleCall, newId, nowIso, splitUtc, splitTime, zoneLabel, parseTimeInput, isoUtc,
   MODES, modeInfo, headerSnapshot, emptyHeader, checkinNumbers, previousCheckins,
   liveSorted, stats,
 } from './model.js';
@@ -21,6 +21,7 @@ import { repeaterSearchWidget } from './repeaterui.js';
 import { headerFromRepeater, formatShift } from './repeaters.js';
 
 const THEME_KEY = 'oe1ebg-confirm-theme';
+const TIME_MODE_KEY = 'oe1ebg-confirm-time-mode';
 const CSV_SEP_KEY = 'oe1ebg-confirm-csv-sep';
 const SNAPSHOT_EVERY = 10;   // full JSON snapshot of an event every N saved lines
 const SNAPSHOT_KEEP = 5;     // ... keeping the newest N per event
@@ -80,6 +81,57 @@ function initTheme() {
       applyTheme(b.dataset.themeChoice);
     });
   });
+}
+
+/* ---------------------------------------------------------------- time display (UTC / local) */
+
+// Display and input only — entries always store an ISO 8601 UTC timestamp.
+function timeMode() {
+  return localStorage.getItem(TIME_MODE_KEY) === 'local' ? 'local' : 'utc';
+}
+
+// "19:42:07 UTC" / "21:42:07 UTC+2"
+function fmtTime(iso, withSeconds = true) {
+  const t = splitTime(iso, timeMode()).time;
+  return `${withSeconds ? t : t.slice(0, 5)} ${zoneLabel(iso, timeMode())}`;
+}
+
+function fmtDateTime(iso) {
+  const { date, time } = splitTime(iso, timeMode());
+  return `${date} ${time} ${zoneLabel(iso, timeMode())}`;
+}
+
+function applyTimeMode() {
+  const mode = timeMode();
+  document.querySelectorAll('#time-toggle button').forEach(b => b.classList.toggle('active', b.dataset.timeMode === mode));
+  $('#time-label').textContent = mode === 'local' ? `Zeit lokal (${zoneLabel(nowIso(), 'local')})` : 'Zeit UTC';
+  $('#f-time').title = `Leer lassen = Zeitpunkt des Speicherns. Korrektur: HH:MM oder JJJJ-MM-TT HH:MM (${mode === 'local' ? 'Lokalzeit' : 'UTC'}). Gespeichert wird immer ein ISO-Zeitstempel.`;
+  tickClock();
+  if (state.event) {
+    renderLog();
+    renderTrash();
+    updateCallFeedback();
+  }
+}
+
+function tickClock() {
+  $('#clock').textContent = splitTime(nowIso(), timeMode()).time;
+}
+
+function initTimeMode() {
+  document.querySelectorAll('#time-toggle button').forEach(b => b.addEventListener('click', () => {
+    // A half-typed time correction is converted, not reinterpreted.
+    const input = $('#f-time');
+    const old = timeMode();
+    const iso = input.value ? parseTimeInput(input.value, old, nowIso()) : null;
+    localStorage.setItem(TIME_MODE_KEY, b.dataset.timeMode);
+    if (iso) {
+      const { date, time } = splitTime(iso, timeMode());
+      input.value = `${date} ${time}`;
+    }
+    applyTimeMode();
+  }));
+  applyTimeMode();
 }
 
 /* ---------------------------------------------------------------- offline / service worker */
@@ -293,7 +345,7 @@ async function renderEventList() {
       el('div', { class: 'info' },
         el('div', { class: 't' }, ev.title),
         el('div', { class: 'meta' },
-          `${splitUtc(ev.created).date} · ${templateFor(ev.template).label} · ${st.unique} Stationen / ${st.total} Check-ins`),
+          `${splitTime(ev.created, timeMode()).date} · ${templateFor(ev.template).label} · ${st.unique} Stationen / ${st.total} Check-ins`),
         el('div', { class: 'meta' }, headerSummary(ev.header || {})),
       ),
       el('div', { class: 'actions' }, actions),
@@ -692,7 +744,7 @@ function renderStationMemory(call) {
   if (!rec) return;
   const lf = state.locField;
   const emptyField = lf && !lf.get() && !document.querySelector('#f-fields .loc-input')?.value.trim();
-  box.append(`Zuletzt bekannter Standort: ${describeLocation(rec.loc)} (${splitUtc(rec.at).date}, ${rec.eventTitle}) `,
+  box.append(`Zuletzt bekannter Standort: ${describeLocation(rec.loc)} (${splitTime(rec.at, timeMode()).date}, ${rec.eventTitle}) `,
     emptyField && !state.readOnly
       ? el('button', { type: 'button', class: 'link', onclick: () => { lf.adopt(rec.loc); renderStationMemory(call); } }, 'übernehmen')
       : null);
@@ -704,8 +756,7 @@ function callbookName(call) {
 }
 
 function describeEntry(e, tpl) {
-  const { time } = splitUtc(e.ts);
-  const bits = [`Nr. ${e.seq}`, `${time.slice(0, 5)} UTC`];
+  const bits = [`Nr. ${e.seq}`, fmtTime(e.ts, false)];
   for (const f of tpl.fields) {
     const v = fieldVisible(f, e.fields) ? fieldDisplay(f, e.fields?.[f.key]) : '';
     if (v) bits.push(`${f.label}: ${v}`);
@@ -716,15 +767,10 @@ function describeEntry(e, tpl) {
   return bits.join(' · ');
 }
 
+// Typed correction in the current display mode -> ISO UTC timestamp.
 function resolveTime(text, fallbackIso) {
   if (!text) return { iso: fallbackIso };
-  const hm = text.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
-  if (hm) {
-    const base = splitUtc(fallbackIso).date;
-    const iso = parseUtcInput(`${base} ${hm[1]}:${hm[2]}:${hm[3] || '00'}`);
-    return iso ? { iso } : { error: true };
-  }
-  const iso = parseUtcInput(text);
+  const iso = parseTimeInput(text, timeMode(), fallbackIso);
   return iso ? { iso } : { error: true };
 }
 
@@ -743,7 +789,7 @@ async function saveEntry() {
   const t = resolveTime(f.time, editing ? editing.ts : nowIso());
   if (t.error) {
     status.className = 'err';
-    status.textContent = 'Zeit nicht lesbar – HH:MM oder JJJJ-MM-TT HH:MM (UTC), oder leer lassen.';
+    status.textContent = `Zeit nicht lesbar – HH:MM oder JJJJ-MM-TT HH:MM (${timeMode() === 'local' ? 'Lokalzeit' : 'UTC'}), oder leer lassen.`;
     $('#f-time').focus();
     return;
   }
@@ -787,7 +833,7 @@ async function saveEntry() {
   if (i >= 0) state.entries[i] = entry; else state.entries.push(entry);
   const n = checkinNumbers(state.entries).get(entry.id);
   status.className = 'ok';
-  status.textContent = `✓ Nr. ${entry.seq} ${entry.call}${n > 1 ? ` (Check-in Nr. ${n})` : ''} gespeichert – ${splitUtc(entry.ts).time} UTC`;
+  status.textContent = `✓ Nr. ${entry.seq} ${entry.call}${n > 1 ? ` (Check-in Nr. ${n})` : ''} gespeichert – ${fmtTime(entry.ts)}`;
   clearForm();
   renderLog();
   updateExportNudge();
@@ -807,7 +853,7 @@ function startEdit(id) {
   $('#f-rpt').checked = !!e.viaRepeater;
   $('#f-rpt').dataset.touched = '1';
   $('#f-note').value = e.note || '';
-  const { date, time } = splitUtc(e.ts);
+  const { date, time } = splitTime(e.ts, timeMode());
   $('#f-time').value = `${date} ${time}`;
   $('#entry-form').classList.add('editing');
   $('#btn-cancel-edit').hidden = false;
@@ -884,7 +930,7 @@ async function restoreDraft() {
   $('#f-time').value = d.form.time || '';
   updateCallFeedback();
   $('#form-status').className = 'ok';
-  $('#form-status').textContent = `Nicht gespeicherte Eingabe von ${splitUtc(d.savedAt).time} UTC wiederhergestellt.`;
+  $('#form-status').textContent = `Nicht gespeicherte Eingabe von ${fmtTime(d.savedAt)} wiederhergestellt.`;
 }
 
 /* --- log table --- */
@@ -900,7 +946,7 @@ function renderLog(highlightCall) {
   const call = highlightCall ?? normalizeCall($('#f-call').value);
 
   $('#log-head').replaceChildren(el('tr', {},
-    el('th', {}, 'Nr'), el('th', {}, 'Zeit UTC'), el('th', {}, 'Rufzeichen'),
+    el('th', {}, timeMode() === 'local' ? `Zeit (${zoneLabel(nowIso(), 'local')})` : 'Zeit UTC'), el('th', {}, 'Nr'), el('th', {}, 'Rufzeichen'),
     tpl.fields.map(f => el('th', {}, f.label)),
     el('th', {}, 'Relais'), el('th', {}, 'Notiz'), el('th', {}, 'Op'), el('th', { class: 'act' }, '')));
 
@@ -912,11 +958,14 @@ function renderLog(highlightCall) {
   }
   for (const e of live) {
     const n = nums.get(e.id);
-    const { date, time } = splitUtc(e.ts);
+    const { date, time } = splitTime(e.ts, timeMode());
     const s = e.snap || {};
+    // Date only when it differs from the newest line (nets past midnight).
+    const showDate = date !== splitTime(live[0].ts, timeMode()).date;
     body.append(el('tr', { class: [e.call === call && call ? 'match' : '', e.id === state.editingId ? 'editing' : ''].join(' ').trim() || null },
+      el('td', { class: 'mono', title: `${isoUtc(e.ts)} (gespeichert, UTC)` }, showDate ? el('span', { class: 'date' }, date + ' ') : null, time,
+        timeMode() === 'local' && zoneLabel(e.ts, 'local') !== zoneLabel(nowIso(), 'local') ? el('span', { class: 'date' }, ' ' + zoneLabel(e.ts, 'local')) : null),
       el('td', { class: 'mono' }, String(e.seq)),
-      el('td', { class: 'mono', title: date }, time),
       el('td', { class: 'call' }, e.call, n > 1 ? el('span', { class: 'badge', title: `Check-in Nr. ${n}` }, `${n}×`) : null,
         callbookName(e.call) ? el('div', { class: 'cb-name' }, callbookName(e.call)) : null),
       tpl.fields.map(f => el('td', {}, fieldVisible(f, e.fields) ? fieldDisplay(f, e.fields?.[f.key]) : '',
@@ -940,14 +989,14 @@ async function renderTrash() {
   list.replaceChildren(
     el('li', {}, el('b', {}, `Gelöschte Zeilen (${deleted.length})`)),
     deleted.map(e => el('li', {},
-      `Nr. ${e.seq} ${e.call} ${splitUtc(e.ts).time} UTC – gelöscht ${splitUtc(e.deleted).time} UTC `,
+      `Nr. ${e.seq} ${e.call} ${fmtTime(e.ts)} – gelöscht ${fmtDateTime(e.deleted)} `,
       el('button', { type: 'button', class: 'link', disabled: state.readOnly, onclick: () => setDeleted(e.id, false) }, 'wiederherstellen'))),
   );
   const snaps = (await state.store.getByEvent('snapshots', state.event.id)).sort((a, b) => (a.at < b.at ? 1 : -1));
   $('#snapshot-list').replaceChildren(
     el('li', {}, el('b', {}, `Automatische Sicherungen im Browser (${snaps.length})`)),
     snaps.map(s => el('li', {},
-      `${s.at.replace('T', ' ').slice(0, 19)} UTC – ${s.count} Zeilen (${s.reason}) `,
+      `${fmtDateTime(s.at)} – ${s.count} Zeilen (${s.reason}) `,
       el('button', { type: 'button', class: 'link', onclick: () => download(JSON.stringify(s.backup, null, 1), fileBase(state.event, s.at) + '_sicherung.json', 'application/json') }, 'als JSON herunterladen'))),
   );
 }
@@ -1089,7 +1138,7 @@ async function doExport(kind) {
     download(JSON.stringify(backup, null, 1), fileBase(ev) + '_sicherung.json', 'application/json');
     markExported();
   } else if (kind === 'summary') {
-    showText('Zusammenfassung', toSummary(ev, entries));
+    showText('Zusammenfassung', toSummary(ev, entries, timeMode()));
   } else if (kind === 'print') {
     window.print();
   }
@@ -1191,7 +1240,7 @@ function wire() {
   });
   window.addEventListener('pagehide', () => { flushDraft(); flushHeader(); });
 
-  setInterval(() => { $('#clock').textContent = splitUtc(nowIso()).time; }, 1000);
+  setInterval(tickClock, 1000);
   window.addEventListener('hashchange', route);
 }
 
@@ -1223,6 +1272,7 @@ async function main() {
     b.hidden = false;
   }
   wire();
+  initTimeMode();
   initLocationPanel();
   initChannel();
   initPersistence();
