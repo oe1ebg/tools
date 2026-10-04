@@ -189,6 +189,8 @@
     background:var(--bg-raised);
   }
   .event-card .info{ flex:1; min-width:16em; }
+  .event-card.clickable{ cursor:pointer; }
+  .event-card.clickable:hover, .event-card.clickable:focus-visible{ border-color:var(--accent); outline:none; }
   .event-card .t{ font-weight:600; font-size:15px; }
   .event-card .meta{ color:var(--text-dim); font-size:12px; }
   .event-card .actions{ display:flex; gap:.4em; flex-wrap:wrap; }
@@ -313,6 +315,9 @@
   footer{ max-width:1200px; margin:2em auto 1em; padding:0 1em; font-size:11px; color:var(--text-dim); }
   footer a{ color:inherit; }
   footer .sources{ margin-top:.4em; }
+  .csv-group{ display:inline-flex; }
+  .csv-group button{ border-top-right-radius:0; border-bottom-right-radius:0; }
+  .csv-group select{ border-top-left-radius:0; border-bottom-left-radius:0; border-left:none; font-family:var(--font-mono); padding:.3em .3em; }
 
   @media (max-width: 640px){
     main{ padding:.6em; }
@@ -373,17 +378,17 @@
     <div id="loc-results"></div>
   </section>
 
-  <!-- ===== Ereignisse ===== -->
+  <!-- ===== Logs ===== -->
   <section id="view-events" hidden>
     <div class="toolbar">
-      <h1>Ereignisse</h1>
+      <h1>Logs</h1>
       <div class="tabs" id="event-tabs">
         <button type="button" data-tab="active" class="active">Aktiv</button>
         <button type="button" data-tab="archived">Archiv</button>
         <button type="button" data-tab="deleted">Papierkorb</button>
       </div>
       <span class="spacer"></span>
-      <button type="button" id="btn-new-event" class="primary">+ Neues Ereignis</button>
+      <button type="button" id="btn-new-event" class="primary">+ Neues Log</button>
       <button type="button" id="btn-import">Sicherung importieren…</button>
       <input type="file" id="import-file" accept=".json,application/json" hidden>
       <button type="button" id="btn-backup-all">Alle sichern (JSON)</button>
@@ -398,7 +403,7 @@
       </div>
       <div id="new-header" class="grid-form" style="margin-top:.6em"></div>
       <div class="toolbar" style="margin:1em 0 0">
-        <button type="submit" class="primary">Ereignis anlegen</button>
+        <button type="submit" class="primary">Log anlegen</button>
         <button type="button" id="btn-cancel-new">Abbrechen</button>
       </div>
     </form>
@@ -409,15 +414,15 @@
   <!-- ===== Log ===== -->
   <section id="view-log" hidden>
     <div class="toolbar">
-      <button type="button" id="btn-back">← Ereignisse</button>
-      <input id="log-title" aria-label="Titel des Ereignisses">
+      <button type="button" id="btn-back">← Logs</button>
+      <input id="log-title" aria-label="Titel des Logs">
       <span class="stat"><b id="st-unique">0</b> Stationen · <b id="st-total">0</b> Check-ins</span>
       <span class="spacer"></span>
       <span id="export-nudge" class="chip warn" hidden></span>
-      <button type="button" data-export="csv">CSV</button>
+      <span class="csv-group"><button type="button" data-export="csv">CSV</button><select id="csv-sep" aria-label="CSV-Trennzeichen" title="Trennzeichen: ; für Excel mit deutschen Ländereinstellungen, , für Excel mit englischen"><option value=";">;</option><option value=",">,</option></select></span>
       <button type="button" data-export="adif">ADIF</button>
       <button type="button" data-export="summary">Zusammenfassung</button>
-      <button type="button" data-export="json" title="Vollständige Sicherung dieses Ereignisses">Sicherung (JSON)</button>
+      <button type="button" data-export="json" title="Vollständige Sicherung dieses Logs">Sicherung (JSON)</button>
       <button type="button" data-export="print">Drucken</button>
     </div>
 

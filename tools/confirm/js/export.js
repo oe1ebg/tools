@@ -1,7 +1,7 @@
 // CSV / ADIF / plain-text summary export. Pure functions over an event and
 // its entries — no DOM — so they're unit-tested in oe1ebg/tests/.
 
-import { liveSorted, checkinNumbers, splitUtc, splitTime, zoneLabel, isoUtc, isoWithOffset, lineFrequencies, bandForMHz, modeInfo, stats } from './model.js';
+import { liveSorted, checkinNumbers, splitUtc, splitTime, zoneLabel, lineFrequencies, bandForMHz, modeInfo, stats } from './model.js';
 import { templateFor, fieldVisible, fieldDisplay, hasLocationField } from './templates.js';
 
 export const ADIF_PROGRAM_ID = 'OE1EBG';
@@ -31,6 +31,15 @@ export function adifLatLon(v, isLat) {
   return `${hemi}${String(deg).padStart(3, '0')} ${min.toFixed(3).padStart(6, '0')}`;
 }
 
+// ISO 8601 with a space instead of "T" and no zone letter
+// ("2026-10-04 19:42:07"): Excel (any locale) imports this as a real
+// date/time value, which it doesn't for "2026-10-04T19:42:07Z". Always
+// UTC — the column is named accordingly.
+export function excelUtc(iso) {
+  const { date, time } = splitUtc(iso);
+  return date ? `${date} ${time}` : '';
+}
+
 function csvCell(val, sep) {
   const s = val === undefined || val === null ? '' : String(val);
   return s.includes(sep) || /["\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
@@ -47,10 +56,9 @@ function exportRows(event, entries) {
   return liveSorted(entries).map(e => {
     const { tx, rx } = lineFrequencies(e);
     const s = e.snap || {};
-    // Time always first, as ISO 8601: UTC and local with explicit offset.
+    // Time always first: one UTC timestamp that Excel recognises.
     const row = {
-      zeitstempel_utc: isoUtc(e.ts),
-      zeitstempel_lokal: isoWithOffset(e.ts),
+      zeitstempel_utc: excelUtc(e.ts),
       nr: e.seq,
       checkin_nr: nums.get(e.id),
       rufzeichen: e.call,
@@ -71,7 +79,7 @@ function exportRows(event, entries) {
       band: bandForMHz(tx ?? rx),
       mode: modeInfo(s.mode)?.label || '',
       my_locator: s.myGrid,
-      ereignis: event.title,
+      log: event.title,
     });
     return row;
   });
@@ -81,11 +89,11 @@ export function toCSV(event, entries, sep = ';') {
   const rows = exportRows(event, entries);
   const tpl = templateFor(event.template);
   const cols = [
-    'zeitstempel_utc', 'zeitstempel_lokal', 'nr', 'checkin_nr', 'rufzeichen',
+    'zeitstempel_utc', 'nr', 'checkin_nr', 'rufzeichen',
     ...tpl.fields.map(f => f.key),
     ...(hasLocationField(tpl) ? LOC_COLS : []),
     'ueber_relais', 'relais', 'relais_ctcss', 'relais_quelle', 'notiz', 'operator', 'station',
-    'freq_mhz', 'freq_rx_mhz', 'band', 'mode', 'my_locator', 'ereignis',
+    'freq_mhz', 'freq_rx_mhz', 'band', 'mode', 'my_locator', 'log',
   ];
   const lines = [cols.join(sep)];
   for (const r of rows) lines.push(cols.map(c => csvCell(r[c], sep)).join(sep));
@@ -173,7 +181,7 @@ export function toADIF(event, entries, createdIso = new Date().toISOString()) {
       comment.push(`Standort: ${e.loc.label} (${LOC_CONF_DE[e.loc.confidence] || e.loc.confidence})`);
     }
     rec += adifField(`APP_${ADIF_PROGRAM_ID}_CHECKIN`, String(nums.get(e.id)));
-    rec += adifField(`APP_${ADIF_PROGRAM_ID}_EVENT`, event.title);
+    rec += adifField(`APP_${ADIF_PROGRAM_ID}_LOG`, event.title);
     if (e.note) comment.push(e.note);
     rec += adifField('COMMENT', comment.join('; '));
     out += rec + '<EOR>\n';

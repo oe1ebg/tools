@@ -48,9 +48,11 @@ Zensical `docs_dir` would take over that section's index route (see
 - **The time is always the first column:** in the log table, as the first
   field of the entry form (the cursor still starts in the callsign field),
   and in the CSV.
-  - The CSV starts with `zeitstempel_utc` (`2026-10-04T19:42:07Z`) and
-    `zeitstempel_lokal` (`2026-10-04T21:42:07+02:00`). Both are ISO 8601,
-    with the offset written out, so spreadsheets can't misread them.
+  - The CSV starts with a single timestamp column, `zeitstempel_utc`, in
+    ISO 8601 with a space instead of "T" and no zone letter
+    (`2026-10-04 19:42:07`, always UTC as the column name says). Checked
+    with Microsoft Excel: this format is recognised as a date/time value,
+    while `2026-10-04T19:42:07Z` stays text.
   - ADIF stays in UTC (`QSO_DATE`/`TIME_ON`), as the ADIF specification
     requires.
 
@@ -121,8 +123,9 @@ Zensical `docs_dir` would take over that section's index route (see
 ## Export
 
 - **CSV.** UTF-8 with a BOM so Excel shows umlauts correctly, `;` as the
-  separator. There is one row per check-in. It starts with the ISO
-  timestamps `zeitstempel_utc` and `zeitstempel_lokal`, then `checkin_nr`, the template
+  separator (switchable to `,` next to the CSV button, for Excel with
+  English regional settings). There is one row per check-in. It starts
+  with the timestamp `zeitstempel_utc` (`2026-10-04 19:42:07`), then `checkin_nr`, the template
   fields as display text, the repeater flag and callsign, and the operator,
   station, frequency, band and mode as they were when the line was logged.
 - **ADIF 3.1.7 (`.adi`).** The output is ASCII only, with German characters

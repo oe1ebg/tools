@@ -328,7 +328,7 @@ async function renderEventList() {
   list.replaceChildren();
   if (!visible.length) {
     list.append(el('li', { class: 'empty' },
-      state.tab === 'active' ? 'Noch keine Ereignisse. „+ Neues Ereignis“ legt eines an.' : 'Leer.'));
+      state.tab === 'active' ? 'Noch keine Logs. „+ Neues Log“ legt eines an.' : 'Leer.'));
     return;
   }
   for (const ev of visible) {
@@ -344,7 +344,17 @@ async function renderEventList() {
     } else {
       actions.push(el('button', { type: 'button', onclick: () => updateEvent(ev, { deleted: null }) }, 'Wiederherstellen'));
     }
-    list.append(el('li', { class: 'event-card' },
+    // The whole card opens the log (buttons keep their own action);
+    // keyboard: Tab to the card, Enter/Space opens it.
+    const openLog = () => { location.hash = `#/e/${ev.id}`; };
+    const clickable = !ev.deleted;
+    list.append(el('li', {
+      class: clickable ? 'event-card clickable' : 'event-card',
+      tabindex: clickable ? '0' : null,
+      title: clickable ? 'Log öffnen' : null,
+      onclick: clickable ? e => { if (!e.target.closest('button')) openLog(); } : null,
+      onkeydown: clickable ? e => { if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); openLog(); } } : null,
+    },
       el('div', { class: 'info' },
         el('div', { class: 't' }, ev.title),
         el('div', { class: 'meta' },
@@ -394,7 +404,7 @@ async function refreshLastHeader() {
 
 async function createEvent(title, template, header) {
   const ev = {
-    id: newId(), title: title.trim() || 'Ereignis', template, header,
+    id: newId(), title: title.trim() || 'Log', template, header,
     created: nowIso(), updated: nowIso(), nextSeq: 1, archived: false, deleted: null,
     exportedTotal: 0,
   };
@@ -462,7 +472,7 @@ function acquireLock(steal) {
   return new Promise(resolve => {
     navigator.locks.request(`oe1ebg-confirm-event-${ev.id}`, steal ? { steal: true } : { ifAvailable: true }, lock => {
       if (!lock) {
-        setReadOnly(true, 'Dieses Ereignis ist in einem anderen Tab/Fenster geöffnet – hier nur Ansicht, damit nichts überschrieben wird.');
+        setReadOnly(true, 'Dieses Log ist in einem anderen Tab/Fenster geöffnet – hier nur Ansicht, damit nichts überschrieben wird.');
         resolve();
         return undefined;
       }
@@ -1155,7 +1165,7 @@ async function importBackup(file) {
     }
   }
   broadcast({ type: 'events' });
-  alert(`${imported} Ereignis(se) importiert.`);
+  alert(`${imported} Log(s) importiert.`);
   renderEventList();
 }
 
@@ -1305,6 +1315,9 @@ function wire() {
     state.headerTimer = setTimeout(flushHeader, 400);
   });
   document.querySelectorAll('[data-export]').forEach(b => b.addEventListener('click', () => doExport(b.dataset.export)));
+  const sep = $('#csv-sep');
+  sep.value = localStorage.getItem(CSV_SEP_KEY) || ';';
+  sep.addEventListener('change', () => localStorage.setItem(CSV_SEP_KEY, sep.value));
 
   const form = $('#entry-form');
   form.addEventListener('submit', ev => { ev.preventDefault(); saveEntry(); });

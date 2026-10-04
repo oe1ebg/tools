@@ -41,12 +41,12 @@ test('CSV has BOM, header, check-in numbers, per-line snapshots, escaping', () =
   assert.ok(csv.startsWith('﻿'));
   const lines = csv.slice(1).trim().split('\r\n');
   const cols = lines[0].split(';');
-  assert.deepEqual(cols.slice(0, 5), ['zeitstempel_utc', 'zeitstempel_lokal', 'nr', 'checkin_nr', 'rufzeichen'], 'time first');
+  assert.deepEqual(cols.slice(0, 4), ['zeitstempel_utc', 'nr', 'checkin_nr', 'rufzeichen'], 'one timestamp, first');
+  assert.equal(cols.filter(c => /zeit|datum/.test(c)).length, 1, 'exactly one time column');
   for (const c of ['siren_closed', 'siren_open', 'siren_outside', 'os_version', 'ueber_relais', 'relais']) assert.ok(cols.includes(c), c);
   assert.equal(lines.length, 4, 'deleted line excluded');
   const row = i => Object.fromEntries(cols.map((c, j) => [c, lines[i].split(';')[j]]));
-  assert.equal(row(1).zeitstempel_utc, '2026-10-04T10:00:05Z');
-  assert.equal(row(1).zeitstempel_lokal, '2026-10-04T12:00:05+02:00');
+  assert.equal(row(1).zeitstempel_utc, '2026-10-04 10:00:05', 'ISO 8601 with space: Excel parses it as date/time');
   assert.equal(row(1).checkin_nr, '1');
   assert.equal(row(3).checkin_nr, '2');
   assert.equal(row(1).siren_closed, '2');
@@ -61,6 +61,7 @@ test('CSV has BOM, header, check-in numbers, per-line snapshots, escaping', () =
   assert.equal(row(2).relais, '');
   assert.ok(lines[2].includes('"Hinweis ""laut"""'));
   assert.ok(lines[1].endsWith('"Probealarm Wien; Test"'), 'separator in value is quoted');
+  assert.ok(cols.includes('log') && !cols.includes('ereignis'));
 });
 
 test('ADIF: valid lengths, operator/station, repeater marking, APP fields', () => {
@@ -98,6 +99,7 @@ test('ADIF: valid lengths, operator/station, repeater marking, APP fields', () =
   assert.equal(b.APP_OE1EBG_PLATFORM, 'android');
   assert.equal(b.APP_OE1EBG_OS_VERSION, 'android14');
   assert.equal(c.APP_OE1EBG_CHECKIN, '2');
+  assert.equal(c.APP_OE1EBG_LOG, 'Probealarm Wien; Test');
 });
 
 test('ADIF RST template uses standard fields', () => {
