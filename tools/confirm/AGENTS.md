@@ -43,6 +43,12 @@ are in `oe1ebg/confirm-README.md`.
     inputs never move.
 - **Relative paths only.** The directory is planned to move to `/tools/`
   later.
+- **Footer version** (`commit abc1234 · data <hash>`). The commit comes
+  from `GIT_SHA` (Docker build arg / Justfile) and goes into the generated
+  `build-info.js` (`self.CONFIRM_BUILD`, inlined into the offline file).
+  Keep it **out of `precache.js` and out of the content hash**. Otherwise
+  every commit triggers a service-worker update. The commit link is
+  built by `commitUrl()` in `js/sources.js`.
 
 ## Data
 

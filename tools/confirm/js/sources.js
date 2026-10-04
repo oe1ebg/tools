@@ -52,6 +52,26 @@ export const DATA_SOURCES = {
   },
 };
 
+// Source repository of this site, for the commit link in the footer.
+export const REPO_URL = 'https://github.com/ebirn/web_outdated_at';
+
+// Link target for a build's commit, or null for "dev"/unknown builds.
+export function commitUrl(sha) {
+  const s = String(sha || '');
+  return /^[0-9a-f]{7,40}$/.test(s) ? `${REPO_URL}/commit/${s}` : null;
+}
+
+// Footer version: "commit abc1234 · data 1a2b3c4d5e6f" (commit linked when
+// it is a real SHA). build = { commit, version } (build-info.js); version =
+// the active service worker's content hash, which wins over build.version.
+export function versionItems(build, version) {
+  const b = build || {};
+  const commit = b.commit || 'dev';
+  const data = version || b.version || 'dev';
+  const url = commitUrl(commit);
+  return ['commit ', url ? extLink(url, commit) : commit, ` · data ${data}`];
+}
+
 // "2026-10-04..." -> "04.10.2026"
 export function standDate(iso) {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));

@@ -21,7 +21,7 @@ import { isValidLocator, isLocatorPrefix, locatorPrecisionName } from './locatio
 import { openMap, closeMap, refreshMap, mapVisible } from './mapview.js';
 import { createLocationField, describeLocation, locationOptions } from './locfield.js';
 import { attachRepeaterSearch, loadRepeaterIndex } from './repeaterui.js';
-import { sourceItem } from './sources.js';
+import { sourceItem, versionItems } from './sources.js';
 import { createLineRepeater } from './linerepeater.js';
 import { headerFromRepeater, formatShift } from './repeaters.js';
 
@@ -148,7 +148,15 @@ function setChip(id, text, cls) {
   c.className = 'chip' + (cls ? ' ' + cls : '');
 }
 
+// Footer version from build-info.js (or inlined in the offline file); the
+// active service worker's content hash overrides the data part, since that
+// is the version actually served from the cache.
+function showVersion(swVersion) {
+  fill($('#st-version'), versionItems(globalThis.CONFIRM_BUILD, swVersion));
+}
+
 async function initOffline() {
+  showVersion();
   if (location.protocol === 'file:') {
     setChip('#st-offline', 'Offline-Datei', 'ok');
     $('#offline-file-link').hidden = true;
@@ -206,7 +214,7 @@ function reportOfflineVersion() {
   ch.port1.onmessage = ev => {
     const v = ev.data && ev.data.version;
     setChip('#st-offline', v ? 'offline bereit ✓' : 'offline bereit (dev)', v ? 'ok' : 'warn');
-    $('#st-version').textContent = v || 'dev';
+    showVersion(v);
   };
   ctl.postMessage('version', [ch.port2]);
 }

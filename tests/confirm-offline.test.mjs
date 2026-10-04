@@ -7,22 +7,24 @@ import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
+import { commitUrl, versionItems, REPO_URL } from '../docs/confirm/js/sources.js';
 
 const OE1EBG = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIR = join(OE1EBG, 'docs', 'confirm');
-const GENERATED = new Set(['confirm-offline.html', 'precache.js']);
+const GENERATED = new Set(['confirm-offline.html', 'precache.js', 'build-info.js']);
 // Dataset/licence links for the footer: <a href> targets only, never fetched.
 const LINK_ONLY = 'js/sources.js';
 
 // The project's Python (oe1ebg/.python-version via uv; the stdlib-only build
 // scripts need a current one, a bare `python3` may be an old system Python,
 // e.g. 3.9 on macOS). Falls back to `python3` only when uv isn't installed.
-function runPython(script) {
+function runPython(script, env = {}) {
+  const opts = { stdio: 'pipe', env: { ...process.env, ...env } };
   try {
-    execFileSync('uv', ['run', '--no-project', 'python', script], { cwd: OE1EBG, stdio: 'pipe' });
+    execFileSync('uv', ['run', '--no-project', 'python', script], { ...opts, cwd: OE1EBG });
   } catch (e) {
     if (e.code !== 'ENOENT') throw e;
-    execFileSync('python3', [script], { stdio: 'pipe' });
+    execFileSync('python3', [script], opts);
   }
 }
 
@@ -70,7 +72,7 @@ test('the link-only module really only provides links', () => {
 });
 
 test('offline bundle builds into one self-contained, parseable file', () => {
-  runPython(join(OE1EBG, 'scripts', 'build_confirm.py'));
+  runPython(join(OE1EBG, 'scripts', 'build_confirm.py'), { GIT_SHA: 'dev' });
   const html = readFileSync(join(DIR, 'confirm-offline.html'), 'utf8');
   assert.ok(!/<script[^>]+src=/.test(html), 'no external scripts');
   assert.ok(!/<link[^>]+href="(?!data:)/.test(html), 'no external links');
@@ -92,4 +94,52 @@ test('offline bundle builds into one self-contained, parseable file', () => {
   for (const f of ['"./"', '"index.html"', '"js/app.js"', '"manifest.webmanifest"']) assert.ok(pre.includes(f), f);
   assert.ok(!pre.includes('"sw.js"'));
   assert.ok(!pre.includes('"confirm-offline.html"'), 'bundle is a download, not precached');
+});
+
+function buildWith(sha) {
+  runPython(join(OE1EBG, 'scripts', 'build_confirm.py'), { GIT_SHA: sha });
+  return {
+    pre: readFileSync(join(DIR, 'precache.js'), 'utf8'),
+    info: readFileSync(join(DIR, 'build-info.js'), 'utf8'),
+    html: readFileSync(join(DIR, 'confirm-offline.html'), 'utf8'),
+  };
+}
+
+function buildInfo(src) {
+  const ctx = { self: {} };
+  vm.runInNewContext(src, ctx);
+  return JSON.parse(JSON.stringify(ctx.self.CONFIRM_BUILD)); // plain object of this realm
+}
+
+test('commit: shown via build-info.js, never part of the content hash', () => {
+  const full = '0123456789abcdef0123456789abcdef01234567';
+  const a = buildWith(full);
+  const b = buildWith('dev');
+  try {
+    // precache.js (byte-compared by the browser for SW updates) is identical,
+    // so a new commit alone never offers an "Update".
+    assert.equal(a.pre, b.pre);
+    assert.ok(!a.pre.includes('0123456'), 'commit not in precache.js');
+    assert.ok(a.pre.includes('"build-info.js"'), 'build-info.js is precached');
+    const version = /version: "([0-9a-f]{12})"/.exec(a.pre)[1];
+    assert.deepEqual(buildInfo(a.info), { commit: '0123456', version });
+    assert.deepEqual(buildInfo(b.info), { commit: 'dev', version });
+    // the offline file carries the same build info, inlined
+    assert.ok(a.html.includes(`self.CONFIRM_BUILD = {"commit": "0123456", "version": "${version}"};`));
+    assert.ok(!a.html.includes('src="build-info.js"'), 'no reference to build-info.js left in the bundle');
+    assert.equal(buildInfo(buildWith('not a sha; rm -rf').info).commit, 'dev');
+    assert.equal(buildInfo(buildWith('ABCDEF1').info).commit, 'abcdef1');
+  } finally {
+    buildWith('dev');
+  }
+});
+
+test('commit link only for real SHAs, built in the link-only module', () => {
+  assert.equal(commitUrl('abc1234'), `${REPO_URL}/commit/abc1234`);
+  assert.match(REPO_URL, /^https:\/\/github\.com\/ebirn\/web_outdated_at$/);
+  for (const s of ['dev', '', null, undefined, 'abc12', 'xyz1234', 'abc1234/../x']) assert.equal(commitUrl(s), null, String(s));
+  // no link (and no DOM needed) for dev builds
+  assert.deepEqual(versionItems(undefined, undefined), ['commit ', 'dev', ' · data dev']);
+  assert.deepEqual(versionItems({ commit: 'dev', version: '111111111111' }, '1a2b3c4d5e6f'), ['commit ', 'dev', ' · data 1a2b3c4d5e6f']);
+  assert.deepEqual(versionItems({ commit: 'dev', version: '111111111111' }), ['commit ', 'dev', ' · data 111111111111']);
 });
