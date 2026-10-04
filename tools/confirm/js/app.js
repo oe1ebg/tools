@@ -160,6 +160,7 @@ async function initOffline() {
   if (location.protocol === 'file:') {
     setChip('#st-offline', 'Offline-Datei', 'ok');
     $('#offline-file-link').hidden = true;
+    $('#data-sources-link').hidden = true;
     return;
   }
   if (!('serviceWorker' in navigator)) {
