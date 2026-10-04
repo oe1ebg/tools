@@ -7,6 +7,7 @@
 import { el, fill } from './dom.js';
 import { loadDataFile } from './data.js';
 import { stationsForMap, ownPosition, maidenheadGridLines } from './mapdata.js';
+import { mapLinks } from './sources.js';
 
 const MAP_ATTRIBUTION = 'Bezirke: Stadt Wien (CC BY 4.0) · Straßen, Gewässer: © OpenStreetMap-Mitwirkende (ODbL) · Leaflet';
 const ROAD_WEIGHT = { motorway: 3, trunk: 2.5, primary: 1.8, secondary: 1.1 };
@@ -79,8 +80,9 @@ function drawBase() {
 const TIP_CHECKINS = 3; // newest check-ins listed on a card
 
 // Short card: call and name, where, and the latest check-ins in one line
-// each (the table has the full details).
-function stationTip(s, ctx) {
+// each (the table has the full details). withLinks: Google Maps / OSM links
+// (popup only — the hover tooltip can't be clicked).
+function stationTip(s, ctx, withLinks = false) {
   const loc = s.loc;
   const name = ctx.callInfo(s.call);
   const n = s.checkins.length;
@@ -90,7 +92,8 @@ function stationTip(s, ctx) {
     el('div', { class: 'pin-tip-loc' }, `${loc.label}${loc.postcode && !loc.label.includes(loc.postcode) ? ', ' + loc.postcode : ''} · ${loc.maidenhead}`,
       loc.confidence === 'low' || loc.confidence === 'ambiguous' ? el('span', { class: 'pin-tip-warn' }, ' (unsicher)') : null),
     el('ul', {}, n > shown.length ? el('li', { class: 'pin-tip-more' }, `+ ${n - shown.length} frühere`) : null,
-      shown.map(e => el('li', {}, ctx.describe(e)))));
+      shown.map(e => el('li', {}, ctx.describe(e)))),
+    withLinks ? mapLinks(loc) : null);
 }
 
 function drawPins(ctx) {
@@ -109,7 +112,7 @@ function drawPins(ctx) {
     });
     const m = L.marker([s.loc.lat, s.loc.lon], { icon, title: s.call, keyboard: true, riseOnHover: true });
     if (canHover()) m.bindTooltip(() => stationTip(s, ctx), { sticky: true, direction: 'top', className: 'pin-tip', offset: [0, -8] });
-    m.bindPopup(() => stationTip(s, ctx), { className: 'pin-tip', maxWidth: 280, autoPanPadding: [24, 24] });
+    m.bindPopup(() => stationTip(s, ctx, true), { className: 'pin-tip', maxWidth: 280, autoPanPadding: [24, 24] });
     m.on('click', () => ctx.onPick(s.call));
     m.addTo(pinGroup);
     pts.push([s.loc.lat, s.loc.lon]);

@@ -12,8 +12,9 @@ import { commitUrl, versionItems, REPO_URL } from '../docs/confirm/js/sources.js
 const OE1EBG = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIR = join(OE1EBG, 'docs', 'confirm');
 const GENERATED = new Set(['confirm-offline.html', 'precache.js', 'build-info.js']);
-// Dataset/licence links for the footer: <a href> targets only, never fetched.
+// Dataset/licence links and map links: <a href> targets only, never fetched.
 const LINK_ONLY = 'js/sources.js';
+const XML_NAMESPACES = new Set(['http://www.w3.org/2000/svg', 'http://www.opengis.net/kml/2.2']);
 
 // The project's Python (oe1ebg/.python-version via uv; the stdlib-only build
 // scripts need a current one, a bare `python3` may be an old system Python,
@@ -44,8 +45,8 @@ test('no external URLs in shipped confirm sources', () => {
     if (GENERATED.has(name) || name === LINK_ONLY || name.startsWith('vendor/') || !/\.(js|html|webmanifest|svg|css)$/.test(name)) continue;
     const src = readFileSync(p, 'utf8');
     for (const m of src.matchAll(/(?:https?:)?\/\/[a-z0-9.-]+\.[a-z]{2,}[^\s"'<>)]*/gi)) {
-      // XML namespace in the SVG is an identifier, not a request.
-      if (m[0] === 'http://www.w3.org/2000/svg') continue;
+      // XML namespaces (SVG, the KML export) are identifiers, not requests.
+      if (XML_NAMESPACES.has(m[0])) continue;
       offenders.push(`${name}: ${m[0]}`);
     }
   }

@@ -1,7 +1,8 @@
-// Links to the datasets the tool ships with (footer attribution). These are
-// plain <a href> targets for the user to click when online — nothing here is
-// ever fetched; all data is built into data/ at build time. This is the only
-// js/ module allowed to contain external URLs (tests/confirm-offline.test.mjs).
+// Links to the datasets the tool ships with (footer attribution) and "show
+// on Google Maps / OpenStreetMap" links for a location. These are plain
+// <a href> targets for the user to click when online — nothing here is ever
+// fetched; all data is built into data/ at build time. This is the only js/
+// module allowed to contain external URLs (tests/confirm-offline.test.mjs).
 
 import { el } from './dom.js';
 
@@ -89,4 +90,45 @@ export function sourceItem(key, detail) {
     extLink(s.url, s.label),
     s.license ? [' (', extLink(s.licenseUrl, s.license), ')'] : null,
     detail ? ` – ${detail}` : null);
+}
+
+// Zoom level for a map link, by result/location type; a locator by its
+// precision (4 chars ≈ 1°×2°, 6 ≈ 5 km, 8 ≈ 500 m).
+const MAP_ZOOM = { address: 18, poi: 17, street: 16, coordinate: 16, district: 14, postcode: 12, bezirk: 11 };
+const LOCATOR_ZOOM = { 2: 5, 4: 9, 6: 13, 8: 16, 10: 18 };
+
+export function mapLinkZoom(r) {
+  if (r?.type === 'maidenhead') return LOCATOR_ZOOM[String(r.maidenhead || '').length] || 13;
+  return MAP_ZOOM[r?.type] || 15;
+}
+
+// { google, osm } URLs for a point (5 decimals, "." as separator), or null
+// without valid coordinates.
+export function mapLinkUrls(lat, lon, zoom = 15) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  const la = lat.toFixed(5), lo = lon.toFixed(5);
+  return {
+    google: `https://www.google.com/maps/search/?api=1&query=${la},${lo}`,
+    osm: `https://www.openstreetmap.org/?mlat=${la}&mlon=${lo}#map=${zoom}/${la}/${lo}`,
+  };
+}
+
+// "Google Maps" / "OpenStreetMap" links for a lookup result or a stored
+// `loc`. Marked .online-only: hidden while the browser is offline (see
+// trackOnline()), since they would only lead to an error page.
+export function mapLinks(r) {
+  const u = mapLinkUrls(r?.lat, r?.lon, mapLinkZoom(r));
+  if (!u) return null;
+  return el('span', { class: 'map-links online-only' },
+    extLink(u.google, 'Google Maps'), ' ', extLink(u.osm, 'OpenStreetMap'));
+}
+
+// Keeps `offline` on <html> in sync with navigator.onLine, so CSS hides
+// .online-only elements while offline. Call once at startup.
+export function trackOnline() {
+  const root = document.documentElement;
+  const sync = () => root.classList.toggle('offline', navigator.onLine === false);
+  sync();
+  globalThis.addEventListener('online', sync);
+  globalThis.addEventListener('offline', sync);
 }

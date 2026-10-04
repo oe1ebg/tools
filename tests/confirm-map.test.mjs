@@ -2,6 +2,23 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { stationsForMap, ownPosition, maidenheadGridLines } from '../docs/confirm/js/mapdata.js';
+import { mapLinkUrls, mapLinkZoom } from '../docs/confirm/js/sources.js';
+
+test('map links: Google Maps / OSM URLs, 5 decimals, zoom by type', () => {
+  const u = mapLinkUrls(48.2083012, 16.37, 18);
+  assert.equal(u.google, 'https://www.google.com/maps/search/?api=1&query=48.20830,16.37000');
+  assert.equal(u.osm, 'https://www.openstreetmap.org/?mlat=48.20830&mlon=16.37000#map=18/48.20830/16.37000');
+  assert.match(mapLinkUrls(-33.5, -70.25).osm, /mlat=-33\.50000&mlon=-70\.25000#map=15\//);
+  assert.equal(mapLinkUrls(NaN, 16), null);
+  assert.equal(mapLinkUrls(undefined, undefined), null);
+  assert.equal(mapLinkZoom({ type: 'address' }), 18);
+  assert.equal(mapLinkZoom({ type: 'postcode' }), 12);
+  assert.ok(mapLinkZoom({ type: 'bezirk' }) <= 12);
+  assert.equal(mapLinkZoom({ type: 'maidenhead', maidenhead: 'JN88' }), 9);
+  assert.equal(mapLinkZoom({ type: 'maidenhead', maidenhead: 'JN88ef' }), 13);
+  assert.equal(mapLinkZoom({ type: 'maidenhead', maidenhead: 'JN88ef12' }), 16);
+  assert.equal(mapLinkZoom({ type: 'unknown' }), 15);
+});
 
 const L = (lat, lon, extra = {}) => ({ lat, lon, label: 'x', maidenhead: 'JN88ee', confidence: 'high', ...extra });
 const E = (id, call, ts, loc, extra = {}) => ({ id, seq: +id, call, ts, loc, ...extra });

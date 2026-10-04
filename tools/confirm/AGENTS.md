@@ -9,9 +9,13 @@ are in `oe1ebg/confirm-README.md`.
   another host, no CDN `<script>`/`<link>`, no web fonts and no map tiles.
   Data must be produced at build time, under `data/`, and listed in the
   precache. `tests/confirm-offline.test.mjs` fails on any external URL.
-  The one exception is `js/sources.js`: links to the datasets and licences
-  shown in the footer, which are only `<a href>` targets and never fetched.
-  The test also checks that this file contains no request APIs.
+  The one exception is `js/sources.js`: dataset/licence links (footer) and
+  map links (Google Maps / OpenStreetMap, built by `mapLinkUrls()`), which
+  are only `<a href>` targets and never fetched. The test also checks that
+  this file contains no request APIs. Map links are rendered via
+  `mapLinks()` with class `online-only`, hidden while offline
+  (`trackOnline()` sets `html.offline`). XML namespace identifiers (SVG,
+  KML) are allowed by the test's `XML_NAMESPACES`.
 - **Never lose user data.** The IndexedDB schema is at v2; v2 added the
   `stations` store.
   - Writes go through `store.tx()`, and the UI may only show success after
@@ -114,6 +118,9 @@ and `meta`. All coordinates are `[lat, lon]` (Leaflet order), rounded to
    - an edit followed by a delete and undo;
    - reload while a line is half-typed (the draft must come back);
    - two tabs on the same event (the second must be read-only);
-   - CSV and ADIF export;
+   - CSV, ADIF and KML export (KML = the map's stations: `toKML()` uses
+     `stationsForMap()` from `js/mapdata.js`, keep it that way);
+   - Standortsuche: the Google Maps / OpenStreetMap links show online and
+     disappear with DevTools → Offline;
    - DevTools → Network → Offline, then reload and log a line;
    - open `confirm-offline.html` via `file://`.

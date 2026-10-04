@@ -2,7 +2,8 @@
 process.env.TZ = 'Europe/Vienna';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { toCSV, toADIF, toSummary, adifAscii } from '../docs/confirm/js/export.js';
+import { toCSV, toADIF, toSummary, adifAscii, toKML, xmlEscape, KML_MIME } from '../docs/confirm/js/export.js';
+import { stationsForMap } from '../docs/confirm/js/mapdata.js';
 import { headerSnapshot } from '../docs/confirm/js/model.js';
 
 const header = {
@@ -200,4 +201,39 @@ test('per-line repeater override: snapshot values drive CSV, ADIF and summary', 
   assert.match(recs[1].COMMENT, /CTCSS 162.2/);
   const sum = toSummary(ev, es);
   assert.match(sum, /Nach Relais:\n  OE3XSA: 2 \(OE3BBB, OE3CCC\)\n  OE1XUU: 1 \(OE1AAA\)\n  direkt: 1 \(OE1DDD\)/);
+});
+
+test('KML: same stations as the map, escaped, lon,lat, metadata on <Document>', () => {
+  const loc = (lat, lon, extra = {}) => ({ type: 'address', label: 'Währinger Straße 1', postcode: '1090', lat, lon, maidenhead: 'JN88dg', source: 'vienna-ogd', confidence: 'high', manual: false, input: 'Währinger 1', ...extra });
+  const ev = { id: 'k', title: 'Übung <A&B> "Ö"', template: 'rst', created: '2026-10-04T09:00:00Z', header };
+  const es = [
+    { id: '1', seq: 1, call: 'OE1AAA', ts: '2026-10-04T10:00:05Z', viaRepeater: true, snap: snapA, fields: {}, loc: loc(48.2, 16.35) },
+    { id: '2', seq: 2, call: 'OE1BBB', ts: '2026-10-04T10:01:00Z', viaRepeater: false, snap: snapA, fields: {}, loc: null },
+    { id: '3', seq: 3, call: 'OE1AAA', ts: '2026-10-04T10:05:00Z', viaRepeater: false, snap: snapA, fields: {}, loc: loc(48.21012, 16.36789, { label: 'Café <Ü> & Co', manual: true, confidence: 'likely' }) },
+    { id: '4', seq: 4, call: 'OE3CCC', ts: '2026-10-04T10:06:00Z', viaRepeater: false, snap: snapA, fields: {}, loc: loc(48.3, 15.6), deleted: '2026-10-04T10:07:00Z' },
+    { id: '5', seq: 5, call: 'OE3DDD', ts: '2026-10-04T10:08:00Z', viaRepeater: false, snap: snapA, fields: {}, loc: loc(48.1, 16.2, { type: 'postcode', label: '2340 Mödling' }) },
+  ];
+  assert.equal(KML_MIME, 'application/vnd.google-earth.kml+xml');
+  assert.equal(xmlEscape('a & b <c> "d" \'e\' Ä\u0001'), 'a &amp; b &lt;c&gt; &quot;d&quot; &apos;e&apos; Ä');
+  const kml = toKML(ev, es);
+  assert.ok(kml.startsWith('<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">'));
+  assert.ok(!/&(?!amp;|lt;|gt;|quot;|apos;)/.test(kml), 'every & escaped');
+  assert.ok(!/<(?![?/]?[A-Za-z])/.test(kml), 'no raw < in text');
+  const names = [...kml.matchAll(/<Placemark>\s*<name>([^<]*)<\/name>/g)].map(m => m[1]);
+  assert.deepEqual(names, stationsForMap(es).placed.map(s => s.call), 'same set as the map');
+  assert.deepEqual(names, ['OE1AAA', 'OE3DDD'], 'no location / deleted omitted');
+  const coords = [...kml.matchAll(/<coordinates>([^<]*)<\/coordinates>/g)].map(m => m[1]);
+  assert.deepEqual(coords, ['16.36789,48.21012', '16.20000,48.10000'], 'lon,lat; latest located check-in');
+  assert.match(kml, /<Document>\n  <name>Übung &lt;A&amp;B&gt; &quot;Ö&quot;<\/name>/, 'title escaped, umlauts kept');
+  const doc = kml.slice(kml.indexOf('<Document>'), kml.indexOf('<Placemark>'));
+  for (const want of ['2026-10-04', 'OE1EBG', 'OE1XKS', '2 von 3']) assert.ok(doc.includes(want), want);
+  assert.match(kml, /<Data name="Standort"><value>Café &lt;Ü&gt; &amp; Co, 1090<\/value><\/Data>/);
+  assert.match(kml, /<Data name="Zeit \(UTC\)"><value>2026-10-04 10:00:05 UTC, 2026-10-04 10:05:00 UTC<\/value>/);
+  assert.match(kml, /<Data name="Relais"><value>OE1XUU, direkt<\/value>/);
+  assert.match(kml, /<Data name="Konfidenz"><value>wahrscheinlich<\/value><\/Data>\n.*<Data name="Zuordnung"><value>gewählt<\/value>/);
+  assert.match(kml, /<Data name="Locator"><value>JN88dg<\/value>/);
+  // description: HTML escaped as XML text (values escaped twice)
+  assert.match(kml, /<description>&lt;b&gt;Rufzeichen:&lt;\/b&gt; OE1AAA&lt;br&gt;/);
+  assert.ok(kml.includes('Café &amp;lt;Ü&amp;gt; &amp;amp; Co'));
+  assert.equal(toKML(ev, []).match(/<Placemark>/g), null, 'empty log: valid document without placemarks');
 });

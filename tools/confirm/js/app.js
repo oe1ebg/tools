@@ -11,7 +11,7 @@ import {
   liveSorted, stats,
 } from './model.js';
 import { TEMPLATES, templateFor, fieldVisible, fieldDisplay, fieldOptions, currentOptions, shortSummary } from './templates.js';
-import { toCSV, toADIF, toSummary } from './export.js';
+import { toCSV, toADIF, toKML, KML_MIME, toSummary } from './export.js';
 import { loadDataFile } from './data.js';
 import { buildCallbook, lookupCall, suggestCalls } from './callbook.js';
 import { $, el, fill, popover, focusNext } from './dom.js';
@@ -21,7 +21,7 @@ import { isValidLocator, isLocatorPrefix, locatorPrecisionName } from './locatio
 import { openMap, closeMap, refreshMap, mapVisible } from './mapview.js';
 import { createLocationField, describeLocation, locationOptions } from './locfield.js';
 import { attachRepeaterSearch, loadRepeaterIndex } from './repeaterui.js';
-import { sourceItem, versionItems } from './sources.js';
+import { sourceItem, versionItems, trackOnline } from './sources.js';
 import { createLineRepeater } from './linerepeater.js';
 import { headerFromRepeater, formatShift } from './repeaters.js';
 
@@ -1477,6 +1477,9 @@ async function doExport(kind) {
   } else if (kind === 'adif') {
     download(toADIF(ev, entries), fileBase(ev) + '.adi', 'text/plain');
     markExported();
+  } else if (kind === 'kml') {
+    // Not a full backup (only stations with a location): no markExported().
+    download(toKML(ev, entries), fileBase(ev) + '.kml', KML_MIME);
   } else if (kind === 'json') {
     const backup = { format: BACKUP_FORMAT, version: 1, exported: nowIso(), events: [await eventBackup(ev)] };
     download(JSON.stringify(backup, null, 1), fileBase(ev) + '_sicherung.json', 'application/json');
@@ -1657,6 +1660,7 @@ async function main() {
     b.hidden = false;
   }
   wire();
+  trackOnline();
   initTimeMode();
   initLocationPanel();
   initChannel();

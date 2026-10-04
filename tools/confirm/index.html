@@ -309,6 +309,10 @@
   .lc-note{ font-size:12px; color:var(--warn); }
   .lc-actions{ display:flex; gap:.35em; flex-wrap:wrap; margin-top:.35em; }
   button.mini{ font-size:12px; padding:.15em .55em; }
+  .map-links{ display:inline-flex; gap:.6em; align-items:center; font-size:12px; margin-left:.3em; }
+  .pin-tip-body .map-links{ display:flex; margin:.3em 0 0; }
+  /* External map links lead nowhere offline: hidden (js/sources.js trackOnline()). */
+  :root.offline .online-only{ display:none !important; }
   .rpt-line-row{ display:flex; gap:.4em; align-items:center; }
   #f-rpt-q{ font-family:var(--font-mono); text-transform:uppercase; }
   #f-rpt-q.override{ border-color:var(--warn); color:var(--warn); font-weight:600; }
@@ -470,6 +474,7 @@
       <span id="export-nudge" class="chip warn" hidden></span>
       <span class="csv-group"><button type="button" data-export="csv">CSV</button><select id="csv-sep" aria-label="CSV-Trennzeichen" title="Trennzeichen: ; für Excel mit deutschen Ländereinstellungen, , für Excel mit englischen"><option value=";">;</option><option value=",">,</option></select></span>
       <button type="button" data-export="adif">ADIF</button>
+      <button type="button" data-export="kml" title="Stationen mit Standort als KML (Google Earth, Google My Maps)">KML</button>
       <button type="button" id="btn-map" title="Karte mit allen Stationen (offline)">Karte</button>
       <button type="button" data-export="summary">Zusammenfassung</button>
       <button type="button" data-export="json" title="Vollständige Sicherung dieses Logs">Sicherung (JSON)</button>

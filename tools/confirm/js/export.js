@@ -1,8 +1,9 @@
-// CSV / ADIF / plain-text summary export. Pure functions over an event and
+// CSV / ADIF / KML / plain-text summary export. Pure functions over an event and
 // its entries — no DOM — so they're unit-tested in oe1ebg/tests/.
 
 import { liveSorted, checkinNumbers, splitUtc, splitTime, zoneLabel, lineFrequencies, bandForMHz, modeInfo, stats } from './model.js';
 import { templateFor, fieldVisible, fieldDisplay, hasLocationField } from './templates.js';
+import { stationsForMap } from './mapdata.js';
 
 export const ADIF_PROGRAM_ID = 'OE1EBG';
 
@@ -187,6 +188,90 @@ export function toADIF(event, entries, createdIso = new Date().toISOString()) {
     out += rec + '<EOR>\n';
   }
   return out;
+}
+
+// KML 2.2 for Google Earth / Google My Maps: one placemark per station with
+// a resolved location — the same set as the map view (stationsForMap), at
+// the station's latest located check-in. Event metadata on <Document>.
+export const KML_MIME = 'application/vnd.google-earth.kml+xml';
+// XML namespace identifier, not a request (tests/confirm-offline.test.mjs).
+const KML_NS = 'http://www.opengis.net/kml/2.2';
+
+// XML text/attribute escaping; drops control characters XML 1.0 forbids.
+export function xmlEscape(s) {
+  return String(s ?? '')
+    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+}
+
+function kmlUtc(iso) {
+  const { date, time } = splitUtc(iso);
+  return date ? `${date} ${time} UTC` : '';
+}
+
+// Repeater(s) a station came in on, from the per-line snapshots.
+function kmlRepeaters(checkins) {
+  const set = new Set(checkins.map(e => (e.viaRepeater ? e.snap?.repeaterCall || 'Relais (unbekannt)' : 'direkt')));
+  return [...set].join(', ');
+}
+
+// [label, value] pairs for a station: the placemark's description (HTML in
+// Google Earth) and its <ExtendedData> (columns in Google My Maps).
+function kmlStationFields(s) {
+  const loc = s.loc;
+  const where = `${loc.label}${loc.postcode && !String(loc.label).includes(loc.postcode) ? ', ' + loc.postcode : ''}`;
+  return [
+    ['Rufzeichen', s.call],
+    ['Check-ins', String(s.checkins.length)],
+    ['Zeit (UTC)', s.checkins.map(e => kmlUtc(e.ts)).join(', ')],
+    ['Relais', kmlRepeaters(s.checkins)],
+    ['Standort', where],
+    ['Eingabe', loc.input && loc.input !== loc.label ? loc.input : ''],
+    ['Locator', [loc.maidenhead, ...(loc.areaLocators || []).filter(l => l !== loc.maidenhead)].filter(Boolean).join(' ')],
+    ['Konfidenz', LOC_CONF_DE[loc.confidence] || loc.confidence || ''],
+    ['Zuordnung', loc.manual ? 'gewählt' : 'automatisch'],
+    ['Koordinaten', `${loc.lat.toFixed(5)}, ${loc.lon.toFixed(5)}`],
+  ].filter(([, v]) => v !== '' && v !== undefined && v !== null);
+}
+
+// The HTML is escaped once more as XML text content.
+function kmlDescription(fields) {
+  return xmlEscape(fields.map(([k, v]) => `<b>${xmlEscape(k)}:</b> ${xmlEscape(v)}`).join('<br>'));
+}
+
+export function toKML(event, entries) {
+  const { placed } = stationsForMap(entries);
+  const h = event.header || {};
+  const live = liveSorted(entries);
+  const docFields = [
+    ['Datum (UTC)', splitUtc(live[0]?.ts || event.created).date],
+    ['Operator', h.operator],
+    ['Station', h.station],
+    ['Stationen mit Standort', `${placed.length} von ${new Set(live.map(e => e.call)).size}`],
+  ].filter(([, v]) => v);
+  const out = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    `<kml xmlns="${KML_NS}">`,
+    '<Document>',
+    `  <name>${xmlEscape(event.title)}</name>`,
+    `  <description>${kmlDescription(docFields)}</description>`,
+  ];
+  for (const s of placed) {
+    const fields = kmlStationFields(s);
+    out.push(
+      '  <Placemark>',
+      `    <name>${xmlEscape(s.call)}</name>`,
+      `    <description>${kmlDescription(fields)}</description>`,
+      '    <ExtendedData>',
+      ...fields.map(([k, v]) => `      <Data name="${xmlEscape(k)}"><value>${xmlEscape(v)}</value></Data>`),
+      '    </ExtendedData>',
+      // KML order is lon,lat
+      `    <Point><coordinates>${s.loc.lon.toFixed(5)},${s.loc.lat.toFixed(5)}</coordinates></Point>`,
+      '  </Placemark>');
+  }
+  out.push('</Document>', '</kml>');
+  return out.join('\n') + '\n';
 }
 
 // Average (German decimal comma), count and distribution of 1-5 grades.

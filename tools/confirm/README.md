@@ -179,6 +179,20 @@ Zensical `docs_dir` would take over that section's index route (see
     address and so on) go into `APP_OE1EBG_<FIELD>` and, in readable form,
     into `COMMENT`. `APP_OE1EBG_CHECKIN` and `APP_OE1EBG_EVENT` are added as
     well.
+- **KML (`.kml`, `application/vnd.google-earth.kml+xml`)** for Google
+  Earth and Google My Maps (both import plain KML; a log is small, so there
+  is no KMZ/zip). `toKML()` in `js/export.js` writes one placemark per
+  station with a resolved location — exactly the map view's set
+  (`stationsForMap()` in `js/mapdata.js`), at the station's latest located
+  check-in; stations without coordinates are left out. Placemark name =
+  callsign; the description (HTML in Google Earth) and `<ExtendedData>`
+  (columns in My Maps) list the check-in times in UTC, repeater(s),
+  location text and typed input, locator (plus covered squares for an
+  area), confidence, gewählt/automatisch and the coordinates. The
+  `<Document>` carries the log title, date, operator, station and "N von M
+  Stationen mit Standort". Coordinates are `lon,lat` with 5 decimals. KML
+  export does not reset the "seit letztem Export" counter, since it is no
+  full backup.
 - **Zusammenfassung.** A plain-text report: the list of unique calls and,
   for the Probealarm, the average siren grade with its distribution per
   situation, AT-Alert received/not received, "not received" by platform
@@ -299,6 +313,15 @@ only; **PLZ, Gemeinden and political Bezirke cover all of Austria** (see
 [Austria-wide PLZ and Bezirke](#austria-wide-plz-and-bezirke)). The design follows the
 original brief (*Offline Vienna PLZ and Maidenhead Lookup*); where this
 implementation differs, the reason is given below.
+
+Each result card has copy buttons (Adresse / Koordinaten / PLZ / Locator)
+and, **only while the browser is online**, "Google Maps" and
+"OpenStreetMap" links to the point (coordinates with 5 decimals; zoom by
+result type: address 18, street 16, PLZ 12, Bezirk 11, locator by its
+precision). They are plain `<a target="_blank" rel="noopener">` links built
+by `mapLinkUrls()` in `js/sources.js`; nothing is fetched, and they are
+hidden (CSS `html.offline .online-only`) as soon as the `offline` event
+fires. The compact dropdown in the log's location field has no links.
 
 ### Data (build time, `scripts/build_location_data.py`, `just build-location`)
 
@@ -500,7 +523,8 @@ any tiles**.
   check-ins as one line each (number, time and the template's key values
   in short form, from `shortSummary()` and the fields' `short` labels in
   `js/templates.js`). The table has the full details. A click also
-  highlights the station's rows in the table.
+  highlights the station's rows in the table. The click popup (not the
+  hover tooltip) adds Google Maps / OpenStreetMap links while online.
 - **Own position:**
   - the header's "Eigener QTH" if it resolves with "high" confidence or
     better, otherwise the centre of "Eigener Locator", with the locator
@@ -530,7 +554,10 @@ any tiles**.
 - `js/model.js`: pure helpers (callsigns, UTC time, bands, check-in
   numbering).
 - `js/templates.js`: the template field definitions.
-- `js/export.js`: CSV, ADIF and summary output.
+- `js/export.js`: CSV, ADIF, KML and summary output.
+- `js/sources.js`: dataset/licence links and the Google Maps /
+  OpenStreetMap link builders — the only module with external URLs, all
+  plain `<a href>` targets.
 - `js/callbook.js`: callsign lookup and suggestions (pure functions).
 - `js/data.js`: loads `data/*.json` (inlined as `globalThis.CONFIRM_DATA`
   in the offline bundle).

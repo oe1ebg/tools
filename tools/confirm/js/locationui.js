@@ -7,7 +7,7 @@ import { $, el, fill, copyToClipboard } from './dom.js';
 import { loadDataFile } from './data.js';
 import { buildLocationIndex, locate } from './location/index.js';
 import { latLonToMaidenhead } from './location/maidenhead.js';
-import { sourceItem, standDate } from './sources.js';
+import { sourceItem, standDate, mapLinks } from './sources.js';
 
 const LOC_PREC_KEY = 'oe1ebg-confirm-locator-precision';
 const LOC_AUTO_KEY = 'oe1ebg-confirm-location-autoselect';
@@ -182,7 +182,8 @@ export function renderCandidates(container, res, opts = {}) {
         copyButton('Koordinaten', `${fmtCoord(r.lat)}, ${fmtCoord(r.lon)}`),
         r.postcode ? copyButton('PLZ', r.postcode) : null,
         copyButton('Locator', loc),
-        r.areaInfo && r.areaInfo.locators.length > 1 ? copyButton('Alle Locatoren', r.areaInfo.locators.map(l => l[0]).join(' ')) : null);
+        r.areaInfo && r.areaInfo.locators.length > 1 ? copyButton('Alle Locatoren', r.areaInfo.locators.map(l => l[0]).join(' ')) : null,
+        mapLinks(r));
     }
     card.append(actions);
     container.append(card);
