@@ -14,6 +14,18 @@ const GENERATED = new Set(['confirm-offline.html', 'precache.js']);
 // Dataset/licence links for the footer: <a href> targets only, never fetched.
 const LINK_ONLY = 'js/sources.js';
 
+// The project's Python (oe1ebg/.python-version via uv; the stdlib-only build
+// scripts need a current one, a bare `python3` may be an old system Python,
+// e.g. 3.9 on macOS). Falls back to `python3` only when uv isn't installed.
+function runPython(script) {
+  try {
+    execFileSync('uv', ['run', '--no-project', 'python', script], { cwd: OE1EBG, stdio: 'pipe' });
+  } catch (e) {
+    if (e.code !== 'ENOENT') throw e;
+    execFileSync('python3', [script], { stdio: 'pipe' });
+  }
+}
+
 function walk(d) {
   return readdirSync(d).flatMap(n => {
     const p = join(d, n);
@@ -58,7 +70,7 @@ test('the link-only module really only provides links', () => {
 });
 
 test('offline bundle builds into one self-contained, parseable file', () => {
-  execFileSync('python3', [join(OE1EBG, 'scripts', 'build_confirm.py')], { stdio: 'pipe' });
+  runPython(join(OE1EBG, 'scripts', 'build_confirm.py'));
   const html = readFileSync(join(DIR, 'confirm-offline.html'), 'utf8');
   assert.ok(!/<script[^>]+src=/.test(html), 'no external scripts');
   assert.ok(!/<link[^>]+href="(?!data:)/.test(html), 'no external links');
