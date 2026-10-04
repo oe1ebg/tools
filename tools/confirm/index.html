@@ -142,7 +142,33 @@
   }
   input:focus, select:focus, textarea:focus{ outline:2px solid var(--accent); outline-offset:-1px; }
   label.field, div.field{ display:flex; flex-direction:column; gap:.15em; font-size:11px; color:var(--text-dim); }
-  label.field > span, div.field > span{ text-transform:uppercase; letter-spacing:.05em; }
+  label.field > span, div.field > span, div.field > label{ text-transform:uppercase; letter-spacing:.05em; }
+
+  /* completion: info right under the field, suggestions as a dropdown */
+  .ac-wrap{ position:relative; }
+  .ac-pop{
+    position:absolute; top:calc(100% + 2px); left:0; z-index:30;
+    min-width:100%; width:max-content; max-width:min(36em, 92vw);
+    display:flex; flex-direction:column; gap:1px; padding:.25em;
+    background:var(--bg); border:1px solid var(--accent); border-radius:6px;
+    box-shadow:0 6px 18px #0003;
+  }
+  .ac-pop[hidden]{ display:none !important; }
+  .ac-pop .ac-head{ font-size:11px; color:var(--text-dim); padding:.1em .4em; text-transform:none; letter-spacing:0; }
+  .ac-pop button.ac-item{
+    display:flex; gap:.6em; align-items:baseline; text-align:left; width:100%;
+    border:none; border-radius:4px; background:none; padding:.3em .5em; font-size:13px; color:var(--text);
+  }
+  .ac-pop button.ac-item:hover, .ac-pop button.ac-item:focus{ background:var(--accent-soft); outline:none; color:var(--text); }
+  .ac-pop button.ac-item b{ font-family:var(--font-mono); }
+  .ac-pop button.ac-item small{ color:var(--text-dim); }
+  .ac-pop button.ac-item .lc-conf{ margin-left:auto; }
+  /* info lines under a field never widen the field: they take its width and wrap */
+  .ac-info{ width:0; min-width:100%; font-size:12px; text-transform:none; letter-spacing:0; overflow-wrap:anywhere; }
+  .ac-info:empty{ display:none; }
+  .ac-info.known{ color:var(--ok); }
+  .ac-info.unknown, .ac-info.warn{ color:var(--warn); }
+  .ac-info button.link{ font-size:12px; }
 
   .banner{
     padding:.6em 1em; margin-bottom:1em; border-radius:4px;
@@ -214,13 +240,6 @@
   #form-status{ min-height:1.4em; margin-top:.5em; font-size:13px; }
   #form-status.ok{ color:var(--ok); }
   #form-status.err{ color:var(--err); font-weight:600; }
-  #call-warn{ color:var(--warn); font-size:12px; }
-  #call-info{ font-size:13px; min-height:1.3em; margin-top:.3em; }
-  #call-info.known{ color:var(--ok); }
-  #call-info.unknown{ color:var(--warn); font-weight:600; }
-  #call-suggest{ display:flex; flex-wrap:wrap; gap:.3em; align-items:center; }
-  #call-suggest button.sug{ font-family:var(--font-mono); padding:.15em .5em; }
-  #call-suggest button.sug small{ font-family:var(--font-ui); color:var(--text-dim); }
   .cb-name{ font-family:var(--font-ui); font-weight:400; font-size:11px; color:var(--text-dim); white-space:normal; }
   #repeat-box{
     margin-top:.7em; padding:.6em .8em; border-radius:6px;
@@ -275,19 +294,10 @@
   .rpt-line-row{ display:flex; gap:.4em; align-items:center; }
   #f-rpt-q{ font-family:var(--font-mono); text-transform:uppercase; }
   #f-rpt-q.override{ border-color:var(--warn); color:var(--warn); font-weight:600; }
-  #f-rpt-sug{ display:flex; flex-wrap:wrap; gap:.25em; }
-  #f-rpt-sug button.rpt-hit{ font-size:11px; }
   .rpt.override{ color:var(--warn); font-weight:600; }
-  #loc-field{ margin-top:.6em; }
-  #loc-field-chip{ font-size:13px; min-height:1.3em; }
-  #loc-field-chip.conf-exact, #loc-field-chip.conf-high{ color:var(--ok); }
-  #loc-field-chip.conf-likely{ color:var(--accent); }
-  #loc-field-chip.conf-ambiguous, #loc-field-chip.conf-low, #loc-field-chip.unresolved{ color:var(--warn); }
-  #loc-field-results{ display:grid; gap:.35em; margin-top:.35em; grid-template-columns:repeat(auto-fill, minmax(18em, 1fr)); }
-  #loc-field-results .loc-cand{ padding:.35em .6em; }
-  #loc-field-results > .hint{ grid-column:1 / -1; }
-  #loc-field-results .lc-why{ display:none; }
-  #call-station{ font-size:12px; color:var(--text-dim); }
+  .ac-info.conf-exact, .ac-info.conf-high{ color:var(--ok); }
+  .ac-info.conf-likely{ color:var(--accent); }
+  .ac-info.conf-ambiguous, .ac-info.conf-low, .ac-info.unresolved{ color:var(--warn); }
   .loc-sub{ font-size:11px; color:var(--text-dim); }
   .loc-sub.unresolved{ color:var(--warn); }
   details.misc{ margin-top:1.2em; }
@@ -411,10 +421,10 @@
     <div id="lock-banner" class="banner warn" hidden></div>
 
     <details class="hdr" id="hdr-panel">
-      <summary><b>Logkopf</b> <span class="hdr-sum" id="hdr-sum"></span></summary>
+      <summary><b>Header</b> <span class="hdr-sum" id="hdr-sum"></span></summary>
       <div class="body">
         <div id="log-header" class="grid-form"></div>
-        <p class="hint">Änderungen am Logkopf gelten für neue Zeilen. Bereits geloggte Zeilen behalten Operator, Station, Frequenz und Relais vom Zeitpunkt des Eintrags.</p>
+        <p class="hint">Änderungen am Header gelten für neue Zeilen. Bereits geloggte Zeilen behalten Operator, Station, Frequenz und Relais vom Zeitpunkt des Eintrags.</p>
       </div>
     </details>
 
@@ -423,30 +433,29 @@
         <label class="field"><span><span id="time-label">Zeit UTC</span> <span class="clock" id="clock"></span></span>
           <input id="f-time" placeholder="automatisch">
         </label>
-        <label class="field"><span>Rufzeichen</span>
-          <input id="f-call" autocapitalize="characters" spellcheck="false" autocomplete="off" aria-describedby="call-info call-warn">
-        </label>
+        <div class="field ac-field"><label for="f-call">Rufzeichen</label>
+          <div class="ac-wrap">
+            <input id="f-call" autocapitalize="characters" spellcheck="false" autocomplete="off" aria-describedby="call-info call-warn">
+            <div id="call-suggest" class="ac-pop"></div>
+          </div>
+          <div id="call-info" class="ac-info" aria-live="polite"></div>
+          <div id="call-warn" class="ac-info warn"></div>
+        </div>
         <div id="f-fields" class="row"></div>
-        <div class="field rpt-line"><span>Relais (Standard: Logkopf)</span>
+        <div class="field rpt-line"><span>Relais (Standard: Header)</span>
           <div class="rpt-line-row">
             <label class="check" title="Diese Station kommt über ein Relais"><input type="checkbox" id="f-rpt"> über</label>
-            <input id="f-rpt-q" size="11" autocomplete="off" spellcheck="false" title="Leer = Relais aus dem Logkopf. Anderes Relais: Rufzeichen, Ort oder Frequenz eingeben.">
+            <div class="ac-wrap">
+              <input id="f-rpt-q" size="11" autocomplete="off" spellcheck="false" title="Leer = Relais aus dem Header. Anderes Relais: Rufzeichen, Ort oder Frequenz eingeben.">
+              <div id="f-rpt-sug" class="ac-pop"></div>
+            </div>
           </div>
         </div>
         <label class="field" style="flex:1;min-width:10em"><span>Notiz</span><input id="f-note"></label>
         <button type="submit" class="primary" id="btn-save">Speichern ⏎</button>
         <button type="button" id="btn-cancel-edit" hidden>Abbrechen (Esc)</button>
       </div>
-      <div id="call-info" aria-live="polite"></div>
-      <div id="call-suggest"></div>
-      <div id="call-station"></div>
-      <div id="f-rpt-sug"></div>
-      <div id="call-warn"></div>
       <div id="repeat-box" hidden></div>
-      <div id="loc-field" hidden>
-        <div id="loc-field-chip"></div>
-        <div id="loc-field-results"></div>
-      </div>
       <div id="form-status" role="status"></div>
     </form>
 

@@ -160,13 +160,20 @@ builds `docs/confirm/data/callsigns-oe.json` at build time. It is about
   publication (`*-*-*`) stay in the list as a callsign without details, so
   "not in the list" really means "not a licensed OE station on that date".
 - **In the tool.**
-  - The name and location appear under the callsign field.
+  - The name and location appear directly under the callsign field.
+  - **Short forms:** `1ABC` finds OE1ABC first, then OE<other digit>ABC;
+    `ABC` finds OE<any digit>ABC, then calls whose suffix starts with
+    ABC. The suggestions appear as a dropdown under the field (↓, Enter,
+    Esc).
   - An OE call that isn't in the list gets a soft warning, "nicht in der
     Rufzeichenliste (Stand …) – Tippfehler?". Saving is never blocked.
   - "Meinten Sie" offers suggestions: prefix matches first, then calls one
     edit away (substitution, insertion, deletion or swapped letters).
-  - Empty Name/QTH template fields are auto-filled; values the operator
-    typed are never overwritten.
+  - An empty Name field is auto-filled; values the operator typed are never
+    overwritten. The licence location is **not** written into a QTH
+    location field, because it isn't necessarily where the station is
+    now. It is offered under the field instead ("laut Rufzeichenliste:
+    1220 Wien – übernehmen"), next to the last known location.
   - The name and location are also shown under each call in the log.
   - Portable forms (`OE1EBG/P`, `HB9/OE1EBG`) are looked up by their base
     call.
@@ -210,7 +217,7 @@ voice repeaters, 54 KiB) from the **ÖVSV repeater database**
     change.
 - **Per-line repeater** (exercises over a linked repeater network).
   - The header's repeater is the default for every line: the "Relais"
-    field in the entry form shows it as its placeholder ("OE1XUU (Kopf)").
+    field in the entry form shows it as its placeholder ("OE1XUU (Header)").
   - To log a station that came in on a different repeater, type its
     callsign (an exact match is taken immediately, e.g. `OE3XSA`), or a
     site or frequency and pick from the suggestions. An unknown callsign
@@ -222,7 +229,7 @@ voice repeaters, 54 KiB) from the **ÖVSV repeater database**
     uses a different repeater is highlighted in the log. When editing, the
     line's own repeater is shown; clearing the field reverts to the header
     repeater.
-  - CSV column `relais_quelle` is `Logkopf` or `Zeile`. The summary lists
+  - CSV column `relais_quelle` is `Header` or `Zeile`. The summary lists
     the stations per repeater ("Nach Relais: OE3XSA: 2 (…), OE1XUU: 1, direkt: 1").
 - **Export.** CTCSS goes to CSV (`relais_ctcss`) and to the ADIF `COMMENT`.
   `FREQ`/`FREQ_RX` are computed from output and shift.
@@ -290,11 +297,17 @@ implementation differs, the reason is given below.
   - **Locator → PLZ:** address counts per PLZ inside the box, plus the PLZ
     at the centre.
 
-### In the log: the `location` field (Probealarm template)
+### In the log: the `location` field (all templates: QTH / Standort)
 
-- **Free text, always kept.** The operator types what they hear, e.g.
-  "Zehnter, Quellenstraße 10" or "Kahlenberg". The text is resolved while
-  typing (debounced 200 ms) and is always saved exactly as entered.
+- **Free text, resolved while typing.** The operator types what they hear,
+  e.g. "Zehnter, Quellenstraße 10" or "Kahlenberg". The text is resolved
+  while typing (debounced 200 ms), and the candidates appear in a
+  **dropdown directly under the field** (↓, Enter, Esc).
+- **Choosing a candidate fills in the field fully:** the official address
+  (e.g. "Quellenstraße 10" or "Währinger Straße 40-42") or the landmark
+  name, plus the PLZ (this overwrites the PLZ, because it was a deliberate
+  choice). The originally typed text is kept in `loc.input`. An
+  **automatic** match leaves the typed text as it is.
 - **Resolution stored alongside.** The chosen result is saved on the line
   as `loc`: type, label, street, house number, PLZ, district, lat/lon,
   6-character locator, source, confidence, manual-or-auto flag, and the

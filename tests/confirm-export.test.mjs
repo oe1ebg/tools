@@ -149,9 +149,14 @@ test('location field: resolved location in CSV columns and ADIF GRIDSQUARE/LAT/L
   assert.equal(b.GRIDSQUARE, undefined);
 });
 
-test('templates without a location field have no location columns', () => {
+test('simple confirmation template has a QTH location field (exported as ADIF QTH)', () => {
   const ev = { id: 'r', title: 'Runde', template: 'calls', header };
-  assert.ok(!toCSV(ev, []).includes('standort_aufgeloest'));
+  assert.ok(toCSV(ev, []).includes('qth') && toCSV(ev, []).includes('standort_aufgeloest'));
+  const loc = { type: 'poi', label: 'Kahlenberg', postcode: '1190', lat: 48.276, lon: 16.333, maidenhead: 'JN88dg', confidence: 'high' };
+  const [r] = parseADIF(toADIF(ev, [{ id: 'x', seq: 1, call: 'OE1AAA', ts: '2026-10-04T10:00:00Z', viaRepeater: false,
+    snap: headerSnapshot(header), fields: { qth: 'Kahlenberg' }, loc, note: '' }]));
+  assert.equal(r.QTH, 'Kahlenberg');
+  assert.equal(r.GRIDSQUARE, 'JN88dg');
 });
 
 test('per-line repeater override: snapshot values drive CSV, ADIF and summary', () => {
@@ -168,7 +173,7 @@ test('per-line repeater override: snapshot values drive CSV, ADIF and summary', 
   const cols = lines[0].split(';');
   const row = i => Object.fromEntries(cols.map((c, j) => [c, lines[i].split(';')[j]]));
   assert.equal(row(1).relais, 'OE1XUU');
-  assert.equal(row(1).relais_quelle, 'Logkopf');
+  assert.equal(row(1).relais_quelle, 'Header');
   assert.equal(row(2).relais, 'OE3XSA');
   assert.equal(row(2).relais_quelle, 'Zeile');
   assert.equal(row(2).freq_rx_mhz, '145.7');

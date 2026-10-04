@@ -2,7 +2,7 @@
 // "Standortsuche" panel, and renderCandidates() which the log's location
 // field reuses. All lookups run locally on data/vienna-locations.json.
 
-import { $, el, copyToClipboard } from './dom.js';
+import { $, el, fill, copyToClipboard } from './dom.js';
 import { loadDataFile } from './data.js';
 import { buildLocationIndex, locate } from './location/index.js';
 import { latLonToMaidenhead } from './location/maidenhead.js';
@@ -71,10 +71,34 @@ function copyButton(label, text) {
   return b;
 }
 
+// One-line candidate rows for a completion dropdown (the log's location
+// field): click/Enter = opts.onPick(result).
+function renderCompact(container, res, opts) {
+  const prec = locatorPrecision();
+  if (!res.results.length) {
+    fill(container, el('div', { class: 'ac-head' }, 'Kein Treffer in Wien – wird als Text gespeichert.'));
+    return;
+  }
+  fill(container,
+    el('div', { class: 'ac-head' }, res.autoSelect ? 'Automatisch zugeordnet – oder anderen Ort wählen:' : 'Ort wählen (↓, Enter):'),
+    res.results.map(r => el('button', {
+      type: 'button', class: `ac-item conf-${r.confidence}`, title: `passt weil: ${r.reasons.join(', ')}${r.note ? ' · ' + r.note : ''}`,
+      onclick: () => opts.onPick(r),
+    },
+    el('b', {}, r.label),
+    el('small', {}, [r.postcode ? `${r.postcode} Wien` : null, r.district ? `${r.district}. Bez.` : null, locatorFor(r, prec), TYPE_LABEL[r.type]].filter(Boolean).join(' · ')),
+    el('span', { class: 'lc-conf' }, CONF_LABEL[r.confidence] || r.confidence))));
+}
+
 // opts.onPick(result): show a "Übernehmen" button (log field); otherwise copy buttons.
+// opts.compact: one-line rows for a dropdown.
 export function renderCandidates(container, res, opts = {}) {
   container.replaceChildren();
   if (!res) return;
+  if (opts.compact) {
+    renderCompact(container, res, opts);
+    return;
+  }
   const prec = locatorPrecision();
   if (!res.results.length) {
     container.append(el('div', { class: 'hint' }, 'Nichts gefunden. Tipp: Straßenname ohne Abkürzung, PLZ oder Locator ergänzen.'));
@@ -152,7 +176,7 @@ export function initLocationPanel() {
   const auto = $('#loc-auto');
   auto.value = autoSelectLevel();
   auto.addEventListener('change', () => localStorage.setItem(LOC_AUTO_KEY, auto.value));
-  $('#loc-examples').replaceChildren(...EXAMPLES.map(q => el('button', { type: 'button', class: 'link', onclick: () => { input.value = q; run(); } }, q)));
+  fill($('#loc-examples'), ...EXAMPLES.map(q => el('button', { type: 'button', class: 'link', onclick: () => { input.value = q; run(); } }, q)));
 
   let timer = null;
   const run = async () => {

@@ -6,13 +6,21 @@ export function buildCallbook(data) {
   if (!data || !Array.isArray(data.calls)) return null;
   const calls = data.calls.slice().sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
   const byCall = new Map(calls.map(c => [c[0], c]));
-  return { stand: data.stand || '', source: data.source || '', calls, byCall };
+  // Suffix (the part after "OE<digit>") -> calls, for "ABC" / "1ABC" input.
+  const bySuffix = new Map();
+  for (const c of calls) {
+    const m = /^OE\d([A-Z0-9]+)$/.exec(c[0]);
+    if (!m) continue;
+    if (!bySuffix.has(m[1])) bySuffix.set(m[1], []);
+    bySuffix.get(m[1]).push(c);
+  }
+  return { stand: data.stand || '', source: data.source || '', calls, byCall, bySuffix };
 }
 
 // "OE1EBG/P" -> "OE1EBG", "HB9/OE1EBG" -> "OE1EBG", "DL/OE1EBG/M" -> "OE1EBG".
 // For non-OE calls returns the longest segment (the actual callsign).
 export function baseCall(call) {
-  const parts = String(call || '').split('/').filter(Boolean);
+  const parts = String(call || '').toUpperCase().replace(/\s+/g, '').split('/').filter(Boolean);
   const oe = parts.find(p => /^OE\d/.test(p));
   if (oe) return oe;
   return parts.reduce((a, b) => (b.length > a.length ? b : a), '');
@@ -52,22 +60,43 @@ function lowerBound(calls, key) {
   return lo;
 }
 
-// Suggestions for a (partial or mistyped) callsign: prefix matches first,
-// then one-edit-away matches. Excludes an exact match.
-export function suggestCalls(book, partial, max = 6) {
+// Suggestions for a partial, abbreviated or mistyped callsign, best first:
+//   "1ABC" -> OE1ABC, then OE<any digit>ABC; "ABC" -> OE<any digit>ABC;
+//   then calls whose suffix starts with the letters, prefix matches, and
+//   one-edit-away matches. Excludes an exact match.
+export function suggestCalls(book, partial, max = 8) {
   const q = baseCall(partial);
-  if (!book || q.length < 3) return [];
+  if (!book || q.length < 2) return [];
   const out = [];
   const seen = new Set([q]);
+  const add = c => {
+    if (c && !seen.has(c[0]) && out.length < max) { seen.add(c[0]); out.push(c); }
+  };
+  const short = /^(\d)?([A-Z][A-Z0-9]{0,4})$/.exec(q);
+  if (short && !q.startsWith('OE')) {
+    const [, digit, suffix] = short;
+    if (digit) add(book.byCall.get(`OE${q}`));
+    for (const c of book.bySuffix.get(suffix) || []) add(c);
+    if (suffix.length >= 2) {
+      const wanted = digit ? `OE${q}` : null;
+      for (let i = wanted ? lowerBound(book.calls, wanted) : 0; i < book.calls.length && out.length < max; i++) {
+        const c = book.calls[i];
+        if (wanted ? !c[0].startsWith(wanted) : false) break;
+        const m = /^OE\d(.*)$/.exec(c[0]);
+        if (m && m[1].startsWith(suffix)) add(c);
+      }
+    }
+  }
+  if (q.length < 3) return out;
   for (let i = lowerBound(book.calls, q); i < book.calls.length && out.length < max; i++) {
     const c = book.calls[i];
     if (!c[0].startsWith(q)) break;
-    if (!seen.has(c[0])) { seen.add(c[0]); out.push(c); }
+    add(c);
   }
   if (q.length >= 4) {
     for (const c of book.calls) {
       if (out.length >= max) break;
-      if (!seen.has(c[0]) && withinOneEdit(q, c[0])) { seen.add(c[0]); out.push(c); }
+      if (withinOneEdit(q, c[0])) add(c);
     }
   }
   return out;

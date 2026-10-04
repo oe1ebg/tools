@@ -22,6 +22,11 @@ are in `oe1ebg/confirm-README.md`.
   - only use `import { … } from './x.js';`;
   - only put `export` in front of `function`/`const`/`let`/`class`;
   - keep top-level names unique across all modules.
+- **DOM:** use `fill(node, ...children)` from `js/dom.js`, not
+  `node.replaceChildren(...)` with arrays or `null`. `replaceChildren`
+  renders an array as "[object HTMLLIElement]" and `null` as the text
+  "null". That was the bug in the recycle bin and snapshot lists.
+- **Completion dropdowns** use `popover(input, list)` from `js/dom.js`.
 - **Relative paths only.** The directory is planned to move to `/tools/`
   later.
 

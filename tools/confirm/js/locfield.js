@@ -1,9 +1,11 @@
 // The log's `location` field: free text (what the operator heard) that is
-// resolved with the offline Vienna lookup while typing. The text is always
-// kept as entered; the chosen resolution is stored next to it on the line
-// (`loc`). Logging is never blocked: an unresolved location is saved as text.
+// resolved with the offline Vienna lookup while typing. Candidates appear in
+// a dropdown under the field; choosing one fills in the full address and
+// the PLZ (the originally typed text is kept in `loc.input`). An automatic
+// match keeps the typed text. Logging is never blocked: an unresolved
+// location is saved as text.
 
-import { $, el } from './dom.js';
+import { el, fill, popover } from './dom.js';
 import { loadLocationIndex, renderCandidates, autoSelectLevel } from './locationui.js';
 import { locate } from './location/index.js';
 import { latLonToMaidenhead } from './location/maidenhead.js';
@@ -27,48 +29,67 @@ export function describeLocation(loc) {
   return `${loc.label}${loc.postcode && !loc.label.includes(loc.postcode) ? ', ' + loc.postcode : ''} · ${loc.maidenhead}`;
 }
 
-// input: the text field; plzInput: optional PLZ field to auto-fill;
-// onChange: called whenever the resolution changes (for draft saving).
-export function createLocationField({ input, plzInput, onChange }) {
-  const box = $('#loc-field');
-  const chip = $('#loc-field-chip');
-  const results = $('#loc-field-results');
+// The text to put into the field for a chosen location: the full official
+// address ("Währinger Straße 40-42"), street, landmark name, ...
+export function locationFieldText(r) {
+  if (r.type === 'address') return `${r.street} ${r.houseNumber}`;
+  if (r.type === 'street') return r.street;
+  if (r.type === 'maidenhead') return r.maidenhead;
+  return r.label;
+}
+
+// Elements: input (the field), results (its dropdown), chip (status line
+// under the field), plzInput (optional PLZ field to fill). onChange is
+// called whenever the resolution changes (for draft saving).
+export function createLocationField({ input, plzInput, chip, results, onChange }) {
+  const pop = popover(input, results);
+  const chipBase = chip.className;
   let loc = null;
   let timer = null;
   let seq = 0;
-  box.hidden = false;
 
   function renderChip() {
     const text = input.value.trim();
-    chip.className = '';
+    chip.className = chipBase;
     if (loc) {
-      chip.className = `conf-${loc.confidence}`;
-      chip.replaceChildren(
-        el('b', {}, '✓ '), describeLocation(loc),
-        ` (${loc.manual ? 'gewählt' : 'automatisch'}, ${LOC_CONF_TEXT[loc.confidence] || loc.confidence}) `,
-        el('button', { type: 'button', class: 'link', onclick: () => { setLoc(null); results.hidden = false; resolve(); } }, 'ändern'));
+      chip.classList.add(`conf-${loc.confidence}`);
+      fill(chip,
+        `✓ ${describeLocation(loc)} (${loc.manual ? 'gewählt' : 'automatisch'}, ${LOC_CONF_TEXT[loc.confidence] || loc.confidence}) `,
+        el('button', { type: 'button', class: 'link', onclick: () => { setLoc(null); input.focus(); resolve(); } }, 'ändern'));
     } else if (text) {
-      chip.className = 'unresolved';
-      chip.textContent = 'Standort nicht zugeordnet – wird als Text gespeichert (oder unten wählen).';
+      chip.classList.add('unresolved');
+      chip.textContent = 'nicht zugeordnet – wird als Text gespeichert';
     } else {
       chip.textContent = '';
     }
   }
 
-  function fillPlz() {
+  // force: a deliberate choice overwrites the PLZ; otherwise only an empty
+  // or previously auto-filled PLZ is changed.
+  function fillPlz(force) {
     if (!plzInput) return;
     const v = loc?.postcode || '';
-    if (plzInput.value === '' || plzInput.dataset.autofill === plzInput.value) {
+    if (force ? v : plzInput.value === '' || plzInput.dataset.autofill === plzInput.value) {
       plzInput.value = v;
       plzInput.dataset.autofill = v;
     }
   }
 
-  function setLoc(next) {
+  function setLoc(next, force = false) {
     loc = next;
-    fillPlz();
+    fillPlz(force);
     renderChip();
     onChange();
+  }
+
+  // A deliberate choice fills the field with the full address and the PLZ.
+  function choose(r, typed) {
+    const snap = snapshotLocation(r, typed, true);
+    input.value = locationFieldText(snap);
+    setLoc(snap, true);
+    results.replaceChildren();
+    pop.hide();
+    input.focus();
   }
 
   async function resolve() {
@@ -76,25 +97,21 @@ export function createLocationField({ input, plzInput, onChange }) {
     const my = ++seq;
     if (!text) {
       results.replaceChildren();
+      pop.update();
       setLoc(null);
       return;
     }
     const idx = await loadLocationIndex();
     if (my !== seq) return; // a newer keystroke superseded this one
     if (!idx) {
-      results.replaceChildren(el('div', { class: 'hint' }, 'Standortdaten nicht verfügbar – Eingabe wird als Text gespeichert.'));
+      fill(results, el('div', { class: 'ac-head' }, 'Standortdaten nicht verfügbar – Eingabe wird als Text gespeichert.'));
+      pop.update();
       return;
     }
     const level = autoSelectLevel();
-    const res = locate(idx, text, { autoSelect: level === 'never' ? 'none' : level, limit: 5 });
-    renderCandidates(results, res, {
-      onPick: r => {
-        setLoc(snapshotLocation(r, text, true));
-        results.hidden = true;
-        input.focus();
-      },
-    });
-    results.hidden = false;
+    const res = locate(idx, text, { autoSelect: level === 'never' ? 'none' : level, limit: 6 });
+    renderCandidates(results, res, { compact: true, onPick: r => choose(r, text) });
+    pop.update();
     setLoc(res.autoSelect ? snapshotLocation(res.autoSelect, text, false) : null);
   }
 
@@ -104,13 +121,6 @@ export function createLocationField({ input, plzInput, onChange }) {
     clearTimeout(timer);
     timer = setTimeout(resolve, 200);
   });
-  // Arrow down jumps from the field into the candidate list.
-  input.addEventListener('keydown', ev => {
-    if (ev.key === 'ArrowDown') {
-      const first = results.querySelector('button');
-      if (first) { ev.preventDefault(); first.focus(); }
-    }
-  });
 
   return {
     get: () => loc,
@@ -119,6 +129,7 @@ export function createLocationField({ input, plzInput, onChange }) {
       clearTimeout(timer);
       loc = value || null;
       results.replaceChildren();
+      pop.hide();
       if (plzInput && loc) plzInput.dataset.autofill = plzInput.value === loc.postcode ? loc.postcode : '';
       renderChip();
     },
@@ -127,21 +138,24 @@ export function createLocationField({ input, plzInput, onChange }) {
       seq++;
       loc = null;
       results.replaceChildren();
-      results.hidden = false;
+      pop.hide();
       if (plzInput) plzInput.dataset.autofill = '';
       renderChip();
     },
+    isEmpty: () => !loc && !input.value.trim(),
     // Take over a stored location (e.g. the station's last known one).
     adopt(value) {
-      input.value = value.input || value.label;
-      setLoc({ ...value, manual: true });
+      input.value = locationFieldText(value);
+      setLoc({ ...value, manual: true }, true);
       results.replaceChildren();
+      pop.hide();
     },
-    destroy() {
-      clearTimeout(timer);
-      box.hidden = true;
-      results.replaceChildren();
-      chip.textContent = '';
+    // Put text into the field and resolve it like typed input.
+    setText(text) {
+      input.value = text;
+      loc = null;
+      input.focus();
+      resolve();
     },
   };
 }

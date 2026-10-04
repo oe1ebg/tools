@@ -10,9 +10,11 @@
 export const TEMPLATES = [
   {
     key: 'calls',
-    label: 'Nur Rufzeichen',
-    hint: 'z. B. Bestätigungsverkehr nach Rundspruch',
-    fields: [],
+    label: 'Bestätigungsverkehr',
+    hint: 'Rufzeichen + QTH, z. B. nach Rundspruch',
+    fields: [
+      { key: 'qth', label: 'QTH / Standort', type: 'location', size: 24, adif: 'QTH' },
+    ],
   },
   {
     key: 'rst',
@@ -22,7 +24,7 @@ export const TEMPLATES = [
       { key: 'rst_rcvd', label: 'RST erh.', type: 'rst', adif: 'RST_RCVD' },
       { key: 'rst_sent', label: 'RST geg.', type: 'rst', adif: 'RST_SENT' },
       { key: 'name', label: 'Name', type: 'text', adif: 'NAME' },
-      { key: 'qth', label: 'QTH', type: 'text', adif: 'QTH' },
+      { key: 'qth', label: 'QTH / Standort', type: 'location', size: 22, adif: 'QTH' },
     ],
   },
   {

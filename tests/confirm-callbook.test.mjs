@@ -67,3 +67,17 @@ test('generated callsign list is plausible', { skip: !existsSync(real) && 'run `
   const b = buildCallbook(data);
   assert.ok(b.byCall.has('OE1XA'), 'ÖVSV Landesverband Wien club call present');
 });
+
+test('short forms: "1ABC" and "ABC" find OE<digit>ABC', () => {
+  const b = buildCallbook({ calls: [
+    ['OE1ABC', 'Wien Person', '1010 Wien'], ['OE3ABC', 'NÖ Person', '3100 St. Pölten'], ['OE5ABC', 'OÖ', ''],
+    ['OE1ABD', 'x', ''], ['OE1ABCD', 'long', ''], ['OE2XYZ', 'y', ''],
+  ] });
+  assert.equal(suggestCalls(b, '1ABC')[0][0], 'OE1ABC', 'digit + suffix: exact district first');
+  assert.deepEqual(suggestCalls(b, '1abc').slice(0, 3).map(c => c[0]), ['OE1ABC', 'OE3ABC', 'OE5ABC']);
+  assert.deepEqual(suggestCalls(b, 'ABC').slice(0, 3).map(c => c[0]).sort(), ['OE1ABC', 'OE3ABC', 'OE5ABC']);
+  assert.ok(suggestCalls(b, 'ABC').some(c => c[0] === 'OE1ABCD'), 'suffix prefix matches too');
+  assert.deepEqual(suggestCalls(b, 'XYZ').map(c => c[0]), ['OE2XYZ']);
+  assert.ok(suggestCalls(b, '2XY').some(c => c[0] === 'OE2XYZ'), 'partial suffix with digit');
+  assert.deepEqual(suggestCalls(b, 'OE1ABC').map(c => c[0]), ['OE1ABCD', 'OE1ABD', 'OE3ABC', 'OE5ABC'], 'full call: no self; prefix, then one-edit typos');
+});

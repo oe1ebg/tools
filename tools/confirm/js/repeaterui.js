@@ -1,7 +1,7 @@
 // "Relais suchen" in the log header: search all Austrian voice repeaters
 // (offline list) and fill callsign, output frequency, shift, CTCSS and mode.
 
-import { el } from './dom.js';
+import { el, fill } from './dom.js';
 import { loadDataFile } from './data.js';
 import { buildRepeaterIndex, searchRepeaters, positionFromLocator, formatShift, formatMHz } from './repeaters.js';
 
@@ -61,7 +61,7 @@ export function repeaterSearchWidget(getHeader, onPick) {
         onclick: () => {
           onPick(r);
           input.value = '';
-          results.replaceChildren(el('div', { class: 'hint ok' }, `✓ ${describeRepeater(r, distKm)} übernommen`));
+          fill(results, el('div', { class: 'hint ok' }, `✓ ${describeRepeater(r, distKm)} übernommen`));
         },
       }, describeRepeater(r, distKm)));
     }

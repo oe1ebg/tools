@@ -62,7 +62,7 @@ function exportRows(event, entries) {
       ueber_relais: e.viaRepeater ? 'ja' : 'nein',
       relais: e.viaRepeater ? s.repeaterCall : '',
       relais_ctcss: e.viaRepeater ? s.repeaterTone || '' : '',
-      relais_quelle: e.viaRepeater ? (s.repeaterOverride ? 'Zeile' : 'Logkopf') : '',
+      relais_quelle: e.viaRepeater ? (s.repeaterOverride ? 'Zeile' : 'Header') : '',
       notiz: e.note || '',
       operator: s.operator,
       station: s.station,

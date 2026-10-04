@@ -3,7 +3,7 @@
 // can be chosen for each line (search the ÖVSV list, or type any call).
 // After saving, the field returns to the header default.
 
-import { el } from './dom.js';
+import { el, fill, popover } from './dom.js';
 import { loadRepeaterIndex, describeRepeater } from './repeaterui.js';
 import { searchRepeaters, positionFromLocator, formatMHz } from './repeaters.js';
 import { normalizeCall } from './model.js';
@@ -28,7 +28,7 @@ export function createLineRepeater({ checkbox, input, sug, getHeader, onChange }
 
   function refreshDefault() {
     const call = headerCall();
-    input.placeholder = call ? `${call} (Kopf)` : 'Relais';
+    input.placeholder = call ? `${call} (Header)` : 'Relais';
     input.classList.toggle('override', !!override);
   }
 
@@ -41,6 +41,7 @@ export function createLineRepeater({ checkbox, input, sug, getHeader, onChange }
       checkbox.dataset.touched = '1';
     }
     sug.replaceChildren();
+    pop.hide();
     refreshDefault();
     onChange();
   }
@@ -49,6 +50,7 @@ export function createLineRepeater({ checkbox, input, sug, getHeader, onChange }
     const q = input.value.trim();
     sug.replaceChildren();
     if (!q) {
+      pop.update();
       override = null;
       refreshDefault();
       onChange();
@@ -66,11 +68,12 @@ export function createLineRepeater({ checkbox, input, sug, getHeader, onChange }
       refreshDefault();
       onChange();
     }
-    if (hits.length) sug.append(el('span', { class: 'hint' }, 'Relais für diese Zeile:'));
-    for (const { r, distKm } of hits) {
-      sug.append(el('button', { type: 'button', class: 'rpt-hit', onclick: () => { apply(overrideFromRepeater(r)); input.focus(); } },
-        describeRepeater(r, distKm)));
+    if (hits.length) {
+      fill(sug, el('div', { class: 'ac-head' }, 'Relais für diese Zeile (↓, Enter):'),
+        hits.map(({ r, distKm }) => el('button', { type: 'button', class: 'ac-item', onclick: () => { apply(overrideFromRepeater(r)); input.focus(); } },
+          el('b', {}, r.call), el('small', {}, describeRepeater(r, distKm).split(' · ').slice(1).join(' · ')))));
     }
+    pop.update();
   }
 
   input.addEventListener('input', () => {
@@ -78,15 +81,15 @@ export function createLineRepeater({ checkbox, input, sug, getHeader, onChange }
     clearTimeout(timer);
     timer = setTimeout(suggest, 120);
   });
+  // Esc with the dropdown closed clears the override (registered before
+  // the dropdown's own handler, which closes the dropdown first).
   input.addEventListener('keydown', ev => {
-    if (ev.key === 'ArrowDown') {
-      const b = sug.querySelector('button');
-      if (b) { ev.preventDefault(); b.focus(); }
-    } else if (ev.key === 'Escape' && input.value) {
+    if (ev.key === 'Escape' && input.value && sug.hidden) {
       ev.stopPropagation();
       apply(null);
     }
   });
+  const pop = popover(input, sug);
 
   return {
     refreshDefault,

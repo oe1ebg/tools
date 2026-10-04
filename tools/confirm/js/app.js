@@ -14,7 +14,7 @@ import { TEMPLATES, templateFor, fieldVisible, fieldDisplay } from './templates.
 import { toCSV, toADIF, toSummary } from './export.js';
 import { loadDataFile } from './data.js';
 import { buildCallbook, lookupCall, suggestCalls } from './callbook.js';
-import { $, el } from './dom.js';
+import { $, el, fill, popover } from './dom.js';
 import { initLocationPanel } from './locationui.js';
 import { createLocationField, describeLocation } from './locfield.js';
 import { repeaterSearchWidget } from './repeaterui.js';
@@ -50,14 +50,14 @@ const state = {
 
 function showFatal(msg) {
   const b = $('#banner');
-  b.replaceChildren(msg);
+  fill(b, msg);
   b.hidden = false;
 }
 
 function showSaveError(err) {
   console.error(err);
   const b = $('#banner');
-  b.replaceChildren(
+  fill(b, 
     'SPEICHERN FEHLGESCHLAGEN – die Eingabe ist noch im Formular. Bitte sofort als CSV/JSON exportieren. ',
     el('small', {}, `(${err && (err.name || err.message) || err})`),
     el('button', { type: 'button', onclick: () => { b.hidden = true; } }, 'ausblenden'),
@@ -371,7 +371,7 @@ function openNewEventForm(prefill) {
   form.hidden = false;
   form.title.value = prefill?.title || '';
   const sel = $('#new-template');
-  sel.replaceChildren(...TEMPLATES.map(t => el('option', { value: t.key }, `${t.label} – ${t.hint}`)));
+  fill(sel, ...TEMPLATES.map(t => el('option', { value: t.key }, `${t.label} – ${t.hint}`)));
   sel.value = prefill?.template || TEMPLATES[0].key;
   const header = prefill?.header || lastHeader() || emptyHeader();
   buildHeaderForm($('#new-header'), header, () => {});
@@ -483,7 +483,7 @@ function setReadOnly(ro, msg) {
   state.readOnly = ro;
   const b = $('#lock-banner');
   if (ro) {
-    b.replaceChildren(msg, el('button', { type: 'button', onclick: () => acquireLock(true).then(restoreDraft) }, 'Hier bearbeiten'));
+    fill(b, msg, el('button', { type: 'button', onclick: () => acquireLock(true).then(restoreDraft) }, 'Hier bearbeiten'));
     b.hidden = false;
   } else {
     b.hidden = true;
@@ -548,14 +548,26 @@ function buildEntryFields() {
     }
     // Radio groups get a <div>, not a <label>: nested labels would make a
     // click on the caption select the first option.
+    if (f.type === 'location') {
+      // Completion dropdown right under the input; status + memory below it.
+      control.id = `f_${f.key}`;
+      box.append(el('div', { class: 'field ac-field', 'data-field': f.key },
+        el('label', { for: control.id }, f.label),
+        el('div', { class: 'ac-wrap' }, control, el('div', { class: 'ac-pop loc-pop' })),
+        el('div', { class: 'ac-info loc-chip' }),
+        el('div', { class: 'ac-info', id: 'call-station' })));
+      continue;
+    }
     box.append(el(f.type === 'radio' ? 'div' : 'label', { class: 'field', 'data-field': f.key }, el('span', {}, f.label), control));
   }
-  state.locField?.destroy();
   state.locField = null;
   const lf = tpl.fields.find(f => f.type === 'location');
   if (lf) {
+    const wrap = box.querySelector(`[data-field="${lf.key}"]`);
     state.locField = createLocationField({
-      input: box.querySelector(`input[name="f_${lf.key}"]`),
+      input: wrap.querySelector('input'),
+      results: wrap.querySelector('.loc-pop'),
+      chip: wrap.querySelector('.loc-chip'),
       plzInput: lf.plzKey ? box.querySelector(`input[name="f_${lf.plzKey}"]`) : null,
       onChange: scheduleDraft,
     });
@@ -662,7 +674,7 @@ function updateCallFeedback() {
   } else {
     const tpl = templateFor(state.event.template);
     const n = state.editingId ? checkinNumbers(state.entries).get(state.editingId) : prev.length + 1;
-    box.replaceChildren(
+    fill(box, 
       el('div', { class: 'head' },
         state.editingId ? `${call}: Check-in Nr. ${n} – weitere Check-ins dieser Station:` : `Weiterer Check-in von ${call} (Nr. ${n}) – zuvor erfasst:`),
       el('ul', {}, prev.map(e => el('li', {}, describeEntry(e, tpl)))),
@@ -688,8 +700,9 @@ function fmtStand(iso) {
 function renderCallbookInfo(call) {
   const info = $('#call-info');
   const sug = $('#call-suggest');
-  info.className = '';
+  info.className = 'ac-info';
   sug.replaceChildren();
+  state.callPop?.update();
   const book = state.callbook;
   if (!book || !call) {
     info.textContent = '';
@@ -698,29 +711,29 @@ function renderCallbookInfo(call) {
   }
   const { entry, base, isOE } = lookupCall(book, call);
   if (entry) {
-    info.className = 'known';
+    info.className = 'ac-info known';
     info.textContent = entry[1] || entry[2]
       ? `${entry[0]} · ${[entry[1], entry[2]].filter(Boolean).join(' · ')}`
       : `${entry[0]} · in der Rufzeichenliste (Angaben nicht veröffentlicht)`;
   } else if (isOE && base.length >= 4) {
-    info.className = 'unknown';
+    info.className = 'ac-info unknown';
     info.textContent = `${base} ist nicht in der Rufzeichenliste (Stand ${fmtStand(book.stand)}) – Tippfehler? Speichern ist trotzdem möglich.`;
   } else {
     info.textContent = '';
   }
   autofillFromCallbook(entry);
   if (!entry && !state.readOnly) {
-    const list = suggestCalls(book, call, 6);
+    const list = suggestCalls(book, call, 8);
     if (list.length) {
-      sug.append(el('span', { class: 'hint' }, 'Meinten Sie: '));
-      for (const c of list) {
-        sug.append(el('button', { type: 'button', class: 'sug', title: [c[1], c[2]].filter(Boolean).join(', '), onclick: () => {
+      fill(sug, el('div', { class: 'ac-head' }, 'Meinten Sie (↓, Enter):'),
+        list.map(c => el('button', { type: 'button', class: 'ac-item', onclick: () => {
           $('#f-call').value = c[0];
           onFormInput();
+          state.callPop.hide();
           $('#f-call').focus();
-        } }, c[0], c[1] ? el('small', {}, ' ' + c[1]) : null));
-      }
+        } }, el('b', {}, c[0]), el('small', {}, [c[1], c[2]].filter(Boolean).join(' · ') || 'Angaben nicht veröffentlicht'))));
     }
+    state.callPop?.update();
   }
 }
 
@@ -731,7 +744,9 @@ function autofillFromCallbook(entry) {
   const map = { name: entry ? entry[1] : '', qth: entry ? entry[2] : '' };
   for (const [key, value] of Object.entries(map)) {
     const input = document.querySelector(`#f-fields input[name="f_${key}"]`);
-    if (!input) continue;
+    // A location field is the station's current QTH, not its licence
+    // address — offered as an option instead (renderStationMemory).
+    if (!input || input.classList.contains('loc-input')) continue;
     if (input.value === '' || input.dataset.autofill === input.value) {
       input.value = value || '';
       input.dataset.autofill = value || '';
@@ -743,15 +758,16 @@ function autofillFromCallbook(entry) {
 // button to take it over into an empty location field.
 function renderStationMemory(call) {
   const box = $('#call-station');
-  box.replaceChildren();
-  const rec = call && state.stations.get(call);
-  if (!rec) return;
+  if (!box) return; // template without a location field
   const lf = state.locField;
-  const emptyField = lf && !lf.get() && !document.querySelector('#f-fields .loc-input')?.value.trim();
-  box.append(`Zuletzt bekannter Standort: ${describeLocation(rec.loc)} (${splitTime(rec.at, timeMode()).date}, ${rec.eventTitle}) `,
-    emptyField && !state.readOnly
-      ? el('button', { type: 'button', class: 'link', onclick: () => { lf.adopt(rec.loc); renderStationMemory(call); } }, 'übernehmen')
-      : null);
+  const rec = call && state.stations.get(call);
+  const listed = call && state.callbook && lookupCall(state.callbook, call).entry;
+  const canAdopt = lf && lf.isEmpty() && !state.readOnly;
+  fill(box,
+    rec ? el('div', {}, `zuletzt: ${describeLocation(rec.loc)} (${splitTime(rec.at, timeMode()).date}) `,
+      canAdopt ? el('button', { type: 'button', class: 'link', onclick: () => { lf.adopt(rec.loc); renderStationMemory(call); } }, 'übernehmen') : null) : null,
+    listed && listed[2] && canAdopt ? el('div', {}, `laut Rufzeichenliste: ${listed[2]} `,
+      el('button', { type: 'button', class: 'link', onclick: () => { lf.setText(listed[2]); renderStationMemory(call); } }, 'übernehmen')) : null);
 }
 
 function callbookName(call) {
@@ -884,7 +900,7 @@ function startEdit(id) {
   $('#btn-cancel-edit').hidden = false;
   $('#btn-save').textContent = `Nr. ${e.seq} speichern ⏎`;
   $('#form-status').className = '';
-  $('#form-status').replaceChildren(el('span', { class: 'edit-tag' }, `Bearbeite Nr. ${e.seq} – die alte Fassung wird aufbewahrt.`));
+  fill($('#form-status'), el('span', { class: 'edit-tag' }, `Bearbeite Nr. ${e.seq} – die alte Fassung wird aufbewahrt.`));
   updateCallFeedback();
   scheduleDraft();
   $('#f-call').focus();
@@ -909,7 +925,7 @@ async function setDeleted(id, deleted) {
   if (state.editingId === id) clearForm();
   const status = $('#form-status');
   status.className = 'ok';
-  status.replaceChildren(
+  fill(status, 
     deleted ? `Nr. ${e.seq} ${e.call} gelöscht. ` : `Nr. ${e.seq} ${e.call} wiederhergestellt.`,
     deleted ? el('button', { type: 'button', class: 'link', onclick: () => setDeleted(id, false) }, 'Rückgängig') : null,
   );
@@ -971,7 +987,7 @@ function renderLog(highlightCall) {
   $('#st-total').textContent = st.total;
   const call = highlightCall ?? normalizeCall($('#f-call').value);
 
-  $('#log-head').replaceChildren(el('tr', {},
+  fill($('#log-head'), el('tr', {},
     el('th', {}, timeMode() === 'local' ? `Zeit (${zoneLabel(nowIso(), 'local')})` : 'Zeit UTC'), el('th', {}, 'Nr'), el('th', {}, 'Rufzeichen'),
     tpl.fields.map(f => el('th', {}, f.label)),
     el('th', {}, 'Relais'), el('th', {}, 'Notiz'), el('th', {}, 'Op'), el('th', { class: 'act' }, '')));
@@ -1000,7 +1016,7 @@ function renderLog(highlightCall) {
       el('td', {}, e.viaRepeater
         ? el('span', {
           class: s.repeaterOverride ? 'rpt override' : 'rpt',
-          title: [s.repeaterOverride ? 'anderes Relais als im Logkopf' : 'Relais aus dem Logkopf', s.repeaterFreq && `${s.repeaterFreq} MHz`, s.repeaterShift && `Shift ${s.repeaterShift}`, s.repeaterTone && `CTCSS ${s.repeaterTone}`].filter(Boolean).join(' · '),
+          title: [s.repeaterOverride ? 'anderes Relais als im Header' : 'Relais aus dem Header', s.repeaterFreq && `${s.repeaterFreq} MHz`, s.repeaterShift && `Shift ${s.repeaterShift}`, s.repeaterTone && `CTCSS ${s.repeaterTone}`].filter(Boolean).join(' · '),
         }, s.repeaterCall || 'ja')
         : '–'),
       el('td', {}, e.note || ''),
@@ -1017,14 +1033,14 @@ function renderLog(highlightCall) {
 async function renderTrash() {
   const list = $('#trash-list');
   const deleted = state.entries.filter(e => e.deleted);
-  list.replaceChildren(
+  fill(list, 
     el('li', {}, el('b', {}, `Gelöschte Zeilen (${deleted.length})`)),
     deleted.map(e => el('li', {},
       `Nr. ${e.seq} ${e.call} ${fmtTime(e.ts)} – gelöscht ${fmtDateTime(e.deleted)} `,
       el('button', { type: 'button', class: 'link', disabled: state.readOnly, onclick: () => setDeleted(e.id, false) }, 'wiederherstellen'))),
   );
   const snaps = (await state.store.getByEvent('snapshots', state.event.id)).sort((a, b) => (a.at < b.at ? 1 : -1));
-  $('#snapshot-list').replaceChildren(
+  fill($('#snapshot-list'), 
     el('li', {}, el('b', {}, `Automatische Sicherungen im Browser (${snaps.length})`)),
     snaps.map(s => el('li', {},
       `${fmtDateTime(s.at)} – ${s.count} Zeilen (${s.reason}) `,
@@ -1259,6 +1275,7 @@ function wire() {
     }
   });
   $('#f-rpt').addEventListener('change', () => { $('#f-rpt').dataset.touched = '1'; });
+  state.callPop = popover($('#f-call'), $('#call-suggest'));
   state.lineRpt = createLineRepeater({
     checkbox: $('#f-rpt'), input: $('#f-rpt-q'), sug: $('#f-rpt-sug'),
     getHeader: () => state.event?.header || emptyHeader(),
