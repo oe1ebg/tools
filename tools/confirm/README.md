@@ -265,14 +265,16 @@ voice repeaters, 54 KiB) from the **ÖVSV repeater database**
 - **Export.** CTCSS goes to CSV (`relais_ctcss`) and to the ADIF `COMMENT`.
   `FREQ`/`FREQ_RX` are computed from output and shift.
 
-## Vienna location lookup (offline)
+## Location lookup (offline): Vienna addresses, Austria-wide PLZ and Bezirke
 
 The **📍 Standort** panel takes imperfect operator input and turns it into
 an official address, PLZ, district, coordinates and a Maidenhead locator,
 all offline. Inputs it handles include an exact address, a PLZ, an
 abbreviated or misspelled street, a district plus a street, a landmark, a
 locator, coordinates, and combinations of these such as
-`Donauinsel 1220 JN88ge`. It covers Vienna only. The design follows the
+`Donauinsel 1220 JN88ge`. Streets, addresses and landmarks cover Vienna
+only; **PLZ, Gemeinden and political Bezirke cover all of Austria** (see
+[Austria-wide PLZ and Bezirke](#austria-wide-plz-and-bezirke)). The design follows the
 original brief (*Offline Vienna PLZ and Maidenhead Lookup*); where this
 implementation differs, the reason is given below.
 
@@ -306,7 +308,9 @@ implementation differs, the reason is given below.
   Straße/Strasse/Str./str, -gasse/g., -platz/pl., hyphens and spaces
   ("Waehringerstr." ≡ "Währinger Straße").
 - `parse.js`: extracts structured evidence before any searching:
-  coordinates, a complete or partial locator, a Vienna PLZ, the district
+  coordinates, a complete or partial locator, a PLZ (any Austrian PLZ
+  known to the data, otherwise Vienna's), a "Bezirk …" / "Bez." / "BH"
+  prefix, the Vienna district
   ("3. Bezirk", "Wien 22", or a district name at the start or end of the
   text), and the house number (42, 42A, 42/3, 42-44).
 - `fuzzy.js`: a trigram index plus Damerau (OSA) similarity, run **only over
@@ -327,6 +331,58 @@ implementation differs, the reason is given below.
     as such.
   - **Locator → PLZ:** address counts per PLZ inside the box, plus the PLZ
     at the centre.
+
+### Austria-wide PLZ and Bezirke
+
+Typing a PLZ ("2340", "A-2340", or "23" while typing), a Gemeinde
+("Perchtoldsdorf"), a political Bezirk ("Bezirk Liezen", "Graz", "Krems
+(Land)") or a Statutarstadt resolves anywhere in Austria. An area has no
+single locator, so the result is:
+
+- **Centre:** the mean of the area's addresses, its 6-character locator
+  (what is stored as `maidenhead` and exported to CSV/ADIF).
+- **Covered squares:** the 6-character locators holding the area's
+  addresses, biggest share first (`JN88db 53 % · JN88dc 47 %`), until 95 %
+  of the addresses are covered (max. 12, nothing under 1 %), plus the
+  total number of squares, and the 4-character squares. The dropdown shows
+  "JN88db +1"; the card lists them all with a "Alle Locatoren" copy button.
+  A picked area stores them on the line as `loc.areaLocators`.
+- **Locator → PLZ** also works outside Vienna: "JN77rb" lists the PLZ whose
+  main squares include it (8010 Graz, 8020 Graz, …).
+
+Ranking: a Gemeinde name finds its PLZ first and the Bezirk of the same
+name second (a PLZ inside its Bezirk is not "ambiguous"). A Gemeinde with
+more than 3 PLZ that is also a Bezirk name ("Graz", "St. Pölten") goes to
+the Bezirk. A PLZ outside Vienna plus a street ("2340 Hauptstraße") gives
+the PLZ area with a note, since there are no street data outside Vienna.
+Vienna PLZ and district results carry the same locator coverage.
+
+**Data** (`scripts/build_austria_areas.py`): `docs/confirm/data/austria-areas.json`,
+~300 KB raw / ~90 KB gzip, 2,232 PLZ and 117 Bezirke.
+
+| Source | What | Licence |
+|---|---|---|
+| BEV, Österreichisches Adressregister, "Adresse Relationale Tabellen – Stichtagsdaten" | all ~2.5M Austrian addresses with GKZ, PLZ and Gauß-Krüger coordinates (EPSG 31254–31256), aggregated per PLZ and Bezirk | CC BY 4.0, "© Österreichisches Adressregister, Stichtagsdatum …" |
+| Statistik Austria, `polbezirke.csv` | Bezirk names; the code equals the first three GKZ digits | CC BY 4.0 |
+
+- The register is a ~100 MB ZIP, republished twice a year, so the
+  aggregated result is a **committed snapshot** (`oe1ebg/austria-areas.json`,
+  one area per line), like `location-pois.json`. Regular builds
+  (`just build-areas`, part of `build-confirm`, and the Dockerfile) only
+  validate and copy it — no network. `just refresh-areas` downloads both
+  sources (cached in `.cache/austria-areas/` for 30 days), reprojects with
+  pyproj (only installed for that recipe) and rewrites the snapshot.
+- PLZ names are the most frequent Gemeinde among the PLZ's addresses (the
+  free register has no Zustellort); Gemeinden with ≥5 % of the addresses
+  are listed too and searchable.
+- Vienna is a single Gemeinde in the register; its 23 districts are
+  derived from the PLZ (1100 → 10.), which is good enough for locator
+  coverage. 1031 has no addresses in the register and falls back to the
+  Vienna data.
+- Bezirk aliases are generated: "Eisenstadt(Stadt)" → "Eisenstadt (Stadt)",
+  "Eisenstadt", "Stadt Eisenstadt"; "Krems(Land)" → "Krems-Land"; "Sankt …"
+  → "St. …".
+- Without `austria-areas.json` the lookup falls back to Vienna only.
 
 ### In the log: the `location` field (all templates: QTH / Standort)
 
@@ -437,7 +493,8 @@ any tiles**.
 - **Stacking:** `#map` has its own stacking context (`isolation:isolate`),
   so Leaflet's internal z-indices stay below the sticky header.
 - **Coverage:** only stations whose location resolved can have a pin, and
-  the location lookup is Vienna-only.
+  the basemap is Vienna-only (locations elsewhere in Austria are PLZ/Bezirk
+  centres outside the map).
 
 ## Code layout
 

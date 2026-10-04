@@ -1,6 +1,7 @@
-// UI for the offline Vienna location lookup: the standalone
-// "Standortsuche" panel, and renderCandidates() which the log's location
-// field reuses. All lookups run locally on data/vienna-locations.json.
+// UI for the offline location lookup: the standalone "Standortsuche" panel,
+// and renderCandidates() which the log's location field reuses. All lookups
+// run locally on data/vienna-locations.json (Vienna addresses/landmarks) and
+// data/austria-areas.json (PLZ and Bezirke of all of Austria).
 
 import { $, el, fill, copyToClipboard } from './dom.js';
 import { loadDataFile } from './data.js';
@@ -11,9 +12,9 @@ import { sourceItem, standDate } from './sources.js';
 const LOC_PREC_KEY = 'oe1ebg-confirm-locator-precision';
 const LOC_AUTO_KEY = 'oe1ebg-confirm-location-autoselect';
 const CONF_LABEL = { exact: 'exakt', high: 'hoch', likely: 'wahrscheinlich', ambiguous: 'mehrdeutig', low: 'unsicher' };
-const TYPE_LABEL = { address: 'Adresse', street: 'Straße', poi: 'Ort', coordinate: 'Koordinate', maidenhead: 'Locator', district: 'Bezirk', postcode: 'PLZ' };
-const SOURCE_LABEL = { 'vienna-ogd': 'Stadt Wien', osm: 'OpenStreetMap', computed: 'berechnet', alias: 'kuratiert' };
-const EXAMPLES = ['Währinger Straße 42', '1100 Quellenstr', 'Donauturm', 'Donauinsel JN88ge', '48.2083, 16.3731', 'JN88ee'];
+const TYPE_LABEL = { address: 'Adresse', street: 'Straße', poi: 'Ort', coordinate: 'Koordinate', maidenhead: 'Locator', district: 'Bezirk', bezirk: 'Bezirk', postcode: 'PLZ' };
+const SOURCE_LABEL = { 'vienna-ogd': 'Stadt Wien', osm: 'OpenStreetMap', computed: 'berechnet', alias: 'kuratiert', bev: 'Adressregister' };
+const EXAMPLES = ['Währinger Straße 42', '1100 Quellenstr', 'Donauturm', 'Donauinsel JN88ge', '48.2083, 16.3731', 'JN88ee', '2340', 'Bezirk Liezen'];
 
 let indexPromise = null;
 let locIndex = null;
@@ -22,12 +23,12 @@ let locIndex = null;
 export function loadLocationIndex() {
   if (!indexPromise) {
     indexPromise = (async () => {
-      const data = await loadDataFile('vienna-locations.json');
+      const [data, areas] = await Promise.all([loadDataFile('vienna-locations.json'), loadDataFile('austria-areas.json')]);
       if (!data) return null;
       // Yield once so the UI can paint "wird geladen" before the ~0.2–1 s build.
       await new Promise(r => setTimeout(r, 0));
       const t = performance.now();
-      locIndex = buildLocationIndex(data);
+      locIndex = buildLocationIndex(data, areas);
       locIndex.buildMs = Math.round(performance.now() - t);
       return locIndex;
     })();
@@ -58,6 +59,26 @@ export function addressText(r) {
   return r.label;
 }
 
+// "1100 Wien" for the meta line; area results already carry it in the label.
+function plzText(r) {
+  return r.postcode && r.type !== 'postcode' ? `${r.postcode} ${r.city || 'Wien'}` : null;
+}
+
+// "JN88db 53 % · JN88dc 47 %" (share of the area's addresses per square)
+function locatorShares(list) {
+  return list.map(([loc, share]) => `${loc} ${share} %`).join(' · ');
+}
+
+// Locator plus "+N" for the area's other main squares at this precision
+// (the listed ones, like the log chip; the card shows the total).
+function locatorWithMore(r, prec) {
+  const loc = locatorFor(r, prec);
+  const a = r.areaInfo;
+  if (!a) return loc;
+  const more = prec === 4 ? a.locators4.length - 1 : prec === 6 ? a.locators.length - 1 : 0;
+  return more > 0 ? `${loc} +${more}` : loc;
+}
+
 function fmtCoord(v) {
   return v.toFixed(5);
 }
@@ -77,7 +98,7 @@ function copyButton(label, text) {
 function renderCompact(container, res, opts) {
   const prec = locatorPrecision();
   if (!res.results.length) {
-    fill(container, el('div', { class: 'ac-head' }, 'Kein Treffer in Wien – wird als Text gespeichert.'));
+    fill(container, el('div', { class: 'ac-head' }, 'Kein Treffer – wird als Text gespeichert.'));
     return;
   }
   fill(container,
@@ -87,7 +108,7 @@ function renderCompact(container, res, opts) {
       onclick: () => opts.onPick(r),
     },
     el('b', {}, r.label),
-    el('small', {}, [r.postcode ? `${r.postcode} Wien` : null, r.district ? `${r.district}. Bez.` : null, locatorFor(r, prec), TYPE_LABEL[r.type]].filter(Boolean).join(' · ')),
+    el('small', {}, [plzText(r), r.district ? `${r.district}. Bez.` : null, locatorWithMore(r, prec), TYPE_LABEL[r.type]].filter(Boolean).join(' · ')),
     el('span', { class: 'lc-conf' }, CONF_LABEL[r.confidence] || r.confidence))));
 }
 
@@ -102,7 +123,7 @@ export function renderCandidates(container, res, opts = {}) {
   }
   const prec = locatorPrecision();
   if (!res.results.length) {
-    container.append(el('div', { class: 'hint' }, 'Nichts gefunden. Tipp: Straßenname ohne Abkürzung, PLZ oder Locator ergänzen.'));
+    container.append(el('div', { class: 'hint' }, 'Nichts gefunden. Tipp: Straßenname ohne Abkürzung, PLZ oder Locator ergänzen (Straßen und Orte nur für Wien; PLZ und Bezirke für ganz Österreich).'));
     return;
   }
   if (res.results.length > 1 && !res.autoSelect) {
@@ -111,8 +132,9 @@ export function renderCandidates(container, res, opts = {}) {
   res.results.forEach((r, n) => {
     const loc = locatorFor(r, prec);
     const meta = [
-      r.postcode ? `${r.postcode} Wien` : null,
+      plzText(r),
       r.district ? `${r.district}. Bezirk` : null,
+      r.areaInfo?.state && r.type === 'postcode' ? r.areaInfo.state : null,
       loc,
       `${fmtCoord(r.lat)}, ${fmtCoord(r.lon)}`,
     ].filter(Boolean).join(' · ');
@@ -134,7 +156,18 @@ export function renderCandidates(container, res, opts = {}) {
         el('br'),
         m.postalCodes.length
           ? `PLZ in diesem Feld (Adressen): ${m.postalCodes.slice(0, 12).map(p => `${p.postcode} (${p.addressCount})`).join(', ')}${m.postalCodes.length > 12 ? ' …' : ''}`
-          : 'Keine Wiener Adressen in diesem Feld.'));
+          : m.areaPostcodes?.length
+            ? `PLZ in diesem Feld (Hauptanteil, ca. Adressen): ${m.areaPostcodes.slice(0, 12).map(p => `${p.postcode} ${p.name} (${p.addressCount})`).join(', ')}${m.areaPostcodes.length > 12 ? ' …' : ''}`
+            : 'Keine Adressen in diesem Feld.'));
+    }
+    if (r.areaInfo) {
+      const a = r.areaInfo;
+      const shown = a.locators.length;
+      card.append(el('div', { class: 'lc-detail' },
+        `Locatoren (Anteil der Adressen): ${locatorShares(a.locators)}${a.locatorCount > shown ? ` · … (${a.locatorCount} Kleinfelder insgesamt)` : ''}`,
+        a.locators4.length > 1 ? [el('br'), `Großfelder: ${locatorShares(a.locators4)}`] : null,
+        a.kind === 'postcode' && a.gemeinden.length > 1 ? [el('br'), `Gemeinden: ${a.gemeinden.join(', ')}`] : null,
+        a.kind === 'bezirk' && a.postcodes?.length ? [el('br'), `PLZ (größte): ${a.postcodes.join(', ')}`] : null));
     }
     if (r.coordinate && r.coordinate.alternatives?.length) {
       card.append(el('div', { class: 'lc-detail' },
@@ -144,11 +177,12 @@ export function renderCandidates(container, res, opts = {}) {
     if (opts.onPick) {
       actions.append(el('button', { type: 'button', class: n === 0 ? 'primary mini' : 'mini', onclick: () => opts.onPick(r) }, 'Übernehmen'));
     } else {
-      actions.append(
+      fill(actions,
         copyButton('Adresse', addressText(r)),
         copyButton('Koordinaten', `${fmtCoord(r.lat)}, ${fmtCoord(r.lon)}`),
         r.postcode ? copyButton('PLZ', r.postcode) : null,
-        copyButton('Locator', loc));
+        copyButton('Locator', loc),
+        r.areaInfo && r.areaInfo.locators.length > 1 ? copyButton('Alle Locatoren', r.areaInfo.locators.map(l => l[0]).join(' ')) : null);
     }
     card.append(actions);
     container.append(card);
@@ -165,7 +199,8 @@ export async function locationStatusText() {
   const idx = await loadLocationIndex();
   if (!idx) return null;
   const n = new Intl.NumberFormat('de-AT');
-  return `${n.format(idx.counts.addresses)} Adressen · ${n.format(idx.counts.places)} Orte · offline (Stand ${idx.meta.addresses_retrieved.slice(0, 10)})`;
+  const areas = idx.counts.postcodes ? ` · ${n.format(idx.counts.postcodes)} PLZ, ${n.format(idx.counts.bezirke)} Bezirke (Österreich)` : '';
+  return `${n.format(idx.counts.addresses)} Wiener Adressen · ${n.format(idx.counts.places)} Orte${areas} · offline (Stand ${idx.meta.addresses_retrieved.slice(0, 10)})`;
 }
 
 export function initLocationPanel() {
@@ -221,6 +256,8 @@ export function initLocationPanel() {
     fill(foot,
       sourceItem('addresses', `${n.format(idx.counts.addresses)} Adressen, Stand ${standDate(idx.meta.addresses_retrieved)}`),
       ' · ',
-      sourceItem('osm', `${n.format(idx.counts.places)} Orte, Stand ${standDate(idx.meta.places_retrieved)}`));
+      sourceItem('osm', `${n.format(idx.counts.places)} Orte, Stand ${standDate(idx.meta.places_retrieved)}`),
+      idx.areasMeta ? [' · ', sourceItem('adressregister', `${n.format(idx.counts.postcodes)} PLZ, Stichtag ${standDate(idx.areasMeta.stichtag)}`),
+        ' · ', sourceItem('bezirke', `${n.format(idx.counts.bezirke)} Bezirke`)] : null);
   }, 800);
 }

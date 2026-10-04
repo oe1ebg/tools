@@ -26,6 +26,18 @@ export const DATA_SOURCES = {
     license: 'CC BY 4.0',
     licenseUrl: 'https://creativecommons.org/licenses/by/4.0/deed.de',
   },
+  adressregister: {
+    label: '© Österreichisches Adressregister (BEV)',
+    url: 'https://www.bev.gv.at/Services/Produkte/Adressregister/Oesterreichisches-Adressregister.html',
+    license: 'CC BY 4.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by/4.0/deed.de',
+  },
+  bezirke: {
+    label: 'Statistik Austria – Politische Bezirke',
+    url: 'https://www.statistik.at/services/tools/regionale-internationale-daten/regionale-daten-und-gliederungen/regionale-gliederungen',
+    license: 'CC BY 4.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by/4.0/deed.de',
+  },
   leaflet: {
     label: 'Leaflet',
     url: 'https://leafletjs.com/',

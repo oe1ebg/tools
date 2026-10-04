@@ -2,19 +2,23 @@
 // it recognizes (coordinates, locator, PLZ, district, house number) are
 // removed from the text; what remains is searched as a street/place name.
 //   "Donauinsel 1220 JN88ge" -> { text: "Donauinsel", postcode: "1220", locator: "JN88ge" }
+//   "Bezirk Mödling"         -> { text: "Mödling", bezirkHint: true }
 
 import { isValidLocator, isLocatorPrefix, formatLocator } from './maidenhead.js';
 import { foldName } from './normalize.js';
 
 const COORD_DOT_RE = /(-?\d{1,2}\.\d+)\s*°?\s*([NS])?\s*[,;\s]\s*(-?\d{1,3}\.\d+)\s*°?\s*([EOW])?/i;
 const COORD_COMMA_RE = /(-?\d{1,2},\d+)\s*°?\s*([NS])?\s*[;\s]\s*(-?\d{1,3},\d+)\s*°?\s*([EOW])?/i;
-const PLZ_RE = /^(?:A-)?(1(?:0[1-9]|1\d|2[0-3])0)$/i;           // Vienna: 1010 ... 1230
+const PLZ_RE = /^(?:A-)?(1(?:0[1-9]|1\d|2[0-3])0|1031)$/i;      // Vienna: 1010 ... 1230 (+ 1031)
+const PLZ_ANY_RE = /^(?:A-?)?(\d{4})$/i;                         // any Austrian PLZ (checked against a set)
 const DISTRICT_RES = [
   /(?:^|\s)(\d{1,2})\s*\.?\s*(?:wiener\s+)?(?:gemeinde)?bezirk(?=\s|$|[,;])/i,
   /(?:^|\s)(\d{1,2})\s*\.?\s*(?:bez|bzk)\.?(?=\s|$|[,;])/i,
   /(?:^|\s)(?:gemeinde)?bezirk\s*(\d{1,2})(?=\s|$|[,;])/i,
   /(?:^|\s)wien\s*[-,]?\s*(\d{1,2})(?=\s|$|[,;])/i,
 ];
+// "Bezirk Mödling", "Bez. Baden", "BH Liezen" (a name follows, not a number).
+const BEZIRK_PREFIX_RE = /^(?:politischer\s+)?(?:bezirk|bez\.|bez|bh)\s+(?=[^\d\s])/i;
 const CITY_RE = /(?:^|[\s,])(?:wien|vienna)(?=[\s,]|$)/gi;
 const HN_RE = /^(.*?[^\d\s].*?)[\s,]+(?:nr\.?\s*)?(\d{1,4}(?:\s?[a-z](?![a-z]))?(?:\s*[-–/]\s*\d{1,4}[a-z]?)*)$/i;
 
@@ -39,7 +43,8 @@ function takeCoordinates(text, ev) {
 }
 
 // districtNames: Map folded name -> district number (optional)
-export function parseLocationInput(raw, districtNames) {
+// postcodes: Set of known PLZ (optional; without it only Vienna PLZ are recognized)
+export function parseLocationInput(raw, districtNames, postcodes) {
   const ev = { raw: String(raw ?? '').trim() };
   let text = takeCoordinates(ev.raw, ev);
 
@@ -52,8 +57,8 @@ export function parseLocationInput(raw, districtNames) {
       ev.locator = formatLocator(t);
     } else if (!ev.locator && !ev.partialLocator && i === tokens.length - 1 && t.length >= 3 && /^[A-R]{2}\d/i.test(t) && isLocatorPrefix(t)) {
       ev.partialLocator = formatLocator(t);
-    } else if (!ev.postcode && PLZ_RE.test(t)) {
-      ev.postcode = PLZ_RE.exec(t)[1];
+    } else if (!ev.postcode && (postcodes ? postcodes.has(PLZ_ANY_RE.exec(t)?.[1]) : PLZ_RE.test(t))) {
+      ev.postcode = (postcodes ? PLZ_ANY_RE : PLZ_RE).exec(t)[1];
     } else {
       keep.push(tok);
     }
@@ -67,6 +72,11 @@ export function parseLocationInput(raw, districtNames) {
       text = (text.slice(0, m.index) + ' ' + text.slice(m.index + m[0].length)).trim();
       break;
     }
+  }
+  const bm = BEZIRK_PREFIX_RE.exec(text);
+  if (bm) {
+    ev.bezirkHint = true;
+    text = text.slice(bm[0].length);
   }
   text = text.replace(CITY_RE, ' ').replace(/\s+/g, ' ').replace(/^[\s,;-]+|[\s,;-]+$/g, '');
 

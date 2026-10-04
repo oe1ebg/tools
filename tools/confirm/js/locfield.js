@@ -14,9 +14,11 @@ import { latLonToMaidenhead } from './location/maidenhead.js';
 
 const LOC_CONF_TEXT = { exact: 'exakt', high: 'hoch', likely: 'wahrscheinlich', ambiguous: 'mehrdeutig', low: 'unsicher' };
 
-// Compact, stable copy of a lookup result for storage on a log line.
+// Compact, stable copy of a lookup result for storage on a log line. Area
+// results (PLZ, Bezirk) also keep the locators they cover, biggest first;
+// `maidenhead` is always the centre (that is what CSV/ADIF export).
 export function snapshotLocation(r, input, manual) {
-  return {
+  const snap = {
     type: r.type, label: r.label,
     street: r.street || '', houseNumber: r.houseNumber || '',
     postcode: r.postcode || '', district: r.district || null,
@@ -24,11 +26,15 @@ export function snapshotLocation(r, input, manual) {
     maidenhead: r.type === 'maidenhead' ? r.maidenhead : latLonToMaidenhead(r.lat, r.lon, 6),
     source: r.source, confidence: r.confidence, manual: !!manual, input,
   };
+  if (r.bezirk) snap.bezirk = r.bezirk;
+  if (r.areaInfo) snap.areaLocators = r.areaInfo.locators.map(l => l[0]);
+  return snap;
 }
 
 export function describeLocation(loc) {
   if (!loc) return '';
-  return `${loc.label}${loc.postcode && !loc.label.includes(loc.postcode) ? ', ' + loc.postcode : ''} · ${loc.maidenhead}`;
+  const more = loc.areaLocators?.length > 1 ? ` (+${loc.areaLocators.length - 1})` : '';
+  return `${loc.label}${loc.postcode && !loc.label.includes(loc.postcode) ? ', ' + loc.postcode : ''} · ${loc.maidenhead}${more}`;
 }
 
 // The text to put into the field for a chosen location: the full official

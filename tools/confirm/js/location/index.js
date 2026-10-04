@@ -1,8 +1,11 @@
-// Offline Vienna location lookup: operator input -> ranked candidates with
-// PLZ, coordinates and Maidenhead locator. Data: data/vienna-locations.json
-// (scripts/build_location_data.py). Design: oe1ebg/confirm-README.md.
+// Offline location lookup: operator input -> ranked candidates with PLZ,
+// coordinates and Maidenhead locator. Streets/addresses/landmarks: Vienna
+// only (data/vienna-locations.json, scripts/build_location_data.py). PLZ and
+// political Bezirke: all of Austria, with the locator squares they cover
+// (data/austria-areas.json, scripts/build_austria_areas.py; optional).
+// Design: oe1ebg/confirm-README.md.
 //
-//   const idx = buildLocationIndex(data);
+//   const idx = buildLocationIndex(data, areas);
 //   locate(idx, 'Waehringerstr 42 1180')   -> { evidence, results, autoSelect }
 //   lookupCoordinates(idx, 48.21, 16.37)    -> { postcode, district, ... }
 //   lookupMaidenhead(idx, 'JN88ee')         -> { bounds, postalCodes, ... }
@@ -25,7 +28,7 @@ const CONFIDENCE_ORDER = ['low', 'ambiguous', 'likely', 'high', 'exact'];
 
 /* ------------------------------------------------------------------ build */
 
-export function buildLocationIndex(data) {
+export function buildLocationIndex(data, areas) {
   const S = data.scale, n = data.hn.length;
   const lat = new Float64Array(n), lon = new Float64Array(n), num = new Int32Array(n);
   const hnNorm = new Array(n);
@@ -52,11 +55,13 @@ export function buildLocationIndex(data) {
     for (const nm of names) districtNames.set(foldName(nm), nr);
   }
 
+  const { areaPlz, bezirke, states } = readAreas(areas);
+
   // Vocabulary: every searchable name -> entities.
-  const terms = []; // { kind: street|place|district, id, label, alias }
+  const terms = []; // { kind: street|place|district|bezirk|postcode, id, label, alias, bonus }
   const keyTerms = new Map(); // compact key -> [term ids]
-  const addTerm = (kind, id, text, alias) => {
-    const t = terms.push({ kind, id, label: text, alias }) - 1;
+  const addTerm = (kind, id, text, alias, bonus = 0) => {
+    const t = terms.push({ kind, id, label: text, alias, bonus }) - 1;
     for (const k of searchKeys(text)) {
       let list = keyTerms.get(k);
       if (!list) keyTerms.set(k, (list = []));
@@ -70,20 +75,70 @@ export function buildLocationIndex(data) {
   });
   for (const d of districts.values()) for (const nm of d.names) addTerm('district', d.nr, nm, d.names[0] !== nm);
   for (const [alias, kind, id] of data.aliases) addTerm(kind, id, alias, true);
+  addAreaTerms(addTerm, areaPlz, bezirke);
 
   const keys = [...keyTerms.keys()];
   const idx = {
     data, lat, lon, num, hnNorm, streets, places, districts, districtNames,
+    areaPlz, bezirke, states,
+    viennaPlz: new Set(data.plz),
+    postcodeSet: new Set([...data.plz, ...areaPlz.keys()]),
     terms, keyTerms, keys,
     trigrams: buildTrigramIndex(keys),
     grid: buildGrid(lat, lon),
     meta: data.meta,
-    counts: { addresses: n, streets: streets.length, places: places.length },
+    areasMeta: areas?.meta || null,
+    counts: { addresses: n, streets: streets.length, places: places.length, postcodes: areaPlz.size, bezirke: bezirke.size },
   };
   // District/PLZ centroids from their addresses.
   idx.districtStats = groupStats(idx, i => data.ad[i]);
   idx.plzStats = groupStats(idx, i => data.plz[data.ap[i]]);
   return idx;
+}
+
+// austria-areas.json rows -> Maps (empty without the file).
+function readAreas(areas) {
+  const areaPlz = new Map(), bezirke = new Map();
+  if (!areas) return { areaPlz, bezirke, states: [] };
+  for (const [code, name, more, state, bez, lat, lon, n, loc6, n6, loc4] of areas.plz) {
+    areaPlz.set(code, { kind: 'postcode', code, name, more, state, bezirke: bez, lat, lon, n, loc6, n6, loc4 });
+  }
+  for (const [code, name, aliases, state, lat, lon, n, loc6, n6, loc4, topPlz] of areas.bezirke) {
+    bezirke.set(code, { kind: 'bezirk', code, name, aliases, state, lat, lon, n, loc6, n6, loc4, topPlz });
+  }
+  return { areaPlz, bezirke, states: areas.states };
+}
+
+// Search terms for Austrian Bezirke (Vienna's own districts are already
+// terms) and for the Gemeinden in each PLZ ("Perchtoldsdorf" -> 2380). A
+// Gemeinde with many PLZ that is also a Bezirk name ("Graz", "Linz") is
+// left to the Bezirk; otherwise its PLZ are ranked by size.
+function addAreaTerms(addTerm, areaPlz, bezirke) {
+  const bezirkKeys = new Set();
+  for (const b of bezirke.values()) {
+    if (b.code.startsWith('9')) continue;
+    addTerm('bezirk', b.code, b.name, false);
+    for (const a of b.aliases) addTerm('bezirk', b.code, a, true);
+    for (const nm of [b.name, ...b.aliases]) bezirkKeys.add(foldName(nm));
+  }
+  // PLZ named after the Gemeinde first, then those it only shares; each by size.
+  const byName = new Map();
+  const bySize = [...areaPlz.values()].sort((a, b) => b.n - a.n);
+  for (const pass of [e => [e.name], e => e.more]) {
+    for (const e of bySize) {
+      for (const nm of pass(e)) {
+        if (nm === 'Wien') continue;
+        let list = byName.get(nm);
+        if (!list) byName.set(nm, (list = []));
+        list.push(e.code);
+      }
+    }
+  }
+  for (const [nm, codes] of byName) {
+    if (codes.length > 3 && bezirkKeys.has(foldName(nm))) continue;
+    // +1: a PLZ is more specific than the Bezirk of the same name.
+    codes.forEach((code, i) => addTerm('postcode', code, nm, false, i ? -2 - i : 1));
+  }
 }
 
 function groupStats(idx, keyOf) {
@@ -147,6 +202,7 @@ export function lookupMaidenhead(idx, locator) {
     counts.set(p, (counts.get(p) || 0) + 1);
   });
   const center = lookupCoordinates(idx, b.centerLat, b.centerLon);
+  const areaPostcodes = postcodesInLocator(idx, loc);
   return {
     locator: loc,
     precision: loc.length,
@@ -154,8 +210,24 @@ export function lookupMaidenhead(idx, locator) {
     bounds: { west: b.west, east: b.east, south: b.south, north: b.north },
     center: { lat: b.centerLat, lon: b.centerLon },
     postalCodes: [...counts.entries()].sort((a, c) => c[1] - a[1]).map(([postcode, addressCount]) => ({ postcode, addressCount })),
-    centerPostcode: center.postcode,
+    centerPostcode: center.postcode || areaPostcodes[0]?.postcode || null,
+    areaPostcodes,
   };
+}
+
+// Austrian PLZ with a share of their addresses in this locator (from the
+// build-time coverage lists, so only the main squares of each PLZ count).
+// Sorted by estimated address count.
+function postcodesInLocator(idx, loc) {
+  const out = [];
+  const key = loc.slice(0, 6);
+  for (const e of idx.areaPlz.values()) {
+    let share = 0;
+    if (key.length === 6) share = e.loc6.find(l => l[0] === key)?.[1] || 0;
+    else for (const [l4, s] of e.loc4) if (l4.startsWith(key)) share += s;
+    if (share) out.push({ postcode: e.code, name: e.name, share, addressCount: Math.round((e.n * share) / 100) });
+  }
+  return out.sort((a, b) => b.addressCount - a.addressCount);
 }
 
 /* ------------------------------------------------------------------ text candidates */
@@ -209,6 +281,37 @@ function textMatches(idx, text) {
 
 function makeResult(idx, type, label, lat, lon, extra) {
   return { type, label, lat, lon, maidenhead: latLonToMaidenhead(lat, lon, 6), ...extra };
+}
+
+function areaInfoOf(idx, e) {
+  return {
+    kind: e.kind, code: e.code, name: e.name, state: idx.states[e.state] || '', addresses: e.n,
+    locators: e.loc6, locatorCount: e.n6, locators4: e.loc4,
+    gemeinden: e.kind === 'postcode' ? [e.name, ...e.more] : undefined,
+    postcodes: e.topPlz, bezirke: e.bezirke,
+  };
+}
+
+// A whole PLZ area (Austria-wide data): centre + covered locators.
+function postcodeResult(idx, e, extra) {
+  const nr = e.state === 9 ? +e.code.slice(1, 3) : 0;
+  return makeResult(idx, 'postcode', `${e.code} ${e.name}`, e.lat, e.lon, {
+    postcode: e.code, city: e.name, district: nr >= 1 && nr <= 23 ? nr : undefined, bezirk: e.bezirke[0],
+    source: 'bev', areaInfo: areaInfoOf(idx, e), note: 'Mitte des PLZ-Gebiets – kein genauer Ort', ...extra,
+  });
+}
+
+function bezirkResult(idx, e, extra) {
+  const state = idx.states[e.state];
+  return makeResult(idx, 'bezirk', `Bezirk ${e.name}${state ? ', ' + state : ''}`, e.lat, e.lon, {
+    bezirk: e.code, source: 'bev', areaInfo: areaInfoOf(idx, e),
+    note: 'Bezirksmitte – Gebiet, kein genauer Ort', ...extra,
+  });
+}
+
+function viennaDistrictArea(idx, nr) {
+  const e = idx.bezirke.get(`9${String(nr).padStart(2, '0')}`);
+  return e ? areaInfoOf(idx, e) : undefined;
 }
 
 // Expand a matched vocabulary term into concrete location candidates.
@@ -288,9 +391,16 @@ function expandTerm(idx, term, match, ev) {
     if (st) {
       out.push(makeResult(idx, 'district', `${term.id}. Bezirk, ${dd.name}`, st.lat, st.lon, {
         postcode: st.mainPlz, district: term.id, source: 'computed', base: match.base, match,
-        note: 'Bezirksmitte – Gebiet, kein genauer Ort',
+        areaInfo: viennaDistrictArea(idx, term.id), note: 'Bezirksmitte – Gebiet, kein genauer Ort',
       }));
     }
+  } else if (term.kind === 'bezirk') {
+    out.push(bezirkResult(idx, idx.bezirke.get(term.id), { base: match.base, match }));
+  } else if (term.kind === 'postcode') {
+    const e = idx.areaPlz.get(term.id);
+    const extra = { base: match.base + term.bonus, match };
+    if (term.label !== e.name) extra.note = `Gemeinde ${term.label} – Mitte des PLZ-Gebiets`;
+    out.push(postcodeResult(idx, e, extra));
   }
   return out;
 }
@@ -302,11 +412,19 @@ function applyEvidence(idx, r, ev, lb) {
   if (r.match) why.push(r.match.how);
   if (r.houseNumberMatch) { score += SCORE.houseExact; evidence.houseNumberMatch = true; why.push('Hausnummer exakt'); }
   if (r.houseNumberNear) { score += SCORE.houseNear; why.push('Hausnummer in der Nähe'); }
-  if (ev.postcode) {
+  if (ev.postcode && r.type === 'bezirk') {
+    const e = idx.areaPlz.get(ev.postcode);
+    if (e && e.bezirke.includes(r.bezirk)) { score += SCORE.plzMatch; evidence.postcodeMatch = true; why.push('PLZ liegt im Bezirk'); }
+    else { score += SCORE.plzMismatch; evidence.postcodeMatch = false; why.push('PLZ nicht im Bezirk'); }
+  } else if (ev.postcode) {
     if (r.postcode === ev.postcode) { score += SCORE.plzMatch; evidence.postcodeMatch = true; why.push('PLZ passt'); }
     else { score += SCORE.plzMismatch; evidence.postcodeMatch = false; why.push(`andere PLZ (${r.postcode})`); }
   }
-  if (ev.district) {
+  if (ev.bezirkHint && (r.type === 'bezirk' || r.type === 'district')) {
+    score += SCORE.districtMatch;
+    why.push('als Bezirk gesucht');
+  }
+  if (ev.district && (r.district || !r.areaInfo)) {
     if (r.district === ev.district) { score += SCORE.districtMatch; evidence.districtMatch = true; why.push('Bezirk passt'); }
     else { score += SCORE.districtMismatch; evidence.districtMatch = false; why.push('anderer Bezirk'); }
   }
@@ -336,6 +454,15 @@ function confidenceOf(r) {
   return 'low';
 }
 
+// One area inside the other (PLZ in its Bezirk, Vienna PLZ in its district):
+// not two competing places.
+function nestedAreas(a, b) {
+  const inside = (p, z) => p.type === 'postcode' && (
+    (z.type === 'bezirk' && !!p.areaInfo?.bezirke?.includes(z.bezirk))
+    || (z.type === 'district' && p.district === z.district));
+  return inside(a, b) || inside(b, a);
+}
+
 function finish(results, opts) {
   results.sort((a, b) => b.score - a.score);
   // Drop near-duplicates (same label within 800 m, e.g. a district's
@@ -351,7 +478,7 @@ function finish(results, opts) {
   const t0 = top[0];
   if (t0 && t0.confidence === 'likely' && t0.match && t0.match.base >= SCORE.exactAlias
       && ![t0.evidence.postcodeMatch, t0.evidence.districtMatch, t0.evidence.locatorMatch].includes(false)
-      && !top.slice(1).some(r => r.score >= t0.score - 15 && distanceMeters(t0.lat, t0.lon, r.lat, r.lon) > 500)) {
+      && !top.slice(1).some(r => r.score >= t0.score - 15 && distanceMeters(t0.lat, t0.lon, r.lat, r.lon) > 500 && !nestedAreas(t0, r))) {
     t0.confidence = 'high';
     t0.reasons.push('eindeutig');
   }
@@ -362,6 +489,7 @@ function finish(results, opts) {
   // Two strong candidates far apart: don't pretend to know which one.
   if (top.length > 1 && top[0].confidence !== 'exact'
       && top[1].score >= top[0].score - 8
+      && !nestedAreas(top[0], top[1])
       && distanceMeters(top[0].lat, top[0].lon, top[1].lat, top[1].lon) > 500) {
     top[0].confidence = 'ambiguous';
     if (CONFIDENCE_ORDER.indexOf(top[1].confidence) > 1) top[1].confidence = 'ambiguous';
@@ -376,9 +504,9 @@ function finish(results, opts) {
 export function locate(idx, input, opts = {}) {
   // District names ("Favoriten Quellenstr") are only peeled off when the
   // text as a whole isn't already a known name ("UNO City", "Landstraßer Gürtel").
-  let ev = parseLocationInput(input);
+  let ev = parseLocationInput(input, undefined, idx.postcodeSet);
   if (ev.text && !ev.district && !searchKeys(ev.text).some(k => idx.keyTerms.has(k))) {
-    ev = parseLocationInput(input, idx.districtNames);
+    ev = parseLocationInput(input, idx.districtNames, idx.postcodeSet);
   }
   const minConf = opts.autoSelect || 'high';
   const pack = results => ({
@@ -401,15 +529,34 @@ export function locate(idx, input, opts = {}) {
   }
 
   const lb = ev.locator ? maidenheadToBounds(ev.locator) : null;
+  // A PLZ outside Vienna: there are no street/landmark data there, so only
+  // area names (Gemeinde, Bezirk) can match the text.
+  const outside = ev.postcode && !idx.viennaPlz.has(ev.postcode);
   let results = [];
+  if (ev.text && /^\d{2,3}$/.test(ev.text) && !ev.postcode) {
+    // PLZ being typed: "23" -> 2320, 2340, ...
+    for (const e of idx.areaPlz.values()) {
+      if (e.code.startsWith(ev.text)) results.push({ ...postcodeResult(idx, e), score: 70 + Math.log10(e.n + 1), reasons: ['PLZ beginnt so'], evidence: {} });
+    }
+    results.sort((a, b) => b.score - a.score);
+    results = results.slice(0, opts.limit || 8);
+    for (const r of results) { r.score = Math.round(r.score); r.confidence = 'low'; }
+    return pack(results);
+  }
   if (ev.text) {
     for (const [t, match] of textMatches(idx, ev.text)) {
-      for (const r of expandTerm(idx, idx.terms[t], match, ev)) results.push(applyEvidence(idx, r, ev, lb));
+      const term = idx.terms[t];
+      if (outside && term.kind !== 'postcode' && term.kind !== 'bezirk') continue;
+      for (const r of expandTerm(idx, term, match, ev)) results.push(applyEvidence(idx, r, ev, lb));
     }
   }
   if (!ev.text || !results.length) {
     // Only structured evidence: PLZ, district or locator as an area result.
-    if (ev.postcode && idx.plzStats.has(ev.postcode)) {
+    if (ev.postcode && idx.areaPlz.has(ev.postcode)) {
+      const r = postcodeResult(idx, idx.areaPlz.get(ev.postcode));
+      if (ev.text) r.note = outside ? `„${ev.text}“: Straßen und Orte gibt es nur für Wien – Mitte des PLZ-Gebiets` : `„${ev.text}“ nicht gefunden – Mitte des PLZ-Gebiets`;
+      results.push({ ...r, score: 100, confidence: ev.text ? 'low' : 'likely', reasons: ['PLZ'], evidence: { postcodeMatch: true } });
+    } else if (ev.postcode && idx.plzStats.has(ev.postcode)) {
       const st = idx.plzStats.get(ev.postcode);
       results.push({ ...makeResult(idx, 'postcode', `${ev.postcode} Wien`, st.lat, st.lon, {
         postcode: ev.postcode, source: 'computed', note: 'Mitte des PLZ-Gebiets – kein genauer Ort' }),
@@ -417,12 +564,13 @@ export function locate(idx, input, opts = {}) {
     } else if (ev.district && idx.districtStats.has(ev.district)) {
       const st = idx.districtStats.get(ev.district);
       results.push({ ...makeResult(idx, 'district', `${ev.district}. Bezirk, ${idx.districts.get(ev.district).name}`, st.lat, st.lon, {
-        postcode: st.mainPlz, district: ev.district, source: 'computed', note: 'Bezirksmitte – Gebiet, kein genauer Ort' }),
+        postcode: st.mainPlz, district: ev.district, source: 'computed', areaInfo: viennaDistrictArea(idx, ev.district),
+        note: 'Bezirksmitte – Gebiet, kein genauer Ort' }),
       score: 100, confidence: ev.text ? 'low' : 'likely', reasons: ['Bezirk'], evidence: { districtMatch: true } });
     } else if (lb && !ev.text) {
       const m = lookupMaidenhead(idx, ev.locator);
       results.push({ ...makeResult(idx, 'maidenhead', `${m.locator} (${m.precisionName})`, m.center.lat, m.center.lon, {
-        postcode: m.centerPostcode, source: 'computed', note: 'Locator ist ein Gebiet; Punkt = Mitte des Feldes' }),
+        postcode: m.centerPostcode, city: idx.areaPlz.get(m.centerPostcode)?.name, source: 'computed', note: 'Locator ist ein Gebiet; Punkt = Mitte des Feldes' }),
       maidenhead: m.locator, score: 100, confidence: 'likely', reasons: ['Locator'], evidence: {}, maidenheadInfo: m });
     }
     return pack(results);

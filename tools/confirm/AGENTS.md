@@ -70,6 +70,18 @@ addresses contiguous per street), the per-address arrays
   `tests/location-search.test.mjs` updated. They run against a synthetic
   dataset (always) and against the real data (when it has been built).
 
+`data/austria-areas.json` is written by `scripts/build_austria_areas.py`
+(schema 1) from the **committed snapshot** `oe1ebg/austria-areas.json`;
+`just refresh-areas` rebuilds the snapshot from the BEV Adressregister and
+Statistik Austria (needs network + pyproj). It contains `meta`, `states[]`
+(Bundesland short names by the first GKZ digit), `plz[[plz, name,
+moreGemeinden, state, bezirke, lat, lon, addresses, loc6, loc6Count,
+loc4]]` and `bezirke[[code, name, aliases, state, lat, lon, addresses,
+loc6, loc6Count, loc4, topPlz]]`; `loc6`/`loc4` are `[[locator,
+sharePercent]]`, biggest first. It is optional at runtime
+(`buildLocationIndex(data, areas)`); `tests/location-areas.test.mjs` covers
+it.
+
 `data/vienna-map.json` is built by `scripts/build_map_data.py` (schema 1).
 It contains `bounds`, `districts[{nr, name, label:[lat,lon], rings}]`,
 `water[{name, rings}]`, `roads[{c: motorway|trunk|primary|secondary, p}]`

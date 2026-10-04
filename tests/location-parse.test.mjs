@@ -52,3 +52,19 @@ test('postcode, locator, coordinates, district evidence', () => {
   assert.equal(P('1100').houseNumber, undefined, 'lone PLZ is not a house number');
   assert.equal(P('Hauptstraße 1100').postcode, '1100');
 });
+
+test('Austrian PLZ (with a PLZ set), 1031, "Bezirk <Name>"', () => {
+  const plz = new Set(['1100', '2340', '8010']);
+  const Q = s => { const ev = parseLocationInput(s, undefined, plz); delete ev.raw; return ev; };
+  assert.deepEqual(P('1031'), { postcode: '1031' });
+  assert.deepEqual(Q('2340'), { postcode: '2340' });
+  assert.deepEqual(Q('A-8010 Graz'), { postcode: '8010', text: 'Graz' });
+  assert.deepEqual(Q('A2340'), { postcode: '2340' });
+  assert.equal(P('2340').postcode, undefined, 'without the set only Vienna PLZ');
+  assert.deepEqual(Q('Hauptstraße 1234'), { street: 'Hauptstraße', houseNumber: '1234', text: 'Hauptstraße' }, 'unknown 4 digits = house number');
+  assert.deepEqual(P('Bezirk Mödling'), { bezirkHint: true, text: 'Mödling' });
+  assert.deepEqual(P('Bez. Baden'), { bezirkHint: true, text: 'Baden' });
+  assert.deepEqual(P('BH Liezen'), { bezirkHint: true, text: 'Liezen' });
+  assert.deepEqual(P('Bezirk 3'), { district: 3 });
+  assert.deepEqual(P('Bezirk Favoriten', districts), { bezirkHint: true, district: 10, text: 'Favoriten' });
+});

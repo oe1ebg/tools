@@ -103,6 +103,17 @@ test('locator evidence re-ranks; locator-only input gives the area', () => {
   assert.equal(info.precision, 6);
 });
 
+test('PLZ-only and district-only input give the area (Vienna data only)', () => {
+  const p = top('1190');
+  assert.equal(p.type, 'postcode');
+  assert.equal(p.label, '1190 Wien');
+  assert.equal(p.confidence, 'likely');
+  const d = top('22. Bezirk');
+  assert.equal(d.type, 'district');
+  assert.equal(d.district, 22);
+  assert.equal(d.postcode, '1220');
+});
+
 test('coordinates -> nearest PLZ', () => {
   const c = lookupCoordinates(idx, 48.1751, 16.3705);
   assert.equal(c.postcode, '1100');
