@@ -53,6 +53,27 @@ are in `oe1ebg/confirm-README.md`.
   Keep it **out of `precache.js` and out of the content hash**. Otherwise
   every commit triggers a service-worker update. The commit link is
   built by `commitUrl()` in `js/sources.js`.
+- **Operator comments** (issue #32) are entries with `kind: 'comment'` in
+  the `entries` store (no schema change): `{ id, eventId, kind, ts, text,
+  category, auto, snap, created, updated, deleted }`, with no `call`, no
+  `seq` and no check-in number. A line without `kind` is a check-in (old
+  data and backups). Anything that counts stations or QSOs must use
+  `liveCheckins()` (or `checkinNumbers()` / `previousCheckins()` /
+  `stats()` / `stationsForMap()`, which already do); `liveSorted()` returns
+  both kinds in time order.
+  - Exports: ADIF, KML and the map never include comments. CSV only with
+    `toCSV(…, { comments: true })` (columns `typ`, `kategorie`). The
+    summary always includes them, plus the "Operators:" line from
+    `operatorShifts()`. The JSON backup is the raw store.
+  - Adding: `!` as the first character in the callsign field switches the
+    form to comment mode (`setCommentMode()` in `js/app.js`; CSS
+    `.ci-only` / `.c-only`).
+  - Automatic markers: `headerChangeMarkers()` (pure, tested) decides;
+    `flushMarkers()` in `js/app.js` runs it on the log header's `change`
+    event, before saving a line, before an export and when leaving. Keep
+    the "don't switch the form under someone who is logging" rule: a new
+    marker opens for editing only with an empty form and focus in the
+    header.
 
 ## Data
 
@@ -115,6 +136,8 @@ and `meta`. All coordinates are `[lat, lon]` (Leaflet order), rounded to
 2. Run `just build-confirm && uv run zensical build --clean`, then serve
    `site/` and open `/confirm/`. Check these:
    - logging, plus a repeat check-in (the warning box and the `2×` badge);
+   - an operator comment via `!` and an automatic marker from an operator
+     change in the header (banner rows; not counted in Stationen/Check-ins);
    - an edit followed by a delete and undo;
    - reload while a line is half-typed (the draft must come back);
    - two tabs on the same event (the second must be read-only);

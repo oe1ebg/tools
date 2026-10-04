@@ -242,10 +242,16 @@
   #entry-form .field > span, #entry-form div.field > label{ white-space:nowrap; }
   .form-actions .rpt-line-row{ gap:.6em; }
   .kbd-hint{ margin-top:.2em; }
+  /* operator comment mode ("!" in the callsign field): check-in fields hidden */
+  #entry-form.comment-mode .ci-only, #entry-form:not(.comment-mode) .c-only{ display:none; }
+  #entry-form.comment-mode:not(.editing){ border-style:dashed; }
+  #f-ctext{ width:100%; font-size:16px; padding:.25em .4em; }
+  .c-text{ flex:1; min-width:16em; }
   #f-call{
     font-family:var(--font-mono); font-size:24px; font-weight:600;
     text-transform:uppercase; width:9em; padding:.2em .4em;
   }
+  #f-call::placeholder{ font-family:var(--font-ui); font-size:13px; font-weight:400; text-transform:none; color:var(--text-dim); }
   #f-time{ font-family:var(--font-mono); width:12em; }
   .clock{ font-family:var(--font-mono); font-size:12px; color:var(--text-dim); }
   .radio-group{ display:flex; flex-wrap:wrap; gap:.25em; }
@@ -282,6 +288,20 @@
   table.log tr.editing td{ background:var(--accent-soft); }
   table.log td.act{ white-space:nowrap; text-align:right; }
   table.log td.act button{ padding:.1em .45em; font-size:12px; }
+  /* operator comments / log markers: full-width banner rows */
+  table.log tr.marker td{
+    background:var(--accent-soft); border-top:2px solid var(--accent); border-bottom:2px solid var(--accent);
+    border-left:6px solid var(--accent); padding:.45em .6em;
+  }
+  table.log tr.marker.editing td{ border-color:var(--warn); }
+  .marker-row{ display:flex; flex-wrap:wrap; gap:.3em .9em; align-items:baseline; }
+  .marker-time{ font-family:var(--font-mono); white-space:nowrap; }
+  .marker-cat{ font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--accent);
+    border:1px solid var(--accent); border-radius:4px; padding:0 .4em; white-space:nowrap; }
+  .marker-text{ flex:1; min-width:12em; font-weight:600; }
+  .marker-op{ font-family:var(--font-mono); font-size:12px; color:var(--text-dim); white-space:nowrap; }
+  .marker-row .act{ white-space:nowrap; }
+  .marker-row .act button{ padding:.1em .45em; font-size:12px; }
   .badge{
     display:inline-block; margin-left:.35em; padding:0 .4em; border-radius:999px;
     font-size:11px; font-weight:700; background:var(--warn); color:var(--bg);
@@ -373,7 +393,11 @@
     #site-header .title{ display:none; }
   }
   @media print{
-    #site-header, .toolbar button, #entry-form, details.hdr > summary::before, .no-print, footer, table.log td.act, table.log th.act{ display:none !important; }
+    #site-header, .toolbar button, #entry-form, details.hdr > summary::before, .no-print, footer, table.log td.act, table.log th.act, .marker-row .act{ display:none !important; }
+    /* markers stay visible on paper without background colours */
+    table.log tr.marker td{ background:none; border:2px solid #000; border-left-width:6px; break-inside:avoid; }
+    .marker-cat{ color:#000; border-color:#000; }
+    .marker-op{ color:#000; }
     details.hdr .body{ display:none; }
     body{ background:#fff; color:#000; font-size:11px; }
     .table-wrap{ border:none; }
@@ -473,6 +497,7 @@
       <span class="spacer"></span>
       <span id="export-nudge" class="chip warn" hidden></span>
       <span class="csv-group"><button type="button" data-export="csv">CSV</button><select id="csv-sep" aria-label="CSV-Trennzeichen" title="Trennzeichen: ; für Excel mit deutschen Ländereinstellungen, , für Excel mit englischen"><option value=";">;</option><option value=",">,</option></select></span>
+      <label class="check no-print" title="Operator-Kommentare einschließen: eigene Zeilen im CSV, Spalten typ (checkin/kommentar) und kategorie. ADIF und KML enthalten nie Kommentare."><input type="checkbox" id="csv-comments"> Operator-Kommentare einschließen</label>
       <button type="button" data-export="adif">ADIF</button>
       <button type="button" data-export="kml" title="Stationen mit Standort als KML (Google Earth, Google My Maps)">KML</button>
       <button type="button" id="btn-map" title="Karte mit allen Stationen (offline)">Karte</button>
@@ -487,7 +512,8 @@
       <summary><b>Header</b> <span class="hdr-sum" id="hdr-sum"></span></summary>
       <div class="body">
         <div id="log-header" class="grid-form"></div>
-        <p class="hint">Änderungen am Header gelten für neue Zeilen. Bereits geloggte Zeilen behalten Operator, Station, Frequenz und Relais vom Zeitpunkt des Eintrags.<br>
+        <p class="hint">Änderungen am Header gelten für neue Zeilen. Bereits geloggte Zeilen behalten Operator, Station, Frequenz und Relais vom Zeitpunkt des Eintrags.
+          Ein Wechsel von Operator oder Relais/Frequenz schreibt automatisch einen Marker ins Log (Text ergänzbar).<br>
           Tastatur: Tab/Enter nächstes Feld · ↓ Vorschläge, Enter übernimmt · Ziffern bei Betriebsart</p>
       </div>
     </details>
@@ -497,9 +523,9 @@
         <label class="field"><span><span id="time-label">Zeit UTC</span> <span class="clock" id="clock"></span></span>
           <input id="f-time" placeholder="automatisch">
         </label>
-        <div class="field ac-field"><label for="f-call">Rufzeichen</label>
+        <div class="field ac-field ci-only"><label for="f-call">Rufzeichen</label>
           <div class="ac-wrap">
-            <input id="f-call" autocapitalize="characters" spellcheck="false" autocomplete="off" aria-describedby="call-info call-warn">
+            <input id="f-call" autocapitalize="characters" spellcheck="false" autocomplete="off" aria-describedby="call-info call-warn" placeholder="! = Kommentar" title="Rufzeichen. Mit ! beginnen = Operator-Kommentar (Frequenzwechsel, Übergabe, Unterbrechung …)">
             <div id="call-suggest" class="ac-pop"></div>
           </div>
           <div class="ac-hints">
@@ -507,8 +533,14 @@
             <div id="call-warn" class="ac-info warn"></div>
           </div>
         </div>
-        <div id="f-fields" class="row"></div>
-        <div class="field rpt-line"><span>Relais (Standard: Header)</span>
+        <div class="field c-only c-text"><label for="f-ctext">Operator-Kommentar</label>
+          <input id="f-ctext" autocomplete="off" placeholder="z. B. Wechsel auf 145.500, Netz pausiert, Relais ausgefallen …">
+        </div>
+        <div class="field c-only"><span>Kategorie (Ziffer, ⌫ leert)</span>
+          <div id="c-cat" class="radio-group" role="radiogroup" aria-label="Kategorie"></div>
+        </div>
+        <div id="f-fields" class="row ci-only"></div>
+        <div class="field rpt-line ci-only"><span>Relais (Standard: Header)</span>
           <div class="rpt-line-row">
             <label class="check" title="Diese Station kommt über ein Relais"><input type="checkbox" id="f-rpt"> über</label>
             <div class="ac-wrap">
@@ -517,7 +549,7 @@
             </div>
           </div>
         </div>
-        <label class="field" style="flex:1;min-width:10em"><span>Notiz</span><input id="f-note"></label>
+        <label class="field ci-only" style="flex:1;min-width:10em"><span>Notiz</span><input id="f-note"></label>
         <div class="field form-actions"><span>&nbsp;</span>
           <div class="rpt-line-row">
             <button type="submit" class="primary" id="btn-save" title="Zeile speichern (Shift+Enter, aus jedem Feld)">Speichern ⇧⏎</button>
@@ -527,7 +559,7 @@
       </div>
       <div id="repeat-box" hidden></div>
       <div id="form-status" role="status"></div>
-      <div class="hint kbd-hint">Tastatur: Tab/Enter nächstes Feld · ↓ Vorschläge, Enter übernimmt · 1–5 bei Auswahlfeldern, ⌫ leert · Shift+Enter speichern · Esc verwerfen</div>
+      <div class="hint kbd-hint">Tastatur: Tab/Enter nächstes Feld · ↓ Vorschläge, Enter übernimmt · 1–5 bei Auswahlfeldern, ⌫ leert · Shift+Enter speichern · Esc verwerfen · <b>!</b> im Rufzeichenfeld = Operator-Kommentar</div>
     </form>
 
     <section id="map-panel" class="no-print" hidden>

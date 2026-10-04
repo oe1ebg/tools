@@ -8,7 +8,7 @@ import { openStorage, requestPersistence } from './db.js';
 import {
   normalizeCall, isPlausibleCall, newId, nowIso, splitUtc, splitTime, zoneLabel, parseTimeInput, isoUtc,
   MODES, modeInfo, headerSnapshot, emptyHeader, checkinNumbers, previousCheckins,
-  liveSorted, stats,
+  liveSorted, stats, isComment, COMMENT_CATEGORIES, newComment, headerChangeMarkers,
 } from './model.js';
 import { TEMPLATES, templateFor, fieldVisible, fieldDisplay, fieldOptions, currentOptions, shortSummary } from './templates.js';
 import { toCSV, toADIF, toKML, KML_MIME, toSummary } from './export.js';
@@ -28,6 +28,7 @@ import { headerFromRepeater, formatShift } from './repeaters.js';
 const THEME_KEY = 'oe1ebg-confirm-theme';
 const TIME_MODE_KEY = 'oe1ebg-confirm-time-mode';
 const CSV_SEP_KEY = 'oe1ebg-confirm-csv-sep';
+const CSV_COMMENTS_KEY = 'oe1ebg-confirm-csv-comments';
 const SNAPSHOT_EVERY = 10;   // full JSON snapshot of an event every N saved lines
 const SNAPSHOT_KEEP = 5;     // ... keeping the newest N per event
 const EXPORT_NUDGE_AFTER = 25;
@@ -48,6 +49,8 @@ const state = {
   stations: new Map(), // call -> { call, loc, at, eventTitle }: last known location per station
   locField: null,     // controller of the template's location field, if any
   lineRpt: null,      // per-line repeater override (entry form)
+  commentMode: false, // entry form holds an operator comment instead of a check-in
+  markerBase: null,   // header as of the last automatic-marker check (headerChangeMarkers)
 };
 
 /* ---------------------------------------------------------------- errors */
@@ -318,6 +321,8 @@ function buildHeaderForm(container, header, onChange) {
         onPick: r => {
           writeHeaderForm(container, headerFromRepeater(r, readHeaderForm(container)));
           emit();
+          // A pick is a finished edit, like leaving the field (log marker).
+          input.dispatchEvent(new Event('change', { bubbles: true }));
         },
       });
     }
@@ -576,6 +581,7 @@ async function openEvent(id) {
   state.event = ev;
   state.entries = await state.store.getByEvent('entries', id);
   state.editingId = null;
+  state.markerBase = { ...(ev.header || emptyHeader()) };
   $('#view-events').hidden = true;
   $('#view-log').hidden = false;
   document.title = `${ev.title} – Bestätigungsverkehr`;
@@ -589,16 +595,24 @@ async function openEvent(id) {
   updateExportNudge();
   await acquireLock(false);
   await restoreDraft();
-  $('#f-call').focus();
+  focusEntryStart();
+}
+
+// First field of the entry form: the callsign, or the comment text.
+function focusEntryStart() {
+  const input = state.commentMode ? $('#f-ctext') : $('#f-call');
+  input.focus();
+  if (state.commentMode) input.setSelectionRange(input.value.length, input.value.length);
 }
 
 async function leaveEvent() {
   if (!state.event) return;
   closeMap();
   $('#btn-map').classList.remove('active');
+  await flushMarkers({ openForEdit: false });
   await flushDraft();
   await flushHeader();
-  if (!state.readOnly && stats(state.entries).total) await takeSnapshot('beim Verlassen');
+  if (!state.readOnly && state.entries.some(e => !e.deleted)) await takeSnapshot('beim Verlassen');
   if (state.releaseLock) state.releaseLock();
   state.releaseLock = null;
   state.event = null;
@@ -657,6 +671,50 @@ function onHeaderChange(h) {
   maybeRefreshMap(); // own position follows "Eigener QTH" / "Eigener Locator"
   clearTimeout(state.headerTimer);
   state.headerTimer = setTimeout(flushHeader, 400);
+}
+
+// Automatic log markers (decision on issue #32, option c): every finished
+// change of operator or repeater in the header writes an operator comment
+// at that moment ("Schichtwechsel / Übergabe" / "Frequenzwechsel"). Runs on
+// the header's `change` event (field left, Enter, checkbox, repeater pick),
+// before a line is saved and when the log is left; headerChangeMarkers()
+// in js/model.js decides. With an empty entry form the new marker is
+// opened for editing, so the operator can add text (Enter from the header
+// lands in it; Shift+Enter saves, Esc keeps it as it is).
+async function flushMarkers({ openForEdit = true } = {}) {
+  const ev = state.event;
+  if (!ev || state.readOnly || !state.markerBase) return;
+  const prevBase = state.markerBase;
+  const { markers, base } = headerChangeMarkers(prevBase, ev.header || emptyHeader(), state.entries.some(e => !e.deleted));
+  state.markerBase = base;
+  if (!markers.length) return;
+  const ts = nowIso();
+  const made = markers.map(m => newComment({ eventId: ev.id, ts, text: m.text, category: m.category, header: ev.header, auto: m.auto }));
+  try {
+    await state.store.tx(made.map(c => ({ store: 'entries', put: c })));
+  } catch (e) {
+    if (state.markerBase === base) state.markerBase = prevBase; // retried on the next change
+    showSaveError(e);
+    return;
+  }
+  if (state.event?.id !== ev.id) return;
+  state.entries.push(...made);
+  renderLog();
+  broadcast({ type: 'entries', eventId: ev.id });
+  const what = made.map(c => `${c.category}: ${c.text}`).join(' · ');
+  const status = $('#form-status');
+  status.className = 'ok';
+  // Open it for editing only while the operator is still in the header
+  // (focus stays there): never switch the form under someone who already
+  // moved on to the entry form to log a station.
+  const inHeader = $('#log-header').contains(document.activeElement) || document.activeElement === document.body;
+  if (openForEdit && inHeader && !state.editingId && !state.commentMode && formIsEmpty(readForm())) {
+    startEdit(made[made.length - 1].id, { focus: false, scroll: false });
+    fill(status, el('span', { class: 'edit-tag' }, `✓ Marker gespeichert (${fmtTime(ts, false)}) – ${what}. Text ergänzen, Shift+Enter; Esc lässt ihn so.`));
+  } else {
+    fill(status, `✓ Marker gespeichert (${fmtTime(ts, false)}) – ${what} `,
+      el('button', { type: 'button', class: 'link', onclick: () => startEdit(made[made.length - 1].id) }, 'Text ergänzen'));
+  }
 }
 
 async function flushHeader() {
@@ -811,7 +869,11 @@ function updateRepeaterDefault() {
 }
 
 function readForm() {
+  const cat = document.querySelector('#c-cat input:checked');
   return {
+    kind: state.commentMode ? 'comment' : 'checkin',
+    text: state.commentMode ? $('#f-ctext').value.trim() : '',
+    category: state.commentMode && cat ? cat.value : '',
     call: normalizeCall($('#f-call').value),
     fields: readFields(),
     viaRepeater: $('#f-rpt').checked,
@@ -822,7 +884,61 @@ function readForm() {
   };
 }
 
+// Operator comment mode of the entry form: typing "!" in the empty
+// callsign field switches to it (the rest of the typed text becomes the
+// comment); the check-in fields are hidden (CSS .ci-only / .c-only), the
+// comment text and a category chip group (digits 1–5) are shown. Backspace
+// in the empty comment text or Esc goes back.
+function setCommentMode(on) {
+  state.commentMode = on;
+  $('#entry-form').classList.toggle('comment-mode', on);
+  if (!on) {
+    $('#f-ctext').value = '';
+    writeCategory('');
+  }
+  if (!state.editingId) $('#btn-save').textContent = on ? 'Kommentar speichern ⇧⏎' : 'Speichern ⇧⏎';
+}
+
+function writeCategory(v) {
+  document.querySelectorAll('#c-cat input').forEach(r => {
+    r.checked = r.value === v;
+    r.dataset.was = r.checked ? '1' : '';
+  });
+}
+
+function buildCategoryChips() {
+  const box = $('#c-cat');
+  fill(box, COMMENT_CATEGORIES.map((c, i) => {
+    const r = el('input', { type: 'radio', name: 'c_cat', value: c });
+    r.addEventListener('click', () => {
+      if (r.dataset.was === '1') { r.checked = false; r.dataset.was = ''; }
+      else box.querySelectorAll('input').forEach(o => { o.dataset.was = o === r ? '1' : ''; });
+      onFormInput();
+    });
+    r.addEventListener('keydown', ev => radioKey(ev, [...box.querySelectorAll('input')], onFormInput));
+    return el('label', { 'data-value': c }, r, el('span', {}, `${i + 1} ${c}`));
+  }));
+}
+
+// "!" typed into the empty callsign field: switch to comment mode.
+function onCallInput() {
+  const input = $('#f-call');
+  if (!input.value.startsWith('!') || state.editingId || state.commentMode) return;
+  const rest = input.value.slice(1);
+  const f = readForm();
+  if (f.note || Object.values(f.fields).some(v => v) || f.loc || f.rptOverride) {
+    input.value = rest;
+    $('#call-warn').textContent = 'Für einen Kommentar erst diese Zeile speichern oder verwerfen (Esc).';
+    return;
+  }
+  input.value = '';
+  setCommentMode(true);
+  $('#f-ctext').value = rest.replace(/^\s+/, '');
+  focusEntryStart();
+}
+
 function clearForm() {
+  setCommentMode(false);
   $('#f-call').value = '';
   $('#f-note').value = '';
   $('#f-time').value = '';
@@ -840,7 +956,7 @@ function clearForm() {
 }
 
 function formIsEmpty(f) {
-  return !f.call && !f.note && !f.time && Object.values(f.fields).every(v => !v);
+  return !f.call && !f.note && !f.time && !f.text && !f.category && Object.values(f.fields).every(v => !v);
 }
 
 function onFormInput() {
@@ -997,6 +1113,20 @@ function describeEntry(e, tpl) {
   return bits.join(' · ');
 }
 
+// The time field's prefill when editing a line (seconds precision).
+function editTimeText(iso) {
+  const { date, time } = splitTime(iso, timeMode());
+  return `${date} ${time}`;
+}
+
+// Time for a saved line: an unchanged edit prefill keeps the exact stored
+// timestamp (re-parsing it would drop the milliseconds and could reorder
+// lines logged within the same second).
+function lineTime(text, editing) {
+  if (editing && text === editTimeText(editing.ts)) return { iso: editing.ts };
+  return resolveTime(text, editing ? editing.ts : nowIso());
+}
+
 // Typed correction in the current display mode -> ISO UTC timestamp.
 function resolveTime(text, fallbackIso) {
   if (!text) return { iso: fallbackIso };
@@ -1060,9 +1190,69 @@ async function toggleMap() {
   }
 }
 
+// Short label of a line for status messages and the recycle bin.
+function lineLabel(e) {
+  if (!isComment(e)) return `Nr. ${e.seq} ${e.call}`;
+  const t = e.text && e.text.length > 40 ? e.text.slice(0, 39) + '…' : e.text;
+  return `Kommentar${e.category ? ` [${e.category}]` : ''}${t ? ` „${t}“` : ''}`;
+}
+
+async function saveComment(f) {
+  const status = $('#form-status');
+  if (!f.text && !f.category) {
+    status.className = 'err';
+    status.textContent = 'Kommentartext fehlt.';
+    focusEntryStart();
+    return;
+  }
+  const ev = state.event;
+  const editing = state.editingId ? state.entries.find(e => e.id === state.editingId) : null;
+  const t = lineTime(f.time, editing);
+  if (t.error) {
+    status.className = 'err';
+    status.textContent = `Zeit nicht lesbar – HH:MM oder JJJJ-MM-TT HH:MM (${timeMode() === 'local' ? 'Lokalzeit' : 'UTC'}), oder leer lassen.`;
+    $('#f-time').focus();
+    return;
+  }
+  const ops = [];
+  let entry;
+  if (editing) {
+    // The header snapshot stays the one from when the comment was made.
+    entry = { ...editing, text: f.text, category: f.category, ts: t.iso, updated: nowIso() };
+    ops.push({ store: 'revisions', put: { id: newId(), eventId: ev.id, entryId: editing.id, savedAt: nowIso(), reason: 'edit', data: editing } });
+  } else {
+    entry = newComment({ eventId: ev.id, ts: t.iso, text: f.text, category: f.category, header: ev.header });
+  }
+  ops.push({ store: 'entries', put: entry });
+  ops.push({ store: 'drafts', del: ev.id });
+  $('#btn-save').disabled = true;
+  clearTimeout(state.draftTimer);
+  try {
+    await state.store.tx(ops);
+  } catch (e) {
+    $('#btn-save').disabled = false;
+    status.className = 'err';
+    status.textContent = 'NICHT gespeichert!';
+    showSaveError(e);
+    return;
+  }
+  $('#btn-save').disabled = false;
+  const i = state.entries.findIndex(e => e.id === entry.id);
+  if (i >= 0) state.entries[i] = entry; else state.entries.push(entry);
+  status.className = 'ok';
+  status.textContent = `✓ ${lineLabel(entry)} gespeichert – ${fmtTime(entry.ts)}`;
+  clearForm();
+  renderLog();
+  broadcast({ type: 'entries', eventId: ev.id });
+  $('#f-call').focus();
+}
+
 async function saveEntry() {
   if (state.readOnly) return;
+  // A finished header change gets its marker before the next line.
+  await flushMarkers({ openForEdit: false });
   const f = readForm();
+  if (f.kind === 'comment') return saveComment(f);
   const status = $('#form-status');
   if (!f.call) {
     status.className = 'err';
@@ -1072,7 +1262,7 @@ async function saveEntry() {
   }
   const ev = state.event;
   const editing = state.editingId ? state.entries.find(e => e.id === state.editingId) : null;
-  const t = resolveTime(f.time, editing ? editing.ts : nowIso());
+  const t = lineTime(f.time, editing);
   if (t.error) {
     status.className = 'err';
     status.textContent = `Zeit nicht lesbar – HH:MM oder JJJJ-MM-TT HH:MM (${timeMode() === 'local' ? 'Lokalzeit' : 'UTC'}), oder leer lassen.`;
@@ -1129,10 +1319,30 @@ async function saveEntry() {
   $('#f-call').focus();
 }
 
-function startEdit(id) {
+function startEdit(id, { focus = true, scroll = true } = {}) {
   if (state.readOnly) return;
   const e = state.entries.find(x => x.id === id);
   if (!e) return;
+  if (isComment(e)) {
+    clearForm();
+    state.editingId = id;
+    setCommentMode(true);
+    $('#f-ctext').value = e.text || '';
+    writeCategory(e.category || '');
+    const { date, time } = splitTime(e.ts, timeMode());
+    $('#f-time').value = `${date} ${time}`;
+    $('#entry-form').classList.add('editing');
+    $('#btn-discard').textContent = 'Bearbeitung abbrechen (Esc)';
+    $('#btn-save').textContent = 'Kommentar speichern ⇧⏎';
+    $('#form-status').className = '';
+    fill($('#form-status'), el('span', { class: 'edit-tag' }, `Bearbeite ${lineLabel(e)} – die alte Fassung wird aufbewahrt.`));
+    renderLog();
+    scheduleDraft();
+    if (focus) focusEntryStart();
+    if (scroll) window.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
+  if (state.commentMode) setCommentMode(false);
   state.editingId = id;
   $('#f-call').value = e.call;
   writeFields(e.fields);
@@ -1150,8 +1360,8 @@ function startEdit(id) {
   fill($('#form-status'), el('span', { class: 'edit-tag' }, `Bearbeite Nr. ${e.seq} – die alte Fassung wird aufbewahrt.`));
   updateCallFeedback();
   scheduleDraft();
-  $('#f-call').focus();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (focus) $('#f-call').focus();
+  if (scroll) window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 async function setDeleted(id, deleted) {
@@ -1173,7 +1383,7 @@ async function setDeleted(id, deleted) {
   const status = $('#form-status');
   status.className = 'ok';
   fill(status, 
-    deleted ? `Nr. ${e.seq} ${e.call} gelöscht. ` : `Nr. ${e.seq} ${e.call} wiederhergestellt.`,
+    deleted ? `${lineLabel(e)} gelöscht. ` : `${lineLabel(e)} wiederhergestellt.`,
     deleted ? el('button', { type: 'button', class: 'link', onclick: () => setDeleted(id, false) }, 'Rückgängig') : null,
   );
   renderLog();
@@ -1206,7 +1416,16 @@ async function flushDraft() {
 
 // Put a saved form state (draft, or discarded input being undone) back.
 function applyFormState(form, editingId) {
+  if (form.kind === 'comment') {
+    if (editingId && state.entries.some(e => e.id === editingId)) startEdit(editingId, { focus: false, scroll: false });
+    else setCommentMode(true);
+    $('#f-ctext').value = form.text || '';
+    writeCategory(form.category || '');
+    $('#f-time').value = form.time || '';
+    return;
+  }
   if (editingId && state.entries.some(e => e.id === editingId)) startEdit(editingId);
+  else if (state.commentMode) setCommentMode(false);
   $('#f-call').value = form.call || '';
   writeFields(form.fields);
   state.locField?.set(form.loc);
@@ -1226,21 +1445,22 @@ function discardForm() {
   const form = readForm();
   const editingId = state.editingId;
   if (!editingId && formIsEmpty(form) && !form.loc && !form.rptOverride) {
+    if (state.commentMode) setCommentMode(false); // empty comment: back to check-in
     $('#f-call').focus();
     return;
   }
-  const editedSeq = editingId ? state.entries.find(e => e.id === editingId)?.seq : null;
+  const edited = editingId ? state.entries.find(e => e.id === editingId) : null;
   clearForm();
   scheduleDraft(); // empty form -> the stored draft is removed
   const status = $('#form-status');
   status.className = 'ok';
   fill(status,
-    editingId ? `Bearbeitung von Nr. ${editedSeq} abgebrochen – die Zeile bleibt unverändert. ` : 'Eingaben verworfen. ',
+    edited ? `Bearbeitung von ${isComment(edited) ? lineLabel(edited) : `Nr. ${edited.seq}`} abgebrochen – die Zeile bleibt unverändert. ` : 'Eingaben verworfen. ',
     el('button', { type: 'button', class: 'link', onclick: () => {
       applyFormState(form, editingId);
       scheduleDraft();
       status.replaceChildren();
-      $('#f-call').focus();
+      focusEntryStart();
     } }, 'Rückgängig'));
   $('#f-call').focus();
 }
@@ -1295,16 +1515,36 @@ function renderLog(highlightCall) {
     body.append(el('tr', {}, el('td', { colspan: String(tpl.fields.length + 7), class: 'empty' }, 'Noch keine Einträge. Rufzeichen eingeben und Shift+Enter drücken.')));
     return;
   }
+  const cols = tpl.fields.length + 7;
   for (const e of live) {
     const n = nums.get(e.id);
     const { date, time } = splitTime(e.ts, timeMode());
     const s = e.snap || {};
     // Date only when it differs from the newest line (nets past midnight).
     const showDate = date !== splitTime(live[0].ts, timeMode()).date;
+    const timeBits = [showDate ? el('span', { class: 'date' }, date + ' ') : null, time,
+      timeMode() === 'utc' ? 'Z' : null, // ISO/military notation for UTC; local times keep the column's offset
+      timeMode() === 'local' && zoneLabel(e.ts, 'local') !== zoneLabel(nowIso(), 'local') ? el('span', { class: 'date' }, ' ' + zoneLabel(e.ts, 'local')) : null];
+    const actions = [
+      el('button', { type: 'button', disabled: state.readOnly, onclick: () => startEdit(e.id) }, 'Bearb.'),
+      ' ',
+      el('button', { type: 'button', class: 'danger', disabled: state.readOnly, onclick: () => setDeleted(e.id, true) }, '✕'),
+    ];
+    if (isComment(e)) {
+      // Operator comment / marker: one full-width banner row.
+      body.append(el('tr', { class: ['marker', e.auto ? 'auto' : '', e.id === state.editingId ? 'editing' : ''].join(' ').trim() },
+        el('td', { colspan: String(cols) },
+          el('div', { class: 'marker-row' },
+            el('span', { class: 'mono marker-time', title: `${isoUtc(e.ts)} (gespeichert, UTC)` }, timeBits),
+            el('span', { class: 'marker-cat' }, e.category || 'Kommentar'),
+            el('span', { class: 'marker-text' }, e.text || ''),
+            el('span', { class: 'marker-op mono', title: 'Operator zu diesem Zeitpunkt' },
+              s.operator && s.station && s.operator !== s.station ? `Op ${s.operator}/${s.station}` : s.operator ? `Op ${s.operator}` : ''),
+            el('span', { class: 'act' }, actions)))));
+      continue;
+    }
     body.append(el('tr', { class: [e.call === call && call ? 'match' : '', e.id === state.editingId ? 'editing' : ''].join(' ').trim() || null },
-      el('td', { class: 'mono', title: `${isoUtc(e.ts)} (gespeichert, UTC)` }, showDate ? el('span', { class: 'date' }, date + ' ') : null, time,
-        timeMode() === 'utc' ? 'Z' : null, // ISO/military notation for UTC; local times keep the column's offset
-        timeMode() === 'local' && zoneLabel(e.ts, 'local') !== zoneLabel(nowIso(), 'local') ? el('span', { class: 'date' }, ' ' + zoneLabel(e.ts, 'local')) : null),
+      el('td', { class: 'mono', title: `${isoUtc(e.ts)} (gespeichert, UTC)` }, timeBits),
       el('td', { class: 'mono' }, String(e.seq)),
       el('td', { class: 'call' }, e.call, n > 1 ? el('span', { class: 'badge', title: `Check-in Nr. ${n}` }, `${n}×`) : null,
         callbookName(e.call) ? el('div', { class: 'cb-name' }, callbookName(e.call)) : null),
@@ -1319,11 +1559,7 @@ function renderLog(highlightCall) {
         : '–'),
       el('td', {}, e.note || ''),
       el('td', { class: 'mono' }, s.operator && s.station && s.operator !== s.station ? `${s.operator}/${s.station}` : s.operator || s.station || ''),
-      el('td', { class: 'act' },
-        el('button', { type: 'button', disabled: state.readOnly, onclick: () => startEdit(e.id) }, 'Bearb.'),
-        ' ',
-        el('button', { type: 'button', class: 'danger', disabled: state.readOnly, onclick: () => setDeleted(e.id, true) }, '✕'),
-      ),
+      el('td', { class: 'act' }, actions),
     ));
   }
 }
@@ -1334,7 +1570,7 @@ async function renderTrash() {
   fill(list, 
     el('li', {}, el('b', {}, `Gelöschte Zeilen (${deleted.length})`)),
     deleted.map(e => el('li', {},
-      `Nr. ${e.seq} ${e.call} ${fmtTime(e.ts)} – gelöscht ${fmtDateTime(e.deleted)} `,
+      `${lineLabel(e)} ${fmtTime(e.ts)} – gelöscht ${fmtDateTime(e.deleted)} `,
       el('button', { type: 'button', class: 'link', disabled: state.readOnly, onclick: () => setDeleted(e.id, false) }, 'wiederherstellen'))),
   );
   const snaps = (await state.store.getByEvent('snapshots', state.event.id)).sort((a, b) => (a.at < b.at ? 1 : -1));
@@ -1468,12 +1704,13 @@ function updateExportNudge() {
 }
 
 async function doExport(kind) {
+  await flushMarkers({ openForEdit: false });
   await flushHeader();
   const ev = state.event;
   const entries = state.entries;
   if (kind === 'csv') {
     const sep = localStorage.getItem(CSV_SEP_KEY) || ';';
-    download(toCSV(ev, entries, sep), fileBase(ev) + '.csv', 'text/csv');
+    download(toCSV(ev, entries, sep, { comments: $('#csv-comments').checked }), fileBase(ev) + '.csv', 'text/csv');
     markExported();
   } else if (kind === 'adif') {
     download(toADIF(ev, entries), fileBase(ev) + '.adi', 'text/plain');
@@ -1513,6 +1750,8 @@ function initChannel() {
     if (m.type === 'entries' && state.event && m.eventId === state.event.id && state.readOnly) {
       state.entries = await state.store.getByEvent('entries', state.event.id);
       state.event = (await state.store.get('events', state.event.id)) || state.event;
+      // The writing tab made the markers for its header changes.
+      state.markerBase = { ...(state.event.header || emptyHeader()) };
       renderLog();
       renderTrash();
     } else if (m.type === 'events' && !$('#view-events').hidden) {
@@ -1551,7 +1790,10 @@ function wire() {
     }
   });
   // Log header: Enter in the last field goes on to the callsign.
-  headerKeys($('#log-header'), () => $('#f-call').focus());
+  headerKeys($('#log-header'), focusEntryStart);
+  // A finished header edit (field left, Enter, checkbox, repeater pick)
+  // writes the automatic operator/repeater marker.
+  $('#log-header').addEventListener('change', () => { flushMarkers(); });
   $('#new-event').addEventListener('submit', ev => {
     ev.preventDefault();
     const form = ev.target;
@@ -1579,6 +1821,9 @@ function wire() {
   const sep = $('#csv-sep');
   sep.value = localStorage.getItem(CSV_SEP_KEY) || ';';
   sep.addEventListener('change', () => localStorage.setItem(CSV_SEP_KEY, sep.value));
+  const csvCmt = $('#csv-comments');
+  csvCmt.checked = localStorage.getItem(CSV_COMMENTS_KEY) === '1';
+  csvCmt.addEventListener('change', () => localStorage.setItem(CSV_COMMENTS_KEY, csvCmt.checked ? '1' : ''));
 
   const form = $('#entry-form');
   form.addEventListener('submit', ev => { ev.preventDefault(); saveEntry(); });
@@ -1600,6 +1845,18 @@ function wire() {
     }
   });
   $('#f-call').addEventListener('change', prefillLocation);
+  // "!" in the empty callsign field = operator comment (before onFormInput).
+  $('#f-call').addEventListener('input', onCallInput);
+  buildCategoryChips();
+  // Backspace in the empty comment text goes back to a check-in.
+  $('#f-ctext').addEventListener('keydown', ev => {
+    if (ev.key === 'Backspace' && !ev.target.value && !state.editingId && !readForm().category) {
+      ev.preventDefault();
+      setCommentMode(false);
+      scheduleDraft();
+      $('#f-call').focus();
+    }
+  });
   $('#f-rpt').addEventListener('change', () => { $('#f-rpt').dataset.touched = '1'; });
   // Typo suggestions are guesses: Enter takes one only after ↓.
   state.callPop = popover($('#f-call'), $('#call-suggest'), { enterPicksFirst: false });
@@ -1618,7 +1875,7 @@ function wire() {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') { flushDraft(); flushHeader(); }
   });
-  window.addEventListener('pagehide', () => { flushDraft(); flushHeader(); });
+  window.addEventListener('pagehide', () => { flushMarkers({ openForEdit: false }); flushDraft(); flushHeader(); });
 
   setInterval(tickClock, 1000);
   window.addEventListener('hashchange', route);

@@ -1,7 +1,17 @@
 // CSV / ADIF / KML / plain-text summary export. Pure functions over an event and
 // its entries — no DOM — so they're unit-tested in oe1ebg/tests/.
+//
+// Operator comments (kind 'comment', see js/model.js) are no QSOs:
+//   ADIF, KML (and the map): never included;
+//   CSV: left out unless { comments: true } (then a `typ` column
+//        checkin/kommentar plus `kategorie`; QSO fields stay empty);
+//   summary: included in time order, plus an "Operators:" line;
+//   JSON backup (app.js): always included, it is the raw entries store.
 
-import { liveSorted, checkinNumbers, splitUtc, splitTime, zoneLabel, lineFrequencies, bandForMHz, modeInfo, stats } from './model.js';
+import {
+  liveSorted, liveCheckins, isComment, checkinNumbers, operatorShifts, splitUtc, splitTime, zoneLabel, lineFrequencies,
+  bandForMHz, modeInfo, stats,
+} from './model.js';
 import { templateFor, fieldVisible, fieldDisplay, hasLocationField } from './templates.js';
 import { stationsForMap } from './mapdata.js';
 
@@ -50,11 +60,11 @@ function fmtMHz(v) {
   return v === null || v === undefined ? '' : String(Math.round(v * 1e6) / 1e6);
 }
 
-// One flat row per live entry; shared by CSV and the summary.
+// One flat row per live check-in (comments excluded); shared by CSV and the summary.
 function exportRows(event, entries) {
   const tpl = templateFor(event.template);
   const nums = checkinNumbers(entries);
-  return liveSorted(entries).map(e => {
+  return liveCheckins(entries).map(e => {
     const { tx, rx } = lineFrequencies(e);
     const s = e.snap || {};
     // Time always first: one UTC timestamp that Excel recognises.
@@ -86,11 +96,27 @@ function exportRows(event, entries) {
   });
 }
 
-export function toCSV(event, entries, sep = ';') {
-  const rows = exportRows(event, entries);
+// A comment as a CSV row: time, typ, kategorie, the text in `notiz`, and
+// who operated (from its snapshot); all QSO fields stay empty.
+function commentRow(event, e) {
+  const s = e.snap || {};
+  return {
+    zeitstempel_utc: excelUtc(e.ts), typ: 'kommentar', kategorie: e.category || '', ts: e.ts,
+    notiz: e.text || '', operator: s.operator, station: s.station, my_locator: s.myGrid, log: event.title,
+  };
+}
+
+// opts.comments: include operator comments (default: no, one row per check-in).
+export function toCSV(event, entries, sep = ';', opts = {}) {
+  const withComments = !!opts.comments;
+  let rows = exportRows(event, entries);
+  if (withComments) {
+    const byId = new Map(liveCheckins(entries).map((e, i) => [e.id, rows[i]]));
+    rows = liveSorted(entries).map(e => (isComment(e) ? commentRow(event, e) : { ...byId.get(e.id), typ: 'checkin' }));
+  }
   const tpl = templateFor(event.template);
   const cols = [
-    'zeitstempel_utc', 'nr', 'checkin_nr', 'rufzeichen',
+    'zeitstempel_utc', ...(withComments ? ['typ', 'kategorie'] : []), 'nr', 'checkin_nr', 'rufzeichen',
     ...tpl.fields.map(f => f.key),
     ...(hasLocationField(tpl) ? LOC_COLS : []),
     'ueber_relais', 'relais', 'relais_ctcss', 'relais_quelle', 'notiz', 'operator', 'station',
@@ -128,7 +154,7 @@ export function toADIF(event, entries, createdIso = new Date().toISOString()) {
   out += `<ADIF_VER:5>3.1.7 <PROGRAMID:${ADIF_PROGRAM_ID.length}>${ADIF_PROGRAM_ID} `;
   out += `<CREATED_TIMESTAMP:15>${ts} <EOH>\n\n`;
 
-  for (const e of liveSorted(entries)) {
+  for (const e of liveCheckins(entries)) {
     const s = e.snap || {};
     const { date, time } = splitUtc(e.ts);
     const { tx, rx } = lineFrequencies(e);
@@ -243,7 +269,7 @@ function kmlDescription(fields) {
 export function toKML(event, entries) {
   const { placed } = stationsForMap(entries);
   const h = event.header || {};
-  const live = liveSorted(entries);
+  const live = liveCheckins(entries);
   const docFields = [
     ['Datum (UTC)', splitUtc(live[0]?.ts || event.created).date],
     ['Operator', h.operator],
@@ -302,10 +328,23 @@ export function toSummary(event, entries, timeMode = 'utc') {
   lines.push(`${event.title}`);
   const who = [h.operator && `Operator ${h.operator}`, h.station && `für ${h.station}`].filter(Boolean).join(' ');
   if (who) lines.push(who);
-  const first = rows[0], last = rows[rows.length - 1];
+  // The time span covers all lines, operator comments included.
+  const all = liveSorted(entries);
+  const first = all[0], last = all[all.length - 1];
+  const day0 = first ? splitTime(first.ts, timeMode).date : '';
+  // "19:30", or "2026-10-05 00:10" on a later day than the first line.
+  const hm = iso => {
+    const t = splitTime(iso, timeMode);
+    return `${t.date !== day0 ? t.date + ' ' : ''}${t.time.slice(0, 5)}`;
+  };
   if (first) {
-    const a = splitTime(first.ts, timeMode), b = splitTime(last.ts, timeMode);
-    lines.push(`${a.date} ${a.time.slice(0, 5)}–${b.date !== a.date ? b.date + ' ' : ''}${b.time.slice(0, 5)} ${zoneLabel(first.ts, timeMode)}`);
+    const a = splitTime(first.ts, timeMode);
+    lines.push(`${a.date} ${a.time.slice(0, 5)}–${hm(last.ts)} ${zoneLabel(first.ts, timeMode)}`);
+  }
+  // Who operated when (only worth a line once the operator changed).
+  const shifts = operatorShifts(entries);
+  if (shifts.length > 1) {
+    lines.push(`Operators: ${shifts.map((s, i) => `${s.operator} ${hm(s.from)}–${i === shifts.length - 1 && s.to === s.from ? '…' : hm(s.to)}`).join(', ')} ${zoneLabel(first.ts, timeMode)}`);
   }
   lines.push(`${st.unique} Stationen, ${st.total} Check-ins`);
   lines.push('');
@@ -313,6 +352,16 @@ export function toSummary(event, entries, timeMode = 'utc') {
   const calls = [];
   for (const r of rows) if (!seen.has(r.rufzeichen)) { seen.add(r.rufzeichen); calls.push(r.rufzeichen); }
   lines.push(calls.join(', '));
+
+  // Operator comments / markers in time order.
+  const comments = all.filter(isComment);
+  if (comments.length) {
+    lines.push('', `Operator-Kommentare (${zoneLabel(comments[0].ts, timeMode)}):`);
+    for (const c of comments) {
+      const op = c.snap?.operator ? ` (Op ${c.snap.operator})` : '';
+      lines.push(`  ${hm(c.ts)} ${c.category ? `[${c.category}] ` : ''}${c.text || ''}${op}`.trimEnd());
+    }
+  }
 
   // Which repeater the stations came in on (e.g. linked-network exercises).
   if (rows.some(r => r.ueber_relais === 'ja')) {

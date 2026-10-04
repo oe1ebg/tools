@@ -145,7 +145,12 @@ Zensical `docs_dir` would take over that section's index route (see
   button. A `BroadcastChannel` keeps the read-only tab's view current.
 - **Header snapshot per line.** Each line stores a copy of the header fields
   (`snap`), so changing the operator or repeater mid-event never rewrites
-  older lines.
+  older lines. Such a change also writes an automatic log marker (see
+  [Operator comments](#operator-comments-and-log-markers-issue-32)).
+- **Edit keeps the exact time.** Editing a line prefills the time field to
+  the second; if it is left unchanged, the stored timestamp (with
+  milliseconds) is kept, so lines logged within the same second never swap
+  places.
 - **Schema versions.** The IndexedDB schema is versioned. Add a migration
   branch in `openIdb()` and never drop stores. v2 added `stations` (last
   known location per callsign). The browser tests check that a v1 database
@@ -157,11 +162,94 @@ Zensical `docs_dir` would take over that section's index route (see
   imported again. On import, an event whose id already exists is imported
   as a copy with fresh ids; nothing is overwritten.
 
+## Operator comments and log markers (issue #32)
+
+An operator comment is a line in the log that is not a contact: "Wechsel
+auf 145.500", "OE1XYZ übernimmt von OE1ABC", "Netz pausiert", "Relais
+ausgefallen, weiter simplex". It is shown as a full-width banner between
+the check-ins (blue band with a category tag; black frame on paper, so it
+also shows in print).
+
+- **Data model.** Comments live in the existing `entries` store, so there
+  was **no schema change** (still v2): `{ id, eventId, kind: 'comment', ts,
+  text, category, auto, snap, created, updated, deleted }`.
+  - `kind` is only set on comments. A line without `kind` is a check-in,
+    so all existing data and older JSON backups load unchanged.
+  - A comment has no `call`, no `seq` (it does not use up a line number)
+    and no check-in number.
+  - `category` is optional: `Frequenzwechsel`, `Schichtwechsel / Übergabe`,
+    `Unterbrechung`, `Technik` or `Sonstiges` (`COMMENT_CATEGORIES` in
+    `js/model.js`).
+  - `snap` is the header at that moment, like on a check-in, so a comment
+    carries the operator who wrote it. `auto` is `'operator'` or
+    `'repeater'` for automatic markers, otherwise `null`.
+  - `ts` works as for check-ins: automatic, or a typed correction.
+  - Same data rules as check-ins: edits store a revision first, deletes are
+    soft (undo, recycle bin), drafts survive a reload, and the JSON backup
+    and import include comments.
+- **Not counted anywhere.** `liveCheckins()` in `js/model.js` is the
+  check-in list; `checkinNumbers()`, `previousCheckins()` (repeat
+  check-ins), `stats()` (Stationen / Check-ins, the export counter) and
+  `stationsForMap()` (map and KML) all use it.
+- **Adding one by keyboard.** Type **`!`** as the first character in the
+  callsign field (`!` can never be part of a callsign). The form switches
+  to comment mode, and the rest of what was typed becomes the comment text,
+  so `!Netz pausiert` works in one go. The comment text and a category
+  chip group replace the check-in fields. Enter moves on to the category
+  (digits 1–5 pick, Backspace clears it), Shift+Enter saves, and Esc
+  discards with undo. Backspace in the empty text goes back to a check-in.
+  The time field stays in front, as for check-ins. The placeholder in the
+  callsign field and the keyboard line under the form both mention `!`.
+  If the check-in fields already hold input, `!` is refused with a hint,
+  so nothing typed is hidden.
+- **Automatic markers (option c of the issue).** Every finished change of
+  the **operator** or the **repeater** in the log header writes a marker at
+  that moment:
+  - operator → `Schichtwechsel / Übergabe`, "OE1XYZ übernimmt von OE1ABC";
+  - repeater changed, switched on or off → `Frequenzwechsel`, "OE1XUU
+    (438.950 MHz) → direkt (145.500 MHz)"; a change of the direct frequency
+    while no repeater is used counts as well.
+  - "Finished" means the header's `change` event: leaving the field, Enter,
+    the "über Relais" checkbox, or picking a repeater from the list. So
+    typing a callsign letter by letter writes one marker, not six. Pending
+    changes are also checked before a line is saved, before an export, and
+    when the log is left.
+  - The decision is the pure function `headerChangeMarkers(base, next,
+    hasEntries)` in `js/model.js`, which is unit-tested. Half-typed states
+    are skipped (an empty operator, "über Relais" ticked with no repeater
+    callsign). A log with no lines yet gets no markers, so filling in the
+    header of a fresh log is not a "change". Station, locator, QTH and mode
+    changes write no marker.
+  - **Adding text:** if the entry form is empty while the operator is still
+    in the header, the new marker is opened in the form for editing, and
+    focus stays in the header. Enter from the last header field then lands
+    at the end of the marker text: type, Shift+Enter, done. Esc leaves the
+    marker as it is. If the operator was already in the entry form, or a
+    check-in was half-typed, the form is left alone and the status line
+    offers "Text ergänzen". The table's "Bearb." button works for every
+    comment.
+  - Check-ins before and after the marker keep their own header snapshot
+    (`snap`). That has not changed: CSV/ADIF read operator and repeater per
+    line.
+- **Exports.** Comments are not contacts, so:
+
+  | Export | Comments |
+  |---|---|
+  | ADIF | never (no QSO records, nothing in the header) |
+  | CSV | left out by default; with **"Operator-Kommentare einschließen"** (checkbox next to CSV, remembered) the CSV gets the columns `typ` (`checkin` / `kommentar`) and `kategorie` after `zeitstempel_utc`, one row per comment in time order. Comment rows have the text in `notiz`, plus `operator`, `station`, `my_locator` and `log`; all QSO fields stay empty. |
+  | Zusammenfassung | always: a section "Operator-Kommentare" in time order (time, category, text, operator), and once the operator changed, a line "Operators: OE1ABC 18:00–19:30, OE1XYZ 19:30–19:55 UTC" (`operatorShifts()`: runs of the same `snap.operator` over all lines; a handover marker carries the new operator). The time span covers comments too. |
+  | JSON backup | always, unchanged (raw `entries` store) |
+  | KML, map | never |
+
+  The default CSV stays one row per check-in, so Excel sums and filters
+  keep working; the option is for a full protocol.
+
 ## Export
 
 - **CSV.** UTF-8 with a BOM so Excel shows umlauts correctly, `;` as the
   separator (switchable to `,` next to the CSV button, for Excel with
-  English regional settings). There is one row per check-in. It starts
+  English regional settings). There is one row per check-in (operator
+  comments only with the option, see above). It starts
   with the timestamp `zeitstempel_utc` (`2026-10-04 19:42:07`), then `checkin_nr`, the template
   fields as display text, the repeater flag and callsign, and the operator,
   station, frequency, band and mode as they were when the line was logged.
@@ -197,7 +285,10 @@ Zensical `docs_dir` would take over that section's index route (see
   for the Probealarm, the average siren grade with its distribution per
   situation, AT-Alert received/not received, "not received" by platform
   and major version, and a line per PLZ (AT-Alert ratio and average
-  grades). Only each station's latest check-in is counted.
+  grades). Only each station's latest check-in is counted. Operator
+  comments and the "Operators:" line are described above.
+- **No comments in ADIF or KML.** See the table in
+  [Operator comments](#operator-comments-and-log-markers-issue-32).
 
 ## Callsign list
 
@@ -552,7 +643,7 @@ any tiles**.
 - `js/app.js`: the UI.
 - `js/db.js`: storage.
 - `js/model.js`: pure helpers (callsigns, UTC time, bands, check-in
-  numbering).
+  numbering, operator comments and automatic header-change markers).
 - `js/templates.js`: the template field definitions.
 - `js/export.js`: CSV, ADIF, KML and summary output.
 - `js/sources.js`: dataset/licence links and the Google Maps /

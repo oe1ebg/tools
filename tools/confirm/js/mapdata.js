@@ -2,13 +2,14 @@
 // oe1ebg/tests/. Coordinates are [lat, lon] / { lat, lon }.
 
 import { maidenheadToBounds, isValidLocator, latLonToMaidenhead } from './location/maidenhead.js';
-import { liveSorted } from './model.js';
+import { liveCheckins } from './model.js';
 
 // One record per callsign: all live check-ins (oldest first) and the
-// latest check-in that has a resolved location.
+// latest check-in that has a resolved location. Operator comments are no
+// stations and never appear here (nor in the KML built from this).
 export function stationsForMap(entries) {
   const byCall = new Map();
-  for (const e of liveSorted(entries)) {
+  for (const e of liveCheckins(entries)) {
     if (!byCall.has(e.call)) byCall.set(e.call, { call: e.call, checkins: [], loc: null, locEntry: null });
     const s = byCall.get(e.call);
     s.checkins.push(e);
