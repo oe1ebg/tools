@@ -7,6 +7,8 @@ import os
 import re
 from pathlib import Path
 
+from single_file import bundle_modules, inline_vendor, module_order, script_safe, vendor_refs
+
 # Build step for the offline confirmation log (oe1ebg/tools/confirm/). Runs
 # before scripts/stage_tools.py and `zensical build`, which copy the generated
 # files into content/confirm/ and then site/.
@@ -17,12 +19,13 @@ from pathlib import Path
 #    laptop and open it via file://, where neither service workers nor ES
 #    module scripts work. Modules are "bundled" by plain concatenation in
 #    dependency order with import lines and `export` keywords stripped,
-#    wrapped in one IIFE — so js/ modules must keep their top-level names
-#    unique and use only single-statement `import {...} from './x.js';`.
+#    wrapped in one IIFE (scripts/single_file.py has the rules this puts on
+#    the modules).
 #
 # 2. precache.js — the service worker's file list plus a content-hash
-#    version (see tools/confirm/sw.js). Any change to any shipped file
-#    changes the version, which makes browsers install the new version in
+#    version (see tools/confirm/sw.js). The list includes the files from
+#    tools/shared/ the tool uses (imported modules, Leaflet), as relative
+#    URLs (../shared/…). Any change to any shipped file changes the version, which makes browsers install the new version in
 #    the background (activated only when the user clicks "Update").
 #
 # 3. build-info.js — `self.CONFIRM_BUILD = { commit, version }` for the
@@ -61,59 +64,9 @@ def git_commit() -> str:
 def build_info_js(build: dict) -> str:
     return f"self.CONFIRM_BUILD = {json.dumps(build)};\n"
 
-IMPORT_RE = re.compile(r"^import\s*\{[^}]*\}\s*from\s*['\"](\./[^'\"]+)['\"];?[ \t]*\n", re.M)
-EXPORT_RE = re.compile(r"^export\s+(?=(async\s+)?(function|const|let|class)\b)", re.M)
 SCRIPT_BLOCK_RE = re.compile(r"<!-- CONFIRM-SCRIPT-BEGIN -->.*?<!-- CONFIRM-SCRIPT-END -->", re.S)
 VENDOR_BLOCK_RE = re.compile(r"<!-- CONFIRM-VENDOR-BEGIN -->(.*?)<!-- CONFIRM-VENDOR-END -->", re.S)
-VENDOR_REF_RE = re.compile(r'<link rel="stylesheet" href="([^"]+)">|<script src="([^"]+)"></script>')
-
-
-def inline_vendor(block: str) -> str:
-    """Third-party files (vendor/, e.g. Leaflet) as inline <style>/<script>."""
-    def sub(m: re.Match) -> str:
-        css, js = m.group(1), m.group(2)
-        text = (CONFIRM_DIR / (css or js)).read_text(encoding="utf-8")
-        if css:
-            return f"<style>\n{text.replace('</style', '<\\/style')}\n</style>"
-        return f"<script>\n{text.replace('</script', '<\\/script')}\n</script>"
-    return VENDOR_REF_RE.sub(sub, block)
-
-
-def module_order(entry: Path) -> list[Path]:
-    order: list[Path] = []
-    seen: set[Path] = set()
-
-    def visit(path: Path) -> None:
-        if path in seen:
-            return
-        seen.add(path)
-        for dep in IMPORT_RE.findall(path.read_text(encoding="utf-8")):
-            visit((path.parent / dep).resolve())
-        order.append(path)
-
-    visit(entry.resolve())
-    return order
-
-
-TOP_DECL_RE = re.compile(r"^(?:export\s+)?(?:async\s+)?(?:function\*?|const|let|class)\s+([A-Za-z_$][\w$]*)", re.M)
-
-
-def bundle_js() -> str:
-    parts = []
-    declared: dict[str, str] = {}
-    for path in module_order(CONFIRM_DIR / "js" / "app.js"):
-        for name in TOP_DECL_RE.findall(path.read_text(encoding="utf-8")):
-            if name in declared:
-                raise SystemExit(f"top-level name {name!r} declared in both {declared[name]} and {path.name} "
-                                 "— the offline bundle shares one scope; rename one")
-            declared[name] = path.name
-        src = path.read_text(encoding="utf-8")
-        src = IMPORT_RE.sub("", src)
-        src = EXPORT_RE.sub("", src)
-        if re.search(r"^\s*(import|export)\b", src, re.M):
-            raise SystemExit(f"{path.name}: unsupported import/export form for the offline bundle")
-        parts.append(f"// ---- {path.relative_to(CONFIRM_DIR)} ----\n{src}")
-    return "(() => {\n'use strict';\n" + "\n".join(parts) + "\n})();\n"
+ENTRY = CONFIRM_DIR / "js" / "app.js"
 
 
 def inline_data() -> str:
@@ -131,12 +84,12 @@ def inline_data() -> str:
 def build_bundle(build: dict) -> str:
     html = (CONFIRM_DIR / "index.html").read_text(encoding="utf-8")
     # build-info.js (replaced by the CONFIRM-SCRIPT block) inlined before the app.
-    js = (build_info_js(build) + bundle_js()).replace("</script", "<\\/script")
+    js = script_safe(build_info_js(build) + bundle_modules(ENTRY))
     data = inline_data()
     html, n = SCRIPT_BLOCK_RE.subn(lambda _m: f"{data}<script>\n{js}</script>", html)
     if n != 1:
         raise SystemExit("index.html: CONFIRM-SCRIPT markers not found")
-    html, n = VENDOR_BLOCK_RE.subn(lambda m: inline_vendor(m.group(1)), html)
+    html, n = VENDOR_BLOCK_RE.subn(lambda m: inline_vendor(m.group(1), CONFIRM_DIR), html)
     if n != 1:
         raise SystemExit("index.html: CONFIRM-VENDOR markers not found")
     # No manifest (meaningless on file://); icon inlined so the file is self-contained.
@@ -146,12 +99,26 @@ def build_bundle(build: dict) -> str:
     return html
 
 
+def shared_files() -> list[Path]:
+    """Files outside tools/confirm/ the tool loads: imported modules + vendor block."""
+    html = (CONFIRM_DIR / "index.html").read_text(encoding="utf-8")
+    block = VENDOR_BLOCK_RE.search(html)
+    vendor = [(CONFIRM_DIR / ref).resolve() for ref in vendor_refs(block.group(1))] if block else []
+    root = CONFIRM_DIR.resolve()
+    return sorted({p for p in module_order(ENTRY) + vendor if not p.is_relative_to(root)})
+
+
 def shipped_files() -> list[Path]:
     files = []
     for p in sorted(CONFIRM_DIR.rglob("*")):
         if p.is_file() and p.name not in EXCLUDE and p.suffix != ".md" and not p.name.startswith("."):
             files.append(p)
-    return files
+    return files + shared_files()
+
+
+def url_of(p: Path) -> str:
+    """Precache entry: path relative to tools/confirm/ (= /confirm/ on the site)."""
+    return Path(os.path.relpath(p.resolve(), CONFIRM_DIR.resolve())).as_posix()
 
 
 def main() -> None:
@@ -160,7 +127,7 @@ def main() -> None:
     files = shipped_files()
     h = hashlib.sha256()
     for p in files:
-        h.update(p.relative_to(CONFIRM_DIR).as_posix().encode())
+        h.update(url_of(p).encode())
         h.update(b"\0")
         h.update(p.read_bytes())
     version = h.hexdigest()[:12]
@@ -170,7 +137,7 @@ def main() -> None:
         "// Generated by scripts/build_confirm.py — do not edit.\n" + build_info_js(build), encoding="utf-8")
     (CONFIRM_DIR / BUNDLE_NAME).write_text(build_bundle(build), encoding="utf-8")
 
-    entries = ["./"] + [p.relative_to(CONFIRM_DIR).as_posix() for p in files] + UNHASHED
+    entries = ["./"] + [url_of(p) for p in files] + UNHASHED
     listing = ",\n".join(f"    {e!r}" for e in entries).replace("'", '"')
     (CONFIRM_DIR / PRECACHE_NAME).write_text(
         "// Generated by scripts/build_confirm.py — do not edit.\n"

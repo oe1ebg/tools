@@ -14,6 +14,7 @@ import {
 } from './model.js';
 import { templateFor, fieldVisible, fieldDisplay, hasLocationField } from './templates.js';
 import { stationsForMap } from './mapdata.js';
+import { adifAscii, adifAsciiField } from '../../shared/js/adif.js';
 
 export const ADIF_PROGRAM_ID = 'OE1EBG';
 
@@ -128,24 +129,6 @@ export function toCSV(event, entries, sep = ';', opts = {}) {
   return '﻿' + lines.join('\r\n') + '\r\n';
 }
 
-// ADIF .adi is an ASCII format: transliterate German characters, replace
-// anything else non-ASCII, and drop the "<" ">" that would break parsing.
-export function adifAscii(s) {
-  return String(s ?? '')
-    .replace(/Ä/g, 'Ae').replace(/Ö/g, 'Oe').replace(/Ü/g, 'Ue')
-    .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
-    .normalize('NFKD').replace(/[̀-ͯ]/g, '')
-    .replace(/[\r\n\t]+/g, ' ')
-    .replace(/[<>]/g, '')
-    .replace(/[^\x20-\x7e]/g, '?')
-    .trim();
-}
-
-function adifField(name, value) {
-  const v = adifAscii(value);
-  return v === '' ? '' : `<${name}:${v.length}>${v} `;
-}
-
 export function toADIF(event, entries, createdIso = new Date().toISOString()) {
   const tpl = templateFor(event.template);
   const nums = checkinNumbers(entries);
@@ -161,31 +144,31 @@ export function toADIF(event, entries, createdIso = new Date().toISOString()) {
     const mode = modeInfo(s.mode);
     const comment = [];
     let rec = '';
-    rec += adifField('CALL', e.call);
-    rec += adifField('QSO_DATE', date.replace(/-/g, ''));
-    rec += adifField('TIME_ON', time.replace(/:/g, ''));
-    rec += adifField('OPERATOR', s.operator);
-    rec += adifField('STATION_CALLSIGN', s.station || s.operator);
+    rec += adifAsciiField('CALL', e.call);
+    rec += adifAsciiField('QSO_DATE', date.replace(/-/g, ''));
+    rec += adifAsciiField('TIME_ON', time.replace(/:/g, ''));
+    rec += adifAsciiField('OPERATOR', s.operator);
+    rec += adifAsciiField('STATION_CALLSIGN', s.station || s.operator);
     if (tx !== null) {
-      rec += adifField('FREQ', fmtMHz(tx));
-      rec += adifField('BAND', bandForMHz(tx));
+      rec += adifAsciiField('FREQ', fmtMHz(tx));
+      rec += adifAsciiField('BAND', bandForMHz(tx));
     }
     if (rx !== null && rx !== tx) {
-      rec += adifField('FREQ_RX', fmtMHz(rx));
-      rec += adifField('BAND_RX', bandForMHz(rx));
+      rec += adifAsciiField('FREQ_RX', fmtMHz(rx));
+      rec += adifAsciiField('BAND_RX', bandForMHz(rx));
     }
     if (mode) {
-      rec += adifField('MODE', mode.mode);
-      if (mode.submode) rec += adifField('SUBMODE', mode.submode);
+      rec += adifAsciiField('MODE', mode.mode);
+      if (mode.submode) rec += adifAsciiField('SUBMODE', mode.submode);
     }
-    rec += adifField('MY_GRIDSQUARE', s.myGrid);
-    rec += adifField('MY_CITY', s.myQth);
+    rec += adifAsciiField('MY_GRIDSQUARE', s.myGrid);
+    rec += adifAsciiField('MY_CITY', s.myQth);
     if (e.viaRepeater) {
-      rec += adifField('PROP_MODE', 'RPT');
+      rec += adifAsciiField('PROP_MODE', 'RPT');
       const rpt = [s.repeaterCall, s.repeaterFreq && `${s.repeaterFreq} MHz`, s.repeaterShift && `Shift ${s.repeaterShift}`,
         s.repeaterTone && `CTCSS ${s.repeaterTone}`].filter(Boolean).join(' ');
       if (rpt) {
-        rec += adifField(`APP_${ADIF_PROGRAM_ID}_REPEATER`, s.repeaterCall || rpt);
+        rec += adifAsciiField(`APP_${ADIF_PROGRAM_ID}_REPEATER`, s.repeaterCall || rpt);
         comment.push(`via Relais ${rpt}`);
       }
     }
@@ -194,23 +177,23 @@ export function toADIF(event, entries, createdIso = new Date().toISOString()) {
       const raw = e.fields?.[f.key];
       if (raw === undefined || raw === null || raw === '') continue;
       if (f.adif) {
-        rec += adifField(f.adif, raw);
+        rec += adifAsciiField(f.adif, raw);
       } else {
-        rec += adifField(`APP_${ADIF_PROGRAM_ID}_${f.key.toUpperCase()}`, raw);
+        rec += adifAsciiField(`APP_${ADIF_PROGRAM_ID}_${f.key.toUpperCase()}`, raw);
         comment.push(`${f.label}: ${fieldDisplay(f, raw)}`);
       }
     }
     if (e.loc) {
-      rec += adifField('GRIDSQUARE', e.loc.maidenhead);
-      rec += adifField('LAT', adifLatLon(e.loc.lat, true));
-      rec += adifField('LON', adifLatLon(e.loc.lon, false));
-      rec += adifField(`APP_${ADIF_PROGRAM_ID}_LOCATION`, e.loc.label);
+      rec += adifAsciiField('GRIDSQUARE', e.loc.maidenhead);
+      rec += adifAsciiField('LAT', adifLatLon(e.loc.lat, true));
+      rec += adifAsciiField('LON', adifLatLon(e.loc.lon, false));
+      rec += adifAsciiField(`APP_${ADIF_PROGRAM_ID}_LOCATION`, e.loc.label);
       comment.push(`Standort: ${e.loc.label} (${LOC_CONF_DE[e.loc.confidence] || e.loc.confidence})`);
     }
-    rec += adifField(`APP_${ADIF_PROGRAM_ID}_CHECKIN`, String(nums.get(e.id)));
-    rec += adifField(`APP_${ADIF_PROGRAM_ID}_LOG`, event.title);
+    rec += adifAsciiField(`APP_${ADIF_PROGRAM_ID}_CHECKIN`, String(nums.get(e.id)));
+    rec += adifAsciiField(`APP_${ADIF_PROGRAM_ID}_LOG`, event.title);
     if (e.note) comment.push(e.note);
-    rec += adifField('COMMENT', comment.join('; '));
+    rec += adifAsciiField('COMMENT', comment.join('; '));
     out += rec + '<EOR>\n';
   }
   return out;

@@ -4,8 +4,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { buildLocationIndex, locate, lookupMaidenhead } from '../tools/confirm/js/location/index.js';
-import { latLonToMaidenhead } from '../tools/confirm/js/location/maidenhead.js';
+import { buildLocationIndex, locate, lookupMaidenhead } from '../tools/shared/js/location/index.js';
+import { latLonToMaidenhead } from '../tools/shared/js/maidenhead.js';
 
 function vienna() {
   const S = 1e5, B = (v, base) => Math.round((v - base) * S);

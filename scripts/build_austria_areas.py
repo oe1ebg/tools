@@ -85,7 +85,7 @@ def cached_download(name: str, url: str) -> Path:
 
 
 def maidenhead(lat: float, lon: float, precision: int = 6) -> str:
-    """Same algorithm as tools/confirm/js/location/maidenhead.js."""
+    """Same algorithm as tools/shared/js/maidenhead.js."""
     lon += 180
     lat += 90
     out = chr(65 + int(lon // 20)) + chr(65 + int(lat // 10))

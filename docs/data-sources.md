@@ -191,8 +191,8 @@ repository at build time.
 
 ## Software libraries
 
-- **Leaflet 1.9.4** – map library, vendored (an identical copy each in the
-  confirmation log and the SOTA Alerts Map, with its licence file).
+- **Leaflet 1.9.4** – map library, vendored (one copy, used by the confirmation
+  log and the SOTA Alerts Map, with its licence file).
   © 2010–2023 Volodymyr Agafonkin, © 2010–2011 CloudMade.
   [BSD 2-Clause](https://github.com/Leaflet/Leaflet/blob/main/LICENSE),
   [leafletjs.com](https://leafletjs.com/).

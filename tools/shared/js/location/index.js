@@ -10,11 +10,12 @@
 //   lookupCoordinates(idx, 48.21, 16.37)    -> { postcode, district, ... }
 //   lookupMaidenhead(idx, 'JN88ee')         -> { bounds, postalCodes, ... }
 
-import { latLonToMaidenhead, maidenheadToBounds, isValidLocator, locatorPrecisionName, formatLocator } from './maidenhead.js';
+import { latLonToMaidenhead, maidenheadToBounds, isValidLocator, locatorPrecisionName, formatLocator } from '../maidenhead.js';
 import { foldName, searchKeys, normalizeHouseNumber, leadingNumber } from './normalize.js';
 import { parseLocationInput } from './parse.js';
 import { buildTrigramIndex, trigramCandidates, nameSimilarity } from './fuzzy.js';
-import { distanceMeters, buildGrid, nearestPoints, pointsInBox } from './spatial.js';
+import { buildGrid, nearestPoints, pointsInBox } from './spatial.js';
+import { distanceMeters } from '../geo.js';
 
 // Ranking (see the brief): text match base + structured-evidence bonuses.
 export const SCORE = {

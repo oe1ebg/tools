@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SOTA Alerts Map</title>
-<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+<link rel="stylesheet" href="../shared/vendor/leaflet/leaflet.css">
 <style>
   :root{
     --bg: #ffffff;
@@ -578,8 +578,12 @@
   <div id="list-panel"><div id="candidates-items"></div><div id="list-items"></div></div>
 </div>
 
-<script src="vendor/leaflet/leaflet.js"></script>
-<script>
+<script src="../shared/vendor/leaflet/leaflet.js"></script>
+<!-- A module script (served over http only) so it can import the shared
+     modules from tools/shared/ (published at /shared/). -->
+<script type="module">
+import { distanceMeters } from '../shared/js/geo.js';
+
 (function(){
   "use strict";
 
@@ -1353,14 +1357,8 @@
       .filter(Boolean).join(' · ');
   }
 
-  // Great-circle distance in km between two lat/lon points (haversine).
-  function haversineKm(lat1, lon1, lat2, lon2){
-    const R = 6371;
-    const toRad = d => d * Math.PI / 180;
-    const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
-    const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-    return 2 * R * Math.asin(Math.sqrt(a));
-  }
+  // Great-circle distance in km (haversine, tools/shared/js/geo.js).
+  const haversineKm = (lat1, lon1, lat2, lon2) => distanceMeters(lat1, lon1, lat2, lon2) / 1000;
 
   // Distance + elevation delta of `summit` relative to the currently-selected
   // reference summit, or null if no reference is set / it isn't resolved.

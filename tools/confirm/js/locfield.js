@@ -9,8 +9,8 @@
 
 import { el, fill, popover } from './dom.js';
 import { loadLocationIndex, renderCandidates, autoSelectLevel } from './locationui.js';
-import { locate } from './location/index.js';
-import { latLonToMaidenhead } from './location/maidenhead.js';
+import { locate } from '../../shared/js/location/index.js';
+import { latLonToMaidenhead } from '../../shared/js/maidenhead.js';
 
 const LOC_CONF_TEXT = { exact: 'exakt', high: 'hoch', likely: 'wahrscheinlich', ambiguous: 'mehrdeutig', low: 'unsicher' };
 

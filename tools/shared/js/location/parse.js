@@ -4,7 +4,7 @@
 //   "Donauinsel 1220 JN88ge" -> { text: "Donauinsel", postcode: "1220", locator: "JN88ge" }
 //   "Bezirk Mödling"         -> { text: "Mödling", bezirkHint: true }
 
-import { isValidLocator, isLocatorPrefix, formatLocator } from './maidenhead.js';
+import { isValidLocator, isLocatorPrefix, formatLocator } from '../maidenhead.js';
 import { foldName } from './normalize.js';
 
 const COORD_DOT_RE = /(-?\d{1,2}\.\d+)\s*°?\s*([NS])?\s*[,;\s]\s*(-?\d{1,3}\.\d+)\s*°?\s*([EOW])?/i;

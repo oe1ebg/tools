@@ -1,7 +1,7 @@
 // Pure helpers for the map view (no DOM, no Leaflet) — unit-tested in
 // oe1ebg/tests/. Coordinates are [lat, lon] / { lat, lon }.
 
-import { maidenheadToBounds, isValidLocator, latLonToMaidenhead } from './location/maidenhead.js';
+import { maidenheadToBounds, isValidLocator, latLonToMaidenhead } from '../../shared/js/maidenhead.js';
 import { liveCheckins } from './model.js';
 
 // One record per callsign: all live check-ins (oldest first) and the

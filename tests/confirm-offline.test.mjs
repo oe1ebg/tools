@@ -11,6 +11,8 @@ import { commitUrl, versionItems, REPO_URL } from '../tools/confirm/js/sources.j
 
 const OE1EBG = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIR = join(OE1EBG, 'tools', 'confirm');
+// tools/shared/ modules (location lookup, Maidenhead, geo), shipped with the tool.
+const SHARED_JS = join(OE1EBG, 'tools', 'shared', 'js');
 const GENERATED = new Set(['confirm-offline.html', 'precache.js', 'build-info.js']);
 // Dataset/licence links and map links: <a href> targets only, never fetched.
 const LINK_ONLY = 'js/sources.js';
@@ -38,8 +40,8 @@ function walk(d) {
 
 test('no external URLs in shipped confirm sources', () => {
   const offenders = [];
-  for (const p of walk(DIR)) {
-    const name = p.slice(DIR.length + 1);
+  for (const p of [...walk(DIR), ...walk(SHARED_JS)]) {
+    const name = p.startsWith(DIR) ? p.slice(DIR.length + 1) : `../shared/js/${p.slice(SHARED_JS.length + 1)}`;
     // vendor/: unmodified third-party code (Leaflet); its URLs are in
     // comments/licence text only — see the no-tiles/no-icons test below.
     if (GENERATED.has(name) || name === LINK_ONLY || name.startsWith('vendor/') || !/\.(js|html|webmanifest|svg|css)$/.test(name)) continue;
@@ -55,7 +57,7 @@ test('no external URLs in shipped confirm sources', () => {
 
 test('map: no tile layers, no image icons (Leaflet would request them)', () => {
   const bad = [];
-  for (const p of walk(join(DIR, 'js'))) {
+  for (const p of [...walk(join(DIR, 'js')), ...walk(SHARED_JS)]) {
     const src = readFileSync(p, 'utf8').replace(/\/\/.*$/gm, '');
     if (/tileLayer|L\.icon\(|L\.Icon\b|imageOverlay/.test(src)) bad.push(p);
     // every Leaflet marker must use a CSS divIcon
@@ -83,7 +85,7 @@ test('offline bundle builds into one self-contained, parseable file', () => {
   // load-failure fallback, Leaflet, (inlined data/ when built), app bundle
   assert.equal(scripts.length, hasData ? 4 : 3);
   assert.ok(scripts.some(s => s.includes('Leaflet 1.9.4')), 'Leaflet inlined');
-  assert.ok(!/vendor\/leaflet/.test(html.replace(/<script>[\s\S]*?<\/script>/g, '')), 'no reference to vendor files left');
+  assert.ok(!/(vendor|shared)\//.test(html.replace(/<script>[\s\S]*?<\/script>/g, '')), 'no reference to vendor files left');
   const app = scripts[scripts.length - 1];
   assert.ok(!/^\s*(import|export)\b/m.test(app));
   assert.match(app, /CONFIRM_STARTED = true/);
@@ -94,6 +96,15 @@ test('offline bundle builds into one self-contained, parseable file', () => {
   assert.match(pre, /version: "[0-9a-f]{12}"/);
   for (const f of ['"./"', '"index.html"', '"js/app.js"', '"manifest.webmanifest"']) assert.ok(pre.includes(f), f);
   assert.ok(!pre.includes('"sw.js"'));
+  // tools/shared/ files the tool loads are precached via ../shared/ URLs,
+  // and every entry exists (cache.addAll() fails the install otherwise)
+  for (const f of ['"../shared/js/maidenhead.js"', '"../shared/js/location/index.js"', '"../shared/vendor/leaflet/leaflet.js"']) assert.ok(pre.includes(f), f);
+  const ctx = { self: {} };
+  vm.runInNewContext(pre, ctx);
+  for (const f of ctx.self.CONFIRM_PRECACHE.files) {
+    if (f !== './' && f !== 'build-info.js') assert.ok(existsSync(join(DIR, f)), f);
+    assert.ok(!f.endsWith('.md'), f);
+  }
   assert.ok(!pre.includes('"confirm-offline.html"'), 'bundle is a download, not precached');
 });
 

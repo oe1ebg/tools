@@ -3,9 +3,9 @@
 // callsign, site/town, frequency, band, mode or locator, nearest first when
 // the own position is known. Pure functions, unit-tested in oe1ebg/tests/.
 
-import { foldName, compactKey } from './location/normalize.js';
-import { maidenheadToBounds, isValidLocator } from './location/maidenhead.js';
-import { distanceMeters } from './location/spatial.js';
+import { foldName, compactKey } from '../../shared/js/location/normalize.js';
+import { maidenheadToBounds, isValidLocator } from '../../shared/js/maidenhead.js';
+import { distanceMeters } from '../../shared/js/geo.js';
 
 const RPT_MODE_WORDS = { fm: 'FM', dmr: 'DMR', c4fm: 'C4FM', ysf: 'C4FM', fusion: 'C4FM', dstar: 'DSTAR', 'd-star': 'DSTAR', tetra: 'TETRA' };
 const RPT_BAND_WORDS = { '2m': '2m', '70cm': '70cm', '23cm': '23cm', '6m': '6m', '10m': '10m', '13cm': '13cm' };

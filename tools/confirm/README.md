@@ -437,9 +437,12 @@ fires. The compact dropdown in the log's location field has no links.
   1e-5°. The file also records source, retrieval time and attribution
   metadata.
 
-### Runtime (`js/location/`, pure ES modules, unit-tested)
+### Runtime (`tools/shared/js/location/`, pure ES modules, unit-tested)
 
-- `maidenhead.js`: locator ↔ WGS84 for any even length; a locator is
+The lookup engine is shared with other tools (`tools/shared/`, published at
+`/shared/`); Maidenhead and distance live one level up.
+
+- `../maidenhead.js`: locator ↔ WGS84 for any even length; a locator is
   treated as an area (bounds plus centre).
 - `normalize.js`: search keys. Matching works across ß/ss, ä/ae/a,
   Straße/Strasse/Str./str, -gasse/g., -platz/pl., hyphens and spaces
@@ -452,8 +455,8 @@ fires. The compact dropdown in the log's location field has no links.
   text), and the house number (42, 42A, 42/3, 42-44).
 - `fuzzy.js`: a trigram index plus Damerau (OSA) similarity, run **only over
   the ~16.5k vocabulary keys**, never over the 181k addresses.
-- `spatial.js`: Haversine distance and a ~250 m grid index, used for nearest
-  addresses and locator boxes.
+- `spatial.js`: a ~250 m grid index (distances from `../geo.js`), used for
+  nearest addresses and locator boxes.
 - `index.js`: `locate()`, `lookupCoordinates()` and `lookupMaidenhead()`.
   - **Ranking:** a text score (exact address 100 / exact name 95 / alias 90
     / prefix ≤85 / fuzzy ≤80) plus evidence: PLZ +30 (contradicting −25),
@@ -585,8 +588,8 @@ Vienna PLZ and district results carry the same locator coverage.
 ## Map view ("Karte")
 
 The "Karte" button in a log opens an offline map above the table. It is
-drawn by the vendored Leaflet 1.9.4 (`tools/confirm/vendor/leaflet/`, a copy
-of the one in `sota-alerts`, BSD-2) on a **vector outline basemap, without
+drawn by the vendored Leaflet 1.9.4 (`tools/shared/vendor/leaflet/`, shared
+with `sota-alerts`, BSD-2) on a **vector outline basemap, without
 any tiles**.
 
 - **Basemap data.** `scripts/build_map_data.py` (`just build-map`, part of
@@ -658,26 +661,28 @@ any tiles**.
 - `js/repeaters.js` / `js/repeaterui.js`: repeater search (pure) and the
   dropdown on the header's "Relais" field.
 - `js/mapdata.js` / `js/mapview.js`: the map view (pure helpers / Leaflet
-  UI); `vendor/leaflet/`: unmodified Leaflet 1.9.4.
+  UI); Leaflet 1.9.4, unmodified, is in `tools/shared/vendor/leaflet/`.
 - `js/locfield.js`: the log's `location` field (resolve while typing,
   auto-select or pick, auto-fill PLZ).
-- `js/location/`: the lookup engine (see above).
+- `tools/shared/js/location/`, `maidenhead.js`, `geo.js`, `adif.js`: shared
+  with the other tools (lookup engine above; ADIF field encoding).
 
-Unlike the other tools, the JS lives in separate files: plain ES modules
-with no dependencies, so the node tests in `oe1ebg/tests/` can import them.
-Two rules keep the offline bundler simple: use only
-`import { … } from './x.js';`, and keep top-level names unique across
-modules.
+The JS lives in separate files: plain ES modules with no dependencies, so
+the node tests in `oe1ebg/tests/` can import them. Two rules keep the
+offline bundler (`scripts/single_file.py`) simple: use only
+`import { … } from './x.js';` (or `'../…'`), and keep top-level names unique
+across all modules the tool loads, the shared ones included.
+
+**Shared files and the service worker.** `precache.js` also lists the
+`tools/shared/` files the tool loads (the imported modules, found by
+following the imports from `js/app.js`, and the Leaflet files in the
+`CONFIRM-VENDOR` block), as `../shared/…`. `sw.js` serves those from the
+cache too: a controlled page's requests reach the worker whatever their URL,
+so being outside the `/confirm/` scope doesn't matter.
 
 To add a template, add an entry to `TEMPLATES` in `js/templates.js`. Give a
 field an `adif` key to map it to a standard ADIF field; otherwise it is
 exported as `APP_OE1EBG_<KEY>`.
-
-## Planned next
-
-- Moving all standalone tools into a common `/tools/` directory. All paths
-  in the tool are relative, so a move means only a `git mv` plus a nav entry
-  change.
 
 ## Development
 

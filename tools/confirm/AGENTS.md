@@ -25,10 +25,15 @@ are in `oe1ebg/tools/confirm/README.md`.
   - Schema changes need a new `DB_VERSION` plus a migration branch in
     `openIdb()`. Never delete or recreate stores.
 - **Bundler limits.** `scripts/build_confirm.py` concatenates the `js/`
-  modules into `confirm-offline.html`, so:
-  - only use `import { … } from './x.js';`;
+  modules and the `tools/shared/` modules they import into
+  `confirm-offline.html` (`scripts/single_file.py`), so:
+  - only use `import { … } from './x.js';` (or `'../…'`), no `as`;
   - only put `export` in front of `function`/`const`/`let`/`class`;
-  - keep top-level names unique across all modules.
+  - keep top-level names unique across all modules, the shared ones included.
+- **Shared code** (`tools/shared/`: location lookup, Maidenhead, distance,
+  ADIF encoding, Leaflet) is used by other tools too. Change it with them in
+  mind and run all tests. It is precached as `../shared/…` (computed by
+  `build_confirm.py` from the imports and the `CONFIRM-VENDOR` block).
 - **DOM:** use `fill(node, ...children)` from `js/dom.js`, not
   `node.replaceChildren(...)` with arrays or `null`. `replaceChildren`
   renders an array as "[object HTMLLIElement]" and `null` as the text
@@ -97,7 +102,7 @@ addresses contiguous per street), the per-address arrays
 `districts`, `aliases` and `meta`.
 
 - **Changing the format:** bump `schema` and update `buildLocationIndex()`.
-- **Normalization** exists only in `js/location/normalize.js`.
+- **Normalization** exists only in `tools/shared/js/location/normalize.js`.
 - **Ranking changes** need the tests in
   `tests/location-search.test.mjs` updated. They run against a synthetic
   dataset (always) and against the real data (when it has been built).

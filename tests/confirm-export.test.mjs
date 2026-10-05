@@ -2,7 +2,8 @@
 process.env.TZ = 'Europe/Vienna';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { toCSV, toADIF, toSummary, adifAscii, toKML, xmlEscape, KML_MIME } from '../tools/confirm/js/export.js';
+import { toCSV, toADIF, toSummary, toKML, xmlEscape, KML_MIME } from '../tools/confirm/js/export.js';
+import { adifAscii } from '../tools/shared/js/adif.js';
 import { stationsForMap } from '../tools/confirm/js/mapdata.js';
 import { headerSnapshot } from '../tools/confirm/js/model.js';
 

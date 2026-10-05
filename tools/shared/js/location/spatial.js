@@ -1,14 +1,6 @@
-// Spatial helpers: Haversine distance and a uniform grid index over the
-// address points (no O(n) scans for nearest / in-box queries).
+// Spatial helpers: a uniform grid index over the address points (no O(n) scans for nearest / in-box queries).
 
-const EARTH_RADIUS_M = 6371008.8;
-const toRad = d => (d * Math.PI) / 180;
-
-export function distanceMeters(lat1, lon1, lat2, lon2) {
-  const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-  return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(a)));
-}
+import { distanceMeters } from '../geo.js';
 
 // Cells of ~250 m at Vienna's latitude.
 const CELL_LAT = 0.00225, CELL_LON = 0.0034;

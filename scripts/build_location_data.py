@@ -37,7 +37,7 @@ from pathlib import Path
 # Address downloads are cached in .cache/vienna-location/ (30 days;
 # VIENNA_LOCATION_FORCE_REFRESH=1 bypasses). A failed refresh falls back to
 # the cache. Text normalization happens at runtime in the browser
-# (tools/confirm/js/location/normalize.js) so it exists in exactly one place.
+# (tools/shared/js/location/normalize.js) so it exists in exactly one place.
 
 WFS_URL = (
     "https://data.wien.gv.at/daten/geo?service=WFS&request=GetFeature&version=1.1.0"

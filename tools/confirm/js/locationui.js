@@ -5,8 +5,8 @@
 
 import { $, el, fill, copyToClipboard } from './dom.js';
 import { loadDataFile } from './data.js';
-import { buildLocationIndex, locate } from './location/index.js';
-import { latLonToMaidenhead } from './location/maidenhead.js';
+import { buildLocationIndex, locate } from '../../shared/js/location/index.js';
+import { latLonToMaidenhead } from '../../shared/js/maidenhead.js';
 import { sourceItem, standDate, mapLinks } from './sources.js';
 
 const LOC_PREC_KEY = 'oe1ebg-confirm-locator-precision';

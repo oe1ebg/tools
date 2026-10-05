@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { buildLocationIndex, locate, lookupCoordinates, lookupMaidenhead } from '../tools/confirm/js/location/index.js';
+import { buildLocationIndex, locate, lookupCoordinates, lookupMaidenhead } from '../tools/shared/js/location/index.js';
 
 function synthetic() {
   const S = 1e5, B = (v, base) => Math.round((v - base) * S);

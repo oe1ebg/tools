@@ -1,6 +1,6 @@
 # SOTA Alerts Map
 
-A single-file, client-side planning tool for SOTA (Summits On The Air)
+A client-side planning tool for SOTA (Summits On The Air)
 activations: a map of upcoming activation *alerts* (planned activations, not
 historical spots), with your own callsign(s) visually highlighted, plus the
 ability to pin candidate summits (searched by name/code, not just alerted
@@ -276,7 +276,8 @@ entirely instead of needing a proxy.
 ## Leaflet vendoring
 
 Leaflet **1.9.4** (`dist/leaflet.js`, `dist/leaflet.css`), downloaded from
-unpkg and committed under `oe1ebg/tools/sota-alerts/vendor/leaflet/`, referenced
+unpkg and committed under `oe1ebg/tools/shared/vendor/leaflet/` (one copy,
+shared with the confirmation log; published at `/shared/`), referenced
 by relative path (not a CDN) — keeping the app shell itself free of live
 external dependencies, matching the ADIF editor's ethos. OSM map tiles and
 the two SOTA API endpoints are still live network calls by necessity — there
@@ -519,10 +520,13 @@ current state rather than treating the URL as continuously live.
 
 ## Files
 
-- `index.html` — the entire tool. Open directly in any browser, or serve via
-  `just oe1ebg serve` / `just oe1ebg preview` from the repo root.
-- `vendor/leaflet/` — vendored Leaflet 1.9.4 (`leaflet.js`, `leaflet.css`,
-  `LICENSE`).
+- `index.html` — the tool. Its script is a module script
+  (`<script type="module">`) importing `../shared/js/geo.js` (haversine
+  distance), so serve it over http (`just oe1ebg serve` / `just oe1ebg
+  preview` from the repo root); the `data/` lookups never worked from
+  `file://` anyway.
+- `../shared/vendor/leaflet/` — vendored Leaflet 1.9.4 (`leaflet.js`,
+  `leaflet.css`, `LICENSE`), shared with the confirmation log.
 
 `scripts/stage_tools.py` copies this directory into the Zensical
 `docs_dir` (`content/sota-alerts/`) at build time without its Markdown
@@ -584,5 +588,5 @@ section's index page and would silently hide `index.html`.
 
 ## License
 
-Leaflet is BSD-2-Clause (see `vendor/leaflet/LICENSE`). The rest of this
+Leaflet is BSD-2-Clause (see `../shared/vendor/leaflet/LICENSE`). The rest of this
 page: no external code beyond Leaflet, do whatever you want with it.

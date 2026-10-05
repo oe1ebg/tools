@@ -20,6 +20,11 @@ try {
 
 const CACHE = PRECACHE ? `confirm-${PRECACHE.version}` : 'confirm-dev';
 const SCOPE = new URL('./', self.location).pathname;
+// Precached files outside the scope: the modules and Leaflet from
+// tools/shared/ (published at /shared/, listed as ../shared/… in
+// precache.js). A controlled page's requests reach this worker whatever
+// their URL, so these are served from the cache like everything else.
+const EXTRA = new Set(PRECACHE ? PRECACHE.files.map(f => new URL(f, self.location).pathname).filter(p => !p.startsWith(SCOPE)) : []);
 
 self.addEventListener('install', event => {
   if (!PRECACHE) return;
@@ -50,7 +55,7 @@ self.addEventListener('fetch', event => {
   const req = event.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
-  if (url.origin !== self.location.origin || !url.pathname.startsWith(SCOPE)) return;
+  if (url.origin !== self.location.origin || !(url.pathname.startsWith(SCOPE) || EXTRA.has(url.pathname))) return;
   event.respondWith((async () => {
     const cache = await caches.open(CACHE);
     let hit = await cache.match(req, { ignoreSearch: true });
