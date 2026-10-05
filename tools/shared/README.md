@@ -19,7 +19,7 @@ browser loads.
 | `js/callbook.js` | Austrian callsign list: lookup, typo suggestions | confirm |
 | `js/repeaters.js` | Austrian repeater search (callsign, site, frequency, locator, nearest) | confirm |
 | `js/data.js` | `loadDataFile(name)`: `data/` files (fetched, or inlined in single-file bundles) | confirm |
-| `js/storage.js` | IndexedDB storage with localStorage fallback; each tool passes its schema | confirm |
+| `js/storage.js` | IndexedDB storage with localStorage fallback; each tool passes its schema; `atomic()` read-modify-write in one transaction | confirm, notfunk (WIP) |
 | `js/dom.js` | DOM helpers (`el`, `fill`, `popover`, …); the one module touching the DOM directly, besides the UI modules below | confirm |
 | `js/time.js` | ids, "now", ISO UTC timestamps shown/typed in UTC or local time | confirm |
 | `js/locmeta.js` | where a resolved location came from and how it was named (`LOC_ORIGINS`, …) | confirm |

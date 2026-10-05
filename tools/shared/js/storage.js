@@ -4,6 +4,12 @@
 //
 //   getAll(store) / getByEvent(store, eventId) / get(store, key)
 //   tx([{ store, put: value } | { store, del: key }, ...])  — one atomic write
+//   atomic(stores, async ({ get, getByEvent, put }) => result)
+//       — read-modify-write in ONE transaction (e.g. take the next message
+//         number and store the message): nothing is written unless all of
+//         it is, and no other tab can interleave. Inside fn only await the
+//         get/getByEvent it is given (any other await lets IndexedDB
+//         auto-commit; the next put then fails and the whole call rejects).
 //
 // Each tool passes its own schema (database name, version, stores and the
 // migration steps), see openToolStorage(). "Event" is whatever the tool's
@@ -71,6 +77,25 @@ function idbBackend(db) {
         t.onabort = () => reject(t.error || new Error('Transaktion abgebrochen'));
       });
     },
+    atomic(names, fn) {
+      return new Promise((resolve, reject) => {
+        const t = db.transaction(names, 'readwrite', { durability: 'strict' });
+        let result;
+        let failed = null;
+        t.oncomplete = () => (failed ? reject(failed) : resolve(result));
+        t.onerror = () => reject(failed || t.error);
+        t.onabort = () => reject(failed || t.error || new Error('Transaktion abgebrochen'));
+        const api = {
+          get: (store, key) => reqPromise(t.objectStore(store).get(key)),
+          getByEvent: (store, eventId) => reqPromise(t.objectStore(store).index('eventId').getAll(eventId)),
+          put: (store, value) => { t.objectStore(store).put(value); },
+        };
+        Promise.resolve().then(() => fn(api)).then(r => { result = r; }, e => {
+          failed = e;
+          try { t.abort(); } catch { /* already finished */ }
+        });
+      });
+    },
   };
 }
 
@@ -86,7 +111,8 @@ function lsBackend(schema) {
     }
     return out;
   }
-  return {
+  let queue = Promise.resolve();
+  const backend = {
     kind: 'localstorage',
     async getAll(store) { return all(store); },
     async getByEvent(store, eventId) { return all(store).filter(r => r.eventId === eventId); },
@@ -103,7 +129,30 @@ function lsBackend(schema) {
         else localStorage.removeItem(key(o.store, o.del));
       }
     },
+    atomic(names, fn) {
+      // Within one tab localStorage is synchronous; calls are queued so two
+      // atomic() calls never interleave (IndexedDB does that itself for
+      // overlapping transactions), and writes are buffered and applied in
+      // order only if fn succeeds. Not isolated against other tabs (callers
+      // that need that must tolerate it, e.g. by deriving numbers from the
+      // stored records too).
+      const run = async () => {
+        const writes = [];
+        const api = {
+          get: async (store, k) => backend.get(store, k),
+          getByEvent: async (store, eventId) => backend.getByEvent(store, eventId),
+          put: (store, value) => { writes.push({ store, put: value }); },
+        };
+        const result = await fn(api);
+        await backend.tx(writes);
+        return result;
+      };
+      const p = queue.then(run, run);
+      queue = p.catch(() => {});
+      return p;
+    },
   };
+  return backend;
 }
 
 // schema: {
