@@ -4,6 +4,8 @@
 // scripts/build_confirm.py, so every top-level name here must be unique
 // across all js/ modules.
 
+import { formatMHz } from '../../shared/js/repeaters.js';
+
 export function normalizeCall(raw) {
   return String(raw ?? '').toUpperCase().replace(/\s+/g, '').replace(/[^A-Z0-9/]/g, '');
 }
@@ -304,4 +306,20 @@ export function operatorShifts(entries) {
     }
   }
   return out;
+}
+
+// Header values to set when a repeater is chosen.
+export function headerFromRepeater(r, header) {
+  const next = {
+    ...header,
+    viaRepeater: true,
+    repeaterCall: r.call,
+    repeaterFreq: formatMHz(r.out),
+    repeaterShift: r.shift === null || r.shift === undefined ? '' : String(r.shift),
+    repeaterTone: r.ctcss ? String(r.ctcss) : '',
+  };
+  // Mode: keep the current one if the repeater supports it, else its first mode.
+  if (r.modes.length && !r.modes.includes(header.mode)) next.mode = r.modes[0];
+  if (!header.freq) next.freq = formatMHz(r.out);
+  return next;
 }

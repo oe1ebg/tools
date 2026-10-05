@@ -1,11 +1,11 @@
-// Austrian voice repeaters (data/repeaters-at.json, built by
+// Austrian voice repeaters (tools/shared/data/repeaters-at.json, built by
 // scripts/fetch_repeaters.py from the ÖVSV repeater database) — search by
 // callsign, site/town, frequency, band, mode or locator, nearest first when
 // the own position is known. Pure functions, unit-tested in oe1ebg/tests/.
 
-import { foldName, compactKey } from '../../shared/js/location/normalize.js';
-import { maidenheadToBounds, isValidLocator } from '../../shared/js/maidenhead.js';
-import { distanceMeters } from '../../shared/js/geo.js';
+import { foldName, compactKey } from './location/normalize.js';
+import { maidenheadToBounds, isValidLocator } from './maidenhead.js';
+import { distanceMeters } from './geo.js';
 
 const RPT_MODE_WORDS = { fm: 'FM', dmr: 'DMR', c4fm: 'C4FM', ysf: 'C4FM', fusion: 'C4FM', dstar: 'DSTAR', 'd-star': 'DSTAR', tetra: 'TETRA' };
 const RPT_BAND_WORDS = { '2m': '2m', '70cm': '70cm', '23cm': '23cm', '6m': '6m', '10m': '10m', '13cm': '13cm' };
@@ -93,20 +93,4 @@ export function searchRepeaters(idx, query, opts = {}) {
   }
   out.sort((a, b) => b.score - a.score || (a.distKm ?? 1e9) - (b.distKm ?? 1e9) || a.r.call.localeCompare(b.r.call));
   return out.slice(0, limit);
-}
-
-// Header values to set when a repeater is chosen.
-export function headerFromRepeater(r, header) {
-  const next = {
-    ...header,
-    viaRepeater: true,
-    repeaterCall: r.call,
-    repeaterFreq: formatMHz(r.out),
-    repeaterShift: r.shift === null || r.shift === undefined ? '' : String(r.shift),
-    repeaterTone: r.ctcss ? String(r.ctcss) : '',
-  };
-  // Mode: keep the current one if the repeater supports it, else its first mode.
-  if (r.modes.length && !r.modes.includes(header.mode)) next.mode = r.modes[0];
-  if (!header.freq) next.freq = formatMHz(r.out);
-  return next;
 }

@@ -33,7 +33,7 @@ MODES = [("fm", "FM"), ("dmr", "DMR"), ("c4fm", "C4FM"), ("dstar", "DSTAR"), ("t
 
 OE1EBG_DIR = Path(__file__).resolve().parent.parent
 CACHE_DIR = OE1EBG_DIR / ".cache" / "repeaters"
-OUTPUT_PATH = OE1EBG_DIR / "tools" / "confirm" / "data" / "repeaters-at.json"
+OUTPUT_PATH = OE1EBG_DIR / "tools" / "shared" / "data" / "repeaters-at.json"
 
 
 def log(msg: str) -> None:

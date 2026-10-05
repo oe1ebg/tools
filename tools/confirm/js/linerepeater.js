@@ -3,9 +3,9 @@
 // can be chosen for each line (search the ÖVSV list, or type any call).
 // After saving, the field returns to the header default.
 
-import { el, fill, popover } from './dom.js';
+import { el, fill, popover } from '../../shared/js/dom.js';
 import { loadRepeaterIndex, describeRepeater } from './repeaterui.js';
-import { searchRepeaters, positionFromLocator, formatMHz } from './repeaters.js';
+import { searchRepeaters, positionFromLocator, formatMHz } from '../../shared/js/repeaters.js';
 import { normalizeCall } from './model.js';
 
 // Header-snapshot fields for a repeater from the list.

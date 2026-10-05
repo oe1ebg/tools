@@ -1,11 +1,11 @@
-// Offline map of the open log: vector outline basemap (data/vienna-map.json,
+// Offline map of the open log: vector outline basemap (tools/shared/data/vienna-map.json,
 // built by scripts/build_map_data.py) drawn by the vendored Leaflet
 // (../shared/vendor/leaflet, a classic script defining globalThis.L), one pin per
 // station, the own position highlighted, log details on hover/tap.
 // No tile layers, no image icons — nothing is ever requested.
 
-import { el, fill } from './dom.js';
-import { loadDataFile } from './data.js';
+import { el, fill } from '../../shared/js/dom.js';
+import { loadDataFile } from '../../shared/js/data.js';
 import { stationsForMap, ownPosition, maidenheadGridLines } from './mapdata.js';
 import { mapLinks } from './sources.js';
 

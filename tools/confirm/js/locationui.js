@@ -3,8 +3,8 @@
 // run locally on data/vienna-locations.json (Vienna addresses/landmarks) and
 // data/austria-areas.json (PLZ and Bezirke of all of Austria).
 
-import { $, el, fill, copyToClipboard } from './dom.js';
-import { loadDataFile } from './data.js';
+import { $, el, fill, copyToClipboard } from '../../shared/js/dom.js';
+import { loadDataFile } from '../../shared/js/data.js';
 import { buildLocationIndex, locate } from '../../shared/js/location/index.js';
 import { latLonToMaidenhead } from '../../shared/js/maidenhead.js';
 import { sourceItem, standDate, mapLinks } from './sources.js';

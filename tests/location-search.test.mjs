@@ -130,7 +130,7 @@ test('weak fuzzy matches are never auto-selected', () => {
 });
 
 // --- real data -------------------------------------------------------
-const realPath = new URL('../tools/confirm/data/vienna-locations.json', import.meta.url);
+const realPath = new URL('../tools/shared/data/vienna-locations.json', import.meta.url);
 const haveReal = existsSync(realPath);
 test('real data: brief examples', { skip: !haveReal && 'run `just build-location` first' }, () => {
   const real = buildLocationIndex(JSON.parse(readFileSync(realPath, 'utf8')));

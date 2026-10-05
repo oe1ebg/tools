@@ -294,7 +294,7 @@ also shows in print).
 ## Callsign list
 
 `scripts/fetch_callsigns.py` (`just fetch-callsigns`, part of `build-confirm`)
-builds `tools/confirm/data/callsigns-oe.json` at build time. It is about
+builds `tools/shared/data/callsigns-oe.json` at build time. It is about
 7,200 OE calls, 320 KiB.
 
 - **Source.** The Fernmeldebüro's *Rufzeichenliste österreichischer
@@ -338,7 +338,7 @@ builds `tools/confirm/data/callsigns-oe.json` at build time. It is about
 ## Repeater list (all of Austria)
 
 `scripts/fetch_repeaters.py` (`just fetch-repeaters`, part of
-`build-confirm`) builds `tools/confirm/data/repeaters-at.json` (about 230
+`build-confirm`) builds `tools/shared/data/repeaters-at.json` (about 230
 voice repeaters, 54 KiB) from the **ÖVSV repeater database**
 (<https://repeater.oevsv.at>, code at <https://github.com/oevsv/repeater-db>).
 
@@ -431,7 +431,7 @@ fires. The compact dropdown in the log's location field has no links.
   both mirrors returned 504s. CI builds also have no persistent cache, so
   the regular build never contacts Overpass. To update the landmarks, run
   `just refresh-pois` and commit the result.
-- **Output.** `tools/confirm/data/vienna-locations.json` is 4.7 MB raw and
+- **Output.** `tools/shared/data/vienna-locations.json` is 4.7 MB raw and
   1.2 MB with gzip. nginx now gzips JSON, JS and CSS. The data is columnar:
   street table plus per-address arrays, with integer coordinates in units of
   1e-5°. The file also records source, retrieval time and attribution
@@ -497,7 +497,7 @@ the Bezirk. A PLZ outside Vienna plus a street ("2340 Hauptstraße") gives
 the PLZ area with a note, since there are no street data outside Vienna.
 Vienna PLZ and district results carry the same locator coverage.
 
-**Data** (`scripts/build_austria_areas.py`): `tools/confirm/data/austria-areas.json`,
+**Data** (`scripts/build_austria_areas.py`): `tools/shared/data/austria-areas.json`,
 ~300 KB raw / ~90 KB gzip, 2,232 PLZ and 117 Bezirke.
 
 | Source | What | Licence |
@@ -593,7 +593,7 @@ with `sota-alerts`, BSD-2) on a **vector outline basemap, without
 any tiles**.
 
 - **Basemap data.** `scripts/build_map_data.py` (`just build-map`, part of
-  `build-confirm`) writes `tools/confirm/data/vienna-map.json`, about
+  `build-confirm`) writes `tools/shared/data/vienna-map.json`, about
   530 KiB:
   - the 23 district boundaries from Stadt Wien (WFS
     `ogdwien:BEZIRKSGRENZEOGD`, CC BY 4.0), cached for 30 days
@@ -645,7 +645,8 @@ any tiles**.
 - `index.html`: the markup and CSS. It uses the same theme variables and
   light/dark toggle as the ADIF editor.
 - `js/app.js`: the UI.
-- `js/db.js`: storage.
+- `js/db.js`: the IndexedDB schema and migrations, for the shared storage
+  layer `tools/shared/js/storage.js`.
 - `js/model.js`: pure helpers (callsigns, UTC time, bands, check-in
   numbering, operator comments and automatic header-change markers).
 - `js/templates.js`: the template field definitions.
@@ -653,19 +654,18 @@ any tiles**.
 - `js/sources.js`: dataset/licence links and the Google Maps /
   OpenStreetMap link builders — the only module with external URLs, all
   plain `<a href>` targets.
-- `js/callbook.js`: callsign lookup and suggestions (pure functions).
-- `js/data.js`: loads `data/*.json` (inlined as `globalThis.CONFIRM_DATA`
-  in the offline bundle).
-- `js/dom.js`: small DOM and clipboard helpers.
 - `js/locationui.js`: the Standort panel and the shared candidate list.
-- `js/repeaters.js` / `js/repeaterui.js`: repeater search (pure) and the
-  dropdown on the header's "Relais" field.
+- `js/repeaterui.js`: the dropdown on the header's "Relais" field.
 - `js/mapdata.js` / `js/mapview.js`: the map view (pure helpers / Leaflet
   UI); Leaflet 1.9.4, unmodified, is in `tools/shared/vendor/leaflet/`.
 - `js/locfield.js`: the log's `location` field (resolve while typing,
   auto-select or pick, auto-fill PLZ).
-- `tools/shared/js/location/`, `maidenhead.js`, `geo.js`, `adif.js`: shared
-  with the other tools (lookup engine above; ADIF field encoding).
+- From `tools/shared/js/` (shared with the other tools): `location/` (the
+  lookup engine above), `maidenhead.js`, `geo.js`, `adif.js` (ADIF field
+  encoding), `callbook.js` (callsign lookup and suggestions), `repeaters.js`
+  (repeater search), `data.js` (loads `tools/shared/data/*.json`, inlined as
+  `globalThis.OE1EBG_DATA` in the offline bundle), `storage.js`
+  (IndexedDB/localStorage) and `dom.js` (DOM and clipboard helpers).
 
 The JS lives in separate files: plain ES modules with no dependencies, so
 the node tests in `oe1ebg/tests/` can import them. Two rules keep the
@@ -688,11 +688,11 @@ exported as `APP_OE1EBG_<KEY>`.
 
 ```sh
 just test            # node --test tests/ (model, export, offline guarantees + bundle)
-just fetch-callsigns # (cached) callsign list -> tools/confirm/data/callsigns-oe.json
-just build-location  # (cached) Vienna addresses + POI snapshot -> tools/confirm/data/vienna-locations.json
+just fetch-callsigns # (cached) callsign list -> tools/shared/data/callsigns-oe.json
+just build-location  # (cached) Vienna addresses + POI snapshot -> tools/shared/data/vienna-locations.json
 just refresh-pois    # re-query Overpass, rewrite the committed location-pois.json
-just fetch-repeaters # (cached) ÖVSV repeater list -> tools/confirm/data/repeaters-at.json
-just build-map       # (cached) district boundaries + OSM snapshot -> tools/confirm/data/vienna-map.json
+just fetch-repeaters # (cached) ÖVSV repeater list -> tools/shared/data/repeaters-at.json
+just build-map       # (cached) district boundaries + OSM snapshot -> tools/shared/data/vienna-map.json
 just refresh-map     # re-query Overpass, rewrite the committed map-osm.json
 just build-confirm   # fetch-callsigns + fetch-repeaters + build-location + build-map, then precache.js + build-info.js + confirm-offline.html
 just preview         # full build, serve site/ at localhost:8000/confirm/

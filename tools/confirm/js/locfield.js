@@ -7,7 +7,7 @@
 // prefilled with the station's last location, and other suggestions (e.g.
 // the licence-list city) are offered in the dropdown while it is empty.
 
-import { el, fill, popover } from './dom.js';
+import { el, fill, popover } from '../../shared/js/dom.js';
 import { loadLocationIndex, renderCandidates, autoSelectLevel } from './locationui.js';
 import { locate } from '../../shared/js/location/index.js';
 import { latLonToMaidenhead } from '../../shared/js/maidenhead.js';

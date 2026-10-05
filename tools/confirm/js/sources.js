@@ -4,7 +4,7 @@
 // fetched; all data is built into data/ at build time. This is the only js/
 // module allowed to contain external URLs (tests/confirm-offline.test.mjs).
 
-import { el } from './dom.js';
+import { el } from '../../shared/js/dom.js';
 
 export const DATA_SOURCES = {
   callsigns: {

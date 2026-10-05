@@ -15,8 +15,8 @@ from single_file import bundle_modules, inline_vendor, module_order, script_safe
 # Stdlib only. Produces three git-ignored files:
 #
 # 1. confirm-offline.html — the whole tool in ONE file (all js/ modules and
-#    all data/*.json files inlined, so run the data fetch scripts first). Copy it to a USB stick or
-#    laptop and open it via file://, where neither service workers nor ES
+#    the tools/shared/data/ files it loads inlined, so run the data steps
+#    first). Copy it to a USB stick or laptop and open it via file://, where neither service workers nor ES
 #    module scripts work. Modules are "bundled" by plain concatenation in
 #    dependency order with import lines and `export` keywords stripped,
 #    wrapped in one IIFE (scripts/single_file.py has the rules this puts on
@@ -67,18 +67,27 @@ def build_info_js(build: dict) -> str:
 SCRIPT_BLOCK_RE = re.compile(r"<!-- CONFIRM-SCRIPT-BEGIN -->.*?<!-- CONFIRM-SCRIPT-END -->", re.S)
 VENDOR_BLOCK_RE = re.compile(r"<!-- CONFIRM-VENDOR-BEGIN -->(.*?)<!-- CONFIRM-VENDOR-END -->", re.S)
 ENTRY = CONFIRM_DIR / "js" / "app.js"
+DATA_DIR = OE1EBG_DIR / "tools" / "shared" / "data"
+DATA_CALL_RE = re.compile(r"""loadDataFile\(\s*['"]([\w.-]+\.json)['"]""")
+
+
+def data_files() -> list[Path]:
+    """The tools/shared/data/ files the tool loads: every loadDataFile('x.json')
+    literal in its modules, as far as they have been built (the tool runs
+    without them, e.g. in a fresh checkout; run the data steps first)."""
+    names = sorted({n for p in module_order(ENTRY) for n in DATA_CALL_RE.findall(p.read_text(encoding="utf-8"))})
+    missing = [n for n in names if not (DATA_DIR / n).exists()]
+    if missing:
+        print(f"confirm: WARNING data not built, left out: {', '.join(missing)} (run `just build-confirm`)")
+    return [DATA_DIR / n for n in names if n not in missing]
 
 
 def inline_data() -> str:
-    """data/*.json as globalThis.CONFIRM_DATA (read by js/data.js)."""
-    data_dir = CONFIRM_DIR / "data"
-    files = sorted(data_dir.glob("*.json")) if data_dir.exists() else []
-    if not files:
-        return ""
-    payload = {p.name: json.loads(p.read_text(encoding="utf-8")) for p in files}
+    """The data files as globalThis.OE1EBG_DATA (read by shared/js/data.js)."""
+    payload = {p.name: json.loads(p.read_text(encoding="utf-8")) for p in data_files()}
     # "<" escaped so no string in the data can close the <script> element.
     text = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).replace("<", "\\u003c")
-    return f"<script>\nglobalThis.CONFIRM_DATA = {text};\n</script>\n"
+    return f"<script>\nglobalThis.OE1EBG_DATA = {text};\n</script>\n"
 
 
 def build_bundle(build: dict) -> str:
@@ -100,12 +109,12 @@ def build_bundle(build: dict) -> str:
 
 
 def shared_files() -> list[Path]:
-    """Files outside tools/confirm/ the tool loads: imported modules + vendor block."""
+    """Files outside tools/confirm/ the tool loads: imported modules, vendor block, data."""
     html = (CONFIRM_DIR / "index.html").read_text(encoding="utf-8")
     block = VENDOR_BLOCK_RE.search(html)
     vendor = [(CONFIRM_DIR / ref).resolve() for ref in vendor_refs(block.group(1))] if block else []
     root = CONFIRM_DIR.resolve()
-    return sorted({p for p in module_order(ENTRY) + vendor if not p.is_relative_to(root)})
+    return sorted({p for p in module_order(ENTRY) + vendor + data_files() if not p.is_relative_to(root)})
 
 
 def shipped_files() -> list[Path]:

@@ -7,8 +7,8 @@ are in `oe1ebg/tools/confirm/README.md`.
 
 - **Never add a runtime network dependency.** That means no `fetch()` to
   another host, no CDN `<script>`/`<link>`, no web fonts and no map tiles.
-  Data must be produced at build time, under `data/`, and listed in the
-  precache. `tests/confirm-offline.test.mjs` fails on any external URL.
+  Data must be produced at build time, under `tools/shared/data/`, and
+  listed in the precache. `tests/confirm-offline.test.mjs` fails on any external URL.
   The one exception is `js/sources.js`: dataset/licence links (footer) and
   map links (Google Maps / OpenStreetMap, built by `mapLinkUrls()`), which
   are only `<a href>` targets and never fetched. The test also checks that
@@ -16,8 +16,8 @@ are in `oe1ebg/tools/confirm/README.md`.
   `mapLinks()` with class `online-only`, hidden while offline
   (`trackOnline()` sets `html.offline`). XML namespace identifiers (SVG,
   KML) are allowed by the test's `XML_NAMESPACES`.
-- **Never lose user data.** The IndexedDB schema is at v2; v2 added the
-  `stations` store.
+- **Never lose user data.** The IndexedDB schema (`js/db.js`, on top of
+  `tools/shared/js/storage.js`) is at v2; v2 added the `stations` store.
   - Writes go through `store.tx()`, and the UI may only show success after
     the promise resolves.
   - Edits store a revision first, and deletes are soft (`deleted`
@@ -34,11 +34,11 @@ are in `oe1ebg/tools/confirm/README.md`.
   ADIF encoding, Leaflet) is used by other tools too. Change it with them in
   mind and run all tests. It is precached as `../shared/…` (computed by
   `build_confirm.py` from the imports and the `CONFIRM-VENDOR` block).
-- **DOM:** use `fill(node, ...children)` from `js/dom.js`, not
+- **DOM:** use `fill(node, ...children)` from `tools/shared/js/dom.js`, not
   `node.replaceChildren(...)` with arrays or `null`. `replaceChildren`
   renders an array as "[object HTMLLIElement]" and `null` as the text
   "null". That was the bug in the recycle bin and snapshot lists.
-- **Completion dropdowns** use `popover(input, list)` from `js/dom.js`.
+- **Completion dropdowns** use `popover(input, list)` from `tools/shared/js/dom.js`.
   - Their items are not Tab stops (`update()` sets `tabIndex=-1`).
   - Enter in the input picks the first item. Pass
     `{ enterPicksFirst: false }` where the items are only guesses that
@@ -84,9 +84,11 @@ are in `oe1ebg/tools/confirm/README.md`.
 
 `data/callsigns-oe.json` is built by `scripts/fetch_callsigns.py` and holds
 `{stand, source, calls: [[call, name, location], ...]}`. Keep it free of
-street addresses. `js/data.js` loads every data file, so new data files only
-need to be loaded through it; the service worker precache and the offline
-bundle pick up `data/*.json` automatically.
+street addresses. The data files live in `tools/shared/data/` (shared with
+other tools, published at `/shared/data/`). Load them only through
+`loadDataFile('name.json')` (`tools/shared/js/data.js`) with a **string
+literal**: `build_confirm.py` collects those literals to decide which files
+go into the precache and the offline bundle.
 
 `data/repeaters-at.json` is built by `scripts/fetch_repeaters.py` and holds
 `{source, retrieved, repeaters: [{call, site, city, lat, lon, locator, alt,

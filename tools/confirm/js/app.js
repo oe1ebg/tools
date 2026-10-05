@@ -4,17 +4,18 @@
 // version in `revisions`; deletes are soft; the half-typed line is kept as a
 // draft. Nothing here ever talks to the network.
 
-import { openStorage, requestPersistence } from './db.js';
+import { openStorage } from './db.js';
+import { requestPersistence } from '../../shared/js/storage.js';
 import {
   normalizeCall, isPlausibleCall, newId, nowIso, splitUtc, splitTime, zoneLabel, parseTimeInput, isoUtc,
   MODES, modeInfo, headerSnapshot, emptyHeader, checkinNumbers, previousCheckins,
-  liveSorted, stats, isComment, COMMENT_CATEGORIES, newComment, headerChangeMarkers,
+  liveSorted, stats, isComment, COMMENT_CATEGORIES, newComment, headerChangeMarkers, headerFromRepeater,
 } from './model.js';
 import { TEMPLATES, templateFor, fieldVisible, fieldDisplay, fieldOptions, currentOptions, shortSummary } from './templates.js';
 import { toCSV, toADIF, toKML, KML_MIME, toSummary } from './export.js';
-import { loadDataFile } from './data.js';
-import { buildCallbook, lookupCall, suggestCalls } from './callbook.js';
-import { $, el, fill, popover, focusNext } from './dom.js';
+import { loadDataFile } from '../../shared/js/data.js';
+import { buildCallbook, lookupCall, suggestCalls } from '../../shared/js/callbook.js';
+import { $, el, fill, popover, focusNext } from '../../shared/js/dom.js';
 import { initLocationPanel, loadLocationIndex } from './locationui.js';
 import { locate } from '../../shared/js/location/index.js';
 import { isValidLocator, isLocatorPrefix, locatorPrecisionName } from '../../shared/js/maidenhead.js';
@@ -23,7 +24,7 @@ import { createLocationField, describeLocation, locationOptions } from './locfie
 import { attachRepeaterSearch, loadRepeaterIndex } from './repeaterui.js';
 import { sourceItem, versionItems, trackOnline } from './sources.js';
 import { createLineRepeater } from './linerepeater.js';
-import { headerFromRepeater, formatShift } from './repeaters.js';
+import { formatShift } from '../../shared/js/repeaters.js';
 
 const THEME_KEY = 'oe1ebg-confirm-theme';
 const TIME_MODE_KEY = 'oe1ebg-confirm-time-mode';

@@ -12,7 +12,7 @@ from pathlib import Path
 
 # Offline basemap for the confirmation log's map view (tools/confirm/,
 # "Karte"): vector outlines only, no tiles — drawn by the vendored Leaflet.
-# Output: tools/confirm/data/vienna-map.json (see tools/confirm/AGENTS.md).
+# Output: tools/shared/data/vienna-map.json (see tools/confirm/AGENTS.md).
 #
 # Sources:
 # - Stadt Wien WFS ogdwien:BEZIRKSGRENZEOGD (CC BY 4.0) — the 23 district
@@ -56,7 +56,7 @@ MIN_WATER_AREA_M2 = 20_000  # drop tiny ponds/fragments
 OE1EBG_DIR = Path(__file__).resolve().parent.parent
 CACHE_DIR = OE1EBG_DIR / ".cache" / "vienna-map"
 OSM_SNAPSHOT_PATH = OE1EBG_DIR / "map-osm.json"
-OUTPUT_PATH = OE1EBG_DIR / "tools" / "confirm" / "data" / "vienna-map.json"
+OUTPUT_PATH = OE1EBG_DIR / "tools" / "shared" / "data" / "vienna-map.json"
 
 
 def log(msg: str) -> None:

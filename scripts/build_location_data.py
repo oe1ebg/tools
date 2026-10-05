@@ -17,7 +17,7 @@ from pathlib import Path
 # "JN88ee" or "48.21, 16.37" into PLZ / coordinates / Maidenhead locator
 # without any network access. Everything the runtime needs is produced
 # here, at build time (see oe1ebg/tools/confirm/README.md, "Vienna location
-# lookup"). Output: tools/confirm/data/vienna-locations.json.
+# lookup"). Output: tools/shared/data/vienna-locations.json.
 #
 # Sources:
 # - Stadt Wien "Adressen Standorte Wien" (WFS layer ogdwien:ADRESSENOGD,
@@ -86,7 +86,7 @@ OE1EBG_DIR = Path(__file__).resolve().parent.parent
 CACHE_DIR = OE1EBG_DIR / ".cache" / "vienna-location"
 ALIASES_PATH = OE1EBG_DIR / "location-aliases.toml"
 POIS_SNAPSHOT_PATH = OE1EBG_DIR / "location-pois.json"
-OUTPUT_PATH = OE1EBG_DIR / "tools" / "confirm" / "data" / "vienna-locations.json"
+OUTPUT_PATH = OE1EBG_DIR / "tools" / "shared" / "data" / "vienna-locations.json"
 
 
 def log(msg: str) -> None:

@@ -1,4 +1,4 @@
-// Austrian callsign list (data/callsigns-oe.json, built by
+// Austrian callsign list (tools/shared/data/callsigns-oe.json, built by
 // scripts/fetch_callsigns.py from the Fernmeldebüro's Rufzeichenliste).
 // Pure functions — unit-tested in oe1ebg/tests/.
 

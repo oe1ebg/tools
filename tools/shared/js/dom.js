@@ -1,4 +1,5 @@
-// Tiny DOM helpers shared by the UI modules.
+// Tiny DOM helpers shared by the tools' UI modules (the one shared module
+// that touches the DOM).
 
 export const $ = sel => document.querySelector(sel);
 

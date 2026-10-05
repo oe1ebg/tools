@@ -56,7 +56,7 @@ test('maidenheadGridLines: 6-char squares covering Vienna', () => {
   assert.ok(g.lines.length >= 10);
 });
 
-const real = new URL('../tools/confirm/data/vienna-map.json', import.meta.url);
+const real = new URL('../tools/shared/data/vienna-map.json', import.meta.url);
 test('generated basemap is plausible and small', { skip: !existsSync(real) && 'run `just build-map` first' }, () => {
   const raw = readFileSync(real, 'utf8');
   assert.ok(raw.length < 2 * 1024 * 1024, `${raw.length} bytes`);

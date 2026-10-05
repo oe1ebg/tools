@@ -147,8 +147,8 @@ test('without austria-areas.json everything still works Vienna-only', () => {
   assert.equal(locate(v, 'Quellenstraße 10').results[0].type, 'address');
 });
 
-const REAL_V = new URL('../tools/confirm/data/vienna-locations.json', import.meta.url);
-const REAL_A = new URL('../tools/confirm/data/austria-areas.json', import.meta.url);
+const REAL_V = new URL('../tools/shared/data/vienna-locations.json', import.meta.url);
+const REAL_A = new URL('../tools/shared/data/austria-areas.json', import.meta.url);
 const haveReal = existsSync(REAL_V) && existsSync(REAL_A);
 
 test('real data: every PLZ and Bezirk resolves', { skip: !haveReal && 'data not built (just build-confirm)' }, () => {

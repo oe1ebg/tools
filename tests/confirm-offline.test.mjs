@@ -13,6 +13,7 @@ const OE1EBG = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIR = join(OE1EBG, 'tools', 'confirm');
 // tools/shared/ modules (location lookup, Maidenhead, geo), shipped with the tool.
 const SHARED_JS = join(OE1EBG, 'tools', 'shared', 'js');
+const SHARED_DATA = join(OE1EBG, 'tools', 'shared', 'data');
 const GENERATED = new Set(['confirm-offline.html', 'precache.js', 'build-info.js']);
 // Dataset/licence links and map links: <a href> targets only, never fetched.
 const LINK_ONLY = 'js/sources.js';
@@ -80,9 +81,9 @@ test('offline bundle builds into one self-contained, parseable file', () => {
   assert.ok(!/<script[^>]+src=/.test(html), 'no external scripts');
   assert.ok(!/<link[^>]+href="(?!data:)/.test(html), 'no external links');
   const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
-  // app bundle, plus the inlined data/ files when they have been built
-  const hasData = existsSync(join(DIR, 'data')) && readdirSync(DIR + '/data').some(n => n.endsWith('.json'));
-  // load-failure fallback, Leaflet, (inlined data/ when built), app bundle
+  // the inlined tools/shared/data/ files, when they have been built
+  const hasData = existsSync(SHARED_DATA) && readdirSync(SHARED_DATA).some(n => n.endsWith('.json'));
+  // load-failure fallback, Leaflet, (inlined data when built), app bundle
   assert.equal(scripts.length, hasData ? 4 : 3);
   assert.ok(scripts.some(s => s.includes('Leaflet 1.9.4')), 'Leaflet inlined');
   assert.ok(!/(vendor|shared)\//.test(html.replace(/<script>[\s\S]*?<\/script>/g, '')), 'no reference to vendor files left');
@@ -90,7 +91,7 @@ test('offline bundle builds into one self-contained, parseable file', () => {
   assert.ok(!/^\s*(import|export)\b/m.test(app));
   assert.match(app, /CONFIRM_STARTED = true/);
   for (const src of scripts) new vm.Script(src); // throws on syntax errors
-  if (hasData) assert.ok(scripts.some(s => /^\s*globalThis\.CONFIRM_DATA = \{/.test(s)), 'data inlined');
+  if (hasData) assert.ok(scripts.some(s => /^\s*globalThis\.OE1EBG_DATA = \{/.test(s)), 'data inlined');
   assert.ok(existsSync(join(DIR, 'precache.js')));
   const pre = readFileSync(join(DIR, 'precache.js'), 'utf8');
   assert.match(pre, /version: "[0-9a-f]{12}"/);
@@ -98,6 +99,7 @@ test('offline bundle builds into one self-contained, parseable file', () => {
   assert.ok(!pre.includes('"sw.js"'));
   // tools/shared/ files the tool loads are precached via ../shared/ URLs,
   // and every entry exists (cache.addAll() fails the install otherwise)
+  if (hasData) for (const f of ['callsigns-oe', 'repeaters-at', 'vienna-locations', 'austria-areas', 'vienna-map']) assert.ok(pre.includes(`"../shared/data/${f}.json"`), f);
   for (const f of ['"../shared/js/maidenhead.js"', '"../shared/js/location/index.js"', '"../shared/vendor/leaflet/leaflet.js"']) assert.ok(pre.includes(f), f);
   const ctx = { self: {} };
   vm.runInNewContext(pre, ctx);
