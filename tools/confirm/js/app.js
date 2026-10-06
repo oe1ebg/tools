@@ -151,6 +151,7 @@ async function initOffline() {
   if (location.protocol === 'file:') {
     setChip('#st-offline', 'Offline-Datei', 'ok');
     $('#offline-file-link').hidden = true;
+    $('#offline-card').hidden = true;
     $('#data-sources-link').hidden = true;
     $('#home-link').hidden = true; // ../ is the folder the file sits in
     return;
@@ -2153,7 +2154,8 @@ async function main() {
   }
   loadCallbook();
   loadRepeaterFooter();
-  fill($('#st-map'), sourceItem('districts', 'Karte'), ' · ', sourceItem('leaflet', 'Kartenbibliothek'));
+  fill($('#st-map-wien'), sourceItem('districts', 'Karte'));
+  fill($('#st-map-lib'), sourceItem('leaflet', 'Kartenbibliothek'));
   route();
 }
 

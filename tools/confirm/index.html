@@ -100,6 +100,15 @@
     </form>
 
     <ul id="event-list"></ul>
+
+    <!-- Hidden in the file:// bundle (it is the offline file). -->
+    <aside id="offline-card" class="offline-card" aria-labelledby="offline-card-title">
+      <div class="txt">
+        <h2 id="offline-card-title">Ohne Internet arbeiten</h2>
+        <p>Das Werkzeug als eine HTML-Datei mit allen Daten, ~7 MB, für USB-Stick oder Laptop: läuft ohne Server und ohne Internet. Vor dem Einsatz herunterladen (nur online möglich).</p>
+      </div>
+      <a class="btn" href="confirm-offline.html" download="bestaetigungsverkehr-offline.html"><span aria-hidden="true">⬇</span> Offline-Datei</a>
+    </aside>
   </section>
 
   <!-- ===== Log ===== -->
@@ -242,17 +251,27 @@
 <footer>
   Läuft vollständig offline im Browser; alle Daten bleiben auf diesem Gerät (<span id="st-backend">?</span>).
   Regelmäßig als CSV/ADIF/JSON sichern. · Version: <span id="st-version">dev</span>
-  <span id="offline-file-link"> · <a href="confirm-offline.html" download="bestaetigungsverkehr-offline.html">Offline-Datei für USB-Stick/Laptop herunterladen</a> (eine HTML-Datei mit allen Daten, ~7 MB, läuft ohne Server und ohne Internet; Download nur online)</span>
-  <div class="sources">Datenquellen (offline enthalten):
-    <span id="st-callbook">Rufzeichenliste wird geladen…</span> ·
-    <span id="st-repeaters">Relaisliste wird geladen…</span> ·
-    <span id="st-location">Wien-Daten werden geladen…</span> ·
-    <span id="st-map"></span>
-    <!-- Relative link to the site's data-sources page (/data-sources/ next to
-         /confirm/); adjust if this tool moves (e.g. to /tools/confirm/).
-         Hidden in the file:// bundle, where it would not resolve. -->
-    <span id="data-sources-link"> · <a href="../data-sources/">Alle Datenquellen und Lizenzen</a> (online)</span>
-  </div>
+  <span id="offline-file-link"> · <a href="confirm-offline.html" download="bestaetigungsverkehr-offline.html">Offline-Datei</a></span>
+  <details class="sources">
+    <summary>Datenquellen und Lizenzen (alle offline enthalten)</summary>
+    <!-- Grouped by origin; the spans are filled by js/app.js and
+         js/locationui.js with sourceItem() entries. -->
+    <dl>
+      <dt>Funk</dt>
+      <dd class="src-list"><span id="st-callbook">Rufzeichenliste wird geladen…</span><span id="st-repeaters">Relaisliste wird geladen…</span></dd>
+      <dt>Stadt Wien</dt>
+      <dd class="src-list"><span id="st-location-wien">Wien-Daten werden geladen…</span><span id="st-map-wien"></span></dd>
+      <dt>Österreich</dt>
+      <dd class="src-list"><span id="st-location-at"></span></dd>
+      <dt>Orte und Karte</dt>
+      <dd class="src-list"><span id="st-location-osm"></span><span id="st-map-lib"></span></dd>
+      <!-- Relative link to the site's data-sources page (/data-sources/ next to
+           /confirm/); adjust if this tool moves (e.g. to /tools/confirm/).
+           Hidden in the file:// bundle, where it would not resolve. -->
+      <dt id="data-sources-term"></dt>
+      <dd id="data-sources-link"><a href="../data-sources/">Alle Datenquellen und Lizenzen</a> (online)</dd>
+    </dl>
+  </details>
   <!-- Replaced in confirm-offline.html by the licence texts of the inlined
        third-party code (scripts/build_confirm.py); the file must not need a
        connection for them. -->

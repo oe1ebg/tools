@@ -275,20 +275,25 @@ export function initLocationPanel() {
   // Preload in the background so the index is ready (and cached) before it's needed.
   setTimeout(async () => {
     const idx = await loadLocationIndex();
-    const foot = $('#st-location');
-    if (!foot) return;
+    // Footer "Datenquellen", grouped by origin (index.html).
+    const wien = $('#st-location-wien');
+    if (!wien) return;
     if (!idx) {
-      foot.textContent = 'Wien-Daten nicht verfügbar';
+      wien.textContent = 'Wien-Daten nicht verfügbar';
       return;
     }
     const n = new Intl.NumberFormat('de-AT');
-    fill(foot,
+    const list = items => items.filter(Boolean).flatMap((x, i) => (i ? [' · ', x] : [x]));
+    fill(wien, list([
       sourceItem('addresses', `${n.format(idx.counts.addresses)} Adressen, Stand ${standDate(idx.meta.addresses_retrieved)}`),
-      ' · ',
-      sourceItem('osm', `${n.format(idx.counts.osm)} Orte (davon ${n.format(idx.counts.umland)} im Umland), Stand ${standDate(idx.meta.places_retrieved)}`),
-      idx.meta.gip_names_retrieved ? [' · ', sourceItem('gipNames', `${n.format(idx.counts.gip)} Ortsnamen, Stand ${standDate(idx.meta.gip_names_retrieved)}`)] : null,
-      idx.meta.stops_retrieved ? [' · ', sourceItem('stops', `${n.format(idx.counts.stops)} Haltestellen, Stand ${standDate(idx.meta.stops_retrieved)}`)] : null,
-      idx.areasMeta ? [' · ', sourceItem('adressregister', `${n.format(idx.counts.postcodes)} PLZ, Stichtag ${standDate(idx.areasMeta.stichtag)}`),
-        ' · ', sourceItem('bezirke', `${n.format(idx.counts.bezirke)} Bezirke`)] : null);
+      idx.meta.gip_names_retrieved ? sourceItem('gipNames', `${n.format(idx.counts.gip)} Ortsnamen, Stand ${standDate(idx.meta.gip_names_retrieved)}`) : null,
+      idx.meta.stops_retrieved ? sourceItem('stops', `${n.format(idx.counts.stops)} Haltestellen, Stand ${standDate(idx.meta.stops_retrieved)}`) : null,
+    ]));
+    fill($('#st-location-at'), idx.areasMeta ? list([
+      sourceItem('adressregister', `${n.format(idx.counts.postcodes)} PLZ, Stichtag ${standDate(idx.areasMeta.stichtag)}`),
+      sourceItem('bezirke', `${n.format(idx.counts.bezirke)} Bezirke`),
+    ]) : null);
+    fill($('#st-location-osm'),
+      sourceItem('osm', `${n.format(idx.counts.osm)} Orte (davon ${n.format(idx.counts.umland)} im Umland), Stand ${standDate(idx.meta.places_retrieved)}`));
   }, 800);
 }
