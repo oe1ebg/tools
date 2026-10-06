@@ -29,7 +29,7 @@ body{
   display:inline-flex;
   align-items:center;
   gap:.4em;
-  color:var(--accent);
+  color:var(--accent-text);
   text-decoration:none;
   font-size:12px;
 }
@@ -44,7 +44,7 @@ body{
   white-space:nowrap;
   text-decoration:none;
 }
-a.badge:hover{ color:var(--accent); border-color:var(--accent-dim); }
+a.badge:hover{ color:var(--accent-text); border-color:var(--accent-dim); }
 #theme-toggle{
   display:flex;
   border:1px solid var(--line);
@@ -87,7 +87,7 @@ button, .btn{
   font-family:var(--font-ui);
   font-size:12px;
   background:transparent;
-  color:var(--accent);
+  color:var(--accent-text);
   border:1px solid var(--accent-dim);
   padding:.35em .7em;
   cursor:pointer;
@@ -102,7 +102,7 @@ input[type=text], select{
   font-size:12px;
   background:var(--bg);
   color:var(--text);
-  border:1px solid var(--line);
+  border:1px solid var(--line-strong);
   padding:.35em .5em;
   border-radius:.2rem;
 }
@@ -136,8 +136,10 @@ input[type=text]:focus, td[contenteditable]:focus{
 #warnings{
   display:none;
   padding:.5em .8em;
-  background:#1c1811;
-  border-bottom:1px solid #3a2f1a;
+  /* the shared warning colours: the old fixed dark box was a dark bar
+     with low-contrast text in light mode */
+  background:var(--warn-soft);
+  border-bottom:1px solid var(--line);
   color:var(--warn);
   font-size:12px;
   max-height:6em;
@@ -171,7 +173,7 @@ input[type=text]:focus, td[contenteditable]:focus{
   display:flex; align-items:center; justify-content:center;
   background:rgba(82,108,254,0.08);
   border:2px dashed var(--accent);
-  color:var(--accent);
+  color:var(--accent-text);
   font-size:14px;
   z-index:5;
   pointer-events:none;
@@ -193,7 +195,7 @@ thead th{
   white-space:nowrap;
   font-weight:600;
   font-family:var(--font-ui);
-  color:var(--accent);
+  color:var(--accent-text);
 }
 thead th .colhead{
   display:flex; align-items:center; gap:.5em;

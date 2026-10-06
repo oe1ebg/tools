@@ -9,6 +9,9 @@
 
 :root{
   --own: #008300;
+  /* own callsign as text / row tint (the pin keeps --own) */
+  --own-text: #007400;
+  --own-soft: rgba(0,131,0,.08);
   --leaflet-layers-icon-filter: none;
   /* Pin/marker categorical colors, validated with the dataviz skill's
      CVD-simulation checker (all-pairs mode, since any two pin categories
@@ -21,6 +24,8 @@
   --route: #eda100;
 }
 :root[data-theme="dark"]{
+  --own-text: #6fcf73;
+  --own-soft: rgba(111,207,115,.12);
   --leaflet-layers-icon-filter: invert(1) hue-rotate(180deg);
   --pin-default: #3987e5;
   --candidate: #d55181;
@@ -55,7 +60,7 @@ body{
   display:inline-flex;
   align-items:center;
   gap:.4em;
-  color:var(--accent);
+  color:var(--accent-text);
   text-decoration:none;
   font-size:12px;
 }
@@ -70,7 +75,7 @@ body{
   white-space:nowrap;
   text-decoration:none;
 }
-a.badge:hover{ color:var(--accent); border-color:var(--accent-dim); }
+a.badge:hover{ color:var(--accent-text); border-color:var(--accent-dim); }
 .toggle-group{
   display:flex;
   border:1px solid var(--line);
@@ -115,7 +120,7 @@ button, .btn{
   font-family:var(--font-ui);
   font-size:12px;
   background:transparent;
-  color:var(--accent);
+  color:var(--accent-text);
   border:1px solid var(--accent-dim);
   padding:.35em .7em;
   cursor:pointer;
@@ -129,7 +134,7 @@ input[type=text], input[type=date]{
   font-size:12px;
   background:var(--bg);
   color:var(--text);
-  border:1px solid var(--line);
+  border:1px solid var(--line-strong);
   padding:.35em .5em;
   border-radius:.2rem;
 }
@@ -168,7 +173,7 @@ input[type=date]{ min-width:9.5em; }
 .date-range-group{
   display:flex;
   align-items:stretch;
-  border:1px solid var(--line);
+  border:1px solid var(--line-strong);
   border-radius:.3rem;
   overflow:hidden;
   background:var(--bg);
@@ -196,8 +201,10 @@ input[type=date]{ min-width:9.5em; }
 #warnings{
   display:none;
   padding:.5em .8em;
-  background:#1c1811;
-  border-bottom:1px solid #3a2f1a;
+  /* the shared warning colours: the old fixed dark box was a dark bar
+     with low-contrast text in light mode */
+  background:var(--warn-soft);
+  border-bottom:1px solid var(--line);
   color:var(--warn);
   font-size:12px;
   max-height:6em;
@@ -226,7 +233,7 @@ input[type=date]{ min-width:9.5em; }
 .search-result-actions{ display:flex; gap:.4em; flex-shrink:0; }
 .search-result button{ font-size:11px; padding:.2em .5em; white-space:nowrap; }
 .search-result button:disabled{ color:var(--candidate); border-color:var(--candidate); }
-.search-result-alert{ font-size:11px; color:var(--accent); margin-top:.2em; }
+.search-result-alert{ font-size:11px; color:var(--accent-text); margin-top:.2em; }
 
 #bandmode-panel{
   display:none;
@@ -275,14 +282,14 @@ input[type=date]{ min-width:9.5em; }
 }
 .list-item{ cursor:pointer; }
 .list-item:hover{ background:rgba(82,108,254,0.06); }
-.list-item.own{ background:rgba(31,157,85,0.08); }
+.list-item.own{ background:var(--own-soft); }
 /* Stronger than the "own"/"hover" tints on purpose — there's only ever
    one reference summit at a time, so it should be unmistakable, matching
    the bigger warn-colored marker on the map. */
 .list-item.is-ref{ background:color-mix(in srgb, var(--route) 18%, transparent); border-left-color:var(--route); }
 .li-top{ display:flex; justify-content:space-between; gap:.5em; }
 .li-top b{ color:var(--text); }
-.list-item.own .li-top b{ color:var(--own); }
+.list-item.own .li-top b{ color:var(--own-text); }
 .li-summit{ color:var(--text-dim); font-family:var(--font-mono); font-size:11px; }
 .li-meta{ color:var(--text-dim); font-size:11px; margin-top:.2em; }
 .list-empty{ padding:1em .8em; color:var(--text-dim); }
@@ -376,7 +383,7 @@ input[type=date]{ min-width:9.5em; }
 .leaflet-bar a{ background:var(--bg-raised); color:var(--text); border-bottom:1px solid var(--line); }
 .leaflet-bar a:hover{ background:var(--bg); }
 .leaflet-control-attribution{ background:var(--header-bg); color:var(--text-dim); }
-.leaflet-control-attribution a{ color:var(--accent); }
+.leaflet-control-attribution a{ color:var(--accent-text); }
 .leaflet-control-layers{ background:var(--bg-raised); color:var(--text); }
 .leaflet-control-layers-toggle{ filter: var(--leaflet-layers-icon-filter, none); }
 .leaflet-control-layers-separator{ border-color:var(--line); }
@@ -401,7 +408,7 @@ input[type=date]{ min-width:9.5em; }
 .sota-popup .popup-title{ font-weight:600; margin-bottom:.2em; }
 .sota-popup .popup-title .code{ font-family:var(--font-mono); font-weight:400; color:var(--text-dim); }
 .sota-popup .popup-meta{ color:var(--text-dim); margin-bottom:.5em; }
-.sota-popup .popup-meta a{ color:var(--accent); }
+.sota-popup .popup-meta a{ color:var(--accent-text); }
 .sota-popup .alert-row{ padding:.3em 0; border-top:1px solid var(--line); }
 .sota-popup .alert-row.own b{ color:var(--own); }
 .sota-popup .freq{ font-family:var(--font-mono); font-size:11px; color:var(--text-dim); }
@@ -413,7 +420,7 @@ input[type=date]{ min-width:9.5em; }
   font-family:var(--font-ui);
   font-size:11px;
   background:transparent;
-  color:var(--accent);
+  color:var(--accent-text);
   border:1px solid var(--accent-dim);
   padding:.2em .5em;
   cursor:pointer;

@@ -19,7 +19,7 @@ body{
   border-bottom:1px solid var(--line);
 }
 #site-header a{ color:var(--text-dim); text-decoration:none; }
-#site-header a:hover{ color:var(--accent); }
+#site-header a:hover{ color:var(--accent-text); }
 /* the page title (h1), as small caps text in the header bar */
 #site-header .title{ font-size:inherit; margin:0; font-weight:600; letter-spacing:.04em; text-transform:uppercase; }
 .spacer{ flex:1; }
@@ -33,7 +33,7 @@ body{
 #time-toggle{ display:inline-flex; border:1px solid var(--line); border-radius:4px; overflow:hidden; }
 #time-toggle button{ background:none; border:none; border-radius:0; color:var(--text-dim); font-size:11px; padding:.2em .6em; }
 #time-toggle button + button{ border-left:1px solid var(--line); }
-#time-toggle button.active{ background:var(--accent-soft); color:var(--accent); }
+#time-toggle button.active{ background:var(--accent-soft); color:var(--accent-text); }
 table.log td .date{ font-size:11px; color:var(--text-dim); }
 #theme-toggle{ display:inline-flex; border:1px solid var(--line); border-radius:4px; overflow:hidden; }
 #theme-toggle button{
@@ -41,7 +41,7 @@ table.log td .date{ font-size:11px; color:var(--text-dim); }
   padding:.2em .6em; cursor:pointer;
 }
 #theme-toggle button:not(:first-child){ border-left:1px solid var(--line); }
-#theme-toggle button.active{ background:var(--accent-soft); color:var(--accent); }
+#theme-toggle button.active{ background:var(--accent-soft); color:var(--accent-text); }
 
 main{ max-width:1200px; margin:0 auto; padding:1em; }
 /* view titles (Logs, Standortsuche) */
@@ -59,15 +59,15 @@ button, .btn{
   border:1px solid var(--line); border-radius:4px;
   padding:.35em .8em; cursor:pointer;
 }
-button:hover:not(:disabled){ border-color:var(--accent); color:var(--accent); }
+button:hover:not(:disabled){ border-color:var(--accent); color:var(--accent-text); }
 button:disabled{ opacity:.45; cursor:default; }
 button.primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
 button.primary:hover:not(:disabled){ color:#fff; filter:brightness(1.1); }
 button.danger:hover:not(:disabled){ border-color:var(--err); color:var(--err); }
-button.link{ background:none; border:none; padding:0; color:var(--accent); }
+button.link{ background:none; border:none; padding:0; color:var(--accent-text); }
 input[type=text], input:not([type]), select, textarea{
   font:inherit; color:var(--text); background:var(--bg);
-  border:1px solid var(--line); border-radius:4px; padding:.35em .5em;
+  border:1px solid var(--line-strong); border-radius:4px; padding:.35em .5em;
 }
 input:focus, select:focus, textarea:focus{ outline:2px solid var(--accent); outline-offset:-1px; }
 label.field, div.field{ display:flex; flex-direction:column; gap:.15em; font-size:11px; color:var(--text-dim); }
@@ -99,7 +99,7 @@ label.field > span, div.field > span, div.field > label{ text-transform:uppercas
 .ac-info.known{ color:var(--ok); }
 .ac-info.unknown, .ac-info.warn{ color:var(--warn); }
 .ac-info button.link{ font-size:12px; }
-.ac-info.prefilled{ color:var(--accent); font-style:italic; }
+.ac-info.prefilled{ color:var(--accent-text); font-style:italic; }
 /* fixed-height slot for the info lines in the entry form: appearing or
    changing hints never move any input (full text in the title) */
 .ac-hints{ width:0; min-width:100%; height:calc(2 * 1.35 * 12px); overflow:hidden; font-size:12px; line-height:1.35; }
@@ -118,7 +118,7 @@ label.field > span, div.field > span, div.field > label{ text-transform:uppercas
 /* ---------- events view ---------- */
 .tabs{ display:inline-flex; border:1px solid var(--line); border-radius:4px; overflow:hidden; }
 .tabs button{ border:none; border-radius:0; background:none; }
-.tabs button.active{ background:var(--accent-soft); color:var(--accent); }
+.tabs button.active{ background:var(--accent-soft); color:var(--accent-text); }
 #event-list{ list-style:none; margin:0; padding:0; display:grid; gap:.6em; }
 .event-card{
   border:1px solid var(--line); border-radius:6px; padding:.7em 1em;
@@ -146,7 +146,7 @@ label.field > span, div.field > span, div.field > label{ text-transform:uppercas
 .tpl-preview table{ border-collapse:collapse; font-size:12.5px; }
 .tpl-preview th{ text-align:left; font-weight:500; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-dim); padding:.15em .8em .25em 0; white-space:nowrap; border-bottom:1px solid var(--line); }
 .tpl-preview td{ padding:.25em .8em .1em 0; white-space:nowrap; color:var(--text-dim); }
-.tpl-preview .tpl{ color:var(--accent); }
+.tpl-preview .tpl{ color:var(--accent-text); }
 .tpl-preview .adif{ margin-top:.35em; font-size:11.5px; color:var(--text-dim); }
 /* fields with an info line get room for it (it wraps to the field width) */
 #log-header .ac-field:has(.ac-hints), #new-header .ac-field:has(.ac-hints){ min-width:15em; }
@@ -204,7 +204,7 @@ details.hdr .body{ padding:0 1em 1em; }
   background:var(--bg); user-select:none;
 }
 .radio-group input{ position:absolute; opacity:0; width:0; height:0; }
-.radio-group input:checked + span{ color:var(--accent); font-weight:600; }
+.radio-group input:checked + span{ color:var(--accent-text); font-weight:600; }
 .radio-group label:has(input:checked){ border-color:var(--accent); background:var(--accent-soft); }
 .radio-group label:has(input:focus-visible){ outline:2px solid var(--accent); }
 /* Browsers without :has() (Firefox < 121, incl. 115 ESR): selection and
@@ -251,7 +251,7 @@ table.log tr.marker td{
 table.log tr.marker.editing td{ border-color:var(--warn); }
 .marker-row{ display:flex; flex-wrap:wrap; gap:.3em .9em; align-items:baseline; }
 .marker-time{ font-family:var(--font-mono); white-space:nowrap; }
-.marker-cat{ font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--accent);
+.marker-cat{ font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--accent-text);
   border:1px solid var(--accent); border-radius:4px; padding:0 .4em; white-space:nowrap; }
 .marker-text{ flex:1; min-width:12em; font-weight:600; }
 .marker-op{ font-family:var(--font-mono); font-size:12px; color:var(--text-dim); white-space:nowrap; }
@@ -261,7 +261,7 @@ table.log tr.marker.editing td{ border-color:var(--warn); }
   display:inline-block; margin-left:.35em; padding:0 .4em; border-radius:999px;
   font-size:11px; font-weight:700; background:var(--warn); color:var(--bg);
 }
-.rpt{ font-size:11px; color:var(--accent); }
+.rpt{ font-size:11px; color:var(--accent-text); }
 
 /* ---------- location lookup ---------- */
 #loc-examples button{ margin-right:.7em; font-size:12px; }
@@ -277,7 +277,7 @@ table.log tr.marker.editing td{ border-color:var(--warn); }
 .lc-type{ font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-dim); }
 .lc-conf{ font-size:11px; padding:0 .45em; border-radius:999px; border:1px solid currentColor; }
 .conf-exact .lc-conf, .conf-high .lc-conf{ color:var(--ok); }
-.conf-likely .lc-conf{ color:var(--accent); }
+.conf-likely .lc-conf{ color:var(--accent-text); }
 .conf-ambiguous .lc-conf, .conf-low .lc-conf{ color:var(--warn); }
 .lc-meta{ font-family:var(--font-mono); font-size:13px; margin:.15em 0; }
 .lc-why, .lc-detail{ font-size:12px; color:var(--text-dim); }
@@ -298,7 +298,7 @@ button.mini{ font-size:12px; padding:.15em .55em; }
 #f-rpt-q.override{ border-color:var(--warn); color:var(--warn); font-weight:600; }
 .rpt.override{ color:var(--warn); font-weight:600; }
 .ac-info.conf-exact, .ac-info.conf-high{ color:var(--ok); }
-.ac-info.conf-likely{ color:var(--accent); }
+.ac-info.conf-likely{ color:var(--accent-text); }
 .ac-info.conf-ambiguous, .ac-info.conf-low, .ac-info.unresolved{ color:var(--warn); }
 .loc-sub{ font-size:11px; color:var(--text-dim); }
 .loc-sub.unresolved{ color:var(--warn); }
@@ -330,7 +330,7 @@ footer details.vendor-license pre{ white-space:pre-wrap; }
 .leaflet-control-layers, .leaflet-bar a, .leaflet-control-attribution{ background:var(--bg-raised) !important; color:var(--text) !important; }
 .leaflet-control-attribution{ font-size:10px; }
 .leaflet-tooltip.map-district{ background:none; border:none; box-shadow:none; color:var(--text-dim); font-weight:700; font-size:13px; }
-.leaflet-tooltip.map-grid-label{ background:none; border:none; box-shadow:none; color:var(--accent); font-family:var(--font-mono); font-size:10px; opacity:.8; }
+.leaflet-tooltip.map-grid-label{ background:none; border:none; box-shadow:none; color:var(--accent-text); font-family:var(--font-mono); font-size:10px; opacity:.8; }
 .leaflet-tooltip.map-district::before, .leaflet-tooltip.map-grid-label::before{ display:none; }
 .map-pin{ border-radius:50%; background:var(--accent); border:2px solid var(--bg); box-shadow:0 0 0 1px var(--accent);
   display:flex !important; align-items:center; justify-content:center; color:#fff; font:700 10px var(--font-ui); }
@@ -346,7 +346,7 @@ footer details.vendor-license pre{ white-space:pre-wrap; }
 .pin-tip-body li + li{ margin-top:.1em; }
 .pin-tip-more{ color:var(--text-dim); }
 .pin-tip-warn{ color:var(--warn); }
-#btn-map.active{ border-color:var(--accent); color:var(--accent); }
+#btn-map.active{ border-color:var(--accent); color:var(--accent-text); }
 .csv-group{ display:inline-flex; }
 .csv-group button{ border-top-right-radius:0; border-bottom-right-radius:0; }
 .csv-group select{ border-top-left-radius:0; border-bottom-left-radius:0; border-left:none; font-family:var(--font-mono); padding:.3em .3em; }

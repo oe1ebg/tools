@@ -58,6 +58,17 @@ string logic with no DOM dependency):
 - Headered and headerless input both parse correctly.
 - Files with no final `<EOR>` recover the trailing record with a warning.
 
+**Editing:** a cell takes its value when it loses focus; Enter takes it
+and moves one row down (ADIF values have no line breaks), Esc restores the
+value from before the edit. Cells are `contenteditable="plaintext-only"`
+where supported, so pasted text brings no markup. With edits that haven't
+been exported (ADI or CSV), closing or reloading the tab asks first.
+
+**Encoding:** files are read as UTF-8, else as Windows-1252 (with a
+warning). The ADI export is ASCII, as ADIF requires: other characters are
+transliterated (ä → ae, é → e, the rest → ?), and the editor says how many
+values that changed.
+
 **Known gaps** (not implemented — flag if you want these):
 - No ADX (XML variant) read/write, `.adi` only.
 - No validation against ADIF's per-field data types (dates, enumerations,

@@ -662,6 +662,8 @@ async function leaveEvent() {
 
 function acquireLock(steal) {
   const ev = state.event;
+  // Without Web Locks (plain http:// on a LAN, Safari < 15.4) two tabs
+  // could both write: the #st-tabs chip says so (main()).
   if (!navigator.locks) { setReadOnly(false); return Promise.resolve(); }
   return new Promise(resolve => {
     navigator.locks.request(`oe1ebg-confirm-event-${ev.id}`, steal ? { steal: true } : { ifAvailable: true }, lock => {
@@ -1663,20 +1665,31 @@ async function takeSnapshot(reason) {
   }
 }
 
+// Result of an import, in the banner above the list (not alert(): it
+// blocks the page and is suppressed in some browsers/embeddings).
+function showImportMsg(kind, ...content) {
+  const box = $('#import-msg');
+  const ok = el('button', { type: 'button', onclick: () => { box.hidden = true; } }, 'OK');
+  box.className = `banner ${kind}`;
+  fill(box, ...content, ' ', ok);
+  box.hidden = false;
+  ok.focus();
+}
+
 async function importBackup(file) {
   let data;
   try {
     data = JSON.parse(await file.text());
   } catch {
-    alert('Datei ist kein gültiges JSON.');
+    showImportMsg('err', el('strong', {}, 'Nicht importiert: '), `„${file.name}“ ist keine gültige JSON-Datei.`);
     return;
   }
   if (data?.format !== BACKUP_FORMAT || !Array.isArray(data.events)) {
-    alert('Keine Sicherung dieses Werkzeugs.');
+    showImportMsg('err', el('strong', {}, 'Nicht importiert: '), `„${file.name}“ ist keine Sicherung des Bestätigungsverkehrs (Datei „Sicherung (JSON)“ / „Alle sichern (JSON)“).`);
     return;
   }
   const existing = new Set((await state.store.getAll('events')).map(e => e.id));
-  let imported = 0;
+  let imported = 0, copies = 0;
   for (const item of data.events) {
     // Never overwrite: an event that already exists is imported as a copy
     // with fresh ids.
@@ -1694,13 +1707,15 @@ async function importBackup(file) {
     try {
       await state.store.tx(ops);
       imported++;
+      if (clash) copies++;
     } catch (e) {
       showSaveError(e);
       return;
     }
   }
   broadcast({ type: 'events' });
-  alert(`${imported} Log(s) importiert.`);
+  showImportMsg('warn', el('strong', {}, `${imported} ${imported === 1 ? 'Log' : 'Logs'} importiert.`),
+    copies ? ` ${copies} davon als Kopie („(Import)“), weil ${copies === 1 ? 'es' : 'sie'} schon vorhanden ${copies === 1 ? 'war' : 'waren'}; nichts wurde überschrieben.` : '');
   renderEventList();
 }
 
@@ -2025,6 +2040,7 @@ async function main() {
     b.hidden = false;
   }
   wire();
+  $('#st-tabs').hidden = !!navigator.locks;
   trackOnline();
   initTimeMode();
   initLocationPanel();

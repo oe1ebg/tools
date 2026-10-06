@@ -28,6 +28,7 @@
   <span class="spacer"></span>
   <span id="st-offline" class="chip">offline: prüfe…</span>
   <span id="st-storage" class="chip">Speicher: prüfe…</span>
+  <span id="st-tabs" class="chip warn" hidden title="Dieser Browser kann nicht verhindern, dass zwei Tabs oder Fenster dasselbe Log bearbeiten (fehlt z. B. bei http:// im Heimnetz oder in Safari vor 15.4). Jedes Log nur in einem Tab öffnen.">nur ein Tab pro Log!</span>
   <button id="btn-loc" type="button" aria-expanded="false" aria-controls="loc-panel" title="Offline-Standortsuche Wien: Adresse, Ort, PLZ, Koordinaten, Locator"><span aria-hidden="true">📍</span> Standort</button>
   <button id="btn-update" type="button" class="primary" hidden title="Neue Version installieren (Daten bleiben erhalten)">Update verfügbar</button>
   <div id="time-toggle" class="seg" role="group" aria-label="Zeitanzeige" title="Anzeige und Eingabe der Zeit. Gespeichert wird immer ein ISO-8601-Zeitstempel (UTC).">
@@ -79,6 +80,8 @@
       <input type="file" id="import-file" accept=".json,application/json" hidden>
       <button type="button" id="btn-backup-all">Alle sichern (JSON)</button>
     </div>
+
+    <div id="import-msg" class="banner warn" role="status" hidden></div>
 
     <form id="new-event" class="panel" hidden autocomplete="off">
       <div class="grid-form">

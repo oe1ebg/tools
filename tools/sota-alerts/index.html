@@ -159,30 +159,41 @@ import { copyToClipboard } from '../shared/js/dom.js';
     '<path d="M13 0C5.8 0 0 5.8 0 13c0 9 13 21 13 21s13-12 13-21C26 5.8 20.2 0 13 0z" stroke="#fff" stroke-width="1.5"/>' +
     '<circle cx="13" cy="13" r="5"/></svg>';
 
-  /* ---------- warnings (same pattern as the ADIF editor) ---------- */
+  /* ---------- warnings ---------- */
 
-  // #warnings is a live region (role=status). renderAll() rebuilds its
-  // warnings on every render, so between clearWarnings() and
-  // flushWarnings() they are only collected, and the box is touched only
-  // when the list actually changed — otherwise a screen reader would
-  // re-announce the same warnings on every click.
-  let pendingWarnings = null;
+  // Two kinds of warnings share the #warnings box (a live region):
+  // - render warnings, about what renderAll() shows (date range outside
+  //   the feed, alerts that couldn't be placed): rebuilt on every render,
+  //   collected between clearWarnings() and flushWarnings();
+  // - event warnings, from things that happened (loading alerts failed,
+  //   storage full, a shared link's summit missing): they used to be added
+  //   before the first render and wiped by it right away. Now they stay
+  //   until dropWarning(key) says the problem is gone.
+  // The box is only rewritten when the list changed, so a screen reader
+  // doesn't re-announce the same warnings on every click.
+  const eventWarnings = new Map(); // key -> text
+  let renderWarnings = [];
+  let pendingWarnings = null;      // collecting during renderAll()
 
-  function addWarning(msg){
+  function addWarning(msg, key){
     const text = '⚠ ' + msg;
-    if (pendingWarnings){ pendingWarnings.push(text); return; }
-    const box = document.getElementById('warnings');
-    const div = document.createElement('div');
-    div.textContent = text;
-    box.appendChild(div);
-    box.classList.add('show');
+    if (pendingWarnings && !key){ pendingWarnings.push(text); return; }
+    eventWarnings.set(key || text, text);
+    if (!pendingWarnings) showWarnings();
+  }
+  function dropWarning(key){
+    if (eventWarnings.delete(key) && !pendingWarnings) showWarnings();
   }
   function clearWarnings(){
     pendingWarnings = [];
   }
   function flushWarnings(){
-    const next = pendingWarnings || [];
+    renderWarnings = pendingWarnings || [];
     pendingWarnings = null;
+    showWarnings();
+  }
+  function showWarnings(){
+    const next = [...eventWarnings.values(), ...renderWarnings];
     const box = document.getElementById('warnings');
     const current = [...box.children].map(d => d.textContent);
     if (current.length === next.length && current.every((t, i) => t === next[i])) return;
@@ -444,7 +455,8 @@ import { copyToClipboard } from '../shared/js/dom.js';
     return prefGet(LS_KEY_CALLSIGNS, '');
   }
   function persistOwnCallsigns(raw){
-    if (!prefSetChecked(LS_KEY_CALLSIGNS, raw)) addWarning('could not save your callsign(s) locally (storage full or blocked) — you\'ll need to re-enter them next visit.');
+    if (prefSetChecked(LS_KEY_CALLSIGNS, raw)) dropWarning('store-callsigns');
+    else addWarning('could not save your callsign(s) locally (storage full or blocked) — you\'ll need to re-enter them next visit.', 'store-callsigns');
   }
 
   /* ---------- pinned candidate summits (searched by name/code, not just alerted ones) ---------- */
@@ -456,7 +468,8 @@ import { copyToClipboard } from '../shared/js/dom.js';
     } catch { return new Map(); }
   }
   function saveCandidates(candidates){
-    if (!prefSetChecked(LS_KEY_CANDIDATES, JSON.stringify([...candidates.values()]))) addWarning('could not save your pinned summits locally (storage full or blocked).');
+    if (prefSetChecked(LS_KEY_CANDIDATES, JSON.stringify([...candidates.values()]))) dropWarning('store-pins');
+    else addWarning('could not save your pinned summits locally (storage full or blocked).', 'store-pins');
   }
 
   async function searchSummits(term, signal){
@@ -569,10 +582,10 @@ import { copyToClipboard } from '../shared/js/dom.js';
       else anyMissing = true;
     }
     if (toFetch.length) saveCandidates(state.candidates);
-    if (anyMissing) addWarning("some summits from the shared link couldn't be found and were skipped.");
+    if (anyMissing) addWarning("some summits from the shared link couldn't be found and were skipped.", 'shared-link');
 
     if (refKey && state.candidates.has(refKey)) state.referenceKey = refKey;
-    else if (refKey) addWarning(`the shared link's reference summit (${refKey}) couldn't be found.`);
+    else if (refKey) addWarning(`the shared link's reference summit (${refKey}) couldn't be found.`, 'shared-ref');
 
     // Strip the query string once applied — otherwise it'd linger and go
     // stale the moment anything changes locally; "share" always builds a
@@ -621,7 +634,8 @@ import { copyToClipboard } from '../shared/js/dom.js';
     catch { return {}; }
   }
   function saveSummitCache(cache){
-    if (!prefSetChecked(LS_KEY_SUMMIT_CACHE, JSON.stringify(cache))) addWarning('summit coordinate cache could not be saved locally (storage full or blocked); it will be re-fetched every visit.');
+    if (prefSetChecked(LS_KEY_SUMMIT_CACHE, JSON.stringify(cache))) dropWarning('store-cache');
+    else addWarning('summit coordinate cache could not be saved locally (storage full or blocked); it will be re-fetched every visit.', 'store-cache');
   }
 
   async function fetchSummit(assoc, code){
@@ -1519,13 +1533,24 @@ import { copyToClipboard } from '../shared/js/dom.js';
     });
   }
 
+  // True when the visitor already allowed geolocation for this site, so
+  // asking for the position shows no prompt. Without the Permissions API
+  // (Safari < 16) false: then only the "locate me" button asks.
+  async function geolocationAllowed(){
+    try {
+      const status = await navigator.permissions.query({ name: 'geolocation' });
+      return status.state === 'granted';
+    } catch { return false; }
+  }
+
   async function loadAlerts(){
     try {
       const raw = await fetchAlerts();
       state.rawAlerts = raw.map(normalizeAlert);
+      dropWarning('alerts');
     } catch (err) {
       state.rawAlerts = [];
-      addWarning(`could not load SOTA alerts (${err.message}). If this persists it may be a CORS/network problem — check the browser console.`);
+      addWarning(`could not load SOTA alerts (${err.message}). If this persists it may be a CORS/network problem — check the browser console.`, 'alerts');
       console.error(err);
     }
     state.bounds = computeDataBounds(state.rawAlerts);
@@ -1689,8 +1714,8 @@ import { copyToClipboard } from '../shared/js/dom.js';
       btn.disabled = true;
       const loc = await tryGeolocate();
       btn.disabled = false;
-      if (loc){ state.userLocation = loc; map.setView([loc.lat, loc.lon], USER_LOCATION_ZOOM); }
-      else addWarning('could not determine your location (denied, unavailable, or timed out).');
+      if (loc){ state.userLocation = loc; map.setView([loc.lat, loc.lon], USER_LOCATION_ZOOM); dropWarning('locate'); }
+      else addWarning('could not determine your location (denied, unavailable, or timed out).', 'locate');
     });
     document.getElementById('btn-refresh-alerts').addEventListener('click', async () => {
       await loadAlerts();
@@ -1731,12 +1756,12 @@ import { copyToClipboard } from '../shared/js/dom.js';
       if (!allSummitsData){
         btn.disabled = true;
         document.getElementById('all-summits-note').textContent = 'loading…';
-        try { await loadAllSummitsData(); }
+        try { await loadAllSummitsData(); dropWarning('all-summits'); }
         catch (err) {
           allSummitsEnabled = false;
           setPressed(false);
           map.removeLayer(allSummitsLayer);
-          addWarning(`could not load the all-summits data (${err.message}). It's a build-time-generated file — if you're running this locally without having run "just fetch", it won't exist yet.`);
+          addWarning(`could not load the all-summits data (${err.message}). It's a build-time-generated file — if you're running this locally without having run "just fetch", it won't exist yet.`, 'all-summits');
           document.getElementById('all-summits-note').textContent = '';
           btn.disabled = false;
           return;
@@ -1836,11 +1861,14 @@ import { copyToClipboard } from '../shared/js/dom.js';
     // once we know; read by the geolocation callback via closure, so it's
     // declared before that's registered.
     let appliedSharedState = false;
-    // Not awaited: geolocation (permission prompt + fix) can take a while
-    // and shouldn't block loading alerts. If it resolves before there's
-    // anything else to show, use it; if it resolves after, it's a no-op
-    // (real data already framed the view — see renderMarkers()).
-    tryGeolocate().then(loc => {
+    // No permission prompt on page load (browsers advise against it, and
+    // Safari remembers a reflexive "deny"): the position is only asked for
+    // via the "locate me" button, or used here when the visitor allowed it
+    // before. Not awaited: a fix can take a while and shouldn't block
+    // loading alerts. If it resolves before there's anything else to show,
+    // use it; if after, it's a no-op (real data already framed the view —
+    // see renderMarkers()).
+    geolocationAllowed().then(ok => (ok ? tryGeolocate() : null)).then(loc => {
       state.userLocation = loc;
       if (loc && !hasSavedView && !appliedSharedState && markerLayer.getLayers().length === 0){
         map.setView([loc.lat, loc.lon], USER_LOCATION_ZOOM);

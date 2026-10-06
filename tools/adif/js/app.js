@@ -4,7 +4,7 @@
 import { ADIF_FIELDS, ADIF_FIELD_MAP } from './fields.js';
 import { parseADIF } from '../../shared/js/adif.js';
 import { serializeADIF, serializeCSV, serializeSotaCsv, adifChangedValues, ADI_MIME } from './export.js';
-import { el, fill } from '../../shared/js/dom.js';
+import { el, fill, isComposing } from '../../shared/js/dom.js';
 
 function populateFieldDatalist(){
   const dl = document.getElementById('adif-field-list');
@@ -25,6 +25,9 @@ function populateFieldDatalist(){
 let records = [];   // array of {FIELD: value}
 let columns = [];   // ordered field names
 let fileMeta = [];  // [{name, adifVer, programId, programVersion}], one per loaded file
+let dirty = false;  // edits since the last export (asked about before leaving the page)
+
+function markDirty(){ dirty = true; }
 
 function rebuildColumns(){
   const seen = new Set(columns);
@@ -110,15 +113,32 @@ function render(){
     numTd.append(String(ri + 1), el('button', { type: 'button', class: 'del', title: 'delete row',
       'aria-label': `delete row ${ri + 1}`, onclick: () => deleteRow(ri) }, '×'));
     tr.appendChild(numTd);
-    columns.forEach(col => {
+    columns.forEach((col, ci) => {
       const td = document.createElement('td');
       setPlainEditable(td);
       td.spellcheck = false;
       td.textContent = rec[col] !== undefined ? rec[col] : '';
+      // Enter takes the value and moves one row down (ADIF values have no
+      // line breaks), Esc restores the value from before the edit.
+      let before = td.textContent;
+      td.addEventListener('focus', () => { before = td.textContent; });
+      td.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !isComposing(e)){
+          e.preventDefault();
+          const below = tr.nextElementSibling?.children[ci + 1];
+          if (below) below.focus(); else td.blur();
+        } else if (e.key === 'Escape'){
+          e.preventDefault();
+          td.textContent = before;
+          td.blur();
+        }
+      });
       td.addEventListener('blur', () => {
         const v = td.textContent;
+        if (v === (rec[col] ?? '')) return;
         if (v === '') delete rec[col];
         else rec[col] = v;
+        markDirty();
         updateStats();
       });
       tr.appendChild(td);
@@ -177,22 +197,26 @@ function updateFileInfo(){
 
 function addRow(){
   records.push({});
+  markDirty();
   render();
 }
 
 function deleteRow(idx){
   records.splice(idx, 1);
+  markDirty();
   render();
 }
 
 function addColumn(name){
   if (!name || columns.includes(name)) return;
   columns.push(name);
+  markDirty();
   render();
 }
 
 function removeColumn(name){
   columns = columns.filter(c => c !== name);
+  markDirty();
   for (const rec of records) delete rec[name];
   render();
 }
@@ -224,7 +248,7 @@ function applyCommentTemplate(template){
     const filled = template.replace(re, (_, name) => rec[name.toUpperCase()] || '');
     if (filled !== ''){ rec.COMMENT = filled; changed = true; }
   }
-  if (changed){ rebuildColumns(); render(); }
+  if (changed){ markDirty(); rebuildColumns(); render(); }
 }
 
 /* ---------- file loading ---------- */
@@ -316,11 +340,13 @@ document.getElementById('btn-export').addEventListener('click', () => {
   const changed = adifChangedValues(records, columns);
   if (changed) addWarning(`${changed} value(s) contained non-ASCII characters; transliterated in the export (ä → ae, é → e, other → ?).`);
   downloadText(serializeADIF(records, columns), ADI_MIME, name);
+  dirty = false;
 });
 
 document.getElementById('btn-export-csv').addEventListener('click', () => {
   const name = swapExt(document.getElementById('filename-input').value, 'csv');
   downloadText(serializeCSV(records, columns), 'text/csv', name);
+  dirty = false;
 });
 
 document.getElementById('btn-export-sota').addEventListener('click', () => {
@@ -335,6 +361,13 @@ document.getElementById('btn-toggle-tools').addEventListener('click', e => {
 
 document.getElementById('btn-apply-tpl').addEventListener('click', () => {
   applyCommentTemplate(document.getElementById('tpl-input').value);
+});
+
+// Closing the tab or reloading would lose unexported edits: the browser asks.
+window.addEventListener('beforeunload', e => {
+  if (!dirty || !records.length) return;
+  e.preventDefault();
+  e.returnValue = ''; // older Chrome/Safari need it set
 });
 
 populateFieldDatalist();

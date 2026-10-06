@@ -342,14 +342,17 @@ of tiles beyond the browser's own HTTP cache.
 
 ## Geolocation
 
-On load, the browser's Geolocation API is queried in the background (never
+The page never asks for the location on its own: browsers advise against
+a permission prompt nobody asked for, and Safari remembers a reflexive
+"deny". The "locate me" toolbar button asks (and recenters). If the visitor
+already allowed geolocation for the site (`navigator.permissions`, so no
+prompt), the position is also fetched on load, in the background (never
 blocking alert/summit loading) with a short timeout — if it resolves and
 there's nothing else to show yet (e.g. before alerts finish loading, or an
 empty date range with no pinned candidates), the map centers there instead
 of the hardcoded fallback. It never fights with `fitBounds()`: once there
-are real markers to frame, their extent always wins. A "locate me" toolbar
-button re-runs this on demand for explicit recentering. Location is used
-only to set the map view — never sent anywhere or persisted.
+are real markers to frame, their extent always wins. Location is used only
+to set the map view — never sent anywhere or persisted.
 
 ## Remembering your last view
 
