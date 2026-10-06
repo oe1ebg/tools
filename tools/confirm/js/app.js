@@ -79,7 +79,8 @@ function showSaveError(err) {
 
 // Display and input only — entries always store an ISO 8601 UTC timestamp.
 function timeMode() {
-  return prefGet(TIME_MODE_KEY) === 'local' ? 'local' : 'utc';
+  // Local time by default: what local nets go by. UTC once chosen (remembered).
+  return prefGet(TIME_MODE_KEY) === 'utc' ? 'utc' : 'local';
 }
 
 // "19:42:07 UTC" / "21:42:07 UTC+2"

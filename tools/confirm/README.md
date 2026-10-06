@@ -36,7 +36,9 @@ index route.
   (`2026-10-04T19:42:07.123Z`). It is set automatically when the line is
   saved, or taken from a typed correction. The display mode never changes
   what is stored.
-- **UTC / Lokal toggle** in the page header, remembered in `localStorage`.
+- **UTC / Lokal toggle** in the page header, remembered in `localStorage`;
+  **Lokal** by default (what local nets go by). Exports are unaffected:
+  CSV `zeitstempel_utc` and ADIF stay UTC.
   - It controls the time column (UTC shown with a trailing `Z`, e.g. `19:30:00Z`), the clock, the time field's label and
     edit prefill, status messages, the repeat-check-in box, the recycle bin
     and the summary.
