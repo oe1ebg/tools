@@ -3,6 +3,7 @@
 // run locally on data/vienna-locations.json (Vienna addresses/landmarks) and
 // data/austria-areas.json (PLZ and Bezirke of all of Austria).
 
+import { prefGet, prefSet } from '../../shared/js/prefs.js';
 import { $, el, fill, copyToClipboard } from '../../shared/js/dom.js';
 import { loadDataFile } from '../../shared/js/data.js';
 import { buildLocationIndex, locate } from '../../shared/js/location/index.js';
@@ -39,14 +40,14 @@ export function loadLocationIndex() {
 }
 
 export function locatorPrecision() {
-  const v = parseInt(localStorage.getItem(LOC_PREC_KEY) || '6', 10);
+  const v = parseInt(prefGet(LOC_PREC_KEY) || '6', 10);
   return [4, 6, 8].includes(v) ? v : 6;
 }
 
 // Minimum confidence at which the log's location field takes the best
 // candidate automatically: 'exact' | 'high' (default) | 'likely' | 'never'.
 export function autoSelectLevel() {
-  const v = localStorage.getItem(LOC_AUTO_KEY) || 'high';
+  const v = prefGet(LOC_AUTO_KEY) || 'high';
   return ['exact', 'high', 'likely', 'never'].includes(v) ? v : 'high';
 }
 
@@ -239,7 +240,7 @@ export function initLocationPanel() {
   prec.value = String(locatorPrecision());
   const auto = $('#loc-auto');
   auto.value = autoSelectLevel();
-  auto.addEventListener('change', () => localStorage.setItem(LOC_AUTO_KEY, auto.value));
+  auto.addEventListener('change', () => prefSet(LOC_AUTO_KEY, auto.value));
   fill($('#loc-examples'), ...EXAMPLES.map(q => el('button', { type: 'button', class: 'link', onclick: () => { input.value = q; run(); } }, q)));
 
   let timer = null;
@@ -254,7 +255,7 @@ export function initLocationPanel() {
     setStatus(`${await locationStatusText()} · Suche ${Math.round(performance.now() - t)} ms`, 'ok');
   };
   input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(run, 150); });
-  prec.addEventListener('change', () => { localStorage.setItem(LOC_PREC_KEY, prec.value); run(); });
+  prec.addEventListener('change', () => { prefSet(LOC_PREC_KEY, prec.value); run(); });
 
   const open = async () => {
     panel.hidden = false;

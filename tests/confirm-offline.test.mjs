@@ -65,7 +65,7 @@ test('map: no tile layers, no image icons (Leaflet would request them)', () => {
     for (const m of src.matchAll(/L\.marker\([^;]*/g)) if (!/icon/.test(m[0])) bad.push(`${p}: ${m[0].slice(0, 60)}`);
   }
   assert.deepEqual(bad, []);
-  assert.match(readFileSync(join(DIR, 'index.html'), 'utf8'), /\.leaflet-control-layers-toggle\{ background-image:none/);
+  assert.match(readFileSync(join(DIR, 'style.css'), 'utf8'), /\.leaflet-control-layers-toggle\{ background-image:none/);
 });
 
 test('the link-only module really only provides links', () => {
@@ -83,9 +83,11 @@ test('offline bundle builds into one self-contained, parseable file', () => {
   const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
   // the inlined tools/shared/data/ files, when they have been built
   const hasData = existsSync(SHARED_DATA) && readdirSync(SHARED_DATA).some(n => n.endsWith('.json'));
-  // load-failure fallback, Leaflet, (inlined data when built), app bundle
-  assert.equal(scripts.length, hasData ? 4 : 3);
+  // theme, Leaflet, load-failure fallback, (inlined data when built), app bundle
+  assert.equal(scripts.length, hasData ? 5 : 4);
   assert.ok(scripts.some(s => s.includes('Leaflet 1.9.4')), 'Leaflet inlined');
+  assert.ok(scripts[0].includes('OE1EBG_THEME'), 'theme script inlined, first');
+  assert.ok(html.includes('.leaflet-control-layers-toggle{ background-image:none'), 'tool CSS inlined');
   assert.ok(!/(vendor|shared)\//.test(html.replace(/<script>[\s\S]*?<\/script>/g, '')), 'no reference to vendor files left');
   const app = scripts[scripts.length - 1];
   assert.ok(!/^\s*(import|export)\b/m.test(app));

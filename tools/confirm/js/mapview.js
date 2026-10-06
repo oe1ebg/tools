@@ -139,8 +139,10 @@ async function drawOwn(ctx) {
     icon: L.divIcon({ className: 'map-own', html: '<span>★</span>', iconSize: [28, 28], iconAnchor: [14, 14] }),
     title: 'Eigener Standort', zIndexOffset: 1000, keyboard: true,
   });
-  if (canHover()) m.bindTooltip(text, { direction: 'top', className: 'pin-tip', offset: [0, -12] });
-  m.bindPopup(text, { className: 'pin-tip' });
+  // DOM nodes, not strings: Leaflet puts a string in as HTML, and station /
+  // operator come from the header (or an imported backup).
+  if (canHover()) m.bindTooltip(el('div', {}, text), { direction: 'top', className: 'pin-tip', offset: [0, -12] });
+  m.bindPopup(el('div', {}, text), { className: 'pin-tip' });
   m.addTo(ownGroup);
   return [own.lat, own.lon];
 }

@@ -16,7 +16,8 @@ import { TEMPLATES, templateFor, fieldVisible, fieldDisplay, fieldOptions, curre
 import { toCSV, toADIF, adifIssues, ADIF_MIME, toKML, KML_MIME, toSummary, adifFieldTargets } from './export.js';
 import { loadDataFile } from '../../shared/js/data.js';
 import { buildCallbook, lookupCall, suggestCalls } from '../../shared/js/callbook.js';
-import { $, el, fill, popover, focusNext } from '../../shared/js/dom.js';
+import { $, el, fill, popover, focusNext, submitForm, isComposing, trackExpanded } from '../../shared/js/dom.js';
+import { prefGet, prefSet } from '../../shared/js/prefs.js';
 import { initLocationPanel, loadLocationIndex } from './locationui.js';
 import { locate } from '../../shared/js/location/index.js';
 import { isValidLocator, isLocatorPrefix, locatorPrecisionName } from '../../shared/js/maidenhead.js';
@@ -27,7 +28,6 @@ import { sourceItem, versionItems, trackOnline } from './sources.js';
 import { createLineRepeater } from './linerepeater.js';
 import { formatShift, formatMHz } from '../../shared/js/repeaters.js';
 
-const THEME_KEY = 'oe1ebg-confirm-theme';
 const TIME_MODE_KEY = 'oe1ebg-confirm-time-mode';
 const CSV_SEP_KEY = 'oe1ebg-confirm-csv-sep';
 const CSV_COMMENTS_KEY = 'oe1ebg-confirm-csv-comments';
@@ -74,31 +74,11 @@ function showSaveError(err) {
   b.hidden = false;
 }
 
-/* ---------------------------------------------------------------- theme */
-
-function applyTheme(mode) {
-  if (mode === 'light' || mode === 'dark') document.documentElement.setAttribute('data-theme', mode);
-  else document.documentElement.removeAttribute('data-theme');
-  document.querySelectorAll('#theme-toggle button').forEach(b => {
-    b.classList.toggle('active', b.dataset.themeChoice === mode);
-  });
-}
-
-function initTheme() {
-  applyTheme(localStorage.getItem(THEME_KEY) || 'auto');
-  document.querySelectorAll('#theme-toggle button').forEach(b => {
-    b.addEventListener('click', () => {
-      localStorage.setItem(THEME_KEY, b.dataset.themeChoice);
-      applyTheme(b.dataset.themeChoice);
-    });
-  });
-}
-
 /* ---------------------------------------------------------------- time display (UTC / local) */
 
 // Display and input only — entries always store an ISO 8601 UTC timestamp.
 function timeMode() {
-  return localStorage.getItem(TIME_MODE_KEY) === 'local' ? 'local' : 'utc';
+  return prefGet(TIME_MODE_KEY) === 'local' ? 'local' : 'utc';
 }
 
 // "19:42:07 UTC" / "21:42:07 UTC+2"
@@ -114,9 +94,13 @@ function fmtDateTime(iso) {
 
 function applyTimeMode() {
   const mode = timeMode();
-  document.querySelectorAll('#time-toggle button').forEach(b => b.classList.toggle('active', b.dataset.timeMode === mode));
+  document.querySelectorAll('#time-toggle button').forEach(b => {
+    b.classList.toggle('active', b.dataset.timeMode === mode);
+    b.setAttribute('aria-pressed', String(b.dataset.timeMode === mode));
+  });
   $('#time-label').textContent = mode === 'local' ? `Zeit lokal (${zoneLabel(nowIso(), 'local')})` : 'Zeit UTC';
   $('#f-time').title = `Leer lassen = Zeitpunkt des Speicherns. Korrektur: HH:MM oder JJJJ-MM-TT HH:MM (${mode === 'local' ? 'Lokalzeit' : 'UTC'}). Gespeichert wird immer ein ISO-Zeitstempel.`;
+  $('#time-help').textContent = $('#f-time').title;
   tickClock();
   if (state.event) {
     renderLog();
@@ -135,7 +119,7 @@ function initTimeMode() {
     const input = $('#f-time');
     const old = timeMode();
     const iso = input.value ? parseTimeInput(input.value, old, nowIso()) : null;
-    localStorage.setItem(TIME_MODE_KEY, b.dataset.timeMode);
+    prefSet(TIME_MODE_KEY, b.dataset.timeMode);
     if (iso) {
       const { date, time } = splitTime(iso, timeMode());
       input.value = `${date} ${time}`;
@@ -313,7 +297,8 @@ function buildHeaderForm(container, header, onChange) {
     const input = el('input', {
       id: id(f.key), 'data-hkey': f.key, value: header[f.key] || '', size: f.size, inputmode: f.inputmode,
       spellcheck: 'false', autocomplete: 'off', class: f.call ? 'call-input' : f.grid ? 'grid-input' : null, placeholder: f.placeholder,
-      autocapitalize: f.call || f.grid ? 'characters' : null,
+      autocapitalize: f.call || f.grid ? 'characters' : null, autocorrect: f.call || f.grid ? 'off' : null,
+      enterkeyhint: 'next',
     });
     input.addEventListener('input', emit);
     const hasPop = f.qth || f.repeater;
@@ -375,6 +360,16 @@ function fillGridFromQth(container, loc) {
 // Relais keep their own, from the location field and repeater search),
 // the ADIF mapping of the mode, the repeater input frequency, and which
 // fields the chosen route and mode show.
+// Column header cell.
+function th(text) {
+  return el('th', { scope: 'col' }, text);
+}
+
+// aria-live lines are read out on every write: only write real changes.
+function setText(node, text) {
+  if (node.textContent !== text) node.textContent = text;
+}
+
 function renderHeaderHints(container) {
   const hints = container._hdr?.hints;
   if (!hints) return;
@@ -382,19 +377,19 @@ function renderHeaderHints(container) {
   const route = h.viaRepeater ? 'rpt' : 'direct';
   container.querySelectorAll('[data-route]').forEach(n => { n.hidden = n.dataset.route !== route; });
   container.querySelectorAll('[data-modes]').forEach(n => { n.hidden = !n.dataset.modes.split(' ').includes(h.mode); });
-  hints.mode.textContent = adifModeText(h.mode);
+  setText(hints.mode, adifModeText(h.mode));
   const out = parseMHz(h.repeaterFreq), shift = parseMHz(h.repeaterShift);
-  hints.repeaterShift.textContent = out !== null && shift !== null ? `Eingabe ${formatMHz(Math.round((out + shift) * 1e6) / 1e6)} MHz` : '';
+  setText(hints.repeaterShift, out !== null && shift !== null ? `Eingabe ${formatMHz(Math.round((out + shift) * 1e6) / 1e6)} MHz` : '');
   for (const key of ['operator', 'station']) {
     const call = normalizeCall(container.querySelector(`[data-hkey="${key}"]`).value);
     const line = callbookLine(call);
     const info = hints[key];
     if (call && !isPlausibleCall(call)) {
       info.className = 'ac-info warn';
-      info.textContent = 'Ungewöhnliches Rufzeichen';
+      setText(info, 'Ungewöhnliches Rufzeichen');
     } else {
       info.className = `ac-info ${line.cls}`.trim();
-      info.textContent = line.text;
+      setText(info, line.text);
     }
     info.title = line.title || info.textContent;
   }
@@ -403,13 +398,13 @@ function renderHeaderHints(container) {
   const info = hints.myGrid;
   info.className = 'ac-info';
   if (!g) {
-    info.textContent = '';
+    setText(info, '');
   } else if (isValidLocator(g)) {
     info.classList.add('known');
-    info.textContent = `✓ ${locatorPrecisionName(g.length)}${grid.dataset.autofill === grid.value ? ' (aus QTH)' : ''}`;
+    setText(info, `✓ ${locatorPrecisionName(g.length)}${grid.dataset.autofill === grid.value ? ' (aus QTH)' : ''}`);
   } else {
     info.classList.add('warn');
-    info.textContent = isLocatorPrefix(g) ? 'unvollständig (z. B. JN88ee)' : 'kein gültiger Locator (z. B. JN88ee)';
+    setText(info, isLocatorPrefix(g) ? 'unvollständig (z. B. JN88ee)' : 'kein gültiger Locator (z. B. JN88ee)');
   }
   info.title = info.textContent;
 }
@@ -448,7 +443,7 @@ function readHeaderForm(container) {
 // when Enter is pressed in the last field.
 function headerKeys(container, last) {
   container.addEventListener('keydown', ev => {
-    if (ev.key !== 'Enter' || ev.shiftKey || ev.isComposing || ev.target.tagName !== 'INPUT') return;
+    if (ev.key !== 'Enter' || ev.shiftKey || isComposing(ev) || ev.target.tagName !== 'INPUT') return;
     ev.preventDefault();
     if (!focusNext(container, ev.target)) last?.();
   });
@@ -460,7 +455,7 @@ function headerSummary(h) {
   if (h.station && h.station !== h.operator) parts.push(`für ${h.station}`);
   const sig = signallingText(h);
   if (h.viaRepeater) {
-    const shift = h.repeaterShift !== '' && h.repeaterShift !== undefined ? formatShift(parseFloat(h.repeaterShift)) : '';
+    const shift = h.repeaterShift !== '' && h.repeaterShift !== undefined ? formatShift(parseMHz(h.repeaterShift)) : '';
     parts.push(`${modeInfo(h.mode)?.label || ''} via ${h.repeaterCall || 'Relais'}${h.repeaterFreq ? ' ' + h.repeaterFreq : ''}`
       + `${shift ? ' ' + shift : ''}${sig ? ', ' + sig : ''}`);
   } else {
@@ -504,7 +499,7 @@ async function renderEventList() {
     const st = stats(counts.get(ev.id) || []);
     const actions = [];
     if (!ev.deleted) {
-      actions.push(el('button', { type: 'button', class: 'primary', onclick: () => { location.hash = `#/e/${ev.id}`; } }, 'Öffnen'));
+      actions.push(el('button', { type: 'button', class: 'primary', 'aria-label': `„${ev.title}“ öffnen`, onclick: () => { location.hash = `#/e/${ev.id}`; } }, 'Öffnen'));
       actions.push(el('button', { type: 'button', onclick: () => duplicateEvent(ev) }, 'Duplizieren'));
       actions.push(el('button', { type: 'button', onclick: () => updateEvent(ev, { archived: !ev.archived }) }, ev.archived ? 'Reaktivieren' : 'Archivieren'));
       actions.push(el('button', { type: 'button', class: 'danger', onclick: () => {
@@ -513,16 +508,15 @@ async function renderEventList() {
     } else {
       actions.push(el('button', { type: 'button', onclick: () => updateEvent(ev, { deleted: null }) }, 'Wiederherstellen'));
     }
-    // The whole card opens the log (buttons keep their own action);
-    // keyboard: Tab to the card, Enter/Space opens it.
+    // A click anywhere on the card opens the log (buttons keep their own
+    // action). Keyboard and screen readers use the "Öffnen" button: a
+    // focusable card around buttons would nest interactive controls.
     const openLog = () => { location.hash = `#/e/${ev.id}`; };
     const clickable = !ev.deleted;
     list.append(el('li', {
       class: clickable ? 'event-card clickable' : 'event-card',
-      tabindex: clickable ? '0' : null,
       title: clickable ? 'Log öffnen' : null,
       onclick: clickable ? e => { if (!e.target.closest('button')) openLog(); } : null,
-      onkeydown: clickable ? e => { if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); openLog(); } } : null,
     },
       el('div', { class: 'info' },
         el('div', { class: 't' }, ev.title),
@@ -652,6 +646,7 @@ async function leaveEvent() {
   if (!state.event) return;
   closeMap();
   $('#btn-map').classList.remove('active');
+  $('#btn-map').setAttribute('aria-pressed', 'false');
   await flushMarkers({ openForEdit: false });
   await flushDraft();
   await flushHeader();
@@ -783,7 +778,10 @@ function buildEntryFields() {
   for (const f of tpl.fields) {
     let control;
     if (f.type === 'radio') {
-      control = el('div', { class: f.grade ? 'radio-group grade' : 'radio-group', role: 'radiogroup', 'aria-label': f.label, title: f.hint },
+      const hintId = f.hint ? `f_${f.key}-hint` : null;
+      control = el('div', { class: f.grade ? 'radio-group grade' : 'radio-group', role: 'radiogroup', 'aria-label': f.label, title: f.hint,
+        'aria-describedby': hintId },
+        hintId ? el('span', { id: hintId, class: 'sr-only' }, f.hint) : null,
         fieldOptions(f).map(([v, l]) => {
           const r = el('input', { type: 'radio', name: `f_${f.key}`, value: v });
           // Clicking the selected option again clears it (radios can't otherwise be unset).
@@ -800,7 +798,7 @@ function buildEntryFields() {
       control = el('input', {
         name: `f_${f.key}`, size: f.type === 'rst' ? 3 : f.size || 12,
         inputmode: f.type === 'rst' ? 'numeric' : f.inputmode, spellcheck: 'false',
-        class: f.type === 'location' ? 'loc-input' : null, autocomplete: 'off',
+        class: f.type === 'location' ? 'loc-input' : null, autocomplete: 'off', enterkeyhint: 'next',
       });
     }
     // Radio groups get a <div>, not a <label>: nested labels would make a
@@ -812,7 +810,8 @@ function buildEntryFields() {
       box.append(el('div', { class: 'field ac-field', 'data-field': f.key },
         el('label', { for: control.id }, f.label),
         el('div', { class: 'ac-wrap' }, control, el('div', { class: 'ac-pop loc-pop' })),
-        el('div', { class: 'ac-hints' }, el('div', { class: 'ac-info loc-chip' }))));
+        el('div', { class: 'ac-hints' }, el('div', { class: 'ac-info loc-chip', id: `${control.id}-info`, 'aria-live': 'polite' }))));
+      control.setAttribute('aria-describedby', `${control.id}-info`);
       continue;
     }
     box.append(el(f.type === 'radio' ? 'div' : 'label', { class: 'field', 'data-field': f.key }, el('span', {}, f.label), control));
@@ -1223,8 +1222,10 @@ async function toggleMap() {
   if (mapVisible()) {
     closeMap();
     btn.classList.remove('active');
+    btn.setAttribute('aria-pressed', 'false');
   } else {
     btn.classList.add('active');
+    btn.setAttribute('aria-pressed', 'true');
     // openMap draws the current state; don't redraw (and close a just-opened
     // popup) on the next renderLog().
     mapSig = currentMapSig();
@@ -1547,9 +1548,11 @@ function renderLog(highlightCall) {
   const call = highlightCall ?? normalizeCall($('#f-call').value);
 
   fill($('#log-head'), el('tr', {},
-    el('th', {}, timeMode() === 'local' ? `Zeit (${zoneLabel(nowIso(), 'local')})` : 'Zeit UTC'), el('th', {}, 'Nr'), el('th', {}, 'Rufzeichen'),
-    tpl.fields.flatMap(f => [f.type === 'location' ? el('th', { class: 'origin', title: 'Herkunft des Standorts' }, 'Herk.') : null, el('th', {}, f.label)]),
-    el('th', {}, 'Relais'), el('th', {}, 'Notiz'), el('th', {}, 'Op'), el('th', { class: 'act' }, '')));
+    th(timeMode() === 'local' ? `Zeit (${zoneLabel(nowIso(), 'local')})` : 'Zeit UTC'), th('Nr'), th('Rufzeichen'),
+    tpl.fields.flatMap(f => [f.type === 'location'
+      ? el('th', { scope: 'col', class: 'origin', title: 'Herkunft des Standorts' }, el('abbr', { title: 'Herkunft des Standorts' }, 'Herk.'))
+      : null, th(f.label)]),
+    th('Relais'), th('Notiz'), th('Op'), el('th', { scope: 'col', class: 'act' }, el('span', { class: 'sr-only' }, 'Aktionen'))));
 
   const body = $('#log-body');
   body.replaceChildren();
@@ -1567,10 +1570,12 @@ function renderLog(highlightCall) {
     const timeBits = [showDate ? el('span', { class: 'date' }, date + ' ') : null, time,
       timeMode() === 'utc' ? 'Z' : null, // ISO/military notation for UTC; local times keep the column's offset
       timeMode() === 'local' && zoneLabel(e.ts, 'local') !== zoneLabel(nowIso(), 'local') ? el('span', { class: 'date' }, ' ' + zoneLabel(e.ts, 'local')) : null];
+    const what = isComment(e) ? `Kommentar ${time}` : `Nr. ${e.seq} ${e.call}`;
     const actions = [
-      el('button', { type: 'button', disabled: state.readOnly, onclick: () => startEdit(e.id) }, 'Bearb.'),
+      el('button', { type: 'button', disabled: state.readOnly, 'aria-label': `${what} bearbeiten`, onclick: () => startEdit(e.id) }, 'Bearb.'),
       ' ',
-      el('button', { type: 'button', class: 'danger', disabled: state.readOnly, onclick: () => setDeleted(e.id, true) }, '✕'),
+      el('button', { type: 'button', class: 'danger', disabled: state.readOnly, 'aria-label': `${what} löschen`, title: 'Löschen',
+        onclick: () => setDeleted(e.id, true) }, '✕'),
     ];
     if (isComment(e)) {
       // Operator comment / marker: one full-width banner row.
@@ -1794,7 +1799,7 @@ async function doExport(kind, force = false) {
   const ev = state.event;
   const entries = state.entries;
   if (kind === 'csv') {
-    const sep = localStorage.getItem(CSV_SEP_KEY) || ';';
+    const sep = prefGet(CSV_SEP_KEY, ';');
     download(toCSV(ev, entries, sep, { comments: $('#csv-comments').checked }), fileBase(ev) + '.csv', 'text/csv');
     markExported();
   } else if (kind === 'adif') {
@@ -1870,18 +1875,23 @@ function wire() {
   // events view
   document.querySelectorAll('#event-tabs button').forEach(b => b.addEventListener('click', () => {
     state.tab = b.dataset.tab;
-    document.querySelectorAll('#event-tabs button').forEach(x => x.classList.toggle('active', x === b));
+    document.querySelectorAll('#event-tabs button').forEach(x => {
+      x.classList.toggle('active', x === b);
+      x.setAttribute('aria-pressed', String(x === b));
+    });
     renderEventList();
   }));
   $('#btn-new-event').addEventListener('click', () => openNewEventForm());
+  trackExpanded($('#btn-new-event'), $('#new-event'));
+  trackExpanded($('#btn-loc'), $('#loc-panel'));
   $('#btn-cancel-new').addEventListener('click', () => { $('#new-event').hidden = true; });
   // Same keys as the entry form: Enter = next field, Shift+Enter = create,
   // Esc = cancel (open dropdowns take Enter/Esc first).
   headerKeys($('#new-event'));
   $('#new-event').addEventListener('keydown', ev => {
-    if (ev.key === 'Enter' && ev.shiftKey && !ev.isComposing) {
+    if (ev.key === 'Enter' && ev.shiftKey && !isComposing(ev)) {
       ev.preventDefault();
-      $('#new-event').requestSubmit();
+      submitForm($('#new-event'));
     } else if (ev.key === 'Escape') {
       $('#new-event').hidden = true;
       $('#btn-new-event').focus();
@@ -1917,11 +1927,11 @@ function wire() {
   document.querySelectorAll('[data-export]').forEach(b => b.addEventListener('click', () => doExport(b.dataset.export)));
   $('#btn-map').addEventListener('click', toggleMap);
   const sep = $('#csv-sep');
-  sep.value = localStorage.getItem(CSV_SEP_KEY) || ';';
-  sep.addEventListener('change', () => localStorage.setItem(CSV_SEP_KEY, sep.value));
+  sep.value = prefGet(CSV_SEP_KEY, ';');
+  sep.addEventListener('change', () => prefSet(CSV_SEP_KEY, sep.value));
   const csvCmt = $('#csv-comments');
-  csvCmt.checked = localStorage.getItem(CSV_COMMENTS_KEY) === '1';
-  csvCmt.addEventListener('change', () => localStorage.setItem(CSV_COMMENTS_KEY, csvCmt.checked ? '1' : ''));
+  csvCmt.checked = prefGet(CSV_COMMENTS_KEY) === '1';
+  csvCmt.addEventListener('change', () => prefSet(CSV_COMMENTS_KEY, csvCmt.checked ? '1' : ''));
 
   const form = $('#entry-form');
   form.addEventListener('submit', ev => { ev.preventDefault(); saveEntry(); });
@@ -1931,10 +1941,10 @@ function wire() {
   // Enter in a field moves to the next one (an open dropdown takes Enter
   // first and picks a suggestion); Esc discards.
   form.addEventListener('keydown', ev => {
-    if (ev.key === 'Enter' && !ev.isComposing && ev.shiftKey) {
+    if (ev.key === 'Enter' && !isComposing(ev) && ev.shiftKey) {
       ev.preventDefault();
       saveEntry();
-    } else if (ev.key === 'Enter' && !ev.isComposing && ev.target.tagName === 'INPUT') {
+    } else if (ev.key === 'Enter' && !isComposing(ev) && ev.target.tagName === 'INPUT') {
       ev.preventDefault();
       focusNext(form, ev.target);
     } else if (ev.key === 'Escape' && !ev.defaultPrevented) {
@@ -2002,7 +2012,6 @@ async function loadRepeaterFooter() {
 
 async function main() {
   globalThis.CONFIRM_STARTED = true;
-  initTheme();
   state.store = await openStorage();
   if (!state.store) {
     showFatal('Dieser Browser erlaubt keine lokale Speicherung (privater Modus?). Ohne Speicher kann nichts sicher geloggt werden.');
