@@ -428,6 +428,11 @@ input[type=date]{ min-width:9.5em; }
 }
 .btn-ref:hover{ background:rgba(82,108,254,0.1); }
 .btn-ref.danger{ color:var(--err); border-color:var(--err); }
+/* Touch: buttons at least 44px high/wide (popups, list, reference bar). */
+@media (pointer: coarse){
+  .btn-ref{ min-height:44px; padding:.4em .8em; font-size:13px; }
+  #ref-indicator button{ min-width:44px; min-height:44px; font-size:15px; }
+}
 
 /* iOS Safari zooms into any focused field whose text is smaller than 16px
    (see tools.css). Last in the file so it wins over the 12px/13px field

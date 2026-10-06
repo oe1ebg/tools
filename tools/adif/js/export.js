@@ -48,7 +48,9 @@ export function serializeCSV(records, columns){
   for (const rec of records){
     lines.push(columns.map(c => csvEscapeRFC4180(rec[c] ?? '')).join(','));
   }
-  return lines.join('\r\n');
+  // BOM: Excel only reads the file as UTF-8 (umlauts) with it. Not for the
+  // SOTA CSV below, whose importer expects plain text.
+  return '\ufeff' + lines.join('\r\n');
 }
 
 /* SOTA database V2 CSV format, verified against sotadata.org.uk's own

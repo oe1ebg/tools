@@ -1003,6 +1003,10 @@ import { copyToClipboard } from '../shared/js/dom.js';
       const marker = L.marker([summit.lat, summit.lon], { icon: markerIcon(isOwn, group.key === referenceKey, isCandidate) })
         .bindPopup(buildPopupHtml(group, summit, ownSet, referenceKey, summitMap, isCandidate), { autoPan: false })
         .addTo(markerLayer);
+      // Leaflet makes the marker a focusable button (keyboard: true); give
+      // it a name, since the pin itself is only an SVG.
+      marker.getElement()?.setAttribute('aria-label',
+        `${group.key}: ${group.alerts.length} alert${group.alerts.length === 1 ? '' : 's'} — Enter shows details`);
       // Hovering shows the full info card, not just a click — opens on
       // mouseover, closes (debounced) on mouseout so moving the cursor
       // from the marker into the popup itself to click a link/button
@@ -1035,9 +1039,16 @@ import { copyToClipboard } from '../shared/js/dom.js';
         if (el){
           el.addEventListener('mouseenter', cancelClosePopup);
           el.addEventListener('mouseleave', () => { if (pinnedPopupKey !== group.key) scheduleClosePopup(marker); });
+          // Opened from the keyboard (Enter on the focused marker): move
+          // focus into the popup, or its buttons would only come after
+          // every other marker in the Tab order.
+          if (document.activeElement === marker.getElement()) el.querySelector('button, a[href]')?.focus();
         }
       });
-      marker.on('popupclose', () => {
+      marker.on('popupclose', (e) => {
+        // closed (Esc, ✕, an action) while focus was inside: back to the marker
+        const el = e.popup.getElement();
+        if (el && el.contains(document.activeElement)) marker.getElement()?.focus();
         if (openPopupKey === group.key) openPopupKey = null;
         if (pinnedPopupKey === group.key) pinnedPopupKey = null;
         updateDistanceLine();

@@ -874,7 +874,7 @@ are there.
 ## Development
 
 ```sh
-just test            # node --test tests/ (model, export, offline guarantees + bundle)
+just test            # node --test 'tests/*.test.mjs' (model, export, offline guarantees + bundle)
 just fetch-callsigns # (cached) callsign list -> tools/shared/data/callsigns-oe.json
 just build-location  # (cached) Vienna addresses + POI snapshot -> tools/shared/data/vienna-locations.json
 just refresh-pois    # re-query Overpass, rewrite the committed location-pois.json

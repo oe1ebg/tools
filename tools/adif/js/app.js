@@ -2,7 +2,7 @@
 // Everything runs in the browser; nothing is uploaded.
 
 import { ADIF_FIELDS, ADIF_FIELD_MAP } from './fields.js';
-import { parseADIF } from '../../shared/js/adif.js';
+import { parseADIFAuto } from '../../shared/js/adif.js';
 import { serializeADIF, serializeCSV, serializeSotaCsv, adifChangedValues, ADI_MIME } from './export.js';
 import { el, fill, isComposing } from '../../shared/js/dom.js';
 
@@ -274,7 +274,7 @@ function loadFiles(fileList){
     reader.onload = () => {
       const warnings = [];
       const headerInfo = {};
-      const parsed = parseADIF(decodeLog(reader.result, file.name, warnings), warnings, file.name, headerInfo);
+      const parsed = parseADIFAuto(decodeLog(reader.result, file.name, warnings), warnings, file.name, headerInfo);
       records = records.concat(parsed);
       rebuildColumns();
       fileMeta.push({

@@ -7,7 +7,7 @@ import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
-import { parseADIF, adifField, adifAsciiField, adifAscii } from '../tools/shared/js/adif.js';
+import { parseADIF, parseADIFAuto, adifField, adifAsciiField, adifAscii } from '../tools/shared/js/adif.js';
 import { serializeADIF, serializeCSV, serializeSotaCsv, adifChangedValues } from '../tools/adif/js/export.js';
 import { readADI } from './adif-spec.mjs';
 
@@ -60,7 +60,7 @@ test('serializeADIF round-trips through parseADIF', () => {
 
 test('serializeCSV: RFC 4180 quoting, blank cells kept', () => {
   const csv = serializeCSV([{ CALL: 'OE1AB' }, { CALL: 'DL1XYZ', COMMENT: 'a, b "c"' }], ['CALL', 'COMMENT']);
-  assert.equal(csv, 'CALL,COMMENT\r\nOE1AB,\r\nDL1XYZ,"a, b ""c"""');
+  assert.equal(csv, '\ufeffCALL,COMMENT\r\nOE1AB,\r\nDL1XYZ,"a, b ""c"""', 'UTF-8 BOM for Excel');
 });
 
 test('serializeSotaCsv: V2 rows, chronological, no commas', () => {
@@ -103,4 +103,20 @@ test('editor ADI export is ASCII (transliterated), keeps < > inside values, and 
   assert.equal(records[0].NAME, 'Juergen');
   assert.equal(records[0].COMMENT, 'a<b>c');
   assert.equal(adifChangedValues(recs, cols), 1);
+});
+
+test('parseADIFAuto: lengths counted in UTF-8 bytes (common in practice) are detected', () => {
+  // "Müller" / "Jürgen" = 6 characters, 7 bytes each; one value followed by a space, one directly by the next tag
+  const bytes = '<CALL:5>OE1AB <NAME:7>Müller <QTH:4>Wien <EOR>\n<CALL:6>DL1XYZ <NAME:7>Jürgen<QTH:4>Graz<EOR>\n';
+  const warnings = [];
+  const recs = parseADIFAuto(bytes, warnings, 'b.adi');
+  assert.deepEqual(recs, [{ CALL: 'OE1AB', NAME: 'Müller', QTH: 'Wien' }, { CALL: 'DL1XYZ', NAME: 'Jürgen', QTH: 'Graz' }]);
+  assert.ok(warnings.some(w => /UTF-8 bytes/.test(w)));
+  // the same content with spec-conformant character counts is read as such
+  const chars = '<CALL:5>OE1AB <NAME:6>Müller <QTH:4>Wien <EOR>\n<CALL:6>DL1XYZ <NAME:6>Jürgen<QTH:4>Graz<EOR>\n';
+  const w2 = [];
+  assert.deepEqual(parseADIFAuto(chars, w2, 'c.adi'), recs);
+  assert.deepEqual(w2, []);
+  // ASCII files: plain parseADIF
+  assert.deepEqual(parseADIFAuto(SAMPLE, [], 's'), parseADIF(SAMPLE, [], 's'));
 });

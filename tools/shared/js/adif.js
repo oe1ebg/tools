@@ -33,8 +33,10 @@ export function adifAsciiField(name, value, opts) {
 // Records of an ADI file as [{FIELD: value}] (field names upper-cased).
 // Problems go to `warnings` (prefixed with sourceLabel); ADIF_VER,
 // PROGRAMID and PROGRAMVERSION from a header (text before <EOH>) are copied
-// into headerInfo when given.
-export function parseADIF(text, warnings, sourceLabel, headerInfo) {
+// into headerInfo when given. stats (optional): stats.unclean counts the
+// values that don't end where a separator or the next tag starts, a sign
+// that the lengths were counted in another unit (see parseADIFAuto()).
+export function parseADIF(text, warnings, sourceLabel, headerInfo, stats) {
   const tagRe = /<([A-Za-z0-9_]+)(?::(\d+)(?::[A-Za-z]+)?)?>/g;
   let bodyStart = 0;
   const firstNonWs = text.match(/\S/);
@@ -88,6 +90,10 @@ export function parseADIF(text, warnings, sourceLabel, headerInfo) {
     }
     const len = parseInt(lenStr, 10);
     const value = body.slice(tagEnd, tagEnd + len);
+    if (stats) {
+      const next = body.charAt(tagEnd + len);
+      if ((next !== '' && next !== '<' && !/\s/.test(next)) || /[\s<]$/.test(value)) stats.unclean++;
+    }
     current[name] = value;
     any = true;
     tagRe.lastIndex = tagEnd + len;
@@ -97,4 +103,37 @@ export function parseADIF(text, warnings, sourceLabel, headerInfo) {
     records.push(current);
   }
   return records;
+}
+
+// The text's UTF-8 bytes as a string of one char per byte, and back.
+function utf8ByteString(text) {
+  const bytes = new TextEncoder().encode(text);
+  let out = '';
+  for (let i = 0; i < bytes.length; i += 8192) out += String.fromCharCode(...bytes.subarray(i, i + 8192));
+  return out;
+}
+
+function fromUtf8ByteString(s) {
+  return new TextDecoder().decode(Uint8Array.from(s, c => c.charCodeAt(0)));
+}
+
+// parseADIF() for files from other programs. ADIF counts a value's length in
+// characters and allows only ASCII, but many loggers write UTF-8 and count
+// bytes: then every value with an umlaut is cut in the wrong place. For a
+// non-ASCII file both readings are tried, and the byte reading wins when its
+// values line up with the separators and tags better (stats.unclean).
+export function parseADIFAuto(text, warnings, sourceLabel, headerInfo) {
+  if (!/[^\x00-\x7f]/.test(text)) return parseADIF(text, warnings, sourceLabel, headerInfo);
+  const charStats = { unclean: 0 }, byteStats = { unclean: 0 };
+  const charWarnings = [], byteWarnings = [];
+  const charHeader = {}, byteHeader = {};
+  const asChars = parseADIF(text, charWarnings, sourceLabel, charHeader, charStats);
+  const asBytes = parseADIF(utf8ByteString(text), byteWarnings, sourceLabel, byteHeader, byteStats);
+  const useBytes = byteStats.unclean < charStats.unclean;
+  warnings.push(...(useBytes ? byteWarnings : charWarnings));
+  if (useBytes) warnings.push(`${sourceLabel}: field lengths count UTF-8 bytes, not characters (as the file's program writes them); read that way.`);
+  const header = useBytes ? byteHeader : charHeader;
+  if (headerInfo) for (const [k, v] of Object.entries(header)) headerInfo[k] = useBytes ? fromUtf8ByteString(v) : v;
+  if (!useBytes) return asChars;
+  return asBytes.map(rec => Object.fromEntries(Object.entries(rec).map(([k, v]) => [k, fromUtf8ByteString(v)])));
 }
