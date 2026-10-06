@@ -92,6 +92,15 @@ test('offline bundle builds into one self-contained, parseable file', () => {
   assert.match(app, /CONFIRM_STARTED = true/);
   for (const src of scripts) new vm.Script(src); // throws on syntax errors
   if (hasData) assert.ok(scripts.some(s => /^\s*globalThis\.OE1EBG_DATA = \{/.test(s)), 'data inlined');
+  // the licence of the inlined third-party code travels with the file
+  assert.match(html, /<details class="vendor-license"><summary>Lizenztext leaflet<\/summary><pre>BSD 2-Clause License[\s\S]*Redistribution and use/);
+  assert.ok(!html.includes('<!-- CONFIRM-LICENSES -->'));
+  // the size stated next to the download link matches the real file
+  if (hasData) {
+    const stated = Number(/mit allen Daten, ~(\d+) MB/.exec(readFileSync(join(DIR, 'index.html'), 'utf8'))[1]);
+    const actual = statSync(join(DIR, 'confirm-offline.html')).size / 1e6;
+    assert.ok(Math.abs(stated - actual) < 1, `index.html says ~${stated} MB, the file has ${actual.toFixed(1)} MB`);
+  }
   assert.ok(existsSync(join(DIR, 'precache.js')));
   const pre = readFileSync(join(DIR, 'precache.js'), 'utf8');
   assert.match(pre, /version: "[0-9a-f]{12}"/);

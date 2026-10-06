@@ -16,6 +16,11 @@ are in `oe1ebg/tools/confirm/README.md`.
   `mapLinks()` with class `online-only`, hidden while offline
   (`trackOnline()` sets `html.offline`). XML namespace identifiers (SVG,
   KML) are allowed by the test's `XML_NAMESPACES`.
+- **`confirm-offline.html` needs nothing outside itself.** Vendored code
+  needs a `LICENSE` next to it (inlined into the footer at the
+  `CONFIRM-LICENSES` marker); relative links (`../…`) are hidden under
+  `file://` in `initOffline()`; keep the "~N MB" next to the download link
+  in step with the file (the test checks it).
 - **Never lose user data.** The IndexedDB schema (`js/db.js`, on top of
   `tools/shared/js/storage.js`) is at v2; v2 added the `stations` store.
   - Writes go through `store.tx()`, and the UI may only show success after

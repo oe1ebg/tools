@@ -166,6 +166,7 @@ async function initOffline() {
     setChip('#st-offline', 'Offline-Datei', 'ok');
     $('#offline-file-link').hidden = true;
     $('#data-sources-link').hidden = true;
+    $('#home-link').hidden = true; // ../ is the folder the file sits in
     return;
   }
   if (!('serviceWorker' in navigator)) {

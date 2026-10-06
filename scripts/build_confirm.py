@@ -7,7 +7,7 @@ import os
 import re
 from pathlib import Path
 
-from single_file import bundle_modules, inline_vendor, module_order, script_safe, vendor_refs
+from single_file import bundle_modules, inline_vendor, module_order, script_safe, vendor_licenses, vendor_refs
 
 # Build step for the offline confirmation log (oe1ebg/tools/confirm/). Runs
 # before scripts/stage_tools.py and `zensical build`, which copy the generated
@@ -66,6 +66,7 @@ def build_info_js(build: dict) -> str:
 
 SCRIPT_BLOCK_RE = re.compile(r"<!-- CONFIRM-SCRIPT-BEGIN -->.*?<!-- CONFIRM-SCRIPT-END -->", re.S)
 VENDOR_BLOCK_RE = re.compile(r"<!-- CONFIRM-VENDOR-BEGIN -->(.*?)<!-- CONFIRM-VENDOR-END -->", re.S)
+LICENSES_MARKER = "<!-- CONFIRM-LICENSES -->"
 ENTRY = CONFIRM_DIR / "js" / "app.js"
 DATA_DIR = OE1EBG_DIR / "tools" / "shared" / "data"
 DATA_CALL_RE = re.compile(r"""loadDataFile\(\s*['"]([\w.-]+\.json)['"]""")
@@ -101,9 +102,15 @@ def build_bundle(build: dict) -> str:
     html, n = SCRIPT_BLOCK_RE.subn(lambda _m: f"{data}<script>\n{js}</script>", html)
     if n != 1:
         raise SystemExit("index.html: CONFIRM-SCRIPT markers not found")
-    html, n = VENDOR_BLOCK_RE.subn(lambda m: inline_vendor(m.group(1), CONFIRM_DIR), html)
-    if n != 1:
+    vendor = VENDOR_BLOCK_RE.search(html)
+    if not vendor:
         raise SystemExit("index.html: CONFIRM-VENDOR markers not found")
+    licenses = vendor_licenses(vendor.group(1), CONFIRM_DIR)
+    html = html[:vendor.start()] + inline_vendor(vendor.group(1), CONFIRM_DIR) + html[vendor.end():]
+    # Licence texts of the inlined third-party code, in the footer.
+    if html.count(LICENSES_MARKER) != 1:
+        raise SystemExit(f"index.html: {LICENSES_MARKER} not found")
+    html = html.replace(LICENSES_MARKER, licenses)
     # No manifest (meaningless on file://); icon inlined so the file is self-contained.
     html = re.sub(r'\s*<link rel="manifest"[^>]*>', "", html)
     icon = base64.b64encode((CONFIRM_DIR / "icon.svg").read_bytes()).decode()

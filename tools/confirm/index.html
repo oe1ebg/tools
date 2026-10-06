@@ -372,6 +372,8 @@
   footer{ max-width:1200px; margin:2em auto 1em; padding:0 1em; font-size:11px; color:var(--text-dim); }
   footer a{ color:inherit; }
   footer .sources{ margin-top:.4em; }
+  footer details.vendor-license{ margin-top:.4em; }
+  footer details.vendor-license pre{ white-space:pre-wrap; }
 
   /* ---------- map ---------- */
   #map-panel{ margin-bottom:1em; }
@@ -432,7 +434,7 @@
 <body>
 
 <header id="site-header">
-  <a href="../">← oe1ebg.at</a>
+  <a id="home-link" href="../">← oe1ebg.at</a>
   <span class="title">BESTÄTIGUNGSVERKEHR</span>
   <span class="spacer"></span>
   <span id="st-offline" class="chip">offline: prüfe…</span>
@@ -618,7 +620,7 @@
 <footer>
   Läuft vollständig offline im Browser; alle Daten bleiben auf diesem Gerät (<span id="st-backend">?</span>).
   Regelmäßig als CSV/ADIF/JSON sichern. · Version: <span id="st-version">dev</span>
-  <span id="offline-file-link"> · <a href="confirm-offline.html" download="bestaetigungsverkehr-offline.html">Offline-Datei für USB-Stick/Laptop herunterladen</a> (eine HTML-Datei mit allen Daten, ~5 MB, läuft ohne Server; Download nur online)</span>
+  <span id="offline-file-link"> · <a href="confirm-offline.html" download="bestaetigungsverkehr-offline.html">Offline-Datei für USB-Stick/Laptop herunterladen</a> (eine HTML-Datei mit allen Daten, ~7 MB, läuft ohne Server und ohne Internet; Download nur online)</span>
   <div class="sources">Datenquellen (offline enthalten):
     <span id="st-callbook">Rufzeichenliste wird geladen…</span> ·
     <span id="st-repeaters">Relaisliste wird geladen…</span> ·
@@ -629,6 +631,10 @@
          Hidden in the file:// bundle, where it would not resolve. -->
     <span id="data-sources-link"> · <a href="../data-sources/">Alle Datenquellen und Lizenzen</a> (online)</span>
   </div>
+  <!-- Replaced in confirm-offline.html by the licence texts of the inlined
+       third-party code (scripts/build_confirm.py); the file must not need a
+       connection for them. -->
+  <!-- CONFIRM-LICENSES -->
 </footer>
 
 <script>

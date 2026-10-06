@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 import re
 from pathlib import Path
 
@@ -78,3 +79,14 @@ def inline_vendor(block: str, base: Path) -> str:
             return f"<style>\n{text.replace('</style', '<\\/style')}\n</style>"
         return f"<script>\n{script_safe(text)}\n</script>"
     return VENDOR_REF_RE.sub(sub, block)
+
+
+def vendor_licenses(block: str, base: Path) -> str:
+    """The LICENSE files next to the third-party files in an HTML block, as
+    <details> elements: the bundle redistributes that code, so its licence
+    text has to travel with the file (the online link doesn't work offline)."""
+    files = list(dict.fromkeys((base / ref).resolve().parent / "LICENSE" for ref in vendor_refs(block)))
+    return "".join(
+        f'<details class="vendor-license"><summary>Lizenztext {html.escape(p.parent.name)}</summary>'
+        f"<pre>{html.escape(p.read_text(encoding='utf-8'))}</pre></details>\n"
+        for p in files if p.exists())
