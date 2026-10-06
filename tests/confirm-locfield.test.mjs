@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { locationOptions } from '../tools/confirm/js/locfield.js';
+import { locationOptions, previousLocation, snapshotLocation } from '../tools/confirm/js/locfield.js';
+import { locOrigin, locOriginText, LOC_ORIGINS } from '../tools/confirm/js/model.js';
 
 const loc = {
   type: 'address', label: 'Quellenstraße 10', street: 'Quellenstraße', houseNumber: '10',
@@ -33,4 +34,39 @@ test('locationOptions: no record, no city', () => {
 test('locationOptions: city equal to the last location is not offered twice', () => {
   assert.equal(locationOptions(rec, 'quellenstraße 10').length, 1);
   assert.equal(locationOptions(rec, 'Quellenstr 10').length, 1); // the originally typed text
+});
+
+test('location origin: suggestions carry where they come from', () => {
+  const opts = locationOptions(rec, '1030 Wien');
+  assert.equal(opts[0].at, rec.at);
+  assert.equal(opts[1].origin, 'callbook');
+});
+
+test('location origin: search result keeps the typed text', () => {
+  const r = { type: 'address', label: 'Grinzinger Allee 3', street: 'Grinzinger Allee', houseNumber: '3', postcode: '1190',
+    lat: 48.2556, lon: 16.3501, source: 'vienna-ogd', confidence: 'high' };
+  const s = snapshotLocation(r, 'beim Heurigen Grinzing', true);
+  assert.equal(s.origin, 'search');
+  assert.equal(s.input, 'beim Heurigen Grinzing');
+  assert.equal(snapshotLocation(r, '', true, 'callbook').origin, 'callbook');
+});
+
+test('location origin: taking over an earlier location clears the old typed text', () => {
+  const p = previousLocation({ ...loc, origin: 'previous', originAt: '2026-01-01T10:00:00Z' }, rec.at);
+  assert.equal(p.origin, 'previous');
+  assert.equal(p.originAt, rec.at);
+  assert.equal(p.input, '', 'nothing was typed for this line');
+  assert.equal(p.label, loc.label);
+  assert.equal(p.lat, loc.lat);
+  assert.equal(loc.input, 'Quellenstr 10', 'the stored location is not changed');
+});
+
+test('location origin: keys, labels and text', () => {
+  assert.equal(locOrigin(null, ''), '');
+  assert.equal(locOrigin(null, 'irgendwo im Wald'), 'text');
+  assert.equal(locOrigin(loc, 'x'), '', 'old data without origin: unknown');
+  assert.equal(locOrigin({ ...loc, origin: 'callbook' }), 'callbook');
+  assert.equal(locOriginText(previousLocation(loc, rec.at)), 'früheres Log 27.09.2026');
+  assert.equal(locOriginText(null, 'Wald'), 'Freitext');
+  for (const o of Object.values(LOC_ORIGINS)) assert.ok('label' in o && o.text && o.title);
 });

@@ -211,13 +211,13 @@ also shows in print).
     (438.950 MHz) → direkt (145.500 MHz)"; a change of the direct frequency
     while no repeater is used counts as well.
   - "Finished" means the header's `change` event: leaving the field, Enter,
-    the "über Relais" checkbox, or picking a repeater from the list. So
+    the "direkt / über Relais" choice, or picking a repeater from the list. So
     typing a callsign letter by letter writes one marker, not six. Pending
     changes are also checked before a line is saved, before an export, and
     when the log is left.
   - The decision is the pure function `headerChangeMarkers(base, next,
     hasEntries)` in `js/model.js`, which is unit-tested. Half-typed states
-    are skipped (an empty operator, "über Relais" ticked with no repeater
+    are skipped (an empty operator, "über Relais" chosen with no repeater
     callsign). A log with no lines yet gets no markers, so filling in the
     header of a fresh log is not a "change". Station, locator, QTH and mode
     changes write no marker.
@@ -257,8 +257,10 @@ also shows in print).
 - **ADIF 3.1.7 (`.adi`).** The output is ASCII only, with German characters
   transliterated (ä → ae, ß → ss).
   - Standard fields: `CALL`, `QSO_DATE`, `TIME_ON`, `OPERATOR`,
-    `STATION_CALLSIGN`, `FREQ`/`BAND`, `MODE`/`SUBMODE` (DMR, C4FM and
-    D-STAR are written as `DIGITALVOICE` + submode), `MY_GRIDSQUARE`,
+    `STATION_CALLSIGN`, `FREQ`/`BAND`, `MODE`/`SUBMODE` (DMR, C4FM,
+    D-STAR and M17 are written as `DIGITALVOICE` + submode, TETRA as
+    `DIGITALVOICE` alone: ADIF 3.1.7 has no TETRA submode; the header shows
+    the mapping under the mode chips), `MY_GRIDSQUARE`,
     `MY_CITY`, and `RST_SENT`/`RST_RCVD`, `NAME`, `QTH` in the RST template.
   - **Via repeater:** `PROP_MODE=RPT`, `FREQ` = output + shift (what the
     station transmits on), `FREQ_RX` = repeater output, and
@@ -268,6 +270,12 @@ also shows in print).
     address and so on) go into `APP_OE1EBG_<FIELD>` and, in readable form,
     into `COMMENT`. `APP_OE1EBG_CHECKIN` and `APP_OE1EBG_EVENT` are added as
     well.
+  - Signalling (CTCSS, DMR colour code, …) has no ADIF field:
+    `APP_OE1EBG_SIGNALLING` ("CC 1 TS 2 TG 232") and `COMMENT`.
+  - **No check-ins, no file.** A log with only operator comments (or only
+    deleted lines) would give a header-only file that logbook programs
+    report as an error. "ADIF" shows a message instead, with a shortcut to
+    the CSV export including comments.
 - **KML (`.kml`, `application/vnd.google-earth.kml+xml`)** for Google
   Earth and Google My Maps (both import plain KML; a log is small, so there
   is no KMZ/zip). `toKML()` in `js/export.js` writes one placemark per
@@ -277,7 +285,8 @@ also shows in print).
   callsign; the description (HTML in Google Earth) and `<ExtendedData>`
   (columns in My Maps) list the check-in times in UTC, repeater(s),
   location text and typed input, locator (plus covered squares for an
-  area), confidence, gewählt/automatisch and the coordinates. The
+  area), confidence, gewählt/automatisch, the source (Herkunft) and the
+  coordinates. The
   `<Document>` carries the log title, date, operator, station and "N von M
   Stationen mit Standort". Coordinates are `lon,lat` with 5 decimals. KML
   export does not reset the "seit letztem Export" counter, since it is no
@@ -368,9 +377,10 @@ voice repeaters, 54 KiB) from the **ÖVSV repeater database**
     and mode (`DMR`, `C4FM`, …), in any combination.
   - **Sorting:** with your own locator set, results are sorted by distance,
     and an empty search lists the nearest repeaters.
-  - **Picking one** fills in the repeater callsign, output frequency, shift
-    and CTCSS. It also ticks "über Relais", sets a mode the repeater
-    supports, and fills the direct frequency if that was empty.
+  - **Picking one** fills in the repeater callsign, output frequency, shift,
+    CTCSS and (DMR) colour code. It also switches to "über Relais" and sets
+    a mode the repeater supports. The direct frequency is left alone: it is
+    only used for lines that come in direct.
   - **Existing lines are unaffected:** each line keeps its own copy of the
     header, so the new repeater only applies to lines logged after the
     change.
@@ -382,7 +392,8 @@ voice repeaters, 54 KiB) from the **ÖVSV repeater database**
     site or frequency and pick from the suggestions. An unknown callsign
     is stored as entered, and the frequencies then come from the header.
   - The line's header snapshot then holds that repeater's callsign, output
-    frequency, shift and CTCSS (`repeaterOverride: true`), so ADIF
+    frequency, shift, CTCSS and colour code (`REPEATER_KEYS`,
+    `repeaterOverride: true`), so ADIF
     `FREQ`/`FREQ_RX` are correct per line.
   - After saving, the field goes back to the header default. A line that
     uses a different repeater is highlighted in the log. When editing, the
@@ -390,8 +401,27 @@ voice repeaters, 54 KiB) from the **ÖVSV repeater database**
     repeater.
   - CSV column `relais_quelle` is `Header` or `Zeile`. The summary lists
     the stations per repeater ("Nach Relais: OE3XSA: 2 (…), OE1XUU: 1, direkt: 1").
-- **Export.** CTCSS goes to CSV (`relais_ctcss`) and to the ADIF `COMMENT`.
-  `FREQ`/`FREQ_RX` are computed from output and shift.
+- **Export.** CTCSS goes to CSV (`relais_ctcss`), all signalling to CSV
+  `signalisierung` and ADIF (see above). `FREQ`/`FREQ_RX` are computed from
+  output and shift.
+
+### Verbindung and signalling (log header)
+
+- **Betriebsart first**, with its ADIF `MODE`/`SUBMODE` under the chips
+  (`adifModeText()` in `js/model.js`).
+- **Verbindung** is one row: the route "direkt (Simplex)" or "über Relais"
+  (`viaRepeater`, the default for new lines; each line can still switch),
+  then only that route's fields: direct → Frequenz; repeater → Relais,
+  Ausgabe, Shift, with the input frequency shown under Shift. The other
+  route's values are kept, not cleared. A line switched to direct while
+  the header is on a repeater uses the header's direct frequency (empty if
+  there never was one).
+- **Signalling depends on the mode, not on the route** (DMR simplex needs a
+  colour code too). `SIGNALLING` in `js/model.js`: FM CTCSS (`repeaterTone`,
+  the old name kept for existing data) and DCS; DMR colour code, time slot
+  and talkgroup; C4FM DG-ID; D-STAR module; M17 CAN; nothing for SSB, AM,
+  CW and TETRA. All of them are in every line's snapshot;
+  `signallingText()` only uses the ones of the line's mode.
 
 ## Location lookup (offline): Vienna addresses, Austria-wide PLZ and Bezirke
 
@@ -535,6 +565,17 @@ Vienna PLZ and district results carry the same locator coverage.
   name, plus the PLZ (this overwrites the PLZ, because it was a deliberate
   choice). The originally typed text is kept in `loc.input`. An
   **automatic** match leaves the typed text as it is.
+- **Source (`loc.origin`).** Where the location came from:
+  `search` (typed and resolved), `callbook` (the licence-list city from
+  the dropdown; resolved down to "wahrscheinlich", since Vienna PLZ are
+  never "hoch"), `previous` (taken over from an earlier check-in,
+  `originAt` = its time). Unresolved text counts as `text`. `loc.input`
+  only holds what was typed for this line ('' for the callsign list and
+  earlier check-ins). Lines from before this have no origin (shown as
+  unknown). The log shows the source in its own column "Herk." right
+  before the location column, so labels never shift the text; the labels
+  are in `LOC_ORIGINS` (`js/model.js`), and a source with an empty label
+  leaves the cell empty. The whole `loc` object is in the JSON backup.
 - **Resolution stored alongside.** The chosen result is saved on the line
   as `loc`: type, label, street, house number, PLZ, district, lat/lon,
   6-character locator, source, confidence, manual-or-auto flag, and the
@@ -562,8 +603,10 @@ Vienna PLZ and district results carry the same locator coverage.
   - Other suggestions, such as the licence-list city, appear in the field's
     dropdown (↓, Enter).
 - **Export.** The CSV gains the columns `standort_aufgeloest`, `lat`, `lon`,
-  `locator`, `standort_konfidenz` and `standort_quelle`. ADIF gets
-  `GRIDSQUARE`, `LAT`/`LON` (`N048 12.500` format), `APP_OE1EBG_LOCATION`
+  `locator`, `standort_konfidenz`, `standort_quelle` (gewählt/automatisch),
+  `standort_eingabe` (typed text) and `standort_herkunft` (source). ADIF
+  gets `GRIDSQUARE`, `LAT`/`LON` (`N048 12.500` format),
+  `APP_OE1EBG_LOCATION`, `APP_OE1EBG_LOC_SOURCE`, `APP_OE1EBG_LOC_INPUT`
   and the resolution in `COMMENT`.
 
 ### Differences from the brief
@@ -682,7 +725,10 @@ so being outside the `/confirm/` scope doesn't matter.
 
 To add a template, add an entry to `TEMPLATES` in `js/templates.js`. Give a
 field an `adif` key to map it to a standard ADIF field; otherwise it is
-exported as `APP_OE1EBG_<KEY>`.
+exported as `APP_OE1EBG_<KEY>`. Give every field an `example` value: "+ Neues
+Log" shows a sample line of the chosen template (`exampleValues()`), with
+its ADIF fields (`adifFieldTargets()`); a test checks that all examples
+are there.
 
 ## Development
 

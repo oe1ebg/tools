@@ -222,6 +222,32 @@ export function lineFrequencies(entry) {
   return { tx: f, rx: null };
 }
 
+// Where a line's location came from (`loc.origin`, set by the location
+// field, js/locfield.js): label = the short label in the log's "Herk."
+// column ('' = no label for that source), text = CSV/ADIF/KML wording.
+// Lines from before this existed have no origin: no label (unknown).
+export const LOC_ORIGINS = {
+  search: { label: 'Suche', text: 'Suche', title: 'aus der Standortsuche (Adressen, Orte, PLZ)' },
+  callbook: { label: 'Call', text: 'Rufzeichenliste, Lizenzadresse', title: 'Wohnort laut Rufzeichenliste (Lizenzadresse), nicht von der Station bestätigt' },
+  previous: { label: 'früher', text: 'früheres Log', title: 'von einem früheren Check-in übernommen' },
+  text: { label: 'Text', text: 'Freitext', title: 'Freitext, keinem Ort zugeordnet' },
+};
+
+// Origin key of a line's location field value: the resolved location's
+// origin, 'text' for unresolved text, '' when empty or unknown (old data).
+export function locOrigin(loc, text) {
+  if (loc) return LOC_ORIGINS[loc.origin] ? loc.origin : '';
+  return String(text ?? '').trim() ? 'text' : '';
+}
+
+// "früheres Log 27.09.2026" / "Suche" / ...
+export function locOriginText(loc, text) {
+  const k = locOrigin(loc, text);
+  if (!k) return '';
+  const day = k === 'previous' && /^(\d{4})-(\d{2})-(\d{2})/.exec(loc.originAt || '');
+  return `${LOC_ORIGINS[k].text}${day ? ` ${day[3]}.${day[2]}.${day[1]}` : ''}`;
+}
+
 // Entry kinds. A line without `kind` is a check-in (all data from before
 // operator comments existed, and every JSON backup of it); `kind:
 // 'comment'` is an operator comment / log marker: no callsign, no seq, no

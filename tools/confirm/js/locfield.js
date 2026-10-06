@@ -1,8 +1,10 @@
 // The log's `location` field: free text (what the operator heard) that is
 // resolved with the offline Vienna lookup while typing. Candidates appear in
 // a dropdown under the field; choosing one fills in the full address and
-// the PLZ (the originally typed text is kept in `loc.input`). An automatic
-// match keeps the typed text. Logging is never blocked: an unresolved
+// the PLZ (the originally typed text is kept in `loc.input`, '' if nothing
+// was typed). An automatic match keeps the typed text. `loc.origin` says
+// where the location came from (LOC_ORIGINS in js/model.js): the search,
+// the callsign list, or an earlier check-in (`originAt` = its time). Logging is never blocked: an unresolved
 // location is saved as text. Once the callsign is known, the field can be
 // prefilled with the station's last location, and other suggestions (e.g.
 // the licence-list city) are offered in the dropdown while it is empty.
@@ -11,20 +13,21 @@ import { el, fill, popover } from '../../shared/js/dom.js';
 import { loadLocationIndex, renderCandidates, autoSelectLevel } from './locationui.js';
 import { locate } from '../../shared/js/location/index.js';
 import { latLonToMaidenhead } from '../../shared/js/maidenhead.js';
+import { LOC_ORIGINS } from './model.js';
 
 const LOC_CONF_TEXT = { exact: 'exakt', high: 'hoch', likely: 'wahrscheinlich', ambiguous: 'mehrdeutig', low: 'unsicher' };
 
 // Compact, stable copy of a lookup result for storage on a log line. Area
 // results (PLZ, Bezirk) also keep the locators they cover, biggest first;
 // `maidenhead` is always the centre (that is what CSV/ADIF export).
-export function snapshotLocation(r, input, manual) {
+export function snapshotLocation(r, input, manual, origin = 'search') {
   const snap = {
     type: r.type, label: r.label,
     street: r.street || '', houseNumber: r.houseNumber || '',
     postcode: r.postcode || '', district: r.district || null,
     lat: Math.round(r.lat * 1e5) / 1e5, lon: Math.round(r.lon * 1e5) / 1e5,
     maidenhead: r.type === 'maidenhead' ? r.maidenhead : latLonToMaidenhead(r.lat, r.lon, 6),
-    source: r.source, confidence: r.confidence, manual: !!manual, input,
+    source: r.source, confidence: r.confidence, manual: !!manual, input, origin,
   };
   if (r.bezirk) snap.bezirk = r.bezirk;
   if (r.areaInfo) snap.areaLocators = r.areaInfo.locators.map(l => l[0]);
@@ -52,17 +55,24 @@ function fmtDay(iso) {
   return m ? `${m[3]}.${m[2]}.${m[1]}` : '';
 }
 
+// Location taken over from an earlier check-in: nothing typed now, origin
+// 'previous' with the time of that check-in.
+export function previousLocation(loc, at) {
+  const { originAt, ...rest } = loc;
+  return { ...rest, manual: true, input: '', origin: 'previous', originAt: at || originAt || '' };
+}
+
 // Dropdown suggestions for a station: its last logged location (stations
 // store) and the city from the callsign list, unless that is the same text.
 export function locationOptions(rec, listedCity) {
   const out = [];
   if (rec?.loc) {
-    out.push({ label: `zuletzt: ${locationFieldText(rec.loc)}`, detail: [fmtDay(rec.at), describeLocation(rec.loc)].filter(Boolean).join(' · '), loc: rec.loc });
+    out.push({ label: `zuletzt: ${locationFieldText(rec.loc)}`, detail: [fmtDay(rec.at), describeLocation(rec.loc)].filter(Boolean).join(' · '), loc: rec.loc, at: rec.at });
   }
   const city = (listedCity || '').trim();
   const same = t => (t || '').trim().toLowerCase() === city.toLowerCase();
   if (city && !(rec?.loc && (same(locationFieldText(rec.loc)) || same(rec.loc.input)))) {
-    out.push({ label: `laut Rufzeichenliste: ${city}`, detail: 'Wohnort laut Lizenz', text: city });
+    out.push({ label: `laut Rufzeichenliste: ${city}`, detail: 'Wohnort laut Lizenz', text: city, origin: 'callbook' });
   }
   return out;
 }
@@ -78,6 +88,7 @@ export function createLocationField({ input, plzInput, chip, results, onChange }
   let seq = 0;
   let prefilled = null; // { at, src } while the field holds an untouched prefill
   let options = [];     // suggestions shown while the field is empty or prefilled
+  let textOrigin = null; // origin of text put into the field by a suggestion (not typed)
 
   function renderChip() {
     const text = input.value.trim();
@@ -89,7 +100,8 @@ export function createLocationField({ input, plzInput, chip, results, onChange }
       chip.title = t;
     } else if (loc) {
       chip.classList.add(`conf-${loc.confidence}`);
-      const t = `✓ ${describeLocation(loc)} (${loc.manual ? 'gewählt' : 'automatisch'}, ${LOC_CONF_TEXT[loc.confidence] || loc.confidence}) `;
+      const from = loc.origin && loc.origin !== 'search' ? `, ${LOC_ORIGINS[loc.origin]?.text || loc.origin}` : '';
+      const t = `✓ ${describeLocation(loc)} (${loc.manual ? 'gewählt' : 'automatisch'}, ${LOC_CONF_TEXT[loc.confidence] || loc.confidence}${from}) `;
       fill(chip, t,
         el('button', { type: 'button', class: 'link', tabindex: '-1', onclick: () => { setLoc(null); input.focus(); resolve(); } }, 'ändern'));
       chip.title = t;
@@ -117,11 +129,11 @@ export function createLocationField({ input, plzInput, chip, results, onChange }
 
   function pickOption(o) {
     if (o.loc) {
-      ctl.adopt(o.loc);
+      ctl.adopt(o.loc, o.at);
       pop.hide();
       input.focus();
     } else {
-      ctl.setText(o.text);
+      ctl.setText(o.text, o.origin);
     }
   }
 
@@ -145,7 +157,7 @@ export function createLocationField({ input, plzInput, chip, results, onChange }
 
   // A deliberate choice fills the field with the full address and the PLZ.
   function choose(r, typed) {
-    const snap = snapshotLocation(r, typed, true);
+    const snap = snapshotLocation(r, textOrigin ? '' : typed, true, textOrigin || 'search');
     input.value = locationFieldText(snap);
     setLoc(snap, true);
     results.replaceChildren();
@@ -168,16 +180,19 @@ export function createLocationField({ input, plzInput, chip, results, onChange }
       pop.update();
       return;
     }
-    const level = autoSelectLevel();
+    // The callsign-list city was picked on purpose: take its best match
+    // down to "likely" (Vienna PLZ like "1220 Wien" are never "high").
+    const level = textOrigin ? 'likely' : autoSelectLevel();
     const res = locate(idx, text, { autoSelect: level === 'never' ? 'none' : level, limit: 6 });
     renderCandidates(results, res, { compact: true, onPick: r => choose(r, text) });
     pop.update();
-    setLoc(res.autoSelect ? snapshotLocation(res.autoSelect, text, false) : null);
+    setLoc(res.autoSelect ? snapshotLocation(res.autoSelect, textOrigin ? '' : text, !!textOrigin, textOrigin || 'search') : null);
   }
 
   input.addEventListener('input', () => {
     loc = null;
     prefilled = null;
+    textOrigin = null;
     renderChip();
     clearTimeout(timer);
     timer = setTimeout(resolve, 200);
@@ -193,6 +208,7 @@ export function createLocationField({ input, plzInput, chip, results, onChange }
       clearTimeout(timer);
       loc = value || null;
       prefilled = null;
+      textOrigin = null;
       results.replaceChildren();
       pop.hide();
       if (plzInput && loc) plzInput.dataset.autofill = plzInput.value === loc.postcode ? loc.postcode : '';
@@ -203,27 +219,31 @@ export function createLocationField({ input, plzInput, chip, results, onChange }
       seq++;
       loc = null;
       prefilled = null;
+      textOrigin = null;
       results.replaceChildren();
       pop.hide();
       if (plzInput) plzInput.dataset.autofill = '';
       renderChip();
     },
     isEmpty: () => !loc && !input.value.trim(),
-    // Take over a stored location (e.g. the station's last known one).
-    adopt(value) {
+    // Take over the station's location from an earlier check-in at `at`.
+    adopt(value, at) {
       clearTimeout(timer);
       seq++;
       prefilled = null;
+      textOrigin = null;
       input.value = locationFieldText(value);
-      setLoc({ ...value, manual: true }, true);
+      setLoc(previousLocation(value, at), true);
       results.replaceChildren();
       pop.hide();
     },
-    // Put text into the field and resolve it like typed input.
-    setText(text) {
+    // Put text into the field and resolve it like typed input; `origin`
+    // marks text that wasn't typed (the callsign-list city).
+    setText(text, origin) {
       input.value = text;
       loc = null;
       prefilled = null;
+      textOrigin = origin || null;
       input.focus();
       resolve();
     },
@@ -231,7 +251,7 @@ export function createLocationField({ input, plzInput, chip, results, onChange }
     // empty field or over an earlier, untouched suggestion.
     prefill(value, at) {
       if (!(ctl.isEmpty() || prefilled)) return;
-      ctl.adopt(value);
+      ctl.adopt(value, at);
       prefilled = { at, src: value };
       renderChip();
       renderOptions();

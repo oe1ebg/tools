@@ -274,3 +274,31 @@ test('signalling goes into CSV and ADIF, for repeater and direct lines', () => {
   const cols = csv[0].replace('\ufeff', '').split(';');
   assert.equal(csv[1].split(';')[cols.indexOf('signalisierung')], 'CC 1 TS 2 TG 232');
 });
+
+test('location origin and typed text go into CSV, ADIF and KML', () => {
+  const ev = { id: 'ev', title: 'Rundspruch', template: 'calls', header };
+  const loc = { type: 'address', label: 'Grinzinger Allee 3', street: 'Grinzinger Allee', houseNumber: '3', postcode: '1190',
+    lat: 48.2556, lon: 16.3501, maidenhead: 'JN88eg', source: 'vienna-ogd', confidence: 'high', manual: true,
+    input: 'beim Heurigen Grinzing', origin: 'search' };
+  const es = [
+    { id: 'x', seq: 1, call: 'OE1AAA', ts: '2026-10-04T10:00:00Z', viaRepeater: false, snap: snapA, fields: { qth: 'Grinzinger Allee 3' }, loc, note: '' },
+    { id: 'y', seq: 2, call: 'OE1BBB', ts: '2026-10-04T10:01:00Z', viaRepeater: false, snap: snapA,
+      fields: { qth: 'Wien 1220' }, loc: { ...loc, input: '', origin: 'callbook', label: '1220 Wien' }, note: '' },
+    { id: 'z', seq: 3, call: 'OE1CCC', ts: '2026-10-04T10:02:00Z', viaRepeater: false, snap: snapA, fields: { qth: 'im Wald' }, note: '' },
+  ];
+  const lines = toCSV(ev, es).split('\r\n');
+  const cols = lines[0].replace('\ufeff', '').split(';');
+  const cell = (i, c) => lines[i].split(';')[cols.indexOf(c)];
+  assert.equal(cell(1, 'standort_eingabe'), 'beim Heurigen Grinzing');
+  assert.equal(cell(1, 'standort_herkunft'), 'Suche');
+  assert.equal(cell(2, 'standort_eingabe'), '');
+  assert.equal(cell(2, 'standort_herkunft'), 'Rufzeichenliste, Lizenzadresse');
+  assert.equal(cell(3, 'standort_herkunft'), 'Freitext');
+  const [a, b, c] = parseADIF(toADIF(ev, es));
+  assert.equal(a.APP_OE1EBG_LOC_SOURCE, 'search');
+  assert.equal(a.APP_OE1EBG_LOC_INPUT, 'beim Heurigen Grinzing');
+  assert.equal(b.APP_OE1EBG_LOC_SOURCE, 'callbook');
+  assert.match(b.COMMENT, /Rufzeichenliste, Lizenzadresse/);
+  assert.equal(c.APP_OE1EBG_LOC_SOURCE, 'text');
+  assert.match(toKML(ev, es), /<Data name="Herkunft"><value>Rufzeichenliste, Lizenzadresse<\/value>/);
+});

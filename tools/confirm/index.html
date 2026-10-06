@@ -300,6 +300,12 @@
   table.log tr.match td{ background:var(--warn-soft); }
   table.log tr.editing td{ background:var(--accent-soft); }
   table.log td.act{ white-space:nowrap; text-align:right; }
+  /* location source: own fixed-width column, so labels never shift the text */
+  table.log th.origin, table.log td.origin{ width:4.5em; padding-right:0; }
+  .src{ display:inline-block; min-width:3.8em; text-align:center; font-size:11px; line-height:1.5; padding:0 .3em; border-radius:3px; border:1px solid var(--line); color:var(--text-dim); white-space:nowrap; }
+  .src.src-search{ color:var(--ok); border-color:currentColor; }
+  .src.src-callbook{ color:var(--warn); border-color:currentColor; border-style:dashed; }
+  .src.src-previous{ color:var(--accent-dim); border-color:currentColor; }
   table.log td.act button{ padding:.1em .45em; font-size:12px; }
   /* operator comments / log markers: full-width banner rows */
   table.log tr.marker td{

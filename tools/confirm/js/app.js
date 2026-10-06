@@ -9,7 +9,7 @@ import { requestPersistence } from '../../shared/js/storage.js';
 import {
   normalizeCall, isPlausibleCall, newId, nowIso, splitUtc, splitTime, zoneLabel, parseTimeInput, isoUtc,
   MODES, modeInfo, headerSnapshot, emptyHeader, checkinNumbers, previousCheckins, adifModeText, SIGNALLING, signallingText,
-  REPEATER_KEYS, parseMHz,
+  REPEATER_KEYS, parseMHz, LOC_ORIGINS, locOrigin,
   liveSorted, stats, isComment, COMMENT_CATEGORIES, newComment, headerChangeMarkers, headerFromRepeater,
 } from './model.js';
 import { TEMPLATES, templateFor, fieldVisible, fieldDisplay, fieldOptions, currentOptions, shortSummary, exampleValues } from './templates.js';
@@ -1547,16 +1547,16 @@ function renderLog(highlightCall) {
 
   fill($('#log-head'), el('tr', {},
     el('th', {}, timeMode() === 'local' ? `Zeit (${zoneLabel(nowIso(), 'local')})` : 'Zeit UTC'), el('th', {}, 'Nr'), el('th', {}, 'Rufzeichen'),
-    tpl.fields.map(f => el('th', {}, f.label)),
+    tpl.fields.flatMap(f => [f.type === 'location' ? el('th', { class: 'origin', title: 'Herkunft des Standorts' }, 'Herk.') : null, el('th', {}, f.label)]),
     el('th', {}, 'Relais'), el('th', {}, 'Notiz'), el('th', {}, 'Op'), el('th', { class: 'act' }, '')));
 
   const body = $('#log-body');
   body.replaceChildren();
+  const cols = tpl.fields.length + 7 + tpl.fields.filter(f => f.type === 'location').length;
   if (!live.length) {
-    body.append(el('tr', {}, el('td', { colspan: String(tpl.fields.length + 7), class: 'empty' }, 'Noch keine Einträge. Rufzeichen eingeben und Shift+Enter drücken.')));
+    body.append(el('tr', {}, el('td', { colspan: String(cols), class: 'empty' }, 'Noch keine Einträge. Rufzeichen eingeben und Shift+Enter drücken.')));
     return;
   }
-  const cols = tpl.fields.length + 7;
   for (const e of live) {
     const n = nums.get(e.id);
     const { date, time } = splitTime(e.ts, timeMode());
@@ -1589,9 +1589,10 @@ function renderLog(highlightCall) {
       el('td', { class: 'mono' }, String(e.seq)),
       el('td', { class: 'call' }, e.call, n > 1 ? el('span', { class: 'badge', title: `Check-in Nr. ${n}` }, `${n}×`) : null,
         callbookName(e.call) ? el('div', { class: 'cb-name' }, callbookName(e.call)) : null),
-      tpl.fields.map(f => el('td', {}, fieldVisible(f, e.fields, tpl) ? fieldDisplay(f, e.fields?.[f.key]) : '',
+      tpl.fields.flatMap(f => [f.type === 'location' ? originCell(e.loc, e.fields?.[f.key]) : null,
+        el('td', {}, fieldVisible(f, e.fields, tpl) ? fieldDisplay(f, e.fields?.[f.key]) : '',
         f.type === 'location' && e.loc ? el('div', { class: 'loc-sub' }, `→ ${describeLocation(e.loc)}`) : null,
-        f.type === 'location' && !e.loc && e.fields?.[f.key] ? el('div', { class: 'loc-sub unresolved' }, 'nicht zugeordnet') : null)),
+        f.type === 'location' && !e.loc && e.fields?.[f.key] ? el('div', { class: 'loc-sub unresolved' }, 'nicht zugeordnet') : null)]),
       el('td', {}, e.viaRepeater
         ? el('span', {
           class: s.repeaterOverride ? 'rpt override' : 'rpt',
@@ -1603,6 +1604,14 @@ function renderLog(highlightCall) {
       el('td', { class: 'act' }, actions),
     ));
   }
+}
+
+// "Herk." cell before a location column: where the location came from
+// (LOC_ORIGINS; a source without a label leaves the cell empty).
+function originCell(loc, text) {
+  const k = locOrigin(loc, text);
+  const o = LOC_ORIGINS[k];
+  return el('td', { class: 'origin' }, o?.label ? el('span', { class: `src src-${k}`, title: o.title }, o.label) : '');
 }
 
 async function renderTrash() {

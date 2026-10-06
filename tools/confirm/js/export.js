@@ -10,7 +10,7 @@
 
 import {
   liveSorted, liveCheckins, isComment, checkinNumbers, operatorShifts, splitUtc, splitTime, zoneLabel, lineFrequencies,
-  bandForMHz, modeInfo, stats, signallingText,
+  bandForMHz, modeInfo, stats, signallingText, locOrigin, locOriginText,
 } from './model.js';
 import { templateFor, fieldVisible, fieldDisplay, hasLocationField } from './templates.js';
 import { stationsForMap } from './mapdata.js';
@@ -19,11 +19,20 @@ import { adifAscii, adifAsciiField } from '../../shared/js/adif.js';
 export const ADIF_PROGRAM_ID = 'OE1EBG';
 
 const LOC_CONF_DE = { exact: 'exakt', high: 'hoch', likely: 'wahrscheinlich', ambiguous: 'mehrdeutig', low: 'unsicher' };
-const LOC_COLS = ['standort_aufgeloest', 'lat', 'lon', 'locator', 'standort_konfidenz', 'standort_quelle'];
+const LOC_COLS = ['standort_aufgeloest', 'lat', 'lon', 'locator', 'standort_konfidenz', 'standort_quelle',
+  'standort_eingabe', 'standort_herkunft'];
 
-function locColumns(loc) {
-  if (!loc) return { standort_aufgeloest: '', lat: '', lon: '', locator: '', standort_konfidenz: '', standort_quelle: '' };
+// The template's location field (at most one).
+function locationField(tpl) {
+  return tpl.fields.find(f => f.type === 'location');
+}
+
+// `text` is the location field's value (origin "Freitext" when unresolved).
+function locColumns(loc, text) {
+  const origin = { standort_eingabe: loc?.input || '', standort_herkunft: locOriginText(loc, text) };
+  if (!loc) return { standort_aufgeloest: '', lat: '', lon: '', locator: '', standort_konfidenz: '', standort_quelle: '', ...origin };
   return {
+    ...origin,
     standort_aufgeloest: loc.label,
     lat: loc.lat.toFixed(5),
     lon: loc.lon.toFixed(5),
@@ -77,7 +86,7 @@ function exportRows(event, entries) {
       ts: e.ts,
     };
     for (const f of tpl.fields) row[f.key] = fieldVisible(f, e.fields, tpl) ? fieldDisplay(f, e.fields?.[f.key]) : '';
-    if (hasLocationField(tpl)) Object.assign(row, locColumns(e.loc));
+    if (hasLocationField(tpl)) Object.assign(row, locColumns(e.loc, e.fields?.[locationField(tpl).key]));
     Object.assign(row, {
       ueber_relais: e.viaRepeater ? 'ja' : 'nein',
       relais: e.viaRepeater ? s.repeaterCall : '',
@@ -203,7 +212,13 @@ export function toADIF(event, entries, createdIso = new Date().toISOString()) {
       rec += adifAsciiField('LAT', adifLatLon(e.loc.lat, true));
       rec += adifAsciiField('LON', adifLatLon(e.loc.lon, false));
       rec += adifAsciiField(`APP_${ADIF_PROGRAM_ID}_LOCATION`, e.loc.label);
-      comment.push(`Standort: ${e.loc.label} (${LOC_CONF_DE[e.loc.confidence] || e.loc.confidence})`);
+      const from = locOriginText(e.loc);
+      comment.push(`Standort: ${e.loc.label} (${LOC_CONF_DE[e.loc.confidence] || e.loc.confidence}${from ? `, ${from}` : ''})`);
+    }
+    const lf = locationField(tpl);
+    if (lf) {
+      rec += adifAsciiField(`APP_${ADIF_PROGRAM_ID}_LOC_SOURCE`, locOrigin(e.loc, e.fields?.[lf.key]));
+      rec += adifAsciiField(`APP_${ADIF_PROGRAM_ID}_LOC_INPUT`, e.loc?.input);
     }
     rec += adifAsciiField(`APP_${ADIF_PROGRAM_ID}_CHECKIN`, String(nums.get(e.id)));
     rec += adifAsciiField(`APP_${ADIF_PROGRAM_ID}_LOG`, event.title);
@@ -255,6 +270,7 @@ function kmlStationFields(s) {
     ['Locator', [loc.maidenhead, ...(loc.areaLocators || []).filter(l => l !== loc.maidenhead)].filter(Boolean).join(' ')],
     ['Konfidenz', LOC_CONF_DE[loc.confidence] || loc.confidence || ''],
     ['Zuordnung', loc.manual ? 'gewählt' : 'automatisch'],
+    ['Herkunft', locOriginText(loc)],
     ['Koordinaten', `${loc.lat.toFixed(5)}, ${loc.lon.toFixed(5)}`],
   ].filter(([, v]) => v !== '' && v !== undefined && v !== null);
 }
