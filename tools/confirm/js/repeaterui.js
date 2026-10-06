@@ -37,6 +37,11 @@ export function attachRepeaterSearch({ input, pop, info, getHeader, onPick }) {
   const dd = popover(input, pop);
   let timer = null;
   let seq = 0;
+  // The repeater whose values are in the header (picked here, or saved
+  // with the log). Not the field's own text: comparing the field with
+  // itself made every later search look "already applied" (no dropdown,
+  // so frequency and tone never changed again).
+  let appliedCall = normalizeCall(input.value) || null;
 
   async function renderInfo() {
     const call = normalizeCall(input.value);
@@ -69,7 +74,7 @@ export function attachRepeaterSearch({ input, pop, info, getHeader, onPick }) {
     const q = input.value.trim();
     // Nothing to offer while the field holds the repeater already applied
     // (Enter then simply moves on instead of picking another one).
-    const applied = q && normalizeCall(q) === h.repeaterCall && h.repeaterFreq;
+    const applied = q && normalizeCall(q) === appliedCall && h.repeaterFreq;
     const list = !applied && (q || position) ? searchRepeaters(idx, q, { position, limit: 8 }) : [];
     fill(pop, list.length ? [
       el('div', { class: 'ac-head' }, `${q ? 'Relais' : `Nächste Relais zu ${h.myGrid}`} (ÖVSV, Stand ${idx.retrieved.slice(0, 10)}; ↓, Enter):`),
@@ -77,6 +82,7 @@ export function attachRepeaterSearch({ input, pop, info, getHeader, onPick }) {
         type: 'button', class: 'ac-item',
         title: [r.comment, r.echolink ? `EchoLink ${r.echolink}` : null, r.cc ? `Colorcode ${r.cc}` : null, r.locator].filter(Boolean).join(' · '),
         onclick: () => {
+          appliedCall = r.call;
           onPick(r);
           input.value = r.call;
           fill(pop);
@@ -95,5 +101,12 @@ export function attachRepeaterSearch({ input, pop, info, getHeader, onPick }) {
     timer = setTimeout(suggest, 120);
   });
   input.addEventListener('focus', suggest);
-  return { refresh: renderInfo };
+  // refresh(): after the header was written from outside (a pick, another
+  // tab): its repeater is the applied one now.
+  return {
+    refresh() {
+      appliedCall = normalizeCall(input.value) || null;
+      return renderInfo();
+    },
+  };
 }

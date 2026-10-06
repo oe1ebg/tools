@@ -416,6 +416,9 @@ export function repeaterFields(r) {
 // left alone: it is only used for lines that come in direct.
 export function headerFromRepeater(r, header) {
   const next = { ...header, viaRepeater: true, ...repeaterFields(r) };
+  // The list only knows CTCSS: a repeater with a CTCSS tone clears a DCS
+  // code left from the previous one (without a tone, a typed DCS stays).
+  if (r.ctcss) next.dcs = '';
   // Mode: keep the current one if the repeater supports it, else its first mode.
   if (r.modes.length && !r.modes.includes(header.mode)) next.mode = r.modes[0];
   return next;
