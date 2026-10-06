@@ -1,0 +1,430 @@
+/* SOTA Alerts Map. The shared colour tokens (--bg, --line, --text,
+   --accent, --warn, --err, --header-bg, fonts, ...), color-scheme,
+   box-sizing, [hidden] and .sr-only come from ../shared/css/tools.css.
+   The shared theme.js always sets <html data-theme="light|dark">, so the
+   tool's own tokens below need exactly one light set and one dark
+   override. (tools.css's color-scheme: dark matters here: without it,
+   native form-control chrome such as the <input type=date> calendar icon
+   keeps its light-mode colours, a near-black icon on a near-black input.) */
+
+:root{
+  --own: #008300;
+  --leaflet-layers-icon-filter: none;
+  /* Pin/marker categorical colors, validated with the dataviz skill's
+     CVD-simulation checker (all-pairs mode, since any two pin categories
+     can sit side by side on the map) — see oe1ebg/tools/sota-alerts/README.md.
+     --pin-default is separate from --accent on purpose: --accent is the
+     toolbar's button/link color and shouldn't change just because the
+     pin palette does. */
+  --pin-default: #2a78d6;
+  --candidate: #e87ba4;
+  --route: #eda100;
+}
+:root[data-theme="dark"]{
+  --leaflet-layers-icon-filter: invert(1) hue-rotate(180deg);
+  --pin-default: #3987e5;
+  --candidate: #d55181;
+  --route: #c98500;
+}
+
+html,body{ height:100%; }
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-ui);
+  font-size:13px;
+  line-height:1.4;
+  display:flex;
+  flex-direction:column;
+}
+#site-header{
+  display:flex;
+  align-items:center;
+  gap:.8em;
+  padding:.5em .8em;
+  position:sticky;
+  top:0;
+  z-index:20;
+  background:var(--header-bg);
+  backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);
+  border-bottom:1px solid var(--line);
+}
+#back-link{
+  display:inline-flex;
+  align-items:center;
+  gap:.4em;
+  color:var(--accent);
+  text-decoration:none;
+  font-size:12px;
+}
+#back-link:hover{ text-decoration:underline; }
+.icon-arrow-left{ width:1em; height:1em; }
+.badge{
+  border:1px solid var(--line);
+  border-radius:.4rem;
+  padding:.15em .6em;
+  color:var(--text-dim);
+  font-size:11px;
+  white-space:nowrap;
+  text-decoration:none;
+}
+a.badge:hover{ color:var(--accent); border-color:var(--accent-dim); }
+.toggle-group{
+  display:flex;
+  border:1px solid var(--line);
+  border-radius:.3rem;
+  overflow:hidden;
+}
+.toggle-group button{
+  border:none;
+  border-radius:0;
+  padding:.3em .6em;
+  font-size:11px;
+  background:transparent;
+  color:var(--text-dim);
+}
+.toggle-group button:not(:first-child){ border-left:1px solid var(--line); }
+.toggle-group button.active{
+  background:var(--accent);
+  color:#fff;
+}
+#toolbar{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:.6em 1em;
+  padding:.6em .8em;
+  background:var(--bg-raised);
+  border-bottom:1px solid var(--line);
+}
+#toolbar h1{
+  font-size:13px;
+  font-weight:600;
+  letter-spacing:.02em;
+  margin:0;
+  color:var(--text);
+  white-space:nowrap;
+  text-transform:uppercase;
+}
+#toolbar .sep{ color:var(--line); }
+#toolbar label{ color:var(--text-dim); font-size:11px; white-space:nowrap; }
+#toolbar .field{ display:flex; align-items:center; gap:.3em; }
+button, .btn{
+  font-family:var(--font-ui);
+  font-size:12px;
+  background:transparent;
+  color:var(--accent);
+  border:1px solid var(--accent-dim);
+  padding:.35em .7em;
+  cursor:pointer;
+  border-radius:.2rem;
+}
+button:hover, .btn:hover{ background:rgba(82,108,254,0.1); }
+button:disabled{ color:var(--text-dim); border-color:var(--line); cursor:not-allowed; }
+button.active{ background:var(--accent); color:#fff; }
+input[type=text], input[type=date]{
+  font-family:var(--font-ui);
+  font-size:12px;
+  background:var(--bg);
+  color:var(--text);
+  border:1px solid var(--line);
+  padding:.35em .5em;
+  border-radius:.2rem;
+}
+input[type=text]:focus, input[type=date]:focus{
+  outline:1px solid var(--accent);
+  outline-offset:-1px;
+}
+#callsigns-input{ width:16em; }
+input[type=date]{ min-width:9.5em; }
+#all-summits-note{ color:var(--text-dim); font-size:11px; }
+.spacer{ flex:1; }
+
+/* A single-line status bar under the toolbar, always its own row —
+   previously #stats/#ref-indicator lived inline in the toolbar's flex-wrap
+   flow, where they'd land in an arbitrary, sometimes visually orphaned
+   spot mid-row depending on viewport width and how many buttons wrapped
+   around them. */
+#statusbar{
+  display:flex;
+  align-items:center;
+  gap:.3em 1em;
+  padding:.4em .8em;
+  background:var(--bg);
+  border-bottom:1px solid var(--line);
+  font-size:12px;
+}
+#stats{ color:var(--text-dim); }
+#stats b{ color:var(--text); font-weight:600; }
+#ref-indicator{ color:var(--route); white-space:nowrap; font-weight:600; }
+#ref-indicator button{ padding:0 .3em; font-size:11px; border:none; color:var(--text-dim); }
+
+/* Grouped "date range" control: from/to inputs presented as one pill
+   (same visual language as .toggle-group) with an arrow between them,
+   rather than two separately-labeled "from (UTC)"/"to (UTC)" fields
+   repeating "(UTC)" and reading as unrelated. */
+.date-range-group{
+  display:flex;
+  align-items:stretch;
+  border:1px solid var(--line);
+  border-radius:.3rem;
+  overflow:hidden;
+  background:var(--bg);
+}
+.date-range-group input[type=date]{
+  border:none;
+  border-radius:0;
+  background:transparent;
+}
+.date-range-group input[type=date]:focus{
+  outline:1px solid var(--accent);
+  outline-offset:-2px;
+  z-index:1;
+}
+.date-range-arrow{
+  display:flex;
+  align-items:center;
+  padding:0 .5em;
+  color:var(--text-dim);
+  border-left:1px solid var(--line);
+  border-right:1px solid var(--line);
+  font-size:11px;
+}
+
+#warnings{
+  display:none;
+  padding:.5em .8em;
+  background:#1c1811;
+  border-bottom:1px solid #3a2f1a;
+  color:var(--warn);
+  font-size:12px;
+  max-height:6em;
+  overflow:auto;
+}
+#warnings.show{ display:block; }
+#warnings div{ padding:.1em 0; }
+
+#search-panel{
+  display:none;
+  padding:.4em .8em;
+  background:var(--bg-raised);
+  border-bottom:1px solid var(--line);
+  font-size:12px;
+  max-height:10em;
+  overflow:auto;
+}
+#search-panel.show{ display:block; }
+.search-hint{ color:var(--text-dim); padding:.2em 0; }
+.search-result{
+  padding:.3em 0;
+  border-bottom:1px solid var(--line);
+}
+.search-result:last-child{ border-bottom:none; }
+.search-result-top{ display:flex; align-items:center; justify-content:space-between; gap:.6em; }
+.search-result-actions{ display:flex; gap:.4em; flex-shrink:0; }
+.search-result button{ font-size:11px; padding:.2em .5em; white-space:nowrap; }
+.search-result button:disabled{ color:var(--candidate); border-color:var(--candidate); }
+.search-result-alert{ font-size:11px; color:var(--accent); margin-top:.2em; }
+
+#bandmode-panel{
+  display:none;
+  align-items:flex-start;
+  gap:1.5em;
+  padding:.5em .8em;
+  background:var(--bg-raised);
+  border-bottom:1px solid var(--line);
+  font-size:12px;
+}
+#bandmode-panel.show{ display:flex; flex-wrap:wrap; }
+.bandmode-group{ display:flex; flex-direction:column; gap:.35em; }
+.bandmode-group-title{
+  font-weight:600;
+  font-size:11px;
+  letter-spacing:.03em;
+  text-transform:uppercase;
+  color:var(--text-dim);
+}
+.bandmode-checks{ display:flex; flex-wrap:wrap; gap:.3em .9em; max-width:40em; }
+.chk{ display:inline-flex; align-items:center; gap:.35em; cursor:pointer; white-space:nowrap; }
+.chk input{ cursor:pointer; }
+
+#main{
+  flex:1;
+  display:flex;
+  overflow:hidden;
+  min-height:0;
+}
+#map{ flex:1; min-width:0; background:var(--bg-raised); }
+
+#list-panel{
+  display:none;
+  width:22em;
+  flex-shrink:0;
+  border-left:1px solid var(--line);
+  overflow-y:auto;
+  background:var(--bg);
+}
+#list-panel.show{ display:block; }
+.list-item{
+  padding:.5em .7em;
+  border-bottom:1px solid var(--line);
+  border-left:3px solid transparent;
+  font-size:12px;
+}
+.list-item{ cursor:pointer; }
+.list-item:hover{ background:rgba(82,108,254,0.06); }
+.list-item.own{ background:rgba(31,157,85,0.08); }
+/* Stronger than the "own"/"hover" tints on purpose — there's only ever
+   one reference summit at a time, so it should be unmistakable, matching
+   the bigger warn-colored marker on the map. */
+.list-item.is-ref{ background:color-mix(in srgb, var(--route) 18%, transparent); border-left-color:var(--route); }
+.li-top{ display:flex; justify-content:space-between; gap:.5em; }
+.li-top b{ color:var(--text); }
+.list-item.own .li-top b{ color:var(--own); }
+.li-summit{ color:var(--text-dim); font-family:var(--font-mono); font-size:11px; }
+.li-meta{ color:var(--text-dim); font-size:11px; margin-top:.2em; }
+.list-empty{ padding:1em .8em; color:var(--text-dim); }
+.ref-diff{ font-size:11px; color:var(--route); margin-top:.2em; }
+.list-section-title{
+  padding:.4em .7em;
+  font-size:11px;
+  font-weight:600;
+  letter-spacing:.03em;
+  text-transform:uppercase;
+  color:var(--candidate);
+  background:var(--bg-raised);
+  border-bottom:1px solid var(--line);
+}
+.list-item.candidate{ border-left-color:var(--candidate); }
+.list-item.candidate .li-top b{ color:var(--candidate); }
+/* A pinned summit that's also the current reference (common now that
+   "set as reference" implicitly pins) should read as reference first —
+   matches the map marker, where .reference's fill/size also wins over
+   .candidate's. Needs to be explicit since .is-ref and .candidate have
+   equal selector specificity and .candidate is declared later. */
+.list-item.is-ref.candidate{ border-left-color:var(--route); }
+.list-item .btn-ref{ margin-top:.3em; }
+/* Keyboard focus on a row (alert rows are role=button; a pinned summit's
+   row shows the focus of its visually hidden reference button). Only
+   ever visible when navigating by keyboard. */
+.list-item:focus-visible, .list-item.kbd-focus{ outline:2px solid var(--accent); outline-offset:-2px; }
+
+@media (max-width: 760px){
+  #main{ flex-direction:column; }
+  #list-panel{ width:auto; max-height:40vh; border-left:none; border-top:1px solid var(--line); }
+}
+
+/* #toolbar-controls/.field-actions are only meaningful at phone widths
+   (below) — display:contents here makes both wrappers invisible to
+   layout otherwise, so their children behave exactly as if the wrappers
+   didn't exist and desktop/tablet toolbar layout is untouched. */
+.mobile-only{ display:none; }
+#toolbar-controls{ display:contents; }
+.field-actions{ display:contents; }
+
+/* Phone layout: the toolbar's filters/actions are the main thing eating
+   vertical space that should go to the map (confirmed live at 390×844 —
+   they pushed the map below the fold entirely), so they collapse behind
+   "filters ▾" by default; only the title and that toggle stay in the
+   always-visible row. Also fixes #site-header wrapping the "back to
+   site" link's own text mid-word at narrow widths (it was shrinking
+   along with everything else with nowhere else to give). */
+@media (max-width: 600px){
+  #site-header{ flex-wrap:wrap; }
+  .badge{ flex-basis:100%; order:10; white-space:normal; }
+
+  .mobile-only{ display:inline-flex; }
+
+  #toolbar-controls{
+    display:none;
+    flex-direction:column;
+    align-items:stretch;
+    width:100%;
+    gap:.6em;
+    margin-top:.4em;
+  }
+  #toolbar-controls.show{ display:flex; }
+  #toolbar-controls .field{ flex-direction:column; align-items:stretch; gap:.25em; }
+  #toolbar-controls .date-range-group input[type=date]{ min-width:0; flex:1; }
+  #toolbar-controls #callsigns-input,
+  #toolbar-controls #summit-search{ width:auto; }
+  #toolbar-controls .field-actions{ display:flex; gap:.4em; }
+  #toolbar-controls .field-actions button{ flex:1; }
+  #toolbar-controls .spacer{ display:none; }
+  #toolbar-controls > button{ width:100%; }
+
+  /* Bigger touch targets — the desktop sizing (padding:.35em) measures
+     out to a ~22px tall hit area, well under the ~44px platform
+     guideline for a touch target. */
+  button, .btn{ padding:.6em .8em; font-size:13px; }
+  input[type=text], input[type=date]{ padding:.6em .6em; font-size:13px; }
+
+  /* Search/"find in view" result cards: the name text and "set as
+     reference"/"+ pin" buttons were squeezed into one row (space-between)
+     — fine on desktop, cramped on a phone-width card. */
+  .search-result-top{ flex-wrap:wrap; }
+  .search-result-actions{ width:100%; }
+  .search-result-actions button{ flex:1; }
+}
+
+/* Leaflet overrides so popups/controls follow the page's own light/dark theme
+   instead of Leaflet's hardcoded white/black defaults. */
+.leaflet-popup-content-wrapper, .leaflet-popup-tip{ background:var(--bg); color:var(--text); }
+.leaflet-container a.leaflet-popup-close-button{ color:var(--text-dim); }
+.leaflet-bar a{ background:var(--bg-raised); color:var(--text); border-bottom:1px solid var(--line); }
+.leaflet-bar a:hover{ background:var(--bg); }
+.leaflet-control-attribution{ background:var(--header-bg); color:var(--text-dim); }
+.leaflet-control-attribution a{ color:var(--accent); }
+.leaflet-control-layers{ background:var(--bg-raised); color:var(--text); }
+.leaflet-control-layers-toggle{ filter: var(--leaflet-layers-icon-filter, none); }
+.leaflet-control-layers-separator{ border-color:var(--line); }
+
+.sota-pin{ width:26px; height:34px; }
+.sota-pin svg{ width:100%; height:100%; display:block; } /* the <svg> has no size of its own — this makes the wrapping div's width/height (below) the actual source of truth for icon size, which the .reference/.candidate rules then override */
+.sota-pin.default path{ fill:var(--pin-default); }
+.sota-pin.own path{ fill:var(--own); }
+/* Plain, solid fill colors — a drop-shadow glow/outline turned out too
+   subtle to notice twice in a row, so each state just gets its own
+   unmistakable pin color instead of a color plus an effect layered on
+   top. Priority when a summit is more than one of these at once:
+   reference > candidate > own > default (there's only ever one
+   reference; many summits can be pinned or "yours"). */
+.sota-pin.candidate{ width:28px; height:37px; }
+.sota-pin.candidate path{ fill:var(--candidate); }
+.sota-pin.reference{ width:32px; height:42px; }
+.sota-pin.reference path{ fill:var(--route); }
+.sota-pin circle{ fill:#fff; }
+
+.sota-popup{ font-size:12px; max-width:20em; }
+.sota-popup .popup-title{ font-weight:600; margin-bottom:.2em; }
+.sota-popup .popup-title .code{ font-family:var(--font-mono); font-weight:400; color:var(--text-dim); }
+.sota-popup .popup-meta{ color:var(--text-dim); margin-bottom:.5em; }
+.sota-popup .popup-meta a{ color:var(--accent); }
+.sota-popup .alert-row{ padding:.3em 0; border-top:1px solid var(--line); }
+.sota-popup .alert-row.own b{ color:var(--own); }
+.sota-popup .freq{ font-family:var(--font-mono); font-size:11px; color:var(--text-dim); }
+.sota-popup .comment{ font-size:11px; color:var(--text-dim); margin-top:.15em; }
+.sota-popup .ref-diff{ margin-bottom:.3em; }
+.sota-popup .popup-ref{ margin-bottom:.3em; }
+.popup-empty{ color:var(--text-dim); font-size:11px; padding:.3em 0; border-top:1px solid var(--line); }
+.btn-ref{
+  font-family:var(--font-ui);
+  font-size:11px;
+  background:transparent;
+  color:var(--accent);
+  border:1px solid var(--accent-dim);
+  padding:.2em .5em;
+  cursor:pointer;
+  border-radius:.2rem;
+}
+.btn-ref:hover{ background:rgba(82,108,254,0.1); }
+.btn-ref.danger{ color:var(--err); border-color:var(--err); }
+
+/* iOS Safari zooms into any focused field whose text is smaller than 16px
+   (see tools.css). Last in the file so it wins over the 12px/13px field
+   sizes above, which have the same specificity. */
+@media (pointer: coarse){
+  :root input, :root select, :root textarea{ font-size:16px; }
+}

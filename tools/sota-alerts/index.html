@@ -4,525 +4,50 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SOTA Alerts Map</title>
+<meta name="color-scheme" content="light dark">
+<!-- Theme first (sets data-theme before anything paints), then the shared
+     tokens, Leaflet's styles and the page's own. -->
+<script src="../shared/js/theme.js"></script>
+<link rel="stylesheet" href="../shared/css/tools.css">
 <link rel="stylesheet" href="../shared/vendor/leaflet/leaflet.css">
-<style>
-  :root{
-    --bg: #ffffff;
-    --bg-raised: #f5f5f5;
-    --line: #0000000d;
-    --text: #000000de;
-    --text-dim: #00000099;
-    --accent: #526cfe;
-    --accent-dim: #6b78d0;
-    --own: #008300;
-    --warn: #9a6700;
-    --err: #c62828;
-    --header-bg: rgba(255,255,255,.72);
-    --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, Menlo, monospace;
-    color-scheme: light;
-    --leaflet-layers-icon-filter: none;
-    /* Pin/marker categorical colors, validated with the dataviz skill's
-       CVD-simulation checker (all-pairs mode, since any two pin categories
-       can sit side by side on the map) — see oe1ebg/tools/sota-alerts/README.md.
-       --pin-default is separate from --accent on purpose: --accent is the
-       toolbar's button/link color and shouldn't change just because the
-       pin palette does. */
-    --pin-default: #2a78d6;
-    --candidate: #e87ba4;
-    --route: #eda100;
-  }
-  @media (prefers-color-scheme: dark){
-    /* Without this, native form-control chrome (the <input type=date>
-       calendar icon in particular) keeps rendering in its light-mode
-       colors — a near-black icon on a near-black input, invisible enough
-       to look like the picker button is simply missing. */
-    :root{
-      --bg: hsla(225,15%,5%,1);
-      --bg-raised: hsla(225,20%,10%,1);
-      --line: hsla(225,15%,90%,.12);
-      --text: hsla(225,15%,90%,.82);
-      --text-dim: hsla(225,15%,90%,.5);
-      --accent: #526cfe;
-      --accent-dim: #9aa8f5;
-      --own: #008300;
-      --warn: #e0b35c;
-      --err: #e0776b;
-      --header-bg: rgba(12,13,15,.72);
-      color-scheme: dark;
-      --leaflet-layers-icon-filter: invert(1) hue-rotate(180deg);
-      --pin-default: #3987e5;
-      --candidate: #d55181;
-      --route: #c98500;
-    }
-  }
-  /* Explicit light/dark override (higher specificity than the bare :root rules
-     above), set via the theme toggle + a data-theme attribute on <html>. No
-     attribute at all = "auto", i.e. follows prefers-color-scheme. Every
-     variable that has a light/dark-dependent value must be repeated here too. */
-  :root[data-theme="dark"]{
-    --bg: hsla(225,15%,5%,1);
-    --bg-raised: hsla(225,20%,10%,1);
-    --line: hsla(225,15%,90%,.12);
-    --text: hsla(225,15%,90%,.82);
-    --text-dim: hsla(225,15%,90%,.5);
-    --accent: #526cfe;
-    --accent-dim: #9aa8f5;
-    --own: #008300;
-    --warn: #e0b35c;
-    --err: #e0776b;
-    --header-bg: rgba(12,13,15,.72);
-    color-scheme: dark;
-    --leaflet-layers-icon-filter: invert(1) hue-rotate(180deg);
-    --pin-default: #3987e5;
-    --candidate: #d55181;
-    --route: #c98500;
-  }
-  :root[data-theme="light"]{
-    --bg: #ffffff;
-    --bg-raised: #f5f5f5;
-    --line: #0000000d;
-    --text: #000000de;
-    --text-dim: #00000099;
-    --accent: #526cfe;
-    --accent-dim: #6b78d0;
-    --own: #008300;
-    --warn: #9a6700;
-    --err: #c62828;
-    --header-bg: rgba(255,255,255,.72);
-    color-scheme: light;
-    --leaflet-layers-icon-filter: none;
-    --pin-default: #2a78d6;
-    --candidate: #e87ba4;
-    --route: #eda100;
-  }
-  *{ box-sizing: border-box; }
-  html,body{ height:100%; }
-  body{
-    margin:0;
-    background:var(--bg);
-    color:var(--text);
-    font-family:var(--font-ui);
-    font-size:13px;
-    line-height:1.4;
-    display:flex;
-    flex-direction:column;
-  }
-  #site-header{
-    display:flex;
-    align-items:center;
-    gap:.8em;
-    padding:.5em .8em;
-    position:sticky;
-    top:0;
-    z-index:20;
-    background:var(--header-bg);
-    backdrop-filter:blur(6px);
-    -webkit-backdrop-filter:blur(6px);
-    border-bottom:1px solid var(--line);
-  }
-  #back-link{
-    display:inline-flex;
-    align-items:center;
-    gap:.4em;
-    color:var(--accent);
-    text-decoration:none;
-    font-size:12px;
-  }
-  #back-link:hover{ text-decoration:underline; }
-  .icon-arrow-left{ width:1em; height:1em; }
-  .badge{
-    border:1px solid var(--line);
-    border-radius:.4rem;
-    padding:.15em .6em;
-    color:var(--text-dim);
-    font-size:11px;
-    white-space:nowrap;
-    text-decoration:none;
-  }
-  a.badge:hover{ color:var(--accent); border-color:var(--accent-dim); }
-  .toggle-group{
-    display:flex;
-    border:1px solid var(--line);
-    border-radius:.3rem;
-    overflow:hidden;
-  }
-  .toggle-group button{
-    border:none;
-    border-radius:0;
-    padding:.3em .6em;
-    font-size:11px;
-    background:transparent;
-    color:var(--text-dim);
-  }
-  .toggle-group button:not(:first-child){ border-left:1px solid var(--line); }
-  .toggle-group button.active{
-    background:var(--accent);
-    color:#fff;
-  }
-  #toolbar{
-    display:flex;
-    flex-wrap:wrap;
-    align-items:center;
-    gap:.6em 1em;
-    padding:.6em .8em;
-    background:var(--bg-raised);
-    border-bottom:1px solid var(--line);
-  }
-  #toolbar h1{
-    font-size:13px;
-    font-weight:600;
-    letter-spacing:.02em;
-    margin:0;
-    color:var(--text);
-    white-space:nowrap;
-  }
-  #toolbar .sep{ color:var(--line); }
-  #toolbar label{ color:var(--text-dim); font-size:11px; white-space:nowrap; }
-  #toolbar .field{ display:flex; align-items:center; gap:.3em; }
-  button, .btn{
-    font-family:var(--font-ui);
-    font-size:12px;
-    background:transparent;
-    color:var(--accent);
-    border:1px solid var(--accent-dim);
-    padding:.35em .7em;
-    cursor:pointer;
-    border-radius:.2rem;
-  }
-  button:hover, .btn:hover{ background:rgba(82,108,254,0.1); }
-  button:disabled{ color:var(--text-dim); border-color:var(--line); cursor:not-allowed; }
-  button.active{ background:var(--accent); color:#fff; }
-  input[type=text], input[type=date]{
-    font-family:var(--font-ui);
-    font-size:12px;
-    background:var(--bg);
-    color:var(--text);
-    border:1px solid var(--line);
-    padding:.35em .5em;
-    border-radius:.2rem;
-  }
-  input[type=text]:focus, input[type=date]:focus{
-    outline:1px solid var(--accent);
-    outline-offset:-1px;
-  }
-  #callsigns-input{ width:16em; }
-  input[type=date]{ min-width:9.5em; }
-  #all-summits-note{ color:var(--text-dim); font-size:11px; }
-  .spacer{ flex:1; }
-
-  /* A single-line status bar under the toolbar, always its own row —
-     previously #stats/#ref-indicator lived inline in the toolbar's flex-wrap
-     flow, where they'd land in an arbitrary, sometimes visually orphaned
-     spot mid-row depending on viewport width and how many buttons wrapped
-     around them. */
-  #statusbar{
-    display:flex;
-    align-items:center;
-    gap:.3em 1em;
-    padding:.4em .8em;
-    background:var(--bg);
-    border-bottom:1px solid var(--line);
-    font-size:12px;
-  }
-  #stats{ color:var(--text-dim); }
-  #stats b{ color:var(--text); font-weight:600; }
-  #ref-indicator{ color:var(--route); white-space:nowrap; font-weight:600; }
-  #ref-indicator button{ padding:0 .3em; font-size:11px; border:none; color:var(--text-dim); }
-
-  /* Grouped "date range" control: from/to inputs presented as one pill
-     (same visual language as .toggle-group) with an arrow between them,
-     rather than two separately-labeled "from (UTC)"/"to (UTC)" fields
-     repeating "(UTC)" and reading as unrelated. */
-  .date-range-group{
-    display:flex;
-    align-items:stretch;
-    border:1px solid var(--line);
-    border-radius:.3rem;
-    overflow:hidden;
-    background:var(--bg);
-  }
-  .date-range-group input[type=date]{
-    border:none;
-    border-radius:0;
-    background:transparent;
-  }
-  .date-range-group input[type=date]:focus{
-    outline:1px solid var(--accent);
-    outline-offset:-2px;
-    z-index:1;
-  }
-  .date-range-arrow{
-    display:flex;
-    align-items:center;
-    padding:0 .5em;
-    color:var(--text-dim);
-    border-left:1px solid var(--line);
-    border-right:1px solid var(--line);
-    font-size:11px;
-  }
-
-  #warnings{
-    display:none;
-    padding:.5em .8em;
-    background:#1c1811;
-    border-bottom:1px solid #3a2f1a;
-    color:var(--warn);
-    font-size:12px;
-    max-height:6em;
-    overflow:auto;
-  }
-  #warnings.show{ display:block; }
-  #warnings div{ padding:.1em 0; }
-
-  #search-panel{
-    display:none;
-    padding:.4em .8em;
-    background:var(--bg-raised);
-    border-bottom:1px solid var(--line);
-    font-size:12px;
-    max-height:10em;
-    overflow:auto;
-  }
-  #search-panel.show{ display:block; }
-  .search-hint{ color:var(--text-dim); padding:.2em 0; }
-  .search-result{
-    padding:.3em 0;
-    border-bottom:1px solid var(--line);
-  }
-  .search-result:last-child{ border-bottom:none; }
-  .search-result-top{ display:flex; align-items:center; justify-content:space-between; gap:.6em; }
-  .search-result-actions{ display:flex; gap:.4em; flex-shrink:0; }
-  .search-result button{ font-size:11px; padding:.2em .5em; white-space:nowrap; }
-  .search-result button:disabled{ color:var(--candidate); border-color:var(--candidate); }
-  .search-result-alert{ font-size:11px; color:var(--accent); margin-top:.2em; }
-
-  #bandmode-panel{
-    display:none;
-    align-items:flex-start;
-    gap:1.5em;
-    padding:.5em .8em;
-    background:var(--bg-raised);
-    border-bottom:1px solid var(--line);
-    font-size:12px;
-  }
-  #bandmode-panel.show{ display:flex; flex-wrap:wrap; }
-  .bandmode-group{ display:flex; flex-direction:column; gap:.35em; }
-  .bandmode-group-title{
-    font-weight:600;
-    font-size:11px;
-    letter-spacing:.03em;
-    text-transform:uppercase;
-    color:var(--text-dim);
-  }
-  .bandmode-checks{ display:flex; flex-wrap:wrap; gap:.3em .9em; max-width:40em; }
-  .chk{ display:inline-flex; align-items:center; gap:.35em; cursor:pointer; white-space:nowrap; }
-  .chk input{ cursor:pointer; }
-
-  #main{
-    flex:1;
-    display:flex;
-    overflow:hidden;
-    min-height:0;
-  }
-  #map{ flex:1; min-width:0; background:var(--bg-raised); }
-
-  #list-panel{
-    display:none;
-    width:22em;
-    flex-shrink:0;
-    border-left:1px solid var(--line);
-    overflow-y:auto;
-    background:var(--bg);
-  }
-  #list-panel.show{ display:block; }
-  .list-item{
-    padding:.5em .7em;
-    border-bottom:1px solid var(--line);
-    border-left:3px solid transparent;
-    font-size:12px;
-  }
-  .list-item{ cursor:pointer; }
-  .list-item:hover{ background:rgba(82,108,254,0.06); }
-  .list-item.own{ background:rgba(31,157,85,0.08); }
-  /* Stronger than the "own"/"hover" tints on purpose — there's only ever
-     one reference summit at a time, so it should be unmistakable, matching
-     the bigger warn-colored marker on the map. */
-  .list-item.is-ref{ background:color-mix(in srgb, var(--route) 18%, transparent); border-left-color:var(--route); }
-  .li-top{ display:flex; justify-content:space-between; gap:.5em; }
-  .li-top b{ color:var(--text); }
-  .list-item.own .li-top b{ color:var(--own); }
-  .li-summit{ color:var(--text-dim); font-family:var(--font-mono); font-size:11px; }
-  .li-meta{ color:var(--text-dim); font-size:11px; margin-top:.2em; }
-  .list-empty{ padding:1em .8em; color:var(--text-dim); }
-  .ref-diff{ font-size:11px; color:var(--route); margin-top:.2em; }
-  .list-section-title{
-    padding:.4em .7em;
-    font-size:11px;
-    font-weight:600;
-    letter-spacing:.03em;
-    text-transform:uppercase;
-    color:var(--candidate);
-    background:var(--bg-raised);
-    border-bottom:1px solid var(--line);
-  }
-  .list-item.candidate{ border-left-color:var(--candidate); }
-  .list-item.candidate .li-top b{ color:var(--candidate); }
-  /* A pinned summit that's also the current reference (common now that
-     "set as reference" implicitly pins) should read as reference first —
-     matches the map marker, where .reference's fill/size also wins over
-     .candidate's. Needs to be explicit since .is-ref and .candidate have
-     equal selector specificity and .candidate is declared later. */
-  .list-item.is-ref.candidate{ border-left-color:var(--route); }
-  .list-item .btn-ref{ margin-top:.3em; }
-
-  @media (max-width: 760px){
-    #main{ flex-direction:column; }
-    #list-panel{ width:auto; max-height:40vh; border-left:none; border-top:1px solid var(--line); }
-  }
-
-  /* #toolbar-controls/.field-actions are only meaningful at phone widths
-     (below) — display:contents here makes both wrappers invisible to
-     layout otherwise, so their children behave exactly as if the wrappers
-     didn't exist and desktop/tablet toolbar layout is untouched. */
-  .mobile-only{ display:none; }
-  #toolbar-controls{ display:contents; }
-  .field-actions{ display:contents; }
-
-  /* Phone layout: the toolbar's filters/actions are the main thing eating
-     vertical space that should go to the map (confirmed live at 390×844 —
-     they pushed the map below the fold entirely), so they collapse behind
-     "filters ▾" by default; only the title and that toggle stay in the
-     always-visible row. Also fixes #site-header wrapping the "back to
-     site" link's own text mid-word at narrow widths (it was shrinking
-     along with everything else with nowhere else to give). */
-  @media (max-width: 600px){
-    #site-header{ flex-wrap:wrap; }
-    .badge{ flex-basis:100%; order:10; white-space:normal; }
-
-    .mobile-only{ display:inline-flex; }
-
-    #toolbar-controls{
-      display:none;
-      flex-direction:column;
-      align-items:stretch;
-      width:100%;
-      gap:.6em;
-      margin-top:.4em;
-    }
-    #toolbar-controls.show{ display:flex; }
-    #toolbar-controls .field{ flex-direction:column; align-items:stretch; gap:.25em; }
-    #toolbar-controls .date-range-group input[type=date]{ min-width:0; flex:1; }
-    #toolbar-controls #callsigns-input,
-    #toolbar-controls #summit-search{ width:auto; }
-    #toolbar-controls .field-actions{ display:flex; gap:.4em; }
-    #toolbar-controls .field-actions button{ flex:1; }
-    #toolbar-controls .spacer{ display:none; }
-    #toolbar-controls > button{ width:100%; }
-
-    /* Bigger touch targets — the desktop sizing (padding:.35em) measures
-       out to a ~22px tall hit area, well under the ~44px platform
-       guideline for a touch target. */
-    button, .btn{ padding:.6em .8em; font-size:13px; }
-    input[type=text], input[type=date]{ padding:.6em .6em; font-size:13px; }
-
-    /* Search/"find in view" result cards: the name text and "set as
-       reference"/"+ pin" buttons were squeezed into one row (space-between)
-       — fine on desktop, cramped on a phone-width card. */
-    .search-result-top{ flex-wrap:wrap; }
-    .search-result-actions{ width:100%; }
-    .search-result-actions button{ flex:1; }
-  }
-
-  /* Leaflet overrides so popups/controls follow the page's own light/dark theme
-     instead of Leaflet's hardcoded white/black defaults. */
-  .leaflet-popup-content-wrapper, .leaflet-popup-tip{ background:var(--bg); color:var(--text); }
-  .leaflet-container a.leaflet-popup-close-button{ color:var(--text-dim); }
-  .leaflet-bar a{ background:var(--bg-raised); color:var(--text); border-bottom:1px solid var(--line); }
-  .leaflet-bar a:hover{ background:var(--bg); }
-  .leaflet-control-attribution{ background:var(--header-bg); color:var(--text-dim); }
-  .leaflet-control-attribution a{ color:var(--accent); }
-  .leaflet-control-layers{ background:var(--bg-raised); color:var(--text); }
-  .leaflet-control-layers-toggle{ filter: var(--leaflet-layers-icon-filter, none); }
-  .leaflet-control-layers-separator{ border-color:var(--line); }
-
-  .sota-pin{ width:26px; height:34px; }
-  .sota-pin svg{ width:100%; height:100%; display:block; } /* the <svg> has no size of its own — this makes the wrapping div's width/height (below) the actual source of truth for icon size, which the .reference/.candidate rules then override */
-  .sota-pin.default path{ fill:var(--pin-default); }
-  .sota-pin.own path{ fill:var(--own); }
-  /* Plain, solid fill colors — a drop-shadow glow/outline turned out too
-     subtle to notice twice in a row, so each state just gets its own
-     unmistakable pin color instead of a color plus an effect layered on
-     top. Priority when a summit is more than one of these at once:
-     reference > candidate > own > default (there's only ever one
-     reference; many summits can be pinned or "yours"). */
-  .sota-pin.candidate{ width:28px; height:37px; }
-  .sota-pin.candidate path{ fill:var(--candidate); }
-  .sota-pin.reference{ width:32px; height:42px; }
-  .sota-pin.reference path{ fill:var(--route); }
-  .sota-pin circle{ fill:#fff; }
-
-  .sota-popup{ font-size:12px; max-width:20em; }
-  .sota-popup .popup-title{ font-weight:600; margin-bottom:.2em; }
-  .sota-popup .popup-title .code{ font-family:var(--font-mono); font-weight:400; color:var(--text-dim); }
-  .sota-popup .popup-meta{ color:var(--text-dim); margin-bottom:.5em; }
-  .sota-popup .popup-meta a{ color:var(--accent); }
-  .sota-popup .alert-row{ padding:.3em 0; border-top:1px solid var(--line); }
-  .sota-popup .alert-row.own b{ color:var(--own); }
-  .sota-popup .freq{ font-family:var(--font-mono); font-size:11px; color:var(--text-dim); }
-  .sota-popup .comment{ font-size:11px; color:var(--text-dim); margin-top:.15em; }
-  .sota-popup .ref-diff{ margin-bottom:.3em; }
-  .sota-popup .popup-ref{ margin-bottom:.3em; }
-  .popup-empty{ color:var(--text-dim); font-size:11px; padding:.3em 0; border-top:1px solid var(--line); }
-  .btn-ref{
-    font-family:var(--font-ui);
-    font-size:11px;
-    background:transparent;
-    color:var(--accent);
-    border:1px solid var(--accent-dim);
-    padding:.2em .5em;
-    cursor:pointer;
-    border-radius:.2rem;
-  }
-  .btn-ref:hover{ background:rgba(82,108,254,0.1); }
-  .btn-ref.danger{ color:var(--err); border-color:var(--err); }
-</style>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <header id="site-header">
   <a id="back-link" href="../">
-    <svg class="icon-arrow-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    <svg class="icon-arrow-left" aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
     back to site
   </a>
   <span class="spacer"></span>
   <div id="time-toggle" class="toggle-group" role="group" aria-label="time display" title="show alert times in UTC or your local time zone">
-    <button type="button" data-time-choice="utc">UTC</button>
-    <button type="button" data-time-choice="local">local</button>
+    <button type="button" data-time-choice="utc" aria-pressed="false">UTC</button>
+    <button type="button" data-time-choice="local" aria-pressed="false">local</button>
   </div>
+  <!-- wired by ../shared/js/theme.js (aria-pressed + .active, stored choice) -->
   <div id="theme-toggle" class="toggle-group" role="group" aria-label="color theme">
-    <button type="button" data-theme-choice="light" title="light theme">light</button>
-    <button type="button" data-theme-choice="auto" title="match system theme">auto</button>
-    <button type="button" data-theme-choice="dark" title="dark theme">dark</button>
+    <button type="button" data-theme-choice="light" aria-pressed="false" title="light theme">light</button>
+    <button type="button" data-theme-choice="auto" aria-pressed="false" title="match system theme">auto</button>
+    <button type="button" data-theme-choice="dark" aria-pressed="false" title="dark theme">dark</button>
   </div>
   <span class="badge">unofficial · uses SOTA's public API, not affiliated with the SOTA Association</span>
 </header>
 
 <div id="toolbar">
-  <h1>SOTA ALERTS MAP</h1>
-  <span class="sep">/</span>
+  <h1>SOTA Alerts Map</h1>
+  <span class="sep" aria-hidden="true">/</span>
   <!-- Hidden except at phone widths (see the max-width:600px media query) —
        everything below collapses behind this on a phone so the map gets
        the screen instead of a wall of controls; desktop/tablet render
        #toolbar-controls' children as if this wrapper weren't there at all
        (display:contents), so this button and class have zero effect there. -->
-  <button type="button" id="btn-toggle-toolbar" class="mobile-only" aria-expanded="false">filters ▾</button>
+  <button type="button" id="btn-toggle-toolbar" class="mobile-only" aria-expanded="false" aria-controls="toolbar-controls">filters ▾</button>
   <div id="toolbar-controls">
     <div class="field">
       <label for="range-from">date range (UTC)</label>
       <div class="date-range-group">
         <input id="range-from" type="date" aria-label="from date (UTC)">
-        <span class="date-range-arrow">→</span>
+        <span class="date-range-arrow" aria-hidden="true">→</span>
         <input id="range-to" type="date" aria-label="to date (UTC)">
       </div>
     </div>
@@ -540,15 +65,16 @@
       </div>
     </div>
     <div class="spacer"></div>
-    <button id="btn-share" title="copy a link that reproduces this date range, reference summit, and pinned summits">share</button>
-    <button id="btn-open-sotlas" title="open sotl.as, centered on the same area this map is currently showing">view on sotl.as ↗</button>
-    <button id="btn-locate" title="center the map on your current location">locate me</button>
-    <button id="btn-refresh-alerts">refresh alerts</button>
-    <button id="btn-refresh-summits" title="force re-fetch of summit coordinates, bypassing the local cache">refresh summit data</button>
-    <button id="btn-toggle-bandmode">bands/modes ▾</button>
-    <button type="button" id="btn-toggle-all-summits" title="show every SOTA summit in the current view (not just alerted/pinned ones) — built at site build time, no live SOTA API calls">all summits</button>
-    <span id="all-summits-note"></span>
-    <button id="btn-toggle-list">list ▾</button>
+    <button type="button" id="btn-share" title="copy a link that reproduces this date range, reference summit, and pinned summits">share</button>
+    <span id="share-status" class="sr-only" role="status"></span>
+    <button type="button" id="btn-open-sotlas" title="open sotl.as, centered on the same area this map is currently showing">view on sotl.as ↗</button>
+    <button type="button" id="btn-locate" title="center the map on your current location">locate me</button>
+    <button type="button" id="btn-refresh-alerts">refresh alerts</button>
+    <button type="button" id="btn-refresh-summits" title="force re-fetch of summit coordinates, bypassing the local cache">refresh summit data</button>
+    <button type="button" id="btn-toggle-bandmode" aria-expanded="false" aria-controls="bandmode-panel">bands/modes ▾</button>
+    <button type="button" id="btn-toggle-all-summits" aria-pressed="false" title="show every SOTA summit in the current view (not just alerted/pinned ones) — built at site build time, no live SOTA API calls">all summits</button>
+    <span id="all-summits-note" role="status"></span>
+    <button type="button" id="btn-toggle-list" aria-expanded="false" aria-controls="list-panel">list ▾</button>
   </div>
 </div>
 
@@ -557,32 +83,37 @@
   <span id="ref-indicator"></span>
 </div>
 
-<div id="search-panel"></div>
+<!-- Screen-reader announcement of the search panel's state (searching…,
+     n results, failed); the panel itself holds the full result cards. -->
+<div id="search-status" class="sr-only" role="status"></div>
+<div id="search-panel" role="region" aria-label="summit search results"></div>
 
 <div id="bandmode-panel">
-  <div class="bandmode-group">
-    <div class="bandmode-group-title">band</div>
+  <div class="bandmode-group" role="group" aria-labelledby="band-checks-title">
+    <div class="bandmode-group-title" id="band-checks-title">band</div>
     <div id="band-checks" class="bandmode-checks"></div>
   </div>
-  <div class="bandmode-group">
-    <div class="bandmode-group-title">mode</div>
+  <div class="bandmode-group" role="group" aria-labelledby="mode-checks-title">
+    <div class="bandmode-group-title" id="mode-checks-title">mode</div>
     <div id="mode-checks" class="bandmode-checks"></div>
   </div>
   <button type="button" id="btn-clear-bandmode" class="btn-ref">clear filter</button>
 </div>
 
-<div id="warnings"></div>
+<div id="warnings" role="status"></div>
 
-<div id="main">
-  <div id="map"></div>
-  <div id="list-panel"><div id="candidates-items"></div><div id="list-items"></div></div>
-</div>
+<main id="main">
+  <div id="map" role="region" aria-label="map of SOTA alerts and summits"></div>
+  <div id="list-panel" role="region" aria-label="alert and pinned summit list"><div id="candidates-items"></div><div id="list-items"></div></div>
+</main>
 
 <script src="../shared/vendor/leaflet/leaflet.js"></script>
 <!-- A module script (served over http only) so it can import the shared
      modules from tools/shared/ (published at /shared/). -->
 <script type="module">
 import { distanceMeters } from '../shared/js/geo.js';
+import { prefGet, prefSet } from '../shared/js/prefs.js';
+import { copyToClipboard } from '../shared/js/dom.js';
 
 (function(){
   "use strict";
@@ -603,17 +134,22 @@ import { distanceMeters } from '../shared/js/geo.js';
   const LS_KEY_BANDS = 'sota-alerts-band-filter';
   const LS_KEY_MODES = 'sota-alerts-mode-filter';
 
+  // prefSet() swallows a failed write (storage full or blocked); where
+  // the user should hear about that, read the value back to tell.
+  function prefSetChecked(key, value){
+    prefSet(key, value);
+    return prefGet(key) === value;
+  }
+
   function loadStringSet(key){
-    try { return new Set(JSON.parse(localStorage.getItem(key) || '[]')); }
+    try { return new Set(JSON.parse(prefGet(key, '[]'))); }
     catch { return new Set(); }
   }
   function saveStringSet(key, set){
-    try { localStorage.setItem(key, JSON.stringify([...set])); }
-    catch { /* non-essential preference, fine to just not persist */ }
+    prefSet(key, JSON.stringify([...set])); // non-essential preference, fine to just not persist
   }
   const summitSearchUrl = term => `https://api2.sota.org.uk/api/summits/search/${encodeURIComponent(term)}`;
   const SUMMIT_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // summit metadata rarely changes; 30 days is generous
-  const THEME_KEY = 'sota-alerts-theme';
   const LS_KEY_TIME_DISPLAY = 'sota-alerts-time-display';
   const FETCH_POOL_SIZE = 6; // small concurrency cap for per-summit lookups, be a polite API citizen
   const DEFAULT_RANGE_DAYS = 14; // default window width; see capDefaultToDate()
@@ -625,17 +161,37 @@ import { distanceMeters } from '../shared/js/geo.js';
 
   /* ---------- warnings (same pattern as the ADIF editor) ---------- */
 
+  // #warnings is a live region (role=status). renderAll() rebuilds its
+  // warnings on every render, so between clearWarnings() and
+  // flushWarnings() they are only collected, and the box is touched only
+  // when the list actually changed — otherwise a screen reader would
+  // re-announce the same warnings on every click.
+  let pendingWarnings = null;
+
   function addWarning(msg){
+    const text = '⚠ ' + msg;
+    if (pendingWarnings){ pendingWarnings.push(text); return; }
     const box = document.getElementById('warnings');
     const div = document.createElement('div');
-    div.textContent = '⚠ ' + msg;
+    div.textContent = text;
     box.appendChild(div);
     box.classList.add('show');
   }
   function clearWarnings(){
+    pendingWarnings = [];
+  }
+  function flushWarnings(){
+    const next = pendingWarnings || [];
+    pendingWarnings = null;
     const box = document.getElementById('warnings');
-    box.innerHTML = '';
-    box.classList.remove('show');
+    const current = [...box.children].map(d => d.textContent);
+    if (current.length === next.length && current.every((t, i) => t === next[i])) return;
+    box.replaceChildren(...next.map(text => {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div;
+    }));
+    box.classList.toggle('show', next.length > 0);
   }
 
   function escapeHtml(s){
@@ -885,25 +441,22 @@ import { distanceMeters } from '../shared/js/geo.js';
   }
 
   function loadOwnCallsignsRaw(){
-    try { return localStorage.getItem(LS_KEY_CALLSIGNS) || ''; }
-    catch { return ''; }
+    return prefGet(LS_KEY_CALLSIGNS, '');
   }
   function persistOwnCallsigns(raw){
-    try { localStorage.setItem(LS_KEY_CALLSIGNS, raw); }
-    catch { addWarning('could not save your callsign(s) locally (storage full or blocked) — you\'ll need to re-enter them next visit.'); }
+    if (!prefSetChecked(LS_KEY_CALLSIGNS, raw)) addWarning('could not save your callsign(s) locally (storage full or blocked) — you\'ll need to re-enter them next visit.');
   }
 
   /* ---------- pinned candidate summits (searched by name/code, not just alerted ones) ---------- */
 
   function loadCandidates(){
     try {
-      const raw = JSON.parse(localStorage.getItem(LS_KEY_CANDIDATES) || '[]');
+      const raw = JSON.parse(prefGet(LS_KEY_CANDIDATES, '[]'));
       return new Map(raw.map(c => [c.key, c]));
     } catch { return new Map(); }
   }
   function saveCandidates(candidates){
-    try { localStorage.setItem(LS_KEY_CANDIDATES, JSON.stringify([...candidates.values()])); }
-    catch { addWarning('could not save your pinned summits locally (storage full or blocked).'); }
+    if (!prefSetChecked(LS_KEY_CANDIDATES, JSON.stringify([...candidates.values()]))) addWarning('could not save your pinned summits locally (storage full or blocked).');
   }
 
   async function searchSummits(term, signal){
@@ -1064,12 +617,11 @@ import { distanceMeters } from '../shared/js/geo.js';
   }
 
   function loadSummitCache(){
-    try { return JSON.parse(localStorage.getItem(LS_KEY_SUMMIT_CACHE) || '{}'); }
+    try { return JSON.parse(prefGet(LS_KEY_SUMMIT_CACHE, '{}')); }
     catch { return {}; }
   }
   function saveSummitCache(cache){
-    try { localStorage.setItem(LS_KEY_SUMMIT_CACHE, JSON.stringify(cache)); }
-    catch { addWarning('summit coordinate cache could not be saved locally (storage full or blocked); it will be re-fetched every visit.'); }
+    if (!prefSetChecked(LS_KEY_SUMMIT_CACHE, JSON.stringify(cache))) addWarning('summit coordinate cache could not be saved locally (storage full or blocked); it will be re-fetched every visit.');
   }
 
   async function fetchSummit(assoc, code){
@@ -1220,16 +772,14 @@ import { distanceMeters } from '../shared/js/geo.js';
   // whatever alerts happen to exist this time (see init()'s fitView call).
   function loadSavedMapView(){
     try {
-      const v = JSON.parse(localStorage.getItem(LS_KEY_MAP_VIEW) || 'null');
+      const v = JSON.parse(prefGet(LS_KEY_MAP_VIEW, 'null'));
       if (v && typeof v.lat === 'number' && typeof v.lng === 'number' && typeof v.zoom === 'number') return v;
     } catch { /* ignore */ }
     return null;
   }
   function saveMapView(){
-    try {
-      const c = map.getCenter();
-      localStorage.setItem(LS_KEY_MAP_VIEW, JSON.stringify({ lat: c.lat, lng: c.lng, zoom: map.getZoom() }));
-    } catch { /* ignore */ }
+    const c = map.getCenter();
+    prefSet(LS_KEY_MAP_VIEW, JSON.stringify({ lat: c.lat, lng: c.lng, zoom: map.getZoom() }));
   }
 
   // sotl.as's router (verified against its own source, manuelkasper/
@@ -1254,12 +804,16 @@ import { distanceMeters } from '../shared/js/geo.js';
     // than plain OSM streets-and-buildings tiles (sotl.as itself uses a
     // similar "outdoor" style, via a keyed commercial vector provider —
     // OpenTopoMap gets a comparable look from free, key-less raster tiles).
+    // OpenTopoMap's required credit: the OSM data, SRTM elevation data and
+    // the map style (CC-BY-SA), see opentopomap.org/about.
     const topo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
       maxZoom: 17,
       subdomains: 'abc',
-      attribution: 'Map: &copy; <a href="https://opentopomap.org/copyright" target="_blank" rel="noopener">OpenTopoMap</a> (CC-BY-SA) · ' + SOTA_CREDIT,
+      attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors, SRTM · ' +
+        'map style: &copy; <a href="https://opentopomap.org/" target="_blank" rel="noopener">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener">CC-BY-SA</a>) · ' + SOTA_CREDIT,
     });
-    const streets = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    // OSM serves its tiles from one host; the a/b/c subdomains are deprecated.
+    const streets = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors · ' + SOTA_CREDIT,
     });
@@ -1283,13 +837,10 @@ import { distanceMeters } from '../shared/js/geo.js';
     });
 
     const baseLayers = { 'Outdoor (OpenTopoMap)': topo, 'Streets (OpenStreetMap)': streets, 'Austria (basemap.at)': basemapAt };
-    let savedLayerName = null;
-    try { savedLayerName = localStorage.getItem(LS_KEY_BASE_LAYER); } catch { /* ignore */ }
-    (baseLayers[savedLayerName] || topo).addTo(map);
+    const savedLayerName = prefGet(LS_KEY_BASE_LAYER);
+    (Object.hasOwn(baseLayers, savedLayerName) ? baseLayers[savedLayerName] : topo).addTo(map);
     L.control.layers(baseLayers, null, { position: 'topright' }).addTo(map);
-    map.on('baselayerchange', e => {
-      try { localStorage.setItem(LS_KEY_BASE_LAYER, e.name); } catch { /* ignore */ }
-    });
+    map.on('baselayerchange', e => prefSet(LS_KEY_BASE_LAYER, e.name));
 
     markerLayer = L.layerGroup().addTo(map);
 
@@ -1399,7 +950,7 @@ import { distanceMeters } from '../shared/js/geo.js';
       : `<button type="button" class="btn-ref" data-pin-candidate="${escapeHtml(group.key)}">pin this summit</button>`;
     return `<div class="sota-popup">` +
       `<div class="popup-title">${escapeHtml(summit.name)} <span class="code">${escapeHtml(group.key)}</span></div>` +
-      `<div class="popup-meta">${altPts ? altPts + ' · ' : ''}` +
+      `<div class="popup-meta">${altPts ? escapeHtml(altPts) + ' · ' : ''}` +
       // Path segments must be encoded individually and rejoined with a
       // literal "/" — encoding the combined "ASSOC/CODE" key turns the
       // separator into "%2F", which both sites' routers don't treat as a
@@ -1565,13 +1116,19 @@ import { distanceMeters } from '../shared/js/geo.js';
     }
   }
 
+  // #all-summits-note is a live region: only write it when the text
+  // changes, so panning doesn't re-announce the same note on every move.
+  function setAllSummitsNote(text){
+    const note = document.getElementById('all-summits-note');
+    if (note.textContent !== text) note.textContent = text;
+  }
+
   function renderAllSummitsOverlay(){
     if (!allSummitsLayer) return;
     allSummitsLayer.clearLayers();
-    document.getElementById('all-summits-note').textContent = '';
-    if (!allSummitsEnabled || !allSummitsData) return;
+    if (!allSummitsEnabled || !allSummitsData){ setAllSummitsNote(''); return; }
     if (map.getZoom() < ALL_SUMMITS_MIN_ZOOM){
-      document.getElementById('all-summits-note').textContent = 'zoom in further to show all summits here';
+      setAllSummitsNote('zoom in further to show all summits here');
       return;
     }
     const bounds = map.getBounds();
@@ -1581,10 +1138,10 @@ import { distanceMeters } from '../shared/js/geo.js';
     const inView = allSummitsData.filter(s =>
       bounds.contains([s.lat, s.lon]) && !state.summitMap.has(s.key));
     if (inView.length > ALL_SUMMITS_MAX_MARKERS){
-      document.getElementById('all-summits-note').textContent =
-        `${inView.length} summits in view — zoom in further to show them`;
+      setAllSummitsNote(`${inView.length} summits in view — zoom in further to show them`);
       return;
     }
+    setAllSummitsNote('');
     for (const entry of inView){
       const marker = L.circleMarker([entry.lat, entry.lon], {
         renderer: allSummitsRenderer,
@@ -1656,9 +1213,11 @@ import { distanceMeters } from '../shared/js/geo.js';
       const when = timeDisplayPair(a.dateActivated, true).primary;
       const summit = summitMap.get(key);
       const diff = summit ? referenceDiff(summit, isRef ? null : referenceKey, summitMap) : null;
-      return `<div class="list-item${own ? ' own' : ''}${isRef ? ' is-ref' : ''}" data-summit-key="${escapeHtml(key)}" title="click to set/clear as reference summit">` +
+      // role=button + tabindex: the whole row is the (keyboard-reachable)
+      // set/clear-reference toggle, see onListRowKeydown().
+      return `<div class="list-item${own ? ' own' : ''}${isRef ? ' is-ref' : ''}" data-summit-key="${escapeHtml(key)}" data-alert-id="${escapeHtml(a.id)}" role="button" tabindex="0" aria-pressed="${isRef}" title="click to set/clear as reference summit">` +
         `<div class="li-top"><b>${escapeHtml(a.activatingCallsign)}</b><span class="li-summit">${isRef ? '★ ' : ''}${escapeHtml(key)}</span></div>` +
-        `<div class="li-meta">${when} · ${escapeHtml(a.frequency)}</div>` +
+        `<div class="li-meta">${escapeHtml(when)} · ${escapeHtml(a.frequency)}</div>` +
         referenceDiffHtml(diff) +
         `</div>`;
     }).join('');
@@ -1686,9 +1245,15 @@ import { distanceMeters } from '../shared/js/geo.js';
       // Same alert set the map/popup would show for this summit right now
       // (currentGroups is band/mode-filtered, unlike alertsForSummitInRange).
       const alertBrief = formatAlertsBrief((currentGroups.get(c.key) || {}).alerts || []);
+      // The row holds its own "remove pin" button, so it can't be a
+      // role=button itself (no nested interactive content); a visually
+      // hidden real button does the row's click action (set/clear
+      // reference, via the delegated click handler) for keyboard and
+      // screen-reader users instead.
       return `<div class="list-item candidate${isRef ? ' is-ref' : ''}" data-summit-key="${escapeHtml(c.key)}" title="click to set/clear as reference summit">` +
+        `<button type="button" class="sr-only" data-toggle-ref aria-pressed="${isRef}">reference summit: ${escapeHtml(c.name)} (${escapeHtml(c.key)})</button>` +
         `<div class="li-top"><b>${escapeHtml(c.name)}</b><span class="li-summit">${isRef ? '★ ' : ''}${escapeHtml(c.key)}</span></div>` +
-        (altPts ? `<div class="li-meta">${altPts}</div>` : '') +
+        (altPts ? `<div class="li-meta">${escapeHtml(altPts)}</div>` : '') +
         (alertBrief ? `<div class="search-result-alert">alert: ${escapeHtml(alertBrief)}</div>` : '') +
         referenceDiffHtml(diff) +
         `<button type="button" class="btn-ref danger" data-remove-candidate="${escapeHtml(c.key)}">remove pin</button>` +
@@ -1702,6 +1267,35 @@ import { distanceMeters } from '../shared/js/geo.js';
     el.querySelectorAll('[data-remove-candidate]').forEach(btn => {
       btn.addEventListener('click', e => { e.stopPropagation(); unpinCandidate(btn.dataset.removeCandidate); });
     });
+    // The hidden button can't show a focus ring itself, so its row does
+    // (keyboard focus only, like :focus-visible on the alert rows).
+    el.querySelectorAll('[data-toggle-ref]').forEach(btn => {
+      const row = btn.closest('.list-item');
+      btn.addEventListener('focus', () => row.classList.toggle('kbd-focus', btn.matches(':focus-visible')));
+      btn.addEventListener('blur', () => row.classList.remove('kbd-focus'));
+    });
+  }
+
+  // Enter/Space on a focused alert row (role=button) acts like a click.
+  // A click without a pointer (detail 0: keyboard, or a screen reader's
+  // activate) re-renders the list, so focus is put back on the same row
+  // (or the same row's hidden reference button) afterwards.
+  function onListRowKeydown(e){
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const item = e.target;
+    if (!item.classList || !item.classList.contains('list-item') || item.getAttribute('role') !== 'button') return;
+    e.preventDefault(); // Space would scroll the list
+    item.click();
+  }
+  function refocusListRow(container, item, fromKeyboard){
+    if (!fromKeyboard) return;
+    const key = item.dataset.summitKey;
+    const alertId = item.dataset.alertId;
+    const sel = alertId != null
+      ? `.list-item[data-alert-id="${CSS.escape(alertId)}"]`
+      : `.list-item[data-summit-key="${CSS.escape(key)}"] [data-toggle-ref]`;
+    const target = container.querySelector(sel);
+    if (target) target.focus();
   }
 
   /* ---------- band/mode facet panel ---------- */
@@ -1751,10 +1345,25 @@ import { distanceMeters } from '../shared/js/geo.js';
   // Shared renderer for the search-results dropdown, fed either by a SOTA
   // name/code search or an OSM area search — both ultimately produce the
   // same {key, assoc, code, name, altM, points, lat, lon} candidate shape.
+  // The panel's hint line (searching…, failed, nothing found), also told
+  // to screen readers through the #search-status live region.
+  function setSearchHint(text){
+    document.getElementById('search-panel').innerHTML = `<div class="search-hint">${escapeHtml(text)}</div>`;
+    document.getElementById('search-status').textContent = text;
+  }
+  function clearSearchPanel(){
+    const panel = document.getElementById('search-panel');
+    panel.innerHTML = '';
+    panel.classList.remove('show');
+    document.getElementById('search-status').textContent = '';
+  }
+
   function renderPinCandidateResults(cands, emptyMsg){
     const panel = document.getElementById('search-panel');
     panel.classList.add('show');
-    if (!cands.length){ panel.innerHTML = `<div class="search-hint">${escapeHtml(emptyMsg)}</div>`; return; }
+    if (!cands.length){ setSearchHint(emptyMsg); return; }
+    const shown = Math.min(cands.length, 30);
+    document.getElementById('search-status').textContent = `${shown} summit${shown === 1 ? '' : 's'} found`;
     panel.innerHTML = cands.slice(0, 30).map(cand => {
       const pinned = state.candidates.has(cand.key);
       const isRef = cand.key === state.referenceKey;
@@ -1801,7 +1410,7 @@ import { distanceMeters } from '../shared/js/geo.js';
   async function doSummitSearch(term){
     const panel = document.getElementById('search-panel');
     const trimmed = term.trim();
-    if (!trimmed){ panel.innerHTML = ''; panel.classList.remove('show'); return; }
+    if (!trimmed){ clearSearchPanel(); return; }
 
     const cacheKey = trimmed.toLowerCase();
     const cached = summitSearchCache.get(cacheKey);
@@ -1814,13 +1423,13 @@ import { distanceMeters } from '../shared/js/geo.js';
     const controller = new AbortController();
     summitSearchAbortController = controller;
 
-    panel.innerHTML = '<div class="search-hint">searching…</div>';
+    setSearchHint('searching…');
     panel.classList.add('show');
     let results;
     try { results = await searchSummits(trimmed, controller.signal); }
     catch (err) {
       if (err.name === 'AbortError') return; // superseded by a newer search
-      panel.innerHTML = `<div class="search-hint">search failed (${escapeHtml(err.message)}).</div>`;
+      setSearchHint(`search failed (${err.message}).`);
       return;
     }
     summitSearchCache.set(cacheKey, results);
@@ -1868,15 +1477,15 @@ import { distanceMeters } from '../shared/js/geo.js';
     const panel = document.getElementById('search-panel');
     const bounds = map.getBounds();
     if (bounds.getNorth() - bounds.getSouth() > AREA_SEARCH_MAX_SPAN_DEG || bounds.getEast() - bounds.getWest() > AREA_SEARCH_MAX_SPAN_DEG){
-      panel.innerHTML = '<div class="search-hint">zoom in further before searching this area (keeps the query small and fast).</div>';
+      setSearchHint('zoom in further before searching this area (keeps the query small and fast).');
       panel.classList.add('show');
       return;
     }
-    panel.innerHTML = '<div class="search-hint">searching OpenStreetMap for tagged summits in view…</div>';
+    setSearchHint('searching OpenStreetMap for tagged summits in view…');
     panel.classList.add('show');
     let elements;
     try { elements = await searchOsmSummitsInView(bounds); }
-    catch (err) { panel.innerHTML = `<div class="search-hint">OSM search failed (${escapeHtml(err.message)}).</div>`; return; }
+    catch (err) { setSearchHint(`OSM search failed (${err.message}).`); return; }
     const cands = elements.map(candidateFromOsmElement).filter(c => c && c.lat != null);
     renderPinCandidateResults(cands, 'no OSM-tagged SOTA summits found in this view (coverage is partial — most summits aren\'t tagged in OSM yet).');
   }
@@ -1952,7 +1561,7 @@ import { distanceMeters } from '../shared/js/geo.js';
     if (state.referenceKey){
       const ref = state.summitMap.get(state.referenceKey);
       refEl.innerHTML = `reference: <b>${escapeHtml(ref ? ref.name : state.referenceKey)}</b> (${escapeHtml(state.referenceKey)}) ` +
-        `<button type="button" id="btn-clear-ref-toolbar">✕</button>`;
+        `<button type="button" id="btn-clear-ref-toolbar" aria-label="clear reference">✕</button>`;
       document.getElementById('btn-clear-ref-toolbar').addEventListener('click', () => {
         state.referenceKey = null;
         renderAll();
@@ -1974,6 +1583,10 @@ import { distanceMeters } from '../shared/js/geo.js';
   // renderMarkers() for why this matters.
   function renderAll(fitView = false){
     clearWarnings();
+    try { renderAllParts(fitView); }
+    finally { flushWarnings(); }
+  }
+  function renderAllParts(fitView){
     const from = document.getElementById('range-from').value;
     const to = document.getElementById('range-to').value;
     const ownSet = parseOwnCallsigns(document.getElementById('callsigns-input').value);
@@ -2001,48 +1614,35 @@ import { distanceMeters } from '../shared/js/geo.js';
     updateStats(visible, groups, ownSet);
   }
 
-  /* ---------- theme (light / dark / auto) — same pattern as the ADIF editor ---------- */
+  /* ---------- theme (light / dark / auto) ----------
+     The toggle, the stored choice and <html data-theme> are all handled by
+     the shared ../shared/js/theme.js (loaded first in <head>). Pins, popups
+     and controls follow the theme through CSS variables on their own; only
+     the distance line reads a colour (--route) from JS, so redraw it when
+     the theme flips (also when the OS theme changes while on "auto"). */
 
-  function applyTheme(mode){
-    if (mode === 'light' || mode === 'dark'){
-      document.documentElement.setAttribute('data-theme', mode);
-    } else {
-      document.documentElement.removeAttribute('data-theme');
-    }
-    document.querySelectorAll('#theme-toggle button').forEach(b => {
-      b.classList.toggle('active', b.dataset.themeChoice === mode);
-    });
-  }
-  function initTheme(){
-    let saved = 'auto';
-    try { saved = localStorage.getItem(THEME_KEY) || 'auto'; } catch { /* ignore */ }
-    applyTheme(saved);
-    document.querySelectorAll('#theme-toggle button').forEach(b => {
-      b.addEventListener('click', () => {
-        const mode = b.dataset.themeChoice;
-        try { localStorage.setItem(THEME_KEY, mode); } catch { /* ignore */ }
-        applyTheme(mode);
-      });
-    });
+  function watchTheme(){
+    new MutationObserver(() => { if (map) updateDistanceLine(); })
+      .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
   }
 
-  // UTC/local time display — same toggle-group pattern as the theme
-  // switch above, except changing it needs a re-render (every alert time
-  // on screen goes through timeDisplayPair(), keyed off state.timeDisplay).
+  // UTC/local time display — same toggle-group look as the theme switch,
+  // except changing it needs a re-render (every alert time on screen goes
+  // through timeDisplayPair(), keyed off state.timeDisplay).
   function applyTimeDisplayButtons(){
     document.querySelectorAll('#time-toggle button').forEach(b => {
-      b.classList.toggle('active', b.dataset.timeChoice === state.timeDisplay);
+      const on = b.dataset.timeChoice === state.timeDisplay;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-pressed', String(on));
     });
   }
   function initTimeDisplay(){
-    let saved = 'utc';
-    try { saved = localStorage.getItem(LS_KEY_TIME_DISPLAY) || 'utc'; } catch { /* ignore */ }
-    state.timeDisplay = (saved === 'local') ? 'local' : 'utc';
+    state.timeDisplay = (prefGet(LS_KEY_TIME_DISPLAY, 'utc') === 'local') ? 'local' : 'utc';
     applyTimeDisplayButtons();
     document.querySelectorAll('#time-toggle button').forEach(b => {
       b.addEventListener('click', () => {
         state.timeDisplay = b.dataset.timeChoice;
-        try { localStorage.setItem(LS_KEY_TIME_DISPLAY, state.timeDisplay); } catch { /* ignore */ }
+        prefSet(LS_KEY_TIME_DISPLAY, state.timeDisplay);
         applyTimeDisplayButtons();
         renderAll();
       });
@@ -2071,12 +1671,15 @@ import { distanceMeters } from '../shared/js/geo.js';
       const btn = document.getElementById('btn-share');
       const url = buildShareUrl();
       const original = btn.textContent;
-      let copied = false;
-      try { await navigator.clipboard.writeText(url); copied = true; }
-      catch { /* clipboard blocked/unavailable — fall back to a manually-copyable prompt below */ }
+      // Clipboard API, else the shared execCommand fallback (non-secure
+      // contexts); if both are blocked, a manually-copyable prompt.
+      const copied = await copyToClipboard(url);
       if (!copied) window.prompt('copy this share link:', url);
       btn.textContent = copied ? 'link copied ✓' : 'link ready ✓';
-      setTimeout(() => { btn.textContent = original; }, 2000);
+      // the button's text change isn't announced by screen readers; this is
+      const status = document.getElementById('share-status');
+      status.textContent = copied ? 'share link copied to the clipboard' : '';
+      setTimeout(() => { btn.textContent = original; status.textContent = ''; }, 2000);
     });
     document.getElementById('btn-open-sotlas').addEventListener('click', () => {
       window.open(sotlasUrlForCurrentView(), '_blank', 'noopener');
@@ -2105,16 +1708,19 @@ import { distanceMeters } from '../shared/js/geo.js';
       btn.setAttribute('aria-expanded', String(shown));
       btn.textContent = shown ? 'filters ▴' : 'filters ▾';
     });
-    document.getElementById('btn-toggle-list').addEventListener('click', () => {
-      document.getElementById('list-panel').classList.toggle('show');
+    document.getElementById('btn-toggle-list').addEventListener('click', e => {
+      const shown = document.getElementById('list-panel').classList.toggle('show');
+      e.currentTarget.setAttribute('aria-expanded', String(shown));
     });
-    document.getElementById('btn-toggle-bandmode').addEventListener('click', () => {
-      document.getElementById('bandmode-panel').classList.toggle('show');
+    document.getElementById('btn-toggle-bandmode').addEventListener('click', e => {
+      const shown = document.getElementById('bandmode-panel').classList.toggle('show');
+      e.currentTarget.setAttribute('aria-expanded', String(shown));
     });
     document.getElementById('btn-toggle-all-summits').addEventListener('click', async () => {
       const btn = document.getElementById('btn-toggle-all-summits');
+      const setPressed = on => { btn.classList.toggle('active', on); btn.setAttribute('aria-pressed', String(on)); };
       allSummitsEnabled = !allSummitsEnabled;
-      btn.classList.toggle('active', allSummitsEnabled);
+      setPressed(allSummitsEnabled);
       if (!allSummitsEnabled){
         allSummitsLayer.clearLayers();
         map.removeLayer(allSummitsLayer);
@@ -2128,7 +1734,7 @@ import { distanceMeters } from '../shared/js/geo.js';
         try { await loadAllSummitsData(); }
         catch (err) {
           allSummitsEnabled = false;
-          btn.classList.remove('active');
+          setPressed(false);
           map.removeLayer(allSummitsLayer);
           addWarning(`could not load the all-summits data (${err.message}). It's a build-time-generated file — if you're running this locally without having run "just fetch", it won't exist yet.`);
           document.getElementById('all-summits-note').textContent = '';
@@ -2162,22 +1768,28 @@ import { distanceMeters } from '../shared/js/geo.js';
     wireFacetGroup('mode-checks', state.selectedModes, LS_KEY_MODES);
     // Event delegation: list items are rebuilt on every renderAll(), so a
     // single listener on the (stable) container beats rebinding per item.
-    document.getElementById('list-items').addEventListener('click', e => {
+    const listItems = document.getElementById('list-items');
+    listItems.addEventListener('click', e => {
       const item = e.target.closest('.list-item');
       if (!item) return;
       const key = item.dataset.summitKey;
       state.referenceKey = (state.referenceKey === key) ? null : key;
       renderAll();
+      refocusListRow(listItems, item, e.detail === 0);
     });
+    listItems.addEventListener('keydown', onListRowKeydown);
     // Candidates have their own "remove pin" button, which stops
     // propagation (see renderCandidatesList) so it doesn't also toggle
-    // the reference selection here.
-    document.getElementById('candidates-items').addEventListener('click', e => {
+    // the reference selection here. Their hidden [data-toggle-ref] button
+    // (keyboard/screen readers) just lets its click bubble up to this.
+    const candidateItems = document.getElementById('candidates-items');
+    candidateItems.addEventListener('click', e => {
       const item = e.target.closest('.list-item');
       if (!item) return;
       const key = item.dataset.summitKey;
       state.referenceKey = (state.referenceKey === key) ? null : key;
       renderAll();
+      refocusListRow(candidateItems, item, e.detail === 0);
     });
     document.getElementById('btn-summit-search').addEventListener('click', () => {
       clearTimeout(summitSearchDebounceTimer);
@@ -2196,8 +1808,7 @@ import { distanceMeters } from '../shared/js/geo.js';
       clearTimeout(summitSearchDebounceTimer);
       const term = e.target.value.trim();
       if (term.length < 3){
-        document.getElementById('search-panel').innerHTML = '';
-        document.getElementById('search-panel').classList.remove('show');
+        clearSearchPanel();
         return;
       }
       summitSearchDebounceTimer = setTimeout(() => doSummitSearch(term), 350);
@@ -2208,7 +1819,7 @@ import { distanceMeters } from '../shared/js/geo.js';
   /* ---------- init ---------- */
 
   async function init(){
-    initTheme();
+    watchTheme();
     initTimeDisplay();
     initMap();
     document.getElementById('callsigns-input').value = loadOwnCallsignsRaw();
