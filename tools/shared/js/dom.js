@@ -34,7 +34,8 @@ export async function copyToClipboard(text) {
     await navigator.clipboard.writeText(text);
     return true;
   } catch {
-    const ta = el('textarea', { style: 'position:fixed;opacity:0' });
+    // readonly: iOS would otherwise open the keyboard for the moment it's focused
+    const ta = el('textarea', { readonly: true, class: 'sr-only' });
     ta.value = text;
     document.body.append(ta);
     ta.select();
@@ -45,6 +46,28 @@ export async function copyToClipboard(text) {
   }
 }
 
+// Enter that only confirms an input-method composition (accents, CJK, …).
+// Safari reports isComposing=false on that keydown, but keyCode 229.
+export function isComposing(ev) {
+  return ev.isComposing || ev.keyCode === 229;
+}
+
+// form.requestSubmit() (validation + submit event) where the browser has
+// it (Safari only since 16), else the click on the submit button, which
+// does the same.
+export function submitForm(form) {
+  if (typeof form.requestSubmit === 'function') form.requestSubmit();
+  else form.querySelector('[type=submit]')?.click();
+}
+
+// aria-expanded of a button that shows/hides `panel` (via its hidden
+// attribute), kept in sync wherever the panel is opened or closed.
+export function trackExpanded(button, panel) {
+  const sync = () => button.setAttribute('aria-expanded', String(!panel.hidden));
+  sync();
+  new MutationObserver(sync).observe(panel, { attributes: true, attributeFilter: ['hidden'] });
+}
+
 // Completion dropdown directly under an input: shown while the input (or
 // the dropdown) has focus and there is something in it. ↓ moves into the
 // list, ↑/↓ within it, Enter picks, Esc closes. The items are not Tab stops
@@ -52,17 +75,30 @@ export async function copyToClipboard(text) {
 // focus from the input, so a click always registers (also in Safari).
 // enterPicksFirst: Enter in the input takes the first item; set it to false
 // where the items are only guesses that must not replace valid input.
-export function popover(input, pop, { enterPicksFirst = true } = {}) {
-  pop.hidden = true;
+// For screen readers the input says whether suggestions are open
+// (aria-expanded) and where they are (aria-controls).
+let popoverIds = 0;
+
+export function popover(input, pop, { enterPicksFirst = true, label = 'Vorschläge' } = {}) {
+  if (!pop.id) pop.id = `ac-pop-${++popoverIds}`;
+  pop.setAttribute('role', 'group');
+  if (!pop.hasAttribute('aria-label')) pop.setAttribute('aria-label', label);
+  input.setAttribute('aria-controls', pop.id);
+  input.setAttribute('aria-autocomplete', 'list');
+  const show = visible => {
+    pop.hidden = !visible;
+    input.setAttribute('aria-expanded', visible ? 'true' : 'false');
+  };
+  show(false);
   const focusInside = () => document.activeElement === input || pop.contains(document.activeElement);
   const api = {
     // Call after changing the dropdown's content.
     update() {
       pop.querySelectorAll('button').forEach(b => { b.tabIndex = -1; });
-      pop.hidden = !pop.childElementCount || !focusInside();
+      show(!!pop.childElementCount && focusInside());
     },
     hide() {
-      pop.hidden = true;
+      show(false);
     },
   };
   pop.addEventListener('pointerdown', ev => ev.preventDefault());
@@ -75,7 +111,7 @@ export function popover(input, pop, { enterPicksFirst = true } = {}) {
     if (ev.key === 'ArrowDown') {
       const b = pop.querySelector('button');
       if (b) { ev.preventDefault(); b.focus(); }
-    } else if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing && enterPicksFirst) {
+    } else if (ev.key === 'Enter' && !ev.shiftKey && !isComposing(ev) && enterPicksFirst) {
       const b = pop.querySelector('button');
       if (b) { ev.preventDefault(); ev.stopPropagation(); b.click(); }
     } else if (ev.key === 'Escape') {

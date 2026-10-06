@@ -25,8 +25,14 @@ VENDOR_REF_RE = re.compile(r'<link rel="stylesheet" href="([^"]+)">|<script src=
 
 
 def script_safe(text: str) -> str:
-    """Text that can't close the inline <script> element it's put in."""
-    return text.replace("</script", "<\\/script")
+    """Text that can't close the inline <script> element it's put in.
+
+    "</script" (in any case) would end the element. "<!--" can put the HTML
+    parser in a state where a later "</script>" doesn't end it; no escape for
+    it is valid everywhere in JS (e.g. in a /u regex), so it is refused."""
+    if "<!--" in text:
+        raise SystemExit("inline script contains '<!--', which breaks HTML parsing of the single-file bundle")
+    return re.sub(r"</(script)", r"<\\/\1", text, flags=re.I)
 
 
 def module_order(entry: Path) -> list[Path]:
@@ -76,7 +82,8 @@ def inline_vendor(block: str, base: Path) -> str:
         css, js = m.group(1), m.group(2)
         text = (base / (css or js)).read_text(encoding="utf-8")
         if css:
-            return f"<style>\n{text.replace('</style', '<\\/style')}\n</style>"
+            css_text = re.sub(r"</(style)", r"<\\/\1", text, flags=re.I)
+            return f"<style>\n{css_text}\n</style>"
         return f"<script>\n{script_safe(text)}\n</script>"
     return VENDOR_REF_RE.sub(sub, block)
 
