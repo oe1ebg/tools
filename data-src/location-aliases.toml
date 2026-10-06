@@ -114,3 +114,52 @@ target = "Ernst-Happel-Stadion"
 [[alias]]
 alias = "Schönbrunn"
 target = "Schloss Schönbrunn"
+
+# Street families: one everyday name for several official streets ("der
+# Gürtel", "der Ring", "der Kai"). Searching the family name lists every
+# member; in a street corner ("Gürtel Ecke Thaliastraße") the member nearest
+# to the other street is used. Members must be exact official street names.
+[[family]]
+name = "Gürtel"
+streets = [
+  "Döblinger Gürtel", "Währinger Gürtel", "Hernalser Gürtel", "Lerchenfelder Gürtel",
+  "Neubaugürtel", "Mariahilfer Gürtel", "Sechshauser Gürtel", "Gumpendorfer Gürtel",
+  "Gaudenzdorfer Gürtel", "Margaretengürtel", "Wiedner Gürtel", "Landstraßer Gürtel",
+]
+[[family]]
+name = "Ring"
+streets = [
+  "Universitätsring", "Schottenring", "Dr.-Karl-Renner-Ring", "Burgring",
+  "Opernring", "Kärntner Ring", "Schubertring", "Parkring", "Stubenring",
+]
+[[family]]
+name = "Ringstraße"
+streets = [
+  "Universitätsring", "Schottenring", "Dr.-Karl-Renner-Ring", "Burgring",
+  "Opernring", "Kärntner Ring", "Schubertring", "Parkring", "Stubenring",
+]
+[[family]]
+name = "Kai"
+streets = ["Franz-Josefs-Kai"]
+[[family]]
+name = "Lände"
+streets = [
+  "Nußdorfer Lände", "Heiligenstädter Lände", "Spittelauer Lände", "Roßauer Lände",
+  "Brigittenauer Lände", "Weißgerberlände", "Erdberger Lände", "Simmeringer Lände",
+]
+
+# Street names that exist in almost every Austrian municipality. Vienna has
+# (at most) one of each, but a caller from outside who just says
+# "Bahnhofstraße" most likely means their own. Without a PLZ, district or
+# locator pointing to Vienna they are never auto-selected.
+[generic]
+streets = [
+  "Hauptstraße", "Hauptplatz", "Bahnhofstraße", "Bahnhofplatz", "Bahnstraße",
+  "Schulgasse", "Schulstraße", "Schulweg", "Kirchengasse", "Kirchenplatz",
+  "Kirchenweg", "Kirchplatz", "Marktplatz", "Dorfstraße", "Dorfplatz",
+  "Feldgasse", "Gartengasse", "Mühlgasse", "Mühlweg", "Friedhofstraße",
+  "Rathausplatz", "Wiener Straße", "Bergstraße",
+  "Waldgasse", "Wiesengasse", "Sportplatzstraße", "Feldweg", "Angergasse",
+  "Pfarrgasse", "Schlossgasse", "Brunnengasse", "Badgasse", "Parkstraße",
+  "Industriestraße", "Gewerbestraße", "Ringstraße", "Hofgasse", "Quergasse",
+]

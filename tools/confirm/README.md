@@ -455,7 +455,7 @@ fires. The compact dropdown in the log's location field has no links.
 |---|---|---|
 | Stadt Wien WFS `ogdwien:ADRESSENOGD` ("Adressen Standorte Wien") | ~292k address points, fetched district by district directly in WGS84, deduplicated to ~181k addresses on ~7,700 streets | CC BY 4.0 |
 | OpenStreetMap via Overpass | ~6,500 named landmarks inside Vienna (places, peaks, stations, hospitals, parks, …), one representative point each | ODbL |
-| `oe1ebg/location-aliases.toml` | district names, landmarks missing from OSM (VIC/UNO City), shorthand (DI, Steffl, Hbf) | (own) |
+| `oe1ebg/location-aliases.toml` | district names, landmarks missing from OSM (VIC/UNO City), shorthand (DI, Steffl, Hbf), street families ("Gürtel", "Ring", "Kai", "Lände"), street names found in almost every Austrian municipality ("Hauptstraße", "Bahnhofstraße") | (own) |
 
 - **Address data.** Cached in `.cache/vienna-location/` for 30 days
   (`VIENNA_LOCATION_FORCE_REFRESH=1` forces a refresh; a failed refresh
@@ -479,8 +479,11 @@ The lookup engine is shared with other tools (`tools/shared/`, published at
 - `../maidenhead.js`: locator ↔ WGS84 for any even length; a locator is
   treated as an area (bounds plus centre).
 - `normalize.js`: search keys. Matching works across ß/ss, ä/ae/a,
-  Straße/Strasse/Str./str, -gasse/g., -platz/pl., hyphens and spaces
-  ("Waehringerstr." ≡ "Währinger Straße").
+  Straße/Strasse/Str./str, -gasse/g., -platz/pl., St./Sankt, hyphens and
+  spaces ("Waehringerstr." ≡ "Währinger Straße", "St. Marx" ≡ "Sankt Marx").
+- `query.js`: the shape of free text around a name (pure string work, see
+  [Free text](#free-text-reports-from-the-public)): position words, street-corner
+  separators, category words, "2. Tor" → "Tor 2".
 - `parse.js`: extracts structured evidence before any searching:
   coordinates, a complete or partial locator, a PLZ (any Austrian PLZ
   known to the data, otherwise Vienna's), a "Bezirk …" / "Bez." / "BH"
@@ -505,6 +508,56 @@ The lookup engine is shared with other tools (`tools/shared/`, published at
     as such.
   - **Locator → PLZ:** address counts per PLZ inside the box, plus the PLZ
     at the centre.
+
+### Free text: reports from the public
+
+In a crisis, places come in the way people say them, not as addresses. When
+the text as a whole is not a known name, `locate()` also tries:
+
+- **Position words** ("beim Schottentor", "Nähe Praterstern", "vor dem
+  Westbahnhof", "in der Nähe vom Donauturm", "gegenüber", "Höhe", …) are
+  stripped and shown as a reason (`Lage „beim“`); the place keeps its
+  confidence. "am/an/im/in/auf" are only stripped when the rest is a known
+  name, so "Am Spitz" and typos like "Am Spiz" stay intact.
+- **Street corners** ("Gürtel Ecke Thaliastraße", "Thaliastraße/Gürtel",
+  "Ecke Thaliastraße Gürtel", "A und B", "Kreuzung A B"): both sides are
+  resolved to streets (exact, abbreviated or close typos), and the corner is
+  the midpoint of their nearest address points; corner houses carry both
+  addresses, so that is usually 0 m. No corner if the streets' addresses
+  never come within 150 m. Result type `intersection` ("Kreuzung").
+- **Street families** ("Gürtel", "Ring", "Kai", "Lände"; curated in
+  `location-aliases.toml`): the name alone lists every member street; in a
+  corner the member nearest to the other street is used.
+- **Category word + name or area** (first or last word: Kirche, Spital /
+  Krankenhaus / Klinik, Bahnhof / Station / Haltestelle / U1–U6, Friedhof,
+  Park, Schule, Feuerwehr, Polizei, Markt, Brücke, Bad, Stift, Flughafen,
+  Schloss), in this order: the official name with another category word
+  ("Spital Floridsdorf" → "Klinik Floridsdorf", also when the parser took
+  "Floridsdorf" as the district); the rest as a name whose category fits
+  ("U6 Josefstädter Straße" → the station, not the street); places of that
+  category near what the rest names ("Kirche Mauer": churches within
+  1.2 km of Mauer, 2.5 km of a district or PLZ).
+- **All words inside a longer name** ("Ottakringer Brauerei" → "Alte
+  Technik - Ottakringer Brauerei"), fewer extra words first. The word index
+  is built on first use (about 60 ms once), not at startup.
+
+**Confidence caps.** Inferred matches never claim more than they can:
+corners, family members, "category near area" and all-words matches are at
+most "likely" (so never auto-selected at the default threshold); a name
+rebuilt with another category word at most "high". **Generic street
+names** (the curated list, plus names that end three or more other Vienna
+street names, like "Hauptstraße") are at most "likely" unless a PLZ,
+district or locator in the input points to Vienna: a caller who says
+"Bahnhofstraße" may well mean their own municipality's.
+
+**Gold set.** `tests/location-goldset.txt` holds about 190 real-world inputs
+by category (official, Grätzel, colloquial, historical, position words,
+corners, object + context, typos, around Vienna, ambiguous, unknown) with
+what must be found and what must never be auto-selected.
+`just eval-location [-v]` prints hit rates per category;
+`tests/location-goldset.test.mjs` enforces per-category minimums and a cap
+on wrong auto-selections (currently 0), both ratchets. Add a case for every
+miss reported from the field.
 
 ### Austria-wide PLZ and Bezirke
 

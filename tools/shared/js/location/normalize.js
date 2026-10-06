@@ -5,7 +5,7 @@
 
 const UMLAUT_AE = { ä: 'ae', ö: 'oe', ü: 'ue' };
 const UMLAUT_PLAIN = { ä: 'a', ö: 'o', ü: 'u' };
-const TOKEN_ABBREV = { str: 'strasse', g: 'gasse', gs: 'gasse', pl: 'platz', pr: 'promenade' };
+const TOKEN_ABBREV = { str: 'strasse', g: 'gasse', gs: 'gasse', pl: 'platz', pr: 'promenade', st: 'sankt' };
 
 // plain=false: ä -> ae (the standard transliteration);
 // plain=true:  ä -> a  (what people type without umlauts).

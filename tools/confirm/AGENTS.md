@@ -106,13 +106,20 @@ comment?}]}`. `out` is the repeater's output and `in` its input
 addresses contiguous per street), the per-address arrays
 `hn`/`ap`/`ad`/`alat`/`alon` (integer 1e-5° offsets from
 `latBase`/`lonBase`), `places[[name, category, lat, lon, alts]]`,
-`districts`, `aliases` and `meta`.
+`districts`, `aliases`, `families[[name, [street index, ...]]]`,
+`genericStreets[name, ...]` (both optional) and `meta`.
 
 - **Changing the format:** bump `schema` and update `buildLocationIndex()`.
-- **Normalization** exists only in `tools/shared/js/location/normalize.js`.
+- **Normalization** exists only in `tools/shared/js/location/normalize.js`;
+  free-text structure (position words, corners, category words) only in
+  `query.js`.
 - **Ranking changes** need the tests in
-  `tests/location-search.test.mjs` updated. They run against a synthetic
-  dataset (always) and against the real data (when it has been built).
+  `tests/location-search.test.mjs` / `location-freetext.test.mjs` updated
+  (synthetic data, always run) and **`just eval-location` must not get
+  worse**: `tests/location-goldset.test.mjs` enforces the gold set's
+  per-category minimums and wrong-auto-selection cap on the real data.
+  Tighten those ratchets in `tests/location-goldset.txt` when a change
+  improves them; add a gold-set case for every miss found in practice.
 
 `data/austria-areas.json` is written by `scripts/build_austria_areas.py`
 (schema 1) from the **committed snapshot** `oe1ebg/austria-areas.json`;

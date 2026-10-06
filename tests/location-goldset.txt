@@ -16,16 +16,16 @@
 # forbidden auto-selection (all categories). Both are ratchets: tighten them
 # when the lookup improves, never loosen one without saying why in the commit.
 
-max-wrong-auto 4
+max-wrong-auto 0
 min exact 1.0
 min graetzl 0.92
-min colloquial 0.52
+min colloquial 0.57
 min historical 0.54
-min relation 0.8
-min intersection 0.26
-min context 0.52
+min relation 1.0
+min intersection 1.0
+min context 0.78
 min typo 0.9
-min umland 0.36
+min umland 0.45
 min ambiguous 1.0
 min unknown 1.0
 
@@ -186,7 +186,7 @@ context | Station Schottentor | Schottentor | 1 |
 context | Haltestelle Praterstern | Praterstern | 1 |
 context | Spital Floridsdorf | Klinik Floridsdorf | 1 |
 context | Krankenhaus Ottakring | Klinik Ottakring | 1 |
-context | Feuerwehr Kaisermühlen | Feuerwehr | 3 |
+context | Feuerwehr Kaisermühlen | Feuerwehr OR Feuerwache | 3 |
 context | Polizei Westbahnhof | Polizeiinspektion Westbahnhof | 1 |
 context | Bahnhof Floridsdorf | Floridsdorf | 1 |
 context | Schloss Alterlaa | Schloss Alterlaa | 1 |

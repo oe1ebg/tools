@@ -291,6 +291,20 @@ def resolve_aliases(aliases_cfg: dict, streets: list, places: list) -> list[list
     return out
 
 
+def resolve_families(aliases_cfg: dict, streets: list) -> list[list]:
+    """[[family]] -> [name, [street index, ...]]; members must be exact street names."""
+    street_idx = {s[0]: i for i, s in enumerate(streets)}
+    out = []
+    for f in aliases_cfg.get("family", []):
+        members = [street_idx[s] for s in f["streets"] if s in street_idx]
+        for s in f["streets"]:
+            if s not in street_idx:
+                log(f"WARNING: family {f['name']!r}: street {s!r} not found")
+        if members:
+            out.append([f["name"], members])
+    return out
+
+
 def main() -> None:
     if "--refresh-pois" in sys.argv:
         src = next((a.split("=", 1)[1] for a in sys.argv if a.startswith("--from=")), None)
@@ -321,6 +335,8 @@ def main() -> None:
         "places": places,
         "districts": [[d["nr"], d["names"]] for d in aliases_cfg["district"]],
         "aliases": aliases,
+        "families": resolve_families(aliases_cfg, addr["streets"]),
+        "genericStreets": aliases_cfg.get("generic", {}).get("streets", []),
     }
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT_PATH.write_text(json.dumps(out, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")

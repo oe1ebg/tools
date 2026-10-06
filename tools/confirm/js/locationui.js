@@ -12,7 +12,7 @@ import { sourceItem, standDate, mapLinks } from './sources.js';
 const LOC_PREC_KEY = 'oe1ebg-confirm-locator-precision';
 const LOC_AUTO_KEY = 'oe1ebg-confirm-location-autoselect';
 const CONF_LABEL = { exact: 'exakt', high: 'hoch', likely: 'wahrscheinlich', ambiguous: 'mehrdeutig', low: 'unsicher' };
-const TYPE_LABEL = { address: 'Adresse', street: 'Straße', poi: 'Ort', coordinate: 'Koordinate', maidenhead: 'Locator', district: 'Bezirk', bezirk: 'Bezirk', postcode: 'PLZ' };
+const TYPE_LABEL = { address: 'Adresse', street: 'Straße', intersection: 'Kreuzung', poi: 'Ort', coordinate: 'Koordinate', maidenhead: 'Locator', district: 'Bezirk', bezirk: 'Bezirk', postcode: 'PLZ' };
 const SOURCE_LABEL = { 'vienna-ogd': 'Stadt Wien', osm: 'OpenStreetMap', computed: 'berechnet', alias: 'kuratiert', bev: 'Adressregister' };
 const EXAMPLES = ['Währinger Straße 42', '1100 Quellenstr', 'Donauturm', 'Donauinsel JN88ge', '48.2083, 16.3731', 'JN88ee', '2340', 'Bezirk Liezen'];
 
@@ -55,7 +55,7 @@ export function locatorFor(r, precision = locatorPrecision()) {
 export function addressText(r) {
   if (r.type === 'address') return `${r.street} ${r.houseNumber}, ${r.postcode} Wien`;
   if (r.type === 'street') return `${r.street}, ${r.postcode} Wien`;
-  if (r.postcode && r.type === 'poi') return `${r.label}, ${r.postcode} Wien`;
+  if (r.postcode && (r.type === 'poi' || r.type === 'intersection')) return `${r.label}, ${r.postcode} Wien`;
   return r.label;
 }
 
