@@ -104,8 +104,10 @@ test('street corners: midpoint of the nearest address points, family member chos
     assert.equal(r.label, q.startsWith('Gürtel') ? 'Lerchenfelder Gürtel / Thaliastraße' : 'Thaliastraße / Lerchenfelder Gürtel', q);
     assert.ok(Math.abs(r.lat - 48.2084) < 0.0005 && Math.abs(r.lon - 16.3378) < 0.0005, q);
     assert.equal(r.postcode, '1160');
-    assert.ok(['likely', 'ambiguous', 'low'].includes(r.confidence), 'corners are never auto-selected');
+    assert.equal(r.confidence, 'likely', `${q}: a corner of two named streets is "likely", never auto-selected`);
   }
+  assert.deepEqual(top('Gürtel Ecke Thaliastraße').resolved, ['„Gürtel“ = Lerchenfelder Gürtel'], 'what each side was taken to mean');
+  assert.equal(top('Thaliastraße/Lerchenfelder Gürtel').resolved, undefined, 'nothing to explain');
   assert.notEqual(top('Thaliastraße / Wagramer Straße')?.type, 'intersection', 'streets far apart do not cross');
 });
 

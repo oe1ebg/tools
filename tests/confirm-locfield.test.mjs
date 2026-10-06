@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { locationOptions, previousLocation, snapshotLocation } from '../tools/confirm/js/locfield.js';
-import { locOrigin, locOriginText, LOC_ORIGINS } from '../tools/confirm/js/model.js';
+import { locationOptions, previousLocation, snapshotLocation, describeLocation } from '../tools/confirm/js/locfield.js';
+import { locOrigin, locOriginText, LOC_ORIGINS, locHints, locNameType } from '../tools/confirm/js/model.js';
 
 const loc = {
   type: 'address', label: 'Quellenstraße 10', street: 'Quellenstraße', houseNumber: '10',
@@ -69,4 +69,24 @@ test('location origin: keys, labels and text', () => {
   assert.equal(locOriginText(previousLocation(loc, rec.at)), 'früheres Log 27.09.2026');
   assert.equal(locOriginText(null, 'Wald'), 'Freitext');
   for (const o of Object.values(LOC_ORIGINS)) assert.ok('label' in o && o.text && o.title);
+});
+
+test('name type, matched name and Umland are stored and shown', () => {
+  const r = { type: 'poi', label: 'Klinik Landstraße', postcode: '1030', lat: 48.1959, lon: 16.39118, source: 'osm',
+    confidence: 'high', matchedName: 'Rudolfstiftung', nameType: 'historical' };
+  const s = snapshotLocation(r, 'Rudolfstiftung', false);
+  assert.equal(s.matched, 'Rudolfstiftung');
+  assert.equal(s.nameType, 'historical');
+  assert.deepEqual(locHints(s), ['früher „Rudolfstiftung“']);
+  assert.equal(locNameType(s), 'historical');
+  const plain = snapshotLocation({ ...r, matchedName: undefined, nameType: undefined }, '', false);
+  assert.ok(!('matched' in plain) && !('nameType' in plain), 'nothing extra for an own name');
+  assert.equal(locNameType(plain), 'name');
+  const u = snapshotLocation({ type: 'poi', label: 'Seegrotte', postcode: '2371', city: 'Hinterbrühl', umland: true,
+    lat: 48.0862, lon: 16.2572, source: 'osm', confidence: 'high' }, 'Seegrotte', false);
+  assert.match(describeLocation(u), /^Seegrotte, 2371 Hinterbrühl · /);
+  assert.deepEqual(locHints(u), ['außerhalb Wiens']);
+  assert.deepEqual(locHints({ type: 'intersection', label: 'A / B' }), ['Kreuzung']);
+  assert.equal(locNameType({ type: 'maidenhead' }), '');
+  assert.equal(locNameType(null), '');
 });

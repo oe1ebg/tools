@@ -10,7 +10,7 @@
 
 import {
   liveSorted, liveCheckins, isComment, checkinNumbers, operatorShifts, splitUtc, splitTime, zoneLabel, lineFrequencies,
-  bandForMHz, modeInfo, stats, signallingText, locOrigin, locOriginText,
+  bandForMHz, modeInfo, stats, signallingText, locOrigin, locOriginText, locNameType, LOC_NAME_TYPES,
 } from './model.js';
 import { templateFor, fieldVisible, fieldDisplay, hasLocationField } from './templates.js';
 import { stationsForMap } from './mapdata.js';
@@ -20,7 +20,7 @@ export const ADIF_PROGRAM_ID = 'OE1EBG';
 
 const LOC_CONF_DE = { exact: 'exakt', high: 'hoch', likely: 'wahrscheinlich', ambiguous: 'mehrdeutig', low: 'unsicher' };
 const LOC_COLS = ['standort_aufgeloest', 'lat', 'lon', 'locator', 'standort_konfidenz', 'standort_quelle',
-  'standort_eingabe', 'standort_herkunft'];
+  'standort_eingabe', 'standort_herkunft', 'standort_namenstyp', 'standort_gefunden_als'];
 
 // The template's location field (at most one).
 function locationField(tpl) {
@@ -30,9 +30,14 @@ function locationField(tpl) {
 // `text` is the location field's value (origin "Freitext" when unresolved).
 function locColumns(loc, text) {
   const origin = { standort_eingabe: loc?.input || '', standort_herkunft: locOriginText(loc, text) };
-  if (!loc) return { standort_aufgeloest: '', lat: '', lon: '', locator: '', standort_konfidenz: '', standort_quelle: '', ...origin };
+  if (!loc) {
+    return { standort_aufgeloest: '', lat: '', lon: '', locator: '', standort_konfidenz: '', standort_quelle: '',
+      standort_namenstyp: '', standort_gefunden_als: '', ...origin };
+  }
   return {
     ...origin,
+    standort_namenstyp: LOC_NAME_TYPES[locNameType(loc)] || '',
+    standort_gefunden_als: loc.matched || '',
     standort_aufgeloest: loc.label,
     lat: loc.lat.toFixed(5),
     lon: loc.lon.toFixed(5),
@@ -212,6 +217,8 @@ export function toADIF(event, entries, createdIso = new Date().toISOString()) {
       rec += adifAsciiField('LAT', adifLatLon(e.loc.lat, true));
       rec += adifAsciiField('LON', adifLatLon(e.loc.lon, false));
       rec += adifAsciiField(`APP_${ADIF_PROGRAM_ID}_LOCATION`, e.loc.label);
+      rec += adifAsciiField(`APP_${ADIF_PROGRAM_ID}_LOC_NAMETYPE`, locNameType(e.loc));
+      rec += adifAsciiField(`APP_${ADIF_PROGRAM_ID}_LOC_MATCHED`, e.loc.matched);
       const from = locOriginText(e.loc);
       comment.push(`Standort: ${e.loc.label} (${LOC_CONF_DE[e.loc.confidence] || e.loc.confidence}${from ? `, ${from}` : ''})`);
     }
@@ -267,6 +274,8 @@ function kmlStationFields(s) {
     ['Relais', kmlRepeaters(s.checkins)],
     ['Standort', where],
     ['Eingabe', loc.input && loc.input !== loc.label ? loc.input : ''],
+    ['Gefunden als', loc.matched ? `„${loc.matched}“ (${LOC_NAME_TYPES[loc.nameType] || 'anderer Name'})` : ''],
+    ['Art', ['intersection', 'between'].includes(loc.type) ? LOC_NAME_TYPES[loc.type] : loc.umland ? 'außerhalb Wiens' : ''],
     ['Locator', [loc.maidenhead, ...(loc.areaLocators || []).filter(l => l !== loc.maidenhead)].filter(Boolean).join(' ')],
     ['Konfidenz', LOC_CONF_DE[loc.confidence] || loc.confidence || ''],
     ['Zuordnung', loc.manual ? 'gewählt' : 'automatisch'],

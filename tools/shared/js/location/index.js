@@ -538,19 +538,12 @@ function expandTerm(idx, term, match, ev) {
       if (r.label === term.label) continue;
       r.matchedName ??= term.label;
       r.nameType ??= term.nameType;
-      r.note ??= NAME_NOTE[term.nameType]?.(term.label);
       r.cap ??= 'high';
     }
   }
   return out;
 }
 
-const NAME_NOTE = {
-  alias: n => `„${n}“`,
-  colloquial: n => `„${n}“ (umgangssprachlich)`,
-  historical: n => `früher „${n}“`,
-  generated: n => `„${n}“`,
-};
 // Data source codes (schema 2) -> result `source`.
 const PLACE_SOURCE = { osm: 'osm', gip: 'gip', wl: 'wl', curated: 'alias' };
 
@@ -616,10 +609,15 @@ function cornerResults(idx, ev) {
     const meters = best ? Math.sqrt(best.d2) * 111320 : Infinity;
     if (meters <= CORNER_VAGUE_METERS) {
       const vague = meters > CORNER_MAX_METERS;
-      const base = Math.min(best.sa.base, best.sb.base) - 2 - (vague ? 10 : 0);
+      // Two exactly named streets (or a family) make a "likely" corner; vague ones stay "low".
+      const base = Math.min(best.sa.base, best.sb.base) + 3 - (vague ? 15 : 0);
       const c = lookupCoordinates(idx, best.lat, best.lon);
+      // "„Gürtel“ = Lerchenfelder Gürtel": what each side was taken to mean.
+      const resolved = [[a, best.sa.name], [b, best.sb.name]]
+        .filter(([t, n]) => !searchKeys(t).some(k => searchKeys(n).includes(k))).map(([t, n]) => `„${t}“ = ${n}`);
       out.push(makeResult(idx, 'intersection', `${best.sa.name} / ${best.sb.name}`, best.lat, best.lon, {
         street: best.sa.name, crossStreet: best.sb.name, postcode: c.postcode, district: c.district, source: 'computed',
+        resolved: resolved.length ? resolved : undefined,
         base, match: { base, how: 'Kreuzung', similarity: base / SCORE.exactName }, cap: vague ? 'low' : 'likely',
         note: vague ? `Kreuzung ungefähr – nächste Punkte ${Math.round(meters / 10) * 10} m auseinander`
           : `Kreuzung – aus Adresspunkten geschätzt${meters >= 20 ? ` (Abstand ${Math.round(meters)} m)` : ''}`,

@@ -302,3 +302,35 @@ test('location origin and typed text go into CSV, ADIF and KML', () => {
   assert.equal(c.APP_OE1EBG_LOC_SOURCE, 'text');
   assert.match(toKML(ev, es), /<Data name="Herkunft"><value>Rufzeichenliste, Lizenzadresse<\/value>/);
 });
+
+test('how a location was named goes into CSV, ADIF and KML', () => {
+  const ev = { id: 'ev', title: 'Lage', template: 'calls', header };
+  const base = { lat: 48.17224, lon: 16.2757, maidenhead: 'JN88cd', source: 'osm', confidence: 'high', manual: false, origin: 'search' };
+  const es = [
+    { id: 'x', seq: 1, call: 'OE1AAA', ts: '2026-10-04T10:00:00Z', viaRepeater: false, snap: snapA, fields: { qth: 'Lainzer Krankenhaus' },
+      loc: { ...base, type: 'poi', label: 'Klinik Hietzing', postcode: '1130', input: 'Lainzer Krankenhaus', matched: 'Lainzer Krankenhaus', nameType: 'historical' }, note: '' },
+    { id: 'y', seq: 2, call: 'OE1BBB', ts: '2026-10-04T10:01:00Z', viaRepeater: false, snap: snapA, fields: { qth: 'Gürtel Ecke Thaliastraße' },
+      loc: { ...base, type: 'intersection', label: 'Lerchenfelder Gürtel / Thaliastraße', postcode: '1160', input: 'Gürtel Ecke Thaliastraße' }, note: '' },
+    { id: 'z', seq: 3, call: 'OE1CCC', ts: '2026-10-04T10:02:00Z', viaRepeater: false, snap: snapA, fields: { qth: 'Seegrotte' },
+      loc: { ...base, type: 'poi', label: 'Seegrotte', postcode: '2371', city: 'Hinterbrühl', umland: true, input: 'Seegrotte' }, note: '' },
+    { id: 'w', seq: 4, call: 'OE1DDD', ts: '2026-10-04T10:03:00Z', viaRepeater: false, snap: snapA, fields: { qth: 'im Wald' }, note: '' },
+  ];
+  const lines = toCSV(ev, es).split('\r\n');
+  const cols = lines[0].replace('﻿', '').split(';');
+  const cell = (i, c) => lines[i].split(';')[cols.indexOf(c)];
+  assert.equal(cell(1, 'standort_namenstyp'), 'früherer Name');
+  assert.equal(cell(1, 'standort_gefunden_als'), 'Lainzer Krankenhaus');
+  assert.equal(cell(2, 'standort_namenstyp'), 'Kreuzung');
+  assert.equal(cell(2, 'standort_gefunden_als'), '');
+  assert.equal(cell(3, 'standort_namenstyp'), 'Name');
+  assert.equal(cell(4, 'standort_namenstyp'), '');
+  const [a, b, c] = parseADIF(toADIF(ev, es));
+  assert.equal(a.APP_OE1EBG_LOC_NAMETYPE, 'historical');
+  assert.equal(a.APP_OE1EBG_LOC_MATCHED, 'Lainzer Krankenhaus');
+  assert.equal(b.APP_OE1EBG_LOC_NAMETYPE, 'intersection');
+  assert.equal(c.APP_OE1EBG_LOC_MATCHED, undefined);
+  const kml = toKML(ev, es);
+  assert.match(kml, /<Data name="Gefunden als"><value>„Lainzer Krankenhaus“ \(früherer Name\)<\/value>/);
+  assert.match(kml, /<Data name="Art"><value>Kreuzung<\/value>/);
+  assert.match(kml, /<Data name="Art"><value>außerhalb Wiens<\/value>/);
+});

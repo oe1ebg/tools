@@ -162,6 +162,7 @@
   .ac-pop button.ac-item:hover, .ac-pop button.ac-item:focus{ background:var(--accent-soft); outline:none; color:var(--text); }
   .ac-pop button.ac-item b{ font-family:var(--font-mono); }
   .ac-pop button.ac-item small{ color:var(--text-dim); }
+  .ac-pop button.ac-item .alt{ color:var(--text); }
   .ac-pop button.ac-item .lc-conf{ margin-left:auto; }
   /* info lines under a field never widen the field: they take its width and wrap */
   .ac-info{ width:0; min-width:100%; font-size:12px; text-transform:none; letter-spacing:0; overflow-wrap:anywhere; }
@@ -346,6 +347,11 @@
   .lc-meta{ font-family:var(--font-mono); font-size:13px; margin:.15em 0; }
   .lc-why, .lc-detail{ font-size:12px; color:var(--text-dim); }
   .lc-note{ font-size:12px; color:var(--warn); }
+  .lc-name{ font-size:12.5px; }
+  .lc-name q{ font-weight:600; quotes:"„" "“"; }
+  .nt, .lc-outside{ font-size:11px; padding:0 .45em; border-radius:999px; border:1px solid var(--line); color:var(--text-dim); white-space:nowrap; }
+  .nt{ background:var(--bg-raised); }
+  .nt.hist{ border-style:dashed; }
   .lc-actions{ display:flex; gap:.35em; flex-wrap:wrap; margin-top:.35em; }
   button.mini{ font-size:12px; padding:.15em .55em; }
   .map-links{ display:inline-flex; gap:.6em; align-items:center; font-size:12px; margin-left:.3em; }

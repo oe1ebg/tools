@@ -13,7 +13,7 @@ import { el, fill, popover } from '../../shared/js/dom.js';
 import { loadLocationIndex, renderCandidates, autoSelectLevel } from './locationui.js';
 import { locate } from '../../shared/js/location/index.js';
 import { latLonToMaidenhead } from '../../shared/js/maidenhead.js';
-import { LOC_ORIGINS } from './model.js';
+import { LOC_ORIGINS, LOC_NAME_TYPES } from './model.js';
 
 const LOC_CONF_TEXT = { exact: 'exakt', high: 'hoch', likely: 'wahrscheinlich', ambiguous: 'mehrdeutig', low: 'unsicher' };
 
@@ -30,6 +30,11 @@ export function snapshotLocation(r, input, manual, origin = 'search') {
     source: r.source, confidence: r.confidence, manual: !!manual, input, origin,
   };
   if (r.bezirk) snap.bezirk = r.bezirk;
+  // Found by another name ("Rudolfstiftung" -> Klinik Landstraße), outside Vienna.
+  if (r.matchedName) snap.matched = r.matchedName;
+  if (r.nameType) snap.nameType = r.nameType;
+  if (r.city) snap.city = r.city;
+  if (r.umland) snap.umland = true;
   if (r.areaInfo) snap.areaLocators = r.areaInfo.locators.map(l => l[0]);
   return snap;
 }
@@ -37,7 +42,8 @@ export function snapshotLocation(r, input, manual, origin = 'search') {
 export function describeLocation(loc) {
   if (!loc) return '';
   const more = loc.areaLocators?.length > 1 ? ` (+${loc.areaLocators.length - 1})` : '';
-  return `${loc.label}${loc.postcode && !loc.label.includes(loc.postcode) ? ', ' + loc.postcode : ''} · ${loc.maidenhead}${more}`;
+  const plz = loc.postcode && !loc.label.includes(loc.postcode) ? `, ${loc.postcode}${loc.city ? ' ' + loc.city : ''}` : '';
+  return `${loc.label}${plz} · ${loc.maidenhead}${more}`;
 }
 
 // The text to put into the field for a chosen location: the full official
@@ -101,7 +107,8 @@ export function createLocationField({ input, plzInput, chip, results, onChange }
     } else if (loc) {
       chip.classList.add(`conf-${loc.confidence}`);
       const from = loc.origin && loc.origin !== 'search' ? `, ${LOC_ORIGINS[loc.origin]?.text || loc.origin}` : '';
-      const t = `✓ ${describeLocation(loc)} (${loc.manual ? 'gewählt' : 'automatisch'}, ${LOC_CONF_TEXT[loc.confidence] || loc.confidence}${from}) `;
+      const as = loc.matched ? ` – eingegeben als „${loc.matched}“${LOC_NAME_TYPES[loc.nameType] && loc.nameType !== 'alias' ? ` (${LOC_NAME_TYPES[loc.nameType]})` : ''}` : '';
+      const t = `✓ ${describeLocation(loc)}${as} (${loc.manual ? 'gewählt' : 'automatisch'}, ${LOC_CONF_TEXT[loc.confidence] || loc.confidence}${from}) `;
       fill(chip, t,
         el('button', { type: 'button', class: 'link', tabindex: '-1', onclick: () => { setLoc(null); input.focus(); resolve(); } }, 'ändern'));
       chip.title = t;

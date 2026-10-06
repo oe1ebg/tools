@@ -13,6 +13,8 @@ const LOC_PREC_KEY = 'oe1ebg-confirm-locator-precision';
 const LOC_AUTO_KEY = 'oe1ebg-confirm-location-autoselect';
 const CONF_LABEL = { exact: 'exakt', high: 'hoch', likely: 'wahrscheinlich', ambiguous: 'mehrdeutig', low: 'unsicher' };
 const TYPE_LABEL = { address: 'Adresse', street: 'Straße', intersection: 'Kreuzung', between: 'Bereich', poi: 'Ort', coordinate: 'Koordinate', maidenhead: 'Locator', district: 'Bezirk', bezirk: 'Bezirk', postcode: 'PLZ' };
+// How a result was named when not by its own name (index.js NAME_TYPES).
+const NAME_TYPE_LABEL = { alias: 'anderer Name', colloquial: 'umgangssprachlich', historical: 'früherer Name', generated: 'Kurzform' };
 const SOURCE_LABEL = { 'vienna-ogd': 'Stadt Wien', osm: 'OpenStreetMap', gip: 'Stadt Wien (GIP-Namen)', wl: 'Wiener Linien', computed: 'berechnet', alias: 'kuratiert', bev: 'Adressregister' };
 const EXAMPLES = ['Währinger Straße 42', '1100 Quellenstr', 'Donauturm', 'Donauinsel JN88ge', '48.2083, 16.3731', 'JN88ee', '2340', 'Bezirk Liezen'];
 
@@ -93,6 +95,27 @@ function copyButton(label, text) {
   return b;
 }
 
+function typeLabel(r) {
+  return r.type === 'poi' && r.role === 'stop' ? 'Haltestelle' : TYPE_LABEL[r.type] || r.type;
+}
+
+// "gefunden als „Rudolfstiftung“ [früherer Name]", "„Gürtel“ = Lerchenfelder
+// Gürtel", "Lage „beim“ …": how the input was understood (neutral, not a warning).
+function nameLine(r, res) {
+  const bits = [];
+  if (r.matchedName) {
+    bits.push(['gefunden als ', el('q', {}, r.matchedName), ' ', el('span', { class: `nt${r.nameType === 'historical' ? ' hist' : ''}` }, NAME_TYPE_LABEL[r.nameType] || 'anderer Name')]);
+  }
+  if (r.resolved) bits.push(r.resolved.join(' · '));
+  if (res.evidence?.relation) bits.push(['Lage ', el('q', {}, res.evidence.relation), ` – Punkt ist ${r.label}, nicht der genaue Standort`]);
+  return bits.length ? el('div', { class: 'lc-name' }, bits.flatMap((b, i) => (i ? [' · ', b] : [b])).flat(Infinity)) : null;
+}
+
+function sourceText(r) {
+  const s = (r.sources || [r.source]).map(k => SOURCE_LABEL[k === 'curated' ? 'alias' : k] || k).join(' + ');
+  return `Quelle: ${s}${r.umland && r.postcode ? ' · PLZ geschätzt' : ''}`;
+}
+
 // One-line candidate rows for a completion dropdown (the log's location
 // field): click/Enter = opts.onPick(result).
 function renderCompact(container, res, opts) {
@@ -108,7 +131,9 @@ function renderCompact(container, res, opts) {
       onclick: () => opts.onPick(r),
     },
     el('b', {}, r.label),
-    el('small', {}, [plzText(r), r.district ? `${r.district}. Bez.` : null, locatorWithMore(r, prec), TYPE_LABEL[r.type]].filter(Boolean).join(' · ')),
+    el('small', {},
+      r.matchedName ? [el('i', { class: 'alt' }, `„${r.matchedName}“${r.nameType === 'historical' ? ', früher' : r.nameType === 'colloquial' ? ', umgangssprachlich' : ''}`), ' · '] : null,
+      [plzText(r), r.district ? `${r.district}. Bez.` : null, locatorWithMore(r, prec), typeLabel(r), r.umland ? 'außerhalb Wiens' : null].filter(Boolean).join(' · ')),
     el('span', { class: 'lc-conf' }, CONF_LABEL[r.confidence] || r.confidence))));
 }
 
@@ -141,10 +166,12 @@ export function renderCandidates(container, res, opts = {}) {
     const card = el('div', { class: `loc-cand conf-${r.confidence}${n === 0 && res.autoSelect ? ' auto' : ''}` },
       el('div', { class: 'lc-head' },
         el('b', {}, r.label),
-        el('span', { class: 'lc-type' }, TYPE_LABEL[r.type] || r.type),
+        el('span', { class: 'lc-type' }, typeLabel(r)),
+        r.umland ? el('span', { class: 'lc-outside' }, 'außerhalb Wiens') : null,
         el('span', { class: 'lc-conf' }, CONF_LABEL[r.confidence] || r.confidence)),
+      nameLine(r, res),
       el('div', { class: 'lc-meta' }, meta),
-      el('div', { class: 'lc-why' }, `passt weil: ${r.reasons.join(', ')} · Quelle: ${SOURCE_LABEL[r.source] || r.source}`),
+      el('div', { class: 'lc-why' }, `passt weil: ${r.reasons.join(', ')} · ${sourceText(r)}`),
       r.note ? el('div', { class: 'lc-note' }, r.note) : null,
     );
     if (r.maidenheadInfo) {

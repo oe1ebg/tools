@@ -289,7 +289,9 @@ also shows in print).
   callsign; the description (HTML in Google Earth) and `<ExtendedData>`
   (columns in My Maps) list the check-in times in UTC, repeater(s),
   location text and typed input, locator (plus covered squares for an
-  area), confidence, gewählt/automatisch, the source (Herkunft) and the
+  area), confidence, gewählt/automatisch, the source (Herkunft), the name
+  it was found by ("Gefunden als": „Lainzer Krankenhaus“ (früherer Name)),
+  its kind ("Art": Kreuzung / Bereich / außerhalb Wiens) and the
   coordinates. The
   `<Document>` carries the log title, date, operator, station and "N von M
   Stationen mit Standort". Coordinates are `lon,lat` with 5 decimals. KML
@@ -690,7 +692,21 @@ Vienna PLZ and district results carry the same locator coverage.
 - **Resolution stored alongside.** The chosen result is saved on the line
   as `loc`: type, label, street, house number, PLZ, district, lat/lon,
   6-character locator, source, confidence, manual-or-auto flag, and the
-  input it came from.
+  input it came from. When it was found by another name, also `matched`
+  (that name) and `nameType` (alias / colloquial / historical / generated);
+  outside Vienna `city` (estimated Gemeinde) and `umland: true`. Older
+  lines simply lack them.
+- **How the input was understood** is shown neutrally, not as a warning:
+  the result card has a line "gefunden als „Rudolfstiftung“ [früherer
+  Name]", "„Gürtel“ = Lerchenfelder Gürtel" or "Lage „beim“ – Punkt ist
+  Schottentor, nicht der genaue Standort"; stops are labelled
+  "Haltestelle", places outside Vienna "außerhalb Wiens" (their PLZ
+  "geschätzt"), and the sources are listed ("OpenStreetMap + Stadt Wien
+  (GIP-Namen) + Wiener Linien"). Yellow notes stay for real uncertainty
+  (corner estimated or vague, house number not found). The dropdown shows
+  the matched name in italics, the confirmation under the field "–
+  eingegeben als „Lainzer Krankenhaus“ (früherer Name)", and the log line
+  adds "· früher „…“", "· Kreuzung", "· außerhalb Wiens".
 - **Auto vs. pick.** The best candidate is only taken automatically at or
   above the setting **"Im Log automatisch übernehmen ab"** in the Standort
   panel: exakt / **hoch** (default) / wahrscheinlich / nie. Otherwise the
@@ -715,10 +731,15 @@ Vienna PLZ and district results carry the same locator coverage.
     dropdown (↓, Enter).
 - **Export.** The CSV gains the columns `standort_aufgeloest`, `lat`, `lon`,
   `locator`, `standort_konfidenz`, `standort_quelle` (gewählt/automatisch),
-  `standort_eingabe` (typed text) and `standort_herkunft` (source). ADIF
-  gets `GRIDSQUARE`, `LAT`/`LON` (`N048 12.500` format),
-  `APP_OE1EBG_LOCATION`, `APP_OE1EBG_LOC_SOURCE`, `APP_OE1EBG_LOC_INPUT`
-  and the resolution in `COMMENT`.
+  `standort_eingabe` (typed text), `standort_herkunft` (source),
+  `standort_namenstyp` (Name / anderer Name / umgangssprachlich / früherer
+  Name / Kurzform / Kreuzung / Bereich; empty for coordinates, locators and
+  unresolved text) and `standort_gefunden_als` (the other name it was found
+  by). ADIF gets `GRIDSQUARE`, `LAT`/`LON` (`N048 12.500` format),
+  `APP_OE1EBG_LOCATION`, `APP_OE1EBG_LOC_SOURCE`, `APP_OE1EBG_LOC_INPUT`,
+  `APP_OE1EBG_LOC_NAMETYPE` (code: name, alias, colloquial, historical,
+  generated, intersection, between), `APP_OE1EBG_LOC_MATCHED` and the
+  resolution in `COMMENT`.
 
 ### Differences from the brief
 

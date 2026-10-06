@@ -248,6 +248,36 @@ export function locOriginText(loc, text) {
   return `${LOC_ORIGINS[k].text}${day ? ` ${day[3]}.${day[2]}.${day[1]}` : ''}`;
 }
 
+// How a resolved location was named (`loc.nameType`, from the lookup; lines
+// from before this existed have none): code -> CSV/KML wording. Corners and
+// "zwischen A und B" count as their own kind; coordinates and locators have none.
+export const LOC_NAME_TYPES = {
+  name: 'Name', alias: 'anderer Name', colloquial: 'umgangssprachlich', historical: 'früherer Name',
+  generated: 'Kurzform', intersection: 'Kreuzung', between: 'Bereich',
+};
+
+export function locNameType(loc) {
+  if (!loc) return '';
+  if (loc.nameType) return loc.nameType;
+  if (loc.type === 'intersection' || loc.type === 'between') return loc.type;
+  return loc.type === 'coordinate' || loc.type === 'maidenhead' ? '' : 'name';
+}
+
+// Short hints for the log's location line: "früher „Rudolfstiftung“",
+// "Kreuzung", "außerhalb Wiens".
+export function locHints(loc) {
+  if (!loc) return [];
+  const out = [];
+  if (loc.matched) {
+    out.push(loc.nameType === 'historical' ? `früher „${loc.matched}“`
+      : loc.nameType === 'colloquial' ? `„${loc.matched}“ (umgangssprachlich)` : `„${loc.matched}“`);
+  }
+  if (loc.type === 'intersection') out.push('Kreuzung');
+  if (loc.type === 'between') out.push('Bereich');
+  if (loc.umland) out.push('außerhalb Wiens');
+  return out;
+}
+
 // Entry kinds. A line without `kind` is a check-in (all data from before
 // operator comments existed, and every JSON backup of it); `kind:
 // 'comment'` is an operator comment / log marker: no callsign, no seq, no

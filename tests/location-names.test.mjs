@@ -49,7 +49,7 @@ test('former and colloquial names: shown as such, capped at "high"', () => {
   assert.equal(r.label, 'Klinik Landstraße');
   assert.equal(r.matchedName, 'Rudolfstiftung');
   assert.equal(r.nameType, 'historical');
-  assert.equal(r.note, 'früher „Rudolfstiftung“');
+  assert.equal(r.note, undefined, 'shown as the name type, not as a warning note');
   assert.ok(r.reasons.includes('früherer Name'));
   assert.notEqual(locate(idx, 'Rudolfstiftung 1030').results[0].confidence, 'exact', 'not an official name');
   const c = top('Kaisermühlner Grabstein');

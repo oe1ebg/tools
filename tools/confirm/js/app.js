@@ -9,7 +9,7 @@ import { requestPersistence } from '../../shared/js/storage.js';
 import {
   normalizeCall, isPlausibleCall, newId, nowIso, splitUtc, splitTime, zoneLabel, parseTimeInput, isoUtc,
   MODES, modeInfo, headerSnapshot, emptyHeader, checkinNumbers, previousCheckins, adifModeText, SIGNALLING, signallingText,
-  REPEATER_KEYS, parseMHz, LOC_ORIGINS, locOrigin,
+  REPEATER_KEYS, parseMHz, LOC_ORIGINS, locOrigin, locHints,
   liveSorted, stats, isComment, COMMENT_CATEGORIES, newComment, headerChangeMarkers, headerFromRepeater,
 } from './model.js';
 import { TEMPLATES, templateFor, fieldVisible, fieldDisplay, fieldOptions, currentOptions, shortSummary, exampleValues } from './templates.js';
@@ -1592,7 +1592,7 @@ function renderLog(highlightCall) {
         callbookName(e.call) ? el('div', { class: 'cb-name' }, callbookName(e.call)) : null),
       tpl.fields.flatMap(f => [f.type === 'location' ? originCell(e.loc, e.fields?.[f.key]) : null,
         el('td', {}, fieldVisible(f, e.fields, tpl) ? fieldDisplay(f, e.fields?.[f.key]) : '',
-        f.type === 'location' && e.loc ? el('div', { class: 'loc-sub' }, `→ ${describeLocation(e.loc)}`) : null,
+        f.type === 'location' && e.loc ? el('div', { class: 'loc-sub' }, [`→ ${describeLocation(e.loc)}`, ...locHints(e.loc)].join(' · ')) : null,
         f.type === 'location' && !e.loc && e.fields?.[f.key] ? el('div', { class: 'loc-sub unresolved' }, 'nicht zugeordnet') : null)]),
       el('td', {}, e.viaRepeater
         ? el('span', {
