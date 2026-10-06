@@ -371,6 +371,22 @@ function fillGridFromQth(container, loc) {
 // Relais keep their own, from the location field and repeater search),
 // the ADIF mapping of the mode, the repeater input frequency, and which
 // fields the chosen route and mode show.
+// The last action ("gespeichert", "gelöscht", …) in the status line above
+// the log: always the same place, outside the form (nothing in the form
+// moves), read out without moving focus; stays until the next action.
+// Form errors and the "Bearbeite …" note stay in #form-status.
+function logStatus(...content) {
+  fill($('#log-status'), el('span', { class: 'ok-mark', 'aria-hidden': 'true' }, '✓'), ...content);
+}
+
+// Mark a log row for a moment (just saved or restored).
+function flashRow(id) {
+  const tr = $('#log-body')?.querySelector(`tr[data-id="${id}"]`);
+  if (!tr) return;
+  tr.classList.add('fresh');
+  setTimeout(() => tr.classList.remove('fresh'), 2500);
+}
+
 // "Speichern ⇧⏎": the glyphs are for the eye, aria-keyshortcuts says it.
 function setSaveLabel(text) {
   fill($('#btn-save'), text, ' ', el('span', { 'aria-hidden': 'true' }, '⇧⏎'));
@@ -636,6 +652,7 @@ async function duplicateEvent(ev) {
 async function openEvent(id) {
   await leaveEvent();
   $('#export-msg').hidden = true;
+  $('#log-status').replaceChildren(); // messages belong to the log they were about
   const ev = await state.store.get('events', id);
   if (!ev) {
     location.hash = '#/';
@@ -778,8 +795,9 @@ async function flushMarkers({ openForEdit = true } = {}) {
     startEdit(made[made.length - 1].id, { focus: false, scroll: false });
     fill(status, el('span', { class: 'edit-tag' }, `✓ Marker gespeichert (${fmtTime(ts, false)}) – ${what}. Text ergänzen, Shift+Enter; Esc lässt ihn so.`));
   } else {
-    fill(status, `✓ Marker gespeichert (${fmtTime(ts, false)}) – ${what} `,
+    logStatus(`Marker gespeichert (${fmtTime(ts, false)}) – ${what} `,
       el('button', { type: 'button', class: 'link', onclick: () => startEdit(made[made.length - 1].id) }, 'Text ergänzen'));
+    flashRow(made[made.length - 1].id);
   }
 }
 
@@ -1311,10 +1329,11 @@ async function saveComment(f) {
   $('#btn-save').disabled = false;
   const i = state.entries.findIndex(e => e.id === entry.id);
   if (i >= 0) state.entries[i] = entry; else state.entries.push(entry);
-  status.className = 'ok';
-  status.textContent = `✓ ${lineLabel(entry)} gespeichert – ${fmtTime(entry.ts)}`;
+  status.replaceChildren();
+  logStatus(`${lineLabel(entry)} gespeichert – ${fmtTime(entry.ts)}`);
   clearForm();
   renderLog();
+  flashRow(entry.id);
   broadcast({ type: 'entries', eventId: ev.id });
   $('#f-call').focus();
 }
@@ -1381,10 +1400,11 @@ async function saveEntry() {
   const i = state.entries.findIndex(e => e.id === entry.id);
   if (i >= 0) state.entries[i] = entry; else state.entries.push(entry);
   const n = checkinNumbers(state.entries).get(entry.id);
-  status.className = 'ok';
-  status.textContent = `✓ Nr. ${entry.seq} ${entry.call}${n > 1 ? ` (Check-in Nr. ${n})` : ''} gespeichert – ${fmtTime(entry.ts)}`;
+  status.replaceChildren();
+  logStatus(`Nr. ${entry.seq} ${entry.call}${n > 1 ? ` (Check-in Nr. ${n})` : ''} gespeichert – ${fmtTime(entry.ts)}`);
   clearForm();
   renderLog();
+  flashRow(entry.id);
   updateExportNudge();
   broadcast({ type: 'entries', eventId: ev.id });
   if (!editing && stats(state.entries).total % SNAPSHOT_EVERY === 0) takeSnapshot('automatisch');
@@ -1452,13 +1472,12 @@ async function setDeleted(id, deleted) {
   }
   Object.assign(e, next);
   if (state.editingId === id) clearForm();
-  const status = $('#form-status');
-  status.className = 'ok';
-  fill(status, 
+  logStatus(
     deleted ? `${lineLabel(e)} gelöscht. ` : `${lineLabel(e)} wiederhergestellt.`,
     deleted ? el('button', { type: 'button', class: 'link', onclick: () => setDeleted(id, false) }, 'Rückgängig') : null,
   );
   renderLog();
+  if (!deleted) flashRow(id);
   renderTrash();
   broadcast({ type: 'entries', eventId: e.eventId });
 }
@@ -1524,14 +1543,13 @@ function discardForm() {
   const edited = editingId ? state.entries.find(e => e.id === editingId) : null;
   clearForm();
   scheduleDraft(); // empty form -> the stored draft is removed
-  const status = $('#form-status');
-  status.className = 'ok';
-  fill(status,
+  $('#form-status').replaceChildren();
+  logStatus(
     edited ? `Bearbeitung von ${isComment(edited) ? lineLabel(edited) : `Nr. ${edited.seq}`} abgebrochen – die Zeile bleibt unverändert. ` : 'Eingaben verworfen. ',
     el('button', { type: 'button', class: 'link', onclick: () => {
       applyFormState(form, editingId);
       scheduleDraft();
-      status.replaceChildren();
+      $('#log-status').replaceChildren();
       focusEntryStart();
     } }, 'Rückgängig'));
   $('#f-call').focus();
@@ -1542,8 +1560,7 @@ async function restoreDraft() {
   const d = await state.store.get('drafts', state.event.id);
   if (!d || !d.form) return;
   applyFormState(d.form, d.editingId);
-  $('#form-status').className = 'ok';
-  $('#form-status').textContent = `Nicht gespeicherte Eingabe von ${fmtTime(d.savedAt)} wiederhergestellt.`;
+  logStatus(`Nicht gespeicherte Eingabe von ${fmtTime(d.savedAt)} wiederhergestellt (steht im Formular).`);
 }
 
 /* --- log table --- */
@@ -1608,7 +1625,7 @@ function renderLog(highlightCall) {
     ];
     if (isComment(e)) {
       // Operator comment / marker: one full-width banner row.
-      body.append(el('tr', { class: ['marker', e.auto ? 'auto' : '', e.id === state.editingId ? 'editing' : ''].join(' ').trim() },
+      body.append(el('tr', { 'data-id': e.id, class: ['marker', e.auto ? 'auto' : '', e.id === state.editingId ? 'editing' : ''].join(' ').trim() },
         el('td', { colspan: String(cols) },
           el('div', { class: 'marker-row' },
             el('span', { class: 'mono marker-time', title: `${isoUtc(e.ts)} (gespeichert, UTC)` }, timeBits),
@@ -1619,7 +1636,7 @@ function renderLog(highlightCall) {
             el('span', { class: 'act' }, actions)))));
       continue;
     }
-    body.append(el('tr', { class: [e.call === call && call ? 'match' : '', e.id === state.editingId ? 'editing' : ''].join(' ').trim() || null },
+    body.append(el('tr', { 'data-id': e.id, class: [e.call === call && call ? 'match' : '', e.id === state.editingId ? 'editing' : ''].join(' ').trim() || null },
       el('td', { class: 'mono', title: `${isoUtc(e.ts)} (gespeichert, UTC)` }, timeBits),
       el('td', { class: 'mono' }, String(e.seq)),
       el('td', { class: 'call' }, e.call, n > 1 ? el('span', { class: 'badge', title: `Check-in Nr. ${n}` }, `${n}×`) : null,
@@ -1762,6 +1779,29 @@ function download(text, name, type) {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+/* --- help under the entry form: "? Hilfe" or the ? key (outside text fields) --- */
+
+const HELP_KEY = 'oe1ebg-confirm-help-open';
+
+function initEntryHelp() {
+  const btn = $('#btn-help');
+  const panel = $('#entry-help');
+  trackExpanded(btn, panel);
+  const show = open => {
+    panel.hidden = !open;
+    prefSet(HELP_KEY, open ? '1' : '');
+  };
+  show(prefGet(HELP_KEY) === '1');
+  btn.addEventListener('click', () => show(panel.hidden));
+  document.addEventListener('keydown', ev => {
+    if (ev.key !== '?' || ev.ctrlKey || ev.metaKey || ev.altKey || isComposing(ev)) return;
+    const t = ev.target;
+    if (t.closest?.('input, textarea, select, [contenteditable]') || $('#view-log').hidden) return;
+    ev.preventDefault();
+    show(panel.hidden);
+  });
 }
 
 /* --- "Exportieren" menu (disclosure: a button and a list of buttons) --- */
@@ -1996,6 +2036,7 @@ function wire() {
     doExport(b.dataset.export);
   }));
   initExportMenu();
+  initEntryHelp();
   $('#btn-map').addEventListener('click', toggleMap);
   const sep = $('#csv-sep');
   sep.value = prefGet(CSV_SEP_KEY, ';');

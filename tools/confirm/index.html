@@ -186,8 +186,23 @@
         <button type="submit" class="primary" id="btn-save" aria-keyshortcuts="Shift+Enter" title="Zeile speichern (Shift+Enter, aus jedem Feld)">Speichern <span aria-hidden="true">⇧⏎</span></button>
         <button type="button" id="btn-discard" aria-keyshortcuts="Escape" title="Alle Eingaben dieser Zeile verwerfen (mit Rückgängig)">Verwerfen (Esc)</button>
         <div id="form-status" role="status"></div>
-        <div class="hint kbd-hint">Tab/Enter nächstes Feld · ↓ Vorschläge, Enter übernimmt · 1–5 bei Auswahlfeldern, ⌫ leert · Shift+Enter speichern · Esc verwerfen · <strong>!</strong> als erstes Zeichen im Rufzeichen = Operator-Kommentar statt Check-in</div>
+        <div class="hint kbd-hint"><kbd>⇧</kbd>+<kbd>Enter</kbd> speichert · <strong>!</strong> am Anfang des Rufzeichens = Kommentar</div>
+        <button type="button" id="btn-help" class="help-btn" aria-expanded="false" aria-controls="entry-help" aria-keyshortcuts="?" title="Tastatur und Eingabe (Taste ?, außerhalb von Textfeldern)"><span aria-hidden="true">?</span> Hilfe</button>
       </div>
+      <section id="entry-help" class="entry-help" aria-labelledby="entry-help-title" hidden>
+        <h2 id="entry-help-title">Tastatur und Eingabe</h2>
+        <dl>
+          <dt><kbd>Tab</kbd> / <kbd>Enter</kbd></dt><dd>nächstes Feld</dd>
+          <dt><kbd>↓</kbd>, dann <kbd>Enter</kbd></dt><dd>Vorschlag aus der Liste übernehmen (Rufzeichen, Standort, Relais)</dd>
+          <dt><kbd>1</kbd>–<kbd>5</kbd>, <kbd>⌫</kbd></dt><dd>Auswahlfelder (z. B. Sirene, Kategorie) setzen bzw. leeren</dd>
+          <dt><kbd>⇧</kbd>+<kbd>Enter</kbd></dt><dd>Zeile speichern, aus jedem Feld</dd>
+          <dt><kbd>Esc</kbd></dt><dd>Zeile verwerfen (mit „Rückgängig“)</dd>
+          <dt><strong>!</strong> im Rufzeichen</dt><dd>Operator-Kommentar statt Check-in (Frequenzwechsel, Übergabe, Unterbrechung …); zählt nicht als Station</dd>
+          <dt>Zeit</dt><dd>leer = Zeitpunkt des Speicherns; Korrektur als HH:MM oder JJJJ-MM-TT HH:MM (in der oben gewählten Zeitzone)</dd>
+          <dt>Relais</dt><dd>„über“ angehakt = die Station kommt über ein Relais (Vorgabe aus dem Header); Feld leer = Relais aus dem Header, sonst Rufzeichen, Ort oder Frequenz eines anderen Relais</dd>
+          <dt><kbd>?</kbd></dt><dd>diese Hilfe ein- und ausblenden (außerhalb von Textfeldern)</dd>
+        </dl>
+      </section>
     </form>
 
     <section id="map-panel" class="no-print" hidden>
@@ -195,6 +210,7 @@
       <div id="map-unplaced" class="hint"></div>
     </section>
 
+    <div id="log-status" class="log-status" role="status" aria-live="polite"></div>
     <div class="table-wrap">
       <table class="log">
         <caption class="sr-only">Log-Zeilen</caption>

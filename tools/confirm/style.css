@@ -199,6 +199,24 @@ details.hdr .body{ padding:0 1em 1em; }
 .entry-actions{ display:flex; flex-wrap:wrap; gap:.4em .6em; align-items:center; margin-top:.5em; padding-top:.6em; border-top:1px solid var(--line); }
 .entry-actions .kbd-hint{ flex:1 1 24em; margin:0; }
 .entry-actions #form-status{ margin:0; min-height:0; }
+.entry-actions #form-status:empty{ display:none; }
+.help-btn{ margin-left:auto; }
+.help-btn[aria-expanded="true"]{ border-color:var(--accent); color:var(--accent-text); background:var(--accent-soft); }
+.entry-help{ margin-top:.6em; border:1px solid var(--line-strong); border-radius:6px; background:var(--bg); padding:.6em .9em; font-size:13px; }
+.entry-help h2{ font-size:13px; margin:0 0 .4em; }
+.entry-help dl{ display:grid; grid-template-columns:max-content 1fr; gap:.3em 1em; margin:0; }
+.entry-help dt{ white-space:nowrap; }
+.entry-help dd{ margin:0; color:var(--text-dim); }
+@media (max-width: 640px){ .entry-help dl{ grid-template-columns:1fr; } .entry-help dd{ margin-bottom:.3em; } }
+kbd{ font:11px var(--font-mono); border:1px solid var(--line-strong); border-bottom-width:2px; border-radius:3px; padding:0 .3em; }
+/* last action ("gespeichert", "gelöscht" …), always in the same place above the log */
+.log-status{ min-height:1.7em; margin:0 0 .4em; font-size:13px; display:flex; flex-wrap:wrap; gap:.3em; align-items:center; }
+.log-status .ok-mark{ color:var(--ok); font-weight:700; }
+.log-status button.link{ font-size:13px; }
+/* the row just saved/restored, for a moment */
+table.log tr.fresh td{ background:var(--accent-soft); }
+table.log tr.fresh td:first-child{ box-shadow:inset 3px 0 0 var(--ok); }
+@media (prefers-reduced-motion: no-preference){ table.log tr td{ transition:background-color 1.2s; } }
 #entry-form .field > span, #entry-form div.field > label{ white-space:nowrap; }
 .form-actions .rpt-line-row{ gap:.6em; }
 /* operator comment mode ("!" in the callsign field): check-in fields hidden */
