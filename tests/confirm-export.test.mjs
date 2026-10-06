@@ -2,7 +2,8 @@
 process.env.TZ = 'Europe/Vienna';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { toCSV, toADIF, toSummary, toKML, xmlEscape, KML_MIME } from '../tools/confirm/js/export.js';
+import { toCSV, toADIF, toSummary, toKML, xmlEscape, KML_MIME, adifFieldTargets } from '../tools/confirm/js/export.js';
+import { TEMPLATES, templateFor, exampleValues, fieldVisible } from '../tools/confirm/js/templates.js';
 import { adifAscii } from '../tools/shared/js/adif.js';
 import { stationsForMap } from '../tools/confirm/js/mapdata.js';
 import { headerSnapshot } from '../tools/confirm/js/model.js';
@@ -237,4 +238,20 @@ test('KML: same stations as the map, escaped, lon,lat, metadata on <Document>', 
   assert.match(kml, /<description>&lt;b&gt;Rufzeichen:&lt;\/b&gt; OE1AAA&lt;br&gt;/);
   assert.ok(kml.includes('Café &amp;lt;Ü&amp;gt; &amp;amp; Co'));
   assert.equal(toKML(ev, []).match(/<Placemark>/g), null, 'empty log: valid document without placemarks');
+});
+
+test('template preview: every field has an example and an ADIF target', () => {
+  for (const tpl of TEMPLATES) {
+    const values = exampleValues(tpl);
+    // The examples make every field visible, so the preview shows all columns.
+    for (const f of tpl.fields) {
+      assert.ok(f.example !== undefined, `${tpl.key}.${f.key} has an example`);
+      assert.ok(fieldVisible(f, values, tpl), `${tpl.key}.${f.key} visible with the examples`);
+    }
+    assert.equal(adifFieldTargets(tpl).length, tpl.fields.length);
+  }
+  const targets = Object.fromEntries(adifFieldTargets(templateFor('zivilschutz')));
+  assert.equal(targets.PLZ, 'APP_OE1EBG_PLZ');
+  assert.match(targets['Standort (Adresse, Ort, PLZ, Locator)'], /^APP_OE1EBG_ADDRESS, GRIDSQUARE, LAT, LON$/);
+  assert.equal(Object.fromEntries(adifFieldTargets(templateFor('rst')))['RST erh.'], 'RST_RCVD');
 });

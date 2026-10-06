@@ -10,7 +10,8 @@
 // a radio field's options depend on another field. `grade` marks school
 // grades 1-5 (averaged in the summary). `short` is the label in compact
 // views (map cards; '' = value only, missing = left out there); fields with
-// the same `group` are shown together under that name.
+// the same `group` are shown together under that name. `example` is a
+// sample value for the template preview in "+ Neues Log" (exampleValues()).
 
 // School grades for the siren test: 1 = sehr gut hörbar ... 5 = nicht hörbar.
 const GRADES = [['1', '1'], ['2', '2'], ['3', '3'], ['4', '4'], ['5', '5']];
@@ -32,7 +33,7 @@ export const TEMPLATES = [
     label: 'Bestätigungsverkehr',
     hint: 'Rufzeichen + QTH, z. B. nach Rundspruch',
     fields: [
-      { key: 'qth', label: 'QTH / Standort', type: 'location', size: 24, adif: 'QTH' },
+      { key: 'qth', label: 'QTH / Standort', type: 'location', size: 24, adif: 'QTH', example: 'Wien 1220, Wagramer Str.' },
     ],
   },
   {
@@ -40,10 +41,10 @@ export const TEMPLATES = [
     label: 'Rufzeichen + RST',
     hint: 'Rapport, optional Name und QTH',
     fields: [
-      { key: 'rst_rcvd', label: 'RST erh.', type: 'rst', adif: 'RST_RCVD', short: 'erh.' },
-      { key: 'rst_sent', label: 'RST geg.', type: 'rst', adif: 'RST_SENT', short: 'geg.' },
-      { key: 'name', label: 'Name', type: 'text', adif: 'NAME', short: '' },
-      { key: 'qth', label: 'QTH / Standort', type: 'location', size: 22, adif: 'QTH' },
+      { key: 'rst_rcvd', label: 'RST erh.', type: 'rst', adif: 'RST_RCVD', short: 'erh.', example: '59' },
+      { key: 'rst_sent', label: 'RST geg.', type: 'rst', adif: 'RST_SENT', short: 'geg.', example: '57' },
+      { key: 'name', label: 'Name', type: 'text', adif: 'NAME', short: '', example: 'Karl' },
+      { key: 'qth', label: 'QTH / Standort', type: 'location', size: 22, adif: 'QTH', example: 'Mödling' },
     ],
   },
   {
@@ -51,23 +52,23 @@ export const TEMPLATES = [
     label: 'Zivilschutz-Probealarm',
     hint: 'Standort/PLZ (Wien offline aufgelöst), Sirene, AT-Alert',
     fields: [
-      { key: 'address', label: 'Standort (Adresse, Ort, PLZ, Locator)', type: 'location', size: 28, plzKey: 'plz' },
-      { key: 'plz', label: 'PLZ', type: 'text', size: 5, inputmode: 'numeric' },
+      { key: 'address', label: 'Standort (Adresse, Ort, PLZ, Locator)', type: 'location', size: 28, plzKey: 'plz', example: 'Favoritenstraße 10' },
+      { key: 'plz', label: 'PLZ', type: 'text', size: 5, inputmode: 'numeric', example: '1040' },
       // Audibility of the warning siren, one school grade (1-5) per situation.
-      { key: 'siren_closed', label: 'Sirene innen, Fenster zu', type: 'radio', options: GRADES, grade: true, hint: GRADE_HINT, group: 'Sirene', short: 'zu' },
-      { key: 'siren_open', label: 'Sirene innen, Fenster offen', type: 'radio', options: GRADES, grade: true, hint: GRADE_HINT, group: 'Sirene', short: 'offen' },
-      { key: 'siren_outside', label: 'Sirene im Freien', type: 'radio', options: GRADES, grade: true, hint: GRADE_HINT, group: 'Sirene', short: 'außen' },
+      { key: 'siren_closed', label: 'Sirene innen, Fenster zu', type: 'radio', options: GRADES, grade: true, hint: GRADE_HINT, group: 'Sirene', short: 'zu', example: '2' },
+      { key: 'siren_open', label: 'Sirene innen, Fenster offen', type: 'radio', options: GRADES, grade: true, hint: GRADE_HINT, group: 'Sirene', short: 'offen', example: '1' },
+      { key: 'siren_outside', label: 'Sirene im Freien', type: 'radio', options: GRADES, grade: true, hint: GRADE_HINT, group: 'Sirene', short: 'außen', example: '1' },
       {
-        key: 'atalert', label: 'AT-Alert', type: 'radio', short: 'AT-Alert',
+        key: 'atalert', label: 'AT-Alert', type: 'radio', short: 'AT-Alert', example: 'nein',
         options: [['ja', 'erhalten'], ['nein', 'nicht erhalten']],
       },
       {
-        key: 'platform', label: 'Handy', type: 'radio', showIf: ['atalert', 'nein'], short: '',
+        key: 'platform', label: 'Handy', type: 'radio', showIf: ['atalert', 'nein'], short: '', example: 'android',
         options: [['android', 'Android'], ['ios', 'iOS'], ['andere', 'andere']],
       },
       {
         // Major OS version; the options depend on the chosen platform.
-        key: 'os_version', label: 'Version', type: 'radio', showIf: ['platform', ['ios', 'android']], short: '',
+        key: 'os_version', label: 'Version', type: 'radio', showIf: ['platform', ['ios', 'android']], short: '', example: 'android15',
         optionsBy: ['platform', OS_VERSIONS],
       },
     ],
@@ -76,6 +77,11 @@ export const TEMPLATES = [
 
 export function hasLocationField(tpl) {
   return tpl.fields.some(f => f.type === 'location');
+}
+
+// Sample line values for the template preview ("+ Neues Log").
+export function exampleValues(tpl) {
+  return Object.fromEntries(tpl.fields.filter(f => f.example !== undefined).map(f => [f.key, f.example]));
 }
 
 export function templateFor(key) {

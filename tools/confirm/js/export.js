@@ -129,6 +129,14 @@ export function toCSV(event, entries, sep = ';', opts = {}) {
   return '﻿' + lines.join('\r\n') + '\r\n';
 }
 
+// Where a template's fields end up in the ADIF export, for the template
+// preview: [["QTH / Standort", "QTH, GRIDSQUARE, LAT, LON"], ["PLZ",
+// "APP_OE1EBG_PLZ"], ...]. A location field also gives the resolved position.
+export function adifFieldTargets(tpl) {
+  return tpl.fields.map(f => [f.label, [f.adif || `APP_${ADIF_PROGRAM_ID}_${f.key.toUpperCase()}`,
+    ...(f.type === 'location' ? ['GRIDSQUARE', 'LAT', 'LON'] : [])].join(', ')]);
+}
+
 export function toADIF(event, entries, createdIso = new Date().toISOString()) {
   const tpl = templateFor(event.template);
   const nums = checkinNumbers(entries);

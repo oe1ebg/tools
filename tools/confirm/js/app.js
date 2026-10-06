@@ -11,8 +11,8 @@ import {
   MODES, modeInfo, headerSnapshot, emptyHeader, checkinNumbers, previousCheckins,
   liveSorted, stats, isComment, COMMENT_CATEGORIES, newComment, headerChangeMarkers, headerFromRepeater,
 } from './model.js';
-import { TEMPLATES, templateFor, fieldVisible, fieldDisplay, fieldOptions, currentOptions, shortSummary } from './templates.js';
-import { toCSV, toADIF, toKML, KML_MIME, toSummary } from './export.js';
+import { TEMPLATES, templateFor, fieldVisible, fieldDisplay, fieldOptions, currentOptions, shortSummary, exampleValues } from './templates.js';
+import { toCSV, toADIF, toKML, KML_MIME, toSummary, adifFieldTargets } from './export.js';
 import { loadDataFile } from '../../shared/js/data.js';
 import { buildCallbook, lookupCall, suggestCalls } from '../../shared/js/callbook.js';
 import { $, el, fill, popover, focusNext } from '../../shared/js/dom.js';
@@ -530,9 +530,27 @@ function openNewEventForm(prefill) {
   const sel = $('#new-template');
   fill(sel, ...TEMPLATES.map(t => el('option', { value: t.key }, `${t.label} – ${t.hint}`)));
   sel.value = prefill?.template || TEMPLATES[0].key;
+  sel.onchange = () => renderTemplatePreview(sel.value);
+  renderTemplatePreview(sel.value);
   const header = prefill?.header || lastHeader() || emptyHeader();
   buildHeaderForm($('#new-header'), header, () => {});
   form.title.focus();
+}
+
+// What the chosen template changes: a sample log line with the log's
+// columns (the template's own ones highlighted) and their ADIF fields.
+function renderTemplatePreview(key) {
+  const tpl = templateFor(key);
+  const values = exampleValues(tpl);
+  const fields = tpl.fields.filter(f => fieldVisible(f, values, tpl));
+  fill($('#new-template-preview'),
+    el('div', { class: 'cap' }, 'So sieht eine Logzeile aus (Beispiel)'),
+    el('div', { class: 'scroll' }, el('table', {},
+      el('tr', {}, ['Zeit UTC', 'Nr', 'Rufzeichen'].map(t => el('th', {}, t)),
+        fields.map(f => el('th', { class: 'tpl' }, f.label)), ['Relais', 'Notiz'].map(t => el('th', {}, t))),
+      el('tr', {}, ['18:42Z', '1', 'OE1ABC'].map(t => el('td', {}, t)),
+        fields.map(f => el('td', { class: 'tpl' }, fieldDisplay(f, values[f.key]))), ['OE1XUU', ''].map(t => el('td', {}, t))))),
+    el('div', { class: 'adif' }, 'ADIF: ', adifFieldTargets(tpl).map(([l, t]) => `${l} → ${t}`).join(' · ')));
 }
 
 // Pre-fill a new event with the header of the most recently created one —
