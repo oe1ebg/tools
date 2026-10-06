@@ -817,8 +817,17 @@ any tiles**.
 
 ## Code layout
 
-- `index.html`: the markup and CSS. It uses the same theme variables and
-  light/dark toggle as the ADIF editor.
+- `index.html`: the markup; `style.css`: the tool's CSS, on top of the
+  shared `tools/shared/css/tools.css` (colour tokens, one light and one dark
+  set) and `tools/shared/js/theme.js` (light/auto/dark, the same for all
+  tools). The rules for the markup are in `tools/shared/README.md` ("HTML &
+  interop rules"); `tests/tools-html.test.mjs` checks them.
+- Icons: `icon.svg` (favicon, manifest), `icon-maskable.svg` (full-bleed,
+  mark inside the 80 % safe zone) and the PNGs rendered from them, because
+  iOS and some Android launchers don't use SVG icons. After changing an SVG:
+  `rsvg-convert -w 192 -h 192 icon.svg -o icon-192.png`, the same at 512,
+  `rsvg-convert -w 512 -h 512 icon-maskable.svg -o icon-maskable-512.png` and
+  `-w 180 -h 180 icon-maskable.svg -o apple-touch-icon.png`.
 - `js/app.js`: the UI.
 - `js/db.js`: the IndexedDB schema and migrations, for the shared storage
   layer `tools/shared/js/storage.js`.

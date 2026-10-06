@@ -111,8 +111,10 @@ def build_bundle(build: dict) -> str:
     if html.count(LICENSES_MARKER) != 1:
         raise SystemExit(f"index.html: {LICENSES_MARKER} not found")
     html = html.replace(LICENSES_MARKER, licenses)
-    # No manifest (meaningless on file://); icon inlined so the file is self-contained.
+    # No manifest or home-screen icon (meaningless on file://); icon inlined
+    # so the file is self-contained.
     html = re.sub(r'\s*<link rel="manifest"[^>]*>', "", html)
+    html = re.sub(r'\s*<!-- iOS ignores [^>]*-->\s*<link rel="apple-touch-icon"[^>]*>', "", html)
     icon = base64.b64encode((CONFIRM_DIR / "icon.svg").read_bytes()).decode()
     html = html.replace('href="icon.svg"', f'href="data:image/svg+xml;base64,{icon}"')
     return html
