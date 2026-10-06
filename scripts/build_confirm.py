@@ -83,8 +83,11 @@ def data_files() -> list[Path]:
 
 
 def inline_data() -> str:
-    """The data files as globalThis.OE1EBG_DATA (read by shared/js/data.js)."""
+    """The data files as globalThis.OE1EBG_DATA (read by shared/js/data.js);
+    nothing at all when none have been built (data.js then finds no data)."""
     payload = {p.name: json.loads(p.read_text(encoding="utf-8")) for p in data_files()}
+    if not payload:
+        return ""
     # "<" escaped so no string in the data can close the <script> element.
     text = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).replace("<", "\\u003c")
     return f"<script>\nglobalThis.OE1EBG_DATA = {text};\n</script>\n"
