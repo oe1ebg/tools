@@ -117,3 +117,24 @@ test('schema 1 rows (no sources/umland) still load', () => {
   assert.equal(locate(i1, 'Rudolfstiftung').results[0].label, 'Klinik Landstraße');
   assert.equal(locate(i1, 'Rudolfstiftung').results[0].nameType, 'alias');
 });
+
+test('places around Vienna get an estimated PLZ/Gemeinde; a PLZ outside Vienna keeps them', async () => {
+  const { latLonToMaidenhead } = await import('../tools/shared/js/maidenhead.js');
+  const airport = latLonToMaidenhead(48.1046, 16.5592, 6);
+  const areas = {
+    states: ['', 'B', 'K', 'NÖ', 'OÖ', 'S', 'St', 'T', 'V', 'W'],
+    // [code, name, more, state, bezirke, lat, lon, addresses, loc6, loc6Count, loc4]
+    plz: [
+      ['1300', 'Schwechat', [], 3, ['307'], 48.1200, 16.5500, 100, [[airport, 100]], 1, [[airport.slice(0, 4), 100]]],
+      ['2320', 'Schwechat', [], 3, ['307'], 48.1400, 16.4800, 9000, [['JN88ie', 100]], 1, [['JN88', 100]]],
+    ],
+    bezirke: [],
+  };
+  const i2 = buildLocationIndex(synthetic(), areas);
+  const r = locate(i2, 'Vienna Airport').results[0];
+  assert.equal(r.postcode, '1300', 'the PLZ covering its locator, not the bigger one nearby');
+  assert.equal(r.city, 'Schwechat');
+  const withPlz = locate(i2, 'Flughafen Wien-Schwechat 1300').results[0];
+  assert.equal(withPlz.label, 'Vienna Airport', 'not filtered out by a PLZ outside Vienna');
+  assert.equal(withPlz.evidence.postcodeMatch, true);
+});

@@ -322,6 +322,22 @@ function postcodesInLocator(idx, loc) {
   return out.sort((a, b) => b.addressCount - a.addressCount);
 }
 
+// PLZ and Gemeinde of a point outside Vienna (no address data there), an
+// estimate without boundaries: of the Austrian PLZ whose addresses lie in
+// its 6-character locator, the one with the nearest centre; else the
+// nearest PLZ centre within 15 km. Without the areas file: nothing.
+export function umlandArea(idx, lat, lon) {
+  const loc = latLonToMaidenhead(lat, lon, 6);
+  let best = null;
+  for (const e of idx.areaPlz.values()) {
+    const covers = e.loc6.some(l => l[0] === loc);
+    const d = distanceMeters(lat, lon, e.lat, e.lon);
+    if (!best || covers > best.covers || (covers === best.covers && d < best.d)) best = { e, d, covers };
+  }
+  if (!best || (!best.covers && best.d > 15000)) return { postcode: null, city: undefined, district: null };
+  return { postcode: best.e.code, city: best.e.name, district: null };
+}
+
 /* ------------------------------------------------------------------ text candidates */
 
 function addressLabel(idx, i) {
@@ -483,9 +499,11 @@ function expandTerm(idx, term, match, ev) {
     }
   } else if (term.kind === 'place') {
     const p = idx.places[term.id];
-    const c = lookupCoordinates(idx, p.lat, p.lon);
+    let c = p.umland ? null : lookupCoordinates(idx, p.lat, p.lon);
+    // Around Vienna, or a Vienna dataset's name just outside the city ("Flughafen Wien").
+    if (!c?.postcode) c = umlandArea(idx, p.lat, p.lon);
     out.push(makeResult(idx, 'poi', p.name, p.lat, p.lon, {
-      postcode: c.postcode, district: c.district, source: PLACE_SOURCE[p.sources[0]] || p.sources[0], sources: p.sources,
+      postcode: c.postcode || undefined, city: c.city, district: c.district || undefined, source: PLACE_SOURCE[p.sources[0]] || p.sources[0], sources: p.sources,
       category: p.cat, role: placeRole(p), umland: p.umland || undefined,
       base: match.base + (p.landmark ? SCORE.landmark : 0) - (p.umland ? UMLAND_PENALTY : 0), match,
     }));
@@ -881,8 +899,8 @@ export function locate(idx, input, opts = {}) {
   }
 
   const lb = ev.locator ? maidenheadToBounds(ev.locator) : null;
-  // A PLZ outside Vienna: there are no street/landmark data there, so only
-  // area names (Gemeinde, Bezirk) can match the text.
+  // A PLZ outside Vienna: there are no streets there, so only area names
+  // (Gemeinde, Bezirk) and places around Vienna can match the text.
   const outside = ev.postcode && !idx.viennaPlz.has(ev.postcode);
   let results = [];
   if (ev.text && /^\d{2,3}$/.test(ev.text) && !ev.postcode) {
@@ -899,7 +917,8 @@ export function locate(idx, input, opts = {}) {
     let exact = false;
     for (const [t, match] of textMatches(idx, ev.text)) {
       const term = idx.terms[t];
-      if (outside && term.kind !== 'postcode' && term.kind !== 'bezirk') continue;
+      if (outside && term.kind !== 'postcode' && term.kind !== 'bezirk'
+          && !(term.kind === 'place' && idx.places[term.id].umland)) continue;
       if (match.exact) exact = true;
       for (const r of expandTerm(idx, term, match, ev)) results.push(applyEvidence(idx, r, ev, lb));
     }
@@ -922,7 +941,7 @@ export function locate(idx, input, opts = {}) {
     // Only structured evidence: PLZ, district or locator as an area result.
     if (ev.postcode && idx.areaPlz.has(ev.postcode)) {
       const r = postcodeResult(idx, idx.areaPlz.get(ev.postcode));
-      if (ev.text) r.note = outside ? `„${ev.text}“: Straßen und Orte gibt es nur für Wien – Mitte des PLZ-Gebiets` : `„${ev.text}“ nicht gefunden – Mitte des PLZ-Gebiets`;
+      if (ev.text) r.note = outside ? `„${ev.text}“: Straßen gibt es nur für Wien, Orte nur rund um Wien – Mitte des PLZ-Gebiets` : `„${ev.text}“ nicht gefunden – Mitte des PLZ-Gebiets`;
       results.push({ ...r, score: 100, confidence: ev.text ? 'low' : 'likely', reasons: ['PLZ'], evidence: { postcodeMatch: true } });
     } else if (ev.postcode && idx.plzStats.has(ev.postcode)) {
       const st = idx.plzStats.get(ev.postcode);

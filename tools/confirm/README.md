@@ -544,7 +544,12 @@ for what the point stands for (`stop`, `area`, `label_point` for GIP: where
 the map label sits, not an entrance; `point`), and `umland: true` outside
 Vienna. **Places around Vienna** rank 5 below a Vienna place with the same
 text, so "Mauer" means Wien-Mauer first; a PLZ, district or locator in the
-input decides.
+input decides. A PLZ outside Vienna ("Stift Klosterneuburg 3400") keeps
+them. Their PLZ and Gemeinde (`postcode`, `city`) are an estimate without
+boundaries: of the Austrian PLZ with addresses in the place's 6-character
+locator, the one with the nearest centre ("Seegrotte" → 2371 Hinterbrühl,
+the airport → 1300 Schwechat). The same applies to a Vienna dataset's name
+just outside the city (GIP's "Flughafen Wien").
 
 ### Free text: reports from the public
 

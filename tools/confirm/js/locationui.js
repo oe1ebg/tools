@@ -55,7 +55,7 @@ export function locatorFor(r, precision = locatorPrecision()) {
 export function addressText(r) {
   if (r.type === 'address') return `${r.street} ${r.houseNumber}, ${r.postcode} Wien`;
   if (r.type === 'street') return `${r.street}, ${r.postcode} Wien`;
-  if (r.postcode && (r.type === 'poi' || r.type === 'intersection' || r.type === 'between')) return `${r.label}, ${r.postcode} Wien`;
+  if (r.postcode && (r.type === 'poi' || r.type === 'intersection' || r.type === 'between')) return `${r.label}, ${r.postcode} ${r.city || 'Wien'}`;
   return r.label;
 }
 
@@ -123,7 +123,7 @@ export function renderCandidates(container, res, opts = {}) {
   }
   const prec = locatorPrecision();
   if (!res.results.length) {
-    container.append(el('div', { class: 'hint' }, 'Nichts gefunden. Tipp: Straßenname ohne Abkürzung, PLZ oder Locator ergänzen (Straßen und Orte nur für Wien; PLZ und Bezirke für ganz Österreich).'));
+    container.append(el('div', { class: 'hint' }, 'Nichts gefunden. Tipp: Straßenname ohne Abkürzung, PLZ oder Locator ergänzen (Straßen nur für Wien, Orte für Wien und Umgebung; PLZ und Bezirke für ganz Österreich).'));
     return;
   }
   if (res.results.length > 1 && !res.autoSelect) {

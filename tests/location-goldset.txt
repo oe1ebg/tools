@@ -242,6 +242,10 @@ umland | Kierling | Kierling | 1 |
 umland | Landesklinikum Mödling | Mödling | 1 |
 umland | Stift Heiligenkreuz | Stift Heiligenkreuz | 1 |
 umland | Seegrotte | Seegrotte | 1 |
+umland | Stift Klosterneuburg 3400 | @48.3057,16.3255/500 | 1 |
+umland | Landesklinikum Mödling 2340 | Landesklinikum Mödling | 1 |
+umland | Flughafen 1300 | @48.1103,16.5697/2000 | 1 |
+umland | Kierling 3400 | Kierling | 1 |
 
 # --- ambiguous: several real places, none may be auto-picked
 ambiguous | Hauptstraße | Hauptstraße | 3 | noauto
