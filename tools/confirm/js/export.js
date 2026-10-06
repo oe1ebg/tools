@@ -11,12 +11,17 @@
 import {
   liveSorted, liveCheckins, isComment, checkinNumbers, operatorShifts, splitUtc, splitTime, zoneLabel, lineFrequencies,
   bandForMHz, modeInfo, stats, signallingText, locOrigin, locOriginText, locNameType, LOC_NAME_TYPES,
+  normalizeCall, isPlausibleCall, parseMHz,
 } from './model.js';
 import { templateFor, fieldVisible, fieldDisplay, hasLocationField } from './templates.js';
 import { stationsForMap } from './mapdata.js';
 import { adifAscii, adifAsciiField } from '../../shared/js/adif.js';
+import { isValidLocator, formatLocator } from '../../shared/js/maidenhead.js';
+import { formatMHz } from '../../shared/js/repeaters.js';
 
 export const ADIF_PROGRAM_ID = 'OE1EBG';
+// No registered MIME type for ADIF; text/plain makes Safari save ".adi.txt".
+export const ADIF_MIME = 'application/octet-stream';
 
 const LOC_CONF_DE = { exact: 'exakt', high: 'hoch', likely: 'wahrscheinlich', ambiguous: 'mehrdeutig', low: 'unsicher' };
 const LOC_COLS = ['standort_aufgeloest', 'lat', 'lon', 'locator', 'standort_konfidenz', 'standort_quelle',
@@ -148,16 +153,77 @@ export function toCSV(event, entries, sep = ';', opts = {}) {
 // preview: [["QTH / Standort", "QTH, GRIDSQUARE, LAT, LON"], ["PLZ",
 // "APP_OE1EBG_PLZ"], ...]. A location field also gives the resolved position.
 export function adifFieldTargets(tpl) {
-  return tpl.fields.map(f => [f.label, [f.adif || `APP_${ADIF_PROGRAM_ID}_${f.key.toUpperCase()}`,
+  return tpl.fields.map(f => [f.label, [adifFieldName(f),
     ...(f.type === 'location' ? ['GRIDSQUARE', 'LAT', 'LON'] : [])].join(', ')]);
 }
 
-export function toADIF(event, entries, createdIso = new Date().toISOString()) {
+// ADIF GridSquare: 2, 4, 6 or 8 characters; characters 9-12 of a longer
+// locator go into the *_EXT field (ADIF 3.1.7). null when it's no locator.
+export function adifGrid(raw) {
+  const g = String(raw ?? '').trim();
+  if (!isValidLocator(g)) return null;
+  const f = formatLocator(g);
+  return { grid: f.slice(0, 8), ext: f.slice(8) };
+}
+
+// A callsign for OPERATOR / STATION_CALLSIGN, or null when the header holds
+// something else (a name, a typo): ADIF wants a callsign there.
+function adifCall(raw) {
+  const c = normalizeCall(raw);
+  return c && isPlausibleCall(c) ? c : null;
+}
+
+// "+0.6" / "-7.6" (ASCII: the ADIF comment can't carry "−")
+function shiftAscii(text) {
+  const v = parseMHz(text);
+  if (v === null) return '';
+  return v === 0 ? 'simplex' : `${v > 0 ? '+' : ''}${Math.round(v * 1e6) / 1e6}`;
+}
+
+// Fields toADIF() writes itself: a template field must not map onto one of
+// them (ADIF: no field name twice in a record). Checked by the tests.
+export const ADIF_FIXED_FIELDS = [
+  'CALL', 'QSO_DATE', 'TIME_ON', 'OPERATOR', 'STATION_CALLSIGN', 'FREQ', 'BAND', 'FREQ_RX', 'BAND_RX', 'MODE',
+  'SUBMODE', 'MY_GRIDSQUARE', 'MY_GRIDSQUARE_EXT', 'MY_CITY', 'PROP_MODE', 'GRIDSQUARE', 'GRIDSQUARE_EXT', 'LAT',
+  'LON', 'COMMENT',
+  ...['REPEATER', 'SIGNALLING', 'LOCATION', 'LOC_NAMETYPE', 'LOC_MATCHED', 'LOC_SOURCE', 'LOC_INPUT', 'CHECKIN', 'LOG']
+    .map(n => `APP_${ADIF_PROGRAM_ID}_${n}`),
+];
+
+// The ADIF field a template field is exported to.
+export function adifFieldName(f) {
+  return f.adif || `APP_${ADIF_PROGRAM_ID}_${f.key.toUpperCase()}`;
+}
+
+// What logbook programs will stumble over, per line: no band/frequency, no
+// mode, header values that aren't a callsign / locator. The export still
+// works (those values go into COMMENT); app.js shows the list first.
+// [{ nr, call, problems: [text] }]
+export function adifIssues(event, entries) {
+  const out = [];
+  for (const e of liveCheckins(entries)) {
+    const s = e.snap || {};
+    const { tx, rx } = lineFrequencies(e);
+    const problems = [];
+    if (tx === null && rx === null) problems.push('keine Frequenz');
+    if (!modeInfo(s.mode)) problems.push('keine Betriebsart');
+    if (!isPlausibleCall(normalizeCall(e.call))) problems.push(`Rufzeichen „${e.call}“ ungewöhnlich`);
+    if (s.operator && !adifCall(s.operator)) problems.push(`Operator „${s.operator}“ ist kein Rufzeichen`);
+    if (s.station && !adifCall(s.station)) problems.push(`Station „${s.station}“ ist kein Rufzeichen`);
+    if (s.myGrid && !adifGrid(s.myGrid)) problems.push(`eigener Locator „${s.myGrid}“ ungültig`);
+    if (problems.length) out.push({ nr: e.seq, call: e.call, problems });
+  }
+  return out;
+}
+
+// opts.programVersion: PROGRAMVERSION header field (the build's commit).
+export function toADIF(event, entries, createdIso = new Date().toISOString(), opts = {}) {
   const tpl = templateFor(event.template);
   const nums = checkinNumbers(entries);
   const ts = createdIso.replace(/[-:]/g, '').replace('T', ' ').slice(0, 15);
   let out = `Bestaetigungsverkehr-Log: ${adifAscii(event.title)}\n`;
   out += `<ADIF_VER:5>3.1.7 <PROGRAMID:${ADIF_PROGRAM_ID.length}>${ADIF_PROGRAM_ID} `;
+  out += adifAsciiField('PROGRAMVERSION', opts.programVersion);
   out += `<CREATED_TIMESTAMP:15>${ts} <EOH>\n\n`;
 
   for (const e of liveCheckins(entries)) {
@@ -165,13 +231,20 @@ export function toADIF(event, entries, createdIso = new Date().toISOString()) {
     const { date, time } = splitUtc(e.ts);
     const { tx, rx } = lineFrequencies(e);
     const mode = modeInfo(s.mode);
+    // Header values that don't fit their ADIF field: kept in the comment.
     const comment = [];
+    const operator = adifCall(s.operator);
+    const station = adifCall(s.station);
+    const myGrid = adifGrid(s.myGrid);
+    if (s.operator && !operator) comment.push(`Operator: ${s.operator}`);
+    if (s.station && !station) comment.push(`Station: ${s.station}`);
+    if (s.myGrid && !myGrid) comment.push(`Eigener Locator: ${s.myGrid}`);
     let rec = '';
-    rec += adifAsciiField('CALL', e.call);
+    rec += adifAsciiField('CALL', normalizeCall(e.call) || e.call);
     rec += adifAsciiField('QSO_DATE', date.replace(/-/g, ''));
     rec += adifAsciiField('TIME_ON', time.replace(/:/g, ''));
-    rec += adifAsciiField('OPERATOR', s.operator);
-    rec += adifAsciiField('STATION_CALLSIGN', s.station || s.operator);
+    rec += adifAsciiField('OPERATOR', operator);
+    rec += adifAsciiField('STATION_CALLSIGN', station || operator);
     if (tx !== null) {
       rec += adifAsciiField('FREQ', fmtMHz(tx));
       rec += adifAsciiField('BAND', bandForMHz(tx));
@@ -184,14 +257,19 @@ export function toADIF(event, entries, createdIso = new Date().toISOString()) {
       rec += adifAsciiField('MODE', mode.mode);
       if (mode.submode) rec += adifAsciiField('SUBMODE', mode.submode);
     }
-    rec += adifAsciiField('MY_GRIDSQUARE', s.myGrid);
+    if (myGrid) {
+      rec += adifAsciiField('MY_GRIDSQUARE', myGrid.grid);
+      rec += adifAsciiField('MY_GRIDSQUARE_EXT', myGrid.ext);
+    }
     rec += adifAsciiField('MY_CITY', s.myQth);
     // ADIF has no fields for CTCSS, DMR colour code etc.: an app field
     // plus the comment.
     const sig = signallingText(s);
     if (e.viaRepeater) {
       rec += adifAsciiField('PROP_MODE', 'RPT');
-      const rpt = [s.repeaterCall, s.repeaterFreq && `${s.repeaterFreq} MHz`, s.repeaterShift && `Shift ${s.repeaterShift}`, sig]
+      const rptOut = parseMHz(s.repeaterFreq);
+      const shift = shiftAscii(s.repeaterShift);
+      const rpt = [s.repeaterCall, rptOut !== null && `${formatMHz(rptOut)} MHz`, shift && `Shift ${shift}`, sig]
         .filter(Boolean).join(' ');
       if (rpt) {
         rec += adifAsciiField(`APP_${ADIF_PROGRAM_ID}_REPEATER`, s.repeaterCall || rpt);
@@ -205,15 +283,15 @@ export function toADIF(event, entries, createdIso = new Date().toISOString()) {
       if (!fieldVisible(f, e.fields, tpl)) continue;
       const raw = e.fields?.[f.key];
       if (raw === undefined || raw === null || raw === '') continue;
-      if (f.adif) {
-        rec += adifAsciiField(f.adif, raw);
-      } else {
-        rec += adifAsciiField(`APP_${ADIF_PROGRAM_ID}_${f.key.toUpperCase()}`, raw);
-        comment.push(`${f.label}: ${fieldDisplay(f, raw)}`);
-      }
+      rec += adifAsciiField(adifFieldName(f), raw);
+      if (!f.adif) comment.push(`${f.label}: ${fieldDisplay(f, raw)}`);
     }
     if (e.loc) {
-      rec += adifAsciiField('GRIDSQUARE', e.loc.maidenhead);
+      const grid = adifGrid(e.loc.maidenhead);
+      if (grid) {
+        rec += adifAsciiField('GRIDSQUARE', grid.grid);
+        rec += adifAsciiField('GRIDSQUARE_EXT', grid.ext);
+      }
       rec += adifAsciiField('LAT', adifLatLon(e.loc.lat, true));
       rec += adifAsciiField('LON', adifLatLon(e.loc.lon, false));
       rec += adifAsciiField(`APP_${ADIF_PROGRAM_ID}_LOCATION`, e.loc.label);

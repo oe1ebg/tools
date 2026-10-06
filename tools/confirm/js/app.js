@@ -13,7 +13,7 @@ import {
   liveSorted, stats, isComment, COMMENT_CATEGORIES, newComment, headerChangeMarkers, headerFromRepeater,
 } from './model.js';
 import { TEMPLATES, templateFor, fieldVisible, fieldDisplay, fieldOptions, currentOptions, shortSummary, exampleValues } from './templates.js';
-import { toCSV, toADIF, toKML, KML_MIME, toSummary, adifFieldTargets } from './export.js';
+import { toCSV, toADIF, adifIssues, ADIF_MIME, toKML, KML_MIME, toSummary, adifFieldTargets } from './export.js';
 import { loadDataFile } from '../../shared/js/data.js';
 import { buildCallbook, lookupCall, suggestCalls } from '../../shared/js/callbook.js';
 import { $, el, fill, popover, focusNext } from '../../shared/js/dom.js';
@@ -1702,7 +1702,7 @@ async function importBackup(file) {
 /* --- exports --- */
 
 function fileBase(ev, iso) {
-  const slug = ev.title.normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/ß/g, 'ss')
+  const slug = ev.title.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/ß/g, 'ss')
     .replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'log';
   return `${splitUtc(iso || ev.created).date}_${slug}`;
 }
@@ -1771,7 +1771,23 @@ function showEmptyAdif(entries) {
   ok.focus();
 }
 
-async function doExport(kind) {
+// Lines a logbook program would reject or misfile (no frequency, no mode,
+// header values that aren't a callsign/locator): say so before exporting.
+function showAdifIssues(issues) {
+  const box = $('#export-msg');
+  const shown = issues.slice(0, 8);
+  const go = el('button', { type: 'button', onclick: () => { box.hidden = true; doExport('adif', true); } }, 'Trotzdem exportieren');
+  fill(box, el('strong', {}, `ADIF: ${issues.length} Zeile(n) unvollständig. `),
+    'Logbuchprogramme brauchen Frequenz und Betriebsart; Werte, die kein Rufzeichen oder Locator sind, landen im Kommentar.',
+    el('ul', {}, shown.map(i => el('li', {}, `Nr. ${i.nr} ${i.call}: ${i.problems.join(', ')}`)),
+      issues.length > shown.length ? el('li', {}, `… und ${issues.length - shown.length} weitere`) : null),
+    go,
+    el('button', { type: 'button', onclick: () => { box.hidden = true; $('#hdr-panel').open = true; } }, 'Header bearbeiten'));
+  box.hidden = false;
+  go.focus();
+}
+
+async function doExport(kind, force = false) {
   $('#export-msg').hidden = true;
   await flushMarkers({ openForEdit: false });
   await flushHeader();
@@ -1788,7 +1804,14 @@ async function doExport(kind) {
       showEmptyAdif(entries);
       return;
     }
-    download(toADIF(ev, entries), fileBase(ev) + '.adi', 'text/plain');
+    const issues = adifIssues(ev, entries);
+    if (issues.length && !force) {
+      showAdifIssues(issues);
+      return;
+    }
+    const commit = globalThis.CONFIRM_BUILD?.commit;
+    download(toADIF(ev, entries, undefined, { programVersion: commit && commit !== 'dev' ? commit : '' }),
+      fileBase(ev) + '.adi', ADIF_MIME);
     markExported();
   } else if (kind === 'kml') {
     // Not a full backup (only stations with a location): no markExported().

@@ -17,7 +17,7 @@ export function foldName(s, plain = false) {
     .replace(/(\p{L})pl\.(?=[\s\d,;]|$)/gu, '$1platz');
   const map = plain ? UMLAUT_PLAIN : UMLAUT_AE;
   t = t.replace(/[äöü]/g, c => map[c]);
-  t = t.normalize('NFKD').replace(/[̀-ͯ]/g, '');
+  t = t.normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
   t = t.replace(/[^a-z0-9]+/g, ' ').trim();
   if (!t) return '';
   return t.split(' ')
