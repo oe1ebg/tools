@@ -614,6 +614,7 @@ async function duplicateEvent(ev) {
 
 async function openEvent(id) {
   await leaveEvent();
+  $('#export-msg').hidden = true;
   const ev = await state.store.get('events', id);
   if (!ev) {
     location.hash = '#/';
@@ -1743,7 +1744,25 @@ function updateExportNudge() {
   chip.textContent = `${since} Zeilen seit letztem Export – jetzt sichern`;
 }
 
+function showEmptyAdif(entries) {
+  const box = $('#export-msg');
+  const comments = entries.some(e => !e.deleted && isComment(e));
+  const ok = el('button', { type: 'button', onclick: () => { box.hidden = true; } }, 'OK');
+  fill(box, el('b', {}, 'Kein ADIF erstellt. '),
+    'Das Log hat noch keine Check-ins. Operator-Kommentare (Zeilen mit !) und gelöschte Zeilen kommen nicht ins ADIF.',
+    ok,
+    comments ? el('button', { type: 'button', onclick: () => {
+      box.hidden = true;
+      $('#csv-comments').checked = true;
+      $('#csv-comments').dispatchEvent(new Event('change'));
+      doExport('csv');
+    } }, 'Als CSV mit Kommentaren exportieren') : null);
+  box.hidden = false;
+  ok.focus();
+}
+
 async function doExport(kind) {
+  $('#export-msg').hidden = true;
   await flushMarkers({ openForEdit: false });
   await flushHeader();
   const ev = state.event;
@@ -1753,6 +1772,12 @@ async function doExport(kind) {
     download(toCSV(ev, entries, sep, { comments: $('#csv-comments').checked }), fileBase(ev) + '.csv', 'text/csv');
     markExported();
   } else if (kind === 'adif') {
+    // ADIF only holds QSOs: an empty file (header only) looks like a
+    // broken export in a logbook program, so say why there is none.
+    if (!stats(entries).total) {
+      showEmptyAdif(entries);
+      return;
+    }
     download(toADIF(ev, entries), fileBase(ev) + '.adi', 'text/plain');
     markExported();
   } else if (kind === 'kml') {
