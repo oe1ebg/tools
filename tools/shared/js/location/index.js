@@ -11,7 +11,7 @@
 //   lookupMaidenhead(idx, 'JN88ee')         -> { bounds, postalCodes, ... }
 
 import { latLonToMaidenhead, maidenheadToBounds, isValidLocator, locatorPrecisionName, formatLocator } from '../maidenhead.js';
-import { foldName, compactKey, searchKeys, normalizeHouseNumber, leadingNumber } from './normalize.js';
+import { foldName, compactKey, foldedForms, keysOfForms, searchKeys, normalizeHouseNumber, leadingNumber } from './normalize.js';
 import { parseLocationInput } from './parse.js';
 import { buildTrigramIndex, trigramCandidates, nameSimilarity } from './fuzzy.js';
 import { buildGrid, nearestPoints, pointsInBox } from './spatial.js';
@@ -33,10 +33,26 @@ export const SCORE = {
   // "Kirche Mauer": a place of that category near the named area.
   nearContextMax: 80,
 };
+// Name types (schema 2): what kind of name matched, and its exact-match base.
+// Only official names ("name") can reach confidence "exact"; the others are
+// capped at "high". Alt names in the data are "name" strings (alias) or
+// ["name", code] with code c/h/g.
+const NAME_TYPE_CODES = { '': 'alias', c: 'colloquial', h: 'historical', g: 'generated' };
+const NAME_TYPES = {
+  name: { base: 95, how: 'Name exakt' },
+  alias: { base: 90, how: 'Alias exakt' },
+  colloquial: { base: 90, how: 'umgangssprachlicher Name' },
+  historical: { base: 88, how: 'früherer Name' },
+  generated: { base: 85, how: 'Kurzform' },
+};
+// Places outside Vienna rank below Vienna's for the same text.
+const UMLAND_PENALTY = 5;
 const FUZZY_MIN_SIMILARITY = 0.6;
 const CONFIDENCE_ORDER = ['low', 'ambiguous', 'likely', 'high', 'exact'];
 // A street corner: the two streets' nearest address points must be this close.
-const CORNER_MAX_METERS = 150;
+const CORNER_MAX_METERS = 150, CORNER_VAGUE_METERS = 500;
+// "zwischen A und B" only for places this close together.
+const BETWEEN_MAX_METERS = 5000;
 // Radius for "category near <place>" ("Kirche Mauer"); areas get the larger one.
 const NEAR_CONTEXT_METERS = 1200, NEAR_AREA_METERS = 2500;
 // A street name that ends this many other Vienna street names ("Hauptstraße")
@@ -55,9 +71,9 @@ export function buildLocationIndex(data, areas) {
     num[i] = leadingNumber(data.hn[i]);
     hnNorm[i] = normalizeHouseNumber(data.hn[i]);
   }
-  const places = data.places.map(([name, cat, la, lo, alts]) => ({
-    name, cat, alts, lat: data.latBase + la / S, lon: data.lonBase + lo / S,
-    landmark: /^(place|natural=(peak|hill|island)|tourism=(attraction|viewpoint)|railway=station|landmark)/.test(cat),
+  const places = data.places.map(([name, cat, la, lo, alts, src = 'osm', umland = 0]) => ({
+    name, cat, alts, sources: src.split('+'), umland: !!umland, lat: data.latBase + la / S, lon: data.lonBase + lo / S,
+    landmark: /^(place|natural=(peak|hill|island)|tourism=(attraction|viewpoint)|railway=station|aeroway=aerodrome|landmark)/.test(cat),
   }));
   const streets = data.streets.map(([name, start, count]) => {
     const plz = new Set(), dist = new Set();
@@ -75,26 +91,37 @@ export function buildLocationIndex(data, areas) {
   const { areaPlz, bezirke, states } = readAreas(areas);
 
   // Vocabulary: every searchable name -> entities.
-  const terms = []; // { kind: street|place|district|bezirk|postcode, id, label, alias, bonus }
+  // { kind: street|place|district|bezirk|postcode|family, id, label, nameType, alias, bonus }
+  const terms = [];
   const keyTerms = new Map(); // compact key -> [term ids]
-  const addTerm = (kind, id, text, alias, bonus = 0) => {
-    const t = terms.push({ kind, id, label: text, alias, bonus }) - 1;
-    for (const k of searchKeys(text)) {
+  const addTerm = (kind, id, text, nameType = 'name', bonus = 0) => {
+    const forms = foldedForms(text);
+    const t = terms.push({ kind, id, label: text, nameType, alias: nameType !== 'name', bonus, forms }) - 1;
+    // "Zentralfriedhof 2.Tor" is also found as "Zentralfriedhof Tor 2".
+    const keys = keysOfForms(forms);
+    if (/\d\.\s*\p{L}/u.test(text)) keys.push(...searchKeys(rewriteOrdinals(text)));
+    for (const k of new Set(keys)) {
       let list = keyTerms.get(k);
       if (!list) keyTerms.set(k, (list = []));
       list.push(t);
     }
   };
-  streets.forEach((s, i) => addTerm('street', i, s.name, false));
+  streets.forEach((s, i) => addTerm('street', i, s.name));
+  // A place's alt name that is exactly a street name (OSM sometimes has the
+  // address there) would make "Mariahilfer Straße" find the museum.
+  const isStreetName = text => searchKeys(text).some(k => (keyTerms.get(k) || []).some(t => terms[t].kind === 'street'));
   places.forEach((p, i) => {
-    addTerm('place', i, p.name, false);
-    for (const a of p.alts) addTerm('place', i, a, true);
+    addTerm('place', i, p.name);
+    for (const a of p.alts) {
+      const [text, code] = typeof a === 'string' ? [a, ''] : a;
+      if (!isStreetName(text)) addTerm('place', i, text, NAME_TYPE_CODES[code] || 'alias');
+    }
   });
-  for (const d of districts.values()) for (const nm of d.names) addTerm('district', d.nr, nm, d.names[0] !== nm);
-  for (const [alias, kind, id] of data.aliases) addTerm(kind, id, alias, true);
+  for (const d of districts.values()) for (const nm of d.names) addTerm('district', d.nr, nm, d.names[0] !== nm ? 'alias' : 'name');
+  for (const [alias, kind, id, code = ''] of data.aliases) addTerm(kind, id, alias, NAME_TYPE_CODES[code] || 'alias');
   // "Gürtel", "Ring": one everyday name for several streets.
   const families = (data.families || []).map(([name, members]) => ({ name, members }));
-  families.forEach((f, i) => addTerm('family', i, f.name, true));
+  families.forEach((f, i) => addTerm('family', i, f.name, 'alias'));
   addAreaTerms(addTerm, areaPlz, bezirke);
 
   const keys = [...keyTerms.keys()];
@@ -106,12 +133,16 @@ export function buildLocationIndex(data, areas) {
     terms, keyTerms, keys,
     sortedKeys: [...keys].sort(),
     genericStreets: genericStreetKeys(streets, data.genericStreets || []),
-    words: null, // buildWordIndex(terms), on first use (wordResults)
+    words: buildWordIndex(terms),
     trigrams: buildTrigramIndex(keys),
     grid: buildGrid(lat, lon),
     meta: data.meta,
     areasMeta: areas?.meta || null,
-    counts: { addresses: n, streets: streets.length, places: places.length, postcodes: areaPlz.size, bezirke: bezirke.size },
+    counts: {
+      addresses: n, streets: streets.length, places: places.length, postcodes: areaPlz.size, bezirke: bezirke.size,
+      osm: places.filter(p => p.sources.includes('osm')).length, umland: places.filter(p => p.umland).length,
+      gip: places.filter(p => p.sources.includes('gip')).length, stops: places.filter(p => p.sources.includes('wl')).length,
+    },
   };
   // District/PLZ centroids from their addresses.
   idx.districtStats = groupStats(idx, i => data.ad[i]);
@@ -145,8 +176,8 @@ function genericStreetKeys(streets, curated) {
 function buildWordIndex(terms) {
   const words = new Map();
   terms.forEach((t, id) => {
-    for (const plain of [false, true]) {
-      for (const w of foldName(t.label, plain).split(' ')) {
+    for (const form of t.forms) {
+      for (const w of form.split(' ')) {
         if (w.length < 2 || STOP_WORDS.has(w)) continue;
         let list = words.get(w);
         if (!list) words.set(w, (list = []));
@@ -178,8 +209,8 @@ function addAreaTerms(addTerm, areaPlz, bezirke) {
   const bezirkKeys = new Set();
   for (const b of bezirke.values()) {
     if (b.code.startsWith('9')) continue;
-    addTerm('bezirk', b.code, b.name, false);
-    for (const a of b.aliases) addTerm('bezirk', b.code, a, true);
+    addTerm('bezirk', b.code, b.name);
+    for (const a of b.aliases) addTerm('bezirk', b.code, a, 'alias');
     for (const nm of [b.name, ...b.aliases]) bezirkKeys.add(foldName(nm));
   }
   // PLZ named after the Gemeinde first, then those it only shares; each by size.
@@ -198,7 +229,7 @@ function addAreaTerms(addTerm, areaPlz, bezirke) {
   for (const [nm, codes] of byName) {
     if (codes.length > 3 && bezirkKeys.has(foldName(nm))) continue;
     // +1: a PLZ is more specific than the Bezirk of the same name.
-    codes.forEach((code, i) => addTerm('postcode', code, nm, false, i ? -2 - i : 1));
+    codes.forEach((code, i) => addTerm('postcode', code, nm, 'name', i ? -2 - i : 1));
   }
 }
 
@@ -314,9 +345,9 @@ function keysWithPrefix(sorted, prefix) {
 // Text -> { termId: { base, kind, how, similarity } }
 function textMatches(idx, text) {
   const out = new Map();
-  const put = (t, base, how, similarity) => {
+  const put = (t, base, how, similarity, exact = false) => {
     const prev = out.get(t);
-    if (!prev || prev.base < base) out.set(t, { base, how, similarity });
+    if (!prev || prev.base < base) out.set(t, { base, how, similarity, exact });
   };
   const qkeys = searchKeys(text);
   if (!qkeys.length) return out;
@@ -324,7 +355,8 @@ function textMatches(idx, text) {
   for (const k of qkeys) {
     for (const t of idx.keyTerms.get(k) || []) {
       const term = idx.terms[t];
-      put(t, term.alias ? SCORE.exactAlias : SCORE.exactName, term.alias ? 'Alias exakt' : 'Name exakt', 1);
+      const nt = NAME_TYPES[term.nameType] || NAME_TYPES.alias;
+      put(t, nt.base, nt.how, 1, true);
     }
   }
   // prefix (abbreviated input: "Quellen", "Donaust")
@@ -453,9 +485,9 @@ function expandTerm(idx, term, match, ev) {
     const p = idx.places[term.id];
     const c = lookupCoordinates(idx, p.lat, p.lon);
     out.push(makeResult(idx, 'poi', p.name, p.lat, p.lon, {
-      postcode: c.postcode, district: c.district, source: p.cat === 'landmark' ? 'alias' : 'osm', category: p.cat,
-      base: match.base + (p.landmark ? SCORE.landmark : 0), match,
-      note: term.alias ? `„${term.label}“` : undefined,
+      postcode: c.postcode, district: c.district, source: PLACE_SOURCE[p.sources[0]] || p.sources[0], sources: p.sources,
+      category: p.cat, role: placeRole(p), umland: p.umland || undefined,
+      base: match.base + (p.landmark ? SCORE.landmark : 0) - (p.umland ? UMLAND_PENALTY : 0), match,
     }));
   } else if (term.kind === 'district') {
     const st = idx.districtStats.get(term.id);
@@ -481,61 +513,128 @@ function expandTerm(idx, term, match, ev) {
     if (term.label !== e.name) extra.note = `Gemeinde ${term.label} – Mitte des PLZ-Gebiets`;
     out.push(postcodeResult(idx, e, extra));
   }
+  // Found by another name than the result's own: say which, and how it is
+  // known ("Rudolfstiftung" -> Klinik Landstraße, a former name).
+  if (term.alias && term.nameType && term.label) {
+    for (const r of out) {
+      if (r.label === term.label) continue;
+      r.matchedName ??= term.label;
+      r.nameType ??= term.nameType;
+      r.note ??= NAME_NOTE[term.nameType]?.(term.label);
+      r.cap ??= 'high';
+    }
+  }
   return out;
+}
+
+const NAME_NOTE = {
+  alias: n => `„${n}“`,
+  colloquial: n => `„${n}“ (umgangssprachlich)`,
+  historical: n => `früher „${n}“`,
+  generated: n => `„${n}“`,
+};
+// Data source codes (schema 2) -> result `source`.
+const PLACE_SOURCE = { osm: 'osm', gip: 'gip', wl: 'wl', curated: 'alias' };
+
+// What the point of a place stands for (a label is not an entrance).
+function placeRole(p) {
+  if (p.cat === 'stop' || /railway=(station|halt)|public_transport=station|gip:(u-bahnstation|bahnhof)/i.test(p.cat)) return 'stop';
+  if (/^place=|^gip:(flurname|katastralgemeinde|gemeindebezirk|wohngebiete|riedbezeichnung|gartensiedlung)/i.test(p.cat)) return 'area';
+  if (p.cat.startsWith('gip:')) return 'label_point';
+  return 'point';
 }
 
 /* ------------------------------------------------------------------ structured free text */
 
-// Streets a corner side can mean: { street id -> text base }, the best few.
-function streetsNamed(idx, text) {
+// What a corner side can mean: streets (their address points), family
+// members, or a named place (one point, e.g. a bridge). The best few,
+// keyed "s<id>" / "p<id>": { name, pts: [[lat, lon], ...], base }.
+function cornerSide(idx, text) {
   const best = new Map();
-  const set = (id, base) => { if (!(best.get(id) >= base)) best.set(id, base); };
+  const set = (key, name, pts, base) => { if (!(best.get(key)?.base >= base)) best.set(key, { name, pts, base }); };
+  const streetPts = sid => {
+    const st = idx.streets[sid], pts = [];
+    for (let i = st.start; i < st.start + st.count; i++) pts.push([idx.lat[i], idx.lon[i]]);
+    return pts;
+  };
   for (const [t, m] of textMatches(idx, text)) {
     if (m.base < SCORE.fuzzyMax * 0.9) continue;
     const term = idx.terms[t];
-    if (term.kind === 'street') set(term.id, m.base);
-    else if (term.kind === 'family') for (const sid of idx.families[term.id].members) set(sid, m.base - 1);
+    if (term.kind === 'street') set(`s${term.id}`, idx.streets[term.id].name, () => streetPts(term.id), m.base);
+    else if (term.kind === 'family') for (const sid of idx.families[term.id].members) set(`s${sid}`, idx.streets[sid].name, () => streetPts(sid), m.base - 1);
+    else if (term.kind === 'place' && !idx.places[term.id].umland) {
+      const p = idx.places[term.id];
+      set(`p${term.id}`, p.name, () => [[p.lat, p.lon]], m.base - 2);
+    }
   }
-  const top = Math.max(0, ...best.values());
-  return new Map([...best].filter(([, b]) => b >= top - 8));
+  const top = Math.max(0, ...[...best.values()].map(b => b.base));
+  return [...best.values()].filter(b => b.base >= top - 8).map(b => ({ ...b, pts: b.pts() }));
 }
 
-// "Gürtel Ecke Thaliastraße": the two streets' nearest address points (the
-// corner houses carry both addresses, so usually 0 m apart); their midpoint.
+// "Gürtel Ecke Thaliastraße": the two sides' nearest points (corner houses
+// carry both addresses, so usually 0 m apart); their midpoint. Up to
+// CORNER_MAX_METERS a corner, up to CORNER_VAGUE_METERS a vague one (a
+// bridge or square has one point only). Neither: each side on its own, so
+// the operator still gets something to pick.
 function cornerResults(idx, ev) {
   const out = [];
   const cos = Math.cos(48.2 * Math.PI / 180);
   for (const [a, b] of cornerSplits(ev.text)) {
-    const A = streetsNamed(idx, a), B = streetsNamed(idx, b);
-    if (!A.size || !B.size) continue;
+    const A = cornerSide(idx, a), B = cornerSide(idx, b);
+    if (!A.length || !B.length) continue;
     let best = null;
-    for (const sa of A.keys()) {
-      const s1 = idx.streets[sa];
-      for (const sb of B.keys()) {
-        if (sa === sb) continue;
-        const s2 = idx.streets[sb];
-        for (let i = s1.start; i < s1.start + s1.count; i++) {
-          for (let j = s2.start; j < s2.start + s2.count; j++) {
-            const dy = idx.lat[i] - idx.lat[j], dx = (idx.lon[i] - idx.lon[j]) * cos;
+    for (const sa of A) {
+      for (const sb of B) {
+        if (sa.name === sb.name) continue;
+        for (const [la1, lo1] of sa.pts) {
+          for (const [la2, lo2] of sb.pts) {
+            const dy = la1 - la2, dx = (lo1 - lo2) * cos;
             const d2 = dy * dy + dx * dx;
-            if (!best || d2 < best.d2) best = { d2, i, j, sa, sb };
+            if (!best || d2 < best.d2) best = { d2, sa, sb, lat: (la1 + la2) / 2, lon: (lo1 + lo2) / 2 };
           }
         }
       }
     }
-    if (!best) continue;
-    const meters = Math.sqrt(best.d2) * 111320;
-    if (meters > CORNER_MAX_METERS) continue;
-    const s1 = idx.streets[best.sa], s2 = idx.streets[best.sb], d = idx.data;
-    const base = Math.min(A.get(best.sa), B.get(best.sb)) - 2;
-    out.push(makeResult(idx, 'intersection', `${s1.name} / ${s2.name}`,
-      (idx.lat[best.i] + idx.lat[best.j]) / 2, (idx.lon[best.i] + idx.lon[best.j]) / 2, {
-        street: s1.name, crossStreet: s2.name, postcode: d.plz[d.ap[best.i]], district: d.ad[best.i], source: 'computed',
-        base, match: { base, how: 'Kreuzung', similarity: base / SCORE.exactName }, cap: 'likely',
-        note: `Kreuzung – aus Adresspunkten geschätzt${meters >= 20 ? ` (Abstand ${Math.round(meters)} m)` : ''}`,
+    const meters = best ? Math.sqrt(best.d2) * 111320 : Infinity;
+    if (meters <= CORNER_VAGUE_METERS) {
+      const vague = meters > CORNER_MAX_METERS;
+      const base = Math.min(best.sa.base, best.sb.base) - 2 - (vague ? 10 : 0);
+      const c = lookupCoordinates(idx, best.lat, best.lon);
+      out.push(makeResult(idx, 'intersection', `${best.sa.name} / ${best.sb.name}`, best.lat, best.lon, {
+        street: best.sa.name, crossStreet: best.sb.name, postcode: c.postcode, district: c.district, source: 'computed',
+        base, match: { base, how: 'Kreuzung', similarity: base / SCORE.exactName }, cap: vague ? 'low' : 'likely',
+        note: vague ? `Kreuzung ungefähr – nächste Punkte ${Math.round(meters / 10) * 10} m auseinander`
+          : `Kreuzung – aus Adresspunkten geschätzt${meters >= 20 ? ` (Abstand ${Math.round(meters)} m)` : ''}`,
       }));
+    } else {
+      for (const side of [a, b]) {
+        for (const [t, m] of textMatches(idx, side)) {
+          if (m.base < SCORE.prefix) continue;
+          for (const r of expandTerm(idx, idx.terms[t], m, ev)) out.push({ ...r, cap: 'low', note: `Kreuzung „${a}“ / „${b}“ nicht gefunden` });
+        }
+      }
+    }
   }
   return out;
+}
+
+// "zwischen Praterstern und Riesenrad": the midpoint of the two places.
+function betweenResult(idx, a, b, opts) {
+  const ra = locate(idx, a, { ...opts, autoSelect: 'none' }).results[0];
+  const rb = locate(idx, b, { ...opts, autoSelect: 'none' }).results[0];
+  if (!ra || !rb) return null;
+  const d = distanceMeters(ra.lat, ra.lon, rb.lat, rb.lon);
+  if (d > BETWEEN_MAX_METERS) return null;
+  const lat = (ra.lat + rb.lat) / 2, lon = (ra.lon + rb.lon) / 2;
+  const c = lookupCoordinates(idx, lat, lon);
+  return {
+    ...makeResult(idx, 'between', `zwischen ${ra.label} und ${rb.label}`, lat, lon, {
+      postcode: c.postcode, district: c.district, source: 'computed',
+      note: `Mitte zwischen zwei Orten, ${Math.round(d / 10) * 10} m auseinander`,
+    }),
+    score: Math.min(ra.score, rb.score), confidence: 'likely', evidence: {},
+    reasons: [`zwischen „${a}“ und „${b}“`],
+  };
 }
 
 // "Kirche Mauer", "U6 Josefstädter Straße", "Spital Floridsdorf".
@@ -592,7 +691,6 @@ function categoryResults(idx, ev, { category, word, rest }) {
 // Names that contain every word of the query ("Ottakringer Brauerei" ->
 // "Alte Technik - Ottakringer Brauerei"); fewer extra words rank higher.
 function wordResults(idx, ev) {
-  if (!idx.words) idx.words = buildWordIndex(idx.terms);
   const variants = [false, true].map(plain => foldName(ev.text, plain).split(' '));
   const n = variants[0].length;
   if (n !== variants[1].length) return [];
@@ -608,7 +706,7 @@ function wordResults(idx, ev) {
   for (const t of lists[0]) {
     if (!lists.every(l => l.has(t))) continue;
     const term = idx.terms[t];
-    const words = foldName(term.label).split(' ').filter(w => w.length >= 2 && !STOP_WORDS.has(w)).length;
+    const words = term.forms[0].split(' ').filter(w => w.length >= 2 && !STOP_WORDS.has(w)).length;
     const base = Math.max(70, SCORE.wordsMax - 2 * (words - lists.length));
     const match = { base, how: 'alle Wörter im Namen', similarity: lists.length / Math.max(words, 1) };
     for (const r of expandTerm(idx, term, match, ev)) out.push({ ...r, cap: 'likely' });
@@ -659,8 +757,8 @@ function applyEvidence(idx, r, ev, lb) {
       else { score += SCORE.locatorOutside * weight; evidence.locatorMatch = false; why.push('außerhalb des Locators'); }
     }
   }
-  evidence.exactAddress = !!r.houseNumberMatch && r.match?.base >= SCORE.exactAlias;
-  evidence.exactAlias = r.match?.how === 'Alias exakt';
+  evidence.exactAddress = !!r.houseNumberMatch && !!r.match?.exact;
+  evidence.exactAlias = !!r.match?.exact && !!r.nameType;
   return { ...r, score: Math.round(score), evidence, reasons: why };
 }
 
@@ -695,19 +793,15 @@ function finish(results, opts) {
   // An exact name/alias with no serious competitor elsewhere is a confident
   // hit even without further evidence ("Stephansplatz", "AKH").
   const t0 = top[0];
-  if (t0 && t0.confidence === 'likely' && t0.match && t0.match.base >= SCORE.exactAlias
+  if (t0 && t0.confidence === 'likely' && t0.match && (t0.match.exact || t0.match.base >= SCORE.exactAlias)
       && ![t0.evidence.postcodeMatch, t0.evidence.districtMatch, t0.evidence.locatorMatch].includes(false)
       && !top.slice(1).some(r => r.score >= t0.score - 15 && distanceMeters(t0.lat, t0.lon, r.lat, r.lon) > 500 && !nestedAreas(t0, r))) {
     t0.confidence = 'high';
     t0.reasons.push('eindeutig');
   }
-  // Inferred matches (corners, families, category + context, generic street
-  // names) never claim more than their cap.
   for (const r of top) {
-    if (r.cap && CONFIDENCE_ORDER.indexOf(r.confidence) > CONFIDENCE_ORDER.indexOf(r.cap)) r.confidence = r.cap;
     delete r.base;
     delete r.match;
-    delete r.cap;
   }
   // Two strong candidates far apart: don't pretend to know which one.
   if (top.length > 1 && top[0].confidence !== 'exact'
@@ -716,6 +810,12 @@ function finish(results, opts) {
       && distanceMeters(top[0].lat, top[0].lon, top[1].lat, top[1].lon) > 500) {
     top[0].confidence = 'ambiguous';
     if (CONFIDENCE_ORDER.indexOf(top[1].confidence) > 1) top[1].confidence = 'ambiguous';
+  }
+  // Inferred matches (corners, families, category + context, generic street
+  // names, other name types) never claim more than their cap, last.
+  for (const r of top) {
+    if (r.cap && CONFIDENCE_ORDER.indexOf(r.confidence) > CONFIDENCE_ORDER.indexOf(r.cap)) r.confidence = r.cap;
+    delete r.cap;
   }
   return top;
 }
@@ -738,6 +838,9 @@ export function locate(idx, input, opts = {}) {
     delete ev.street;
     delete ev.houseNumber;
   }
+  // "Wien Mitte", "Wien Museum": the city name is part of the name here.
+  const whole = String(input ?? '').trim();
+  if (/(^|\s)(wien|vienna)(\s|$)/i.test(whole) && known(whole)) ev = { raw: whole, text: whole };
   // "beim Schottentor", "Nähe Praterstern" — unless that is the name ("Am Spitz").
   if (ev.text && !known(ev.text)) {
     const rel = splitRelation(ev.text);
@@ -767,6 +870,16 @@ export function locate(idx, input, opts = {}) {
     }]);
   }
 
+  // "zwischen A und B": the midpoint, plus A and B themselves.
+  const zw = ev.text && /^zwischen\s+(.+?)\s+(?:und|u\.|&|\/)\s+(.+)$/i.exec(ev.text);
+  if (zw) {
+    const mid = betweenResult(idx, zw[1], zw[2], opts);
+    if (mid) {
+      const sides = [zw[1], zw[2]].map(t => locate(idx, t, { ...opts, autoSelect: 'none' }).results[0]);
+      return pack([mid, ...sides.map(r => ({ ...r, confidence: 'low' }))]);
+    }
+  }
+
   const lb = ev.locator ? maidenheadToBounds(ev.locator) : null;
   // A PLZ outside Vienna: there are no street/landmark data there, so only
   // area names (Gemeinde, Bezirk) can match the text.
@@ -787,16 +900,19 @@ export function locate(idx, input, opts = {}) {
     for (const [t, match] of textMatches(idx, ev.text)) {
       const term = idx.terms[t];
       if (outside && term.kind !== 'postcode' && term.kind !== 'bezirk') continue;
-      if (match.base >= SCORE.exactAlias) exact = true;
+      if (match.exact) exact = true;
       for (const r of expandTerm(idx, term, match, ev)) results.push(applyEvidence(idx, r, ev, lb));
     }
     // Not a known name as a whole: a street corner, a category word next to
     // a name or area, or a name containing all the words.
-    if (!exact && !outside) {
+    // "Spital Floridsdorf": the parser took the district, the category word is left.
+    const cat = !outside && ev.district && !ev.houseNumber && categoryOfWord(ev.text);
+    if (cat) {
+      const sc = { category: cat, word: ev.text, rest: idx.districts.get(ev.district).name };
+      for (const r of categoryResults(idx, ev, sc)) results.push(applyEvidence(idx, r, ev, lb));
+    } else if (!exact && !outside) {
       const more = cornerResults(idx, ev);
-      // "Spital Floridsdorf": the parser took the district, the category word is left.
-      const cat = ev.district && !ev.houseNumber && categoryOfWord(ev.text);
-      const sc = cat ? { category: cat, word: ev.text, rest: idx.districts.get(ev.district).name } : splitCategory(ev.text);
+      const sc = splitCategory(ev.text);
       if (sc) more.push(...categoryResults(idx, ev, sc));
       more.push(...wordResults(idx, ev));
       for (const r of more) results.push(applyEvidence(idx, r, ev, lb));

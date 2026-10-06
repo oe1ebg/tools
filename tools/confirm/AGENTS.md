@@ -102,12 +102,17 @@ comment?}]}`. `out` is the repeater's output and `in` its input
 (shift = in − out). `modes` uses the keys of `MODES` in `js/model.js`.
 
 `data/vienna-locations.json` is built by `scripts/build_location_data.py`
-(schema 1). It contains `plz[]`, `streets[[name, start, count]]` (with
+(schema 2). It contains `plz[]`, `streets[[name, start, count]]` (with
 addresses contiguous per street), the per-address arrays
 `hn`/`ap`/`ad`/`alat`/`alon` (integer 1e-5° offsets from
-`latBase`/`lonBase`), `places[[name, category, lat, lon, alts]]`,
-`districts`, `aliases`, `families[[name, [street index, ...]]]`,
-`genericStreets[name, ...]` (both optional) and `meta`.
+`latBase`/`lonBase`), `places[[name, category, lat, lon, alts, sources,
+umland]]` (alts: `"name"` = alias or `["name", "c"|"h"|"g"]` =
+colloquial/historical/generated; sources e.g. `"osm+gip"`; umland 0/1;
+category OSM `key=value`, `gip:<NAMECAT_NAME>`, `stop` or `landmark`),
+`districts`, `aliases[[alias, kind, id, type]]` (type `""`/`"c"`/`"h"`),
+`families[[name, [street index, ...]]]`, `genericStreets[name, ...]` and
+`meta` (sources and retrieval times per dataset). `buildLocationIndex()`
+still reads schema 1 rows (missing fields = alias / osm / Vienna).
 
 - **Changing the format:** bump `schema` and update `buildLocationIndex()`.
 - **Normalization** exists only in `tools/shared/js/location/normalize.js`;

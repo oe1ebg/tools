@@ -454,19 +454,30 @@ fires. The compact dropdown in the log's location field has no links.
 | Source | What | Licence |
 |---|---|---|
 | Stadt Wien WFS `ogdwien:ADRESSENOGD` ("Adressen Standorte Wien") | ~292k address points, fetched district by district directly in WGS84, deduplicated to ~181k addresses on ~7,700 streets | CC BY 4.0 |
-| OpenStreetMap via Overpass | ~6,500 named landmarks inside Vienna (places, peaks, stations, hospitals, parks, …), one representative point each | ODbL |
+| Stadt Wien WFS `ogdwien:GEONAMENOGD` ("GIP.at Namen (Punkt) Wien") | ~4,750 official and common names for orientation (Flurnamen, Kleingärten, Gemeindebauten, parks, U-Bahn stations, cemeteries, Katastralgemeinden, …) with `ALIAS1–3`; ~1,500 merge into an OSM place of the same name | CC BY 4.0 |
+| Stadt Wien WFS `ogdwien:HALTESTELLEWLOGD` (Wiener Linien Haltestellen) | ~1,800 stops; the ~600 not named exactly like a street are kept ("Schottentor", "Zentralfriedhof 2.Tor", "Praterstern/Lassallestraße") | CC BY 4.0 |
+| OpenStreetMap via Overpass | ~6,500 named landmarks inside Vienna (places, peaks, stations, hospitals, parks, malls, …) with `loc_name` (colloquial) and `old_name` (former) names; **~5,800 places around Vienna** (about 25 km beyond the boundary: towns, villages, localities, the airport, hospitals, fire stations, police, monasteries, stations, peaks, malls) | ODbL |
 | `oe1ebg/location-aliases.toml` | district names, landmarks missing from OSM (VIC/UNO City), shorthand (DI, Steffl, Hbf), street families ("Gürtel", "Ring", "Kai", "Lände"), street names found in almost every Austrian municipality ("Hauptstraße", "Bahnhofstraße") | (own) |
 
 - **Address data.** Cached in `.cache/vienna-location/` for 30 days
   (`VIENNA_LOCATION_FORCE_REFRESH=1` forces a refresh; a failed refresh
   falls back to the cache).
+- **GIP names and stops** are fetched like the addresses (same server,
+  same cache and refresh rules) on every build.
 - **OSM landmarks are a committed snapshot** (`oe1ebg/location-pois.json`,
-  one place per line). Overpass is often overloaded: during development
+  one place per line; sections `places` for Vienna and `umland` for the
+  surroundings, ~870 KB). Overpass is often overloaded: during development
   both mirrors returned 504s. CI builds also have no persistent cache, so
   the regular build never contacts Overpass. To update the landmarks, run
   `just refresh-pois` and commit the result.
-- **Output.** `tools/shared/data/vienna-locations.json` is 4.7 MB raw and
-  1.2 MB with gzip. nginx now gzips JSON, JS and CSS. The data is columnar:
+- **Merging.** Places from GIP and the stops join an OSM place with the
+  same name or alias within 400 m (names and sources merged, e.g.
+  `osm+gip`); everything else is its own place. Each place keeps its
+  sources and whether it is outside Vienna.
+- **Output.** `tools/shared/data/vienna-locations.json` (schema 2) is
+  5.4 MB raw and 1.35 MB with gzip (~16,000 places, ~29,000 search keys);
+  `confirm-offline.html` is 7.0 MB (1.8 MB gzip). Still far below the
+  sql.js switch criterion. nginx now gzips JSON, JS and CSS. The data is columnar:
   street table plus per-address arrays, with integer coordinates in units of
   1e-5°. The file also records source, retrieval time and attribution
   metadata.
@@ -509,11 +520,40 @@ The lookup engine is shared with other tools (`tools/shared/`, published at
   - **Locator → PLZ:** address counts per PLZ inside the box, plus the PLZ
     at the centre.
 
+### Name types and where a name comes from
+
+Every searchable name has a type, and a result found by another name than
+its own says so (`matchedName`, `nameType`, and a note):
+
+| Type | From | Exact match | Shown as |
+|---|---|---|---|
+| name | official/own name (street, place, GIP `FEATURENAME`) | 95 | — |
+| alias | OSM `alt_name`/`short_name`/`official_name`/`name:de`/`name:en`, GIP `ALIAS1–3`, curated aliases and abbreviations | 90 | „VIE“ |
+| colloquial | OSM `loc_name`, curated `type = "colloquial"` | 90 | „Kaisermühlner Grabstein“ (umgangssprachlich) |
+| historical | OSM `old_name`, curated `type = "historical"` (renamed hospitals, Südbahnhof, Hanappi-Stadion) | 88 | früher „Rudolfstiftung“ |
+| generated | short forms made at build time ("U-Bahn Station X" → "X") | 85 | „X“ |
+
+Only official names (and addresses) reach "exact"; every other type is
+capped at "high". A place's alt name that is exactly a street name is
+ignored (OSM sometimes has the address there, and "Mariahilfer Straße"
+would find the MuseumsQuartier). Names with an ordinal ("Zentralfriedhof
+2.Tor") are also found the way people say them ("Zentralfriedhof Tor 2").
+
+Results also carry `sources` (`osm`, `gip`, `wl`, `curated`), a `role`
+for what the point stands for (`stop`, `area`, `label_point` for GIP: where
+the map label sits, not an entrance; `point`), and `umland: true` outside
+Vienna. **Places around Vienna** rank 5 below a Vienna place with the same
+text, so "Mauer" means Wien-Mauer first; a PLZ, district or locator in the
+input decides.
+
 ### Free text: reports from the public
 
 In a crisis, places come in the way people say them, not as addresses. When
 the text as a whole is not a known name, `locate()` also tries:
 
+- **"Wien …" names** ("Wien Mitte", "Wien Museum Karlsplatz") keep the city
+  word when the whole text is a known name; otherwise "Wien" is dropped as
+  before.
 - **Position words** ("beim Schottentor", "Nähe Praterstern", "vor dem
   Westbahnhof", "in der Nähe vom Donauturm", "gegenüber", "Höhe", …) are
   stripped and shown as a reason (`Lage „beim“`); the place keeps its
@@ -521,10 +561,16 @@ the text as a whole is not a known name, `locate()` also tries:
   name, so "Am Spitz" and typos like "Am Spiz" stay intact.
 - **Street corners** ("Gürtel Ecke Thaliastraße", "Thaliastraße/Gürtel",
   "Ecke Thaliastraße Gürtel", "A und B", "Kreuzung A B"): both sides are
-  resolved to streets (exact, abbreviated or close typos), and the corner is
-  the midpoint of their nearest address points; corner houses carry both
-  addresses, so that is usually 0 m. No corner if the streets' addresses
-  never come within 150 m. Result type `intersection` ("Kreuzung").
+  resolved to streets (exact, abbreviated or close typos) or a named place,
+  and the corner is the midpoint of their nearest points; corner houses
+  carry both addresses, so that is usually 0 m. Up to 150 m apart it is a
+  corner ("likely" at most), up to 500 m a vague one ("low", "Kreuzung
+  ungefähr"); a bridge has one address point at most, so "Handelskai Ecke
+  Reichsbrücke" ends up ~500 m off (a known miss in the gold set).
+  Further apart, each side is offered on its own ("low"). Result type
+  `intersection` ("Kreuzung").
+- **"zwischen A und B"**: the midpoint of the two places (at most 5 km
+  apart), then A and B; type `between` ("Bereich"), never auto-selected.
 - **Street families** ("Gürtel", "Ring", "Kai", "Lände"; curated in
   `location-aliases.toml`): the name alone lists every member street; in a
   corner the member nearest to the other street is used.
@@ -538,8 +584,11 @@ the text as a whole is not a known name, `locate()` also tries:
   category near what the rest names ("Kirche Mauer": churches within
   1.2 km of Mauer, 2.5 km of a district or PLZ).
 - **All words inside a longer name** ("Ottakringer Brauerei" → "Alte
-  Technik - Ottakringer Brauerei"), fewer extra words first. The word index
-  is built on first use (about 60 ms once), not at startup.
+  Technik - Ottakringer Brauerei"), fewer extra words first.
+
+**Cost.** The index build takes about 0.25 s on an M-series Mac (it was
+0.18 s before the GIP names, stops and Umland places); lookups stay under
+25 ms, most under 10 ms.
 
 **Confidence caps.** Inferred matches never claim more than they can:
 corners, family members, "category near area" and all-words matches are at

@@ -21,6 +21,18 @@ export const DATA_SOURCES = {
     license: 'CC BY 4.0',
     licenseUrl: 'https://creativecommons.org/licenses/by/4.0/deed.de',
   },
+  gipNames: {
+    label: 'Stadt Wien – GIP.at Namen (Punkt) Wien',
+    url: 'https://www.data.gv.at/katalog/dataset/ee97fa6e-e96c-4f37-ae3f-26b2ed3ada0d',
+    license: 'CC BY 4.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by/4.0/deed.de',
+  },
+  stops: {
+    label: 'Stadt Wien – Wiener Linien Haltestellen',
+    url: 'https://www.data.gv.at/katalog/dataset/f1f6f15d-2faa-4b62-b78b-80599dd1c66e',
+    license: 'CC BY 4.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by/4.0/deed.de',
+  },
   districts: {
     label: 'Stadt Wien – Bezirksgrenzen',
     url: 'https://www.data.gv.at/katalog/dataset/2ee6b8bf-6292-413c-bb8b-bd22dbb2ad4b',

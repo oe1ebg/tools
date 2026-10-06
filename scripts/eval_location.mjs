@@ -44,13 +44,18 @@ function parseExpect(s) {
   if (s === '-') return null;
   return s.split(/\s+OR\s+/).map(alt => {
     const m = /^@(-?[\d.]+),(-?[\d.]+)(?:\/(\d+))?$/.exec(alt);
-    return m ? { lat: +m[1], lon: +m[2], radius: m[3] ? +m[3] : 400 } : { label: alt.toLowerCase() };
+    return m ? { lat: +m[1], lon: +m[2], radius: m[3] ? +m[3] : 400 } : { label: looseLabel(alt) };
   });
+}
+
+// Case, hyphens, dots and ß don't matter: "Generali-Arena" ~ "Generali Arena".
+function looseLabel(s) {
+  return ` ${s.toLowerCase().replace(/ß/g, 'ss').replace(/[^\p{L}\p{N}]+/gu, ' ').trim()} `;
 }
 
 export function matches(result, expect) {
   return expect.some(e => e.label !== undefined
-    ? result.label.toLowerCase().includes(e.label)
+    ? looseLabel(result.label).includes(e.label.slice(0, -1))
     : distanceMeters(result.lat, result.lon, e.lat, e.lon) <= e.radius);
 }
 

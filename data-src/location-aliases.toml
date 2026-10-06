@@ -78,17 +78,33 @@ nr = 23
 names = ["Liesing"]
 
 # Landmarks missing from (or not findable in) the OSM extract, with their
-# own coordinates (WGS84).
+# own coordinates (WGS84). `aliases` are other names or abbreviations,
+# `colloquial` what people say, `historical` former names. `umland = true`
+# for a place outside Vienna.
 [[place]]
 name = "Vienna International Centre"
 aliases = ["VIC", "UNO City", "UNO-City", "UNO", "UNO Wien"]
 category = "landmark"
 lat = 48.23465
 lon = 16.41622
+[[place]]
+name = "Kaiserwiese"
+category = "landmark"
+lat = 48.21560
+lon = 16.39790
+[[place]]
+name = "Copa Cagrana"
+colloquial = ["Copa Kagran", "Copa Beach", "CopaBeach"]
+category = "landmark"
+lat = 48.23200
+lon = 16.41050
 
 # Extra names for something that IS in the data, resolved at build time by
-# exact name (street or landmark). `prefer` picks among several landmarks
-# with that name by OSM category.
+# exact name or alias (street or landmark). `prefer` picks among several
+# landmarks with that name by category. `type`: "abbrev" or "alias" (the
+# default), "colloquial" (what people say), "historical" (a former name;
+# shown as such, e.g. renamed hospitals). Add one for every name a report
+# used that the lookup did not know (and a gold-set case).
 [[alias]]
 alias = "DI"
 target = "Donauinsel"
@@ -114,6 +130,109 @@ target = "Ernst-Happel-Stadion"
 [[alias]]
 alias = "Schönbrunn"
 target = "Schloss Schönbrunn"
+
+# What people say
+[[alias]]
+alias = "Floridsdorfer Spitz"
+target = "Am Spitz"
+type = "colloquial"
+[[alias]]
+alias = "Twin Towers"
+target = "Vienna Twin Tower"
+type = "colloquial"
+[[alias]]
+alias = "Zentral"
+target = "Zentralfriedhof"
+prefer = "tourism=yes"
+type = "colloquial"
+[[alias]]
+alias = "Steinhof"
+target = "Otto-Wagner-Areal"
+type = "colloquial"
+[[alias]]
+alias = "Baumgartner Höhe"
+target = "Otto-Wagner-Areal"
+type = "colloquial"
+[[alias]]
+alias = "Oper"
+target = "Staatsoper"
+type = "colloquial"
+[[alias]]
+alias = "Stadthalle"
+target = "Wiener Stadthalle"
+type = "colloquial"
+[[alias]]
+alias = "Donauzentrum"
+target = "Westfield Donau Zentrum"
+type = "colloquial"
+[[alias]]
+alias = "DZ"
+target = "Westfield Donau Zentrum"
+type = "abbrev"
+[[alias]]
+alias = "Shopping City Süd"
+target = "SCS Hauptgebäude"
+[[alias]]
+alias = "Flughafen Wien"
+target = "Vienna Airport"
+[[alias]]
+alias = "Flughafen Schwechat"
+target = "Vienna Airport"
+type = "colloquial"
+[[alias]]
+alias = "Schwechat Flughafen"
+target = "Vienna Airport"
+type = "colloquial"
+[[alias]]
+alias = "Flughafen"
+target = "Vienna Airport"
+type = "colloquial"
+[[alias]]
+alias = "VIE"
+target = "Vienna Airport"
+type = "abbrev"
+
+# Former names (renamed hospitals, stations, stadiums)
+[[alias]]
+alias = "Rudolfstiftung"
+target = "Klinik Landstraße"
+type = "historical"
+[[alias]]
+alias = "Krankenanstalt Rudolfstiftung"
+target = "Klinik Landstraße"
+type = "historical"
+[[alias]]
+alias = "Krankenhaus Hietzing"
+target = "Klinik Hietzing"
+type = "historical"
+[[alias]]
+alias = "Lainzer Krankenhaus"
+target = "Klinik Hietzing"
+type = "historical"
+[[alias]]
+alias = "Krankenhaus Lainz"
+target = "Klinik Hietzing"
+type = "historical"
+[[alias]]
+alias = "Otto-Wagner-Spital"
+target = "Otto-Wagner-Areal"
+type = "historical"
+[[alias]]
+alias = "Donauspital"
+target = "Klinik Donaustadt"
+type = "historical"
+[[alias]]
+alias = "Südbahnhof"
+target = "Wien Hauptbahnhof"
+type = "historical"
+[[alias]]
+alias = "Ostbahnhof"
+target = "Wien Hauptbahnhof"
+type = "historical"
+[[alias]]
+alias = "Hanappi-Stadion"
+target = "Allianz Stadion"
+type = "historical"
 
 # Street families: one everyday name for several official streets ("der
 # Gürtel", "der Ring", "der Kai"). Searching the family name lists every

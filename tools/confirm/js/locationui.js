@@ -12,8 +12,8 @@ import { sourceItem, standDate, mapLinks } from './sources.js';
 const LOC_PREC_KEY = 'oe1ebg-confirm-locator-precision';
 const LOC_AUTO_KEY = 'oe1ebg-confirm-location-autoselect';
 const CONF_LABEL = { exact: 'exakt', high: 'hoch', likely: 'wahrscheinlich', ambiguous: 'mehrdeutig', low: 'unsicher' };
-const TYPE_LABEL = { address: 'Adresse', street: 'Straße', intersection: 'Kreuzung', poi: 'Ort', coordinate: 'Koordinate', maidenhead: 'Locator', district: 'Bezirk', bezirk: 'Bezirk', postcode: 'PLZ' };
-const SOURCE_LABEL = { 'vienna-ogd': 'Stadt Wien', osm: 'OpenStreetMap', computed: 'berechnet', alias: 'kuratiert', bev: 'Adressregister' };
+const TYPE_LABEL = { address: 'Adresse', street: 'Straße', intersection: 'Kreuzung', between: 'Bereich', poi: 'Ort', coordinate: 'Koordinate', maidenhead: 'Locator', district: 'Bezirk', bezirk: 'Bezirk', postcode: 'PLZ' };
+const SOURCE_LABEL = { 'vienna-ogd': 'Stadt Wien', osm: 'OpenStreetMap', gip: 'Stadt Wien (GIP-Namen)', wl: 'Wiener Linien', computed: 'berechnet', alias: 'kuratiert', bev: 'Adressregister' };
 const EXAMPLES = ['Währinger Straße 42', '1100 Quellenstr', 'Donauturm', 'Donauinsel JN88ge', '48.2083, 16.3731', 'JN88ee', '2340', 'Bezirk Liezen'];
 
 let indexPromise = null;
@@ -55,7 +55,7 @@ export function locatorFor(r, precision = locatorPrecision()) {
 export function addressText(r) {
   if (r.type === 'address') return `${r.street} ${r.houseNumber}, ${r.postcode} Wien`;
   if (r.type === 'street') return `${r.street}, ${r.postcode} Wien`;
-  if (r.postcode && (r.type === 'poi' || r.type === 'intersection')) return `${r.label}, ${r.postcode} Wien`;
+  if (r.postcode && (r.type === 'poi' || r.type === 'intersection' || r.type === 'between')) return `${r.label}, ${r.postcode} Wien`;
   return r.label;
 }
 
@@ -257,7 +257,9 @@ export function initLocationPanel() {
     fill(foot,
       sourceItem('addresses', `${n.format(idx.counts.addresses)} Adressen, Stand ${standDate(idx.meta.addresses_retrieved)}`),
       ' · ',
-      sourceItem('osm', `${n.format(idx.counts.places)} Orte, Stand ${standDate(idx.meta.places_retrieved)}`),
+      sourceItem('osm', `${n.format(idx.counts.osm)} Orte (davon ${n.format(idx.counts.umland)} im Umland), Stand ${standDate(idx.meta.places_retrieved)}`),
+      idx.meta.gip_names_retrieved ? [' · ', sourceItem('gipNames', `${n.format(idx.counts.gip)} Ortsnamen, Stand ${standDate(idx.meta.gip_names_retrieved)}`)] : null,
+      idx.meta.stops_retrieved ? [' · ', sourceItem('stops', `${n.format(idx.counts.stops)} Haltestellen, Stand ${standDate(idx.meta.stops_retrieved)}`)] : null,
       idx.areasMeta ? [' · ', sourceItem('adressregister', `${n.format(idx.counts.postcodes)} PLZ, Stichtag ${standDate(idx.areasMeta.stichtag)}`),
         ' · ', sourceItem('bezirke', `${n.format(idx.counts.bezirke)} Bezirke`)] : null);
   }, 800);

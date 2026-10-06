@@ -29,11 +29,21 @@ export function compactKey(folded) {
   return folded.replace(/ /g, '');
 }
 
+// Both folded forms of a name or query: [ä -> ae, ä -> a].
+export function foldedForms(s) {
+  return [foldName(s, false), foldName(s, true)];
+}
+
+// The (deduplicated) compact search keys of folded forms.
+export function keysOfForms([a, b]) {
+  a = compactKey(a);
+  b = compactKey(b);
+  return a === b ? (a ? [a] : []) : [a, b].filter(Boolean);
+}
+
 // The (deduplicated) compact search keys of a name or query.
 export function searchKeys(s) {
-  const a = compactKey(foldName(s, false));
-  const b = compactKey(foldName(s, true));
-  return a === b ? (a ? [a] : []) : [a, b].filter(Boolean);
+  return keysOfForms(foldedForms(s));
 }
 
 // House numbers: "42 A" -> "42a", "42–44" -> "42-44", "42/3" -> "42/3".

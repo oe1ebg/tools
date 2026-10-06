@@ -146,9 +146,12 @@ test('real data: brief examples', { skip: !haveReal && 'run `just build-location
   assert.equal(q1.postcode, '1100');
   assert.equal(R('Favoriten Quellenstr').results[0].district, 10);
   for (const [q, label] of [['Donauturm', 'Donauturm'], ['Kahlenberg', 'Kahlenberg'], ['Stephansplatz', 'Stephansplatz'],
-    ['VIC', 'Vienna International Centre'], ['UNO City', 'Vienna International Centre'], ['AKH', 'AKH Wien']]) {
+    ['VIC', 'Vienna International Centre'], ['AKH', 'AKH Wien']]) {
     assert.equal(R(q).results[0].label, label, q);
   }
+  // Stadt Wien's GIP names know it as "UNO-City": same place, either label.
+  const uno = R('UNO City').results[0];
+  assert.ok(Math.abs(uno.lat - 48.2347) < 0.003 && Math.abs(uno.lon - 16.4162) < 0.004, `UNO City -> ${uno.label}`);
   assert.equal(R('Kahlenberg 1190').autoSelect?.label, 'Kahlenberg');
   assert.ok(R('Donauinsel JN88ge').results[0].label.startsWith('Donauinsel'));
   const c = R('48.2083, 16.3731').results[0];

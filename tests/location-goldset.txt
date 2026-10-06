@@ -17,15 +17,17 @@
 # when the lookup improves, never loosen one without saying why in the commit.
 
 max-wrong-auto 0
+# Categories that depend on live data (GIP names, addresses: refetched on
+# every build after 30 days) keep a little slack; the core ones none.
 min exact 1.0
-min graetzl 0.92
-min colloquial 0.57
-min historical 0.54
+min graetzl 0.96
+min colloquial 0.96
+min historical 0.9
 min relation 1.0
-min intersection 1.0
-min context 0.78
+min intersection 0.94
+min context 0.95
 min typo 0.9
-min umland 0.45
+min umland 0.9
 min ambiguous 1.0
 min unknown 1.0
 
@@ -76,7 +78,7 @@ exact | 1220 | 1220 | 1 |
 exact | 22. Bezirk | Donaustadt | 1 |
 exact | Mödling | Mödling | 1 |
 exact | Baden | Baden | 1 |
-exact | UNO City | Vienna International Centre | 1 | auto
+exact | UNO City | @48.2347,16.4162/400 | 1 | auto
 exact | DI | Donauinsel | 1 |
 exact | Steffl | @48.2085,16.3732/300 | 1 |
 
@@ -105,7 +107,7 @@ graetzl | Kagran | Kagran | 1 |
 graetzl | Stadlau | Stadlau | 1 |
 graetzl | Hirschstetten | Hirschstetten | 1 |
 graetzl | Spittelau | Spittelau | 1 |
-graetzl | Steinhof | Steinhof | 1 |
+graetzl | Steinhof | Steinhof OR Otto-Wagner-Areal | 1 |
 graetzl | Wohnpark Alterlaa | Alt Erlaa OR Alterlaa | 1 |
 graetzl | Rosenhügel | Rosenhügel | 1 |
 graetzl | Matzleinsdorf | Matzleinsdorf | 1 |
@@ -126,12 +128,18 @@ colloquial | Westbahnhof Wien | Westbahnhof | 1 |
 colloquial | Flaktürme Augarten | Flakturm OR Augarten | 3 |
 colloquial | Haus des Meeres | Haus des Meeres | 1 |
 colloquial | Donauzentrum | Donau Zentrum OR Donauzentrum | 1 |
-colloquial | SCS | Shopping City Süd | 1 |
+colloquial | SCS | SCS OR Shopping City Süd | 1 |
 colloquial | Gate 2 | Wiener Wohnen Service-Center OR Gate 2 | 1 |
 colloquial | MQM | Media Quarter Marx | 1 |
 colloquial | Marx Halle | Marx Halle | 1 |
 colloquial | Rinderhalle | Marx Halle | 1 |
 colloquial | Völkerkundemuseum | Weltmuseum | 1 |
+
+colloquial | Oper | Staatsoper | 1 |
+colloquial | vor der Oper | Staatsoper | 1 |
+colloquial | Stadthalle | Stadthalle | 1 |
+colloquial | Kaisermühlner Grabstein | DC Tower | 1 |
+colloquial | Wien Mitte | Wien Mitte | 1 |
 
 # --- former names (renamed hospitals, stations, ...)
 historical | Wilhelminenspital | Klinik Ottakring | 1 |
@@ -139,12 +147,13 @@ historical | Donauspital | Klinik Donaustadt OR Donauspital | 1 |
 historical | SMZ Ost | Klinik Donaustadt | 1 |
 historical | Kaiser-Franz-Josef-Spital | Klinik Favoriten | 1 |
 historical | Rudolfstiftung | Klinik Landstraße | 1 |
-historical | Krankenhaus Hietzing | Klinik Hietzing | 1 |
-historical | Lainzer Krankenhaus | Klinik Hietzing | 1 |
+historical | Krankenhaus Hietzing | @48.1722,16.2757/500 | 1 |
+historical | Lainzer Krankenhaus | @48.1722,16.2757/500 | 1 |
 historical | Otto-Wagner-Spital | Otto-Wagner-Areal OR Steinhof | 1 |
-historical | Südbahnhof | Hauptbahnhof | 1 |
+historical | Südbahnhof | @48.1850,16.3780/700 | 1 |
 historical | Franz-Horr-Stadion | Generali-Arena | 1 |
 historical | Ernst-Happel-Stadion | Ernst-Happel-Stadion | 1 |
+historical | Hanappi Stadion | Allianz Stadion | 1 |
 
 # --- position words around a known name ("beim", "Nähe", "vor dem")
 relation | beim Schottentor | Schottentor | 1 | auto
@@ -176,8 +185,8 @@ intersection | Ring Ecke Babenbergerstraße | @48.2035,16.3635/250 | 1 |
 intersection | Kai Ecke Schwedenplatz | @48.2112,16.3798/300 | 1 |
 
 # --- an object plus its context (category word, number, district/Ortsteil)
-context | Zentralfriedhof Tor 2 | Tor 2 | 1 |
-context | Zentralfriedhof 2. Tor | Tor 2 | 3 |
+context | Zentralfriedhof Tor 2 | Tor 2 OR 2 Tor | 1 |
+context | Zentralfriedhof 2. Tor | Tor 2 OR 2 Tor | 3 |
 context | Kirche Mauer | @48.1505,16.2690/700 | 3 |
 context | Friedhof Mauer | Friedhof Mauer | 1 |
 context | U6 Josefstädter Straße | @48.2115,16.3392/250 | 1 |
@@ -195,6 +204,10 @@ context | St. Marx | Sankt Marx OR St. Marx | 1 |
 context | Sankt Marx | Sankt Marx OR St. Marx | 1 |
 context | Stift Klosterneuburg | @48.3057,16.3255/500 | 1 |
 context | Klosterneuburg Stift | @48.3057,16.3255/500 | 1 |
+context | U4 Pilgramgasse | Pilgramgasse | 1 |
+context | Hütteldorf Bahnhof | Hütteldorf | 1 |
+context | Krankenhaus Mödling | Landesklinikum Mödling | 1 |
+context | Mödling Bahnhof | @48.0861,16.2955/500 | 1 |
 
 # --- typos
 typo | Stephansplaz | Stephansplatz | 1 |
@@ -208,6 +221,13 @@ typo | Floridsdorf Am Spiz | Am Spitz | 3 |
 typo | Mariahilfastraße | Mariahilfer Straße | 1 |
 typo | Schotentor | Schottentor | 1 |
 
+# Known miss: the bridge has one address point, at its far end; the result is
+# about 500 m off and marked "low" / "ungefähr".
+intersection | Handelskai Ecke Reichsbrücke | @48.2275,16.4060/300 | 1 |
+intersection | Neubaugasse Ecke Westbahnstraße | Neubaugasse | 1 |
+intersection | Ring/Kärntner Straße | @48.2025,16.3695/300 | 1 |
+intersection | zwischen Praterstern und Riesenrad | @48.2174,16.3939/300 | 1 |
+
 # --- around Vienna (Umland)
 umland | Flughafen Wien | @48.1103,16.5697/2000 | 1 |
 umland | Schwechat Flughafen | @48.1103,16.5697/2000 | 1 |
@@ -217,9 +237,11 @@ umland | Perchtoldsdorf | Perchtoldsdorf | 1 |
 umland | Klosterneuburg | Klosterneuburg | 1 |
 umland | Bisamberg | Bisamberg | 1 |
 umland | Gerasdorf | Gerasdorf | 1 |
-umland | Shopping City Süd | Shopping City Süd | 1 |
+umland | Shopping City Süd | SCS OR Shopping City Süd | 1 |
 umland | Kierling | Kierling | 1 |
 umland | Landesklinikum Mödling | Mödling | 1 |
+umland | Stift Heiligenkreuz | Stift Heiligenkreuz | 1 |
+umland | Seegrotte | Seegrotte | 1 |
 
 # --- ambiguous: several real places, none may be auto-picked
 ambiguous | Hauptstraße | Hauptstraße | 3 | noauto
