@@ -101,3 +101,36 @@ export function suggestCalls(book, partial, max = 8) {
   }
   return out;
 }
+
+// Name/place text for searching: lower case, without accents.
+function callbookFold(text) {
+  return String(text ?? '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
+// Entries for what someone types into a callsign field: part of a callsign
+// ("OE1EB", "1ABC", "ABC"), a name or a place. Best first: the exact call,
+// calls starting with the input, abbreviated/mistyped forms
+// (suggestCalls()), then names and places containing it (3+ letters).
+export function searchCallbook(book, query, max = 8) {
+  const q = String(query ?? '').trim();
+  if (!book || q.length < 2) return [];
+  const out = [];
+  const seen = new Set();
+  const add = c => {
+    if (c && !seen.has(c[0]) && out.length < max) { seen.add(c[0]); out.push(c); }
+  };
+  if (/^[A-Za-z0-9/]+$/.test(q)) {
+    const call = baseCall(q);
+    add(book.byCall.get(call));
+    for (let i = lowerBound(book.calls, call); i < book.calls.length && book.calls[i][0].startsWith(call); i++) add(book.calls[i]);
+    for (const c of suggestCalls(book, q, max)) add(c);
+  }
+  if (q.length >= 3 && /[A-Za-zÄÖÜäöüß]/.test(q)) {
+    const needle = callbookFold(q);
+    for (const c of book.calls) {
+      if (out.length >= max) break;
+      if (callbookFold(c[1]).includes(needle) || callbookFold(c[2]).includes(needle)) add(c);
+    }
+  }
+  return out;
+}

@@ -98,7 +98,7 @@ function extLink(url, text) {
 // "<label> (CC BY 4.0) – <detail>" with links to dataset and licence.
 export function sourceItem(key, detail) {
   const s = DATA_SOURCES[key];
-  return el('span', { class: 'src' },
+  return el('span', { class: 'source' },
     extLink(s.url, s.label),
     s.license ? [' (', extLink(s.licenseUrl, s.license), ')'] : null,
     detail ? ` – ${detail}` : null);

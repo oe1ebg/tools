@@ -81,3 +81,14 @@ test('short forms: "1ABC" and "ABC" find OE<digit>ABC', () => {
   assert.ok(suggestCalls(b, '2XY').some(c => c[0] === 'OE2XYZ'), 'partial suffix with digit');
   assert.deepEqual(suggestCalls(b, 'OE1ABC').map(c => c[0]), ['OE1ABCD', 'OE1ABD', 'OE3ABC', 'OE5ABC'], 'full call: no self; prefix, then one-edit typos');
 });
+
+test('searchCallbook: callsign parts, abbreviations, names and places', async () => {
+  const { searchCallbook } = await import('../tools/shared/js/callbook.js');
+  assert.deepEqual(searchCallbook(book, 'OE1EB').map(c => c[0]), ['OE1EBG', 'OE1EBH']);
+  assert.equal(searchCallbook(book, 'oe1ebg')[0][0], 'OE1EBG', 'exact call first, any case');
+  assert.equal(searchCallbook(book, '3ABC')[0][0], 'OE3ABC', 'abbreviated form');
+  assert.deepEqual(searchCallbook(book, 'beispiel').map(c => c[0]), ['OE3ABC'], 'name, case-insensitive');
+  assert.deepEqual(searchCallbook(book, 'polten').map(c => c[0]), ['OE3ABC'], 'place, without accents');
+  assert.deepEqual(searchCallbook(book, 'x'), [], 'too short');
+  assert.deepEqual(searchCallbook(null, 'OE1'), []);
+});

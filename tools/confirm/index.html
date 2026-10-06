@@ -90,7 +90,7 @@
         </label>
         <label class="field"><span>Vorlage</span><select name="template" id="new-template"></select></label>
       </div>
-      <div id="new-template-preview" class="tpl-preview" aria-live="polite"></div>
+      <details id="new-template-preview" class="tpl-preview"></details>
       <div id="new-header" class="grid-form spaced"></div>
       <div class="toolbar form-foot">
         <button type="submit" class="primary" aria-keyshortcuts="Shift+Enter" title="Log anlegen (Shift+Enter, aus jedem Feld)">Log anlegen <span aria-hidden="true">⇧⏎</span></button>
@@ -104,20 +104,29 @@
 
   <!-- ===== Log ===== -->
   <section id="view-log" hidden>
-    <div class="toolbar">
+    <div class="toolbar log-bar">
       <button type="button" id="btn-back">← Logs</button>
       <input id="log-title" aria-label="Titel des Logs">
       <span class="stat"><b id="st-unique">0</b> Stationen · <b id="st-total">0</b> Check-ins</span>
-      <span class="spacer"></span>
       <span id="export-nudge" class="chip warn" hidden></span>
-      <span class="csv-group"><button type="button" data-export="csv">CSV</button><select id="csv-sep" aria-label="CSV-Trennzeichen" title="Trennzeichen: ; für Excel mit deutschen Ländereinstellungen, , für Excel mit englischen"><option value=";">;</option><option value=",">,</option></select></span>
-      <label class="check no-print" title="Operator-Kommentare einschließen: eigene Zeilen im CSV, Spalten typ (checkin/kommentar) und kategorie. ADIF und KML enthalten nie Kommentare."><input type="checkbox" id="csv-comments"> Operator-Kommentare einschließen</label>
-      <button type="button" data-export="adif">ADIF</button>
-      <button type="button" data-export="kml" title="Stationen mit Standort als KML (Google Earth, Google My Maps)">KML</button>
       <button type="button" id="btn-map" aria-pressed="false" aria-controls="map-panel" title="Karte mit allen Stationen (offline)">Karte</button>
-      <button type="button" data-export="summary">Zusammenfassung</button>
-      <button type="button" data-export="json" title="Vollständige Sicherung dieses Logs">Sicherung (JSON)</button>
-      <button type="button" data-export="print">Drucken</button>
+      <div class="menu no-print" id="export-menu">
+        <button type="button" id="btn-export-menu" aria-expanded="false" aria-controls="export-list">Exportieren <span aria-hidden="true">▾</span></button>
+        <div id="export-list" class="menu-list" hidden>
+          <div class="menu-csv">
+            <button type="button" data-export="csv">CSV</button>
+            <label class="check" title="; für Excel mit deutschen Ländereinstellungen, , für Excel mit englischen">Trennzeichen
+              <select id="csv-sep"><option value=";">;</option><option value=",">,</option></select></label>
+            <label class="check" title="Eigene Zeilen im CSV, Spalten typ (checkin/kommentar) und kategorie. ADIF und KML enthalten nie Kommentare."><input type="checkbox" id="csv-comments"> mit Operator-Kommentaren</label>
+          </div>
+          <button type="button" data-export="adif">ADIF (.adi)</button>
+          <button type="button" data-export="kml" title="Stationen mit Standort (Google Earth, Google My Maps)">KML (Karte)</button>
+          <button type="button" data-export="summary">Zusammenfassung</button>
+          <hr>
+          <button type="button" data-export="json" title="Vollständige Sicherung dieses Logs">Sicherung (JSON)</button>
+          <button type="button" data-export="print">Drucken</button>
+        </div>
+      </div>
     </div>
 
     <div id="lock-banner" class="banner warn" role="status" hidden></div>
@@ -136,12 +145,13 @@
     <form id="entry-form" autocomplete="off">
       <div class="row">
         <label class="field"><span><span id="time-label">Zeit UTC</span> <span class="clock" id="clock" aria-hidden="true"></span></span>
-          <input id="f-time" placeholder="automatisch" aria-describedby="time-help" autocomplete="off" enterkeyhint="next">
+          <input id="f-time" placeholder="jetzt" aria-describedby="time-help" autocomplete="off" enterkeyhint="next">
           <span id="time-help" class="sr-only"></span>
+          <span class="ac-hints" aria-hidden="true"></span>
         </label>
-        <div class="field ac-field ci-only"><label for="f-call">Rufzeichen</label>
+        <div class="field ac-field ci-only"><label for="f-call">Rufzeichen Gegenstation</label>
           <div class="ac-wrap">
-            <input id="f-call" autocapitalize="characters" autocorrect="off" spellcheck="false" autocomplete="off" enterkeyhint="next" aria-describedby="call-info call-warn" placeholder="! = Kommentar" title="Rufzeichen. Mit ! beginnen = Operator-Kommentar (Frequenzwechsel, Übergabe, Unterbrechung …)">
+            <input id="f-call" autocapitalize="characters" autocorrect="off" spellcheck="false" autocomplete="off" enterkeyhint="next" aria-describedby="call-info call-warn" title="Rufzeichen der Station, die sich meldet. Mit ! beginnen = Operator-Kommentar (Frequenzwechsel, Übergabe, Unterbrechung …)">
             <div id="call-suggest" class="ac-pop"></div>
           </div>
           <div class="ac-hints">
@@ -151,9 +161,11 @@
         </div>
         <div class="field c-only c-text"><label for="f-ctext">Operator-Kommentar</label>
           <input id="f-ctext" autocomplete="off" enterkeyhint="done" placeholder="z. B. Wechsel auf 145.500, Netz pausiert, Relais ausgefallen …">
+          <span class="ac-hints" aria-hidden="true"></span>
         </div>
         <div class="field c-only"><span id="c-cat-label">Kategorie (Ziffer, ⌫ leert)</span>
           <div id="c-cat" class="radio-group" role="radiogroup" aria-labelledby="c-cat-label"></div>
+          <span class="ac-hints" aria-hidden="true"></span>
         </div>
         <div id="f-fields" class="row ci-only"></div>
         <div class="field rpt-line ci-only"><span id="f-rpt-label">Relais (Standard: Header)</span>
@@ -164,18 +176,18 @@
               <div id="f-rpt-sug" class="ac-pop"></div>
             </div>
           </div>
+          <span class="ac-hints" aria-hidden="true"></span>
         </div>
-        <label class="field ci-only grow-sm"><span>Notiz</span><input id="f-note" autocomplete="off" enterkeyhint="done"></label>
-        <div class="field form-actions"><span aria-hidden="true">&nbsp;</span>
-          <div class="rpt-line-row">
-            <button type="submit" class="primary" id="btn-save" aria-keyshortcuts="Shift+Enter" title="Zeile speichern (Shift+Enter, aus jedem Feld)">Speichern <span aria-hidden="true">⇧⏎</span></button>
-            <button type="button" id="btn-discard" aria-keyshortcuts="Escape" title="Alle Eingaben dieser Zeile verwerfen (mit Rückgängig)">Verwerfen (Esc)</button>
-          </div>
-        </div>
+        <label class="field ci-only grow-sm"><span>Notiz</span><input id="f-note" autocomplete="off" enterkeyhint="done">
+          <span class="ac-hints" aria-hidden="true"></span></label>
       </div>
       <div id="repeat-box" hidden></div>
-      <div id="form-status" role="status"></div>
-      <div class="hint kbd-hint">Tastatur: Tab/Enter nächstes Feld · ↓ Vorschläge, Enter übernimmt · 1–5 bei Auswahlfeldern, ⌫ leert · Shift+Enter speichern · Esc verwerfen · <b>!</b> im Rufzeichenfeld = Operator-Kommentar</div>
+      <div class="entry-actions">
+        <button type="submit" class="primary" id="btn-save" aria-keyshortcuts="Shift+Enter" title="Zeile speichern (Shift+Enter, aus jedem Feld)">Speichern <span aria-hidden="true">⇧⏎</span></button>
+        <button type="button" id="btn-discard" aria-keyshortcuts="Escape" title="Alle Eingaben dieser Zeile verwerfen (mit Rückgängig)">Verwerfen (Esc)</button>
+        <div id="form-status" role="status"></div>
+        <div class="hint kbd-hint">Tab/Enter nächstes Feld · ↓ Vorschläge, Enter übernimmt · 1–5 bei Auswahlfeldern, ⌫ leert · Shift+Enter speichern · Esc verwerfen · <strong>!</strong> als erstes Zeichen im Rufzeichen = Operator-Kommentar statt Check-in</div>
+      </div>
     </form>
 
     <section id="map-panel" class="no-print" hidden>

@@ -141,7 +141,8 @@ label.field > span, div.field > span, div.field > label{ text-transform:uppercas
 #log-header, #new-header{ align-items:flex-start; }
 /* "+ Neues Log": sample line of the chosen template, same columns as the log */
 .tpl-preview{ margin-top:.8em; border:1px dashed var(--line); border-radius:4px; padding:.5em .7em; background:var(--bg); }
-.tpl-preview .cap{ font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-dim); margin-bottom:.3em; }
+.tpl-preview > summary{ cursor:pointer; font-size:12px; color:var(--text-dim); }
+.tpl-preview[open] > summary{ margin-bottom:.4em; }
 .tpl-preview .scroll{ overflow-x:auto; }
 .tpl-preview table{ border-collapse:collapse; font-size:12.5px; }
 .tpl-preview th{ text-align:left; font-weight:500; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-dim); padding:.15em .8em .25em 0; white-space:nowrap; border-bottom:1px solid var(--line); }
@@ -162,7 +163,17 @@ label.check{ display:flex; align-items:center; gap:.35em; font-size:13px; }
 div.field > label.check{ text-transform:none; letter-spacing:0; color:var(--text); }
 
 /* ---------- log view ---------- */
-#log-title{ font-size:18px; font-weight:600; border:1px solid transparent; background:none; min-width:12em; flex:1; max-width:32em; }
+/* title row: the title takes the room the buttons used to take */
+#log-title{ font-size:18px; font-weight:600; border:1px solid transparent; background:none; min-width:10em; flex:1; text-overflow:ellipsis; }
+/* "Exportieren" menu */
+.menu{ position:relative; }
+.menu-list{ position:absolute; right:0; top:calc(100% + 4px); z-index:20; min-width:17em; display:flex; flex-direction:column; gap:1px;
+  padding:.35em; background:var(--bg); border:1px solid var(--line-strong); border-radius:6px; box-shadow:0 6px 18px #0003; }
+.menu-list > button{ text-align:left; border:none; background:none; padding:.45em .6em; }
+.menu-list > button:hover:not(:disabled), .menu-list > button:focus-visible{ background:var(--accent-soft); }
+.menu-list hr{ border:none; border-top:1px solid var(--line); margin:.25em 0; width:100%; }
+.menu-csv{ display:flex; flex-wrap:wrap; gap:.3em .8em; align-items:center; padding:.3em .3em .45em; border-bottom:1px solid var(--line); margin-bottom:.2em; }
+.menu-csv label.check{ font-size:12px; color:var(--text-dim); }
 #log-title:hover{ border-color:var(--line); }
 .stat{ font-family:var(--font-mono); font-size:13px; color:var(--text-dim); }
 .stat b{ color:var(--text); font-size:15px; }
@@ -181,10 +192,15 @@ details.hdr .body{ padding:0 1em 1em; }
 }
 #entry-form.editing{ border-color:var(--warn); }
 /* top-aligned: hints under one field never shift the inputs next to it */
-#entry-form .row{ display:flex; flex-wrap:wrap; gap:.6em 1em; align-items:flex-start; }
+/* bottom-aligned: every field ends in the same fixed-height hint slot, so
+   all inputs sit on one line (the callsign field is just taller) */
+#entry-form .row{ display:flex; flex-wrap:wrap; gap:.6em 1em; align-items:flex-end; }
+#entry-form .ac-hints:empty{ display:block; }
+.entry-actions{ display:flex; flex-wrap:wrap; gap:.4em .6em; align-items:center; margin-top:.5em; padding-top:.6em; border-top:1px solid var(--line); }
+.entry-actions .kbd-hint{ flex:1 1 24em; margin:0; }
+.entry-actions #form-status{ margin:0; min-height:0; }
 #entry-form .field > span, #entry-form div.field > label{ white-space:nowrap; }
 .form-actions .rpt-line-row{ gap:.6em; }
-.kbd-hint{ margin-top:.2em; }
 /* operator comment mode ("!" in the callsign field): check-in fields hidden */
 #entry-form.comment-mode .ci-only, #entry-form:not(.comment-mode) .c-only{ display:none; }
 #entry-form.comment-mode:not(.editing){ border-style:dashed; }
@@ -215,7 +231,7 @@ details.hdr .body{ padding:0 1em 1em; }
 }
 .radio-group label[hidden]{ display:none; }
 .radio-group.grade label{ min-width:2.1em; text-align:center; font-family:var(--font-mono); font-weight:600; }
-#form-status{ min-height:1.4em; margin-top:.5em; font-size:13px; }
+#form-status{ font-size:13px; }
 #form-status.ok{ color:var(--ok); }
 #form-status.err{ color:var(--err); font-weight:600; }
 .cb-name{ font-family:var(--font-ui); font-weight:400; font-size:11px; color:var(--text-dim); white-space:normal; }
@@ -315,6 +331,7 @@ dialog textarea{ width:100%; height:18em; font-family:var(--font-mono); font-siz
 footer{ max-width:1200px; margin:2em auto 1em; padding:0 1em; font-size:11px; color:var(--text-dim); }
 footer a{ color:inherit; }
 footer .sources{ margin-top:.4em; }
+.source{ white-space:normal; }
 footer details.vendor-license{ margin-top:.4em; }
 footer details.vendor-license pre{ white-space:pre-wrap; }
 

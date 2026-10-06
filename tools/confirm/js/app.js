@@ -24,6 +24,7 @@ import { isValidLocator, isLocatorPrefix, locatorPrecisionName } from '../../sha
 import { openMap, closeMap, refreshMap, mapVisible } from './mapview.js';
 import { createLocationField, describeLocation, locationOptions } from './locfield.js';
 import { attachRepeaterSearch, loadRepeaterIndex } from './repeaterui.js';
+import { attachCallSearch } from './callsearch.js';
 import { sourceItem, versionItems, trackOnline } from './sources.js';
 import { createLineRepeater } from './linerepeater.js';
 import { formatShift, formatMHz } from '../../shared/js/repeaters.js';
@@ -288,10 +289,8 @@ function buildHeaderForm(container, header, onChange) {
           const m = f.adif ? adifModeText(v) : '';
           return el('label', { 'data-value': v, title: m || null }, r, el('span', {}, l));
         }));
-      const info = f.adif ? el('div', { class: 'hint adif-mode' }) : null;
-      if (info) hints[f.key] = info;
       // The mode has its own section heading: no second label (aria-label on the group).
-      place(f, el('div', { class: f.adif ? 'field wide' : 'field' }, f.adif ? null : el('span', {}, f.label), group, info));
+      place(f, el('div', { class: f.adif ? 'field wide' : 'field' }, f.adif ? null : el('span', {}, f.label), group));
       continue;
     }
     const input = el('input', {
@@ -301,7 +300,7 @@ function buildHeaderForm(container, header, onChange) {
       enterkeyhint: 'next',
     });
     input.addEventListener('input', emit);
-    const hasPop = f.qth || f.repeater;
+    const hasPop = f.qth || f.repeater || f.call;
     const hasHint = hasPop || f.call || f.grid || f.txHint;
     const pop = hasPop ? el('div', { class: 'ac-pop' }) : null;
     const info = hasHint ? el('div', { class: 'ac-info', 'aria-live': 'polite' }) : null;
@@ -320,6 +319,18 @@ function buildHeaderForm(container, header, onChange) {
         getHeader: () => readHeaderForm(container),
         onPick: r => {
           writeHeaderForm(container, headerFromRepeater(r, readHeaderForm(container)));
+          emit();
+          // A pick is a finished edit, like leaving the field (log marker).
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+        },
+      });
+    }
+    if (f.call) {
+      attachCallSearch({
+        input, pop,
+        getBook: () => state.callbook,
+        recent: () => cachedHeaderCalls,
+        onPick: () => {
           emit();
           // A pick is a finished edit, like leaving the field (log marker).
           input.dispatchEvent(new Event('change', { bubbles: true }));
@@ -360,6 +371,11 @@ function fillGridFromQth(container, loc) {
 // Relais keep their own, from the location field and repeater search),
 // the ADIF mapping of the mode, the repeater input frequency, and which
 // fields the chosen route and mode show.
+// "Speichern ⇧⏎": the glyphs are for the eye, aria-keyshortcuts says it.
+function setSaveLabel(text) {
+  fill($('#btn-save'), text, ' ', el('span', { 'aria-hidden': 'true' }, '⇧⏎'));
+}
+
 // Column header cell.
 function th(text) {
   return el('th', { scope: 'col' }, text);
@@ -377,7 +393,6 @@ function renderHeaderHints(container) {
   const route = h.viaRepeater ? 'rpt' : 'direct';
   container.querySelectorAll('[data-route]').forEach(n => { n.hidden = n.dataset.route !== route; });
   container.querySelectorAll('[data-modes]').forEach(n => { n.hidden = !n.dataset.modes.split(' ').includes(h.mode); });
-  setText(hints.mode, adifModeText(h.mode));
   const out = parseMHz(h.repeaterFreq), shift = parseMHz(h.repeaterShift);
   setText(hints.repeaterShift, out !== null && shift !== null ? `Eingabe ${formatMHz(Math.round((out + shift) * 1e6) / 1e6)} MHz` : '');
   for (const key of ['operator', 'station']) {
@@ -561,9 +576,9 @@ function renderTemplatePreview(key) {
   const values = exampleValues(tpl);
   const fields = tpl.fields.filter(f => fieldVisible(f, values, tpl));
   fill($('#new-template-preview'),
-    el('div', { class: 'cap' }, 'So sieht eine Logzeile aus (Beispiel)'),
+    el('summary', {}, 'So sieht eine Logzeile mit dieser Vorlage aus'),
     el('div', { class: 'scroll' }, el('table', {},
-      el('tr', {}, ['Zeit UTC', 'Nr', 'Rufzeichen'].map(t => el('th', {}, t)),
+      el('tr', {}, ['Zeit UTC', 'Nr', 'Rufzeichen Gegenstation'].map(t => el('th', {}, t)),
         fields.map(f => el('th', { class: 'tpl' }, f.label)), ['Relais', 'Notiz'].map(t => el('th', {}, t))),
       el('tr', {}, ['18:42Z', '1', 'OE1ABC'].map(t => el('td', {}, t)),
         fields.map(f => el('td', { class: 'tpl' }, fieldDisplay(f, values[f.key]))), ['OE1XUU', ''].map(t => el('td', {}, t))))),
@@ -573,6 +588,9 @@ function renderTemplatePreview(key) {
 // Pre-fill a new event with the header of the most recently created one —
 // usually the same operator/station/repeater.
 let cachedLastHeader = null;
+// Operator/Station callsigns of earlier logs, newest first: [{ call, title }]
+// (offered first by the header's callsign search).
+let cachedHeaderCalls = [];
 function lastHeader() {
   return cachedLastHeader ? { ...cachedLastHeader } : null;
 }
@@ -581,6 +599,14 @@ async function refreshLastHeader() {
   const events = (await state.store.getAll('events')).filter(e => !e.deleted);
   events.sort((a, b) => (a.created < b.created ? 1 : -1));
   cachedLastHeader = events[0]?.header || null;
+  const seen = new Set();
+  cachedHeaderCalls = [];
+  for (const ev of events) {
+    for (const key of ['operator', 'station']) {
+      const call = normalizeCall(ev.header?.[key]);
+      if (call && !seen.has(call)) { seen.add(call); cachedHeaderCalls.push({ call, title: ev.title }); }
+    }
+  }
 }
 
 async function createEvent(title, template, header) {
@@ -816,7 +842,8 @@ function buildEntryFields() {
       control.setAttribute('aria-describedby', `${control.id}-info`);
       continue;
     }
-    box.append(el(f.type === 'radio' ? 'div' : 'label', { class: 'field', 'data-field': f.key }, el('span', {}, f.label), control));
+    box.append(el(f.type === 'radio' ? 'div' : 'label', { class: 'field', 'data-field': f.key }, el('span', {}, f.label), control,
+      el('span', { class: 'ac-hints', 'aria-hidden': 'true' })));
   }
   state.locField = null;
   const lf = tpl.fields.find(f => f.type === 'location');
@@ -940,7 +967,7 @@ function setCommentMode(on) {
     $('#f-ctext').value = '';
     writeCategory('');
   }
-  if (!state.editingId) $('#btn-save').textContent = on ? 'Kommentar speichern ⇧⏎' : 'Speichern ⇧⏎';
+  if (!state.editingId) setSaveLabel(on ? 'Kommentar speichern' : 'Speichern');
 }
 
 function writeCategory(v) {
@@ -993,7 +1020,7 @@ function clearForm() {
   state.editingId = null;
   $('#entry-form').classList.remove('editing');
   $('#btn-discard').textContent = 'Verwerfen (Esc)';
-  $('#btn-save').textContent = 'Speichern ⇧⏎';
+  setSaveLabel('Speichern');
   if ($('#form-status .edit-tag')) $('#form-status').replaceChildren();
   updateRepeaterDefault();
   updateCallFeedback();
@@ -1378,7 +1405,7 @@ function startEdit(id, { focus = true, scroll = true } = {}) {
     $('#f-time').value = `${date} ${time}`;
     $('#entry-form').classList.add('editing');
     $('#btn-discard').textContent = 'Bearbeitung abbrechen (Esc)';
-    $('#btn-save').textContent = 'Kommentar speichern ⇧⏎';
+    setSaveLabel('Kommentar speichern');
     $('#form-status').className = '';
     fill($('#form-status'), el('span', { class: 'edit-tag' }, `Bearbeite ${lineLabel(e)} – die alte Fassung wird aufbewahrt.`));
     renderLog();
@@ -1400,7 +1427,7 @@ function startEdit(id, { focus = true, scroll = true } = {}) {
   $('#f-time').value = `${date} ${time}`;
   $('#entry-form').classList.add('editing');
   $('#btn-discard').textContent = 'Bearbeitung abbrechen (Esc)';
-  $('#btn-save').textContent = `Nr. ${e.seq} speichern ⇧⏎`;
+  setSaveLabel(`Nr. ${e.seq} speichern`);
   $('#form-status').className = '';
   fill($('#form-status'), el('span', { class: 'edit-tag' }, `Bearbeite Nr. ${e.seq} – die alte Fassung wird aufbewahrt.`));
   updateCallFeedback();
@@ -1550,7 +1577,7 @@ function renderLog(highlightCall) {
   const call = highlightCall ?? normalizeCall($('#f-call').value);
 
   fill($('#log-head'), el('tr', {},
-    th(timeMode() === 'local' ? `Zeit (${zoneLabel(nowIso(), 'local')})` : 'Zeit UTC'), th('Nr'), th('Rufzeichen'),
+    th(timeMode() === 'local' ? `Zeit (${zoneLabel(nowIso(), 'local')})` : 'Zeit UTC'), th('Nr'), th('Rufzeichen Gegenstation'),
     tpl.fields.flatMap(f => [f.type === 'location'
       ? el('th', { scope: 'col', class: 'origin', title: 'Herkunft des Standorts' }, el('abbr', { title: 'Herkunft des Standorts' }, 'Herk.'))
       : null, th(f.label)]),
@@ -1735,6 +1762,31 @@ function download(text, name, type) {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+/* --- "Exportieren" menu (disclosure: a button and a list of buttons) --- */
+
+function closeExportMenu(focusButton = false) {
+  $('#export-list').hidden = true;
+  if (focusButton) $('#btn-export-menu').focus();
+}
+
+function initExportMenu() {
+  const btn = $('#btn-export-menu');
+  const list = $('#export-list');
+  trackExpanded(btn, list);
+  btn.addEventListener('click', () => {
+    list.hidden = !list.hidden;
+    if (!list.hidden) list.querySelector('button').focus();
+  });
+  list.addEventListener('keydown', ev => {
+    if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); closeExportMenu(true); }
+  });
+  // a click or focus anywhere else closes it
+  document.addEventListener('pointerdown', ev => { if (!$('#export-menu').contains(ev.target)) closeExportMenu(); });
+  $('#export-menu').addEventListener('focusout', ev => {
+    if (ev.relatedTarget && !$('#export-menu').contains(ev.relatedTarget)) closeExportMenu();
+  });
 }
 
 function showText(title, text) {
@@ -1939,7 +1991,11 @@ function wire() {
     clearTimeout(state.headerTimer);
     state.headerTimer = setTimeout(flushHeader, 400);
   });
-  document.querySelectorAll('[data-export]').forEach(b => b.addEventListener('click', () => doExport(b.dataset.export)));
+  document.querySelectorAll('[data-export]').forEach(b => b.addEventListener('click', () => {
+    closeExportMenu();
+    doExport(b.dataset.export);
+  }));
+  initExportMenu();
   $('#btn-map').addEventListener('click', toggleMap);
   const sep = $('#csv-sep');
   sep.value = prefGet(CSV_SEP_KEY, ';');
