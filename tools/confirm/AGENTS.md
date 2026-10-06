@@ -55,6 +55,18 @@ are in `oe1ebg/tools/confirm/README.md`.
   - Don't add Tab stops inside the info lines under fields.
   - Keep those info lines inside the fixed-height `.ac-hints` slot, so the
     inputs never move.
+- **Markup:** follow "HTML & interop rules" in `tools/shared/README.md`
+  (checked by `tests/tools-html.test.mjs`). CSS goes in `style.css`,
+  which builds on `tools/shared/css/tools.css`; `theme.js`, both
+  stylesheets and Leaflet sit in the `CONFIRM-VENDOR` block, so they are
+  precached and inlined into the offline file.
+- **ADIF export** (`toADIF()`) must stay ADIF 3.1.7-conformant:
+  `tests/confirm-adif-spec.test.mjs` runs every template through the strict
+  reader in `tests/adif-spec.mjs`. Header values that aren't a callsign /
+  locator go into `COMMENT`, never into `OPERATOR` / `MY_GRIDSQUARE`; a
+  template field must not map onto a field in `ADIF_FIXED_FIELDS` (no field
+  twice per record); `adifIssues()` lists what a logbook program would
+  reject, shown before the download.
 - **Relative paths only.** The directory is planned to move to `/tools/`
   later.
 - **Footer version** (`commit abc1234 · data <hash>`). The commit comes

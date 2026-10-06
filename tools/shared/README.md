@@ -63,3 +63,46 @@ so it works for every tool published at `/<tool>/`.
   (e.g. `../confirm/js/db.js`). Never change one tool's schema from here.
 - A change here affects every tool listed above: run `just oe1ebg test` and
   check each user.
+
+## HTML & interop rules (all tools)
+
+Interoperability matters most for the confirmation log (old phones and
+tablets in the field, `file://` from a USB stick), but the rules hold for
+every page in `tools/`. `tests/tools-html.test.mjs` checks what it can.
+
+**Browser floor:** Safari/iOS 15.4, Firefox 115 ESR, Chrome/Edge 109.
+Anything newer needs a fallback or must degrade visibly but harmlessly:
+`:has()` (Firefox 121) only as an enhancement, with an
+`@supports not selector(:has(a))` fallback; `form.requestSubmit()` (Safari 16)
+only via `submitForm()` from `dom.js`; Web Locks / clipboard API /
+service workers are missing on plain `http://` and `file://`.
+
+- **Document:** `<!doctype html>`, `lang`, exactly one
+  `<meta charset="utf-8">`, viewport, `<meta name="color-scheme" content="light dark">`,
+  one `<h1>`, one `<main>`.
+- **Theme and CSS:** `<script src="../shared/js/theme.js"></script>` first in
+  `<head>`, then `../shared/css/tools.css`, then the tool's `style.css`. No
+  inline `<style>`, no `style=""`, no `on…=""` attributes. Colours only from
+  the tokens: one light set, one `[data-theme="dark"]` override (theme.js
+  always sets the attribute). The single-file bundles inline these files
+  through the tool's `…-VENDOR` block.
+- **No HTML from data:** build DOM with `el()` / `fill()` (`dom.js`), never
+  `innerHTML` with values from files, APIs, storage or user input. Leaflet
+  `bindPopup`/`bindTooltip` get a DOM node or a function, never a string.
+  (sota-alerts builds some HTML strings; every value goes through
+  `escapeHtml`.)
+- **Controls:** everything clickable is a `<button type="button">` (or a
+  link), with a name (`aria-label` when the text is a symbol); toggles carry
+  `aria-pressed`, panel buttons `aria-expanded` + `aria-controls`
+  (`trackExpanded()`); every field has a `<label>` or `aria-label`;
+  decorative glyphs are `aria-hidden`; status lines are `role="status"` /
+  `aria-live` and only rewritten when their text changes.
+- **Touch:** fields at 16px or more under `@media (pointer: coarse)` (iOS
+  zooms into smaller ones), `enterkeyhint`, `autocorrect="off"` and
+  `autocapitalize="characters"` on callsign/locator fields; an Enter that
+  confirms an IME composition is not "save" (`isComposing()`).
+- **Storage:** `localStorage` only through `prefs.js` (or `storage.js` for
+  data); it throws when storage is blocked.
+- **Downloads:** text with `;charset=utf-8`; `.adi` as
+  `application/octet-stream` (Safari appends ".txt" to `text/plain`);
+  ADI values ASCII only (`adifAscii()`), as ADIF 3.1.7 requires.
