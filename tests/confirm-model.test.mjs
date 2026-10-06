@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {
   normalizeCall, isPlausibleCall, parseUtcInput, splitUtc, bandForMHz,
   checkinNumbers, previousCheckins, stats, lineFrequencies, headerSnapshot,
-  splitTime, zoneLabel, isoUtc, isoWithOffset, parseTimeInput,
+  splitTime, zoneLabel, isoUtc, isoWithOffset, parseTimeInput, signallingText, adifModeText, MODES, SIGNALLING,
 } from '../tools/confirm/js/model.js';
 
 test('normalizeCall uppercases and strips junk', () => {
@@ -120,4 +120,31 @@ test('templates: short summary for map cards', async () => {
   assert.equal(shortSummary(z, { atalert: 'nein', platform: 'andere' }), 'AT-Alert nicht erhalten · andere');
   assert.equal(shortSummary(templateFor('rst'), { rst_rcvd: '59', rst_sent: '57', name: 'Franz', qth: 'Wien' }), 'erh. 59 · geg. 57 · Franz');
   assert.equal(shortSummary(templateFor('calls'), { qth: 'Wien' }), '');
+});
+
+test('signalling text follows the mode, old snapshots still work', () => {
+  assert.equal(signallingText(headerSnapshot({ mode: 'FM', repeaterTone: '88.5' })), 'CTCSS 88.5');
+  assert.equal(signallingText(headerSnapshot({ mode: 'FM', dcs: '023N' })), 'DCS 023N');
+  assert.equal(signallingText(headerSnapshot({ mode: 'DMR', colorCode: '1', timeslot: '2', talkgroup: '232', repeaterTone: '88.5' })),
+    'CC 1 TS 2 TG 232', 'a CTCSS tone left over from FM is ignored');
+  assert.equal(signallingText(headerSnapshot({ mode: 'C4FM', dgid: '0' })), 'DG-ID 0');
+  assert.equal(signallingText(headerSnapshot({ mode: 'SSB', repeaterTone: '88.5' })), '');
+  // A snapshot from before the signalling fields existed.
+  assert.equal(signallingText({ mode: 'FM', repeaterTone: '162.2', operator: 'OE1EBG' }), 'CTCSS 162.2');
+  // Every signalling field is part of the line snapshot.
+  for (const list of Object.values(SIGNALLING)) {
+    for (const [k] of list) assert.ok(k in headerSnapshot({}), k);
+  }
+});
+
+test('ADIF mode text shows MODE/SUBMODE', () => {
+  assert.equal(adifModeText('DMR'), 'ADIF: MODE=DIGITALVOICE · SUBMODE=DMR');
+  assert.equal(adifModeText('M17'), 'ADIF: MODE=DIGITALVOICE · SUBMODE=M17');
+  assert.equal(adifModeText('TETRA'), 'ADIF: MODE=DIGITALVOICE (kein Submode in ADIF)');
+  assert.equal(adifModeText('USB'), 'ADIF: MODE=SSB · SUBMODE=USB');
+  assert.equal(adifModeText('FM'), 'ADIF: MODE=FM');
+  // Only ADIF 3.1.7 DIGITALVOICE submodes are used.
+  for (const m of MODES.filter(x => x.mode === 'DIGITALVOICE' && x.submode)) {
+    assert.ok(['C4FM', 'DMR', 'DSTAR', 'FREEDV', 'M17'].includes(m.submode), m.key);
+  }
 });

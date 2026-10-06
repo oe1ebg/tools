@@ -62,7 +62,11 @@ test('headerFromRepeater fills frequencies, shift, tone, mode', () => {
   assert.equal(n.repeaterShift, '-7.6');
   assert.equal(n.repeaterTone, '162.2');
   assert.equal(n.mode, 'FM', 'switches to a mode the repeater supports');
-  assert.equal(n.freq, '438.950', 'empty direct frequency is filled');
+  assert.equal(n.freq, '', 'the direct frequency is only for direct lines: left alone');
+  assert.equal(n.colorCode, '', 'no colour code in the list entry');
+  const dmr = headerFromRepeater({ call: 'OE1XDM', out: 438.2, shift: -7.6, ctcss: null, cc: 1, modes: ['DMR'] }, emptyHeader());
+  assert.equal(dmr.colorCode, '1');
+  assert.equal(dmr.mode, 'DMR');
   const keep = headerFromRepeater(idx.list.find(r => r.call === 'OE1XKS'), { ...emptyHeader(), mode: 'C4FM', freq: '145.500' });
   assert.equal(keep.mode, 'C4FM');
   assert.equal(keep.freq, '145.500');

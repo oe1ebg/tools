@@ -8,7 +8,8 @@ import { openStorage } from './db.js';
 import { requestPersistence } from '../../shared/js/storage.js';
 import {
   normalizeCall, isPlausibleCall, newId, nowIso, splitUtc, splitTime, zoneLabel, parseTimeInput, isoUtc,
-  MODES, modeInfo, headerSnapshot, emptyHeader, checkinNumbers, previousCheckins,
+  MODES, modeInfo, headerSnapshot, emptyHeader, checkinNumbers, previousCheckins, adifModeText, SIGNALLING, signallingText,
+  REPEATER_KEYS, parseMHz,
   liveSorted, stats, isComment, COMMENT_CATEGORIES, newComment, headerChangeMarkers, headerFromRepeater,
 } from './model.js';
 import { TEMPLATES, templateFor, fieldVisible, fieldDisplay, fieldOptions, currentOptions, shortSummary, exampleValues } from './templates.js';
@@ -24,7 +25,7 @@ import { createLocationField, describeLocation, locationOptions } from './locfie
 import { attachRepeaterSearch, loadRepeaterIndex } from './repeaterui.js';
 import { sourceItem, versionItems, trackOnline } from './sources.js';
 import { createLineRepeater } from './linerepeater.js';
-import { formatShift } from '../../shared/js/repeaters.js';
+import { formatShift, formatMHz } from '../../shared/js/repeaters.js';
 
 const THEME_KEY = 'oe1ebg-confirm-theme';
 const TIME_MODE_KEY = 'oe1ebg-confirm-time-mode';
@@ -233,21 +234,28 @@ async function initPersistence() {
 
 /* ---------------------------------------------------------------- header form */
 
+// `route` fields show only for that route (direct / via repeater; the
+// other route's values are kept), `modes` fields only for those modes
+// (signalling, see SIGNALLING in js/model.js). `bool` is a two-option
+// radio group for a boolean header value: [falseValue, trueValue].
+const ROUTES = [['direct', 'direkt (Simplex)'], ['rpt', 'über Relais']];
 const HEADER_FIELDS = [
   { sub: 'Station' },
   { key: 'operator', label: 'Operator', call: true, size: 9 },
   { key: 'station', label: 'Station (für)', call: true, size: 9 },
   { key: 'myQth', label: 'Eigener QTH', qth: true, size: 18 },
   { key: 'myGrid', label: 'Eigener Locator', grid: true, size: 8 },
-  { sub: 'Frequenz' },
-  { key: 'freq', label: 'Frequenz MHz', size: 9, inputmode: 'decimal' },
-  { key: 'mode', label: 'Betriebsart', radio: MODES.map(m => [m.key, m.label]) },
-  { sub: 'Relais' },
-  { key: 'viaRepeater', label: 'über Relais', check: true },
-  { key: 'repeaterCall', label: 'Relais (Rufzeichen, Ort, Frequenz)', call: true, repeater: true, size: 11 },
-  { key: 'repeaterFreq', label: 'Relais-Ausgabe MHz', size: 9, inputmode: 'decimal' },
-  { key: 'repeaterShift', label: 'Shift MHz (z. B. -0.6)', size: 6, inputmode: 'decimal' },
-  { key: 'repeaterTone', label: 'CTCSS Hz', size: 6, inputmode: 'decimal' },
+  { sub: 'Betriebsart' },
+  { key: 'mode', label: 'Betriebsart', radio: MODES.map(m => [m.key, m.label]), adif: true },
+  { sub: 'Verbindung', note: 'Standard für neue Zeilen, pro Zeile umschaltbar' },
+  { key: 'viaRepeater', label: 'Weg', radio: ROUTES, bool: ['direct', 'rpt'] },
+  { key: 'freq', label: 'Frequenz MHz', size: 9, inputmode: 'decimal', route: 'direct' },
+  { key: 'repeaterCall', label: 'Relais (Rufzeichen, Ort, Frequenz)', call: true, repeater: true, size: 11, route: 'rpt' },
+  { key: 'repeaterFreq', label: 'Ausgabe MHz', size: 9, inputmode: 'decimal', route: 'rpt' },
+  { key: 'repeaterShift', label: 'Shift MHz', size: 6, inputmode: 'decimal', route: 'rpt', txHint: true },
+  ...Object.entries(SIGNALLING).flatMap(([mode, list]) => list.map(([key, label, placeholder]) => ({
+    key, label, placeholder, size: 6, modes: [mode],
+  }))),
 ];
 
 // The header form (log view and "Neues Log") works like the entry form:
@@ -271,39 +279,44 @@ function buildHeaderForm(container, header, onChange) {
     onChange(h);
   };
 
+  // Visibility by route/mode is set in renderHeaderHints().
+  const place = (f, node) => {
+    if (f.route) node.dataset.route = f.route;
+    if (f.modes) node.dataset.modes = f.modes.join(' ');
+    container.append(node);
+  };
   for (const f of HEADER_FIELDS) {
     if (f.sub) {
-      container.append(el('div', { class: 'sub' }, f.sub));
-      continue;
-    }
-    if (f.check) {
-      const input = el('input', { type: 'checkbox', 'data-hkey': f.key, checked: !!header[f.key] });
-      input.addEventListener('change', emit);
-      container.append(el('div', { class: 'field' }, el('span', {}, 'Standard'), el('label', { class: 'check' }, input, f.label)));
+      container.append(el('div', { class: 'sub' }, f.sub, f.note ? el('span', { class: 'sub-note' }, ` · ${f.note}`) : null));
       continue;
     }
     if (f.radio) {
       const name = id(f.key);
+      const cur = f.bool ? f.bool[header[f.key] ? 1 : 0] : header[f.key];
       // A stored mode that is no longer in the list stays selectable.
-      const opts = header[f.key] && !f.radio.some(o => o[0] === header[f.key]) ? [...f.radio, [header[f.key], header[f.key]]] : f.radio;
+      const opts = cur && !f.radio.some(o => o[0] === cur) ? [...f.radio, [cur, cur]] : f.radio;
       const group = el('div', { class: 'radio-group', role: 'radiogroup', 'aria-label': f.label },
         opts.map(([v, l]) => {
-          const r = el('input', { type: 'radio', name, value: v, 'data-hkey': f.key, checked: header[f.key] === v });
+          const r = el('input', { type: 'radio', name, value: v, 'data-hkey': f.key, checked: cur === v });
           r.addEventListener('change', emit);
           r.addEventListener('keydown', ev => radioKey(ev, [...group.querySelectorAll('input')], emit, false));
-          return el('label', { 'data-value': v }, r, el('span', {}, l));
+          const m = f.adif ? adifModeText(v) : '';
+          return el('label', { 'data-value': v, title: m || null }, r, el('span', {}, l));
         }));
-      container.append(el('div', { class: 'field' }, el('span', {}, f.label), group));
+      const info = f.adif ? el('div', { class: 'hint adif-mode' }) : null;
+      if (info) hints[f.key] = info;
+      // The mode has its own section heading: no second label (aria-label on the group).
+      place(f, el('div', { class: f.adif ? 'field wide' : 'field' }, f.adif ? null : el('span', {}, f.label), group, info));
       continue;
     }
     const input = el('input', {
       id: id(f.key), 'data-hkey': f.key, value: header[f.key] || '', size: f.size, inputmode: f.inputmode,
-      spellcheck: 'false', autocomplete: 'off', class: f.call ? 'call-input' : f.grid ? 'grid-input' : null,
+      spellcheck: 'false', autocomplete: 'off', class: f.call ? 'call-input' : f.grid ? 'grid-input' : null, placeholder: f.placeholder,
       autocapitalize: f.call || f.grid ? 'characters' : null,
     });
     input.addEventListener('input', emit);
     const hasPop = f.qth || f.repeater;
-    const hasHint = hasPop || f.call || f.grid;
+    const hasHint = hasPop || f.call || f.grid || f.txHint;
     const pop = hasPop ? el('div', { class: 'ac-pop' }) : null;
     const info = hasHint ? el('div', { class: 'ac-info', 'aria-live': 'polite' }) : null;
     if (info) hints[f.key] = info;
@@ -311,7 +324,7 @@ function buildHeaderForm(container, header, onChange) {
       info.id = `${id(f.key)}-info`;
       input.setAttribute('aria-describedby', info.id);
     }
-    container.append(el('div', { class: 'field ac-field' },
+    place(f, el('div', { class: f.txHint ? 'field ac-field tx-hint' : 'field ac-field' },
       el('label', { for: input.id }, f.label),
       hasPop ? el('div', { class: 'ac-wrap' }, input, pop) : input,
       info ? el('div', { class: 'ac-hints' }, info) : null));
@@ -358,10 +371,19 @@ function fillGridFromQth(container, loc) {
 }
 
 // Info lines under the header's callsign and locator fields (QTH and
-// Relais keep their own, from the location field and repeater search).
+// Relais keep their own, from the location field and repeater search),
+// the ADIF mapping of the mode, the repeater input frequency, and which
+// fields the chosen route and mode show.
 function renderHeaderHints(container) {
   const hints = container._hdr?.hints;
   if (!hints) return;
+  const h = readHeaderForm(container);
+  const route = h.viaRepeater ? 'rpt' : 'direct';
+  container.querySelectorAll('[data-route]').forEach(n => { n.hidden = n.dataset.route !== route; });
+  container.querySelectorAll('[data-modes]').forEach(n => { n.hidden = !n.dataset.modes.split(' ').includes(h.mode); });
+  hints.mode.textContent = adifModeText(h.mode);
+  const out = parseMHz(h.repeaterFreq), shift = parseMHz(h.repeaterShift);
+  hints.repeaterShift.textContent = out !== null && shift !== null ? `Eingabe ${formatMHz(Math.round((out + shift) * 1e6) / 1e6)} MHz` : '';
   for (const key of ['operator', 'station']) {
     const call = normalizeCall(container.querySelector(`[data-hkey="${key}"]`).value);
     const line = callbookLine(call);
@@ -395,13 +417,12 @@ function writeHeaderForm(container, h) {
   for (const f of HEADER_FIELDS) {
     if (f.sub) continue;
     if (f.radio) {
-      container.querySelectorAll(`[data-hkey="${f.key}"]`).forEach(r => { r.checked = r.value === h[f.key]; });
+      const v = f.bool ? f.bool[h[f.key] ? 1 : 0] : h[f.key];
+      container.querySelectorAll(`[data-hkey="${f.key}"]`).forEach(r => { r.checked = r.value === v; });
       continue;
     }
     const input = container.querySelector(`[data-hkey="${f.key}"]`);
-    if (!input) continue;
-    if (f.check) input.checked = !!h[f.key];
-    else input.value = h[f.key] ?? '';
+    if (input) input.value = h[f.key] ?? '';
   }
   container._hdr?.rptSearch?.refresh();
 }
@@ -412,13 +433,12 @@ function readHeaderForm(container) {
     if (f.sub) continue;
     if (f.radio) {
       const c = container.querySelector(`[data-hkey="${f.key}"]:checked`);
-      if (c) h[f.key] = c.value;
+      if (c) h[f.key] = f.bool ? c.value === f.bool[1] : c.value;
       continue;
     }
     const input = container.querySelector(`[data-hkey="${f.key}"]`);
     if (!input) continue;
-    if (f.check) h[f.key] = input.checked;
-    else h[f.key] = f.call ? normalizeCall(input.value) : input.value.trim();
+    h[f.key] = f.call ? normalizeCall(input.value) : input.value.trim();
   }
   return h;
 }
@@ -437,12 +457,14 @@ function headerSummary(h) {
   const parts = [];
   if (h.operator) parts.push(`Op ${h.operator}`);
   if (h.station && h.station !== h.operator) parts.push(`für ${h.station}`);
-  const f = [h.freq && `${h.freq} MHz`, modeInfo(h.mode)?.label].filter(Boolean).join(' ');
-  if (f) parts.push(f);
-  if (h.viaRepeater || h.repeaterCall) {
+  const sig = signallingText(h);
+  if (h.viaRepeater) {
     const shift = h.repeaterShift !== '' && h.repeaterShift !== undefined ? formatShift(parseFloat(h.repeaterShift)) : '';
-    parts.push(`${h.viaRepeater ? 'via' : 'Relais'} ${h.repeaterCall || 'Relais'}${h.repeaterFreq ? ' ' + h.repeaterFreq : ''}`
-      + `${shift ? ' ' + shift : ''}${h.repeaterTone ? ', CTCSS ' + h.repeaterTone : ''}`);
+    parts.push(`${modeInfo(h.mode)?.label || ''} via ${h.repeaterCall || 'Relais'}${h.repeaterFreq ? ' ' + h.repeaterFreq : ''}`
+      + `${shift ? ' ' + shift : ''}${sig ? ', ' + sig : ''}`);
+  } else {
+    const f = [h.freq && `${h.freq} MHz`, modeInfo(h.mode)?.label, 'direkt'].filter(Boolean).join(' ');
+    parts.push(`${f}${sig ? ', ' + sig : ''}`);
   }
   return parts.join(' · ') || '(noch leer – Operator und Station eintragen)';
 }
@@ -1160,7 +1182,7 @@ function lineSnapshot(base, override, header) {
   if (override) return { ...snap, ...override, repeaterOverride: true };
   if (snap.repeaterOverride) {
     const h = headerSnapshot(header);
-    for (const k of ['repeaterCall', 'repeaterFreq', 'repeaterShift', 'repeaterTone']) snap[k] = h[k];
+    for (const k of REPEATER_KEYS) snap[k] = h[k];
   }
   delete snap.repeaterOverride;
   return snap;
@@ -1168,8 +1190,7 @@ function lineSnapshot(base, override, header) {
 
 function overrideOf(snap) {
   if (!snap?.repeaterOverride) return null;
-  const { repeaterCall, repeaterFreq, repeaterShift, repeaterTone } = snap;
-  return { repeaterCall, repeaterFreq, repeaterShift, repeaterTone };
+  return Object.fromEntries(REPEATER_KEYS.map(k => [k, snap[k] ?? '']));
 }
 
 /* --- map view --- */
@@ -1573,7 +1594,7 @@ function renderLog(highlightCall) {
       el('td', {}, e.viaRepeater
         ? el('span', {
           class: s.repeaterOverride ? 'rpt override' : 'rpt',
-          title: [s.repeaterOverride ? 'anderes Relais als im Header' : 'Relais aus dem Header', s.repeaterFreq && `${s.repeaterFreq} MHz`, s.repeaterShift && `Shift ${s.repeaterShift}`, s.repeaterTone && `CTCSS ${s.repeaterTone}`].filter(Boolean).join(' · '),
+          title: [s.repeaterOverride ? 'anderes Relais als im Header' : 'Relais aus dem Header', s.repeaterFreq && `${s.repeaterFreq} MHz`, s.repeaterShift && `Shift ${s.repeaterShift}`, signallingText(s)].filter(Boolean).join(' · '),
         }, s.repeaterCall || 'ja')
         : '–'),
       el('td', {}, e.note || ''),

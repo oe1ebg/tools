@@ -10,7 +10,7 @@
 
 import {
   liveSorted, liveCheckins, isComment, checkinNumbers, operatorShifts, splitUtc, splitTime, zoneLabel, lineFrequencies,
-  bandForMHz, modeInfo, stats,
+  bandForMHz, modeInfo, stats, signallingText,
 } from './model.js';
 import { templateFor, fieldVisible, fieldDisplay, hasLocationField } from './templates.js';
 import { stationsForMap } from './mapdata.js';
@@ -90,6 +90,7 @@ function exportRows(event, entries) {
       freq_rx_mhz: fmtMHz(rx),
       band: bandForMHz(tx ?? rx),
       mode: modeInfo(s.mode)?.label || '',
+      signalisierung: signallingText(s),
       my_locator: s.myGrid,
       log: event.title,
     });
@@ -121,7 +122,7 @@ export function toCSV(event, entries, sep = ';', opts = {}) {
     ...tpl.fields.map(f => f.key),
     ...(hasLocationField(tpl) ? LOC_COLS : []),
     'ueber_relais', 'relais', 'relais_ctcss', 'relais_quelle', 'notiz', 'operator', 'station',
-    'freq_mhz', 'freq_rx_mhz', 'band', 'mode', 'my_locator', 'log',
+    'freq_mhz', 'freq_rx_mhz', 'band', 'mode', 'signalisierung', 'my_locator', 'log',
   ];
   const lines = [cols.join(sep)];
   for (const r of rows) lines.push(cols.map(c => csvCell(r[c], sep)).join(sep));
@@ -171,15 +172,21 @@ export function toADIF(event, entries, createdIso = new Date().toISOString()) {
     }
     rec += adifAsciiField('MY_GRIDSQUARE', s.myGrid);
     rec += adifAsciiField('MY_CITY', s.myQth);
+    // ADIF has no fields for CTCSS, DMR colour code etc.: an app field
+    // plus the comment.
+    const sig = signallingText(s);
     if (e.viaRepeater) {
       rec += adifAsciiField('PROP_MODE', 'RPT');
-      const rpt = [s.repeaterCall, s.repeaterFreq && `${s.repeaterFreq} MHz`, s.repeaterShift && `Shift ${s.repeaterShift}`,
-        s.repeaterTone && `CTCSS ${s.repeaterTone}`].filter(Boolean).join(' ');
+      const rpt = [s.repeaterCall, s.repeaterFreq && `${s.repeaterFreq} MHz`, s.repeaterShift && `Shift ${s.repeaterShift}`, sig]
+        .filter(Boolean).join(' ');
       if (rpt) {
         rec += adifAsciiField(`APP_${ADIF_PROGRAM_ID}_REPEATER`, s.repeaterCall || rpt);
         comment.push(`via Relais ${rpt}`);
       }
+    } else if (sig) {
+      comment.push(sig);
     }
+    rec += adifAsciiField(`APP_${ADIF_PROGRAM_ID}_SIGNALLING`, sig);
     for (const f of tpl.fields) {
       if (!fieldVisible(f, e.fields, tpl)) continue;
       const raw = e.fields?.[f.key];

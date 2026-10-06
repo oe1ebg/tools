@@ -5,18 +5,9 @@
 
 import { el, fill, popover } from '../../shared/js/dom.js';
 import { loadRepeaterIndex, describeRepeater } from './repeaterui.js';
-import { searchRepeaters, positionFromLocator, formatMHz } from '../../shared/js/repeaters.js';
-import { normalizeCall } from './model.js';
+import { searchRepeaters, positionFromLocator } from '../../shared/js/repeaters.js';
+import { normalizeCall, repeaterFields, REPEATER_KEYS } from './model.js';
 
-// Header-snapshot fields for a repeater from the list.
-export function overrideFromRepeater(r) {
-  return {
-    repeaterCall: r.call,
-    repeaterFreq: formatMHz(r.out),
-    repeaterShift: r.shift === null || r.shift === undefined ? '' : String(r.shift),
-    repeaterTone: r.ctcss ? String(r.ctcss) : '',
-  };
-}
 
 export function createLineRepeater({ checkbox, input, sug, getHeader, onChange }) {
   let override = null; // null = use the header's repeater
@@ -64,13 +55,13 @@ export function createLineRepeater({ checkbox, input, sug, getHeader, onChange }
     // An exact callsign is taken right away (typing "OE3XSA" is enough).
     const exact = hits.find(h => h.r.call === normalizeCall(q));
     if (exact) {
-      override = exact.r.call !== headerCall() ? overrideFromRepeater(exact.r) : null;
+      override = exact.r.call !== headerCall() ? repeaterFields(exact.r) : null;
       refreshDefault();
       onChange();
     }
     if (hits.length) {
       fill(sug, el('div', { class: 'ac-head' }, 'Relais für diese Zeile (↓, Enter):'),
-        hits.map(({ r, distKm }) => el('button', { type: 'button', class: 'ac-item', onclick: () => { apply(overrideFromRepeater(r)); input.focus(); } },
+        hits.map(({ r, distKm }) => el('button', { type: 'button', class: 'ac-item', onclick: () => { apply(repeaterFields(r)); input.focus(); } },
           el('b', {}, r.call), el('small', {}, describeRepeater(r, distKm).split(' · ').slice(1).join(' · ')))));
     }
     pop.update();
@@ -98,7 +89,7 @@ export function createLineRepeater({ checkbox, input, sug, getHeader, onChange }
     get() {
       const q = normalizeCall(input.value);
       if (override) return override;
-      if (q && q !== headerCall()) return { repeaterCall: q, repeaterFreq: '', repeaterShift: '', repeaterTone: '' };
+      if (q && q !== headerCall()) return { ...Object.fromEntries(REPEATER_KEYS.map(k => [k, ''])), repeaterCall: q };
       return null;
     },
     set(ov) {

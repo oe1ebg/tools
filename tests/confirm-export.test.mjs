@@ -255,3 +255,22 @@ test('template preview: every field has an example and an ADIF target', () => {
   assert.match(targets['Standort (Adresse, Ort, PLZ, Locator)'], /^APP_OE1EBG_ADDRESS, GRIDSQUARE, LAT, LON$/);
   assert.equal(Object.fromEntries(adifFieldTargets(templateFor('rst')))['RST erh.'], 'RST_RCVD');
 });
+
+test('signalling goes into CSV and ADIF, for repeater and direct lines', () => {
+  const ev = { id: 'ev', title: 'DMR', template: 'calls', header };
+  const dmr = headerSnapshot({ ...header, mode: 'DMR', colorCode: '1', timeslot: '2', talkgroup: '232' });
+  const es = [
+    { id: 'x', seq: 1, call: 'OE1AAA', ts: '2026-10-04T10:00:00Z', viaRepeater: true, snap: dmr, fields: {}, note: '' },
+    { id: 'y', seq: 2, call: 'OE1BBB', ts: '2026-10-04T10:01:00Z', viaRepeater: false, snap: dmr, fields: {}, note: '' },
+  ];
+  const [a, b] = parseADIF(toADIF(ev, es));
+  assert.equal(a.APP_OE1EBG_SIGNALLING, 'CC 1 TS 2 TG 232');
+  assert.match(a.COMMENT, /via Relais OE1XUU 438\.950 MHz Shift -7\.6 CC 1 TS 2 TG 232/);
+  assert.equal(b.APP_OE1EBG_SIGNALLING, 'CC 1 TS 2 TG 232');
+  assert.match(b.COMMENT, /^CC 1 TS 2 TG 232/);
+  assert.equal(a.MODE, 'DIGITALVOICE');
+  assert.equal(a.SUBMODE, 'DMR');
+  const csv = toCSV(ev, es).split('\r\n');
+  const cols = csv[0].replace('\ufeff', '').split(';');
+  assert.equal(csv[1].split(';')[cols.indexOf('signalisierung')], 'CC 1 TS 2 TG 232');
+});

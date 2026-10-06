@@ -132,7 +132,9 @@ export function bandForMHz(mhz) {
   return '';
 }
 
-// Modes offered in the log header, with their ADIF MODE/SUBMODE mapping.
+// Modes offered in the log header, with their ADIF MODE/SUBMODE mapping
+// (ADIF 3.1.7: DIGITALVOICE has the submodes C4FM, DMR, DSTAR, FREEDV,
+// M17; TETRA has none).
 export const MODES = [
   { key: 'FM', label: 'FM', mode: 'FM' },
   { key: 'SSB', label: 'SSB', mode: 'SSB' },
@@ -151,11 +153,44 @@ export function modeInfo(key) {
   return MODES.find(m => m.key === key) || (key ? { key, label: key, mode: key } : null);
 }
 
+// "ADIF: MODE=DIGITALVOICE · SUBMODE=DMR"
+export function adifModeText(key) {
+  const m = modeInfo(key);
+  if (!m) return '';
+  return `ADIF: MODE=${m.mode}${m.submode ? ` · SUBMODE=${m.submode}` : m.mode === 'DIGITALVOICE' ? ' (kein Submode in ADIF)' : ''}`;
+}
+
+// Signalling per mode, the same for simplex and repeater operation:
+// [key, label, placeholder]. `repeaterTone` is the CTCSS tone (the name
+// predates simplex signalling; kept so old logs and backups stay valid).
+export const SIGNALLING = {
+  FM: [['repeaterTone', 'CTCSS Hz', '88.5'], ['dcs', 'DCS', '023N']],
+  DMR: [['colorCode', 'Color Code', '0–15'], ['timeslot', 'Zeitschlitz', '1/2'], ['talkgroup', 'Sprechgruppe', '232']],
+  C4FM: [['dgid', 'DG-ID', '0–99']],
+  DSTAR: [['dstarModule', 'Modul', 'A/B/C']],
+  M17: [['can', 'CAN', '0–15']],
+};
+const SIGNAL_TEXT = { repeaterTone: 'CTCSS', dcs: 'DCS', colorCode: 'CC', timeslot: 'TS', talkgroup: 'TG', dgid: 'DG-ID', dstarModule: 'Modul', can: 'CAN' };
+
+// Signalling of a snapshot/header as text for its mode: "CTCSS 88.5",
+// "CC 1 TS 2 TG 232". Values of other modes are ignored.
+export function signallingText(snap) {
+  return (SIGNALLING[snap?.mode] || [])
+    .filter(([k]) => snap[k])
+    .map(([k]) => `${SIGNAL_TEXT[k]} ${snap[k]}`).join(' ');
+}
+
+// The fields that describe the repeater itself: replaced together when a
+// line uses another repeater than the header (colour code included, it is
+// a property of a DMR repeater).
+export const REPEATER_KEYS = ['repeaterCall', 'repeaterFreq', 'repeaterShift', 'repeaterTone', 'colorCode'];
+
 // Header fields copied onto every line at save time, so later header edits
 // (operator change, switching repeater) never rewrite history.
 export const SNAPSHOT_KEYS = [
   'operator', 'station', 'freq', 'mode', 'myGrid', 'myQth',
   'repeaterCall', 'repeaterFreq', 'repeaterShift', 'repeaterTone',
+  'dcs', 'colorCode', 'timeslot', 'talkgroup', 'dgid', 'dstarModule', 'can',
 ];
 
 export function headerSnapshot(header) {
@@ -168,11 +203,13 @@ export function emptyHeader() {
   return {
     operator: '', station: '', freq: '', mode: 'FM', myGrid: '', myQth: '',
     viaRepeater: false, repeaterCall: '', repeaterFreq: '', repeaterShift: '', repeaterTone: '',
+    dcs: '', colorCode: '', timeslot: '', talkgroup: '', dgid: '', dstarModule: '', can: '',
   };
 }
 
 // Frequencies for one line: via repeater the station transmits on
-// output+shift and listens on the output; direct it's the header frequency.
+// output+shift and listens on the output; direct it's the header's direct
+// frequency (the last one entered; empty if there never was one).
 export function lineFrequencies(entry) {
   const s = entry.snap || {};
   if (entry.viaRepeater) {
@@ -280,7 +317,7 @@ export function headerChangeMarkers(base, next, hasEntries = true) {
       const from = markerRepeaterLabel(b), to = markerRepeaterLabel(n);
       markers.push({ category: CAT_FREQ, auto: 'repeater', from, to, text: `${from} → ${to}` });
     }
-    for (const k of ['viaRepeater', 'repeaterCall', 'repeaterFreq', 'repeaterShift', 'repeaterTone']) out[k] = n[k];
+    for (const k of ['viaRepeater', ...REPEATER_KEYS]) out[k] = n[k];
     if (n.freq) out.freq = n.freq;
   }
   return { markers: hasEntries ? markers : [], base: out };
@@ -308,18 +345,22 @@ export function operatorShifts(entries) {
   return out;
 }
 
-// Header values to set when a repeater is chosen.
-export function headerFromRepeater(r, header) {
-  const next = {
-    ...header,
-    viaRepeater: true,
+// Snapshot fields for a repeater from the ÖVSV list.
+export function repeaterFields(r) {
+  return {
     repeaterCall: r.call,
     repeaterFreq: formatMHz(r.out),
     repeaterShift: r.shift === null || r.shift === undefined ? '' : String(r.shift),
     repeaterTone: r.ctcss ? String(r.ctcss) : '',
+    colorCode: r.cc === null || r.cc === undefined ? '' : String(r.cc),
   };
+}
+
+// Header values to set when a repeater is chosen. The direct frequency is
+// left alone: it is only used for lines that come in direct.
+export function headerFromRepeater(r, header) {
+  const next = { ...header, viaRepeater: true, ...repeaterFields(r) };
   // Mode: keep the current one if the repeater supports it, else its first mode.
   if (r.modes.length && !r.modes.includes(header.mode)) next.mode = r.modes[0];
-  if (!header.freq) next.freq = formatMHz(r.out);
   return next;
 }
