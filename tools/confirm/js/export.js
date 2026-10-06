@@ -158,12 +158,14 @@ export function adifFieldTargets(tpl) {
 }
 
 // ADIF GridSquare: 2, 4, 6 or 8 characters; characters 9-12 of a longer
-// locator go into the *_EXT field (ADIF 3.1.7). null when it's no locator.
+// locator go into the *_EXT field (ADIF 3.1.7). ADIF has no room for more:
+// characters 13-20 (cells well under a metre) are left out; full: the whole
+// locator, for an app field. null when it's no locator.
 export function adifGrid(raw) {
   const g = String(raw ?? '').trim();
   if (!isValidLocator(g)) return null;
   const f = formatLocator(g);
-  return { grid: f.slice(0, 8), ext: f.slice(8) };
+  return { grid: f.slice(0, 8), ext: f.slice(8, 12), full: f };
 }
 
 // A callsign for OPERATOR / STATION_CALLSIGN, or null when the header holds
@@ -186,7 +188,7 @@ export const ADIF_FIXED_FIELDS = [
   'CALL', 'QSO_DATE', 'TIME_ON', 'OPERATOR', 'STATION_CALLSIGN', 'FREQ', 'BAND', 'FREQ_RX', 'BAND_RX', 'MODE',
   'SUBMODE', 'MY_GRIDSQUARE', 'MY_GRIDSQUARE_EXT', 'MY_CITY', 'PROP_MODE', 'GRIDSQUARE', 'GRIDSQUARE_EXT', 'LAT',
   'LON', 'COMMENT',
-  ...['REPEATER', 'SIGNALLING', 'LOCATION', 'LOC_NAMETYPE', 'LOC_MATCHED', 'LOC_SOURCE', 'LOC_INPUT', 'CHECKIN', 'LOG']
+  ...['REPEATER', 'SIGNALLING', 'MY_LOCATOR', 'LOCATOR', 'LOCATION', 'LOC_NAMETYPE', 'LOC_MATCHED', 'LOC_SOURCE', 'LOC_INPUT', 'CHECKIN', 'LOG']
     .map(n => `APP_${ADIF_PROGRAM_ID}_${n}`),
 ];
 
@@ -260,6 +262,7 @@ export function toADIF(event, entries, createdIso = new Date().toISOString(), op
     if (myGrid) {
       rec += adifAsciiField('MY_GRIDSQUARE', myGrid.grid);
       rec += adifAsciiField('MY_GRIDSQUARE_EXT', myGrid.ext);
+      if (myGrid.full.length > 12) rec += adifAsciiField(`APP_${ADIF_PROGRAM_ID}_MY_LOCATOR`, myGrid.full);
     }
     rec += adifAsciiField('MY_CITY', s.myQth);
     // ADIF has no fields for CTCSS, DMR colour code etc.: an app field
@@ -291,6 +294,7 @@ export function toADIF(event, entries, createdIso = new Date().toISOString(), op
       if (grid) {
         rec += adifAsciiField('GRIDSQUARE', grid.grid);
         rec += adifAsciiField('GRIDSQUARE_EXT', grid.ext);
+        if (grid.full.length > 12) rec += adifAsciiField(`APP_${ADIF_PROGRAM_ID}_LOCATOR`, grid.full);
       }
       rec += adifAsciiField('LAT', adifLatLon(e.loc.lat, true));
       rec += adifAsciiField('LON', adifLatLon(e.loc.lon, false));

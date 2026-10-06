@@ -491,8 +491,11 @@ fires. The compact dropdown in the log's location field has no links.
 The lookup engine is shared with other tools (`tools/shared/`, published at
 `/shared/`); Maidenhead and distance live one level up.
 
-- `../maidenhead.js`: locator ↔ WGS84 for any even length; a locator is
-  treated as an area (bounds plus centre).
+- `../maidenhead.js`: locator ↔ WGS84 for any even length up to 20
+  characters (`JN88EE05UO43UF06QD23`: digit and letter pairs alternate after
+  the field); a locator is treated as an area (bounds plus centre). The ADIF
+  export keeps 12 (`GRIDSQUARE` + `GRIDSQUARE_EXT`); a longer one also goes
+  complete into `APP_OE1EBG_LOCATOR` / `APP_OE1EBG_MY_LOCATOR`.
 - `normalize.js`: search keys. Matching works across ß/ss, ä/ae/a,
   Straße/Strasse/Str./str, -gasse/g., -platz/pl., St./Sankt, hyphens and
   spaces ("Waehringerstr." ≡ "Währinger Straße", "St. Marx" ≡ "Sankt Marx").

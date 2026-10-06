@@ -65,10 +65,16 @@ test('header values that are no callsign/locator go into COMMENT, not into the c
 });
 
 test('locators longer than 8 characters use the *_EXT fields', () => {
-  assert.deepEqual(adifGrid('jn88ee12ab'), { grid: 'JN88ee12', ext: 'ab' });
-  assert.deepEqual(adifGrid('JN88'), { grid: 'JN88', ext: '' });
+  assert.deepEqual(adifGrid('jn88ee12ab'), { grid: 'JN88ee12', ext: 'ab', full: 'JN88ee12ab' });
+  assert.deepEqual(adifGrid('JN88'), { grid: 'JN88', ext: '', full: 'JN88' });
   assert.equal(adifGrid('JN8'), null);
   assert.equal(adifGrid('Wien'), null);
+  assert.deepEqual(adifGrid('JN88EE05UO43UF06QD23'), { grid: 'JN88ee05', ext: 'uo43', full: 'JN88ee05uo43uf06qd23' }, '20 characters: ADIF keeps 12');
+  const h20 = { ...header, myGrid: 'JN88EE05UO43UF06QD23' };
+  const { records: [r20] } = readADI(toADIF({ id: 'x', title: 'T', template: TEMPLATES[0].key, header: h20 }, entriesFor(TEMPLATES[0], h20)));
+  assert.equal(r20.MY_GRIDSQUARE, 'JN88ee05');
+  assert.equal(r20.MY_GRIDSQUARE_EXT, 'uo43');
+  assert.equal(r20.APP_OE1EBG_MY_LOCATOR, 'JN88ee05uo43uf06qd23', 'the full locator is kept');
   const tpl = TEMPLATES[0];
   const h = { ...header, myGrid: 'JN88EE12AB' };
   const { records: [a] } = readADI(toADIF({ id: 'x', title: 'T', template: tpl.key, header: h }, entriesFor(tpl, h)));

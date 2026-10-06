@@ -48,3 +48,29 @@ test('validation', () => {
   assert.ok(!isLocatorPrefix('Donau'));
   assert.equal(formatLocator('jn88EE12ab'), 'JN88ee12ab');
 });
+
+test('full length up to 20 characters (digit/letter pairs alternate)', () => {
+  const full = 'JN88EE05UO43UF06QD23';
+  assert.ok(isValidLocator(full));
+  assert.ok(isValidLocator(full.toLowerCase()));
+  for (let n = 2; n <= 20; n += 2) assert.ok(isValidLocator(full.slice(0, n)), full.slice(0, n));
+  assert.ok(!isValidLocator(full + 'AA'), 'longer than 20');
+  assert.ok(!isValidLocator('JN88EE05UO4AUF'), 'letter where a digit belongs');
+  assert.ok(!isValidLocator('JN88EE05UY'), 'Y is no subsquare letter');
+  assert.ok(isLocatorPrefix('JN88EE05UO43U'));
+  assert.ok(!isLocatorPrefix('JN88EE05UO4X'));
+  assert.equal(formatLocator(full), 'JN88ee05uo43uf06qd23');
+  // round trip through the center at every length
+  for (let n = 2; n <= 20; n += 2) {
+    const b = maidenheadToBounds(full.slice(0, n));
+    assert.equal(b.precision, n);
+    assert.equal(latLonToMaidenhead(b.centerLat, b.centerLon, n).toUpperCase(), full.slice(0, n), `length ${n}`);
+  }
+  // 20 characters: a cell of about 6e-10° (well under a millimetre)
+  const b = maidenheadToBounds(full);
+  assert.ok(b.east - b.west < 1e-9 && b.north - b.south < 1e-9);
+  // nests inside its 10-character parent
+  const p = maidenheadToBounds(full.slice(0, 10));
+  assert.ok(b.west >= p.west && b.east <= p.east && b.south >= p.south && b.north <= p.north);
+  assert.equal(latLonToMaidenhead(48.2082, 16.3738, 20).length, 20);
+});

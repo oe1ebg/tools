@@ -10,7 +10,7 @@ browser loads.
 | Path | What | Used by |
 | --- | --- | --- |
 | `js/location/` | offline location lookup (Vienna addresses/landmarks, Austria-wide PLZ/Gemeinden/Bezirke); design in `../confirm/README.md` | confirm |
-| `js/maidenhead.js` | Maidenhead locator ↔ WGS84 | confirm, location lookup |
+| `js/maidenhead.js` | Maidenhead locator ↔ WGS84, up to 20 characters | confirm, location lookup, repeater search |
 | `js/geo.js` | haversine distance | confirm, location lookup, sota-alerts |
 | `js/adif.js` | ADI parsing and field encoding | adif, confirm |
 | `js/callbook.js` | Austrian callsign list: lookup, typo suggestions | confirm |

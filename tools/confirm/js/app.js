@@ -232,7 +232,7 @@ const HEADER_FIELDS = [
   { key: 'operator', label: 'Operator', call: true, size: 9 },
   { key: 'station', label: 'Station (für)', call: true, size: 9 },
   { key: 'myQth', label: 'Eigener QTH', qth: true, size: 18 },
-  { key: 'myGrid', label: 'Eigener Locator', grid: true, size: 8 },
+  { key: 'myGrid', label: 'Eigener Locator', grid: true, size: 12 },
   { sub: 'Betriebsart' },
   { key: 'mode', label: 'Betriebsart', radio: MODES.map(m => [m.key, m.label]), adif: true },
   { sub: 'Verbindung', note: 'Standard für neue Zeilen, pro Zeile umschaltbar' },

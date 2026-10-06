@@ -41,7 +41,7 @@ export function loadLocationIndex() {
 
 export function locatorPrecision() {
   const v = parseInt(prefGet(LOC_PREC_KEY) || '6', 10);
-  return [4, 6, 8].includes(v) ? v : 6;
+  return [4, 6, 8, 10].includes(v) ? v : 6;
 }
 
 // Minimum confidence at which the log's location field takes the best
