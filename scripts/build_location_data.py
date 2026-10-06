@@ -156,10 +156,24 @@ def cached_fetch(name: str, fetch) -> tuple[object, float]:
     return data, time.time()
 
 
-def http_get_json(url: str, data: bytes | None = None, timeout: int = 300):
+# Stadt Wien's WFS sometimes drops a connection (CI saw "Connection timed
+# out" on one of the ~25 requests a cold build makes): retry before giving up.
+HTTP_ATTEMPTS = 4
+HTTP_BACKOFF_SECONDS = (10, 30, 60)
+
+
+def http_get_json(url: str, data: bytes | None = None, timeout: int = 300, attempts: int = HTTP_ATTEMPTS):
     req = urllib.request.Request(url, data=data, headers={"User-Agent": "oe1ebg.at build (confirm tool)"})
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+    for attempt in range(1, attempts + 1):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except (OSError, ValueError) as e:  # URLError/HTTPError/timeouts are OSErrors; ValueError: truncated JSON
+            if attempt == attempts:
+                raise
+            wait = HTTP_BACKOFF_SECONDS[min(attempt, len(HTTP_BACKOFF_SECONDS)) - 1]
+            log(f"request failed ({e}), retry {attempt}/{attempts - 1} in {wait} s: {url[:120]}")
+            time.sleep(wait)
 
 
 def fetch_addresses() -> tuple[list[dict], float]:
@@ -183,7 +197,7 @@ def fetch_overpass(query: str) -> list[dict]:
     for url in OVERPASS_URLS:
         try:
             log(f"querying {url} (can take a few minutes)")
-            return http_get_json(url, data=body, timeout=500)["elements"]
+            return http_get_json(url, data=body, timeout=500, attempts=1)["elements"]
         except Exception as e:  # noqa: BLE001 — try the next mirror
             last = e
             log(f"Overpass {url} failed: {e}")
