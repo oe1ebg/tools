@@ -1,0 +1,243 @@
+# Gold set for the offline location lookup (tools/shared/js/location/).
+# Real-world inputs as they come in on a check-in net or from the public in a
+# crisis, with what the lookup must find. Evaluated by scripts/eval_location.mjs
+# (`just eval-location`) and tests/location-goldset.test.mjs (real data only).
+#
+# One case per line:  category | query | expect | rank | flags
+#   expect  label substring (case-insensitive), "@lat,lon" (within 400 m) or
+#           "@lat,lon/r" (within r m); several alternatives with " OR ";
+#           "-" = nothing should be found confidently (no auto-select)
+#   rank    the expected place must be among the first <rank> results
+#   flags   auto   = must be auto-selected (default threshold 'high')
+#           noauto = must NOT be auto-selected
+#
+# "min <category> <share>" lines set the minimum top-<rank> hit rate the test
+# enforces per category; "max-wrong-auto <n>" caps the cases with a wrong or
+# forbidden auto-selection (all categories). Both are ratchets: tighten them
+# when the lookup improves, never loosen one without saying why in the commit.
+
+max-wrong-auto 4
+min exact 1.0
+min graetzl 0.92
+min colloquial 0.52
+min historical 0.54
+min relation 0.8
+min intersection 0.26
+min context 0.52
+min typo 0.9
+min umland 0.36
+min ambiguous 1.0
+min unknown 1.0
+
+# --- official names, streets, addresses: must keep working
+exact | Stephansplatz | Stephansplatz | 1 | auto
+exact | Stephansdom | Stephansdom | 1 | auto
+exact | Schwedenplatz | Schwedenplatz | 1 | auto
+exact | Praterstern | Praterstern | 1 |
+exact | Karlsplatz | Karlsplatz | 1 |
+exact | Schottentor | Schottentor | 1 |
+exact | Mexikoplatz | Mexikoplatz | 1 |
+exact | Matzleinsdorfer Platz | Matzleinsdorfer Platz | 1 |
+exact | Reichsbrücke | Reichsbrücke | 1 |
+exact | Philadelphiabrücke | Philadelphiabrücke | 1 |
+exact | Donauturm | Donauturm | 1 | auto
+exact | Riesenrad | Riesenrad | 1 |
+exact | Gasometer | Gasometer | 1 |
+exact | Karl-Marx-Hof | Karl-Marx-Hof | 1 |
+exact | Karl Marx Hof | Karl-Marx-Hof | 1 |
+exact | AKH | AKH | 1 | auto
+exact | Allgemeines Krankenhaus | Allgemeines Krankenhaus OR AKH | 1 |
+exact | Klinik Ottakring | Klinik Ottakring | 1 |
+exact | Klinik Floridsdorf | Klinik Floridsdorf | 1 |
+exact | Wien Hauptbahnhof | Hauptbahnhof | 1 |
+exact | Hauptbahnhof | Hauptbahnhof | 1 |
+exact | Hbf | Hauptbahnhof | 1 |
+exact | Westbahnhof | Westbahnhof | 1 |
+exact | Rathaus | Rathaus | 1 |
+exact | Parlament | Parlament | 1 |
+exact | Hermannskogel | Hermannskogel | 1 |
+exact | Kahlenberg | Kahlenberg | 1 |
+exact | Cobenzl | Cobenzl | 1 |
+exact | Krieau | Krieau | 1 |
+exact | Kagraner Platz | Kagraner Platz | 1 |
+exact | Rennbahnweg | Rennbahnweg | 1 |
+exact | Großfeldsiedlung | Großfeldsiedlung | 1 |
+exact | Seestadt | Seestadt | 1 |
+exact | Wienerberg City | Wienerberg City | 1 |
+exact | Ringturm | Ringturm | 1 |
+exact | Millennium Tower | Millennium Tower | 1 |
+exact | Strandbad Gänsehäufel | Gänsehäufel | 1 |
+exact | Hohe Warte | Hohe Warte | 1 |
+exact | Waehringerstr 42 1090 | Währinger Straße 42 OR Währinger Straße 40-42 | 1 | auto
+exact | Quellenstraße 10 1100 | Quellenstraße 10 | 1 | auto
+exact | Landstraßer Hauptstraße 1 | Landstraßer Hauptstraße 1 | 1 |
+exact | Favoriten Quellenstr | Quellenstraße | 1 |
+exact | 1220 | 1220 | 1 |
+exact | 22. Bezirk | Donaustadt | 1 |
+exact | Mödling | Mödling | 1 |
+exact | Baden | Baden | 1 |
+exact | UNO City | Vienna International Centre | 1 | auto
+exact | DI | Donauinsel | 1 |
+exact | Steffl | @48.2085,16.3732/300 | 1 |
+
+# --- Grätzel, Viertel, Siedlungen, Flurnamen
+graetzl | Stuwerviertel | Stuwerviertel | 1 |
+graetzl | Servitenviertel | Servitenviertel | 1 |
+graetzl | Spittelberg | Spittelberg | 1 |
+graetzl | Freihausviertel | Freihausviertel | 1 |
+graetzl | Brunnenviertel | Brunnenviertel | 1 |
+graetzl | Nordbahnviertel | Nordbahnviertel | 1 |
+graetzl | Karmeliterviertel | Karmeliterviertel | 1 |
+graetzl | Am Spitz | Am Spitz | 1 |
+graetzl | Schmelz | Schmelz | 1 |
+graetzl | Alterlaa | Alterlaa | 1 |
+graetzl | Alt Erlaa | Alterlaa OR Alt Erlaa | 1 |
+graetzl | Kaisermühlen | Kaisermühlen | 1 |
+graetzl | Lobau | Lobau | 1 |
+graetzl | Prater | Prater | 1 |
+graetzl | Böhmischer Prater | Böhmischer Prater | 1 |
+graetzl | Laaer Berg | Laaer Berg | 1 |
+graetzl | Laaer Wald | Laaer Wald | 1 |
+graetzl | Am Schöpfwerk | Am Schöpfwerk | 1 |
+graetzl | Per-Albin-Hansson-Siedlung | Per-Albin-Hansson-Siedlung | 1 |
+graetzl | Donauinsel | Donauinsel | 1 |
+graetzl | Kagran | Kagran | 1 |
+graetzl | Stadlau | Stadlau | 1 |
+graetzl | Hirschstetten | Hirschstetten | 1 |
+graetzl | Spittelau | Spittelau | 1 |
+graetzl | Steinhof | Steinhof | 1 |
+graetzl | Wohnpark Alterlaa | Alt Erlaa OR Alterlaa | 1 |
+graetzl | Rosenhügel | Rosenhügel | 1 |
+graetzl | Matzleinsdorf | Matzleinsdorf | 1 |
+
+# --- colloquial names (what people say, not what is signposted)
+colloquial | Copa Cagrana | @48.2335,16.4130/600 | 1 |
+colloquial | Kaiserwiese | @48.2160,16.3965/400 | 1 |
+colloquial | Floridsdorfer Spitz | Am Spitz | 1 |
+colloquial | Twin Towers | Twin Tower | 1 |
+colloquial | Ottakringer Brauerei | Ottakringer Brauerei | 1 |
+colloquial | Happel-Stadion | Ernst-Happel-Stadion | 1 |
+colloquial | Praterstadion | Ernst-Happel-Stadion OR Praterstadion | 1 |
+colloquial | Schönbrunn | Schönbrunn | 1 |
+colloquial | Gürtel | Gürtel | 3 |
+colloquial | Ring | Ring | 3 |
+colloquial | Zentral | Zentralfriedhof | 3 |
+colloquial | Westbahnhof Wien | Westbahnhof | 1 |
+colloquial | Flaktürme Augarten | Flakturm OR Augarten | 3 |
+colloquial | Haus des Meeres | Haus des Meeres | 1 |
+colloquial | Donauzentrum | Donau Zentrum OR Donauzentrum | 1 |
+colloquial | SCS | Shopping City Süd | 1 |
+colloquial | Gate 2 | Wiener Wohnen Service-Center OR Gate 2 | 1 |
+colloquial | MQM | Media Quarter Marx | 1 |
+colloquial | Marx Halle | Marx Halle | 1 |
+colloquial | Rinderhalle | Marx Halle | 1 |
+colloquial | Völkerkundemuseum | Weltmuseum | 1 |
+
+# --- former names (renamed hospitals, stations, ...)
+historical | Wilhelminenspital | Klinik Ottakring | 1 |
+historical | Donauspital | Klinik Donaustadt OR Donauspital | 1 |
+historical | SMZ Ost | Klinik Donaustadt | 1 |
+historical | Kaiser-Franz-Josef-Spital | Klinik Favoriten | 1 |
+historical | Rudolfstiftung | Klinik Landstraße | 1 |
+historical | Krankenhaus Hietzing | Klinik Hietzing | 1 |
+historical | Lainzer Krankenhaus | Klinik Hietzing | 1 |
+historical | Otto-Wagner-Spital | Otto-Wagner-Areal OR Steinhof | 1 |
+historical | Südbahnhof | Hauptbahnhof | 1 |
+historical | Franz-Horr-Stadion | Generali-Arena | 1 |
+historical | Ernst-Happel-Stadion | Ernst-Happel-Stadion | 1 |
+
+# --- position words around a known name ("beim", "Nähe", "vor dem")
+relation | beim Schottentor | Schottentor | 1 | auto
+relation | Nähe Praterstern | Praterstern | 1 |
+relation | vor dem Westbahnhof | Westbahnhof | 1 |
+relation | bei der Reichsbrücke | Reichsbrücke | 1 |
+relation | hinter dem Rathaus | Rathaus | 1 |
+relation | gegenüber Stephansdom | Stephansdom | 1 |
+relation | in der Nähe vom Donauturm | Donauturm | 1 |
+relation | beim Gasometer | Gasometer | 1 |
+relation | Höhe Matzleinsdorfer Platz | Matzleinsdorfer Platz | 1 |
+relation | neben dem Riesenrad | Riesenrad | 1 |
+
+# --- street corners
+intersection | Thaliastraße/Gürtel | @48.2084,16.3378/250 | 1 |
+intersection | Gürtel Ecke Thaliastraße | @48.2084,16.3378/250 | 1 |
+intersection | Ecke Thaliastraße Gürtel | @48.2084,16.3378/250 | 1 |
+intersection | Alser Straße / Gürtel | @48.2151,16.3416/250 | 1 |
+intersection | Mariahilfer Straße Ecke Neubaugasse | @48.1985,16.3498/150 | 1 |
+intersection | Mariahilferstr./Neubaug. | @48.1985,16.3498/150 | 1 |
+intersection | Kreuzung Quellenstraße Favoritenstraße | @48.1752,16.3781/150 | 1 |
+intersection | Wagramer Straße und Siebeckstraße | @48.2420,16.4335/150 | 1 |
+intersection | Landstraßer Hauptstraße Ecke Rasumofskygasse | @48.2031,16.3909/150 | 1 |
+intersection | Ottakringer Straße/Wattgasse | @48.2133,16.3191/150 | 1 |
+intersection | Brünner Straße Ecke Shuttleworthstraße | @48.2710,16.4064/150 | 1 |
+intersection | Hietzinger Hauptstraße/Lainzer Straße | @48.1862,16.2986/150 | 1 |
+intersection | Taborstraße Ecke Heinestraße | @48.2219,16.3825/150 | 1 |
+intersection | Ring Ecke Babenbergerstraße | @48.2035,16.3635/250 | 1 |
+intersection | Kai Ecke Schwedenplatz | @48.2112,16.3798/300 | 1 |
+
+# --- an object plus its context (category word, number, district/Ortsteil)
+context | Zentralfriedhof Tor 2 | Tor 2 | 1 |
+context | Zentralfriedhof 2. Tor | Tor 2 | 3 |
+context | Kirche Mauer | @48.1505,16.2690/700 | 3 |
+context | Friedhof Mauer | Friedhof Mauer | 1 |
+context | U6 Josefstädter Straße | @48.2115,16.3392/250 | 1 |
+context | U3 Neubaugasse | @48.1993,16.3527/250 | 1 |
+context | Station Schottentor | Schottentor | 1 |
+context | Haltestelle Praterstern | Praterstern | 1 |
+context | Spital Floridsdorf | Klinik Floridsdorf | 1 |
+context | Krankenhaus Ottakring | Klinik Ottakring | 1 |
+context | Feuerwehr Kaisermühlen | Feuerwehr | 3 |
+context | Polizei Westbahnhof | Polizeiinspektion Westbahnhof | 1 |
+context | Bahnhof Floridsdorf | Floridsdorf | 1 |
+context | Schloss Alterlaa | Schloss Alterlaa | 1 |
+context | Schule Am Schöpfwerk | Am Schöpfwerk | 3 |
+context | St. Marx | Sankt Marx OR St. Marx | 1 |
+context | Sankt Marx | Sankt Marx OR St. Marx | 1 |
+context | Stift Klosterneuburg | @48.3057,16.3255/500 | 1 |
+context | Klosterneuburg Stift | @48.3057,16.3255/500 | 1 |
+
+# --- typos
+typo | Stephansplaz | Stephansplatz | 1 |
+typo | Schwedenplaz | Schwedenplatz | 1 |
+typo | Pratersten | Praterstern | 1 |
+typo | Zentralfridhof | Zentralfriedhof | 1 |
+typo | Kaisermülen | Kaisermühlen | 1 |
+typo | Wahringerstrase 42 | Währinger Straße 42 OR Währinger Straße 40-42 | 1 |
+typo | Donauturn | Donauturm | 1 |
+typo | Floridsdorf Am Spiz | Am Spitz | 3 |
+typo | Mariahilfastraße | Mariahilfer Straße | 1 |
+typo | Schotentor | Schottentor | 1 |
+
+# --- around Vienna (Umland)
+umland | Flughafen Wien | @48.1103,16.5697/2000 | 1 |
+umland | Schwechat Flughafen | @48.1103,16.5697/2000 | 1 |
+umland | Flughafen Schwechat | @48.1103,16.5697/2000 | 1 |
+umland | VIE | @48.1103,16.5697/2000 | 1 |
+umland | Perchtoldsdorf | Perchtoldsdorf | 1 |
+umland | Klosterneuburg | Klosterneuburg | 1 |
+umland | Bisamberg | Bisamberg | 1 |
+umland | Gerasdorf | Gerasdorf | 1 |
+umland | Shopping City Süd | Shopping City Süd | 1 |
+umland | Kierling | Kierling | 1 |
+umland | Landesklinikum Mödling | Mödling | 1 |
+
+# --- ambiguous: several real places, none may be auto-picked
+ambiguous | Hauptstraße | Hauptstraße | 3 | noauto
+ambiguous | Kirchengasse | Kirchengasse | 3 | noauto
+ambiguous | Schulgasse | Schulgasse | 3 | noauto
+ambiguous | Bahnhofstraße | - | 3 | noauto
+ambiguous | Kirche | - | 3 | noauto
+ambiguous | Bahnhof | - | 3 | noauto
+ambiguous | Spital | - | 3 | noauto
+ambiguous | Friedhof | - | 3 | noauto
+ambiguous | Gürtel | Gürtel | 3 | noauto
+
+# --- unknown / nonsense: nothing may be auto-picked
+unknown | xyzzy | - | 1 | noauto
+unknown | beim Billa | - | 1 | noauto
+unknown | Ecke | - | 1 | noauto
+unknown | bei mir zuhause | - | 1 | noauto
+unknown | Hausnummer 12 | - | 1 | noauto
+unknown | Hinterhof | - | 1 | noauto
+unknown | keine Ahnung | - | 1 | noauto
+unknown | Feuerwehrzufahrt | - | 1 | noauto
