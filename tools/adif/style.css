@@ -1,0 +1,256 @@
+/* ADIF editor. Colour tokens, color-scheme, [hidden] and .sr-only come
+   from the shared tools.css. */
+
+html,body{ height:100%; }
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-ui);
+  font-size:13px;
+  line-height:1.4;
+  display:flex;
+  flex-direction:column;
+}
+#site-header{
+  display:flex;
+  align-items:center;
+  gap:.8em;
+  padding:.5em .8em;
+  position:sticky;
+  top:0;
+  z-index:20;
+  background:var(--header-bg);
+  backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);
+  border-bottom:1px solid var(--line);
+}
+#back-link{
+  display:inline-flex;
+  align-items:center;
+  gap:.4em;
+  color:var(--accent);
+  text-decoration:none;
+  font-size:12px;
+}
+#back-link:hover{ text-decoration:underline; }
+.icon-arrow-left{ width:1em; height:1em; }
+.badge{
+  border:1px solid var(--line);
+  border-radius:.4rem;
+  padding:.15em .6em;
+  color:var(--text-dim);
+  font-size:11px;
+  white-space:nowrap;
+  text-decoration:none;
+}
+a.badge:hover{ color:var(--accent); border-color:var(--accent-dim); }
+#theme-toggle{
+  display:flex;
+  border:1px solid var(--line);
+  border-radius:.3rem;
+  overflow:hidden;
+}
+#theme-toggle button{
+  border:none;
+  border-radius:0;
+  padding:.3em .6em;
+  font-size:11px;
+  background:transparent;
+  color:var(--text-dim);
+}
+#theme-toggle button:not(:first-child){ border-left:1px solid var(--line); }
+#theme-toggle button.active{
+  background:var(--accent);
+  color:#fff;
+}
+#toolbar{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:.6em 1.2em;
+  padding:.6em .8em;
+  background:var(--bg-raised);
+  border-bottom:1px solid var(--line);
+}
+#toolbar h1{
+  text-transform:uppercase;
+  font-size:13px;
+  font-weight:600;
+  letter-spacing:.02em;
+  margin:0;
+  color:var(--text);
+  white-space:nowrap;
+}
+#toolbar .sep{ color:var(--line); }
+button, .btn{
+  font-family:var(--font-ui);
+  font-size:12px;
+  background:transparent;
+  color:var(--accent);
+  border:1px solid var(--accent-dim);
+  padding:.35em .7em;
+  cursor:pointer;
+  border-radius:.2rem;
+}
+button:hover, .btn:hover{ background:var(--accent-soft); }
+button:disabled{ color:var(--text-dim); border-color:var(--line); cursor:not-allowed; }
+button.danger{ color:var(--err); border-color:#5a3a33; }
+button.danger:hover{ background:rgba(217,112,90,0.1); }
+input[type=text], select{
+  font-family:var(--font-ui);
+  font-size:12px;
+  background:var(--bg);
+  color:var(--text);
+  border:1px solid var(--line);
+  padding:.35em .5em;
+  border-radius:.2rem;
+}
+input[type=text]:focus, td[contenteditable]:focus{
+  outline:1px solid var(--accent);
+  outline-offset:-1px;
+}
+#stats{ color:var(--text-dim); white-space:nowrap; }
+#stats b{ color:var(--text); font-weight:600; }
+.spacer{ flex:1; }
+
+#tools-panel{
+  display:none;
+  align-items:center;
+  gap:.6em;
+  padding:.5em .8em;
+  background:var(--bg-raised);
+  border-bottom:1px solid var(--line);
+  font-size:12px;
+}
+#tools-panel.show{ display:flex; flex-wrap:wrap; }
+#tools-panel input[type=text]{ width:16em; }
+#tools-panel .hint{ color:var(--text-dim); }
+
+#file-info{
+  padding:.2em .8em;
+  color:var(--text-dim);
+  font-size:11px;
+}
+
+#warnings{
+  display:none;
+  padding:.5em .8em;
+  background:#1c1811;
+  border-bottom:1px solid #3a2f1a;
+  color:var(--warn);
+  font-size:12px;
+  max-height:6em;
+  overflow:auto;
+}
+#warnings.show{ display:block; }
+#warnings div{ padding:.1em 0; }
+
+#drop{
+  flex:1;
+  position:relative;
+  overflow:auto;
+  padding: 0 0 3em 0;
+}
+#drop.empty{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:0;
+}
+#empty-msg{
+  text-align:center;
+  color:var(--text-dim);
+  border:1px dashed var(--line);
+  padding:3em 4em;
+}
+#empty-msg .hint{ color:var(--accent-dim); font-size:12px; margin-top:.6em; }
+#drop.dragover::after{
+  content:"drop .adi / .adx file(s)";
+  position:absolute; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(82,108,254,0.08);
+  border:2px dashed var(--accent);
+  color:var(--accent);
+  font-size:14px;
+  z-index:5;
+  pointer-events:none;
+}
+
+table{
+  border-collapse:collapse;
+  width:max-content;
+  min-width:100%;
+  font-family:var(--font-mono);
+}
+thead th{
+  position:sticky; top:0; z-index:2;
+  background:var(--bg-raised);
+  border-bottom:1px solid var(--accent-dim);
+  border-right:1px solid var(--line);
+  text-align:left;
+  padding:.4em .6em;
+  white-space:nowrap;
+  font-weight:600;
+  font-family:var(--font-ui);
+  color:var(--accent);
+}
+thead th .colhead{
+  display:flex; align-items:center; gap:.5em;
+}
+thead th .colhead button{
+  background:none; border:none; border-radius:0; padding:0; margin:0;
+  font:inherit; color:inherit; text-align:left;
+}
+thead th .colhead button:hover{ background:none; }
+thead th .rmcol{
+  color:var(--text-dim);
+  cursor:pointer;
+  font-weight:400;
+}
+thead th .rmcol:hover{ color:var(--err); }
+th.rownum-col, td.rownum{
+  position:sticky; left:0; z-index:1;
+  background:var(--bg-raised);
+  color:var(--text-dim);
+  text-align:right;
+  padding:.4em .6em;
+  border-right:1px solid var(--accent-dim);
+  user-select:none;
+  font-family:var(--font-ui);
+}
+td.rownum{ background:var(--bg); z-index:1; }
+td.rownum .del{ cursor:pointer; color:var(--text-dim); margin-left:.6em; background:none; border:none; padding:0; font:inherit; }
+td.rownum .del:hover{ background:none; }
+td.rownum .del:hover{ color:var(--err); }
+tbody td{
+  border-bottom:1px solid var(--line);
+  border-right:1px solid var(--line);
+  padding:.35em .6em;
+  white-space:pre;
+  min-width:4em;
+  max-width:28em;
+  overflow-x:auto;
+}
+tbody tr:hover td{ background:rgba(82,108,254,0.04); }
+#addcol{
+  display:flex; align-items:center; gap:.4em;
+  padding:.3em .5em;
+}
+#addcol input{ width:10em; }
+#addrow-row td{
+  padding:.5em .6em;
+  color:var(--text-dim);
+}
+#addrow-row .btn{ display:inline-flex; }
+
+#filename-input{ width:14em; }
+.add-row{ padding:.6em .8em; }
+.add-row input{ margin-left:.6em; width:14em; }
+.add-row .add-col{ margin-left:.4em; }
+a#dl{ display:none; }
+
+/* iOS Safari zooms into focused fields with text under 16px. */
+@media (pointer: coarse){
+  :root input, :root select, :root textarea{ font-size:16px; }
+}

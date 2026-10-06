@@ -2,14 +2,17 @@
 // export. Only the ADI text format (spec: adif.org.uk).
 
 // ADIF .adi is an ASCII format: transliterate German characters, replace
-// anything else non-ASCII, and drop the "<" ">" that would break parsing.
-export function adifAscii(s) {
-  return String(s ?? '')
+// anything else non-ASCII. By default also drop "<" ">": legal inside a
+// length-delimited value, but naive readers split on them, and the
+// confirmation log's free text doesn't need them. keepBrackets: for the
+// ADIF editor, which shouldn't change other programs' data more than needed.
+export function adifAscii(s, { keepBrackets = false } = {}) {
+  const t = String(s ?? '')
     .replace(/Ä/g, 'Ae').replace(/Ö/g, 'Oe').replace(/Ü/g, 'Ue')
     .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
     .normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
-    .replace(/[\r\n\t]+/g, ' ')
-    .replace(/[<>]/g, '')
+    .replace(/[\r\n\t]+/g, ' ');
+  return (keepBrackets ? t : t.replace(/[<>]/g, ''))
     .replace(/[^\x20-\x7e]/g, '?')
     .trim();
 }
@@ -23,8 +26,8 @@ export function adifField(name, value) {
 }
 
 // adifField() with the value made plain ASCII first (adifAscii()).
-export function adifAsciiField(name, value) {
-  return adifField(name, adifAscii(value));
+export function adifAsciiField(name, value, opts) {
+  return adifField(name, adifAscii(value, opts));
 }
 
 // Records of an ADI file as [{FIELD: value}] (field names upper-cased).
@@ -55,7 +58,7 @@ export function parseADIF(text, warnings, sourceLabel, headerInfo) {
       const hname = hm[1].toUpperCase();
       if (hname === 'EOH' || hm[2] === undefined) continue;
       const hlen = parseInt(hm[2], 10);
-      const hval = headerText.substr(hRe.lastIndex, hlen);
+      const hval = headerText.slice(hRe.lastIndex, hRe.lastIndex + hlen);
       if (hname === 'ADIF_VER' || hname === 'PROGRAMID' || hname === 'PROGRAMVERSION') {
         headerInfo[hname] = hval;
       }
@@ -84,7 +87,7 @@ export function parseADIF(text, warnings, sourceLabel, headerInfo) {
       continue;
     }
     const len = parseInt(lenStr, 10);
-    const value = body.substr(tagEnd, len);
+    const value = body.slice(tagEnd, tagEnd + len);
     current[name] = value;
     any = true;
     tagRe.lastIndex = tagEnd + len;

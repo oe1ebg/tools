@@ -3,7 +3,8 @@
 
 import { ADIF_FIELDS, ADIF_FIELD_MAP } from './fields.js';
 import { parseADIF } from '../../shared/js/adif.js';
-import { serializeADIF, serializeCSV, serializeSotaCsv } from './export.js';
+import { serializeADIF, serializeCSV, serializeSotaCsv, adifChangedValues, ADI_MIME } from './export.js';
+import { el, fill } from '../../shared/js/dom.js';
 
 function populateFieldDatalist(){
   const dl = document.getElementById('adif-field-list');
@@ -44,11 +45,15 @@ function addWarning(msg){
 
 function clearWarnings(){
   const box = document.getElementById('warnings');
-  box.innerHTML = '';
+  box.replaceChildren();
   box.classList.remove('show');
 }
 
 /* ---------- rendering ---------- */
+
+function setPlainEditable(node){
+  try { node.contentEditable = 'plaintext-only'; } catch { node.contentEditable = 'true'; }
+}
 
 const dropEl = document.getElementById('drop');
 
@@ -62,8 +67,8 @@ function render(){
   dropEl.classList.remove('empty');
   if (records.length === 0){
     dropEl.classList.add('empty');
-    dropEl.innerHTML = '<div id="empty-msg">drag &amp; drop .adi / .adx file(s) here<br>' +
-      '<span class="hint">or click "add file(s)…" — files are added to the current log; nothing leaves the browser</span></div>';
+    fill(dropEl, el('div', { id: 'empty-msg' }, 'drag & drop .adi file(s) here', el('br'),
+      el('span', { class: 'hint' }, 'or click "add file(s)…" — files are added to the current log; nothing leaves the browser')));
     updateStats();
     updateFileInfo();
     setExportButtonsDisabled(true);
@@ -76,29 +81,23 @@ function render(){
   const htr = document.createElement('tr');
   const rowNumTh = document.createElement('th');
   rowNumTh.className = 'rownum-col';
+  rowNumTh.scope = 'col';
   rowNumTh.textContent = '#';
   htr.appendChild(rowNumTh);
   columns.forEach((col, ci) => {
-    const th = document.createElement('th');
-    const wrap = document.createElement('span');
-    wrap.className = 'colhead';
-    const label = document.createElement('span');
-    label.textContent = col;
-    label.style.cursor = 'pointer';
     const fieldDef = ADIF_FIELD_MAP.get(col);
-    label.title = 'click to sort' + (fieldDef
-      ? ` — ${fieldDef.type}: ${fieldDef.desc}`
-      : ' — no ADIF definition (custom/application field)');
-    label.addEventListener('click', () => sortByColumn(col));
-    const rm = document.createElement('span');
-    rm.className = 'rmcol';
-    rm.textContent = '×';
-    rm.title = 'remove column';
-    rm.addEventListener('click', (e) => { e.stopPropagation(); removeColumn(col); });
-    wrap.appendChild(label);
-    wrap.appendChild(rm);
-    th.appendChild(wrap);
-    htr.appendChild(th);
+    const sorted = sortState.col === col;
+    htr.appendChild(el('th', { scope: 'col', 'aria-sort': sorted ? (sortState.asc ? 'ascending' : 'descending') : null },
+      el('span', { class: 'colhead' },
+        el('button', {
+          type: 'button', class: 'sortcol',
+          title: 'click to sort' + (fieldDef
+            ? ` — ${fieldDef.type}: ${fieldDef.desc}`
+            : ' — no ADIF definition (custom/application field)'),
+          onclick: () => sortByColumn(col),
+        }, col),
+        el('button', { type: 'button', class: 'rmcol', title: 'remove column', 'aria-label': `remove column ${col}`,
+          onclick: () => removeColumn(col) }, '×'))));
   });
   thead.appendChild(htr);
   table.appendChild(thead);
@@ -108,12 +107,12 @@ function render(){
     const tr = document.createElement('tr');
     const numTd = document.createElement('td');
     numTd.className = 'rownum';
-    numTd.innerHTML = (ri+1) + '<span class="del" title="delete row">×</span>';
-    numTd.querySelector('.del').addEventListener('click', () => deleteRow(ri));
+    numTd.append(String(ri + 1), el('button', { type: 'button', class: 'del', title: 'delete row',
+      'aria-label': `delete row ${ri + 1}`, onclick: () => deleteRow(ri) }, '×'));
     tr.appendChild(numTd);
     columns.forEach(col => {
       const td = document.createElement('td');
-      td.contentEditable = 'true';
+      setPlainEditable(td);
       td.spellcheck = false;
       td.textContent = rec[col] !== undefined ? rec[col] : '';
       td.addEventListener('blur', () => {
@@ -128,30 +127,20 @@ function render(){
   });
   table.appendChild(tbody);
 
-  dropEl.innerHTML = '';
-  dropEl.appendChild(table);
+  fill(dropEl, table);
 
-  const addRowDiv = document.createElement('div');
-  addRowDiv.style.padding = '.6em .8em';
-  const addRowBtn = document.createElement('button');
-  addRowBtn.textContent = '+ row';
-  addRowBtn.addEventListener('click', addRow);
-  addRowDiv.appendChild(addRowBtn);
+  const addRowDiv = el('div', { class: 'add-row' });
+  addRowDiv.appendChild(el('button', { type: 'button', onclick: addRow }, '+ row'));
 
-  const newFieldInput = document.createElement('input');
-  newFieldInput.type = 'text';
-  newFieldInput.setAttribute('list', 'adif-field-list');
-  newFieldInput.placeholder = 'field name…';
-  newFieldInput.style.marginLeft = '.6em';
-  newFieldInput.style.width = '14em';
+  const newFieldInput = el('input', { type: 'text', list: 'adif-field-list', placeholder: 'field name…',
+    'aria-label': 'new field name', autocomplete: 'off', spellcheck: 'false', autocapitalize: 'characters', enterkeyhint: 'done' });
   addRowDiv.appendChild(newFieldInput);
 
-  const addColBtn = document.createElement('button');
-  addColBtn.textContent = '+ field';
-  addColBtn.style.marginLeft = '.4em';
+  const addColBtn = el('button', { type: 'button', class: 'add-col' }, '+ field');
   addColBtn.addEventListener('click', () => {
     const name = newFieldInput.value.trim().toUpperCase();
-    if (name) addColumn(name);
+    if (/^[A-Z][A-Z0-9_]*$/.test(name)) addColumn(name);
+    else if (name) addWarning(`"${name}" is no valid ADIF field name (letters, digits and _ only).`);
     newFieldInput.value = '';
   });
   newFieldInput.addEventListener('keydown', (e) => {
@@ -170,11 +159,12 @@ function updateStats(){
   if (records.length === 0){ stats.textContent = ''; return; }
   const bands = new Set(records.map(r => r.BAND).filter(Boolean));
   const modes = new Set(records.map(r => r.MODE).filter(Boolean));
-  stats.innerHTML = `<b>${records.length}</b> QSOs` +
-    (fileMeta.length > 1 ? ` from <b>${fileMeta.length}</b> files` : '') +
-    ` · <b>${columns.length}</b> fields` +
-    (bands.size ? ` · bands: ${[...bands].join(', ')}` : '') +
-    (modes.size ? ` · modes: ${[...modes].join(', ')}` : '');
+  // Built from nodes: BAND/MODE come straight from the loaded file.
+  fill(stats, el('b', {}, records.length), ' QSOs',
+    fileMeta.length > 1 ? [' from ', el('b', {}, fileMeta.length), ' files'] : null,
+    ' · ', el('b', {}, columns.length), ' fields',
+    bands.size ? ` · bands: ${[...bands].join(', ')}` : null,
+    modes.size ? ` · modes: ${[...modes].join(', ')}` : null);
 }
 
 function updateFileInfo(){
@@ -239,6 +229,17 @@ function applyCommentTemplate(template){
 
 /* ---------- file loading ---------- */
 
+// .adi files are meant to be ASCII; in practice they're UTF-8 or, from
+// many Windows loggers, Windows-1252. Strict UTF-8 first, else 1252.
+function decodeLog(buffer, name, warnings){
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(buffer);
+  } catch {
+    warnings.push(`${name}: not UTF-8, read as Windows-1252.`);
+    return new TextDecoder('windows-1252').decode(buffer);
+  }
+}
+
 function loadFiles(fileList){
   clearWarnings();
   const files = Array.from(fileList);
@@ -249,7 +250,7 @@ function loadFiles(fileList){
     reader.onload = () => {
       const warnings = [];
       const headerInfo = {};
-      const parsed = parseADIF(reader.result, warnings, file.name, headerInfo);
+      const parsed = parseADIF(decodeLog(reader.result, file.name, warnings), warnings, file.name, headerInfo);
       records = records.concat(parsed);
       rebuildColumns();
       fileMeta.push({
@@ -267,7 +268,7 @@ function loadFiles(fileList){
       pending--;
       if (pending === 0) render();
     };
-    reader.readAsText(file);
+    reader.readAsArrayBuffer(file);
   });
   const fnInput = document.getElementById('filename-input');
   if (files.length === 1) fnInput.value = files[0].name.replace(/\.[^.]+$/, '') + '.adi';
@@ -275,11 +276,14 @@ function loadFiles(fileList){
 
 /* ---------- drag & drop / open / export wiring ---------- */
 
-['dragenter','dragover'].forEach(evt =>
-  dropEl.addEventListener(evt, e => { e.preventDefault(); dropEl.classList.add('dragover'); }));
-['dragleave','drop'].forEach(evt =>
-  dropEl.addEventListener(evt, e => { e.preventDefault(); dropEl.classList.remove('dragover'); }));
+let dragDepth = 0;
+['dragover', 'drop'].forEach(evt => document.addEventListener(evt, e => e.preventDefault()));
+dropEl.addEventListener('dragenter', e => { e.preventDefault(); dragDepth++; dropEl.classList.add('dragover'); });
+dropEl.addEventListener('dragleave', () => { if (--dragDepth <= 0){ dragDepth = 0; dropEl.classList.remove('dragover'); } });
 dropEl.addEventListener('drop', e => {
+  e.preventDefault();
+  dragDepth = 0;
+  dropEl.classList.remove('dragover');
   if (e.dataTransfer.files && e.dataTransfer.files.length) loadFiles(e.dataTransfer.files);
 });
 
@@ -292,7 +296,7 @@ document.getElementById('file-input').addEventListener('change', e => {
 });
 
 function downloadText(text, mime, filename){
-  const blob = new Blob([text], { type: mime });
+  const blob = new Blob([text], { type: mime.startsWith('text/') ? `${mime};charset=utf-8` : mime });
   const url = URL.createObjectURL(blob);
   const a = document.getElementById('dl');
   a.href = url;
@@ -308,7 +312,10 @@ function swapExt(filename, ext){
 
 document.getElementById('btn-export').addEventListener('click', () => {
   const name = document.getElementById('filename-input').value.trim() || 'export.adi';
-  downloadText(serializeADIF(records, columns), 'text/plain', name);
+  // .adi is ASCII: say which values had to be transliterated
+  const changed = adifChangedValues(records, columns);
+  if (changed) addWarning(`${changed} value(s) contained non-ASCII characters; transliterated in the export (ä → ae, é → e, other → ?).`);
+  downloadText(serializeADIF(records, columns), ADI_MIME, name);
 });
 
 document.getElementById('btn-export-csv').addEventListener('click', () => {
@@ -321,40 +328,14 @@ document.getElementById('btn-export-sota').addEventListener('click', () => {
   downloadText(serializeSotaCsv(records, mode), 'text/csv', `sota-${mode}.csv`);
 });
 
-document.getElementById('btn-toggle-tools').addEventListener('click', () => {
-  document.getElementById('tools-panel').classList.toggle('show');
+document.getElementById('btn-toggle-tools').addEventListener('click', e => {
+  const open = document.getElementById('tools-panel').classList.toggle('show');
+  e.currentTarget.setAttribute('aria-expanded', String(open));
 });
 
 document.getElementById('btn-apply-tpl').addEventListener('click', () => {
   applyCommentTemplate(document.getElementById('tpl-input').value);
 });
 
-/* ---------- theme (light / dark / auto) ---------- */
-
-const THEME_KEY = 'adif-editor-theme';
-
-function applyTheme(mode){
-  if (mode === 'light' || mode === 'dark') {
-    document.documentElement.setAttribute('data-theme', mode);
-  } else {
-    document.documentElement.removeAttribute('data-theme'); // "auto": follow prefers-color-scheme
-  }
-  document.querySelectorAll('#theme-toggle button').forEach(b => {
-    b.classList.toggle('active', b.dataset.themeChoice === mode);
-  });
-}
-
-function initTheme(){
-  applyTheme(localStorage.getItem(THEME_KEY) || 'auto');
-  document.querySelectorAll('#theme-toggle button').forEach(b => {
-    b.addEventListener('click', () => {
-      const mode = b.dataset.themeChoice;
-      localStorage.setItem(THEME_KEY, mode);
-      applyTheme(mode);
-    });
-  });
-}
-
-initTheme();
 populateFieldDatalist();
 render();

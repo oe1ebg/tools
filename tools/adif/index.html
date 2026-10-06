@@ -4,364 +4,71 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ADIF Editor</title>
-<style>
-  :root{
-    --bg: #ffffff;
-    --bg-raised: #f5f5f5;
-    --line: #0000000d;
-    --text: #000000de;
-    --text-dim: #00000099;
-    --accent: #526cfe;
-    --accent-dim: #6b78d0;
-    --warn: #9a6700;
-    --err: #c62828;
-    --header-bg: rgba(255,255,255,.72);
-    --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, Menlo, monospace;
-  }
-  @media (prefers-color-scheme: dark){
-    :root{
-      --bg: hsla(225,15%,5%,1);
-      --bg-raised: hsla(225,20%,10%,1);
-      --line: hsla(225,15%,90%,.12);
-      --text: hsla(225,15%,90%,.82);
-      --text-dim: hsla(225,15%,90%,.5);
-      --accent: #526cfe;
-      --accent-dim: #9aa8f5;
-      --warn: #e0b35c;
-      --err: #e0776b;
-      --header-bg: rgba(12,13,15,.72);
-    }
-  }
-  /* Explicit light/dark override (higher specificity than the bare :root
-     rules above), set via the theme toggle + a data-theme attribute on
-     <html>. No attribute at all = "auto", i.e. follows prefers-color-scheme.
-     Every variable that has a light/dark-dependent value must be repeated
-     here too — anything left out would keep following the OS preference
-     (via the plain :root/media rules above) even when the user has
-     explicitly forced the other mode, which is exactly the bug this
-     block exists to avoid. */
-  :root[data-theme="dark"]{
-    --bg: hsla(225,15%,5%,1);
-    --bg-raised: hsla(225,20%,10%,1);
-    --line: hsla(225,15%,90%,.12);
-    --text: hsla(225,15%,90%,.82);
-    --text-dim: hsla(225,15%,90%,.5);
-    --accent: #526cfe;
-    --accent-dim: #9aa8f5;
-    --warn: #e0b35c;
-    --err: #e0776b;
-    --header-bg: rgba(12,13,15,.72);
-  }
-  :root[data-theme="light"]{
-    --bg: #ffffff;
-    --bg-raised: #f5f5f5;
-    --line: #0000000d;
-    --text: #000000de;
-    --text-dim: #00000099;
-    --accent: #526cfe;
-    --accent-dim: #6b78d0;
-    --warn: #9a6700;
-    --err: #c62828;
-    --header-bg: rgba(255,255,255,.72);
-  }
-  *{ box-sizing: border-box; }
-  html,body{ height:100%; }
-  body{
-    margin:0;
-    background:var(--bg);
-    color:var(--text);
-    font-family:var(--font-ui);
-    font-size:13px;
-    line-height:1.4;
-    display:flex;
-    flex-direction:column;
-  }
-  #site-header{
-    display:flex;
-    align-items:center;
-    gap:.8em;
-    padding:.5em .8em;
-    position:sticky;
-    top:0;
-    z-index:20;
-    background:var(--header-bg);
-    backdrop-filter:blur(6px);
-    -webkit-backdrop-filter:blur(6px);
-    border-bottom:1px solid var(--line);
-  }
-  #back-link{
-    display:inline-flex;
-    align-items:center;
-    gap:.4em;
-    color:var(--accent);
-    text-decoration:none;
-    font-size:12px;
-  }
-  #back-link:hover{ text-decoration:underline; }
-  .icon-arrow-left{ width:1em; height:1em; }
-  .badge{
-    border:1px solid var(--line);
-    border-radius:.4rem;
-    padding:.15em .6em;
-    color:var(--text-dim);
-    font-size:11px;
-    white-space:nowrap;
-    text-decoration:none;
-  }
-  a.badge:hover{ color:var(--accent); border-color:var(--accent-dim); }
-  #theme-toggle{
-    display:flex;
-    border:1px solid var(--line);
-    border-radius:.3rem;
-    overflow:hidden;
-  }
-  #theme-toggle button{
-    border:none;
-    border-radius:0;
-    padding:.3em .6em;
-    font-size:11px;
-    background:transparent;
-    color:var(--text-dim);
-  }
-  #theme-toggle button:not(:first-child){ border-left:1px solid var(--line); }
-  #theme-toggle button.active{
-    background:var(--accent);
-    color:#fff;
-  }
-  #toolbar{
-    display:flex;
-    flex-wrap:wrap;
-    align-items:center;
-    gap:.6em 1.2em;
-    padding:.6em .8em;
-    background:var(--bg-raised);
-    border-bottom:1px solid var(--line);
-  }
-  #toolbar h1{
-    font-size:13px;
-    font-weight:600;
-    letter-spacing:.02em;
-    margin:0;
-    color:var(--text);
-    white-space:nowrap;
-  }
-  #toolbar .sep{ color:var(--line); }
-  button, .btn{
-    font-family:var(--font-ui);
-    font-size:12px;
-    background:transparent;
-    color:var(--accent);
-    border:1px solid var(--accent-dim);
-    padding:.35em .7em;
-    cursor:pointer;
-    border-radius:.2rem;
-  }
-  button:hover, .btn:hover{ background:rgba(82,108,254,0.1); }
-  button:disabled{ color:var(--text-dim); border-color:var(--line); cursor:not-allowed; }
-  button.danger{ color:var(--err); border-color:#5a3a33; }
-  button.danger:hover{ background:rgba(217,112,90,0.1); }
-  input[type=text], select{
-    font-family:var(--font-ui);
-    font-size:12px;
-    background:var(--bg);
-    color:var(--text);
-    border:1px solid var(--line);
-    padding:.35em .5em;
-    border-radius:.2rem;
-  }
-  input[type=text]:focus, td[contenteditable]:focus{
-    outline:1px solid var(--accent);
-    outline-offset:-1px;
-  }
-  #stats{ color:var(--text-dim); white-space:nowrap; }
-  #stats b{ color:var(--text); font-weight:600; }
-  .spacer{ flex:1; }
-
-  #tools-panel{
-    display:none;
-    align-items:center;
-    gap:.6em;
-    padding:.5em .8em;
-    background:var(--bg-raised);
-    border-bottom:1px solid var(--line);
-    font-size:12px;
-  }
-  #tools-panel.show{ display:flex; flex-wrap:wrap; }
-  #tools-panel input[type=text]{ width:16em; }
-  #tools-panel .hint{ color:var(--text-dim); }
-
-  #file-info{
-    padding:.2em .8em;
-    color:var(--text-dim);
-    font-size:11px;
-  }
-
-  #warnings{
-    display:none;
-    padding:.5em .8em;
-    background:#1c1811;
-    border-bottom:1px solid #3a2f1a;
-    color:var(--warn);
-    font-size:12px;
-    max-height:6em;
-    overflow:auto;
-  }
-  #warnings.show{ display:block; }
-  #warnings div{ padding:.1em 0; }
-
-  #drop{
-    flex:1;
-    position:relative;
-    overflow:auto;
-    padding: 0 0 3em 0;
-  }
-  #drop.empty{
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    padding:0;
-  }
-  #empty-msg{
-    text-align:center;
-    color:var(--text-dim);
-    border:1px dashed var(--line);
-    padding:3em 4em;
-  }
-  #empty-msg .hint{ color:var(--accent-dim); font-size:12px; margin-top:.6em; }
-  #drop.dragover::after{
-    content:"drop .adi / .adx file(s)";
-    position:absolute; inset:0;
-    display:flex; align-items:center; justify-content:center;
-    background:rgba(82,108,254,0.08);
-    border:2px dashed var(--accent);
-    color:var(--accent);
-    font-size:14px;
-    z-index:5;
-    pointer-events:none;
-  }
-
-  table{
-    border-collapse:collapse;
-    width:max-content;
-    min-width:100%;
-    font-family:var(--font-mono);
-  }
-  thead th{
-    position:sticky; top:0; z-index:2;
-    background:var(--bg-raised);
-    border-bottom:1px solid var(--accent-dim);
-    border-right:1px solid var(--line);
-    text-align:left;
-    padding:.4em .6em;
-    white-space:nowrap;
-    font-weight:600;
-    font-family:var(--font-ui);
-    color:var(--accent);
-  }
-  thead th .colhead{
-    display:flex; align-items:center; gap:.5em;
-  }
-  thead th .rmcol{
-    color:var(--text-dim);
-    cursor:pointer;
-    font-weight:400;
-  }
-  thead th .rmcol:hover{ color:var(--err); }
-  th.rownum-col, td.rownum{
-    position:sticky; left:0; z-index:1;
-    background:var(--bg-raised);
-    color:var(--text-dim);
-    text-align:right;
-    padding:.4em .6em;
-    border-right:1px solid var(--accent-dim);
-    user-select:none;
-    font-family:var(--font-ui);
-  }
-  td.rownum{ background:var(--bg); z-index:1; }
-  td.rownum .del{ cursor:pointer; color:var(--text-dim); margin-left:.6em; }
-  td.rownum .del:hover{ color:var(--err); }
-  tbody td{
-    border-bottom:1px solid var(--line);
-    border-right:1px solid var(--line);
-    padding:.35em .6em;
-    white-space:pre;
-    min-width:4em;
-    max-width:28em;
-    overflow-x:auto;
-  }
-  tbody tr:hover td{ background:rgba(82,108,254,0.04); }
-  #addcol{
-    display:flex; align-items:center; gap:.4em;
-    padding:.3em .5em;
-  }
-  #addcol input{ width:10em; }
-  #addrow-row td{
-    padding:.5em .6em;
-    color:var(--text-dim);
-  }
-  #addrow-row .btn{ display:inline-flex; }
-
-  #filename-input{ width:14em; }
-  a#dl{ display:none; }
-</style>
+<meta name="color-scheme" content="light dark">
+<!-- Theme first (sets data-theme before anything paints), then the styles;
+     inlined into adif-editor.html by scripts/build_adif.py. -->
+<!-- ADIF-VENDOR-BEGIN -->
+<script src="../shared/js/theme.js"></script>
+<link rel="stylesheet" href="../shared/css/tools.css">
+<link rel="stylesheet" href="style.css">
+<!-- ADIF-VENDOR-END -->
 </head>
 <body>
 
 <header id="site-header">
   <a id="back-link" href="../">
-    <svg class="icon-arrow-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    <svg class="icon-arrow-left" aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
     back to site
   </a>
   <span class="spacer"></span>
   <div id="theme-toggle" role="group" aria-label="color theme">
-    <button type="button" data-theme-choice="light" title="light theme">light</button>
-    <button type="button" data-theme-choice="auto" title="match system theme">auto</button>
-    <button type="button" data-theme-choice="dark" title="dark theme">dark</button>
+    <button type="button" data-theme-choice="light" aria-pressed="false" title="light theme">light</button>
+    <button type="button" data-theme-choice="auto" aria-pressed="false" title="match system theme">auto</button>
+    <button type="button" data-theme-choice="dark" aria-pressed="false" title="dark theme">dark</button>
   </div>
   <a class="badge" href="adif-editor.html" download="adif-editor.html" title="the whole editor in one HTML file: save it and open it without a server">single file ↓</a>
-  <a class="badge" href="https://www.adif.org/317/ADIF_317.htm" target="_blank" rel="noopener">targets ADIF 3.1.7 ↗</a>
+  <a class="badge" href="https://www.adif.org/317/ADIF_317.htm" target="_blank" rel="noopener">targets ADIF 3.1.7 <span aria-hidden="true">↗</span><span class="sr-only">(opens in a new tab)</span></a>
 </header>
 
 <div id="toolbar">
-  <h1>ADIF EDITOR</h1>
-  <span class="sep">/</span>
-  <button id="btn-open">add file(s)…</button>
-  <input id="file-input" type="file" accept=".adi,.adx,.txt" multiple style="display:none">
+  <h1>ADIF editor</h1>
+  <span class="sep" aria-hidden="true">/</span>
+  <button type="button" id="btn-open">add file(s)…</button>
+  <input id="file-input" type="file" accept=".adi,.adif,.txt" multiple hidden>
   <span id="stats"></span>
   <div class="spacer"></div>
-  <input id="filename-input" type="text" value="export.adi" title="export filename">
-  <button id="btn-export" disabled>export .adi</button>
-  <button id="btn-export-csv" disabled>export .csv</button>
-  <span class="sep">/</span>
-  <select id="sota-mode" title="SOTA CSV mode">
+  <input id="filename-input" type="text" value="export.adi" title="export filename" aria-label="export filename" autocomplete="off" spellcheck="false">
+  <button type="button" id="btn-export" disabled>export .adi</button>
+  <button type="button" id="btn-export-csv" disabled>export .csv</button>
+  <span class="sep" aria-hidden="true">/</span>
+  <select id="sota-mode" title="SOTA CSV mode" aria-label="SOTA CSV mode">
     <option value="activator">activator</option>
     <option value="chaser">chaser</option>
   </select>
-  <button id="btn-export-sota" disabled>export SOTA csv</button>
-  <span class="sep">/</span>
-  <button id="btn-toggle-tools">tools ▾</button>
+  <button type="button" id="btn-export-sota" disabled>export SOTA csv</button>
+  <span class="sep" aria-hidden="true">/</span>
+  <button type="button" id="btn-toggle-tools" aria-expanded="false" aria-controls="tools-panel">tools <span aria-hidden="true">▾</span></button>
 </div>
 
 <div id="tools-panel">
   <label for="tpl-input">fill blank COMMENT:</label>
   <input type="text" id="tpl-input" placeholder="{RST_SENT} {RST_RCVD} thx">
-  <button id="btn-apply-tpl">apply</button>
+  <button type="button" id="btn-apply-tpl">apply</button>
   <span class="hint">only fills rows where COMMENT is currently empty — placeholders like {RST_SENT} pull from that record's field</span>
 </div>
 
 <div id="file-info"></div>
 
-<div id="warnings"></div>
+<div id="warnings" role="status"></div>
 
-<div id="drop" class="empty">
+<main id="drop" class="empty">
   <div id="empty-msg">
-    drag &amp; drop .adi / .adx file(s) here<br>
+    drag &amp; drop .adi file(s) here<br>
     <span class="hint">or click "add file(s)…" — files are added to the current log; nothing leaves the browser</span>
   </div>
-</div>
+</main>
 
-<a id="dl" download></a>
+<a id="dl" download hidden></a>
 
 <datalist id="adif-field-list"></datalist>
 

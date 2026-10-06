@@ -8,7 +8,8 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import { parseADIF, adifField, adifAsciiField, adifAscii } from '../tools/shared/js/adif.js';
-import { serializeADIF, serializeCSV, serializeSotaCsv } from '../tools/adif/js/export.js';
+import { serializeADIF, serializeCSV, serializeSotaCsv, adifChangedValues } from '../tools/adif/js/export.js';
+import { readADI } from './adif-spec.mjs';
 
 const OE1EBG = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -48,8 +49,9 @@ test('adifField / adifAsciiField', () => {
 test('serializeADIF round-trips through parseADIF', () => {
   const recs = parseADIF(SAMPLE, [], 's');
   const columns = ['CALL', 'QSO_DATE', 'TIME_ON', 'BAND', 'MODE', 'MY_SOTA_REF', 'COMMENT'];
-  const out = serializeADIF(recs, columns);
-  assert.match(out, /<PROGRAMID:10>ADIFEditor\n<ADIF_VER:5>3\.1\.7\n<EOH>/);
+  const out = serializeADIF(recs, columns, '2026-10-06T12:34:56.789Z');
+  assert.match(out, /<PROGRAMID:10>ADIFEditor\n<ADIF_VER:5>3\.1\.7\n<CREATED_TIMESTAMP:15>20261006 123456\n<EOH>/);
+  readADI(out); // spec-conformant (tests/adif-spec.mjs)
   assert.ok(out.includes('<CALL:5>OE1AB <QSO_DATE:8>20261004 <TIME_ON:4>1830 <BAND:3>20m <MODE:2>CW <EOR>\n'));
   const header = {};
   assert.deepEqual(parseADIF(out, [], 'rt', header), recs);
@@ -81,9 +83,24 @@ test('editor single-file bundle builds and parses', () => {
   }
   const html = readFileSync(join(OE1EBG, 'tools', 'adif', 'adif-editor.html'), 'utf8');
   assert.ok(!/<script[^>]+src=/.test(html), 'no external scripts');
+  assert.ok(!/<link[^>]+rel="stylesheet"/.test(html), 'stylesheets inlined');
   const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
-  assert.equal(scripts.length, 1);
-  assert.ok(!/^\s*(import|export)\b/m.test(scripts[0]));
-  assert.ok(scripts[0].includes('function parseADIF('), 'shared module inlined');
-  new vm.Script(scripts[0]);
+  // theme (in <head>), app bundle
+  assert.equal(scripts.length, 2);
+  assert.ok(scripts[0].includes('OE1EBG_THEME'), 'theme script first');
+  const app = scripts[1];
+  assert.ok(!/^\s*(import|export)\b/m.test(app));
+  assert.ok(app.includes('function parseADIF('), 'shared module inlined');
+  for (const s of scripts) new vm.Script(s);
+});
+
+test('editor ADI export is ASCII (transliterated), keeps < > inside values, and says what it changed', () => {
+  const recs = [{ CALL: 'OE1AB', QSO_DATE: '20261004', TIME_ON: '1830', NAME: 'Jürgen', COMMENT: 'a<b>c' }];
+  const cols = ['CALL', 'QSO_DATE', 'TIME_ON', 'NAME', 'COMMENT'];
+  const out = serializeADIF(recs, cols, '2026-10-06T00:00:00Z');
+  assert.ok(/^[\x09\x0a\x0d\x20-\x7e]*$/.test(out), 'ASCII only');
+  const { records } = readADI(out);
+  assert.equal(records[0].NAME, 'Juergen');
+  assert.equal(records[0].COMMENT, 'a<b>c');
+  assert.equal(adifChangedValues(recs, cols), 1);
 });
