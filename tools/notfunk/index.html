@@ -67,14 +67,16 @@
           <input id="n-prefix" required maxlength="6" class="mono" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" placeholder="W1" aria-describedby="n-prefix-help"></label>
         <label class="field span-2"><span>Station</span>
           <input id="n-station" enterkeyhint="next" placeholder="z. B. Einsatzleitstelle, Lichtinsel 12"></label>
-        <label class="field"><span>Operator</span>
-          <input id="n-operator" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next"></label>
+        <div class="field ac-field"><label for="n-operator">Operator</label>
+          <div class="ac-wrap"><input id="n-operator" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-describedby="n-operator-info"><div id="n-operator-pop" class="ac-pop"></div></div>
+          <div class="ac-hints"><div id="n-operator-info" class="ac-info" aria-live="polite"></div></div></div>
         <label class="field"><span>Eigene Stelle</span>
           <input id="n-home" enterkeyhint="next" placeholder="Stab" aria-describedby="n-home-help"></label>
         <label class="field"><span>Frequenz MHz</span>
           <input id="n-freq" class="mono" inputmode="decimal" enterkeyhint="next" placeholder="145.500"></label>
-        <label class="field"><span>Relais</span>
-          <input id="n-via" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="done"></label>
+        <div class="field ac-field"><label for="n-via">Relais</label>
+          <div class="ac-wrap"><input id="n-via" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="done" aria-describedby="n-via-info"><div id="n-via-pop" class="ac-pop"></div></div>
+          <div class="ac-hints"><div id="n-via-info" class="ac-info" aria-live="polite"></div></div></div>
       </div>
       <p class="hint" id="n-prefix-help">Das Kürzel steht vor jeder Nummer (W1-001, W1-002 …). Jedes Gerät bzw. jede Station eines Einsatzes bekommt ein eigenes Kürzel, dann lassen sich die Bücher ohne doppelte Nummern zusammenführen.</p>
       <p class="hint" id="n-home-help">Eigene Stelle: Empfänger eingehender und Absender ausgehender Meldungen, solange nichts anderes eingetragen ist.</p>
@@ -130,10 +132,14 @@
           <label class="field span-2"><span>Einsatz / Übung</span><input id="e-name" enterkeyhint="next"></label>
           <label class="field"><span>Stationskürzel</span><input id="e-prefix" maxlength="6" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-describedby="e-prefix-help"></label>
           <label class="field span-2"><span>Station</span><input id="e-station" enterkeyhint="next"></label>
-          <label class="field"><span>Operator</span><input id="e-operator" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next"></label>
+          <div class="field ac-field"><label for="e-operator">Operator</label>
+          <div class="ac-wrap"><input id="e-operator" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-describedby="e-operator-info"><div id="e-operator-pop" class="ac-pop"></div></div>
+          <div class="ac-hints"><div id="e-operator-info" class="ac-info" aria-live="polite"></div></div></div>
           <label class="field"><span>Eigene Stelle</span><input id="e-home" enterkeyhint="next"></label>
           <label class="field"><span>Frequenz MHz</span><input id="e-freq" class="mono" inputmode="decimal" enterkeyhint="next"></label>
-          <label class="field"><span>Relais</span><input id="e-via" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="done"></label>
+          <div class="field ac-field"><label for="e-via">Relais</label>
+          <div class="ac-wrap"><input id="e-via" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="done" aria-describedby="e-via-info"><div id="e-via-pop" class="ac-pop"></div></div>
+          <div class="ac-hints"><div id="e-via-info" class="ac-info" aria-live="polite"></div></div></div>
         </div>
         <p class="hint">Änderungen gelten für neue Meldungen; gespeicherte behalten Operator, Frequenz und Nummer vom Zeitpunkt der Aufnahme. Ein Operatorwechsel (Schichtwechsel) wird hier eingetragen.</p>
         <p class="hint" id="e-prefix-help">Das Stationskürzel lässt sich nur ändern, solange der Einsatz noch keine Meldung hat.</p>

@@ -16,6 +16,7 @@ import { $, el, fill, focusNext, submitForm, isComposing, trackExpanded } from '
 import { prefGet, prefSet } from '../../shared/js/prefs.js';
 import { loadDataFile } from '../../shared/js/data.js';
 import { buildCallbook, lookupCall, normalizeCall } from '../../shared/js/callbook.js';
+import { formatMHz } from '../../shared/js/repeaters.js';
 import { newId, nowIso, zoneLabel } from '../../shared/js/time.js';
 import { attachCallSearch } from '../../shared/js/callsearch.js';
 import { attachRepeaterSearch, loadRepeaterIndex } from '../../shared/js/repeaterui.js';
@@ -175,6 +176,8 @@ function openNewOpForm() {
   $('#n-home').value = last.home || 'Stab';
   $('#n-freq').value = last.freq || '';
   $('#n-via').value = last.via || '';
+  renderPartyInfo('#n-operator', '#n-operator-info');
+  state.newOpRpt?.refresh();
   $('#n-name').focus();
 }
 
@@ -216,6 +219,8 @@ function renderOpPanel() {
   const op = state.op;
   for (const [k, sel] of Object.entries(OP_FIELDS)) if (document.activeElement !== $(sel)) $(sel).value = op[k] || '';
   $('#e-prefix').readOnly = state.msgs.length > 0;
+  renderPartyInfo('#e-operator', '#e-operator-info');
+  state.opRpt?.refresh();
   $('#book-title').textContent = op.name;
   setText($('#op-sum'), [
     `${op.prefix}${op.station ? ` ${op.station}` : ''}`,
@@ -266,7 +271,42 @@ async function saveOpPanel() {
 
 const OP_LABELS = { name: 'Name', prefix: 'Stationskürzel', station: 'Station', operator: 'Operator', home: 'Eigene Stelle', freq: 'Frequenz', via: 'Relais' };
 
+// Completion on the operator and relay fields of an operation (the
+// "+ Neuer Einsatz" form and the Einsatz panel), as in the confirmation
+// log's header: operators from earlier operations and the callsign list,
+// relays from the ÖVSV list (a pick also sets the frequency).
+async function recentOperators() {
+  const ops = (await state.store.getAll('operations')).filter(o => o.operator && !o.deleted)
+    .sort((a, b) => (a.updated < b.updated ? 1 : -1));
+  const seen = new Set();
+  return ops.filter(o => !seen.has(o.operator) && seen.add(o.operator)).map(o => ({ call: o.operator, title: o.name }));
+}
+
+function attachOpLookups(prefix, onChange) {
+  const op = $(`#${prefix}-operator`);
+  let recent = [];
+  op.addEventListener('focus', async () => { recent = await recentOperators(); });
+  attachCallSearch({
+    input: op, pop: $(`#${prefix}-operator-pop`),
+    getBook: () => state.callbook,
+    recent: () => recent,
+    onPick: () => { renderPartyInfo(`#${prefix}-operator`, `#${prefix}-operator-info`); onChange(); },
+  });
+  op.addEventListener('input', () => renderPartyInfo(`#${prefix}-operator`, `#${prefix}-operator-info`));
+  const via = $(`#${prefix}-via`);
+  return attachRepeaterSearch({
+    input: via, pop: $(`#${prefix}-via-pop`), info: $(`#${prefix}-via-info`),
+    getHeader: () => ({ myGrid: '', repeaterFreq: $(`#${prefix}-freq`).value }),
+    onPick: r => {
+      via.value = r.call;
+      if (r.out) $(`#${prefix}-freq`).value = formatMHz(r.out);
+      onChange();
+    },
+  });
+}
+
 function initOpPanel() {
+  state.opRpt = attachOpLookups('e', saveOpPanel);
   const panel = $('#op-panel');
   panel.open = prefGet(OP_PANEL_KEY) === '1';
   panel.addEventListener('toggle', () => prefSet(OP_PANEL_KEY, panel.open ? '1' : ''));
@@ -436,7 +476,8 @@ function renderFormState() {
   renderPartyInfo('#m-to', '#m-to-info');
 }
 
-// The info line under Von/An: the callbook entry of a callsign in it.
+// The info line under Von/An and the operator fields: the callbook entry
+// of a callsign in it.
 function renderPartyInfo(inputSel, infoSel) {
   const info = $(infoSel);
   const text = $(inputSel).value.trim();
@@ -923,6 +964,9 @@ async function loadCallbook() {
   fill($('#st-callbook'), state.callbook
     ? sourceItem('callsigns', `Stand ${standDate(state.callbook.stand)}, ${state.callbook.calls.length} OE-Rufzeichen`)
     : 'Rufzeichenliste nicht verfügbar');
+  // info lines that need the list
+  if (state.op) { renderOpPanel(); renderFormState(); }
+  if (!$('#new-op').hidden) renderPartyInfo('#n-operator', '#n-operator-info');
 }
 
 async function loadRepeaterFooter() {
@@ -936,6 +980,7 @@ function wire() {
   $('#btn-new-op').addEventListener('click', () => ($('#new-op').hidden ? openNewOpForm() : ($('#new-op').hidden = true)));
   trackExpanded($('#btn-new-op'), $('#new-op'));
   $('#btn-cancel-op').addEventListener('click', () => { $('#new-op').hidden = true; });
+  state.newOpRpt = attachOpLookups('n', () => {});
   $('#new-op').addEventListener('submit', ev => { ev.preventDefault(); createOp(); });
   $('#new-op').addEventListener('keydown', ev => {
     if (ev.key === 'Enter' && ev.shiftKey && !isComposing(ev)) { ev.preventDefault(); submitForm($('#new-op')); }

@@ -128,6 +128,15 @@ test('Einsatz header: a change applies to new messages, the code stays once used
   await addMessage(page, 'LI 2', 'Zweite');
   await expect(page.locator('#book-body tr', { hasText: 'H1-002' })).toContainText('OE3XYZ');
   await expect(page.locator('#book-body tr', { hasText: 'H1-001' })).toContainText('OE1EBG');
+  // relay lookup from the ÖVSV list, as in the confirmation log: a pick
+  // also sets the frequency
+  await page.locator('#e-via').fill('oe1x');
+  await expect(page.locator('#e-via-pop .ac-item').first()).toBeVisible();
+  await page.locator('#e-via').press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#e-via')).toHaveValue(/^OE1X/);
+  await expect(page.locator('#e-freq')).not.toHaveValue('');
+  await expect(page.locator('#op-sum')).toContainText('via OE1X');
 });
 
 test('print: an empty form to print a stack of', async ({ page }) => {
