@@ -250,7 +250,6 @@ tbody tr:hover td{ background:rgba(82,108,254,0.04); }
 .add-row{ padding:.6em .8em; }
 .add-row input{ margin-left:.6em; width:14em; }
 .add-row .add-col{ margin-left:.4em; }
-a#dl{ display:none; }
 
 /* iOS Safari zooms into focused fields with text under 16px. */
 @media (pointer: coarse){

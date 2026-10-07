@@ -1,0 +1,10 @@
+# Messages the Nu Html Checker must not report (vnu --filterfile).
+# One Java regular expression per line, matched against the whole message.
+# Keep this list short and give every entry a reason.
+#
+# Vendored Leaflet CSS (tools/shared/vendor/leaflet/leaflet.css), inlined
+# into confirm-offline.html: vnu's CSS checker doesn't know the valid
+# Compositing Level 2 value "plus-lighter", and "behavior" is Leaflet's
+# old-IE VML hack. We don't patch vendored code for the checker.
+.*CSS: “mix-blend-mode”: “plus-lighter” is not a “mix-blend-mode” value.*
+.*CSS: “behavior”: Property “behavior” doesn't exist.*

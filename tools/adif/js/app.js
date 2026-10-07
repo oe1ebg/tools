@@ -322,10 +322,14 @@ document.getElementById('file-input').addEventListener('change', e => {
 function downloadText(text, mime, filename){
   const blob = new Blob([text], { type: mime.startsWith('text/') ? `${mime};charset=utf-8` : mime });
   const url = URL.createObjectURL(blob);
-  const a = document.getElementById('dl');
+  // A temporary link (an <a download> without href in the page is invalid HTML).
+  const a = document.createElement('a');
   a.href = url;
   a.download = filename;
+  a.hidden = true;
+  document.body.append(a);
   a.click();
+  a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 

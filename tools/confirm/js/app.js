@@ -593,8 +593,8 @@ function renderTemplatePreview(key) {
   const tpl = templateFor(key);
   const values = exampleValues(tpl);
   const fields = tpl.fields.filter(f => fieldVisible(f, values, tpl));
-  fill($('#new-template-preview'),
-    el('summary', {}, 'So sieht eine Logzeile mit dieser Vorlage aus'),
+  // The <summary> is static in index.html (a <details> without one is invalid).
+  fill($('#new-template-sample'),
     el('div', { class: 'scroll' }, el('table', {},
       el('tr', {}, ['Zeit UTC', 'Nr', 'Rufzeichen Gegenstation'].map(t => el('th', {}, t)),
         fields.map(f => el('th', { class: 'tpl' }, f.label)), ['Relais', 'Notiz'].map(t => el('th', {}, t))),
