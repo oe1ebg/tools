@@ -137,6 +137,9 @@ label.field > span, div.field > span, div.field > label{ text-transform:uppercas
   background:var(--bg-raised);
 }
 .grid-form{ display:flex; flex-wrap:wrap; gap:.6em 1em; align-items:flex-end; }
+/* Long option texts ("Vorlage") must not widen the page at phone widths. */
+.grid-form > .field{ max-width:100%; }
+.grid-form select{ max-width:100%; }
 /* header fields: top-aligned like the entry form, hints never move inputs */
 #log-header, #new-header{ align-items:flex-start; }
 /* "+ Neues Log": sample line of the chosen template, same columns as the log */
