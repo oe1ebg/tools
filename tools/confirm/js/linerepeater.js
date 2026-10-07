@@ -4,9 +4,10 @@
 // After saving, the field returns to the header default.
 
 import { el, fill, popover } from '../../shared/js/dom.js';
-import { loadRepeaterIndex, describeRepeater } from './repeaterui.js';
+import { loadRepeaterIndex, describeRepeater } from '../../shared/js/repeaterui.js';
 import { searchRepeaters, positionFromLocator } from '../../shared/js/repeaters.js';
-import { normalizeCall, repeaterFields, REPEATER_KEYS } from './model.js';
+import { repeaterFields, REPEATER_KEYS } from './model.js';
+import { normalizeCall } from '../../shared/js/callbook.js';
 
 
 export function createLineRepeater({ checkbox, input, sug, getHeader, onChange }) {

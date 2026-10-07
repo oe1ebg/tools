@@ -16,10 +16,12 @@
 // locator, then only as fine as that locator's square.
 
 import {
-  liveSorted, liveCheckins, isComment, checkinNumbers, operatorShifts, splitUtc, splitTime, zoneLabel, lineFrequencies,
-  bandForMHz, modeInfo, stats, signallingText, locOrigin, locOriginText, locNameType, LOC_NAME_TYPES,
-  normalizeCall, isPlausibleCall, parseMHz,
+  liveSorted, liveCheckins, isComment, checkinNumbers, operatorShifts, lineFrequencies, bandForMHz, modeInfo,
+  stats, signallingText, parseMHz,
 } from './model.js';
+import { normalizeCall, isPlausibleCall } from '../../shared/js/callbook.js';
+import { splitUtc, splitTime, zoneLabel } from '../../shared/js/time.js';
+import { locOrigin, locOriginText, locNameType, LOC_NAME_TYPES } from '../../shared/js/locmeta.js';
 import { templateFor, fieldVisible, fieldDisplay, hasLocationField } from './templates.js';
 import { stationsForMap, ownPosition } from './mapdata.js';
 import { adifAscii, adifAsciiField } from '../../shared/js/adif.js';

@@ -1,115 +1,12 @@
-// Pure helpers for the confirmation log: callsigns, time, bands, check-in
-// numbering. No DOM, no storage — imported by app.js and by the node tests
+// Pure helpers for the confirmation log: bands, modes, header, check-in
+// numbering (callsign, time and location-origin helpers are shared:
+// shared/js/callbook.js, time.js, locmeta.js). No DOM, no storage — imported by app.js and by the node tests
 // (oe1ebg/tests/), and inlined into confirm-offline.html by
 // scripts/build_confirm.py, so every top-level name here must be unique
 // across all js/ modules.
 
 import { formatMHz } from '../../shared/js/repeaters.js';
-
-export function normalizeCall(raw) {
-  return String(raw ?? '').toUpperCase().replace(/\s+/g, '').replace(/[^A-Z0-9/]/g, '');
-}
-
-// Loose amateur callsign check (optional prefix/ and /suffix). Only used for a
-// soft warning — logging is never blocked by it.
-const CALL_RE = /^(?:[A-Z0-9]{1,4}\/)?[A-Z0-9]{1,3}[0-9][A-Z0-9]{0,4}[A-Z](?:\/[A-Z0-9]{1,4})?$/;
-
-export function isPlausibleCall(call) {
-  return CALL_RE.test(call);
-}
-
-export function newId() {
-  if (globalThis.crypto && typeof crypto.randomUUID === 'function') {
-    try { return crypto.randomUUID(); } catch { /* not a secure context (file://) */ }
-  }
-  return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
-}
-
-export function nowIso() {
-  return new Date().toISOString();
-}
-
-// "2026-10-04T19:42:07.123Z" -> { date: "2026-10-04", time: "19:42:07" }
-export function splitUtc(iso) {
-  const d = new Date(iso);
-  if (isNaN(d)) return { date: '', time: '' };
-  const s = d.toISOString();
-  return { date: s.slice(0, 10), time: s.slice(11, 19) };
-}
-
-// Parse a user-corrected "YYYY-MM-DD HH:MM[:SS]" (always UTC) back to ISO.
-export function parseUtcInput(text) {
-  const m = String(text).trim().match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?$/);
-  if (!m) return null;
-  const [, y, mo, d, h, mi, s = '0'] = m;
-  const t = Date.UTC(+y, +mo - 1, +d, +h, +mi, +s);
-  const dt = new Date(t);
-  if (isNaN(dt) || dt.getUTCHours() !== +h || dt.getUTCDate() !== +d) return null;
-  return dt.toISOString();
-}
-
-// Display/input time mode: 'utc' or 'local'. Storage is ALWAYS an ISO 8601
-// UTC timestamp (entry.ts); the mode only changes what is shown and how a
-// typed correction is interpreted.
-function pad2(n) {
-  return String(n).padStart(2, '0');
-}
-
-export function splitTime(iso, mode = 'utc') {
-  if (mode !== 'local') return splitUtc(iso);
-  const d = new Date(iso);
-  if (isNaN(d)) return { date: '', time: '' };
-  return {
-    date: `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`,
-    time: `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`,
-  };
-}
-
-// "UTC" or the local offset at that instant, e.g. "UTC+2" (summer) / "UTC+1".
-export function zoneLabel(iso, mode = 'utc') {
-  if (mode !== 'local') return 'UTC';
-  const off = -new Date(iso || Date.now()).getTimezoneOffset();
-  const h = Math.trunc(Math.abs(off) / 60), m = Math.abs(off) % 60;
-  return `UTC${off < 0 ? '−' : '+'}${h}${m ? ':' + pad2(m) : ''}`;
-}
-
-// ISO 8601 without milliseconds: "2026-10-04T10:00:05Z".
-export function isoUtc(iso) {
-  const d = new Date(iso);
-  return isNaN(d) ? '' : d.toISOString().replace(/\.\d{3}Z$/, 'Z');
-}
-
-// ISO 8601 in local time with explicit offset: "2026-10-04T12:00:05+02:00".
-export function isoWithOffset(iso) {
-  const d = new Date(iso);
-  if (isNaN(d)) return '';
-  const { date, time } = splitTime(iso, 'local');
-  const off = -d.getTimezoneOffset();
-  const sign = off < 0 ? '-' : '+';
-  return `${date}T${time}${sign}${pad2(Math.trunc(Math.abs(off) / 60))}:${pad2(Math.abs(off) % 60)}`;
-}
-
-// Typed time correction in the given mode: "HH:MM[:SS]" (date taken from
-// baseIso in that mode) or "YYYY-MM-DD HH:MM[:SS]". Returns ISO UTC or null.
-export function parseTimeInput(text, mode, baseIso) {
-  const t = String(text ?? '').trim();
-  let m = t.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
-  let y, mo, d, h, mi, sec;
-  if (m) {
-    [y, mo, d] = splitTime(baseIso, mode).date.split('-').map(Number);
-    [h, mi, sec] = [+m[1], +m[2], +(m[3] || 0)];
-  } else {
-    m = t.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?$/);
-    if (!m) return null;
-    [y, mo, d, h, mi, sec] = [+m[1], +m[2], +m[3], +m[4], +m[5], +(m[6] || 0)];
-  }
-  if (h > 23 || mi > 59 || sec > 59) return null;
-  const dt = mode === 'local' ? new Date(y, mo - 1, d, h, mi, sec) : new Date(Date.UTC(y, mo - 1, d, h, mi, sec));
-  const back = splitTime(dt.toISOString(), mode);
-  // Reject impossible dates (Feb 30) and local times skipped by DST.
-  if (isNaN(dt) || back.date !== `${y}-${pad2(mo)}-${pad2(d)}` || back.time !== `${pad2(h)}:${pad2(mi)}:${pad2(sec)}`) return null;
-  return dt.toISOString();
-}
+import { newId, nowIso } from '../../shared/js/time.js';
 
 // ADIF band plan (MHz), restricted to amateur bands plausible for nets.
 const BANDS = [
@@ -220,62 +117,6 @@ export function lineFrequencies(entry) {
   }
   const f = parseMHz(s.freq);
   return { tx: f, rx: null };
-}
-
-// Where a line's location came from (`loc.origin`, set by the location
-// field, js/locfield.js): label = the short label in the log's "Herk."
-// column ('' = no label for that source), text = CSV/ADIF/KML wording.
-// Lines from before this existed have no origin: no label (unknown).
-export const LOC_ORIGINS = {
-  search: { label: 'Suche', text: 'Suche', title: 'aus der Standortsuche (Adressen, Orte, PLZ)' },
-  callbook: { label: 'Call', text: 'Rufzeichenliste, Lizenzadresse', title: 'Wohnort laut Rufzeichenliste (Lizenzadresse), nicht von der Station bestätigt' },
-  previous: { label: 'früher', text: 'früheres Log', title: 'von einem früheren Check-in übernommen' },
-  text: { label: 'Text', text: 'Freitext', title: 'Freitext, keinem Ort zugeordnet' },
-};
-
-// Origin key of a line's location field value: the resolved location's
-// origin, 'text' for unresolved text, '' when empty or unknown (old data).
-export function locOrigin(loc, text) {
-  if (loc) return LOC_ORIGINS[loc.origin] ? loc.origin : '';
-  return String(text ?? '').trim() ? 'text' : '';
-}
-
-// "früheres Log 27.09.2026" / "Suche" / ...
-export function locOriginText(loc, text) {
-  const k = locOrigin(loc, text);
-  if (!k) return '';
-  const day = k === 'previous' && /^(\d{4})-(\d{2})-(\d{2})/.exec(loc.originAt || '');
-  return `${LOC_ORIGINS[k].text}${day ? ` ${day[3]}.${day[2]}.${day[1]}` : ''}`;
-}
-
-// How a resolved location was named (`loc.nameType`, from the lookup; lines
-// from before this existed have none): code -> CSV/KML wording. Corners and
-// "zwischen A und B" count as their own kind; coordinates, locators and UTMREFs have none.
-export const LOC_NAME_TYPES = {
-  name: 'Name', alias: 'anderer Name', colloquial: 'umgangssprachlich', historical: 'früherer Name',
-  generated: 'Kurzform', intersection: 'Kreuzung', between: 'Bereich',
-};
-
-export function locNameType(loc) {
-  if (!loc) return '';
-  if (loc.nameType) return loc.nameType;
-  if (loc.type === 'intersection' || loc.type === 'between') return loc.type;
-  return ['coordinate', 'maidenhead', 'utm'].includes(loc.type) ? '' : 'name';
-}
-
-// Short hints for the log's location line: "früher „Rudolfstiftung“",
-// "Kreuzung", "außerhalb Wiens".
-export function locHints(loc) {
-  if (!loc) return [];
-  const out = [];
-  if (loc.matched) {
-    out.push(loc.nameType === 'historical' ? `früher „${loc.matched}“`
-      : loc.nameType === 'colloquial' ? `„${loc.matched}“ (umgangssprachlich)` : `„${loc.matched}“`);
-  }
-  if (loc.type === 'intersection') out.push('Kreuzung');
-  if (loc.type === 'between') out.push('Bereich');
-  if (loc.umland) out.push('außerhalb Wiens');
-  return out;
 }
 
 // Entry kinds. A line without `kind` is a check-in (all data from before

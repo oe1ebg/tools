@@ -7,26 +7,27 @@
 import { openStorage } from './db.js';
 import { requestPersistence } from '../../shared/js/storage.js';
 import {
-  normalizeCall, isPlausibleCall, newId, nowIso, splitUtc, splitTime, zoneLabel, parseTimeInput, isoUtc,
-  MODES, modeInfo, headerSnapshot, emptyHeader, checkinNumbers, previousCheckins, adifModeText, SIGNALLING, signallingText,
-  REPEATER_KEYS, parseMHz, LOC_ORIGINS, locOrigin, locHints,
-  liveSorted, stats, isComment, COMMENT_CATEGORIES, newComment, headerChangeMarkers, headerFromRepeater,
+  MODES, modeInfo, headerSnapshot, emptyHeader, checkinNumbers, previousCheckins, adifModeText, SIGNALLING,
+  signallingText, REPEATER_KEYS, parseMHz, liveSorted, stats, isComment, COMMENT_CATEGORIES, newComment,
+  headerChangeMarkers, headerFromRepeater,
 } from './model.js';
+import { newId, nowIso, splitUtc, splitTime, zoneLabel, parseTimeInput, isoUtc } from '../../shared/js/time.js';
+import { LOC_ORIGINS, locOrigin, locHints } from '../../shared/js/locmeta.js';
 import { TEMPLATES, templateFor, fieldVisible, fieldDisplay, fieldOptions, currentOptions, shortSummary, exampleValues } from './templates.js';
 import { toCSV, toADIF, adifIssues, ADIF_MIME, toKML, KML_MIME, toSummary, adifFieldTargets } from './export.js';
 import { loadDataFile } from '../../shared/js/data.js';
-import { buildCallbook, lookupCall, suggestCalls } from '../../shared/js/callbook.js';
+import { buildCallbook, lookupCall, suggestCalls, normalizeCall, isPlausibleCall } from '../../shared/js/callbook.js';
 import { $, el, fill, popover, focusNext, submitForm, isComposing, trackExpanded } from '../../shared/js/dom.js';
 import { prefGet, prefSet } from '../../shared/js/prefs.js';
-import { initLocationPanel, loadLocationIndex, setUtmReference, logUtmDigits } from './locationui.js';
+import { initLocationPanel, loadLocationIndex, setUtmReference, logUtmDigits } from '../../shared/js/locationui.js';
 import { locate } from '../../shared/js/location/index.js';
 import { isValidLocator, isLocatorPrefix, locatorPrecisionName, maidenheadToBounds } from '../../shared/js/maidenhead.js';
 import { utmReference, UTM_DEFAULT_REF } from '../../shared/js/utm.js';
 import { openMap, closeMap, refreshMap, mapVisible } from './mapview.js';
-import { createLocationField, describeLocation, locationOptions } from './locfield.js';
-import { attachRepeaterSearch, loadRepeaterIndex } from './repeaterui.js';
-import { attachCallSearch } from './callsearch.js';
-import { sourceItem, versionItems, trackOnline } from './sources.js';
+import { createLocationField, describeLocation, locationOptions } from '../../shared/js/locfield.js';
+import { attachRepeaterSearch, loadRepeaterIndex } from '../../shared/js/repeaterui.js';
+import { attachCallSearch } from '../../shared/js/callsearch.js';
+import { sourceItem, versionItems, trackOnline } from '../../shared/js/sources.js';
 import { createLineRepeater } from './linerepeater.js';
 import { formatShift, formatMHz } from '../../shared/js/repeaters.js';
 
@@ -2203,7 +2204,7 @@ async function main() {
   initLocationPanel();
   setUtmReference(utmRefFromHeader);
   // "UTMREF im Log zeigen" / its precision changed: redraw the info lines.
-  document.addEventListener('confirm:utm-prefs', () => {
+  document.addEventListener('oe1ebg:utm-prefs', () => {
     if (!state.event) return;
     renderLog();
     state.locField?.redraw();

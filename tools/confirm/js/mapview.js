@@ -7,7 +7,7 @@
 import { el, fill } from '../../shared/js/dom.js';
 import { loadDataFile } from '../../shared/js/data.js';
 import { stationsForMap, ownPosition, maidenheadGridLines, utmGridLines } from './mapdata.js';
-import { mapLinks } from './sources.js';
+import { mapLinks } from '../../shared/js/sources.js';
 
 const MAP_ATTRIBUTION = 'Bezirke: Stadt Wien (CC BY 4.0) · Straßen, Gewässer: © OpenStreetMap-Mitwirkende (ODbL) · Leaflet';
 const ROAD_WEIGHT = { motorway: 3, trunk: 2.5, primary: 1.8, secondary: 1.1 };

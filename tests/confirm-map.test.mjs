@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { stationsForMap, ownPosition, maidenheadGridLines, utmGridLines } from '../tools/confirm/js/mapdata.js';
 import { latLonToUtm } from '../tools/shared/js/utm.js';
-import { mapLinkUrls, mapLinkZoom } from '../tools/confirm/js/sources.js';
+import { mapLinkUrls, mapLinkZoom } from '../tools/shared/js/sources.js';
 
 test('map links: Google Maps / OSM URLs, 5 decimals, zoom by type', () => {
   const u = mapLinkUrls(48.2083012, 16.37, 18);

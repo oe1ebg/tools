@@ -3,14 +3,16 @@
 // run locally on data/vienna-locations.json (Vienna addresses/landmarks) and
 // data/austria-areas.json (PLZ and Bezirke of all of Austria).
 
-import { prefGet, prefSet } from '../../shared/js/prefs.js';
-import { $, el, fill, copyToClipboard } from '../../shared/js/dom.js';
-import { loadDataFile } from '../../shared/js/data.js';
-import { buildLocationIndex, locate } from '../../shared/js/location/index.js';
-import { latLonToMaidenhead } from '../../shared/js/maidenhead.js';
-import { mgrsOf, UTM_DEFAULT_REF } from '../../shared/js/utm.js';
+import { prefGet, prefSet } from './prefs.js';
+import { $, el, fill, copyToClipboard } from './dom.js';
+import { loadDataFile } from './data.js';
+import { buildLocationIndex, locate } from './location/index.js';
+import { latLonToMaidenhead } from './maidenhead.js';
+import { mgrsOf, UTM_DEFAULT_REF } from './utm.js';
 import { sourceItem, standDate, mapLinks } from './sources.js';
 
+// The settings keep the names they had when this was part of the
+// confirmation log, so stored choices survive; every tool shares them.
 const LOC_PREC_KEY = 'oe1ebg-confirm-locator-precision';
 const LOC_AUTO_KEY = 'oe1ebg-confirm-location-autoselect';
 const UTM_PREC_KEY = 'oe1ebg-confirm-utm-precision';
@@ -286,7 +288,7 @@ export function initLocationPanel() {
   const utmLog = $('#loc-utm-log');
   utmLog.checked = showUtmInLog();
   // The log's info lines read these on rendering; app.js re-renders them.
-  const utmChanged = () => document.dispatchEvent(new CustomEvent('confirm:utm-prefs'));
+  const utmChanged = () => document.dispatchEvent(new CustomEvent('oe1ebg:utm-prefs'));
   utmPrec.addEventListener('change', () => { prefSet(UTM_PREC_KEY, utmPrec.value); run(); utmChanged(); });
   utmLog.addEventListener('change', () => { prefSet(UTM_LOG_KEY, utmLog.checked ? '1' : ''); utmChanged(); });
   fill($('#loc-examples'), ...EXAMPLES.map(q => el('button', { type: 'button', class: 'link', onclick: () => { input.value = q; run(); } }, q)));

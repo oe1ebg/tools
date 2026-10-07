@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { locationOptions, previousLocation, snapshotLocation, describeLocation } from '../tools/confirm/js/locfield.js';
-import { locOrigin, locOriginText, LOC_ORIGINS, locHints, locNameType } from '../tools/confirm/js/model.js';
+import { locationOptions, previousLocation, snapshotLocation, describeLocation } from '../tools/shared/js/locfield.js';
+import { locOrigin, locOriginText, LOC_ORIGINS, locHints, locNameType } from '../tools/shared/js/locmeta.js';
 
 const loc = {
   type: 'address', label: 'Quellenstraße 10', street: 'Quellenstraße', houseNumber: '10',
@@ -92,7 +92,7 @@ test('name type, matched name and Umland are stored and shown', () => {
 });
 
 test('UTMREF in the info line only when asked, typed UTMREF kept', async () => {
-  const { locationFieldText } = await import('../tools/confirm/js/locfield.js');
+  const { locationFieldText } = await import('../tools/shared/js/locfield.js');
   assert.equal(describeLocation(loc), 'Quellenstraße 10, 1100 · JN88ee', 'off by default');
   assert.equal(describeLocation(loc, 10), 'Quellenstraße 10, 1100 · JN88ee · 33U XP 01858 36102');
   assert.equal(describeLocation(loc, 6), 'Quellenstraße 10, 1100 · JN88ee · 33U XP 018 361');

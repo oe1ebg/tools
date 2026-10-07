@@ -1,10 +1,10 @@
 // Repeater lookup for the log header: search all Austrian voice repeaters
 // (offline list) and fill callsign, output frequency, shift, CTCSS and mode.
 
-import { el, fill, popover } from '../../shared/js/dom.js';
-import { normalizeCall } from './model.js';
-import { loadDataFile } from '../../shared/js/data.js';
-import { buildRepeaterIndex, searchRepeaters, positionFromLocator, formatShift, formatMHz } from '../../shared/js/repeaters.js';
+import { el, fill, popover } from './dom.js';
+import { normalizeCall } from './callbook.js';
+import { loadDataFile } from './data.js';
+import { buildRepeaterIndex, searchRepeaters, positionFromLocator, formatShift, formatMHz } from './repeaters.js';
 
 let repeaterIndexPromise = null;
 

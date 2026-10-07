@@ -3,9 +3,8 @@
 // the dropdown (↓, Enter). Callsigns used in earlier logs come first; the
 // rest is the offline Austrian callsign list. Free input stays possible.
 
-import { el, fill, popover } from '../../shared/js/dom.js';
-import { normalizeCall } from './model.js';
-import { searchCallbook } from '../../shared/js/callbook.js';
+import { el, fill, popover } from './dom.js';
+import { searchCallbook, normalizeCall } from './callbook.js';
 
 // getBook(): the callbook (or null while loading); recent(): [{ call,
 // title }] from earlier logs, newest first; onPick(call): after the field

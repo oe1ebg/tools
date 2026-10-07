@@ -1,10 +1,10 @@
 // Links to the datasets the tool ships with (footer attribution) and "show
 // on Google Maps / OpenStreetMap" links for a location. These are plain
 // <a href> targets for the user to click when online — nothing here is ever
-// fetched; all data is built into data/ at build time. This is the only js/
-// module allowed to contain external URLs (tests/confirm-offline.test.mjs).
+// fetched; all data is built into data/ at build time. This is the only module
+// of the offline tools allowed to contain external URLs (tests/confirm-offline.test.mjs).
 
-import { el } from '../../shared/js/dom.js';
+import { el } from './dom.js';
 
 export const DATA_SOURCES = {
   callsigns: {

@@ -134,3 +134,17 @@ export function searchCallbook(book, query, max = 8) {
   }
   return out;
 }
+
+// Callsign as typed -> canonical form (upper case, no spaces or stray
+// characters).
+export function normalizeCall(raw) {
+  return String(raw ?? '').toUpperCase().replace(/\s+/g, '').replace(/[^A-Z0-9/]/g, '');
+}
+
+// Loose amateur callsign check (optional prefix/ and /suffix). Only used for a
+// soft warning — logging is never blocked by it.
+const CALL_RE = /^(?:[A-Z0-9]{1,4}\/)?[A-Z0-9]{1,3}[0-9][A-Z0-9]{0,4}[A-Z](?:\/[A-Z0-9]{1,4})?$/;
+
+export function isPlausibleCall(call) {
+  return CALL_RE.test(call);
+}

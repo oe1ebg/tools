@@ -3,18 +3,18 @@
 // a dropdown under the field; choosing one fills in the full address and
 // the PLZ (the originally typed text is kept in `loc.input`, '' if nothing
 // was typed). An automatic match keeps the typed text. `loc.origin` says
-// where the location came from (LOC_ORIGINS in js/model.js): the search,
+// where the location came from (LOC_ORIGINS in locmeta.js): the search,
 // the callsign list, or an earlier check-in (`originAt` = its time). Logging is never blocked: an unresolved
 // location is saved as text. Once the callsign is known, the field can be
 // prefilled with the station's last location, and other suggestions (e.g.
 // the licence-list city) are offered in the dropdown while it is empty.
 
-import { el, fill, popover } from '../../shared/js/dom.js';
+import { el, fill, popover } from './dom.js';
 import { loadLocationIndex, renderCandidates, autoSelectLevel, logUtmDigits, utmRef } from './locationui.js';
-import { locate } from '../../shared/js/location/index.js';
-import { latLonToMaidenhead } from '../../shared/js/maidenhead.js';
-import { mgrsOf } from '../../shared/js/utm.js';
-import { LOC_ORIGINS, LOC_NAME_TYPES } from './model.js';
+import { locate } from './location/index.js';
+import { latLonToMaidenhead } from './maidenhead.js';
+import { mgrsOf } from './utm.js';
+import { LOC_ORIGINS, LOC_NAME_TYPES } from './locmeta.js';
 
 const LOC_CONF_TEXT = { exact: 'exakt', high: 'hoch', likely: 'wahrscheinlich', ambiguous: 'mehrdeutig', low: 'unsicher' };
 

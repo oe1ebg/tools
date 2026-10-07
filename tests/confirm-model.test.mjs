@@ -2,10 +2,11 @@ process.env.TZ = 'Europe/Vienna'; // local-time tests assume Vienna (CET/CEST)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  normalizeCall, isPlausibleCall, parseUtcInput, splitUtc, bandForMHz,
-  checkinNumbers, previousCheckins, stats, lineFrequencies, headerSnapshot,
-  splitTime, zoneLabel, isoUtc, isoWithOffset, parseTimeInput, signallingText, adifModeText, MODES, SIGNALLING,
+  bandForMHz, checkinNumbers, previousCheckins, stats, lineFrequencies, headerSnapshot, signallingText,
+  adifModeText, MODES, SIGNALLING,
 } from '../tools/confirm/js/model.js';
+import { normalizeCall, isPlausibleCall } from '../tools/shared/js/callbook.js';
+import { parseUtcInput, splitUtc, splitTime, zoneLabel, isoUtc, isoWithOffset, parseTimeInput } from '../tools/shared/js/time.js';
 
 test('normalizeCall uppercases and strips junk', () => {
   assert.equal(normalizeCall(' oe1ebg '), 'OE1EBG');
