@@ -27,7 +27,8 @@ import { openMap, closeMap, refreshMap, mapVisible } from './mapview.js';
 import { createLocationField, describeLocation, locationOptions } from '../../shared/js/locfield.js';
 import { attachRepeaterSearch, loadRepeaterIndex } from '../../shared/js/repeaterui.js';
 import { attachCallSearch } from '../../shared/js/callsearch.js';
-import { sourceItem, versionItems, trackOnline } from '../../shared/js/sources.js';
+import { sourceItem, trackOnline } from '../../shared/js/sources.js';
+import { initOffline, setChip } from '../../shared/js/offline.js';
 import { createLineRepeater } from './linerepeater.js';
 import { formatShift, formatMHz } from '../../shared/js/repeaters.js';
 
@@ -135,112 +136,15 @@ function initTimeMode() {
 
 /* ---------------------------------------------------------------- offline / service worker */
 
-function setChip(id, text, cls) {
-  const c = $(id);
-  c.textContent = text;
-  c.className = 'chip' + (cls ? ' ' + cls : '');
-}
-
-// Footer version from build-info.js (or inlined in the offline file); the
-// active service worker's content hash overrides the data part, since that
-// is the version actually served from the cache.
-function showVersion(swVersion) {
-  fill($('#st-version'), versionItems(globalThis.CONFIRM_BUILD, swVersion));
-}
-
-async function initOffline() {
-  showVersion();
-  if (location.protocol === 'file:') {
-    setChip('#st-offline', 'Offline-Datei', 'ok');
-    $('#offline-file-link').hidden = true;
-    $('#offline-card').hidden = true;
-    $('#data-sources-link').hidden = true;
-    $('#home-link').hidden = true; // ../ is the folder the file sits in
-    return;
-  }
-  if (!('serviceWorker' in navigator)) {
-    setChip('#st-offline', 'nicht offline-fähig', 'err');
-    return;
-  }
-  let reg;
-  try {
-    reg = await navigator.serviceWorker.register('sw.js');
-  } catch (e) {
-    console.warn('Service Worker nicht registriert', e);
-    setChip('#st-offline', 'nicht offline-fähig', 'err');
-    return;
-  }
-  // An update replaces a controller this page already had. Without one,
-  // a controllerchange is just the first install claiming the page.
-  let hadController = !!navigator.serviceWorker.controller;
-  let updating = false;
-  let reloading = false;
-  const reloadForUpdate = async () => {
-    if (reloading) return;
-    reloading = true;
-    await flushDraft();
-    await flushHeader();
-    location.reload();
-  };
-  const offerUpdate = () => {
-    if (!reg.waiting || !navigator.serviceWorker.controller) return;
-    const btn = $('#btn-update');
-    btn.hidden = false;
-    btn.onclick = async () => {
-      // Another tab may have activated it meanwhile: then only reload.
-      if (!reg.waiting) return reloadForUpdate();
-      updating = true;
-      await flushDraft();
-      await flushHeader();
-      reg.waiting.postMessage('skipWaiting');
-    };
-  };
-  const watch = w => w?.addEventListener('statechange', () => {
-    if (w.state === 'installed') offerUpdate();
-    if (w.state === 'activated') reportOfflineVersion();
+// The offline file and the service worker (shared/js/offline.js): an
+// update reloads every tab, after saving the half-typed line and header.
+function startOffline() {
+  initOffline({
+    build: globalThis.CONFIRM_BUILD,
+    beforeReload: async () => { await flushDraft(); await flushHeader(); },
+    // Online-only parts; ../ is the folder the offline file sits in.
+    fileHidden: ['#offline-file-link', '#offline-card', '#data-sources-link', '#home-link'],
   });
-  reg.addEventListener('updatefound', () => watch(reg.installing));
-  // The browser's own update check may have started before this listener.
-  watch(reg.installing);
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    // Update clicked here, or in another tab of this tool: the old cache is
-    // gone, so every open tab must load the new version (draft kept).
-    if (updating || hadController) reloadForUpdate();
-    else reportOfflineVersion();
-    hadController = true;
-  });
-  offerUpdate();
-  reportOfflineVersion();
-  // Look for a new version when we (re)gain connectivity, when the page comes
-  // back to the foreground (an installed app resumes without a reload) and
-  // hourly while it stays open — never required.
-  let lastCheck = 0;
-  const check = () => {
-    if (!navigator.onLine || Date.now() - lastCheck < 60e3) return;
-    lastCheck = Date.now();
-    reg.update().catch(() => {});
-  };
-  window.addEventListener('online', check);
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') check();
-  });
-  setInterval(check, 60 * 60e3);
-  check();
-}
-
-function reportOfflineVersion() {
-  const ctl = navigator.serviceWorker && navigator.serviceWorker.controller;
-  if (!ctl) {
-    setChip('#st-offline', 'offline: wird eingerichtet…', 'warn');
-    return;
-  }
-  const ch = new MessageChannel();
-  ch.port1.onmessage = ev => {
-    const v = ev.data && ev.data.version;
-    setChip('#st-offline', v ? 'offline bereit ✓' : 'offline bereit (dev)', v ? 'ok' : 'warn');
-    showVersion(v);
-  };
-  ctl.postMessage('version', [ch.port2]);
 }
 
 async function initPersistence() {
@@ -2212,7 +2116,7 @@ async function main() {
   });
   initChannel();
   initPersistence();
-  initOffline();
+  startOffline();
   await refreshLastHeader();
   try {
     state.stations = new Map((await state.store.getAll('stations')).map(r => [r.call, r]));

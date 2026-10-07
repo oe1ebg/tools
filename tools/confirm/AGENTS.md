@@ -9,7 +9,7 @@ are in `oe1ebg/tools/confirm/README.md`.
   another host, no CDN `<script>`/`<link>`, no web fonts and no map tiles.
   Data must be produced at build time, under `tools/shared/data/`, and
   listed in the precache. `tests/confirm-offline.test.mjs` fails on any external URL.
-  The one exception is `js/sources.js`: dataset/licence links (footer) and
+  The one exception is `tools/shared/js/sources.js`: dataset/licence links (footer) and
   map links (Google Maps / OpenStreetMap, built by `mapLinkUrls()`), which
   are only `<a href>` targets and never fetched. The test also checks that
   this file contains no request APIs. Map links are rendered via
@@ -19,7 +19,8 @@ are in `oe1ebg/tools/confirm/README.md`.
 - **`confirm-offline.html` needs nothing outside itself.** Vendored code
   needs a `LICENSE` next to it (inlined into the footer at the
   `CONFIRM-LICENSES` marker); relative links (`../…`) are hidden under
-  `file://` in `initOffline()`; keep the "~N MB" next to the download link
+  `file://` (the `fileHidden` list passed to `initOffline()`,
+  `tools/shared/js/offline.js`); keep the "~N MB" next to the download link
   in step with the file (the test checks it).
 - **Never lose user data.** The IndexedDB schema (`js/db.js`, on top of
   `tools/shared/js/storage.js`) is at v2; v2 added the `stations` store.
@@ -29,14 +30,16 @@ are in `oe1ebg/tools/confirm/README.md`.
     timestamp).
   - Schema changes need a new `DB_VERSION` plus a migration branch in
     `openIdb()`. Never delete or recreate stores.
-- **Bundler limits.** `scripts/build_confirm.py` concatenates the `js/`
+- **Bundler limits.** `scripts/build_confirm.py` (via `scripts/offline_tool.py`) concatenates the `js/`
   modules and the `tools/shared/` modules they import into
   `confirm-offline.html` (`scripts/single_file.py`), so:
   - only use `import { … } from './x.js';` (or `'../…'`), no `as`;
   - only put `export` in front of `function`/`const`/`let`/`class`;
   - keep top-level names unique across all modules, the shared ones included.
-- **Shared code** (`tools/shared/`: location lookup, Maidenhead, distance,
-  ADIF encoding, Leaflet) is used by other tools too. Change it with them in
+- **Shared code** (`tools/shared/`: location lookup and field, callsign and
+  repeater completion, time helpers, offline/update code and the service
+  worker logic, form styles, Maidenhead, distance, ADIF encoding, Leaflet)
+  is used by other tools too. Change it with them in
   mind and run all tests. It is precached as `../shared/…` (computed by
   `build_confirm.py` from the imports and the `CONFIRM-VENDOR` block).
 - **DOM:** use `fill(node, ...children)` from `tools/shared/js/dom.js`, not
@@ -74,7 +77,7 @@ are in `oe1ebg/tools/confirm/README.md`.
   `build-info.js` (`self.CONFIRM_BUILD`, inlined into the offline file).
   Keep it **out of `precache.js` and out of the content hash**. Otherwise
   every commit triggers a service-worker update. The commit link is
-  built by `commitUrl()` in `js/sources.js`.
+  built by `commitUrl()` in `tools/shared/js/sources.js`.
 - **Operator comments** (issue #32) are entries with `kind: 'comment'` in
   the `entries` store (no schema change): `{ id, eventId, kind, ts, text,
   category, auto, snap, created, updated, deleted }`, with no `call`, no

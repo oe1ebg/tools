@@ -20,7 +20,20 @@ browser loads.
 | `js/repeaters.js` | Austrian repeater search (callsign, site, frequency, locator, nearest) | confirm |
 | `js/data.js` | `loadDataFile(name)`: `data/` files (fetched, or inlined in single-file bundles) | confirm |
 | `js/storage.js` | IndexedDB storage with localStorage fallback; each tool passes its schema | confirm |
-| `js/dom.js` | DOM helpers (`el`, `fill`, `popover`, …); the one DOM module | confirm |
+| `js/dom.js` | DOM helpers (`el`, `fill`, `popover`, …); the one module touching the DOM directly, besides the UI modules below | confirm |
+| `js/time.js` | ids, "now", ISO UTC timestamps shown/typed in UTC or local time | confirm |
+| `js/locmeta.js` | where a resolved location came from and how it was named (`LOC_ORIGINS`, …) | confirm |
+| `js/prefs.js` | `prefGet`/`prefSet`: per-browser settings in localStorage, errors swallowed | confirm |
+| `js/theme.js` | light/auto/dark theme (classic script, first in every page's `<head>`) | all tools |
+| `js/callsearch.js` | callsign completion for an input (UI) | confirm |
+| `js/repeaterui.js` | repeater completion and description (UI) | confirm |
+| `js/locationui.js` | the "Standortsuche" panel and the location index loader (UI); its settings keep their `oe1ebg-confirm-*` keys | confirm |
+| `js/locfield.js` | location input field with lookup, chip and suggestions (UI) | confirm |
+| `js/sources.js` | dataset/licence links, map links, version line; the only module with external URLs (links only, never fetched) | confirm |
+| `js/offline.js` | offline readiness of a page: registers the tool's `sw.js`, version, user-triggered updates (UI) | confirm |
+| `js/sw-core.js` | service worker logic (cache-first, own caches only); a tool's `sw.js` sets `self.OE1EBG_SW` and imports it | confirm |
+| `css/tools.css` | colour/font tokens, `[hidden]`, `.sr-only` | all tools |
+| `css/forms.css` | buttons, fields, completion dropdowns, radio chips, banners, chips | confirm |
 | `data/` | build-time data, git-ignored (see below) | confirm |
 | `vendor/leaflet/` | Leaflet 1.9.4, unmodified (BSD-2) | confirm, sota-alerts |
 
@@ -45,7 +58,8 @@ so it works for every tool published at `/<tool>/`.
 
 ## Rules
 
-- **Plain ES modules, no dependencies, no DOM** (except `dom.js`), so
+- **Plain ES modules, no dependencies, no DOM** (except `dom.js` and the
+  UI modules marked above, which the node tests don't import), so
   `oe1ebg/tests/` can import them (`location-*.test.mjs`, `adif.test.mjs`, `adif-validate.test.mjs`, `geo.test.mjs`,
   `utm.test.mjs`, `callbook.test.mjs`, `repeaters.test.mjs`).
 - **Bundler-compatible** (`scripts/single_file.py`): the single-file
@@ -56,11 +70,13 @@ so it works for every tool published at `/<tool>/`.
 - **No runtime network access.** The confirmation log must work 100% offline,
   and `tests/confirm-offline.test.mjs` checks the shared modules for external
   URLs too.
-- **Offline tools precache what they use.** `scripts/build_confirm.py` adds
-  every shared module confirm imports, the Leaflet files in its
-  `CONFIRM-VENDOR` block and the `loadDataFile()` data files to
-  `precache.js`. A shared file a tool loads some other way must be added
-  there by hand.
+- **Offline tools precache what they use.** `scripts/offline_tool.py` (run
+  by `build_confirm.py`) adds every shared module the tool imports, the
+  files in its `<PREFIX>-VENDOR` block (styles, Leaflet) and the
+  `loadDataFile()` data files to `precache.js`. A shared file a tool loads
+  some other way must be added there by hand. `sw-core.js` is the
+  exception: it is part of the service worker, which the browser keeps
+  and update-checks itself.
 - **Storage schemas belong to the tools.** `storage.js` is only the
   mechanism; a tool's database name, stores and migrations stay in the tool
   (e.g. `../confirm/js/db.js`). Never change one tool's schema from here.

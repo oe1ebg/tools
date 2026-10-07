@@ -61,7 +61,8 @@ index route.
 
 ## How it is used offline
 
-- **Installable app.** `sw.js` caches every shipped file when it installs,
+- **Installable app.** `sw.js` (the logic is shared:
+  `tools/shared/js/sw-core.js`) caches every shipped file when it installs,
   using the list in `precache.js`, which `scripts/build_confirm.py` generates
   together with a content-hash version. After that, every request is
   answered from the cache first. A new deploy is downloaded in the
@@ -462,7 +463,7 @@ and, **only while the browser is online**, "Google Maps" and
 "OpenStreetMap" links to the point (coordinates with 5 decimals; zoom by
 result type: address 18, street 16, PLZ 12, Bezirk 11, locator by its
 precision). They are plain `<a target="_blank" rel="noopener">` links built
-by `mapLinkUrls()` in `js/sources.js`; nothing is fetched, and they are
+by `mapLinkUrls()` in `tools/shared/js/sources.js`; nothing is fetched, and they are
 hidden (CSS `html.offline .online-only`) as soon as the `offline` event
 fires. The compact dropdown in the log's location field has no links.
 
@@ -905,25 +906,27 @@ any tiles**.
 - `js/app.js`: the UI.
 - `js/db.js`: the IndexedDB schema and migrations, for the shared storage
   layer `tools/shared/js/storage.js`.
-- `js/model.js`: pure helpers (callsigns, UTC time, bands, check-in
-  numbering, operator comments and automatic header-change markers).
+- `js/model.js`: pure helpers (bands, modes, header, check-in numbering,
+  operator comments and automatic header-change markers).
 - `js/templates.js`: the template field definitions.
 - `js/export.js`: CSV, ADIF, KML and summary output.
-- `js/sources.js`: dataset/licence links and the Google Maps /
-  OpenStreetMap link builders — the only module with external URLs, all
-  plain `<a href>` targets.
-- `js/locationui.js`: the Standort panel and the shared candidate list.
-- `js/repeaterui.js`: the dropdown on the header's "Relais" field.
 - `js/mapdata.js` / `js/mapview.js`: the map view (pure helpers / Leaflet
   UI); Leaflet 1.9.4, unmodified, is in `tools/shared/vendor/leaflet/`.
-- `js/locfield.js`: the log's `location` field (resolve while typing,
-  auto-select or pick, auto-fill PLZ).
-- From `tools/shared/js/` (shared with the other tools): `location/` (the
-  lookup engine above), `maidenhead.js`, `geo.js`, `adif.js` (ADIF field
-  encoding), `callbook.js` (callsign lookup and suggestions), `repeaters.js`
-  (repeater search), `data.js` (loads `tools/shared/data/*.json`, inlined as
+- From `tools/shared/js/` (shared with the other tools, see
+  `tools/shared/README.md`): `location/` (the lookup engine above),
+  `locationui.js` (the Standort panel and the candidate list), `locfield.js`
+  (the log's `location` field: resolve while typing, auto-select or pick,
+  auto-fill PLZ), `locmeta.js` (location origin/naming), `callsearch.js`
+  and `repeaterui.js` (the callsign and "Relais" dropdowns), `sources.js`
+  (dataset/licence links and the Google Maps / OpenStreetMap link builders:
+  the only module with external URLs, all plain `<a href>` targets),
+  `offline.js` (service worker registration and updates), `time.js`,
+  `maidenhead.js`, `utm.js`, `geo.js`, `adif.js` (ADIF field encoding),
+  `callbook.js` (callsign lookup and suggestions), `repeaters.js` (repeater
+  search), `data.js` (loads `tools/shared/data/*.json`, inlined as
   `globalThis.OE1EBG_DATA` in the offline bundle), `storage.js`
-  (IndexedDB/localStorage) and `dom.js` (DOM and clipboard helpers).
+  (IndexedDB/localStorage), `prefs.js` and `dom.js` (DOM and clipboard
+  helpers); the form styles are in `tools/shared/css/forms.css`.
 
 The JS lives in separate files: plain ES modules with no dependencies, so
 the node tests in `oe1ebg/tests/` can import them. Two rules keep the
