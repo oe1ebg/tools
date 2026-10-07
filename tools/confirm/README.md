@@ -944,9 +944,9 @@ so being outside the `/confirm/` scope doesn't matter.
 To add a template, add an entry to `TEMPLATES` in `js/templates.js`. Give a
 field an `adif` key to map it to a standard ADIF field; otherwise it is
 exported as `APP_OE1EBG_<KEY>`. Give every field an `example` value: "+ Neues
-Log" shows a sample line of the chosen template (`exampleValues()`), with
-its ADIF fields (`adifFieldTargets()`); a test checks that all examples
-are there.
+Log" shows a sample line of the chosen template (`exampleValues()`); a
+test checks that all examples are there and that every field has an ADIF
+target (`adifFieldTargets()`).
 
 ## Development
 

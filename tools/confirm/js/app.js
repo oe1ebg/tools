@@ -14,7 +14,7 @@ import {
 import { newId, nowIso, splitUtc, splitTime, zoneLabel, parseTimeInput, isoUtc } from '../../shared/js/time.js';
 import { LOC_ORIGINS, locOrigin, locHints } from '../../shared/js/locmeta.js';
 import { TEMPLATES, templateFor, fieldVisible, fieldDisplay, fieldOptions, currentOptions, shortSummary, exampleValues } from './templates.js';
-import { toCSV, toADIF, adifIssues, ADIF_MIME, toKML, KML_MIME, toSummary, adifFieldTargets } from './export.js';
+import { toCSV, toADIF, adifIssues, ADIF_MIME, toKML, KML_MIME, toSummary } from './export.js';
 import { loadDataFile } from '../../shared/js/data.js';
 import { buildCallbook, lookupCall, suggestCalls, normalizeCall, isPlausibleCall } from '../../shared/js/callbook.js';
 import { $, el, fill, popover, focusNext, submitForm, isComposing, trackExpanded } from '../../shared/js/dom.js';
@@ -526,7 +526,7 @@ function openNewEventForm(prefill) {
 }
 
 // What the chosen template changes: a sample log line with the log's
-// columns (the template's own ones highlighted) and their ADIF fields.
+// columns (the template's own ones highlighted).
 function renderTemplatePreview(key) {
   const tpl = templateFor(key);
   const values = exampleValues(tpl);
@@ -537,8 +537,7 @@ function renderTemplatePreview(key) {
       el('tr', {}, ['Zeit UTC', 'Nr', 'Rufzeichen Gegenstation'].map(t => el('th', {}, t)),
         fields.map(f => el('th', { class: 'tpl' }, f.label)), ['Relais', 'Notiz'].map(t => el('th', {}, t))),
       el('tr', {}, ['18:42Z', '1', 'OE1ABC'].map(t => el('td', {}, t)),
-        fields.map(f => el('td', { class: 'tpl' }, fieldDisplay(f, values[f.key]))), ['OE1XUU', ''].map(t => el('td', {}, t))))),
-    el('div', { class: 'adif' }, 'ADIF: ', adifFieldTargets(tpl).map(([l, t]) => `${l} → ${t}`).join(' · ')));
+        fields.map(f => el('td', { class: 'tpl' }, fieldDisplay(f, values[f.key]))), ['OE1XUU', ''].map(t => el('td', {}, t))))));
 }
 
 // Pre-fill a new event with the header of the most recently created one —
