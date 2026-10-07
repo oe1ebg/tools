@@ -95,7 +95,7 @@ for (const page of PAGES) {
   });
 }
 
-test('tool JS builds no HTML from strings with innerHTML (sota-alerts escapes via escapeHtml)', () => {
+test('tool JS builds no HTML from strings with innerHTML', () => {
   const offenders = [];
   for (const p of walk(TOOLS).filter(p => p.endsWith('.js') || p.endsWith('index.html'))) {
     if (/adif-editor\.html|confirm-offline\.html/.test(p)) continue;
@@ -104,9 +104,8 @@ test('tool JS builds no HTML from strings with innerHTML (sota-alerts escapes vi
     for (const m of src.matchAll(/\.(innerHTML|outerHTML)\s*=(?!=)|insertAdjacentHTML\s*\(/g)) {
       const line = src.slice(0, m.index).split('\n').length;
       const stmt = src.slice(m.index, src.indexOf('\n', m.index));
-      // allowed: clearing, and sota-alerts' template strings (escapeHtml)
+      // allowed: clearing
       if (/=\s*(''|"")\s*;?$/.test(stmt.trim())) continue;
-      if (rel.startsWith('sota-alerts/')) continue;
       offenders.push(`${rel}:${line} ${stmt.trim().slice(0, 60)}`);
     }
   }

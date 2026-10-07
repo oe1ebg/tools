@@ -137,8 +137,6 @@ service workers are missing on plain `http://` and `file://`.
 - **No HTML from data:** build DOM with `el()` / `fill()` (`dom.js`), never
   `innerHTML` with values from files, APIs, storage or user input. Leaflet
   `bindPopup`/`bindTooltip` get a DOM node or a function, never a string.
-  (sota-alerts builds some HTML strings; every value goes through
-  `escapeHtml`.)
 - **Controls:** everything clickable is a `<button type="button">` (or a
   link), with a name (`aria-label` when the text is a symbol); toggles carry
   `aria-pressed`, panel buttons `aria-expanded` + `aria-controls`

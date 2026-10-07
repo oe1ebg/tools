@@ -385,7 +385,7 @@ summits" overlay, below) also writes `oe1ebg/tools/sota-alerts/data/summit-
 lookup.json`: a small, keyed sibling of `summits.json` — `[key, lat, lon,
 name, altM, points, bonusPoints]` tuples rather than one object per summit,
 ~9.8MB vs ~17.7MB for the same fields, purely from not repeating key names
-per entry. `resolveSummits()` in `index.html` checks this (lazy-loaded,
+per entry. `resolveSummits()` (`js/lookup.js`) checks this (lazy-loaded,
 memoized once per session) *before* ever calling
 `api2.sota.org.uk/api/summits/{assoc}/{code}` live, for anything not already
 in the `localStorage` cache. Only summits missing from the static set —
@@ -523,11 +523,29 @@ current state rather than treating the URL as continuously live.
 
 ## Files
 
-- `index.html` — the tool. Its script is a module script
-  (`<script type="module">`) importing `../shared/js/geo.js` (haversine
-  distance), so serve it over http (`just oe1ebg serve` / `just oe1ebg
-  preview` from the repo root); the `data/` lookups never worked from
-  `file://` anyway.
+- `index.html` — the page; it loads `js/app.js` as an ES module, so serve
+  it over http (`just oe1ebg serve` / `just oe1ebg preview` from the repo
+  root); the `data/` lookups never worked from `file://` anyway. There is
+  no single-file version: the tool needs the network (SOTA API, tiles).
+- `js/` — plain ES modules, like the ADIF editor's:
+  - `app.js` — state, rendering order, toolbar, start-up
+  - `api.js` — every network request (the inventory in `AGENTS.md`)
+  - `lookup.js` — the static-first summit resolver and the lazy loads
+  - `alerts.js` — normalising the feed, date window, grouping, band/mode
+    facets, own callsigns (pure)
+  - `format.js` — UTC/local times, the one-line alert summaries (pure)
+  - `summits.js` — summit shapes, meta line, distance/elevation to the
+    reference, points colours, links (pure)
+  - `share.js` — the share link's query string, both ways (pure)
+  - `store.js` — what's kept in `localStorage` (via `../shared/js/prefs.js`)
+  - `warnings.js` — the `#warnings` box
+  - `view.js` — popups, lists, search results, facets, status bar, built
+    with `el()` (no HTML strings)
+  - `map.js` — Leaflet: base layers, markers, distance line, "all
+    summits" overlay
+- Tests: `tests/sota-alerts.test.mjs` (node, the pure modules and the
+  resolver's order/`force`/pool rules), `tests/e2e/sota-alerts.spec.mjs`
+  (Playwright, SOTA API and tiles stubbed).
 - `../shared/vendor/leaflet/` — vendored Leaflet 1.9.4 (`leaflet.js`,
   `leaflet.css`, `LICENSE`), shared with the confirmation log.
 

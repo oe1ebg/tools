@@ -23,11 +23,17 @@ whenever the data doesn't need to be second-by-second fresh.
 | `GET api2.sota.org.uk/api/alerts` | `fetchAlerts()` | page load, "refresh alerts" click | 1 + 1/click | None — deliberately live, no cache |
 | `GET api2.sota.org.uk/api/summits/{assoc}/{code}` | `fetchSummit()`, called only from inside `resolveSummits()`'s worker pool | fallback when a summit key is missing from **both** the `localStorage` cache **and** the static `data/summit-lookup.json` | ~1 per session in practice (bogus/placeholder codes, or summits created after the last weekly build) — down from "one per distinct summit referenced by alerts" (tens–hundreds on a cold cache) before this change | 30-day `localStorage` cache checked first; static lookup checked second; 6-way concurrency pool (`FETCH_POOL_SIZE`) as a last resort; `force=true` (the "refresh summit data" button) deliberately skips both caches for authoritative fresh data |
 | `GET api2.sota.org.uk/api/summits/search/{term}` | `searchSummits()`, from `doSummitSearch()` | typing (debounced 350ms, ≥3 chars), search button, Enter | 1 per distinct term per session | `summitSearchCache` (session `Map`, case-insensitive) skips a repeat of the exact same term; `AbortController` cancels a still-in-flight search when a newer one supersedes it |
-| `GET data/summit-lookup.json` (same-origin, not SOTA) | `loadSummitLookupData()` | first call to `resolveSummits()` that needs it (in practice, page load) | ≤1 per session, memoized | Lazy + in-flight-promise guard, same pattern as `loadAllSummitsData()` |
-| `GET data/summits.json` (same-origin, not SOTA) | `loadAllSummitsData()` | "toggle all summits" overlay click | ≤1 per session, memoized | Lazy — never loaded unless the overlay is turned on |
+| `GET data/summit-lookup.json` (same-origin, not SOTA) | `loadSummitLookup()` | first call to `resolveSummits()` that needs it (in practice, page load) | ≤1 per session, memoized | `lazy()` (in-flight-promise guard), a failed load is kept as an empty map (no retry) |
+| `GET data/summits.json` (same-origin, not SOTA) | `loadAllSummits()` | "toggle all summits" overlay click | ≤1 per session, memoized | Lazy — never loaded unless the overlay is turned on |
 | `POST overpass-api.de/api/interpreter` (not SOTA) | `searchOsmSummitsInView()`, from `doAreaSearch()` | "find in view" click | 1 per click | Hard-capped to ≤4° viewport span before firing |
 
-No `setInterval`/polling of any endpoint anywhere in `index.html`.
+Every request is in `js/api.js`; the static-first resolver is `js/lookup.js`
+(the functions above: `fetchAlerts`, `fetchSummit`, `searchSummits`,
+`searchOsmSummitsInView` in `api.js`; `resolveSummits` from
+`createSummitResolver()` in `lookup.js`; `doSummitSearch`, `doAreaSearch`,
+`applySharedStateFromUrl` and the two lazy loads `loadSummitLookup` /
+`loadAllSummits` in `app.js`). No `setInterval`/polling of any endpoint
+anywhere.
 
 ## Static-first summit coordinate resolution
 
@@ -42,7 +48,7 @@ build time (already required for the "all summits" overlay) and now writes
   fetched eagerly by `resolveSummits()` since it's needed on essentially
   every session, not just when a toggle is switched on.
 
-`resolveSummits(entries, force)` in `index.html` resolves in this order,
+`resolveSummits(entries, force)` (`js/lookup.js`) resolves in this order,
 per entry:
 
 1. `localStorage` cache (`LS_KEY_SUMMIT_CACHE`, 30-day TTL) — skipped
@@ -66,11 +72,14 @@ parse, so there's no separate step to remember.
 
 ## Verifying changes to this tool
 
-There's no test suite. Verify by actually running it: `just serve` from
-`oe1ebg/` (or `just oe1ebg serve` from the repo root),
-then drive a headless Chromium against `http://localhost:8000/sota-alerts/`
-(`puppeteer-core` against the system Chrome works fine here — no
-`playwright`/`chromium-cli` install was available when this was last
-verified). Check the Network tab / intercepted requests, not just that the
-page renders: the whole point of the static-first lookup is *fewer live
-SOTA requests*, which a screenshot alone won't show.
+- `just oe1ebg test` runs `tests/sota-alerts.test.mjs`: the pure modules
+  and the resolver's rules (cache → static lookup → live API, `force`
+  straight to the live API, at most `FETCH_POOL_SIZE` live requests at
+  once). Keep these green when touching the lookup.
+- `tests/e2e/sota-alerts.spec.mjs` (Playwright, CI `validate` or `just
+  oe1ebg e2e`) stubs the SOTA API and tiles and asserts which SOTA
+  requests the page makes on load — a summit from the static lookup must
+  not be fetched live.
+- For anything else, run it (`just oe1ebg preview`) and watch the Network
+  tab, not just the rendered map: the whole point of the static-first
+  lookup is *fewer live SOTA requests*, which a screenshot won't show.
