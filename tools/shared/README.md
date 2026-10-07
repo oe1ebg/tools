@@ -68,7 +68,10 @@ so it works for every tool published at `/<tool>/`.
 
 Interoperability matters most for the confirmation log (old phones and
 tablets in the field, `file://` from a USB stick), but the rules hold for
-every page in `tools/`. `tests/tools-html.test.mjs` checks what it can.
+every page in `tools/`. `tests/tools-html.test.mjs` checks what it can. CI
+(job `validate`) also runs the Nu Html Checker on the built tool pages and
+both single-file bundles and runs the browser smoke tests in `tests/e2e/`
+(Chromium, Firefox, WebKit, two phones). Locally: `just vnu`, `just e2e`.
 
 **Browser floor:** Safari/iOS 15.4, Firefox 115 ESR, Chrome/Edge 109.
 Anything newer needs a fallback or must degrade visibly but harmlessly:
