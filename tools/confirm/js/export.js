@@ -135,7 +135,7 @@ function exportRows(event, entries, opts = {}) {
       ueber_relais: e.viaRepeater ? 'ja' : 'nein',
       relais: e.viaRepeater ? s.repeaterCall : '',
       relais_ctcss: e.viaRepeater ? s.repeaterTone || '' : '',
-      relais_quelle: e.viaRepeater ? (s.repeaterOverride ? 'Zeile' : 'Header') : '',
+      relais_quelle: e.viaRepeater ? (s.repeaterOverride ? 'Zeile' : 'Kopfdaten') : '',
       notiz: e.note || '',
       operator: s.operator,
       station: s.station,

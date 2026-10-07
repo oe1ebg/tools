@@ -157,10 +157,10 @@
     <div id="export-msg" class="banner warn" hidden role="status"></div>
 
     <details class="hdr" id="hdr-panel">
-      <summary><b>Header</b> <span class="hdr-sum" id="hdr-sum"></span></summary>
+      <summary><b>Kopfdaten</b> <span class="hdr-sum" id="hdr-sum"></span></summary>
       <div class="body">
         <div id="log-header" class="grid-form"></div>
-        <p class="hint">Änderungen am Header gelten für neue Zeilen. Bereits geloggte Zeilen behalten Operator, Station, Frequenz und Relais vom Zeitpunkt des Eintrags.
+        <p class="hint">Änderungen an den Kopfdaten gelten für neue Zeilen. Bereits geloggte Zeilen behalten Operator, Station, Frequenz und Relais vom Zeitpunkt des Eintrags.
           Ein Wechsel von Operator oder Relais/Frequenz schreibt automatisch einen Marker ins Log (Text ergänzbar).<br>
           Tastatur: Tab/Enter nächstes Feld · ↓ Vorschläge, Enter übernimmt · Ziffern bei Betriebsart</p>
       </div>
@@ -192,11 +192,11 @@
           <span class="ac-hints" aria-hidden="true"></span>
         </div>
         <div id="f-fields" class="row ci-only"></div>
-        <div class="field rpt-line ci-only"><span id="f-rpt-label">Relais (Standard: Header)</span>
+        <div class="field rpt-line ci-only"><span id="f-rpt-label">Relais (Standard: Kopfdaten)</span>
           <div class="rpt-line-row">
             <label class="check" title="Diese Station kommt über ein Relais"><input type="checkbox" id="f-rpt"> über</label>
             <div class="ac-wrap">
-              <input id="f-rpt-q" size="11" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" enterkeyhint="next" aria-labelledby="f-rpt-label" title="Leer = Relais aus dem Header. Anderes Relais: Rufzeichen, Ort oder Frequenz eingeben.">
+              <input id="f-rpt-q" size="11" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" enterkeyhint="next" aria-labelledby="f-rpt-label" title="Leer = Relais aus den Kopfdaten. Anderes Relais: Rufzeichen, Ort oder Frequenz eingeben.">
               <div id="f-rpt-sug" class="ac-pop"></div>
             </div>
           </div>
@@ -223,9 +223,10 @@
           <dt><kbd>Esc</kbd></dt><dd>Zeile verwerfen (mit „Rückgängig“)</dd>
           <dt><strong>!</strong> im Rufzeichen</dt><dd>Operator-Kommentar statt Check-in (Frequenzwechsel, Übergabe, Unterbrechung …); zählt nicht als Station</dd>
           <dt>Zeit</dt><dd>leer = Zeitpunkt des Speicherns; Korrektur als HH:MM oder JJJJ-MM-TT HH:MM (in der oben gewählten Zeitzone)</dd>
-          <dt>Relais</dt><dd>„über“ angehakt = die Station kommt über ein Relais (Vorgabe aus dem Header); Feld leer = Relais aus dem Header, sonst Rufzeichen, Ort oder Frequenz eines anderen Relais</dd>
+          <dt>Relais</dt><dd>„über“ angehakt = die Station kommt über ein Relais (Vorgabe aus den Kopfdaten); Feld leer = Relais aus den Kopfdaten, sonst Rufzeichen, Ort oder Frequenz eines anderen Relais</dd>
           <dt><kbd>?</kbd></dt><dd>diese Hilfe ein- und ausblenden (außerhalb von Textfeldern)</dd>
         </dl>
+        <p id="help-manual" class="hint"><a href="../confirm-anleitung/" target="_blank" rel="noopener">Ausführliche Anleitung mit Bildern (online)</a></p>
       </section>
     </form>
 

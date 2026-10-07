@@ -409,7 +409,7 @@ voice repeaters, 54 KiB) from the **ÖVSV repeater database**
     change.
 - **Per-line repeater** (exercises over a linked repeater network).
   - The header's repeater is the default for every line: the "Relais"
-    field in the entry form shows it as its placeholder ("OE1XUU (Header)").
+    field in the entry form shows it as its placeholder ("OE1XUU (Kopfdaten)").
   - To log a station that came in on a different repeater, type its
     callsign (an exact match is taken immediately, e.g. `OE3XSA`), or a
     site or frequency and pick from the suggestions. An unknown callsign
@@ -422,7 +422,7 @@ voice repeaters, 54 KiB) from the **ÖVSV repeater database**
     uses a different repeater is highlighted in the log. When editing, the
     line's own repeater is shown; clearing the field reverts to the header
     repeater.
-  - CSV column `relais_quelle` is `Header` or `Zeile`. The summary lists
+  - CSV column `relais_quelle` is `Kopfdaten` or `Zeile`. The summary lists
     the stations per repeater ("Nach Relais: OE3XSA: 2 (…), OE1XUU: 1, direkt: 1").
 - **Export.** CTCSS goes to CSV (`relais_ctcss`), all signalling to CSV
   `signalisierung` and ADIF (see above). `FREQ`/`FREQ_RX` are computed from

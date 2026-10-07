@@ -219,7 +219,7 @@ test('per-line repeater override: snapshot values drive CSV, ADIF and summary', 
   const cols = lines[0].split(';');
   const row = i => Object.fromEntries(cols.map((c, j) => [c, lines[i].split(';')[j]]));
   assert.equal(row(1).relais, 'OE1XUU');
-  assert.equal(row(1).relais_quelle, 'Header');
+  assert.equal(row(1).relais_quelle, 'Kopfdaten');
   assert.equal(row(2).relais, 'OE3XSA');
   assert.equal(row(2).relais_quelle, 'Zeile');
   assert.equal(row(2).freq_rx_mhz, '145.7');

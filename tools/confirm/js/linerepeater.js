@@ -20,7 +20,7 @@ export function createLineRepeater({ checkbox, input, sug, getHeader, onChange }
 
   function refreshDefault() {
     const call = headerCall();
-    input.placeholder = call ? `${call} (Header)` : 'Relais';
+    input.placeholder = call ? `${call} (Kopfdaten)` : 'Relais';
     input.classList.toggle('override', !!override);
   }
 

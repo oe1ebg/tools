@@ -143,7 +143,7 @@ function startOffline() {
     build: globalThis.CONFIRM_BUILD,
     beforeReload: async () => { await flushDraft(); await flushHeader(); },
     // Online-only parts; ../ is the folder the offline file sits in.
-    fileHidden: ['#offline-file-link', '#offline-card', '#data-sources-link', '#home-link'],
+    fileHidden: ['#offline-file-link', '#offline-card', '#data-sources-link', '#home-link', '#help-manual'],
   });
 }
 
@@ -1587,7 +1587,7 @@ function renderLog(highlightCall) {
       el('td', {}, e.viaRepeater
         ? el('span', {
           class: s.repeaterOverride ? 'rpt override' : 'rpt',
-          title: [s.repeaterOverride ? 'anderes Relais als im Header' : 'Relais aus dem Header', s.repeaterFreq && `${s.repeaterFreq} MHz`, s.repeaterShift && `Shift ${s.repeaterShift}`, signallingText(s)].filter(Boolean).join(' · '),
+          title: [s.repeaterOverride ? 'anderes Relais als in den Kopfdaten' : 'Relais aus den Kopfdaten', s.repeaterFreq && `${s.repeaterFreq} MHz`, s.repeaterShift && `Shift ${s.repeaterShift}`, signallingText(s)].filter(Boolean).join(' · '),
         }, s.repeaterCall || 'ja')
         : '–'),
       el('td', {}, e.note || ''),
@@ -1833,7 +1833,7 @@ function showAdifIssues(issues) {
     el('ul', {}, shown.map(i => el('li', {}, `Nr. ${i.nr} ${i.call}: ${i.problems.join(', ')}`)),
       issues.length > shown.length ? el('li', {}, `… und ${issues.length - shown.length} weitere`) : null),
     go,
-    el('button', { type: 'button', onclick: () => { box.hidden = true; $('#hdr-panel').open = true; } }, 'Header bearbeiten'));
+    el('button', { type: 'button', onclick: () => { box.hidden = true; $('#hdr-panel').open = true; } }, 'Kopfdaten bearbeiten'));
   box.hidden = false;
   go.focus();
 }
