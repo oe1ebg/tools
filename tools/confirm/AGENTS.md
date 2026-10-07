@@ -97,6 +97,14 @@ are in `oe1ebg/tools/confirm/README.md`.
     marker opens for editing only with an empty form and focus in the
     header.
 
+- **UTMREF** (issue #55, `tools/shared/js/utm.js`): computed from the
+  stored lat/lon, never stored for found places; only a typed UTMREF is kept
+  as typed (`loc.utm`, `type: 'utm'`). Exports always use full precision
+  (`utmFields()` / `mgrsOf()`); the own position comes from `ownUtm()` in
+  `js/export.js`, which resolves like the map. A zone-less input takes its
+  zone from `utmRef()` (set by `app.js` from the log header), default 33U.
+  Details: README "UTMREF".
+
 ## Data
 
 `data/callsigns-oe.json` is built by `scripts/fetch_callsigns.py` and holds

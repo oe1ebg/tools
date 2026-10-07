@@ -260,6 +260,9 @@ also shows in print).
   with the timestamp `zeitstempel_utc` (`2026-10-04 19:42:07`), then `checkin_nr`, the template
   fields as display text, the repeater flag and callsign, and the operator,
   station, frequency, band and mode as they were when the line was logged.
+  The location columns (resolved location, locator, UTMREF) are listed
+  further down, under the location lookup's "Export" and
+  [UTMREF](#utmref-utm-grid-reference-issue-55).
 - **ADIF 3.1.7 (`.adi`).** The output is ASCII only, with German characters
   transliterated (ä → ae, ß → ss).
   - Standard fields: `CALL`, `QSO_DATE`, `TIME_ON`, `OPERATOR`,
@@ -278,6 +281,8 @@ also shows in print).
     well.
   - Signalling (CTCSS, DMR colour code, …) has no ADIF field:
     `APP_OE1EBG_SIGNALLING` ("CC 1 TS 2 TG 232") and `COMMENT`.
+  - ADIF has no UTM field: `APP_OE1EBG_UTM` (station) and
+    `APP_OE1EBG_MY_UTM` (own position), see [UTMREF](#utmref-utm-grid-reference-issue-55).
   - **No check-ins, no file.** A log with only operator comments (or only
     deleted lines) would give a header-only file that logbook programs
     report as an error. "ADIF" shows a message instead, with a shortcut to
@@ -293,17 +298,19 @@ also shows in print).
   location text and typed input, locator (plus covered squares for an
   area), confidence, gewählt/automatisch, the source (Herkunft), the name
   it was found by ("Gefunden als": „Lainzer Krankenhaus“ (früherer Name)),
-  its kind ("Art": Kreuzung / Bereich / außerhalb Wiens) and the
+  its kind ("Art": Kreuzung / Bereich / außerhalb Wiens), the UTMREF and the
   coordinates. The
-  `<Document>` carries the log title, date, operator, station and "N von M
-  Stationen mit Standort". Coordinates are `lon,lat` with 5 decimals. KML
+  `<Document>` carries the log title, date, operator, station, the own
+  position as UTMREF and "N von M Stationen mit Standort". Coordinates are `lon,lat` with 5 decimals. KML
   export does not reset the "seit letztem Export" counter, since it is no
   full backup.
 - **Zusammenfassung.** A plain-text report: the list of unique calls and,
   for the Probealarm, the average siren grade with its distribution per
   situation, AT-Alert received/not received, "not received" by platform
   and major version, and a line per PLZ (AT-Alert ratio and average
-  grades). Only each station's latest check-in is counted. Operator
+  grades). Only each station's latest check-in is counted. A block
+  "Standorte (UTMREF)" lists the own position and every station with a
+  location (latest located check-in, like the map). Operator
   comments and the "Operators:" line are described above.
 - **No comments in ADIF or KML.** See the table in
   [Operator comments](#operator-comments-and-log-markers-issue-32).
@@ -496,6 +503,8 @@ The lookup engine is shared with other tools (`tools/shared/`, published at
   the field); a locator is treated as an area (bounds plus centre). The ADIF
   export keeps 12 (`GRIDSQUARE` + `GRIDSQUARE_EXT`); a longer one also goes
   complete into `APP_OE1EBG_LOCATOR` / `APP_OE1EBG_MY_LOCATOR`.
+- `../utm.js`: WGS84 ↔ UTM and UTMREF/MGRS, see
+  [UTMREF](#utmref-utm-grid-reference-issue-55).
 - `normalize.js`: search keys. Matching works across ß/ss, ä/ae/a,
   Straße/Strasse/Str./str, -gasse/g., -platz/pl., St./Sankt, hyphens and
   spaces ("Waehringerstr." ≡ "Währinger Straße", "St. Marx" ≡ "Sankt Marx").
@@ -735,7 +744,8 @@ Vienna PLZ and district results carry the same locator coverage.
   - Other suggestions, such as the licence-list city, appear in the field's
     dropdown (↓, Enter).
 - **Export.** The CSV gains the columns `standort_aufgeloest`, `lat`, `lon`,
-  `locator`, `standort_konfidenz`, `standort_quelle` (gewählt/automatisch),
+  `locator`, `utm`, `utm_zone`, `utm_easting`, `utm_northing` (see
+  [UTMREF](#utmref-utm-grid-reference-issue-55)), `standort_konfidenz`, `standort_quelle` (gewählt/automatisch),
   `standort_eingabe` (typed text), `standort_herkunft` (source),
   `standort_namenstyp` (Name / anderer Name / umgangssprachlich / früherer
   Name / Kurzform / Kreuzung / Bereich; empty for coordinates, locators and
@@ -745,6 +755,59 @@ Vienna PLZ and district results carry the same locator coverage.
   `APP_OE1EBG_LOC_NAMETYPE` (code: name, alias, colloquial, historical,
   generated, intersection, between), `APP_OE1EBG_LOC_MATCHED` and the
   resolution in `COMMENT`.
+
+### UTMREF (UTM grid reference, issue #55)
+
+Authorities and emergency services (Feuerwehr, Rettung, Bundesheer,
+Zivilschutz, SKKM maps) give positions as a UTM grid reference (UTMREF /
+MGRS), in Austria written with spaces: `33U XP 02013 40385` = zone and
+latitude band, 100 km square, easting and northing digits. Austria lies in
+zones 32 (west of 12° E) and 33, bands T and U.
+
+- **Conversion** (`tools/shared/js/utm.js`, pure, offline): transverse
+  Mercator with Krüger's series to 6th order (Karney 2011), MGRS letters
+  including the Norway/Svalbard zone exceptions. `tests/utm.test.mjs`
+  checks it against PROJ (`uv run --with pyproj`), to the millimetre.
+  Digits are truncated, as MGRS prescribes.
+- **Area.** Like a locator, a UTMREF is an area whose size depends on the
+  digits: 10 = 1 m, 8 = 10 m, 6 = 100 m, 4 = 1 km. `mgrsToBounds()` has
+  the shape of `maidenheadToBounds()`; the point is the square's middle.
+- **Input.** The location search (and every location field) takes a
+  UTMREF with or without spaces (`33UXP0201340385`, `33U XP 0201 4038`).
+  Without zone (`XP 0201 4038`) it uses the zone of the open log's own
+  position (resolved QTH, else the header locator), else 33U; the result
+  says which ("ohne Zone eingegeben – 33U angenommen (…)"). The zone-less
+  form must be the whole input and have at least 4 digits, so locators
+  (`JN88`) are never read as UTMREF; with zone it may stand anywhere in the
+  text (`Feuerwehrhaus 33U XP 0201 4038`). 8 or 10 digits near a Vienna
+  address are "exakt", coarser ones an area ("wahrscheinlich", never
+  taken automatically). Gold-set category `utm`.
+- **Display.** Each search result shows its UTMREF (with a copy button) at
+  the precision chosen next to the locator precision (1 / 10 / 100 m,
+  `oe1ebg-confirm-utm-precision`). "UTMREF im Log zeigen"
+  (`oe1ebg-confirm-show-utm`, off by default to keep the lines short) adds
+  it to the info line under the location field and to the log table.
+- **Storage.** Nothing new is stored for found places: the UTMREF is
+  computed from the stored lat/lon. A typed UTMREF is kept as typed in
+  `loc.utm` (its precision), with `type: 'utm'`.
+- **Export** (always full precision, 1 m; a typed UTMREF as typed):
+  - CSV: `utm` (`33U XP 02013 40385`), `utm_zone` (`33U`), `utm_easting`,
+    `utm_northing` (whole metres, truncated like the digits), and the same
+    for the own position as `my_utm`, `my_utm_zone`, `my_utm_easting`,
+    `my_utm_northing`.
+  - ADIF: `APP_OE1EBG_UTM`, `APP_OE1EBG_MY_UTM`.
+  - KML: `UTMREF` per placemark, "Eigener Standort (UTMREF)" on the document.
+  - Summary: "Standorte (UTMREF)" block.
+  - The own position is the map's (`ownPosition()`): the header QTH if it
+    resolves confidently (resolved before the export), else the centre of
+    the header locator, then only as fine as the locator's square (a
+    6-character locator gives `33U XP 0 4`, 10 km), so the export doesn't
+    claim a precision it doesn't have.
+- **Map.** Layer "UTM-Raster (1 km)" (`utmGridLines()` in `js/mapdata.js`):
+  1 km lines, the 10 km lines stronger and labelled with their square
+  (`XP 0 4`); computed offline, at most 400 lines (otherwise 10 km).
+- **Not included:** BMN/GK (MGI, Bundesmeldenetz) would need a datum
+  transformation MGI ↔ WGS84; a separate issue if needed.
 
 ### Differences from the brief
 

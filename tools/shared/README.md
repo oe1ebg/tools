@@ -11,6 +11,7 @@ browser loads.
 | --- | --- | --- |
 | `js/location/` | offline location lookup (Vienna addresses/landmarks, Austria-wide PLZ/Gemeinden/Bezirke); design in `../confirm/README.md` | confirm |
 | `js/maidenhead.js` | Maidenhead locator ↔ WGS84, up to 20 characters | confirm, location lookup, repeater search |
+| `js/utm.js` | WGS84 ↔ UTM and UTMREF/MGRS (Krüger series, zones 1-60 with the Norway/Svalbard exceptions) | confirm, location lookup |
 | `js/geo.js` | haversine distance | confirm, location lookup, sota-alerts |
 | `js/adif.js` | ADI parsing and field encoding | adif, confirm |
 | `js/callbook.js` | Austrian callsign list: lookup, typo suggestions | confirm |
@@ -43,7 +44,7 @@ so it works for every tool published at `/<tool>/`.
 ## Rules
 
 - **Plain ES modules, no dependencies, no DOM** (except `dom.js`), so
-  `oe1ebg/tests/` can import them (`location-*.test.mjs`, `adif.test.mjs`, `geo.test.mjs`,
+  `oe1ebg/tests/` can import them (`location-*.test.mjs`, `adif.test.mjs`, `geo.test.mjs`, `utm.test.mjs`,
   `callbook.test.mjs`, `repeaters.test.mjs`).
 - **Bundler-compatible** (`scripts/single_file.py`): the single-file
   versions (`confirm-offline.html`, `adif-editor.html`) concatenate these
