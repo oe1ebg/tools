@@ -255,19 +255,21 @@ async function initPersistence() {
 // other route's values are kept), `modes` fields only for those modes
 // (signalling, see SIGNALLING in js/model.js). `bool` is a two-option
 // radio group for a boolean header value: [falseValue, trueValue].
+// `span` is the width in columns of the header grid (style.css), default
+// 1; `narrowSpan` the width in its two phone columns, default `span`.
 const ROUTES = [['direct', 'direkt (Simplex)'], ['rpt', 'über Relais']];
 const HEADER_FIELDS = [
   { sub: 'Station' },
   { key: 'operator', label: 'Operator', call: true, size: 9 },
   { key: 'station', label: 'Station (für)', call: true, size: 9 },
-  { key: 'myQth', label: 'Eigener QTH', qth: true, size: 18 },
-  { key: 'myGrid', label: 'Eigener Locator', grid: true, size: 12 },
+  { key: 'myQth', label: 'Eigener QTH', qth: true, size: 18, span: 2 },
+  { key: 'myGrid', label: 'Eigener Locator', grid: true, size: 12, narrowSpan: 2 },
   { sub: 'Betriebsart' },
   { key: 'mode', label: 'Betriebsart', radio: MODES.map(m => [m.key, m.label]), adif: true },
   { sub: 'Verbindung', note: 'Standard für neue Zeilen, pro Zeile umschaltbar' },
-  { key: 'viaRepeater', label: 'Weg', radio: ROUTES, bool: ['direct', 'rpt'] },
+  { key: 'viaRepeater', label: 'Weg', radio: ROUTES, bool: ['direct', 'rpt'], span: 2 },
   { key: 'freq', label: 'Frequenz MHz', size: 9, inputmode: 'decimal', route: 'direct' },
-  { key: 'repeaterCall', label: 'Relais (Rufzeichen, Ort, Frequenz)', call: true, repeater: true, size: 11, route: 'rpt' },
+  { key: 'repeaterCall', label: 'Relais (Rufzeichen, Ort, Frequenz)', call: true, repeater: true, size: 11, route: 'rpt', span: 2 },
   { key: 'repeaterFreq', label: 'Ausgabe MHz', size: 9, inputmode: 'decimal', route: 'rpt' },
   { key: 'repeaterShift', label: 'Shift MHz', size: 6, inputmode: 'decimal', route: 'rpt', txHint: true },
   ...Object.entries(SIGNALLING).flatMap(([mode, list]) => list.map(([key, label, placeholder]) => ({
@@ -298,6 +300,8 @@ function buildHeaderForm(container, header, onChange) {
 
   // Visibility by route/mode is set in renderHeaderHints().
   const place = (f, node) => {
+    if (f.span > 1) node.classList.add(`span-${f.span}`);
+    if (f.narrowSpan > 1) node.classList.add(`nspan-${f.narrowSpan}`);
     if (f.route) node.dataset.route = f.route;
     if (f.modes) node.dataset.modes = f.modes.join(' ');
     container.append(node);
@@ -340,7 +344,7 @@ function buildHeaderForm(container, header, onChange) {
       info.id = `${id(f.key)}-info`;
       input.setAttribute('aria-describedby', info.id);
     }
-    place(f, el('div', { class: f.txHint ? 'field ac-field tx-hint' : 'field ac-field' },
+    place(f, el('div', { class: 'field ac-field' },
       el('label', { for: input.id }, f.label),
       hasPop ? el('div', { class: 'ac-wrap' }, input, pop) : input,
       info ? el('div', { class: 'ac-hints' }, info) : null));
