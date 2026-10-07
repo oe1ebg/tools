@@ -67,6 +67,9 @@ button.mini{ font-size:13.5px; padding:.15em .55em; }
 .grid-form{ display:grid; grid-template-columns:repeat(auto-fill, minmax(12em, 1fr)); gap:.6em 1em; align-items:start; }
 .grid-form > *{ min-width:0; }
 .grid-form .span-2{ grid-column:span 2; }
+.grid-form .span-3{ grid-column:span 3; }
+/* below ~760px the grid has fewer than three columns: whole row */
+@media (max-width: 760px){ .grid-form .span-3{ grid-column:1 / -1; } }
 .grid-form .wide{ grid-column:1 / -1; }
 .grid-form input:not([type]), .grid-form input[type=search], .grid-form select, .grid-form textarea{ width:100%; box-sizing:border-box; }
 .panel .hint{ margin:.6em 0 0; }
@@ -101,7 +104,8 @@ details.hdr .hint{ margin:.6em 0 0; }
 .form-head{ display:flex; flex-wrap:wrap; align-items:baseline; gap:.3em 1em; }
 .form-title{ font-weight:600; font-size:17px; }
 #form-number{ font-size:16px; font-weight:600; }
-.alarm-check{ align-self:end; justify-content:center; min-height:2.6em; box-sizing:border-box; padding:.3em .7em; border:1.5px solid var(--err); border-radius:5px; color:var(--err); background:var(--bg); cursor:pointer; }
+.prio-line{ display:flex; flex-wrap:wrap; align-items:stretch; gap:.4em .8em; }
+.alarm-check{ justify-content:center; min-height:2.6em; box-sizing:border-box; padding:.3em .7em; border:1.5px solid var(--err); border-radius:5px; color:var(--err); background:var(--bg); cursor:pointer; }
 .alarm-check:has(input:checked){ background:var(--err); color:#fff; }
 .alarm-check:has(input:focus-visible){ outline:2px solid var(--accent); outline-offset:2px; }
 .radio-group.prio label:has(input[value="emergency"]:checked){ border-color:var(--err); background:var(--err-soft); }
@@ -215,7 +219,7 @@ body > footer details.vendor-license pre{ white-space:pre-wrap; }
   #site-header .title, #st-storage{ display:none; }
   #book-search{ width:100%; }
   .grid-form{ grid-template-columns:repeat(2, minmax(0, 1fr)); }
-  .grid-form .span-2, .grid-form .alarm-check{ grid-column:1 / -1; }
+  .grid-form .span-2, .grid-form .span-3{ grid-column:1 / -1; }
   footer .sources dl, dl.kv{ grid-template-columns:1fr; }
   /* save stays in reach while typing a long text (the Handy design) */
   .form-actions{ position:sticky; bottom:0; z-index:5; background:var(--bg-raised); padding:.5em 0; border-top:1px solid var(--line); }
