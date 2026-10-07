@@ -61,6 +61,14 @@
 
 <div id="warnings" role="status"></div>
 
+<!-- ADIF validation (../shared/js/adif-validate.js): summary, then the issue list on demand. -->
+<div id="validation" class="validation" hidden>
+  <span id="validation-summary" role="status"></span>
+  <span class="spacer"></span>
+  <button type="button" id="btn-issues" aria-expanded="false" aria-controls="validation-issues">show issues <span aria-hidden="true">▾</span></button>
+</div>
+<div id="validation-issues" hidden></div>
+
 <main id="drop" class="empty">
   <div id="empty-msg">
     drag &amp; drop .adi file(s) here<br>

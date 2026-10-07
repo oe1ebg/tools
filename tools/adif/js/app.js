@@ -4,7 +4,9 @@
 import { ADIF_FIELDS, ADIF_FIELD_MAP } from './fields.js';
 import { parseADIFAuto } from '../../shared/js/adif.js';
 import { serializeADIF, serializeCSV, serializeSotaCsv, adifChangedValues, ADI_MIME } from './export.js';
-import { el, fill, isComposing } from '../../shared/js/dom.js';
+import { el, fill, isComposing, trackExpanded } from '../../shared/js/dom.js';
+import { validateAdif } from '../../shared/js/adif-validate.js';
+import { ADIF_SPEC_VERSION } from '../../shared/js/adif-spec-data.js';
 
 function populateFieldDatalist(){
   const dl = document.getElementById('adif-field-list');
@@ -27,7 +29,7 @@ let columns = [];   // ordered field names
 let fileMeta = [];  // [{name, adifVer, programId, programVersion}], one per loaded file
 let dirty = false;  // edits since the last export (asked about before leaving the page)
 
-function markDirty(){ dirty = true; }
+function markDirty(){ dirty = true; scheduleRevalidate(); }
 
 function rebuildColumns(){
   const seen = new Set(columns);
@@ -50,6 +52,191 @@ function clearWarnings(){
   const box = document.getElementById('warnings');
   box.replaceChildren();
   box.classList.remove('show');
+}
+
+/* ---------- validation (../../shared/js/adif-validate.js) ---------- */
+
+// What the validation panel shows: the check of each loaded file's text
+// (until the first edit), then the current log as it would be exported.
+// results: [{ label, result, recs }], recs[i] = the table record of the
+// validator's record i (null when the two parsers disagree on the count).
+let validationView = null;
+let fileValidations = [];
+let revalidateTimer = 0;
+const SEVERITY_RANK = { error: 3, warning: 2, info: 1 };
+const SEVERITY_GLYPH = { error: '✕', warning: '⚠', info: 'ⓘ' };
+const MAX_LISTED_ISSUES = 500;
+
+function validateFile(name, text, parsed){
+  let result;
+  try { result = validateAdif(text); }
+  catch (e){ // a bug in the validator must not break loading the file
+    console.error(e);
+    return { label: name, result: null, recs: [] };
+  }
+  const recs = result.records.length === parsed.length ? parsed : result.records.map(() => null);
+  return { label: name, result, recs };
+}
+
+function showFileValidations(){
+  const scope = fileValidations.length === 1 ? fileValidations[0].label : `${fileValidations.length} files`;
+  validationView = { scope, results: fileValidations };
+}
+
+// After an edit: check the log as the ADI export would write it (records
+// in table order, so result record i is records[i]).
+function scheduleRevalidate(){
+  clearTimeout(revalidateTimer);
+  revalidateTimer = setTimeout(() => {
+    if (!records.length){ validationView = null; renderValidation(); return; }
+    // rows without any value (e.g. just added) are not checked
+    const filled = records.filter(rec => columns.some(c => rec[c] !== undefined && rec[c] !== null && rec[c] !== ''));
+    let result;
+    try { result = validateAdif(serializeADIF(filled, columns)); }
+    catch (e){ console.error(e); return; }
+    validationView = { scope: 'current log, as it would be exported', results: [{ label: 'current log', result, recs: filled }] };
+    flagCells();
+    renderValidation();
+  }, 150);
+}
+
+// record -> Map(field -> [issue]); issues without a field under ''.
+function issuesByRecord(){
+  const map = new Map();
+  for (const { result, recs } of validationView?.results || []){
+    if (!result) continue;
+    for (const issue of result.issues){
+      const rec = issue.recordType === 'qso' ? recs[issue.recordIndex] : null;
+      if (!rec) continue;
+      if (!map.has(rec)) map.set(rec, new Map());
+      const byField = map.get(rec);
+      // BAND/FREQ, MODE/SUBMODE: flag both cells
+      for (const f of (issue.field || '').split('/')){
+        if (!byField.has(f)) byField.set(f, []);
+        byField.get(f).push(issue);
+      }
+    }
+  }
+  return map;
+}
+
+function worstSeverity(issues){
+  return issues.reduce((w, i) => (SEVERITY_RANK[i.severity] > SEVERITY_RANK[w] ? i.severity : w), 'info');
+}
+
+function issueTitle(issues){
+  return issues.map(i => `${SEVERITY_GLYPH[i.severity]} ${i.message} (${i.code})`).join('\n');
+}
+
+// Problem cells: class cell-error|warning|info and the messages as title;
+// the row number shows the worst severity of its QSO.
+function flagCells(){
+  const tbody = dropEl.querySelector('tbody');
+  if (!tbody) return;
+  const map = issuesByRecord();
+  [...tbody.rows].forEach((tr, ri) => {
+    const byField = map.get(records[ri]);
+    const numTd = tr.cells[0];
+    numTd.classList.remove('row-error', 'row-warning');
+    numTd.removeAttribute('title');
+    if (byField){
+      const all = [...new Set([...byField.values()].flat())];
+      const sev = worstSeverity(all);
+      if (sev !== 'info') numTd.classList.add(`row-${sev}`);
+      numTd.title = issueTitle(all);
+    }
+    columns.forEach((col, ci) => {
+      const td = tr.cells[ci + 1];
+      if (!td) return;
+      td.classList.remove('cell-error', 'cell-warning', 'cell-info');
+      const list = byField?.get(col);
+      if (list){
+        td.classList.add(`cell-${worstSeverity(list)}`);
+        td.title = issueTitle(list);
+      } else td.removeAttribute('title');
+    });
+  });
+}
+
+function updateIssuesButton(){
+  const panel = document.getElementById('validation-issues');
+  fill(document.getElementById('btn-issues'), panel.hidden ? 'show issues ' : 'hide issues ',
+    el('span', { 'aria-hidden': 'true' }, panel.hidden ? '▾' : '▴'));
+}
+
+function plural(n, word){ return `${n} ${word}${n === 1 ? '' : 's'}`; }
+
+function renderValidation(){
+  const box = document.getElementById('validation');
+  const panel = document.getElementById('validation-issues');
+  const results = (validationView?.results || []).filter(r => r.result);
+  if (!records.length || !results.length){
+    box.hidden = true;
+    panel.hidden = true;
+    return;
+  }
+  const n = { errors: 0, warnings: 0, infos: 0 };
+  for (const { result } of results) for (const k of Object.keys(n)) n[k] += result[k];
+  const state = n.errors ? 'invalid' : n.warnings ? 'warn' : 'valid';
+  const [glyph, verdict] = { valid: ['✓', 'ADIF valid'], warn: ['⚠', 'ADIF valid with warnings'], invalid: ['✕', 'Invalid ADIF'] }[state];
+  box.classList.remove('is-valid', 'is-warn', 'is-invalid');
+  box.classList.add(`is-${state}`);
+  box.hidden = false;
+  const perFile = results.length > 1
+    ? `: ${results.map(r => `${r.label} ${r.result.errors ? '✕' : r.result.warnings ? '⚠' : '✓'}`).join(', ')}` : '';
+  const summary = el('span', {},
+    el('span', { class: 'verdict' }, el('span', { 'aria-hidden': 'true' }, glyph), ' ', verdict),
+    el('span', { class: 'v-counts' },
+      el('span', { class: n.errors ? 'n-error' : null }, plural(n.errors, 'error')),
+      el('span', { class: n.warnings ? 'n-warning' : null }, plural(n.warnings, 'warning')),
+      el('span', { class: n.infos ? 'n-info' : null }, plural(n.infos, 'info'))),
+    el('span', { class: 'v-scope' }, `${validationView.scope}${perFile} · checked against ADIF ${ADIF_SPEC_VERSION}`));
+  // a status region: only rewritten when its text changes
+  const status = document.getElementById('validation-summary');
+  if (summary.textContent !== status.textContent) fill(status, [...summary.childNodes]);
+  const total = n.errors + n.warnings + n.infos;
+  document.getElementById('btn-issues').hidden = total === 0;
+  if (total === 0) panel.hidden = true;
+  fill(panel, issueGroups(results));
+  updateIssuesButton();
+}
+
+// The issue list: general issues per file, then one group per QSO (with
+// its current row in the table).
+function issueGroups(results){
+  const groups = [];
+  let listed = 0, skipped = 0;
+  const fieldLabel = i => (i.field ? i.field.replace('/', ' / ') : i.recordType === 'qso' ? '(QSO)' : `(${i.recordType})`);
+  const item = issue => {
+    if (listed >= MAX_LISTED_ISSUES){ skipped++; return null; }
+    listed++;
+    return el('li', {},
+      el('span', { class: `sev-${issue.severity}`, role: 'img', 'aria-label': issue.severity }, SEVERITY_GLYPH[issue.severity]),
+      el('span', { class: 'v-field' }, fieldLabel(issue)),
+      el('span', {}, issue.message, el('span', { class: 'v-code' }, issue.code),
+        issue.line ? el('span', { class: 'v-loc' }, `line ${issue.line}:${issue.column}`) : null));
+  };
+  for (const { label, result, recs } of results){
+    const prefix = results.length > 1 ? `${label} · ` : '';
+    const byRec = new Map();
+    const general = [];
+    for (const i of result.issues){
+      const rec = i.recordType === 'qso' ? recs[i.recordIndex] : null;
+      if (!rec){ general.push(i); continue; }
+      if (!byRec.has(rec)) byRec.set(rec, []);
+      byRec.get(rec).push(i);
+    }
+    if (general.length) groups.push(el('div', { class: 'v-group' }, el('h2', {}, `${prefix}File`), el('ul', {}, general.map(item))));
+    for (const [rec, issues] of byRec){
+      const row = records.indexOf(rec) + 1;
+      const where = [rec.CALL, row ? `row ${row}` : 'removed from the table'].filter(Boolean).join(' · ');
+      groups.push(el('div', { class: 'v-group' },
+        el('h2', {}, `${prefix}QSO #${issues[0].recordIndex + 1} `, el('span', { class: 'dim' }, where)),
+        el('ul', {}, issues.map(item))));
+    }
+  }
+  if (skipped) groups.push(el('p', { class: 'v-more' }, `… and ${skipped} more (the first ${MAX_LISTED_ISSUES} are listed).`));
+  return groups;
 }
 
 /* ---------- rendering ---------- */
@@ -75,6 +262,7 @@ function render(){
     updateStats();
     updateFileInfo();
     setExportButtonsDisabled(true);
+    renderValidation();
     return;
   }
   setExportButtonsDisabled(false);
@@ -172,6 +360,8 @@ function render(){
 
   updateStats();
   updateFileInfo();
+  flagCells();
+  renderValidation();
 }
 
 function updateStats(){
@@ -274,7 +464,9 @@ function loadFiles(fileList){
     reader.onload = () => {
       const warnings = [];
       const headerInfo = {};
-      const parsed = parseADIFAuto(decodeLog(reader.result, file.name, warnings), warnings, file.name, headerInfo);
+      const text = decodeLog(reader.result, file.name, warnings);
+      const parsed = parseADIFAuto(text, warnings, file.name, headerInfo);
+      fileValidations.push(validateFile(file.name, text, parsed));
       records = records.concat(parsed);
       rebuildColumns();
       fileMeta.push({
@@ -285,12 +477,12 @@ function loadFiles(fileList){
       });
       warnings.forEach(addWarning);
       pending--;
-      if (pending === 0) render();
+      if (pending === 0){ showFileValidations(); render(); }
     };
     reader.onerror = () => {
       addWarning(`${file.name}: could not be read.`);
       pending--;
-      if (pending === 0) render();
+      if (pending === 0){ showFileValidations(); render(); }
     };
     reader.readAsArrayBuffer(file);
   });
@@ -372,6 +564,13 @@ window.addEventListener('beforeunload', e => {
   if (!dirty || !records.length) return;
   e.preventDefault();
   e.returnValue = ''; // older Chrome/Safari need it set
+});
+
+trackExpanded(document.getElementById('btn-issues'), document.getElementById('validation-issues'));
+document.getElementById('btn-issues').addEventListener('click', () => {
+  const panel = document.getElementById('validation-issues');
+  panel.hidden = !panel.hidden;
+  updateIssuesButton();
 });
 
 populateFieldDatalist();
