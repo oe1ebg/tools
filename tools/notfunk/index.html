@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notfunk-Meldebuch</title>
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#526cfe">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<!-- iOS ignores SVG and manifest icons for the home screen -->
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<!-- Theme first (sets data-theme before anything paints), then the styles.
+     Inlined into notfunk-offline.html and precached like the rest. -->
+<!-- NOTFUNK-VENDOR-BEGIN -->
+<script src="../shared/js/theme.js"></script>
+<link rel="stylesheet" href="../shared/css/tools.css">
+<link rel="stylesheet" href="../shared/css/forms.css">
+<link rel="stylesheet" href="style.css">
+<!-- NOTFUNK-VENDOR-END -->
+</head>
+<body>
+
+<header id="site-header" class="no-print">
+  <a id="home-link" href="../">← oe1ebg.at</a>
+  <h1 class="title">Notfunk-Meldebuch</h1>
+  <span class="spacer"></span>
+  <span id="clock" class="clock" role="timer" aria-label="Uhrzeit"><b id="clock-local">--:--</b> <span id="clock-zone"></span> <span id="clock-utc" class="dim"></span></span>
+  <span id="st-offline" class="chip">offline: prüfe…</span>
+  <span id="st-storage" class="chip">Speicher: prüfe…</span>
+  <button id="btn-update" type="button" class="primary" hidden title="Neue Version installieren (Daten bleiben erhalten)">Update verfügbar</button>
+  <div id="theme-toggle" role="group" aria-label="Farbschema">
+    <button type="button" data-theme-choice="light" aria-pressed="false">hell</button>
+    <button type="button" data-theme-choice="auto" aria-pressed="false">auto</button>
+    <button type="button" data-theme-choice="dark" aria-pressed="false">dunkel</button>
+  </div>
+</header>
+
+<main>
+  <div id="banner" class="banner err no-print" role="alert" hidden></div>
+  <noscript><div class="banner err">Dieses Werkzeug benötigt JavaScript.</div></noscript>
+  <p class="banner draft no-print"><strong>Entwurf.</strong> Das Meldungsformat ist noch nicht mit dem Notfunkreferat Wien und dem Krisenstab abgestimmt; Felder und Bezeichnungen können sich ändern. Für Übungen gedacht.</p>
+
+  <!-- ===== Einsätze ===== -->
+  <section id="view-ops" class="no-print" aria-labelledby="ops-title">
+    <div class="toolbar">
+      <h2 id="ops-title">Einsätze</h2>
+      <div class="tabs" role="group" aria-label="Ansicht">
+        <button type="button" data-tab="active" aria-pressed="true">Aktiv</button>
+        <button type="button" data-tab="archived" aria-pressed="false">Archiv</button>
+        <button type="button" data-tab="deleted" aria-pressed="false">Papierkorb</button>
+      </div>
+      <span class="spacer"></span>
+      <button type="button" id="btn-new-op" class="primary" aria-expanded="false" aria-controls="new-op">+ Neuer Einsatz</button>
+      <button type="button" id="btn-import">Sicherung importieren…</button>
+      <button type="button" id="btn-blank-form" title="Leeres Meldeaufnahmeformular, z. B. als Vorrat für die Arbeit ohne Gerät: die Anzahl im Druckdialog wählen, oder „Als PDF sichern“">Leeres Formular drucken / PDF</button>
+      <input type="file" id="import-file" accept=".json,application/json" hidden aria-label="Sicherung (JSON) wählen">
+    </div>
+
+    <div id="import-msg" class="banner warn" role="status" hidden></div>
+
+    <form id="new-op" class="panel" hidden autocomplete="off">
+      <div class="grid-form op-grid">
+        <label class="field span-2"><span>Einsatz / Übung</span>
+          <input id="n-name" required enterkeyhint="next" placeholder="z. B. Übung Blackout Wien"></label>
+        <label class="field"><span>Stationskürzel</span>
+          <input id="n-prefix" required maxlength="6" class="mono" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" placeholder="W1" aria-describedby="n-prefix-help"></label>
+        <label class="field span-2"><span>Station</span>
+          <input id="n-station" enterkeyhint="next" placeholder="z. B. Einsatzleitstelle, Lichtinsel 12"></label>
+        <label class="field"><span>Operator</span>
+          <input id="n-operator" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next"></label>
+        <label class="field"><span>Eigene Stelle</span>
+          <input id="n-home" enterkeyhint="next" placeholder="Stab" aria-describedby="n-home-help"></label>
+        <label class="field"><span>Frequenz MHz</span>
+          <input id="n-freq" class="mono" inputmode="decimal" enterkeyhint="next" placeholder="145.500"></label>
+        <label class="field"><span>Relais</span>
+          <input id="n-via" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="done"></label>
+      </div>
+      <p class="hint" id="n-prefix-help">Das Kürzel steht vor jeder Nummer (W1-001, W1-002 …). Jedes Gerät bzw. jede Station eines Einsatzes bekommt ein eigenes Kürzel, dann lassen sich die Bücher ohne doppelte Nummern zusammenführen.</p>
+      <p class="hint" id="n-home-help">Eigene Stelle: Empfänger eingehender und Absender ausgehender Meldungen, solange nichts anderes eingetragen ist.</p>
+      <div class="toolbar form-foot">
+        <button type="submit" class="primary">Einsatz anlegen</button>
+        <button type="button" id="btn-cancel-op">Abbrechen (Esc)</button>
+        <span id="new-op-status" class="hint err-text" role="status"></span>
+      </div>
+    </form>
+
+    <ul id="op-list"></ul>
+
+    <!-- Hidden in the file:// bundle (it is the offline file). -->
+    <aside id="offline-card" class="offline-card" aria-labelledby="offline-card-title">
+      <span class="icon" aria-hidden="true">⬇</span>
+      <div class="txt">
+        <h2 id="offline-card-title">Ohne Internet arbeiten</h2>
+        <p>Das Meldebuch als eine HTML-Datei mit allen Daten, ~6 MB (Rufzeichen, Relais, Wiener Adressen), für USB-Stick oder Laptop: läuft ohne Server und ohne Internet. Vor dem Einsatz herunterladen (nur online möglich).</p>
+      </div>
+      <a class="btn" href="notfunk-offline.html" download="notfunk-meldebuch-offline.html">Offline-Datei herunterladen</a>
+    </aside>
+  </section>
+
+  <!-- ===== Meldebuch eines Einsatzes ===== -->
+  <section id="view-book" class="no-print" hidden aria-labelledby="book-title">
+    <div class="toolbar book-bar">
+      <button type="button" id="btn-back">← Einsätze</button>
+      <h2 id="book-title">Meldebuch</h2>
+      <span id="book-meta" class="mono dim"></span>
+      <label class="check op-label">Op <input id="book-operator" class="mono call-input" size="8" autocapitalize="characters" autocorrect="off" spellcheck="false" aria-describedby="book-operator-help"></label>
+      <span id="book-operator-help" class="sr-only">Operator für neue Meldungen und Statusänderungen</span>
+      <span class="spacer"></span>
+      <button type="button" id="btn-csv" title="Geschäftsbuch-Spalten (SKKM / ÖBFV E-31) für Excel">Geschäftsbuch (CSV)</button>
+      <button type="button" id="btn-backup" title="Vollständige Sicherung dieses Einsatzes, auch gelöschte Meldungen und Fassungen">Sicherung (JSON)</button>
+      <button type="button" id="btn-print-book" aria-expanded="false" aria-controls="print-range">Drucken / PDF…</button>
+    </div>
+
+    <form id="print-range" class="panel" hidden autocomplete="off">
+      <div class="grid-form">
+        <label class="field"><span>Von</span><input id="pr-from" class="mono" placeholder="Beginn" aria-describedby="pr-help"></label>
+        <label class="field"><span>Bis</span><input id="pr-to" class="mono" placeholder="jetzt" aria-describedby="pr-help"></label>
+      </div>
+      <p class="hint" id="pr-help">Zeitraum als HH:MM oder JJJJ-MM-TT HH:MM (Ortszeit), leer = ganzer Einsatz. Als PDF: im Druckdialog „Als PDF sichern“ bzw. „Als PDF speichern“ wählen. Mehrere leere Formulare: „Leeres Formular“ und im Druckdialog die Anzahl (Kopien) einstellen.</p>
+      <div class="toolbar form-foot">
+        <button type="submit" class="primary">Meldebuch drucken</button>
+        <button type="button" id="btn-blank-form-book" title="Leeres Meldeaufnahmeformular mit dem Namen dieses Einsatzes; Anzahl im Druckdialog wählen">Leeres Formular</button>
+        <button type="button" id="btn-print-cancel">Schließen</button>
+        <span id="pr-status" class="hint err-text" role="status"></span>
+      </div>
+    </form>
+
+    <div id="lock-banner" class="banner warn" role="status" hidden></div>
+
+    <form id="msg-form" autocomplete="off">
+      <div class="form-head">
+        <span id="form-title" class="form-title">Neue Meldung</span>
+        <span id="form-number" class="mono accent"></span>
+        <span id="form-number-help" class="hint">Nummer wird erst beim Speichern vergeben</span>
+        <span id="form-reply" class="chip" hidden></span>
+      </div>
+      <div class="grid-form msg-grid">
+        <div class="field span-2"><span id="m-dir-label">Richtung</span>
+          <div id="m-dir" class="radio-group" role="radiogroup" aria-labelledby="m-dir-label"></div></div>
+        <label class="field"><span>Zeit <span id="m-time-zone"></span></span>
+          <input id="m-time" class="mono" placeholder="jetzt" enterkeyhint="next" aria-describedby="m-time-help">
+          <span id="m-time-help" class="sr-only">Leer: Zeitpunkt des Speicherns. Sonst HH:MM oder JJJJ-MM-TT HH:MM in Ortszeit.</span></label>
+        <div class="field span-2"><span id="m-channel-label">Übermittlung</span>
+          <div id="m-channel" class="radio-group" role="radiogroup" aria-labelledby="m-channel-label"></div></div>
+
+        <div class="field ac-field span-2"><label for="m-from">Von</label>
+          <div class="ac-wrap"><input id="m-from" enterkeyhint="next" spellcheck="false" aria-describedby="m-from-info"><div id="m-from-pop" class="ac-pop"></div></div>
+          <div class="ac-hints"><div id="m-from-info" class="ac-info" aria-live="polite"></div></div></div>
+        <div class="field ac-field span-2"><label for="m-to">An</label>
+          <div class="ac-wrap"><input id="m-to" enterkeyhint="next" spellcheck="false" aria-describedby="m-to-info"><div id="m-to-pop" class="ac-pop"></div></div>
+          <div class="ac-hints"><div id="m-to-info" class="ac-info" aria-live="polite"></div></div></div>
+        <label class="field radio-only"><span>Frequenz MHz</span>
+          <input id="m-freq" class="mono" inputmode="decimal" enterkeyhint="next"></label>
+        <div class="field ac-field radio-only"><label for="m-via">Relais</label>
+          <div class="ac-wrap"><input id="m-via" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-describedby="m-via-info"><div id="m-via-pop" class="ac-pop"></div></div>
+          <div class="ac-hints"><div id="m-via-info" class="ac-info" aria-live="polite"></div></div></div>
+        <label class="field"><span>Art</span><select id="m-type"></select></label>
+        <div class="field span-2"><span id="m-prio-label">Priorität</span>
+          <div id="m-prio" class="radio-group prio" role="radiogroup" aria-labelledby="m-prio-label"></div></div>
+        <label class="check alarm-check span-2"><input type="checkbox" id="m-alarm"> <b>Stab herhören!</b> <span class="dim">sofort ansagen</span></label>
+
+        <label class="field wide"><span>Betreff</span><input id="m-subject" enterkeyhint="next"></label>
+        <label class="field wide"><span>Inhalt – wörtlich, wie übermittelt</span>
+          <textarea id="m-text" rows="3" enterkeyhint="enter"></textarea></label>
+        <label class="field span-2 lage-only" hidden><span>Stichzeit (Lagemeldung)</span>
+          <input id="m-stichzeit" class="mono" placeholder="HH:MM" enterkeyhint="next"></label>
+      </div>
+
+      <details id="m-more" class="more">
+        <summary>Weitere Felder: Standort, Verteiler, Ursprung, Anmerkungen</summary>
+        <div class="grid-form msg-grid">
+          <div class="field ac-field span-2"><label for="m-loc">Standort</label>
+            <div class="ac-wrap"><input id="m-loc" enterkeyhint="next" spellcheck="false" aria-describedby="m-loc-info"><div id="m-loc-pop" class="ac-pop"></div></div>
+            <div class="ac-hints loc-hints"><div id="m-loc-info" class="ac-info" aria-live="polite"></div></div></div>
+          <label class="field span-2"><span>Verteiler</span><input id="m-distribution" placeholder="z. B. S3, S4" enterkeyhint="next"></label>
+          <label class="field"><span>Ursprungsstation</span><input id="m-orig-station" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-describedby="m-orig-help"></label>
+          <label class="field"><span>Ursprungsort</span><input id="m-orig-place" enterkeyhint="next" aria-describedby="m-orig-help"></label>
+          <label class="field"><span>Aufgabezeit</span><input id="m-orig-filed" class="mono" placeholder="HH:MM" enterkeyhint="next" aria-describedby="m-orig-help"></label>
+          <label class="field wide"><span>Anmerkungen / weitere Veranlassung</span><input id="m-remarks" enterkeyhint="done"></label>
+        </div>
+        <p class="hint" id="m-orig-help">Ursprung: nur bei weitergeleiteten Meldungen, wo und wann sie aufgegeben wurden.</p>
+      </details>
+
+      <div class="form-actions">
+        <label class="check"><input type="checkbox" id="m-readback"> rückgelesen</label>
+        <span class="spacer"></span>
+        <span class="hint kbd-hint">Tab/Enter nächstes Feld · Ziffern bei Auswahl · <kbd>⇧</kbd>+<kbd>Enter</kbd> speichert</span>
+        <button type="button" id="btn-discard" aria-keyshortcuts="Escape">Verwerfen (Esc)</button>
+        <button type="submit" id="btn-save" class="primary" aria-keyshortcuts="Shift+Enter">Speichern</button>
+      </div>
+      <div id="form-status" class="form-status" role="status"></div>
+    </form>
+
+    <div id="book-summary" class="summary" aria-live="polite"></div>
+
+    <div class="toolbar filter-bar">
+      <div class="tabs" role="group" aria-label="Filter">
+        <button type="button" data-filter="all" aria-pressed="true">alle</button>
+        <button type="button" data-filter="open" aria-pressed="false">offen</button>
+        <button type="button" data-filter="in" aria-pressed="false">↓ Eingang</button>
+        <button type="button" data-filter="out" aria-pressed="false">↑ Ausgang</button>
+        <button type="button" data-filter="urgent" aria-pressed="false">Notfall + Priorität</button>
+      </div>
+      <span class="spacer"></span>
+      <input id="book-search" type="search" placeholder="Suche: Nummer, Betreff, Station …" aria-label="Meldungen durchsuchen">
+    </div>
+
+    <div id="book-status" class="log-status" role="status" aria-live="polite"></div>
+    <div class="table-wrap">
+      <table class="book">
+        <caption class="sr-only">Meldungen</caption>
+        <thead><tr><th scope="col">Nr.</th><th scope="col">Zeit</th><th scope="col">Ein/Aus</th><th scope="col">Von → An</th><th scope="col">Betreff · Inhalt</th><th scope="col">Art · Priorität</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Aktion</span></th></tr></thead>
+        <tbody id="book-body"></tbody>
+      </table>
+    </div>
+
+    <details class="misc" id="trash-panel">
+      <summary>Gelöschte Meldungen (Nummer bleibt vergeben)</summary>
+      <ul id="trash-list"></ul>
+    </details>
+  </section>
+
+  <!-- ===== Einzelne Meldung ===== -->
+  <section id="view-msg" class="no-print" hidden aria-labelledby="msg-title">
+    <div class="toolbar">
+      <button type="button" id="btn-msg-back">← Meldebuch</button>
+      <h2 id="msg-title" class="msg-number mono">Meldung</h2>
+    </div>
+    <div id="msg-detail"></div>
+  </section>
+
+  <!-- Print-only: filled right before window.print() (js/printview.js). -->
+  <div id="print-sheet" class="print-only"></div>
+</main>
+
+<footer class="no-print">
+  Läuft vollständig offline im Browser; alle Daten bleiben auf diesem Gerät (<span id="st-backend">?</span>).
+  Regelmäßig als Sicherung (JSON) exportieren. · Version: <span id="st-version">dev</span>
+  <span id="offline-file-link"> · <a href="notfunk-offline.html" download="notfunk-meldebuch-offline.html">Offline-Datei</a></span>
+  <details class="sources">
+    <summary>Datenquellen und Lizenzen (alle offline enthalten)</summary>
+    <dl>
+      <dt>Funk</dt>
+      <dd class="src-list"><span id="st-callbook">Rufzeichenliste wird geladen…</span><span id="st-repeaters">Relaisliste wird geladen…</span></dd>
+      <dt>Stadt Wien</dt>
+      <dd class="src-list"><span id="st-location-wien">Wien-Daten werden geladen…</span></dd>
+      <dt>Österreich</dt>
+      <dd class="src-list"><span id="st-location-at"></span></dd>
+      <dt>Orte</dt>
+      <dd class="src-list"><span id="st-location-osm"></span></dd>
+      <!-- Hidden in the file:// bundle, where it would not resolve. -->
+      <dt id="data-sources-term"></dt>
+      <dd id="data-sources-link"><a href="../data-sources/">Alle Datenquellen und Lizenzen</a> (online)</dd>
+    </dl>
+  </details>
+  <!-- NOTFUNK-LICENSES -->
+</footer>
+
+<script>
+  // If the app code fails to load (flaky connection on the very first
+  // visit, before it is cached), say so instead of showing a dead page.
+  function notfunkLoadFailed() {
+    if (window.NOTFUNK_STARTED) return;
+    var b = document.getElementById('banner');
+    b.textContent = 'Das Werkzeug konnte nicht vollständig geladen werden (Verbindung?). Bitte die Seite neu laden – danach ist es offline verfügbar.';
+    b.hidden = false;
+  }
+  setTimeout(notfunkLoadFailed, 8000);
+  window.addEventListener('error', function (e) {
+    if (e.target && e.target.tagName === 'SCRIPT') notfunkLoadFailed();
+  }, true);
+</script>
+<!-- NOTFUNK-SCRIPT-BEGIN -->
+<!-- build-info.js (generated by scripts/build_notfunk.py): commit + content
+     hash for the footer; missing on a dev server without a build = "dev". -->
+<script src="build-info.js"></script>
+<script type="module" src="js/app.js"></script>
+<!-- NOTFUNK-SCRIPT-END -->
+</body>
+</html>

@@ -18,6 +18,8 @@ $vnu --version
 $vnu --filterfile "$here/vnu-filter.txt" \
   "$root/confirm/index.html" \
   "$root/confirm/confirm-offline.html" \
+  "$root/notfunk/index.html" \
+  "$root/notfunk/notfunk-offline.html" \
   "$root/adif/index.html" \
   "$root/adif/adif-editor.html" \
   "$root/sota-alerts/index.html"

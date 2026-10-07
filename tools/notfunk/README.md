@@ -1,14 +1,19 @@
-# Notfunk-Nachrichtenbuch: emergency traffic log (work in progress)
+# Notfunk-Meldebuch: emergency traffic log (draft)
 
 An offline tool for ÖVSV Notfunk operators (focus: Vienna) to log emergency
 radio traffic and hand the Krisenstab messages it can use without retyping.
-Issue #31. It will be served at `/notfunk/`.
+Issue #31. Served at `/notfunk/`.
 
-**Status:** research done, data model, numbering and exports implemented and
-tested (`js/`, `oe1ebg/tests/notfunk-*.test.mjs`). There is **no UI yet**
-(no `index.html`, so `scripts/stage_tools.py` doesn't publish it). The
-message format must first be confirmed with the Notfunkreferat Wien and the
-Krisenstab side. See [Open questions](#open-questions).
+**Name.** "Meldebuch" uses the staff vocabulary (Meldeaufnahme,
+Meldesammelstelle) and, like Geschäftsbuch and Einsatztagebuch, says it is
+the running record. No Austrian source names the radio station's own log;
+"Geschäftsbuch" is avoided on purpose, since the staff keeps its own one
+with its own Geschäftszahl.
+
+**Status:** a working draft. Published at `/notfunk/` with a banner
+("Entwurf"), but **not in the site's nav or llms.txt** until the message
+format is confirmed with the Notfunkreferat Wien and the Krisenstab side.
+See [Open questions](#open-questions).
 
 ## Requirements (from #31)
 
@@ -122,37 +127,71 @@ name, and a distribution list ("Verteiler").
 | Message type | Meldung / Auftrag / Frage / Anforderung / Lagemeldung | LFV Salzburg (Meldung/Befehl/Frage), SKKM special forms |
 | Status | erfasst → weitergeleitet → quittiert → beantwortet, forward only, each step with time and operator. Replies link to the message they answer. | #31 |
 | Edits, deletes | Edits keep the previous version as a revision. Deletes are soft, and a deleted message keeps its number. | #31, ÖVSV § 6.7 (complete records) |
-| Exports | **Geschäftsbuch CSV** (E-31 columns + Notfunk fields; `;` with BOM for Excel de-AT), JSON backup/restore. Planned: printable Meldeaufnahmeformular per message (with an empty "Geschäftszahl, Auszeichnung" box for the staff), printable message book for a time range, KMZ for messages with a location (#27). | E-31 forms |
+| Exports | **Geschäftsbuch CSV** (E-31 columns + Notfunk fields; `;` with BOM for Excel de-AT), JSON backup/restore. Planned: KMZ for messages with a location (#27). | E-31 forms |
+| Print / PDF | Through the browser's print dialog ("Als PDF sichern"), no PDF library: an A4 layout (`@page`, `@media print` in `style.css`). Three printouts: the **Meldeaufnahmeformular** of one message (E-31 fields, an empty "Geschäftszahl, Auszeichnung" box for the staff, "Fassung n" to match the edit history), the **message book** for a time range (Geschäftsbuch columns, header repeated on each page), and an **empty form** to print a stack of for working without a device (number of copies in the print dialog). | E-31 forms; works offline and on iOS |
+
+## Using it
+
+- **Einsätze:** an operation has a name, a **station code** (the number
+  prefix, e.g. `W1`; one per device or station), the station's name, the
+  operator, the **own post** ("Eigene Stelle", e.g. "Stab": recipient of
+  incoming and sender of outgoing messages unless typed otherwise), and a
+  default frequency/relay.
+- **Entry form:** keyboard only, like the confirmation log: Tab/Enter next
+  field, digits pick an option, Shift+Enter saves, Esc discards (with
+  "Rückgängig"). The next number is shown ("→ W1-008") but taken only on
+  saving. Von/An complete from the stations heard in this operation and the
+  callsign list, Relais from the ÖVSV list, Standort from the offline
+  location lookup. The half-typed message is kept as a draft.
+- **Book:** newest first, filters (offen, Eingang, Ausgang, Notfall +
+  Priorität, search), the next status step as a button, an "Formular"
+  button per row; a summary says how many emergencies are open, how many
+  aren't acknowledged, and whether the numbers are gapless.
+- **One message:** verbatim text, all fields, the status steps, replies
+  ("Antwort erfassen" swaps Von/An and links the reply; saving it marks the
+  original "beantwortet"), earlier versions, print, delete (soft; the
+  number stays taken) and restore.
 
 ## Code
 
+- `index.html`, `style.css` (incl. the print layout), `sw.js` (on the shared
+  `../shared/js/sw-core.js`), `manifest.webmanifest`, icons.
+- `js/app.js`: the page (routing, views, form wiring, exports, printing).
+- `js/db.js`: the storage schema (operations, messages, revisions,
+  counters, drafts, stations).
+- `js/form.js`: the entry form as data <-> message fields (pure, tested).
+- `js/print.js`: what the printouts show (pure, tested);
+  `js/printview.js` turns it into the print-only sheet.
 - `js/numbering.js`: message numbers (format, next number, atomic save,
   restore counters, gap check).
 - `js/model.js`: the message record (fields, validation, edit with revision,
   soft delete, status, filters, time formatting).
 - `js/export.js`: Geschäftsbuch CSV, JSON backup, restore merge (by id,
   newer `updated` wins, number clashes reported, counters never lowered).
-- From `tools/shared/js/`: `storage.js` (IndexedDB, plus `atomic()`
-  read-modify-write added for the numbering); the location lookup, callbook,
-  repeaters and data loader are there for the UI.
+- From `tools/shared/` (shared with the confirmation log): `storage.js`
+  (IndexedDB, `atomic()` for the numbering), `offline.js` and `sw-core.js`
+  (PWA and updates), `callsearch.js`, `repeaterui.js`, `locfield.js` and
+  the location lookup, `callbook.js`, `time.js`, `sources.js`, `dom.js`,
+  `prefs.js`, `css/forms.css`.
+- `scripts/build_notfunk.py` (on `scripts/offline_tool.py`): `precache.js`,
+  `build-info.js` and the single-file `notfunk-offline.html` (git-ignored).
 
 The modules follow the single-file bundler rules (`scripts/single_file.py`):
 only `import { … } from './x.js'` and unique top-level names.
 
+Tests: `tests/notfunk-model.test.mjs`, `notfunk-numbering.test.mjs`,
+`notfunk-form.test.mjs` (form and printouts), `notfunk-offline.test.mjs`
+(no external URLs, bundle and precache); browser tests in
+`tests/e2e/notfunk.spec.mjs` and `offline.spec.mjs`.
+
 ## Next steps
 
 1. Confirm the open questions below with the Notfunkreferat Wien (and
-   through them MD Krisenmanagement).
-2. UI:
-   - fast keyboard-only entry form (like the confirmation log)
-   - message book with filters and status buttons
-   - Funkbuch (quick radio log)
-   - clock showing UTC and local time
-3. Printable Meldeaufnahmeformular and message book.
-4. PWA plus single-file bundle (a `build_notfunk.py` next to
-   `build_confirm.py`).
-5. Map view (offline basemap, messages by priority/status).
-6. `nav`/llms.txt entries, and data sources on the data-sources page (#29).
+   through them MD Krisenmanagement); adapt fields and wording.
+2. Funkbuch (quick radio log) next to the message book.
+3. Map view (offline basemap, messages by priority/status), KMZ export (#27).
+4. Once confirmed: `nav`/llms.txt entries and the data-sources page (#29),
+   remove the "Entwurf" banner.
 
 ## Open questions
 
