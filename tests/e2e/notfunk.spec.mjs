@@ -122,7 +122,10 @@ test('Einsatz header: a change applies to new messages, the code stays once used
   await expect(page.locator('#e-prefix')).toBeEditable();
   await addMessage(page, 'LI 1', 'Erste');
   await expect(page.locator('#e-prefix')).not.toBeEditable();
+  // a complete call that isn't in the callsign list: Enter keeps it, also
+  // once the suggestions (100 ms after typing, e.g. OE3XYL) are there
   await page.locator('#e-operator').fill('oe3xyz');
+  await page.waitForTimeout(300);
   await page.locator('#e-operator').press('Enter');
   await expect(page.locator('#op-sum')).toContainText('Op OE3XYZ');
   await addMessage(page, 'LI 2', 'Zweite');

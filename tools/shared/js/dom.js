@@ -74,7 +74,8 @@ export function trackExpanded(button, panel) {
 // (Tab goes on to the next field). Pointer-down on the list doesn't steal
 // focus from the input, so a click always registers (also in Safari).
 // enterPicksFirst: Enter in the input takes the first item; set it to false
-// where the items are only guesses that must not replace valid input.
+// where the items are only guesses that must not replace valid input, or
+// pass a function (first item's button -> boolean) to decide per Enter.
 // For screen readers the input says whether suggestions are open
 // (aria-expanded) and where they are (aria-controls).
 let popoverIds = 0;
@@ -113,7 +114,9 @@ export function popover(input, pop, { enterPicksFirst = true, label = 'Vorschlä
       if (b) { ev.preventDefault(); b.focus(); }
     } else if (ev.key === 'Enter' && !ev.shiftKey && !isComposing(ev) && enterPicksFirst) {
       const b = pop.querySelector('button');
-      if (b) { ev.preventDefault(); ev.stopPropagation(); b.click(); }
+      if (b && (typeof enterPicksFirst !== 'function' || enterPicksFirst(b))) {
+        ev.preventDefault(); ev.stopPropagation(); b.click();
+      }
     } else if (ev.key === 'Escape') {
       ev.stopPropagation();
       api.hide();

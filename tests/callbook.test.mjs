@@ -92,3 +92,13 @@ test('searchCallbook: callsign parts, abbreviations, names and places', async ()
   assert.deepEqual(searchCallbook(book, 'x'), [], 'too short');
   assert.deepEqual(searchCallbook(null, 'OE1'), []);
 });
+
+test('enterTakes: Enter completes a callsign, never swaps a complete one', async () => {
+  const { enterTakes } = await import('../tools/shared/js/callsearch.js');
+  assert.ok(enterTakes('oe1eb', 'OE1EBG'), 'completion of a partial call');
+  assert.ok(enterTakes('OE1EBG', 'OE1EBG'), 'the typed call itself');
+  assert.ok(!enterTakes('oe3xyz', 'OE3XYL'), 'a complete call is not replaced by a typo match');
+  assert.ok(!enterTakes('oe1ebx', 'OE1EBG'));
+  assert.ok(enterTakes('Birngruber', 'OE1EBG'), 'name search: Enter takes the match');
+  assert.ok(enterTakes('St. Pölten', 'OE3ABC'), 'place search');
+});

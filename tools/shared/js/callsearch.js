@@ -1,16 +1,30 @@
 // Completion on the log header's Operator / Station fields, like the
 // repeater search: type part of a callsign, a name or a place and pick from
 // the dropdown (↓, Enter). Callsigns used in earlier logs come first; the
-// rest is the offline Austrian callsign list. Free input stays possible.
+// rest is the offline Austrian callsign list. Free input stays possible:
+// Enter only takes a suggestion that completes what was typed
+// (enterTakes), so a complete callsign that isn't in the list (a guest, a
+// new licence) is never swapped for a similar one (OE3XYZ -> OE3XYL); a
+// correction needs ↓.
 
 import { el, fill, popover } from './dom.js';
-import { searchCallbook, normalizeCall } from './callbook.js';
+import { searchCallbook, normalizeCall, isPlausibleCall } from './callbook.js';
+
+// Enter in the field takes the first suggestion `call` only if it completes
+// the typed text, or if that text isn't a callsign (a name or a place).
+export function enterTakes(typed, call) {
+  const q = normalizeCall(typed);
+  return !isPlausibleCall(q) || call.startsWith(q);
+}
 
 // getBook(): the callbook (or null while loading); recent(): [{ call,
 // title }] from earlier logs, newest first; onPick(call): after the field
 // got the callsign.
 export function attachCallSearch({ input, pop, getBook, recent, onPick }) {
-  const dd = popover(input, pop, { label: 'Rufzeichen-Vorschläge' });
+  const dd = popover(input, pop, {
+    label: 'Rufzeichen-Vorschläge',
+    enterPicksFirst: first => enterTakes(input.value, first.dataset.call),
+  });
   let timer = null;
 
   function suggest() {
@@ -22,7 +36,7 @@ export function attachCallSearch({ input, pop, getBook, recent, onPick }) {
     const done = qCall && (used.some(r => r.call === qCall) || book?.byCall.has(qCall)) && !used.some(r => r.call !== qCall);
     const fromBook = q && !done ? searchCallbook(book, q, 8).filter(c => !used.some(r => r.call === c[0])) : [];
     const item = (call, detail) => el('button', {
-      type: 'button', class: 'ac-item',
+      type: 'button', class: 'ac-item', 'data-call': call,
       onclick: () => {
         input.value = call;
         fill(pop);
