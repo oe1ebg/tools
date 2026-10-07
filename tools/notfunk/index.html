@@ -157,13 +157,17 @@
         <span id="form-reply" class="chip" hidden></span>
       </div>
       <div class="grid-form msg-grid">
-        <div class="field span-2"><span id="m-dir-label">Richtung</span>
-          <div id="m-dir" class="radio-group" role="radiogroup" aria-labelledby="m-dir-label"></div></div>
-        <label class="field"><span>Zeit <span id="m-time-zone"></span></span>
-          <input id="m-time" class="mono" placeholder="jetzt" enterkeyhint="next" aria-describedby="m-time-help">
-          <span id="m-time-help" class="sr-only">Leer: Zeitpunkt des Speicherns. Sonst HH:MM oder JJJJ-MM-TT HH:MM in Ortszeit.</span></label>
-        <div class="field span-2"><span id="m-channel-label">Übermittlung</span>
-          <div id="m-channel" class="radio-group" role="radiogroup" aria-labelledby="m-channel-label"></div></div>
+        <!-- Richtung, Zeit, Übermittlung: one flowing row (each as wide as it
+             needs, Übermittlung takes the rest) -->
+        <div class="wide row-flow">
+          <div class="field"><span id="m-dir-label">Richtung</span>
+            <div id="m-dir" class="radio-group" role="radiogroup" aria-labelledby="m-dir-label"></div></div>
+          <label class="field time-field"><span>Zeit <span id="m-time-zone"></span></span>
+            <input id="m-time" class="mono" placeholder="jetzt" enterkeyhint="next" aria-describedby="m-time-help">
+            <span id="m-time-help" class="sr-only">Leer: Zeitpunkt des Speicherns. Sonst HH:MM oder JJJJ-MM-TT HH:MM in Ortszeit.</span></label>
+          <div class="field channel-field"><span id="m-channel-label">Übermittlung</span>
+            <div id="m-channel" class="radio-group" role="radiogroup" aria-labelledby="m-channel-label"></div></div>
+        </div>
 
         <div class="field ac-field span-2"><label for="m-from">Von</label>
           <div class="ac-wrap"><input id="m-from" enterkeyhint="next" spellcheck="false" aria-describedby="m-from-info"><div id="m-from-pop" class="ac-pop"></div></div>

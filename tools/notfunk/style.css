@@ -104,8 +104,15 @@ details.hdr .hint{ margin:.6em 0 0; }
 .form-head{ display:flex; flex-wrap:wrap; align-items:baseline; gap:.3em 1em; }
 .form-title{ font-weight:600; font-size:17px; }
 #form-number{ font-size:16px; font-weight:600; }
-.prio-line{ display:flex; flex-wrap:wrap; align-items:stretch; gap:.4em .8em; }
-.alarm-check{ justify-content:center; min-height:2.6em; box-sizing:border-box; padding:.3em .7em; border:1.5px solid var(--err); border-radius:5px; color:var(--err); background:var(--bg); cursor:pointer; }
+/* first row of the form: Richtung, Zeit right next to it, Übermittlung */
+.row-flow{ display:flex; flex-wrap:wrap; gap:.6em 1.6em; align-items:flex-start; }
+.row-flow .time-field{ width:11em; }
+.row-flow .channel-field{ flex:1 1 20em; min-width:0; }
+/* the priority buttons: equal width and height; "Stab herhören!" next to
+   them at the same height */
+.prio-line{ display:flex; flex-wrap:wrap; align-items:stretch; gap:.3em .8em; }
+.radio-group.prio label{ min-width:6.2em; display:inline-flex; justify-content:center; align-items:center; box-sizing:border-box; }
+.alarm-check{ justify-content:center; box-sizing:border-box; padding:.4em .9em; border:1px solid var(--err); border-radius:5px; color:var(--err); background:var(--bg); cursor:pointer; }
 .alarm-check:has(input:checked){ background:var(--err); color:#fff; }
 .alarm-check:has(input:focus-visible){ outline:2px solid var(--accent); outline-offset:2px; }
 .radio-group.prio label:has(input[value="emergency"]:checked){ border-color:var(--err); background:var(--err-soft); }
@@ -118,6 +125,8 @@ details.hdr .hint{ margin:.6em 0 0; }
 details.more > summary{ cursor:pointer; font-size:13.5px; color:var(--text-dim); margin-bottom:.4em; }
 details.more .hint{ margin:.4em 0 0; }
 .form-actions{ display:flex; flex-wrap:wrap; align-items:center; gap:.5em .8em; }
+/* when the row wraps, Speichern stays on the right */
+.form-actions #btn-save{ margin-left:auto; }
 .form-status{ font-size:14.5px; min-height:1.3em; }
 #op-status:empty{ display:none; }
 .form-status.err{ color:var(--err); font-weight:600; }
