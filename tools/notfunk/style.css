@@ -108,6 +108,14 @@ details.hdr .hint{ margin:.6em 0 0; }
 .row-flow{ display:flex; flex-wrap:wrap; gap:.6em 1.6em; align-items:flex-start; }
 .row-flow .time-field{ width:11em; }
 .row-flow .channel-field{ flex:1 1 20em; min-width:0; }
+/* wide screens (five grid columns wide enough for Eingang/Ausgang side
+   by side): the first row joins the grid, so
+   Übermittlung starts where An starts in the row below */
+@media (min-width: 1180px){
+  .row-flow{ display:contents; }
+  .row-flow .time-field{ width:auto; }
+  .row-flow .channel-field{ grid-column:span 3; }
+}
 /* the priority buttons: equal width and height; "Stab herhören!" next to
    them at the same height */
 .prio-line{ display:flex; flex-wrap:wrap; align-items:stretch; gap:.3em .8em; }
