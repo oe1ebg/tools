@@ -165,6 +165,36 @@ test('location field: resolved location in CSV columns and ADIF GRIDSQUARE/LAT/L
   assert.equal(b.GRIDSQUARE, undefined);
 });
 
+test('UTMREF in CSV (station and own position), KML and summary', () => {
+  const loc = { type: 'address', label: 'Währinger Straße 40-42', postcode: '1090', district: 9, lat: 48.221, lon: 16.35663,
+    maidenhead: 'JN88ef', source: 'vienna-ogd', confidence: 'exact', manual: false, input: 'Waehringerstr 42' };
+  const es = [{ ...entries[0], loc }, entries[1]];
+  const qth = text => (text === 'Wien' ? { lat: 48.25, lon: 16.33, label: 'Wien, Döbling' } : null);
+  const csv = toCSV(event, es, ';', { qth }).slice(1).trim().split('\r\n');
+  const cols = csv[0].split(';');
+  assert.deepEqual(cols.slice(cols.indexOf('locator'), cols.indexOf('locator') + 5), ['locator', 'utm', 'utm_zone', 'utm_easting', 'utm_northing']);
+  assert.deepEqual(cols.slice(cols.indexOf('my_locator'), cols.indexOf('my_locator') + 5), ['my_locator', 'my_utm', 'my_utm_zone', 'my_utm_easting', 'my_utm_northing']);
+  const row = i => Object.fromEntries(cols.map((c, j) => [c, csv[i].split(';')[j]]));
+  assert.equal(row(1).utm, '33U XP 00764 41753');
+  assert.equal(row(1).utm_zone, '33U');
+  assert.equal(row(1).utm_easting, '600764');
+  assert.equal(row(1).utm_northing, '5341753');
+  assert.equal(row(1).my_utm, '33U WP 98730 44942', 'resolved QTH like the map');
+  assert.equal(row(2).utm, '', 'no location, no UTM');
+  // Without a resolved QTH: the locator centre, only as fine as the locator (JN88ef: 10 km).
+  const plain = toCSV(event, es, ';').slice(1).trim().split('\r\n');
+  assert.equal(Object.fromEntries(cols.map((c, j) => [c, plain[1].split(';')[j]])).my_utm, '33U XP 0 4');
+  // A typed UTMREF is exported as typed (an area of 10 m), not finer.
+  const typed = { ...loc, type: 'utm', label: '33U XP 0076 4175 (10 m)', utm: '33U XP 0076 4175' };
+  const t = toCSV(event, [{ ...entries[0], loc: typed }], ';').slice(1).trim().split('\r\n');
+  assert.equal(Object.fromEntries(cols.map((c, j) => [c, t[1].split(';')[j]])).utm, '33U XP 0076 4175');
+  const kml = toKML(event, es, { qth });
+  assert.match(kml, /<Data name="UTMREF"><value>33U XP 00764 41753<\/value><\/Data>/);
+  assert.match(kml, /Eigener Standort \(UTMREF\):&lt;\/b&gt; 33U WP 98730 44942 \(Wien, Döbling\)/);
+  const sum = toSummary(event, es, 'utc', { qth });
+  assert.match(sum, /Standorte \(UTMREF\):\n  Eigener Standort: Wien, Döbling – 33U WP 98730 44942\n  OE1AAA: Währinger Straße 40-42, 1090 – 33U XP 00764 41753\n/);
+});
+
 test('simple confirmation template has a QTH location field (exported as ADIF QTH)', () => {
   const ev = { id: 'r', title: 'Runde', template: 'calls', header };
   assert.ok(toCSV(ev, []).includes('qth') && toCSV(ev, []).includes('standort_aufgeloest'));
@@ -252,7 +282,7 @@ test('template preview: every field has an example and an ADIF target', () => {
   }
   const targets = Object.fromEntries(adifFieldTargets(templateFor('zivilschutz')));
   assert.equal(targets.PLZ, 'APP_OE1EBG_PLZ');
-  assert.match(targets['Standort (Adresse, Ort, PLZ, Locator)'], /^APP_OE1EBG_ADDRESS, GRIDSQUARE, LAT, LON$/);
+  assert.match(targets['Standort (Adresse, Ort, PLZ, Locator)'], /^APP_OE1EBG_ADDRESS, GRIDSQUARE, LAT, LON, APP_OE1EBG_UTM$/);
   assert.equal(Object.fromEntries(adifFieldTargets(templateFor('rst')))['RST erh.'], 'RST_RCVD');
 });
 

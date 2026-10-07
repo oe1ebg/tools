@@ -284,3 +284,24 @@ export function mgrsToBounds(mgrs, ref) {
     precision: p.digits, zone: p.zone, band: p.band, text: formatMgrs(p),
   };
 }
+
+// UTMREF of a stored place ({ lat, lon, utm? }) at `digits`: a typed
+// UTMREF (`utm`) as it was, unless that is finer than asked; otherwise
+// computed from lat/lon. '' without a position.
+export function mgrsOf(place, digits = 10) {
+  if (!place) return '';
+  const typed = place.utm ? parseMgrs(place.utm) : null;
+  if (typed && typed.digits <= digits) return typed.text;
+  return latLonToMgrs(place.lat, place.lon, digits);
+}
+
+// Export fields of a place: { text, zone: "33U", easting, northing }
+// (whole metres, truncated like the UTMREF digits), in the zone of a typed
+// UTMREF if there is one; null without a position.
+export function utmFields(place, digits = 10) {
+  const text = mgrsOf(place, digits);
+  if (!text) return null;
+  const zone = parseInt(text, 10);
+  const u = latLonToUtm(place.lat, place.lon, zone);
+  return u && { text, zone: `${u.zone}${u.band}`, easting: Math.floor(u.easting), northing: Math.floor(u.northing) };
+}

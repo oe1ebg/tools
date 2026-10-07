@@ -114,3 +114,20 @@ test('every header mode maps to a MODE/SUBMODE pair from the ADIF enumeration', 
 test('ADIF is offered as a download Safari keeps as .adi', () => {
   assert.equal(ADIF_MIME, 'application/octet-stream');
 });
+
+test('UTMREF app fields: station and own position, conformant and not duplicated', () => {
+  for (const tpl of TEMPLATES) {
+    const qth = text => (text === 'Wien Döbling' ? { lat: 48.25, lon: 16.33, label: 'Döbling' } : null);
+    const adi = toADIF({ id: 'x', title: 'T', template: tpl.key, header }, entriesFor(tpl), '2026-10-06T12:34:56Z', { qth });
+    const { records: [a, b] } = readADI(adi);
+    assert.ok(isCompleteQSO(a), tpl.key);
+    assert.equal(a.APP_OE1EBG_UTM, '33U XP 01799 39437', 'station position at 1 m');
+    assert.equal(b.APP_OE1EBG_UTM, undefined, 'no location, no UTM');
+    assert.equal(a.APP_OE1EBG_MY_UTM, '33U WP 98730 44942', 'resolved own QTH');
+    assert.equal((adi.match(/<APP_OE1EBG_UTM:/g) || []).length, 1);
+  }
+  // Without a resolved QTH: the locator centre, only as fine as its square (JN88ef: 10 km).
+  const tpl = TEMPLATES[0];
+  const { records: [a] } = readADI(toADIF({ id: 'x', title: 'T', template: tpl.key, header }, entriesFor(tpl)));
+  assert.equal(a.APP_OE1EBG_MY_UTM, '33U XP 0 4');
+});

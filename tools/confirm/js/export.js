@@ -7,6 +7,13 @@
 //        checkin/kommentar plus `kategorie`; QSO fields stay empty);
 //   summary: included in time order, plus an "Operators:" line;
 //   JSON backup (app.js): always included, it is the raw entries store.
+//
+// UTMREF (tools/shared/js/utm.js) is computed from the stored lat/lon at
+// full precision (1 m; a typed UTMREF as it was). The own position (my_utm,
+// APP_OE1EBG_MY_UTM, KML, summary) is resolved like the map does
+// (ownPosition): the header QTH via opts.qth(text) -> lookup result | null,
+// which the caller resolves beforehand, else the centre of the header
+// locator, then only as fine as that locator's square.
 
 import {
   liveSorted, liveCheckins, isComment, checkinNumbers, operatorShifts, splitUtc, splitTime, zoneLabel, lineFrequencies,
@@ -14,17 +21,19 @@ import {
   normalizeCall, isPlausibleCall, parseMHz,
 } from './model.js';
 import { templateFor, fieldVisible, fieldDisplay, hasLocationField } from './templates.js';
-import { stationsForMap } from './mapdata.js';
+import { stationsForMap, ownPosition } from './mapdata.js';
 import { adifAscii, adifAsciiField } from '../../shared/js/adif.js';
 import { isValidLocator, formatLocator } from '../../shared/js/maidenhead.js';
 import { formatMHz } from '../../shared/js/repeaters.js';
+import { utmFields, mgrsDigitsForSize, latLonToMgrs } from '../../shared/js/utm.js';
 
 export const ADIF_PROGRAM_ID = 'OE1EBG';
 // No registered MIME type for ADIF; text/plain makes Safari save ".adi.txt".
 export const ADIF_MIME = 'application/octet-stream';
 
 const LOC_CONF_DE = { exact: 'exakt', high: 'hoch', likely: 'wahrscheinlich', ambiguous: 'mehrdeutig', low: 'unsicher' };
-const LOC_COLS = ['standort_aufgeloest', 'lat', 'lon', 'locator', 'standort_konfidenz', 'standort_quelle',
+const LOC_COLS = ['standort_aufgeloest', 'lat', 'lon', 'locator', 'utm', 'utm_zone', 'utm_easting', 'utm_northing',
+  'standort_konfidenz', 'standort_quelle',
   'standort_eingabe', 'standort_herkunft', 'standort_namenstyp', 'standort_gefunden_als'];
 
 // The template's location field (at most one).
@@ -37,10 +46,11 @@ function locColumns(loc, text) {
   const origin = { standort_eingabe: loc?.input || '', standort_herkunft: locOriginText(loc, text) };
   if (!loc) {
     return { standort_aufgeloest: '', lat: '', lon: '', locator: '', standort_konfidenz: '', standort_quelle: '',
-      standort_namenstyp: '', standort_gefunden_als: '', ...origin };
+      standort_namenstyp: '', standort_gefunden_als: '', ...utmColumns(null, ''), ...origin };
   }
   return {
     ...origin,
+    ...utmColumns(utmFields(loc), ''),
     standort_namenstyp: LOC_NAME_TYPES[locNameType(loc)] || '',
     standort_gefunden_als: loc.matched || '',
     standort_aufgeloest: loc.label,
@@ -50,6 +60,28 @@ function locColumns(loc, text) {
     standort_konfidenz: LOC_CONF_DE[loc.confidence] || loc.confidence || '',
     standort_quelle: loc.manual ? 'gewählt' : 'automatisch',
   };
+}
+
+// { utm, utm_zone, utm_easting, utm_northing } (prefix 'my_' for the own position).
+function utmColumns(u, prefix) {
+  return {
+    [`${prefix}utm`]: u?.text || '', [`${prefix}utm_zone`]: u?.zone || '',
+    [`${prefix}utm_easting`]: u ? String(u.easting) : '', [`${prefix}utm_northing`]: u ? String(u.northing) : '',
+  };
+}
+
+// The own position of a header (snapshot) as UTM fields, like the map
+// places it (see the top of this file); null when there is none.
+export function ownUtm(h, qth) {
+  const res = h?.myQth && qth ? qth(h.myQth) : null;
+  const own = ownPosition({ myGrid: h?.myGrid }, res);
+  if (!own) return null;
+  if (!own.bounds) return { ...utmFields(own), label: own.label };
+  // A locator is an area: no more digits than its square is big.
+  const b = own.bounds;
+  const size = Math.max((b.north - b.south) * 111320, (b.east - b.west) * 111320 * Math.cos(own.lat * Math.PI / 180));
+  const digits = mgrsDigitsForSize(size);
+  return { ...utmFields(own), text: latLonToMgrs(own.lat, own.lon, digits), label: own.label, fromLocator: true };
 }
 
 // ADIF LAT/LON: "N048 12.498" / "E016 22.386"
@@ -81,7 +113,7 @@ function fmtMHz(v) {
 }
 
 // One flat row per live check-in (comments excluded); shared by CSV and the summary.
-function exportRows(event, entries) {
+function exportRows(event, entries, opts = {}) {
   const tpl = templateFor(event.template);
   const nums = checkinNumbers(entries);
   return liveCheckins(entries).map(e => {
@@ -111,6 +143,7 @@ function exportRows(event, entries) {
       mode: modeInfo(s.mode)?.label || '',
       signalisierung: signallingText(s),
       my_locator: s.myGrid,
+      ...utmColumns(ownUtm(s, opts.qth), 'my_'),
       log: event.title,
     });
     return row;
@@ -119,21 +152,23 @@ function exportRows(event, entries) {
 
 // A comment as a CSV row: time, typ, kategorie, the text in `notiz`, and
 // who operated (from its snapshot); all QSO fields stay empty.
-function commentRow(event, e) {
+function commentRow(event, e, opts) {
   const s = e.snap || {};
   return {
     zeitstempel_utc: excelUtc(e.ts), typ: 'kommentar', kategorie: e.category || '', ts: e.ts,
-    notiz: e.text || '', operator: s.operator, station: s.station, my_locator: s.myGrid, log: event.title,
+    notiz: e.text || '', operator: s.operator, station: s.station, my_locator: s.myGrid,
+    ...utmColumns(ownUtm(s, opts.qth), 'my_'), log: event.title,
   };
 }
 
 // opts.comments: include operator comments (default: no, one row per check-in).
+// opts.qth(text): the resolved header QTH (see the top of this file).
 export function toCSV(event, entries, sep = ';', opts = {}) {
   const withComments = !!opts.comments;
-  let rows = exportRows(event, entries);
+  let rows = exportRows(event, entries, opts);
   if (withComments) {
     const byId = new Map(liveCheckins(entries).map((e, i) => [e.id, rows[i]]));
-    rows = liveSorted(entries).map(e => (isComment(e) ? commentRow(event, e) : { ...byId.get(e.id), typ: 'checkin' }));
+    rows = liveSorted(entries).map(e => (isComment(e) ? commentRow(event, e, opts) : { ...byId.get(e.id), typ: 'checkin' }));
   }
   const tpl = templateFor(event.template);
   const cols = [
@@ -141,7 +176,8 @@ export function toCSV(event, entries, sep = ';', opts = {}) {
     ...tpl.fields.map(f => f.key),
     ...(hasLocationField(tpl) ? LOC_COLS : []),
     'ueber_relais', 'relais', 'relais_ctcss', 'relais_quelle', 'notiz', 'operator', 'station',
-    'freq_mhz', 'freq_rx_mhz', 'band', 'mode', 'signalisierung', 'my_locator', 'log',
+    'freq_mhz', 'freq_rx_mhz', 'band', 'mode', 'signalisierung', 'my_locator',
+    'my_utm', 'my_utm_zone', 'my_utm_easting', 'my_utm_northing', 'log',
   ];
   const lines = [cols.join(sep)];
   for (const r of rows) lines.push(cols.map(c => csvCell(r[c], sep)).join(sep));
@@ -154,7 +190,7 @@ export function toCSV(event, entries, sep = ';', opts = {}) {
 // "APP_OE1EBG_PLZ"], ...]. A location field also gives the resolved position.
 export function adifFieldTargets(tpl) {
   return tpl.fields.map(f => [f.label, [adifFieldName(f),
-    ...(f.type === 'location' ? ['GRIDSQUARE', 'LAT', 'LON'] : [])].join(', ')]);
+    ...(f.type === 'location' ? ['GRIDSQUARE', 'LAT', 'LON', `APP_${ADIF_PROGRAM_ID}_UTM`] : [])].join(', ')]);
 }
 
 // ADIF GridSquare: 2, 4, 6 or 8 characters; characters 9-12 of a longer
@@ -188,7 +224,8 @@ export const ADIF_FIXED_FIELDS = [
   'CALL', 'QSO_DATE', 'TIME_ON', 'OPERATOR', 'STATION_CALLSIGN', 'FREQ', 'BAND', 'FREQ_RX', 'BAND_RX', 'MODE',
   'SUBMODE', 'MY_GRIDSQUARE', 'MY_GRIDSQUARE_EXT', 'MY_CITY', 'PROP_MODE', 'GRIDSQUARE', 'GRIDSQUARE_EXT', 'LAT',
   'LON', 'COMMENT',
-  ...['REPEATER', 'SIGNALLING', 'MY_LOCATOR', 'LOCATOR', 'LOCATION', 'LOC_NAMETYPE', 'LOC_MATCHED', 'LOC_SOURCE', 'LOC_INPUT', 'CHECKIN', 'LOG']
+  ...['REPEATER', 'SIGNALLING', 'MY_LOCATOR', 'LOCATOR', 'LOCATION', 'LOC_NAMETYPE', 'LOC_MATCHED', 'LOC_SOURCE', 'LOC_INPUT',
+    'UTM', 'MY_UTM', 'CHECKIN', 'LOG']
     .map(n => `APP_${ADIF_PROGRAM_ID}_${n}`),
 ];
 
@@ -219,6 +256,7 @@ export function adifIssues(event, entries) {
 }
 
 // opts.programVersion: PROGRAMVERSION header field (the build's commit).
+// opts.qth(text): the resolved header QTH (see the top of this file).
 export function toADIF(event, entries, createdIso = new Date().toISOString(), opts = {}) {
   const tpl = templateFor(event.template);
   const nums = checkinNumbers(entries);
@@ -265,6 +303,7 @@ export function toADIF(event, entries, createdIso = new Date().toISOString(), op
       if (myGrid.full.length > 12) rec += adifAsciiField(`APP_${ADIF_PROGRAM_ID}_MY_LOCATOR`, myGrid.full);
     }
     rec += adifAsciiField('MY_CITY', s.myQth);
+    rec += adifAsciiField(`APP_${ADIF_PROGRAM_ID}_MY_UTM`, ownUtm(s, opts.qth)?.text);
     // ADIF has no fields for CTCSS, DMR colour code etc.: an app field
     // plus the comment.
     const sig = signallingText(s);
@@ -298,6 +337,7 @@ export function toADIF(event, entries, createdIso = new Date().toISOString(), op
       }
       rec += adifAsciiField('LAT', adifLatLon(e.loc.lat, true));
       rec += adifAsciiField('LON', adifLatLon(e.loc.lon, false));
+      rec += adifAsciiField(`APP_${ADIF_PROGRAM_ID}_UTM`, utmFields(e.loc)?.text);
       rec += adifAsciiField(`APP_${ADIF_PROGRAM_ID}_LOCATION`, e.loc.label);
       rec += adifAsciiField(`APP_${ADIF_PROGRAM_ID}_LOC_NAMETYPE`, locNameType(e.loc));
       rec += adifAsciiField(`APP_${ADIF_PROGRAM_ID}_LOC_MATCHED`, e.loc.matched);
@@ -359,6 +399,7 @@ function kmlStationFields(s) {
     ['Gefunden als', loc.matched ? `„${loc.matched}“ (${LOC_NAME_TYPES[loc.nameType] || 'anderer Name'})` : ''],
     ['Art', ['intersection', 'between'].includes(loc.type) ? LOC_NAME_TYPES[loc.type] : loc.umland ? 'außerhalb Wiens' : ''],
     ['Locator', [loc.maidenhead, ...(loc.areaLocators || []).filter(l => l !== loc.maidenhead)].filter(Boolean).join(' ')],
+    ['UTMREF', utmFields(loc)?.text || ''],
     ['Konfidenz', LOC_CONF_DE[loc.confidence] || loc.confidence || ''],
     ['Zuordnung', loc.manual ? 'gewählt' : 'automatisch'],
     ['Herkunft', locOriginText(loc)],
@@ -371,14 +412,17 @@ function kmlDescription(fields) {
   return xmlEscape(fields.map(([k, v]) => `<b>${xmlEscape(k)}:</b> ${xmlEscape(v)}`).join('<br>'));
 }
 
-export function toKML(event, entries) {
+// opts.qth(text): the resolved header QTH (see the top of this file).
+export function toKML(event, entries, opts = {}) {
   const { placed } = stationsForMap(entries);
   const h = event.header || {};
   const live = liveCheckins(entries);
+  const own = ownUtm(h, opts.qth);
   const docFields = [
     ['Datum (UTC)', splitUtc(live[0]?.ts || event.created).date],
     ['Operator', h.operator],
     ['Station', h.station],
+    ['Eigener Standort (UTMREF)', own ? `${own.text} (${own.label}${own.fromLocator ? ', Locator-Mitte' : ''})` : ''],
     ['Stationen mit Standort', `${placed.length} von ${new Set(live.map(e => e.call)).size}`],
   ].filter(([, v]) => v);
   const out = [
@@ -425,8 +469,9 @@ function countBy(rows, key) {
 }
 
 // Plain text for pasting into a net report / mail; times in `timeMode`.
-export function toSummary(event, entries, timeMode = 'utc') {
-  const rows = exportRows(event, entries);
+// opts.qth(text): the resolved header QTH (see the top of this file).
+export function toSummary(event, entries, timeMode = 'utc', opts = {}) {
+  const rows = exportRows(event, entries, opts);
   const st = stats(entries);
   const h = event.header || {};
   const lines = [];
@@ -465,6 +510,19 @@ export function toSummary(event, entries, timeMode = 'utc') {
     for (const c of comments) {
       const op = c.snap?.operator ? ` (Op ${c.snap.operator})` : '';
       lines.push(`  ${hm(c.ts)} ${c.category ? `[${c.category}] ` : ''}${c.text || ''}${op}`.trimEnd());
+    }
+  }
+
+  // Where the stations were (latest located check-in, like the map and KML).
+  const { placed } = stationsForMap(entries);
+  const own = ownUtm(h, opts.qth);
+  if (placed.length || own) {
+    lines.push('', 'Standorte (UTMREF):');
+    if (own) lines.push(`  Eigener Standort: ${own.label} – ${own.text}${own.fromLocator ? ' (Locator-Mitte)' : ''}`);
+    for (const s of placed) {
+      const loc = s.loc;
+      const where = `${loc.label}${loc.postcode && !String(loc.label).includes(loc.postcode) ? ', ' + loc.postcode : ''}`;
+      lines.push(`  ${s.call}: ${where} – ${utmFields(loc)?.text || ''}`);
     }
   }
 
