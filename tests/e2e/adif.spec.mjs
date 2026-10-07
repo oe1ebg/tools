@@ -1,4 +1,4 @@
-// ADIF editor (/adif/): a file loads into the table, the .adi export passes
+// ADIF editor (/tools/adif/): a file loads into the table, the .adi export passes
 // the strict ADIF 3.1.7 reader, CSV export downloads.
 import { fileURLToPath } from 'node:url';
 import { test, expect, downloadText } from './fixtures.mjs';
@@ -7,7 +7,7 @@ import { readADI } from '../adif-spec.mjs';
 const SAMPLE = fileURLToPath(new URL('fixtures/sample.adi', import.meta.url));
 
 async function loadSample(page) {
-  await page.goto('adif/');
+  await page.goto('tools/adif/');
   await expect(page).toHaveTitle('ADIF Editor');
   await expect(page.locator('#btn-export')).toBeDisabled();
   await page.locator('#file-input').setInputFiles(SAMPLE);

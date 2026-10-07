@@ -16,11 +16,11 @@ vnu=${VNU:-vnu}
 $vnu --version
 # shellcheck disable=SC2086  # $vnu may be "java -jar …"
 $vnu --filterfile "$here/vnu-filter.txt" \
-  "$root/confirm/index.html" \
-  "$root/confirm/confirm-offline.html" \
-  "$root/notfunk/index.html" \
-  "$root/notfunk/notfunk-offline.html" \
-  "$root/adif/index.html" \
-  "$root/adif/adif-editor.html" \
-  "$root/sota-alerts/index.html"
+  "$root/tools/confirm/index.html" \
+  "$root/tools/confirm/confirm-offline.html" \
+  "$root/tools/notfunk/index.html" \
+  "$root/tools/notfunk/notfunk-offline.html" \
+  "$root/tools/adif/index.html" \
+  "$root/tools/adif/adif-editor.html" \
+  "$root/tools/sota-alerts/index.html"
 echo "vnu: no errors"

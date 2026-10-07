@@ -277,7 +277,7 @@ entirely instead of needing a proxy.
 
 Leaflet **1.9.4** (`dist/leaflet.js`, `dist/leaflet.css`), downloaded from
 unpkg and committed under `oe1ebg/tools/shared/vendor/leaflet/` (one copy,
-shared with the confirmation log; published at `/shared/`), referenced
+shared with the confirmation log; published at `/tools/shared/`), referenced
 by relative path (not a CDN) — keeping the app shell itself free of live
 external dependencies, matching the ADIF editor's ethos. OSM map tiles and
 the two SOTA API endpoints are still live network calls by necessity — there
@@ -532,7 +532,7 @@ current state rather than treating the URL as continuously live.
   `leaflet.css`, `LICENSE`), shared with the confirmation log.
 
 `scripts/stage_tools.py` copies this directory into the Zensical
-`docs_dir` (`content/sota-alerts/`) at build time without its Markdown
+`docs_dir` (`content/tools/sota-alerts/`) at build time without its Markdown
 files — a `README.md` inside a `docs_dir` subdirectory is treated as that
 section's index page and would silently hide `index.html`.
 

@@ -6,10 +6,11 @@ rounds, and structured surveys like the Zivilschutz-Probealarm (location
 and PLZ; siren audibility as a school grade 1–5 for each of inside with
 windows closed / inside with windows open / outside; AT-Alert received;
 and if not, the phone platform and its major version). It is served
-at `https://oe1ebg.at/confirm/`, and the source is in `tools/confirm/`.
+at `https://oe1ebg.at/tools/confirm/` (until October 2026 at `/confirm/`,
+now redirected; see "Move to /tools/" in `../shared/README.md`), and the source is in `tools/confirm/`.
 
 `scripts/stage_tools.py` copies `tools/confirm/` into the Zensical
-`docs_dir` (`content/confirm/`) at build time, leaving out the Markdown
+`docs_dir` (`content/tools/confirm/`) at build time, leaving out the Markdown
 files: a `README.md` inside the `docs_dir` would take over that section's
 index route.
 
@@ -503,7 +504,7 @@ fires. The compact dropdown in the log's location field has no links.
 ### Runtime (`tools/shared/js/location/`, pure ES modules, unit-tested)
 
 The lookup engine is shared with other tools (`tools/shared/`, published at
-`/shared/`); Maidenhead and distance live one level up.
+`/tools/shared/`); Maidenhead and distance live one level up.
 
 - `../maidenhead.js`: locator ↔ WGS84 for any even length up to 20
   characters (`JN88EE05UO43UF06QD23`: digit and letter pairs alternate after
@@ -939,7 +940,7 @@ across all modules the tool loads, the shared ones included.
 following the imports from `js/app.js`, and the Leaflet files in the
 `CONFIRM-VENDOR` block), as `../shared/…`. `sw.js` serves those from the
 cache too: a controlled page's requests reach the worker whatever their URL,
-so being outside the `/confirm/` scope doesn't matter.
+so being outside the `/tools/confirm/` scope doesn't matter.
 
 To add a template, add an entry to `TEMPLATES` in `js/templates.js`. Give a
 field an `adif` key to map it to a standard ADIF field; otherwise it is

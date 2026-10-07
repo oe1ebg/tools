@@ -1,11 +1,11 @@
-// Notfunk-Meldebuch (/notfunk/): an operation is created, messages get
+// Notfunk-Meldebuch (/tools/notfunk/): an operation is created, messages get
 // gapless numbers (a deleted one keeps its number), the status moves on,
 // a reply marks the original answered, an edit keeps a revision, the
 // Geschäftsbuch CSV downloads and the print layout shows only the form.
 import { test, expect, downloadText } from './fixtures.mjs';
 
 async function openNewOp(page, name, prefix) {
-  await page.goto('notfunk/');
+  await page.goto('tools/notfunk/');
   await expect(page).toHaveTitle('Notfunk-Meldebuch');
   await expect(page.locator('#view-ops')).toBeVisible();
   // the buttons work only once the app has started
@@ -30,7 +30,7 @@ async function addMessage(page, from, subject, text = `${subject}, wörtlich.`) 
 const numbers = page => page.locator('#book-body td.num').allTextContents();
 
 test('loads and shows the operations', async ({ page }) => {
-  await page.goto('notfunk/');
+  await page.goto('tools/notfunk/');
   await expect(page.locator('#view-ops')).toBeVisible();
   await expect.poll(() => page.evaluate(() => globalThis.NOTFUNK_STARTED === true)).toBe(true);
   await expect(page.locator('#st-backend')).toHaveText('IndexedDB');
@@ -143,7 +143,7 @@ test('Einsatz header: a change applies to new messages, the code stays once used
 });
 
 test('print: an empty form to print a stack of', async ({ page }) => {
-  await page.goto('notfunk/');
+  await page.goto('tools/notfunk/');
   await expect.poll(() => page.evaluate(() => globalThis.NOTFUNK_READY === true)).toBe(true);
   await page.evaluate(() => { globalThis.print = () => {}; });
   await page.getByRole('button', { name: 'Leeres Formular drucken / PDF' }).click();
@@ -156,6 +156,6 @@ test('print: an empty form to print a stack of', async ({ page }) => {
 
 test('service worker installs the offline copy', async ({ page, browserName }) => {
   test.skip(browserName !== 'chromium', 'service workers: Chromium only');
-  await page.goto('notfunk/');
+  await page.goto('tools/notfunk/');
   await expect(page.locator('#st-offline')).toHaveText(/offline bereit/, { timeout: 45_000 });
 });

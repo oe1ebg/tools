@@ -2,7 +2,7 @@
 
 An offline tool for ÖVSV Notfunk operators (focus: Vienna) to log emergency
 radio traffic and hand the Krisenstab messages it can use without retyping.
-Issue #31. Served at `/notfunk/`.
+Issue #31. Served at `/tools/notfunk/`.
 
 **Name.** "Meldebuch" uses the staff vocabulary (Meldeaufnahme,
 Meldesammelstelle) and, like Geschäftsbuch and Einsatztagebuch, says it is
@@ -10,8 +10,9 @@ the running record. No Austrian source names the radio station's own log;
 "Geschäftsbuch" is avoided on purpose, since the staff keeps its own one
 with its own Geschäftszahl.
 
-**Status:** a working draft. Published at `/notfunk/` with a banner
-("Entwurf"), but **not in the site's nav or llms.txt** until the message
+**Status:** a working draft. Published at `/tools/notfunk/` with a banner
+("Entwurf") and listed as a draft on the `/tools/` overview, but **not in
+the site's nav** until the message
 format is confirmed with the Notfunkreferat Wien and the Krisenstab side.
 See [Open questions](#open-questions).
 

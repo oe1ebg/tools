@@ -13,7 +13,7 @@ from single_file import bundle_modules, inline_vendor, module_order, script_safe
 # Build step shared by the offline tools (tools/confirm/, tools/notfunk/):
 # scripts/build_<tool>.py describes the tool (OfflineTool) and calls build().
 # Runs before scripts/stage_tools.py and `zensical build`, which copy the
-# generated files into content/<tool>/ and then site/.
+# generated files into content/tools/<tool>/ and then site/.
 # Stdlib only. Produces three git-ignored files in the tool's directory:
 #
 # 1. <bundle> (e.g. confirm-offline.html): the whole tool in ONE file (all

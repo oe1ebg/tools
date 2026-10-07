@@ -25,7 +25,7 @@ try {
 const CACHE = PRECACHE ? `${CONFIG.prefix}-${PRECACHE.version}` : `${CONFIG.prefix}-dev`;
 const SCOPE = new URL('./', self.location).pathname;
 // Precached files outside the scope: the modules and Leaflet from
-// tools/shared/ (published at /shared/, listed as ../shared/… in
+// tools/shared/ (published at /tools/shared/, listed as ../shared/… in
 // precache.js). A controlled page's requests reach this worker whatever
 // their URL, so these are served from the cache like everything else.
 const EXTRA = new Set(PRECACHE ? PRECACHE.files.map(f => new URL(f, self.location).pathname).filter(p => !p.startsWith(SCOPE)) : []);

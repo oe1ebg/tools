@@ -179,7 +179,7 @@ picker and help texts are derived from the field list of the
 
 ## Notebooks
 
-The [notebooks](notebooks.md) page includes notebooks fetched from another
+The [notebooks](../notebooks.md) page includes notebooks fetched from another
 repository at build time.
 
 - **Moxon antenna calculator and theory** – from

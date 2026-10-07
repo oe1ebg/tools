@@ -87,6 +87,7 @@ export async function initOffline({ build = null, beforeReload = async () => {},
   });
   offerUpdate();
   reportOfflineVersion();
+  checkOldInstall();
   // Look for a new version when we (re)gain connectivity, when the page comes
   // back to the foreground (an installed app resumes without a reload) and
   // hourly while it stays open — never required.
@@ -102,6 +103,41 @@ export async function initOffline({ build = null, beforeReload = async () => {},
   });
   setInterval(check, 60 * 60e3);
   check();
+}
+
+// An install from before the tools moved to /tools/<tool>/ (scope /<tool>/,
+// now served by shared/js/sw-move.js) still in this browser: the data is
+// per origin and already here, so offer to remove the old worker and its
+// caches (<tool>-<hash>; this app's are tools-<tool>-…). Page elements:
+// #old-install (hidden), #old-install-text, #btn-old-remove, #btn-old-later.
+async function checkOldInstall() {
+  const m = /\/tools\/([^/]+)\//.exec(location.pathname);
+  const box = $('#old-install');
+  if (!m || !box || !navigator.serviceWorker.getRegistrations) return;
+  const oldScope = new URL(`/${m[1]}/`, location.href).href;
+  let reg;
+  try {
+    reg = (await navigator.serviceWorker.getRegistrations()).find(r => r.scope === oldScope);
+  } catch (e) {
+    return;
+  }
+  if (!reg) return;
+  box.hidden = false;
+  $('#btn-old-later').onclick = () => { box.hidden = true; };
+  $('#btn-old-remove').onclick = async () => {
+    try {
+      await reg.unregister();
+      for (const key of await caches.keys()) {
+        if (key.startsWith(`${m[1]}-`)) await caches.delete(key);
+      }
+    } catch (e) {
+      console.warn('Alte Installation nicht entfernt', e);
+      return;
+    }
+    $('#old-install-text').textContent = 'Alte Installation entfernt. Ein altes Symbol auf dem Startbildschirm kannst du jetzt löschen.';
+    $('#btn-old-remove').hidden = true;
+    $('#btn-old-later').textContent = 'OK';
+  };
 }
 
 function reportOfflineVersion() {

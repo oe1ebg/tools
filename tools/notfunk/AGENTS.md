@@ -1,6 +1,6 @@
 # AGENTS.md — Notfunk-Meldebuch (emergency traffic log)
 
-Draft (issue #31), published at `/notfunk/` but not in the nav. Design, sources and open questions are in
+Draft (issue #31), published at `/tools/notfunk/` but not in the nav (only listed as a draft on the `/tools/` overview). Design, sources and open questions are in
 `oe1ebg/tools/notfunk/README.md`. Read it first: the message format is
 provisional until the Notfunkreferat Wien confirms it.
 

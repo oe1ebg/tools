@@ -218,7 +218,7 @@ typed by hand.
 
 ## Files
 
-- `index.html` — markup and CSS; served at the pretty URL `/adif/` on
+- `index.html` — markup and CSS; served at the pretty URL `/tools/adif/` on
   oe1ebg.at. Loads `js/app.js` as an ES module, so it needs to be served
   over http (`just oe1ebg preview`, or any static server on `oe1ebg/tools/`).
 - `js/app.js` (state, table, file loading, toolbar), `js/export.js` (ADI,

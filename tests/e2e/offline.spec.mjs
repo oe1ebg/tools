@@ -19,7 +19,7 @@ async function openSavedCopy(page, request, path, testInfo) {
 }
 
 test('confirm-offline.html runs from file://', async ({ page, request }, testInfo) => {
-  const { url, requests } = await openSavedCopy(page, request, 'confirm/confirm-offline.html', testInfo);
+  const { url, requests } = await openSavedCopy(page, request, 'tools/confirm/confirm-offline.html', testInfo);
   await expect(page).toHaveTitle('Bestätigungsverkehr');
   await expect(page.locator('#view-events')).toBeVisible();
   await expect.poll(() => page.evaluate(() => globalThis.CONFIRM_READY === true)).toBe(true);
@@ -31,7 +31,7 @@ test('confirm-offline.html runs from file://', async ({ page, request }, testInf
 });
 
 test('notfunk-offline.html runs from file://', async ({ page, request }, testInfo) => {
-  const { url, requests } = await openSavedCopy(page, request, 'notfunk/notfunk-offline.html', testInfo);
+  const { url, requests } = await openSavedCopy(page, request, 'tools/notfunk/notfunk-offline.html', testInfo);
   await expect(page).toHaveTitle('Notfunk-Meldebuch');
   await expect(page.locator('#view-ops')).toBeVisible();
   await expect.poll(() => page.evaluate(() => globalThis.NOTFUNK_STARTED === true)).toBe(true);
@@ -42,7 +42,7 @@ test('notfunk-offline.html runs from file://', async ({ page, request }, testInf
 });
 
 test('adif-editor.html runs from file://', async ({ page, request }, testInfo) => {
-  const { url, requests } = await openSavedCopy(page, request, 'adif/adif-editor.html', testInfo);
+  const { url, requests } = await openSavedCopy(page, request, 'tools/adif/adif-editor.html', testInfo);
   await expect(page).toHaveTitle('ADIF Editor');
   await expect(page.locator('#btn-open')).toBeVisible();
   expect(requests.filter(u => u !== url && !u.startsWith('blob:') && !u.startsWith('data:'))).toEqual([]);

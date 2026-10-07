@@ -1,4 +1,4 @@
-// SOTA Alerts Map (/sota-alerts/), hermetic: the live SOTA API and the map
+// SOTA Alerts Map (/tools/sota-alerts/), hermetic: the live SOTA API and the map
 // tile servers are stubbed with page.route() (registered after the
 // fixture's catch-all, so they take precedence), so the test never depends
 // on api2.sota.org.uk or a tile server being up.
@@ -34,7 +34,7 @@ test('renders stubbed alerts on the map', async ({ page }) => {
     return route.fulfill({ status: 404, json: {} });
   });
 
-  await page.goto('sota-alerts/');
+  await page.goto('tools/sota-alerts/');
   await expect(page).toHaveTitle(/SOTA/);
   await expect(page.locator('#map.leaflet-container')).toBeVisible();
   await expect(page.locator('#stats')).toHaveText('2 alerts · 2 summits on map · 0 yours');

@@ -39,6 +39,12 @@
 <main>
   <div id="banner" class="banner err no-print" role="alert" hidden></div>
   <noscript><div class="banner err">Dieses Werkzeug benötigt JavaScript.</div></noscript>
+  <!-- Install from before the move to /tools/ (checkOldInstall in offline.js) -->
+  <div id="old-install" class="banner warn move no-print" role="status" hidden>
+    <p id="old-install-text">Diese App hat eine neue Adresse: <strong>oe1ebg.at/tools/notfunk/</strong>. Es geht nichts verloren, alle Einsätze und Meldungen sind auch hier da. Bitte die App von hier neu zum Startbildschirm hinzufügen und dann die alte Installation entfernen.</p>
+    <button type="button" id="btn-old-remove">Alte Installation entfernen</button>
+    <button type="button" id="btn-old-later">Später</button>
+  </div>
   <p class="banner draft no-print"><strong>Entwurf.</strong> Das Meldungsformat ist noch nicht mit dem Notfunkreferat Wien und dem Krisenstab abgestimmt; Felder und Bezeichnungen können sich ändern. Für Übungen gedacht.</p>
 
   <!-- ===== Einsätze ===== -->

@@ -1,7 +1,7 @@
 # tools/shared/
 
 Code and vendored libraries used by more than one tool. `scripts/stage_tools.py`
-publishes this directory at `/shared/` like any tool directory (without this
+publishes this directory at `/tools/shared/` like any tool directory (without this
 README). The tools reference it by relative path (`../shared/…` from a
 tool's `index.html`, `../../shared/…` from its `js/`), which resolves the same
 way in `tools/` and on the site, so the node tests import the same files the
@@ -32,6 +32,7 @@ browser loads.
 | `js/sources.js` | dataset/licence links, map links, version line; the only module with external URLs (links only, never fetched) | confirm, notfunk |
 | `js/offline.js` | offline readiness of a page: registers the tool's `sw.js`, version, user-triggered updates (UI) | confirm, notfunk |
 | `js/sw-core.js` | service worker logic (cache-first, own caches only); a tool's `sw.js` sets `self.OE1EBG_SW` and imports it | confirm, notfunk |
+| `js/sw-move.js` | move worker for installs from before `/tools/` (see below); staged as `/confirm/sw.js` and `/notfunk/sw.js` | old installs of confirm, notfunk |
 | `css/tools.css` | colour/font tokens, `[hidden]`, `.sr-only` | all tools |
 | `css/forms.css` | buttons, fields, completion dropdowns, radio chips, banners, chips | confirm, notfunk |
 | `data/` | build-time data, git-ignored (see below) | confirm, notfunk |
@@ -54,7 +55,32 @@ Formats are documented in `../confirm/AGENTS.md`. Load them with
 `loadDataFile('name.json')` and a string literal: the offline tools' build
 scripts collect those literals to precache and inline exactly the files the
 tool uses. `data.js` fetches `../shared/data/<name>`, relative to the page,
-so it works for every tool published at `/<tool>/`.
+so it works for every tool published at `/tools/<tool>/`.
+
+## Move to /tools/ (October 2026)
+
+Until issue #30 (item 5) the tools were published at `/<tool>/` and this
+directory at `/shared/`. nginx (`oe1ebg/nginx/default.conf`) redirects
+those URLs (301) to `/tools/…`, keeping the query. That doesn't move an
+installed PWA: browsers reject a redirected service-worker script, so an old
+install would stay on its cached version without notice. Instead:
+
+- `/confirm/sw.js` and `/notfunk/sw.js` are exempt from the redirect and
+  serve `js/sw-move.js` (staged by `scripts/stage_tools.py`). The old app
+  finds it through its normal update check and only switches when the user
+  clicks "Update". Then, online, its old address goes to the network and is
+  redirected to the new app. Offline, the old app keeps working from its old
+  cache, so a running net never loses its tool. IndexedDB and localStorage
+  are per origin, so the data is already in the new app.
+- The new apps use the cache prefixes `tools-confirm` / `tools-notfunk`, so
+  they never delete the old `confirm-…` / `notfunk-…` caches.
+- `js/offline.js` shows `#old-install` when this browser still has a
+  registration for the old scope, and offers to remove it (unregister and
+  delete the old caches).
+
+After the transition period (about April 2027), remove `sw-move.js`, `MOVED`
+in `stage_tools.py`, the `location =` exemptions in nginx, `#old-install`
+and `checkOldInstall()`. The redirects stay.
 
 ## Rules
 

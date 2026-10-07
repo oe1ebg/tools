@@ -99,6 +99,6 @@ test('commit is never part of the content hash', () => {
 
 test('the service worker uses its own cache prefix', () => {
   const sw = readFileSync(join(DIR, 'sw.js'), 'utf8');
-  assert.match(sw, /prefix: 'notfunk', precache: 'NOTFUNK_PRECACHE'/);
+  assert.match(sw, /prefix: 'tools-notfunk', precache: 'NOTFUNK_PRECACHE'/);
   assert.match(sw, /importScripts\('\.\.\/shared\/js\/sw-core\.js'\)/);
 });

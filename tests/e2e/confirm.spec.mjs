@@ -1,11 +1,11 @@
-// Confirmation log (/confirm/): loads, a log can be created and a check-in
+// Confirmation log (/tools/confirm/): loads, a log can be created and a check-in
 // logged, the offline location search answers, CSV and ADIF export download
 // and the ADI file passes the strict ADIF 3.1.7 reader the unit tests use.
 import { test, expect, downloadText } from './fixtures.mjs';
 import { readADI } from '../adif-spec.mjs';
 
 async function openNewLog(page, title) {
-  await page.goto('confirm/');
+  await page.goto('tools/confirm/');
   // (the <h1> is hidden at phone widths)
   await expect(page).toHaveTitle('Bestätigungsverkehr');
   await expect(page.locator('#view-events')).toBeVisible();
@@ -31,7 +31,7 @@ async function exportAs(page, kind) {
 }
 
 test('loads and shows the log list', async ({ page }) => {
-  await page.goto('confirm/');
+  await page.goto('tools/confirm/');
   await expect(page.locator('#view-events')).toBeVisible();
   await expect(page.locator('#banner')).toBeHidden();
   // The app started (index.html shows a banner after 8 s otherwise).
@@ -71,7 +71,7 @@ test('logs a check-in and exports CSV and ADIF', async ({ page }) => {
 });
 
 test('offline location search finds a landmark', async ({ page }) => {
-  await page.goto('confirm/');
+  await page.goto('tools/confirm/');
   await expect.poll(() => page.evaluate(() => globalThis.CONFIRM_READY === true)).toBe(true);
   await page.getByRole('button', { name: /Standort/ }).click();
   await expect(page.locator('#loc-panel')).toBeVisible();
@@ -83,6 +83,6 @@ test('offline location search finds a landmark', async ({ page }) => {
 test('service worker installs the offline copy', async ({ page, browserName }) => {
   // Playwright drives service workers reliably only in Chromium.
   test.skip(browserName !== 'chromium', 'service workers: Chromium only');
-  await page.goto('confirm/');
+  await page.goto('tools/confirm/');
   await expect(page.locator('#st-offline')).toHaveText(/offline bereit/, { timeout: 45_000 });
 });
