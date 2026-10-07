@@ -35,7 +35,9 @@ test('loads and shows the log list', async ({ page }) => {
   await expect(page.locator('#banner')).toBeHidden();
   // The app started (index.html shows a banner after 8 s otherwise).
   await expect.poll(() => page.evaluate(() => globalThis.CONFIRM_STARTED === true)).toBe(true);
-  await expect(page.locator('#st-storage')).not.toHaveText(/prüfe/);
+  // Storage opened (not the #st-storage chip: Firefox asks the user before
+  // navigator.storage.persist() resolves, so it stays "prüfe…" headless).
+  await expect(page.locator('#st-backend')).toHaveText('IndexedDB');
 });
 
 test('logs a check-in and exports CSV and ADIF', async ({ page }) => {
