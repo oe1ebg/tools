@@ -231,7 +231,11 @@ export function parseMgrs(raw, ref = UTM_DEFAULT_REF) {
   }
   if (!digits || !(zone >= 1 && zone <= 60) || !UTM_COL_SETS[zone % 3].includes(col)) return null;
   const p = { zone, band, square: col + row, east: digits[0], north: digits[1], digits: digits[0].length * 2, zoneGiven };
-  if (!mgrsOrigin(p)) return null;
+  const o = mgrsOrigin(p, !zoneGiven);
+  if (!o) return null;
+  // Without zone the reference band only picks the 2000 km cycle; the
+  // square's own band goes into the text.
+  if (!zoneGiven) p.band = utmBand(o.centerLat) || p.band;
   p.text = formatMgrs(p);
   return p;
 }
@@ -239,7 +243,8 @@ export function parseMgrs(raw, ref = UTM_DEFAULT_REF) {
 // South-west corner of the square in UTM metres: { zone, hemisphere,
 // easting, northing, size }, or null if the square doesn't exist in that
 // band. The northing repeats every 2000 km; the band picks the right one.
-function mgrsOrigin(p) {
+// loose: the band is only a hint (zone-less input), take the nearest cycle.
+function mgrsOrigin(p, loose = false) {
   const bi = UTM_BANDS.indexOf(p.band);
   if (bi < 0) return null;
   const south = -80 + bi * 8, north = p.band === 'X' ? 84 : south + 8;
@@ -259,8 +264,8 @@ function mgrsOrigin(p) {
     if (!best || d < best.d) best = { d, northing, lat: ll.lat };
   }
   // Allow a little slack: squares overlap the band edges.
-  if (!best || best.lat < south - 1 || best.lat > north + 1) return null;
-  return { zone: p.zone, hemisphere, easting, northing: best.northing, size };
+  if (!best || (!loose && (best.lat < south - 1 || best.lat > north + 1))) return null;
+  return { zone: p.zone, hemisphere, easting, northing: best.northing, size, centerLat: best.lat };
 }
 
 // Box of a UTMREF (string or parts) like maidenheadToBounds():

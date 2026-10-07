@@ -170,3 +170,29 @@ test('autoSelect levels: unknown level never auto-selects', () => {
   assert.equal(locate(idx, 'Donauturm', { autoSelect: 'none' }).autoSelect, null);
   assert.equal(locate(idx, 'Donauturm', { autoSelect: 'never' }).autoSelect, null);
 });
+
+test('UTMREF input: an area result, zone from the reference or 33U', () => {
+  const r = top('33U XP 02013 40385');
+  assert.equal(r.type, 'utm');
+  assert.equal(r.utm, '33U XP 02013 40385');
+  assert.equal(r.utmInfo.digits, 10);
+  assert.ok(Math.abs(r.lat - 48.20849) < 1e-4 && Math.abs(r.lon - 16.37312) < 1e-4);
+  assert.equal(r.maidenhead, 'JN88ef');
+  const short = top('XP 0201 4038');
+  assert.equal(short.utm, '33U XP 0201 4038');
+  assert.match(short.note, /33U angenommen/);
+  assert.equal(top('xp02014038').utm, '33U XP 0201 4038');
+  // A reference in zone 32 (own QTH in Vorarlberg): "NT …" is read there.
+  const west = locate(idx, 'NT 5625 6133', { utmRef: { zone: 32, band: 'T', source: 'eigener Standort' } }).results[0];
+  assert.equal(west.utm, '32T NT 5625 6133');
+  assert.match(west.note, /32T angenommen \(eigener Standort\)/);
+  // With zone anywhere in the text; the rest is ignored like with coordinates.
+  assert.equal(top('Feuerwehrhaus 33U XP 0201 4038').utm, '33U XP 0201 4038');
+  // A coarse UTMREF is an area: never "exact".
+  const coarse = top('33U XP 02 40');
+  assert.equal(coarse.confidence, 'likely');
+  assert.match(coarse.note, /Gebiet \(1 km\)/);
+  // Locators stay locators.
+  assert.equal(top('JN88').type, 'maidenhead');
+  assert.equal(top('JN88ee').type, 'maidenhead');
+});

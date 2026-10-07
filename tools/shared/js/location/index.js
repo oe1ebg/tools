@@ -9,6 +9,7 @@
 //   locate(idx, 'Waehringerstr 42 1180')   -> { evidence, results, autoSelect }
 //   lookupCoordinates(idx, 48.21, 16.37)    -> { postcode, district, ... }
 //   lookupMaidenhead(idx, 'JN88ee')         -> { bounds, postalCodes, ... }
+//   locate(idx, 'XP 0201 4038', { utmRef: { zone: 33, band: 'U' } }) -> a 'utm' area result
 
 import { latLonToMaidenhead, maidenheadToBounds, isValidLocator, locatorPrecisionName, formatLocator } from '../maidenhead.js';
 import { foldName, compactKey, foldedForms, keysOfForms, searchKeys, normalizeHouseNumber, leadingNumber } from './normalize.js';
@@ -17,6 +18,7 @@ import { buildTrigramIndex, trigramCandidates, nameSimilarity } from './fuzzy.js
 import { buildGrid, nearestPoints, pointsInBox } from './spatial.js';
 import { splitRelation, cornerSplits, splitCategory, categoryOfWord, rewriteOrdinals, STOP_WORDS } from './query.js';
 import { distanceMeters } from '../geo.js';
+import { mgrsToBounds, mgrsPrecisionName } from '../utm.js';
 
 // Ranking (see the brief): text match base + structured-evidence bonuses.
 export const SCORE = {
@@ -838,15 +840,41 @@ function finish(results, opts) {
 
 /* ------------------------------------------------------------------ main entry */
 
+// A UTMREF: like a locator an area (the square), the point is its middle.
+// 8 or 10 digits (10 m / 1 m) count as an exact position near an address.
+function utmResult(idx, u, ref) {
+  const b = mgrsToBounds(u);
+  const c = lookupCoordinates(idx, b.centerLat, b.centerLon);
+  const area = c.postcode ? null : umlandArea(idx, b.centerLat, b.centerLon);
+  const name = mgrsPrecisionName(u.digits);
+  const notes = [
+    u.zoneGiven ? null : `ohne Zone eingegeben – ${u.zone}${u.band} angenommen${ref?.source ? ` (${ref.source})` : ''}`,
+    u.digits < 8 ? `UTMREF ist ein Gebiet (${name}); Punkt = Mitte des Quadrats` : null,
+    c.postcode ? null : c.note,
+  ].filter(Boolean);
+  return {
+    type: 'utm', label: `${u.text} (${name})`, lat: b.centerLat, lon: b.centerLon,
+    maidenhead: c.maidenhead, postcode: c.postcode || area?.postcode || undefined, city: area?.city, district: c.district,
+    utm: u.text, source: 'computed', score: 100,
+    confidence: u.digits >= 8 && c.confidence !== 'low' ? 'exact' : 'likely',
+    reasons: [c.postcode ? `nächste Adresse ${c.nearestAddressDistanceMeters} m (${c.nearestAddress})` : 'UTMREF'],
+    evidence: {}, note: notes.length ? notes.join(' · ') : undefined,
+    utmInfo: { text: u.text, digits: u.digits, precisionName: name, zoneGiven: u.zoneGiven,
+      bounds: { west: b.west, east: b.east, south: b.south, north: b.north }, center: { lat: b.centerLat, lon: b.centerLon } },
+  };
+}
+
 // opts.autoSelect: minimum confidence to auto-pick results[0] ('exact' | 'high' | 'likely';
 // anything else, e.g. 'none', disables auto-selection). opts.limit: max results.
+// opts.utmRef: { zone, band, source? } for a UTMREF typed without zone
+// (the own location's zone; default 33U).
 export function locate(idx, input, opts = {}) {
   // District names ("Favoriten Quellenstr") are only peeled off when the
   // text as a whole isn't already a known name ("UNO City", "Landstraßer Gürtel").
   const known = t => searchKeys(t).some(k => idx.keyTerms.has(k));
-  let ev = parseLocationInput(rewriteOrdinals(input), undefined, idx.postcodeSet);
+  let ev = parseLocationInput(rewriteOrdinals(input), undefined, idx.postcodeSet, opts.utmRef);
   if (ev.text && !ev.district && !known(ev.text)) {
-    ev = parseLocationInput(rewriteOrdinals(input), idx.districtNames, idx.postcodeSet);
+    ev = parseLocationInput(rewriteOrdinals(input), idx.districtNames, idx.postcodeSet, opts.utmRef);
   }
   // A number that belongs to the name ("Zentralfriedhof Tor 2"), not a house number.
   if (ev.houseNumber && known(`${ev.street} ${ev.houseNumber}`)) {
@@ -874,6 +902,8 @@ export function locate(idx, input, opts = {}) {
     autoSelect: results[0] && CONFIDENCE_ORDER.includes(minConf)
       && CONFIDENCE_ORDER.indexOf(results[0].confidence) >= CONFIDENCE_ORDER.indexOf(minConf) ? results[0] : null,
   });
+
+  if (ev.utm) return pack([utmResult(idx, ev.utm, opts.utmRef)]);
 
   if (ev.latitude !== undefined) {
     const c = lookupCoordinates(idx, ev.latitude, ev.longitude);

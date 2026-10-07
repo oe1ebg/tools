@@ -68,3 +68,15 @@ test('Austrian PLZ (with a PLZ set), 1031, "Bezirk <Name>"', () => {
   assert.deepEqual(P('Bezirk 3'), { district: 3 });
   assert.deepEqual(P('Bezirk Favoriten', districts), { bezirkHint: true, district: 10, text: 'Favoriten' });
 });
+
+test('UTMREF is taken from the input', () => {
+  assert.equal(P('33U XP 02013 40385').utm.text, '33U XP 02013 40385');
+  assert.equal(P('33U XP 02013 40385').text, undefined);
+  assert.equal(P('XP 0201 4038').utm.text, '33U XP 0201 4038');
+  assert.equal(parseLocationInput('NT 5625 6133', undefined, undefined, { zone: 32, band: 'T' }).utm.text, '32T NT 5625 6133');
+  const ev = P('Donauinsel 33UXP0201340385');
+  assert.equal(ev.utm.text, '33U XP 02013 40385');
+  assert.equal(ev.text, 'Donauinsel');
+  // the short form only as the whole input; locators, PLZ and streets are no UTMREF
+  for (const s of ['Donauinsel XP 0201 4038', 'JN88ee', 'JN88', '1100', 'Währinger Straße 42']) assert.equal(P(s).utm, undefined, s);
+});

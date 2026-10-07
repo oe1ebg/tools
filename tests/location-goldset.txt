@@ -30,6 +30,7 @@ min typo 0.9
 min umland 0.9
 min ambiguous 1.0
 min unknown 1.0
+min utm 1.0
 
 # --- official names, streets, addresses: must keep working
 exact | Stephansplatz | Stephansplatz | 1 | auto
@@ -267,3 +268,18 @@ unknown | Hausnummer 12 | - | 1 | noauto
 unknown | Hinterhof | - | 1 | noauto
 unknown | keine Ahnung | - | 1 | noauto
 unknown | Feuerwehrzufahrt | - | 1 | noauto
+
+# --- UTMREF (MGRS) as authorities give it: with/without spaces and zone
+# (without zone: the own location's zone, here the default 33U). 8 or 10
+# digits near an address are exact; fewer digits are an area (no auto).
+utm | 33U XP 02013 40385 | @48.20849,16.37312/5 | 1 | auto
+utm | 33UXP0201340385 | @48.20849,16.37312/5 | 1 | auto
+utm | 33u xp 0201 4038 | @48.2085,16.3731/20 | 1 | auto
+utm | XP 0201 4038 | @48.2085,16.3731/20 | 1 | auto
+utm | xp02014038 | @48.2085,16.3731/20 | 1 | auto
+utm | XP 0467 4395 | @48.2402,16.4098/20 | 1 | auto
+utm | XP 039 457 | @48.2565,16.4006/150 | 1 | noauto
+utm | Feuerwehr 33U XP 0467 4395 | @48.2402,16.4098/20 | 1 | auto
+utm | 33T WN 3336 1311 | @47.0707,15.4395/20 | 1 |
+utm | 32T NT 56255 61333 | @47.503,9.747/5 | 1 |
+utm | 33T TN 73839 39505 | @47.27,12.01/5 | 1 |

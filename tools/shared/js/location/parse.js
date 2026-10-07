@@ -3,9 +3,11 @@
 // removed from the text; what remains is searched as a street/place name.
 //   "Donauinsel 1220 JN88ge" -> { text: "Donauinsel", postcode: "1220", locator: "JN88ge" }
 //   "Bezirk Mödling"         -> { text: "Mödling", bezirkHint: true }
+//   "33U XP 02013 40385"     -> { utm: { zone: 33, band: "U", square: "XP", ... } }
 
 import { isValidLocator, isLocatorPrefix, formatLocator } from '../maidenhead.js';
 import { foldName } from './normalize.js';
+import { parseMgrs } from '../utm.js';
 
 const COORD_DOT_RE = /(-?\d{1,2}\.\d+)\s*°?\s*([NS])?\s*[,;\s]\s*(-?\d{1,3}\.\d+)\s*°?\s*([EOW])?/i;
 const COORD_COMMA_RE = /(-?\d{1,2},\d+)\s*°?\s*([NS])?\s*[;\s]\s*(-?\d{1,3},\d+)\s*°?\s*([EOW])?/i;
@@ -21,6 +23,9 @@ const DISTRICT_RES = [
 const BEZIRK_PREFIX_RE = /^(?:politischer\s+)?(?:bezirk|bez\.|bez|bh)\s+(?=[^\d\s])/i;
 const CITY_RE = /(?:^|[\s,])(?:wien|vienna)(?=[\s,]|$)/gi;
 const HN_RE = /^(.*?[^\d\s].*?)[\s,]+(?:nr\.?\s*)?(\d{1,4}(?:\s?[a-z](?![a-z]))?(?:\s*[-–/]\s*\d{1,4}[a-z]?)*)$/i;
+
+// UTMREF with zone, anywhere in the text ("Feuerwehrhaus 33U XP 0201 4038").
+const UTM_IN_TEXT_RE = /(^|[\s,;])(\d{1,2}\s?[C-HJ-NP-X]\s?[A-HJ-NP-Z][A-HJ-NP-V]\s?\d{2,10}(?:\s\d{1,5})?)(?=$|[\s,;])/i;
 
 function toNumber(s) {
   return parseFloat(String(s).replace(',', '.'));
@@ -42,11 +47,28 @@ function takeCoordinates(text, ev) {
   return text;
 }
 
+// A UTMREF (MGRS): the whole input, which may leave out the zone ("XP 0123
+// 5678": `utmRef` = { zone, band } supplies it), or one with zone anywhere.
+function takeUtm(text, ev, utmRef) {
+  const whole = parseMgrs(text, utmRef);
+  if (whole) {
+    ev.utm = whole;
+    return '';
+  }
+  const m = UTM_IN_TEXT_RE.exec(text);
+  const p = m && parseMgrs(m[2], utmRef);
+  if (!p) return text;
+  ev.utm = p;
+  return (text.slice(0, m.index) + m[1] + text.slice(m.index + m[0].length)).trim();
+}
+
 // districtNames: Map folded name -> district number (optional)
 // postcodes: Set of known PLZ (optional; without it only Vienna PLZ are recognized)
-export function parseLocationInput(raw, districtNames, postcodes) {
+// utmRef: { zone, band } for a UTMREF without zone (optional; default 33U)
+export function parseLocationInput(raw, districtNames, postcodes, utmRef) {
   const ev = { raw: String(raw ?? '').trim() };
-  let text = takeCoordinates(ev.raw, ev);
+  let text = takeUtm(ev.raw, ev, utmRef);
+  text = takeCoordinates(text, ev);
 
   // Locator and PLZ tokens, anywhere in the text.
   const keep = [];
