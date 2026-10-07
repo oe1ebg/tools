@@ -6,7 +6,7 @@
 
 import { el, fill } from '../../shared/js/dom.js';
 import { loadDataFile } from '../../shared/js/data.js';
-import { stationsForMap, ownPosition, maidenheadGridLines } from './mapdata.js';
+import { stationsForMap, ownPosition, maidenheadGridLines, utmGridLines } from './mapdata.js';
 import { mapLinks } from './sources.js';
 
 const MAP_ATTRIBUTION = 'Bezirke: Stadt Wien (CC BY 4.0) · Straßen, Gewässer: © OpenStreetMap-Mitwirkende (ODbL) · Leaflet';
@@ -66,14 +66,24 @@ function drawBase() {
     L.tooltip({ permanent: true, direction: 'center', className: 'map-grid-label', interactive: false })
       .setLatLng([lab.lat, lab.lon]).setContent(lab.loc).addTo(grid);
   }
-  baseGroups = [districts, water, roads, grid];
+  // UTM grid (1 km, 10 km lines stronger and labelled with their square).
+  const utm = L.layerGroup();
+  const u = utmGridLines(baseData.bounds, 1000);
+  for (const line of u.lines) {
+    L.polyline(line.p, { color: c.warn, weight: line.major ? 1.2 : 0.6, opacity: line.major ? 0.7 : 0.4, interactive: false }).addTo(utm);
+  }
+  for (const lab of u.labels) {
+    L.tooltip({ permanent: true, direction: 'center', className: 'map-grid-label', interactive: false })
+      .setLatLng([lab.lat, lab.lon]).setContent(lab.text).addTo(utm);
+  }
+  baseGroups = [districts, water, roads, grid, utm];
   water.addTo(mapInst);
   roads.addTo(mapInst);
   districts.addTo(mapInst);
   mapInst._layersCtl?.remove();
   // Expanded on wide screens; collapsed on phones, where the toggle shows the
   // text "Ebenen" (CSS) instead of Leaflet's PNG icon.
-  mapInst._layersCtl = L.control.layers(null, { Bezirke: districts, Gewässer: water, Straßen: roads, 'Maidenhead-Raster': grid },
+  mapInst._layersCtl = L.control.layers(null, { Bezirke: districts, Gewässer: water, Straßen: roads, 'Maidenhead-Raster': grid, 'UTM-Raster (1 km)': utm },
     { collapsed: narrow(), position: 'topright' }).addTo(mapInst);
 }
 

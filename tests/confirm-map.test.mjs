@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { stationsForMap, ownPosition, maidenheadGridLines } from '../tools/confirm/js/mapdata.js';
+import { stationsForMap, ownPosition, maidenheadGridLines, utmGridLines } from '../tools/confirm/js/mapdata.js';
+import { latLonToUtm } from '../tools/shared/js/utm.js';
 import { mapLinkUrls, mapLinkZoom } from '../tools/confirm/js/sources.js';
 
 test('map links: Google Maps / OSM URLs, 5 decimals, zoom by type', () => {
@@ -54,6 +55,25 @@ test('maidenheadGridLines: 6-char squares covering Vienna', () => {
   for (const want of ['JN88ee', 'JN88ef', 'JN88dg', 'JN88fe']) assert.ok(locs.includes(want), want);
   assert.ok(locs.every(l => /^JN88[c-g][c-h]$/.test(l)), locs.join()); // south edge 48.118° is row c
   assert.ok(g.lines.length >= 10);
+});
+
+test('utmGridLines: 1 km lines over Vienna, 10 km labels, bounded count', () => {
+  const g = utmGridLines([[48.118, 16.18], [48.323, 16.578]]);
+  assert.equal(g.zone, 33);
+  assert.equal(g.step, 1000);
+  assert.ok(g.lines.length > 40 && g.lines.length < 120, String(g.lines.length));
+  // every vertex of a line lies on its grid value
+  const vert = g.lines.find(l => l.major);
+  const es = vert.p.map(([lat, lon]) => latLonToUtm(lat, lon, 33));
+  const onE = es.every(u => Math.abs(u.easting - Math.round(u.easting / 10000) * 10000) < 1);
+  const onN = es.every(u => Math.abs(u.northing - Math.round(u.northing / 10000) * 10000) < 1);
+  assert.ok(onE || onN, 'a major line runs along a 10 km grid value');
+  assert.ok(g.labels.some(l => l.text === 'XP 0 4'), g.labels.map(l => l.text).join());
+  assert.ok(g.labels.every(l => /^[S-Z][A-V] \d \d$/.test(l.text)));
+  // A big area falls back to the 10 km grid instead of thousands of lines.
+  const big = utmGridLines([[46.4, 9.5], [49, 17.2]]);
+  assert.equal(big.step, 10000);
+  assert.ok(big.lines.length <= 1000);
 });
 
 const real = new URL('../tools/shared/data/vienna-map.json', import.meta.url);

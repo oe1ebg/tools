@@ -8,19 +8,25 @@ import { $, el, fill, copyToClipboard } from '../../shared/js/dom.js';
 import { loadDataFile } from '../../shared/js/data.js';
 import { buildLocationIndex, locate } from '../../shared/js/location/index.js';
 import { latLonToMaidenhead } from '../../shared/js/maidenhead.js';
+import { mgrsOf, UTM_DEFAULT_REF } from '../../shared/js/utm.js';
 import { sourceItem, standDate, mapLinks } from './sources.js';
 
 const LOC_PREC_KEY = 'oe1ebg-confirm-locator-precision';
 const LOC_AUTO_KEY = 'oe1ebg-confirm-location-autoselect';
+const UTM_PREC_KEY = 'oe1ebg-confirm-utm-precision';
+const UTM_LOG_KEY = 'oe1ebg-confirm-show-utm';
 const CONF_LABEL = { exact: 'exakt', high: 'hoch', likely: 'wahrscheinlich', ambiguous: 'mehrdeutig', low: 'unsicher' };
-const TYPE_LABEL = { address: 'Adresse', street: 'Straße', intersection: 'Kreuzung', between: 'Bereich', poi: 'Ort', coordinate: 'Koordinate', maidenhead: 'Locator', district: 'Bezirk', bezirk: 'Bezirk', postcode: 'PLZ' };
+const TYPE_LABEL = { address: 'Adresse', street: 'Straße', intersection: 'Kreuzung', between: 'Bereich', poi: 'Ort', coordinate: 'Koordinate', maidenhead: 'Locator', utm: 'UTMREF', district: 'Bezirk', bezirk: 'Bezirk', postcode: 'PLZ' };
 // How a result was named when not by its own name (index.js NAME_TYPES).
 const NAME_TYPE_LABEL = { alias: 'anderer Name', colloquial: 'umgangssprachlich', historical: 'früherer Name', generated: 'Kurzform' };
 const SOURCE_LABEL = { 'vienna-ogd': 'Stadt Wien', osm: 'OpenStreetMap', gip: 'Stadt Wien (GIP-Namen)', wl: 'Wiener Linien', computed: 'berechnet', alias: 'kuratiert', bev: 'Adressregister' };
-const EXAMPLES = ['Währinger Straße 42', '1100 Quellenstr', 'Donauturm', 'Donauinsel JN88ge', '48.2083, 16.3731', 'JN88ee', '2340', 'Bezirk Liezen'];
+const EXAMPLES = ['Währinger Straße 42', '1100 Quellenstr', 'Donauturm', 'Donauinsel JN88ge', '48.2083, 16.3731', 'JN88ee', '33U XP 0201 4038', '2340', 'Bezirk Liezen'];
 
 let indexPromise = null;
 let locIndex = null;
+// () -> { zone, band, source } for a UTMREF typed without zone (app.js
+// sets it from the open log's own location).
+let utmRefSource = () => ({ ...UTM_DEFAULT_REF, source: 'Standard' });
 
 // Loads and indexes the data once (memoized); null if it isn't available.
 export function loadLocationIndex() {
@@ -42,6 +48,30 @@ export function loadLocationIndex() {
 export function locatorPrecision() {
   const v = parseInt(prefGet(LOC_PREC_KEY) || '6', 10);
   return [4, 6, 8, 10].includes(v) ? v : 6;
+}
+
+// UTMREF digits shown: 10 (1 m, default), 8 (10 m) or 6 (100 m).
+export function utmPrecision() {
+  const v = parseInt(prefGet(UTM_PREC_KEY) || '10', 10);
+  return [6, 8, 10].includes(v) ? v : 10;
+}
+
+// UTMREF in the info lines of the log (location field, log table): off by default.
+export function showUtmInLog() {
+  return prefGet(UTM_LOG_KEY) === '1';
+}
+
+// Digits for describeLocation(): 0 = no UTMREF in the log's info lines.
+export function logUtmDigits() {
+  return showUtmInLog() ? utmPrecision() : 0;
+}
+
+export function setUtmReference(fn) {
+  utmRefSource = fn;
+}
+
+export function utmRef() {
+  return utmRefSource();
 }
 
 // Minimum confidence at which the log's location field takes the best
@@ -157,12 +187,14 @@ export function renderCandidates(container, res, opts = {}) {
   }
   res.results.forEach((r, n) => {
     const loc = locatorFor(r, prec);
+    const utm = mgrsOf(r, utmPrecision());
     const meta = [
       plzText(r),
       r.district ? `${r.district}. Bezirk` : null,
       r.areaInfo?.state && r.type === 'postcode' ? r.areaInfo.state : null,
       loc,
       `${fmtCoord(r.lat)}, ${fmtCoord(r.lon)}`,
+      utm,
     ].filter(Boolean).join(' · ');
     const card = el('div', { class: `loc-cand conf-${r.confidence}${n === 0 && res.autoSelect ? ' auto' : ''}` },
       el('div', { class: 'lc-head' },
@@ -188,6 +220,13 @@ export function renderCandidates(container, res, opts = {}) {
             ? `PLZ in diesem Feld (Hauptanteil, ca. Adressen): ${m.areaPostcodes.slice(0, 12).map(p => `${p.postcode} ${p.name} (${p.addressCount})`).join(', ')}${m.areaPostcodes.length > 12 ? ' …' : ''}`
             : 'Keine Adressen in diesem Feld.'));
     }
+    if (r.utmInfo) {
+      const u = r.utmInfo;
+      const b = u.bounds;
+      card.append(el('div', { class: 'lc-detail' },
+        `UTMREF ${u.text}, Genauigkeit ${u.digits} Ziffern (${u.precisionName}). `,
+        `Mitte ${fmtCoord(u.center.lat)}, ${fmtCoord(u.center.lon)} · Gebiet N ${fmtCoord(b.north)} S ${fmtCoord(b.south)} W ${fmtCoord(b.west)} O ${fmtCoord(b.east)}`));
+    }
     if (r.areaInfo) {
       const a = r.areaInfo;
       const shown = a.locators.length;
@@ -210,6 +249,7 @@ export function renderCandidates(container, res, opts = {}) {
         copyButton('Koordinaten', `${fmtCoord(r.lat)}, ${fmtCoord(r.lon)}`),
         r.postcode ? copyButton('PLZ', r.postcode) : null,
         copyButton('Locator', loc),
+        utm ? copyButton('UTMREF', utm) : null,
         r.areaInfo && r.areaInfo.locators.length > 1 ? copyButton('Alle Locatoren', r.areaInfo.locators.map(l => l[0]).join(' ')) : null,
         mapLinks(r));
     }
@@ -241,6 +281,14 @@ export function initLocationPanel() {
   const auto = $('#loc-auto');
   auto.value = autoSelectLevel();
   auto.addEventListener('change', () => prefSet(LOC_AUTO_KEY, auto.value));
+  const utmPrec = $('#loc-utm-prec');
+  utmPrec.value = String(utmPrecision());
+  const utmLog = $('#loc-utm-log');
+  utmLog.checked = showUtmInLog();
+  // The log's info lines read these on rendering; app.js re-renders them.
+  const utmChanged = () => document.dispatchEvent(new CustomEvent('confirm:utm-prefs'));
+  utmPrec.addEventListener('change', () => { prefSet(UTM_PREC_KEY, utmPrec.value); run(); utmChanged(); });
+  utmLog.addEventListener('change', () => { prefSet(UTM_LOG_KEY, utmLog.checked ? '1' : ''); utmChanged(); });
   fill($('#loc-examples'), ...EXAMPLES.map(q => el('button', { type: 'button', class: 'link', onclick: () => { input.value = q; run(); } }, q)));
 
   let timer = null;
@@ -250,7 +298,7 @@ export function initLocationPanel() {
     const q = input.value.trim();
     if (!q) { results.replaceChildren(); return; }
     const t = performance.now();
-    const res = locate(idx, q);
+    const res = locate(idx, q, { utmRef: utmRef() });
     renderCandidates(results, res);
     setStatus(`${await locationStatusText()} · Suche ${Math.round(performance.now() - t)} ms`, 'ok');
   };

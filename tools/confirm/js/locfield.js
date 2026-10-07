@@ -10,9 +10,10 @@
 // the licence-list city) are offered in the dropdown while it is empty.
 
 import { el, fill, popover } from '../../shared/js/dom.js';
-import { loadLocationIndex, renderCandidates, autoSelectLevel } from './locationui.js';
+import { loadLocationIndex, renderCandidates, autoSelectLevel, logUtmDigits, utmRef } from './locationui.js';
 import { locate } from '../../shared/js/location/index.js';
 import { latLonToMaidenhead } from '../../shared/js/maidenhead.js';
+import { mgrsOf } from '../../shared/js/utm.js';
 import { LOC_ORIGINS, LOC_NAME_TYPES } from './model.js';
 
 const LOC_CONF_TEXT = { exact: 'exakt', high: 'hoch', likely: 'wahrscheinlich', ambiguous: 'mehrdeutig', low: 'unsicher' };
@@ -36,14 +37,19 @@ export function snapshotLocation(r, input, manual, origin = 'search') {
   if (r.city) snap.city = r.city;
   if (r.umland) snap.umland = true;
   if (r.areaInfo) snap.areaLocators = r.areaInfo.locators.map(l => l[0]);
+  // A typed UTMREF is kept as typed (its precision); others are computed.
+  if (r.utm) snap.utm = r.utm;
   return snap;
 }
 
-export function describeLocation(loc) {
+// utmDigits: also the UTMREF at that precision (0 = without; the log's
+// info lines pass logUtmDigits(), a toggle in the Standortsuche).
+export function describeLocation(loc, utmDigits = 0) {
   if (!loc) return '';
   const more = loc.areaLocators?.length > 1 ? ` (+${loc.areaLocators.length - 1})` : '';
   const plz = loc.postcode && !loc.label.includes(loc.postcode) ? `, ${loc.postcode}${loc.city ? ' ' + loc.city : ''}` : '';
-  return `${loc.label}${plz} · ${loc.maidenhead}${more}`;
+  const utm = utmDigits && loc.type !== 'utm' ? mgrsOf(loc, utmDigits) : '';
+  return `${loc.label}${plz} · ${loc.maidenhead}${more}${utm ? ' · ' + utm : ''}`;
 }
 
 // The text to put into the field for a chosen location: the full official
@@ -52,6 +58,7 @@ export function locationFieldText(r) {
   if (r.type === 'address') return `${r.street} ${r.houseNumber}`;
   if (r.type === 'street') return r.street;
   if (r.type === 'maidenhead') return r.maidenhead;
+  if (r.type === 'utm' && r.utm) return r.utm;
   return r.label;
 }
 
@@ -101,14 +108,14 @@ export function createLocationField({ input, plzInput, chip, results, onChange }
     chip.className = chipBase;
     if (loc && prefilled) {
       chip.classList.add('prefilled');
-      const t = `↺ vorgeschlagen (zuletzt ${fmtDay(prefilled.at)}): ${describeLocation(loc)} – Tippen ersetzt`;
+      const t = `↺ vorgeschlagen (zuletzt ${fmtDay(prefilled.at)}): ${describeLocation(loc, logUtmDigits())} – Tippen ersetzt`;
       chip.textContent = t;
       chip.title = t;
     } else if (loc) {
       chip.classList.add(`conf-${loc.confidence}`);
       const from = loc.origin && loc.origin !== 'search' ? `, ${LOC_ORIGINS[loc.origin]?.text || loc.origin}` : '';
       const as = loc.matched ? ` – eingegeben als „${loc.matched}“${LOC_NAME_TYPES[loc.nameType] && loc.nameType !== 'alias' ? ` (${LOC_NAME_TYPES[loc.nameType]})` : ''}` : '';
-      const t = `✓ ${describeLocation(loc)}${as} (${loc.manual ? 'gewählt' : 'automatisch'}, ${LOC_CONF_TEXT[loc.confidence] || loc.confidence}${from}) `;
+      const t = `✓ ${describeLocation(loc, logUtmDigits())}${as} (${loc.manual ? 'gewählt' : 'automatisch'}, ${LOC_CONF_TEXT[loc.confidence] || loc.confidence}${from}) `;
       fill(chip, t,
         el('button', { type: 'button', class: 'link', tabindex: '-1', onclick: () => { setLoc(null); input.focus(); resolve(); } }, 'ändern'));
       chip.title = t;
@@ -190,7 +197,7 @@ export function createLocationField({ input, plzInput, chip, results, onChange }
     // The callsign-list city was picked on purpose: take its best match
     // down to "likely" (Vienna PLZ like "1220 Wien" are never "high").
     const level = textOrigin ? 'likely' : autoSelectLevel();
-    const res = locate(idx, text, { autoSelect: level === 'never' ? 'none' : level, limit: 6 });
+    const res = locate(idx, text, { autoSelect: level === 'never' ? 'none' : level, limit: 6, utmRef: utmRef() });
     renderCandidates(results, res, { compact: true, onPick: r => choose(r, text) });
     pop.update();
     setLoc(res.autoSelect ? snapshotLocation(res.autoSelect, textOrigin ? '' : text, !!textOrigin, textOrigin || 'search') : null);
@@ -274,6 +281,8 @@ export function createLocationField({ input, plzInput, chip, results, onChange }
       pop.hide();
     },
     isPrefilled: () => !!prefilled,
+    // Redraw the info line (display settings changed).
+    redraw: renderChip,
     // Resolve the current text again (e.g. a value restored on opening).
     refresh() {
       resolve();

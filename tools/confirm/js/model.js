@@ -250,7 +250,7 @@ export function locOriginText(loc, text) {
 
 // How a resolved location was named (`loc.nameType`, from the lookup; lines
 // from before this existed have none): code -> CSV/KML wording. Corners and
-// "zwischen A und B" count as their own kind; coordinates and locators have none.
+// "zwischen A und B" count as their own kind; coordinates, locators and UTMREFs have none.
 export const LOC_NAME_TYPES = {
   name: 'Name', alias: 'anderer Name', colloquial: 'umgangssprachlich', historical: 'früherer Name',
   generated: 'Kurzform', intersection: 'Kreuzung', between: 'Bereich',
@@ -260,7 +260,7 @@ export function locNameType(loc) {
   if (!loc) return '';
   if (loc.nameType) return loc.nameType;
   if (loc.type === 'intersection' || loc.type === 'between') return loc.type;
-  return loc.type === 'coordinate' || loc.type === 'maidenhead' ? '' : 'name';
+  return ['coordinate', 'maidenhead', 'utm'].includes(loc.type) ? '' : 'name';
 }
 
 // Short hints for the log's location line: "früher „Rudolfstiftung“",

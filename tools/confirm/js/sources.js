@@ -105,12 +105,14 @@ export function sourceItem(key, detail) {
 }
 
 // Zoom level for a map link, by result/location type; a locator by its
-// precision (4 chars ≈ 1°×2°, 6 ≈ 5 km, 8 ≈ 500 m).
+// precision (4 chars ≈ 1°×2°, 6 ≈ 5 km, 8 ≈ 500 m), a UTMREF by its digits.
 const MAP_ZOOM = { address: 18, poi: 17, street: 16, coordinate: 16, district: 14, postcode: 12, bezirk: 11 };
 const LOCATOR_ZOOM = { 2: 5, 4: 9, 6: 13, 8: 16, 10: 18 };
+const UTM_ZOOM = { 0: 9, 2: 12, 4: 15, 6: 17, 8: 18, 10: 18 };
 
 export function mapLinkZoom(r) {
   if (r?.type === 'maidenhead') return LOCATOR_ZOOM[String(r.maidenhead || '').length] || 13;
+  if (r?.type === 'utm') return UTM_ZOOM[String(r.utm || '').replace(/^\d+[A-Z] [A-Z]{2}/, '').replace(/\D/g, '').length] ?? 16;
   return MAP_ZOOM[r?.type] || 15;
 }
 

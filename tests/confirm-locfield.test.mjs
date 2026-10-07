@@ -90,3 +90,17 @@ test('name type, matched name and Umland are stored and shown', () => {
   assert.equal(locNameType({ type: 'maidenhead' }), '');
   assert.equal(locNameType(null), '');
 });
+
+test('UTMREF in the info line only when asked, typed UTMREF kept', async () => {
+  const { locationFieldText } = await import('../tools/confirm/js/locfield.js');
+  assert.equal(describeLocation(loc), 'Quellenstraße 10, 1100 · JN88ee', 'off by default');
+  assert.equal(describeLocation(loc, 10), 'Quellenstraße 10, 1100 · JN88ee · 33U XP 01858 36102');
+  assert.equal(describeLocation(loc, 6), 'Quellenstraße 10, 1100 · JN88ee · 33U XP 018 361');
+  const r = { type: 'utm', label: '33U XP 0185 3610 (10 m)', lat: 48.17, lon: 16.37, utm: '33U XP 0185 3610', postcode: '1100', confidence: 'exact', source: 'computed' };
+  const snap = snapshotLocation(r, 'xp 0185 3610', false);
+  assert.equal(snap.utm, '33U XP 0185 3610');
+  assert.equal(snap.type, 'utm');
+  assert.equal(locationFieldText(snap), '33U XP 0185 3610');
+  assert.equal(describeLocation(snap, 10), '33U XP 0185 3610 (10 m), 1100 · JN88ee', 'the label already is the UTMREF');
+  assert.equal(snapshotLocation(loc, 'x', false).utm, undefined, 'only typed UTMREFs are stored');
+});

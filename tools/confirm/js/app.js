@@ -18,9 +18,10 @@ import { loadDataFile } from '../../shared/js/data.js';
 import { buildCallbook, lookupCall, suggestCalls } from '../../shared/js/callbook.js';
 import { $, el, fill, popover, focusNext, submitForm, isComposing, trackExpanded } from '../../shared/js/dom.js';
 import { prefGet, prefSet } from '../../shared/js/prefs.js';
-import { initLocationPanel, loadLocationIndex } from './locationui.js';
+import { initLocationPanel, loadLocationIndex, setUtmReference, logUtmDigits } from './locationui.js';
 import { locate } from '../../shared/js/location/index.js';
-import { isValidLocator, isLocatorPrefix, locatorPrecisionName } from '../../shared/js/maidenhead.js';
+import { isValidLocator, isLocatorPrefix, locatorPrecisionName, maidenheadToBounds } from '../../shared/js/maidenhead.js';
+import { utmReference, UTM_DEFAULT_REF } from '../../shared/js/utm.js';
 import { openMap, closeMap, refreshMap, mapVisible } from './mapview.js';
 import { createLocationField, describeLocation, locationOptions } from './locfield.js';
 import { attachRepeaterSearch, loadRepeaterIndex } from './repeaterui.js';
@@ -1645,7 +1646,7 @@ function renderLog(highlightCall) {
         callbookName(e.call) ? el('div', { class: 'cb-name' }, callbookName(e.call)) : null),
       tpl.fields.flatMap(f => [f.type === 'location' ? originCell(e.loc, e.fields?.[f.key]) : null,
         el('td', {}, fieldVisible(f, e.fields, tpl) ? fieldDisplay(f, e.fields?.[f.key]) : '',
-        f.type === 'location' && e.loc ? el('div', { class: 'loc-sub' }, [`→ ${describeLocation(e.loc)}`, ...locHints(e.loc)].join(' · ')) : null,
+        f.type === 'location' && e.loc ? el('div', { class: 'loc-sub' }, [`→ ${describeLocation(e.loc, logUtmDigits())}`, ...locHints(e.loc)].join(' · ')) : null,
         f.type === 'location' && !e.loc && e.fields?.[f.key] ? el('div', { class: 'loc-sub unresolved' }, 'nicht zugeordnet') : null)]),
       el('td', {}, e.viaRepeater
         ? el('span', {
@@ -1901,15 +1902,40 @@ function showAdifIssues(issues) {
   go.focus();
 }
 
+// The own QTH texts of the log (header and line snapshots), resolved like
+// the map does, for the exports' own UTMREF: text -> result | null.
+async function qthResolver(ev, entries) {
+  const texts = new Set([ev.header?.myQth, ...entries.map(e => e.snap?.myQth)].filter(Boolean));
+  const ctx = mapContext();
+  const found = new Map();
+  for (const t of texts) found.set(t, await ctx.resolve(t));
+  return t => found.get(t) || null;
+}
+
+// Zone for a UTMREF typed without zone: the open log's own QTH (resolved in
+// the header), else its locator, else 33U.
+function utmRefFromHeader() {
+  if (!state.event) return { ...UTM_DEFAULT_REF, source: 'Standard' };
+  const qth = $('#log-header')?._hdr?.qthField?.get();
+  if (qth && Number.isFinite(qth.lat)) return { ...utmReference(qth.lat, qth.lon), source: 'Zone des eigenen QTH' };
+  const g = String(state.event.header?.myGrid || '').trim();
+  if (isValidLocator(g)) {
+    const b = maidenheadToBounds(g);
+    return { ...utmReference(b.centerLat, b.centerLon), source: 'Zone des eigenen Locators' };
+  }
+  return { ...UTM_DEFAULT_REF, source: 'Standard' };
+}
+
 async function doExport(kind, force = false) {
   $('#export-msg').hidden = true;
   await flushMarkers({ openForEdit: false });
   await flushHeader();
   const ev = state.event;
   const entries = state.entries;
+  const qth = ['csv', 'adif', 'kml', 'summary'].includes(kind) ? await qthResolver(ev, entries) : null;
   if (kind === 'csv') {
     const sep = prefGet(CSV_SEP_KEY, ';');
-    download(toCSV(ev, entries, sep, { comments: $('#csv-comments').checked }), fileBase(ev) + '.csv', 'text/csv');
+    download(toCSV(ev, entries, sep, { comments: $('#csv-comments').checked, qth }), fileBase(ev) + '.csv', 'text/csv');
     markExported();
   } else if (kind === 'adif') {
     // ADIF only holds QSOs: an empty file (header only) looks like a
@@ -1924,18 +1950,18 @@ async function doExport(kind, force = false) {
       return;
     }
     const commit = globalThis.CONFIRM_BUILD?.commit;
-    download(toADIF(ev, entries, undefined, { programVersion: commit && commit !== 'dev' ? commit : '' }),
+    download(toADIF(ev, entries, undefined, { programVersion: commit && commit !== 'dev' ? commit : '', qth }),
       fileBase(ev) + '.adi', ADIF_MIME);
     markExported();
   } else if (kind === 'kml') {
     // Not a full backup (only stations with a location): no markExported().
-    download(toKML(ev, entries), fileBase(ev) + '.kml', KML_MIME);
+    download(toKML(ev, entries, { qth }), fileBase(ev) + '.kml', KML_MIME);
   } else if (kind === 'json') {
     const backup = { format: BACKUP_FORMAT, version: 1, exported: nowIso(), events: [await eventBackup(ev)] };
     download(JSON.stringify(backup, null, 1), fileBase(ev) + '_sicherung.json', 'application/json');
     markExported();
   } else if (kind === 'summary') {
-    showText('Zusammenfassung', toSummary(ev, entries, timeMode()));
+    showText('Zusammenfassung', toSummary(ev, entries, timeMode(), { qth }));
   } else if (kind === 'print') {
     window.print();
   }
@@ -2143,6 +2169,14 @@ async function main() {
   trackOnline();
   initTimeMode();
   initLocationPanel();
+  setUtmReference(utmRefFromHeader);
+  // "UTMREF im Log zeigen" / its precision changed: redraw the info lines.
+  document.addEventListener('confirm:utm-prefs', () => {
+    if (!state.event) return;
+    renderLog();
+    state.locField?.redraw();
+    $('#log-header')?._hdr?.qthField?.redraw();
+  });
   initChannel();
   initPersistence();
   initOffline();

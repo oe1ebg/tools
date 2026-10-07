@@ -29,7 +29,7 @@
   <span id="st-offline" class="chip">offline: prüfe…</span>
   <span id="st-storage" class="chip">Speicher: prüfe…</span>
   <span id="st-tabs" class="chip warn" hidden title="Dieser Browser kann nicht verhindern, dass zwei Tabs oder Fenster dasselbe Log bearbeiten (fehlt z. B. bei http:// im Heimnetz oder in Safari vor 15.4). Jedes Log nur in einem Tab öffnen.">nur ein Tab pro Log!</span>
-  <button id="btn-loc" type="button" aria-expanded="false" aria-controls="loc-panel" title="Offline-Standortsuche Wien: Adresse, Ort, PLZ, Koordinaten, Locator"><span aria-hidden="true">📍</span> Standort</button>
+  <button id="btn-loc" type="button" aria-expanded="false" aria-controls="loc-panel" title="Offline-Standortsuche Wien: Adresse, Ort, PLZ, Koordinaten, Locator, UTMREF"><span aria-hidden="true">📍</span> Standort</button>
   <button id="btn-update" type="button" class="primary" hidden title="Neue Version installieren (Daten bleiben erhalten)">Update verfügbar</button>
   <div id="time-toggle" class="seg" role="group" aria-label="Zeitanzeige" title="Anzeige und Eingabe der Zeit. Gespeichert wird immer ein ISO-8601-Zeitstempel (UTC).">
     <button type="button" data-time-mode="utc" aria-pressed="false">UTC</button>
@@ -55,12 +55,16 @@
       <label class="check">Locator
         <select id="loc-prec"><option value="4">4</option><option value="6">6</option><option value="8">8</option><option value="10">10</option></select> Zeichen
       </label>
+      <label class="check" title="Genauigkeit der UTM-Gitterreferenz (UTMREF/MGRS) in der Anzeige; Exporte immer auf 1 m">UTMREF
+        <select id="loc-utm-prec"><option value="10">1 m</option><option value="8">10 m</option><option value="6">100 m</option></select>
+      </label>
+      <label class="check" title="UTMREF auch in der Info-Zeile des Standortfelds und in der Log-Tabelle zeigen"><input type="checkbox" id="loc-utm-log"> UTMREF im Log zeigen</label>
       <label class="check" title="Ab welcher Sicherheit das Standortfeld im Log den besten Treffer selbst übernimmt">Im Log automatisch übernehmen ab
         <select id="loc-auto"><option value="exact">exakt</option><option value="high">hoch</option><option value="likely">wahrscheinlich</option><option value="never">nie</option></select>
       </label>
       <button type="button" id="loc-close">schließen</button>
     </div>
-    <input id="loc-q" type="search" aria-label="Standort suchen" placeholder="Adresse, Ort, PLZ, Koordinaten oder Maidenhead-Locator" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search">
+    <input id="loc-q" type="search" aria-label="Standort suchen" placeholder="Adresse, Ort, PLZ, Koordinaten, Locator oder UTMREF" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search">
     <div class="hint" id="loc-examples-wrap">Beispiele: <span id="loc-examples"></span></div>
     <div id="loc-results"></div>
   </section>
