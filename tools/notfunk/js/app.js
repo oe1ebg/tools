@@ -203,6 +203,83 @@ async function createOp() {
   location.hash = `#/e/${op.id}`;
 }
 
+/* ---------------------------------------------------------------- the operation's header */
+
+// The "Einsatz" panel above the form, like the confirmation log's header:
+// changes apply to new messages (stored ones keep what they were saved
+// with). The station code is the number prefix: it can only change while
+// the operation has no message, so no number is ever ambiguous.
+const OP_FIELDS = { name: '#e-name', prefix: '#e-prefix', station: '#e-station', operator: '#e-operator', home: '#e-home', freq: '#e-freq', via: '#e-via' };
+const OP_PANEL_KEY = 'oe1ebg-notfunk-op-open';
+
+function renderOpPanel() {
+  const op = state.op;
+  for (const [k, sel] of Object.entries(OP_FIELDS)) if (document.activeElement !== $(sel)) $(sel).value = op[k] || '';
+  $('#e-prefix').readOnly = state.msgs.length > 0;
+  $('#book-title').textContent = op.name;
+  setText($('#op-sum'), [
+    `${op.prefix}${op.station ? ` ${op.station}` : ''}`,
+    op.operator ? `Op ${op.operator}` : 'Operator fehlt',
+    op.home && `Eigene Stelle ${op.home}`,
+    op.freq && `${op.freq} MHz`,
+    op.via && `via ${op.via}`,
+  ].filter(Boolean).join(' · '));
+  $('#op-sum').classList.toggle('warn-text', !op.operator);
+}
+
+async function saveOpPanel() {
+  const op = state.op;
+  const v = sel => $(sel).value.trim();
+  const status = $('#op-status');
+  const patch = {
+    name: v('#e-name') || op.name, station: v('#e-station'), operator: normalizeCall(v('#e-operator')),
+    home: v('#e-home'), freq: v('#e-freq'), via: normalizeCall(v('#e-via')),
+  };
+  const prefix = normalizePrefix(v('#e-prefix'));
+  if (prefix !== op.prefix) {
+    if (state.msgs.length) {
+      status.textContent = 'Das Stationskürzel ist schon in Meldungsnummern verwendet und bleibt.';
+    } else if (!PREFIX_RE.test(prefix)) {
+      status.textContent = 'Stationskürzel: 1–6 Buchstaben oder Ziffern, z. B. W1.';
+    } else {
+      patch.prefix = prefix;
+      status.textContent = '';
+    }
+  } else {
+    status.textContent = '';
+  }
+  if (Object.entries(patch).every(([k, val]) => (op[k] || '') === val)) { renderOpPanel(); return; }
+  // An untouched form follows the new defaults (frequency, relay, own post).
+  const f = readForm();
+  const follow = {};
+  if (f.freq === (op.freq || '')) follow.freq = patch.freq;
+  if (f.via === (op.via || '')) follow.via = patch.via;
+  if (f.to === (op.home || '') && f.direction === 'in') follow.to = patch.home;
+  if (f.from === (op.home || '') && f.direction === 'out') follow.from = patch.home;
+  await updateOp(op, patch);
+  if (patch.prefix) state.counter = await state.store.get('counters', counterKey(op.id, patch.prefix));
+  if (Object.keys(follow).length && !state.editing) writeForm({ ...readForm(), ...follow });
+  renderOpPanel();
+  renderFormState();
+  bookStatus(`Einsatz geändert: ${Object.keys(patch).filter(k => (op[k] || '') !== patch[k]).map(k => OP_LABELS[k]).join(', ')}`);
+}
+
+const OP_LABELS = { name: 'Name', prefix: 'Stationskürzel', station: 'Station', operator: 'Operator', home: 'Eigene Stelle', freq: 'Frequenz', via: 'Relais' };
+
+function initOpPanel() {
+  const panel = $('#op-panel');
+  panel.open = prefGet(OP_PANEL_KEY) === '1';
+  panel.addEventListener('toggle', () => prefSet(OP_PANEL_KEY, panel.open ? '1' : ''));
+  const form = $('#op-form');
+  form.addEventListener('change', saveOpPanel);
+  form.addEventListener('keydown', ev => {
+    if (ev.key !== 'Enter' || isComposing(ev) || ev.target.tagName !== 'INPUT') return;
+    ev.preventDefault();
+    // Enter = next field; from the last one on to the message form.
+    if (!focusNext(form, ev.target)) { saveOpPanel(); $('#m-from').focus(); }
+  });
+}
+
 /* ---------------------------------------------------------------- views */
 
 function showView(id) {
@@ -244,8 +321,7 @@ async function loadOp() {
   state.revisions = revisions;
   state.counter = counter;
   $('#book-title').textContent = state.op.name;
-  $('#book-meta').textContent = `Station ${state.op.prefix}${state.op.station ? ` ${state.op.station}` : ''}${state.op.home ? ` · Eigene Stelle ${state.op.home}` : ''}`;
-  $('#book-operator').value = state.op.operator || '';
+  renderOpPanel();
   document.title = `${state.op.name} – Notfunk-Meldebuch`;
 }
 
@@ -422,7 +498,7 @@ async function saveMessage() {
     status.textContent = `Nicht gespeichert: ${errors.join(' · ')}`;
     return;
   }
-  const operator = normalizeCall($('#book-operator').value) || state.op.operator || '';
+  const operator = state.op.operator || '';
   const op = state.op;
   let saved;
   try {
@@ -586,7 +662,7 @@ function alarmBadge(msg) {
 }
 
 async function advance(msg, state_) {
-  const operator = normalizeCall($('#book-operator').value) || state.op.operator || '';
+  const operator = state.op.operator || '';
   try {
     await state.store.tx([{ store: 'messages', put: setStatus(msg, state_, { operator, now: nowIso() }) }]);
   } catch (e) {
@@ -656,7 +732,7 @@ function flashRow(id) {
 
 async function deleteMsg(m) {
   if (!confirm(`${m.number} löschen? Die Nummer bleibt vergeben, die Meldung kommt in „Gelöschte Meldungen“ und kann wiederhergestellt werden.`)) return;
-  const operator = normalizeCall($('#book-operator').value) || state.op.operator || '';
+  const operator = state.op.operator || '';
   try {
     await state.store.tx([{ store: 'messages', put: softDelete(m, { operator, now: nowIso() }) }]);
   } catch (e) {
@@ -881,7 +957,7 @@ function wire() {
   });
   $('#btn-back').addEventListener('click', () => { location.hash = '#/'; });
   $('#btn-msg-back').addEventListener('click', () => { location.hash = `#/e/${state.op.id}`; });
-  $('#book-operator').addEventListener('change', () => updateOp(state.op, { operator: normalizeCall($('#book-operator').value) }));
+  initOpPanel();
   for (const b of document.querySelectorAll('#view-book [data-filter]')) {
     b.addEventListener('click', () => {
       state.filter = b.dataset.filter;
@@ -939,6 +1015,8 @@ async function main() {
   // The location index is big: build it in the background, after the page is up.
   setTimeout(() => { loadLocationIndex(); fillLocationSources(); }, 800);
   await route();
+  // Everything is wired: the tests (and nothing else) wait for this.
+  globalThis.NOTFUNK_READY = true;
 }
 
 main();

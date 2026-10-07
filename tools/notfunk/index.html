@@ -103,9 +103,6 @@
     <div class="toolbar book-bar">
       <button type="button" id="btn-back">← Einsätze</button>
       <h2 id="book-title">Meldebuch</h2>
-      <span id="book-meta" class="mono dim"></span>
-      <label class="check op-label">Op <input id="book-operator" class="mono call-input" size="8" autocapitalize="characters" autocorrect="off" spellcheck="false" aria-describedby="book-operator-help"></label>
-      <span id="book-operator-help" class="sr-only">Operator für neue Meldungen und Statusänderungen</span>
       <span class="spacer"></span>
       <button type="button" id="btn-csv" title="Geschäftsbuch-Spalten (SKKM / ÖBFV E-31) für Excel">Geschäftsbuch (CSV)</button>
       <button type="button" id="btn-backup" title="Vollständige Sicherung dieses Einsatzes, auch gelöschte Meldungen und Fassungen">Sicherung (JSON)</button>
@@ -125,6 +122,24 @@
         <span id="pr-status" class="hint err-text" role="status"></span>
       </div>
     </form>
+
+    <details class="hdr" id="op-panel">
+      <summary><b>Einsatz</b> <span class="hdr-sum" id="op-sum"></span></summary>
+      <div class="body">
+        <div class="grid-form op-grid" id="op-form">
+          <label class="field span-2"><span>Einsatz / Übung</span><input id="e-name" enterkeyhint="next"></label>
+          <label class="field"><span>Stationskürzel</span><input id="e-prefix" maxlength="6" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-describedby="e-prefix-help"></label>
+          <label class="field span-2"><span>Station</span><input id="e-station" enterkeyhint="next"></label>
+          <label class="field"><span>Operator</span><input id="e-operator" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next"></label>
+          <label class="field"><span>Eigene Stelle</span><input id="e-home" enterkeyhint="next"></label>
+          <label class="field"><span>Frequenz MHz</span><input id="e-freq" class="mono" inputmode="decimal" enterkeyhint="next"></label>
+          <label class="field"><span>Relais</span><input id="e-via" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="done"></label>
+        </div>
+        <p class="hint">Änderungen gelten für neue Meldungen; gespeicherte behalten Operator, Frequenz und Nummer vom Zeitpunkt der Aufnahme. Ein Operatorwechsel (Schichtwechsel) wird hier eingetragen.</p>
+        <p class="hint" id="e-prefix-help">Das Stationskürzel lässt sich nur ändern, solange der Einsatz noch keine Meldung hat.</p>
+        <p id="op-status" class="form-status" role="status"></p>
+      </div>
+    </details>
 
     <div id="lock-banner" class="banner warn" role="status" hidden></div>
 
@@ -158,7 +173,7 @@
         <label class="field"><span>Art</span><select id="m-type"></select></label>
         <div class="field span-2"><span id="m-prio-label">Priorität</span>
           <div id="m-prio" class="radio-group prio" role="radiogroup" aria-labelledby="m-prio-label"></div></div>
-        <label class="check alarm-check span-2"><input type="checkbox" id="m-alarm"> <b>Stab herhören!</b> <span class="dim">sofort ansagen</span></label>
+        <label class="check alarm-check" title="Meldung sofort im Stab ansagen"><input type="checkbox" id="m-alarm"> <b>Stab herhören!</b></label>
 
         <label class="field wide"><span>Betreff</span><input id="m-subject" enterkeyhint="next"></label>
         <label class="field wide"><span>Inhalt – wörtlich, wie übermittelt</span>

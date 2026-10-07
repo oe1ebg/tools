@@ -9,7 +9,7 @@ async function openNewOp(page, name, prefix) {
   await expect(page).toHaveTitle('Notfunk-Meldebuch');
   await expect(page.locator('#view-ops')).toBeVisible();
   // the buttons work only once the app has started
-  await expect.poll(() => page.evaluate(() => globalThis.NOTFUNK_STARTED === true)).toBe(true);
+  await expect.poll(() => page.evaluate(() => globalThis.NOTFUNK_READY === true)).toBe(true);
   await page.getByRole('button', { name: '+ Neuer Einsatz' }).click();
   await page.locator('#n-name').fill(name);
   await page.locator('#n-prefix').fill(prefix);
@@ -116,9 +116,23 @@ test('print: only the Meldeaufnahmeformular', async ({ page }) => {
   await expect(page.locator('#print-sheet')).toBeHidden();
 });
 
+test('Einsatz header: a change applies to new messages, the code stays once used', async ({ page }) => {
+  await openNewOp(page, 'E2E Header', 'h1');
+  await page.locator('#op-panel > summary').click();
+  await expect(page.locator('#e-prefix')).toBeEditable();
+  await addMessage(page, 'LI 1', 'Erste');
+  await expect(page.locator('#e-prefix')).not.toBeEditable();
+  await page.locator('#e-operator').fill('oe3xyz');
+  await page.locator('#e-operator').press('Enter');
+  await expect(page.locator('#op-sum')).toContainText('Op OE3XYZ');
+  await addMessage(page, 'LI 2', 'Zweite');
+  await expect(page.locator('#book-body tr', { hasText: 'H1-002' })).toContainText('OE3XYZ');
+  await expect(page.locator('#book-body tr', { hasText: 'H1-001' })).toContainText('OE1EBG');
+});
+
 test('print: an empty form to print a stack of', async ({ page }) => {
   await page.goto('notfunk/');
-  await expect.poll(() => page.evaluate(() => globalThis.NOTFUNK_STARTED === true)).toBe(true);
+  await expect.poll(() => page.evaluate(() => globalThis.NOTFUNK_READY === true)).toBe(true);
   await page.evaluate(() => { globalThis.print = () => {}; });
   await page.getByRole('button', { name: 'Leeres Formular drucken / PDF' }).click();
   await page.emulateMedia({ media: 'print' });

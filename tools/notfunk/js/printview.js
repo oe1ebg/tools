@@ -2,6 +2,13 @@
 // message or the message book of a time range, built with el() from the
 // data of print.js, then window.print(). The layout is in style.css
 // (@media print, A4); "Als PDF sichern" in the print dialog makes the PDF.
+//
+// The paper form says by its shapes what to mark, without extra words, as
+// paper forms usually do: a circle = choose exactly one (direction,
+// channel, type, priority), a square = an extra mark (Stab herhören!,
+// rückgelesen). The three priorities are one joined block; "Stab
+// herhören!" sits apart in its own heavy box. Eingang and Ausgang are two
+// big halves side by side. A filled-in form uses the same shapes, filled.
 
 import { $, el, fill } from '../../shared/js/dom.js';
 
@@ -10,6 +17,31 @@ function box(checked, label, detail) {
     el('span', { class: checked ? 'pf-box on' : 'pf-box', 'aria-hidden': 'true' }, checked ? '✕' : ''),
     el('span', { class: 'sr-only' }, checked ? 'angekreuzt: ' : ''),
     label, detail ? el('span', { class: 'pf-detail' }, ` ${detail}`) : null);
+}
+
+function dot(checked, label, detail) {
+  return el('span', { class: 'pf-opt' },
+    el('span', { class: checked ? 'pf-dot on' : 'pf-dot', 'aria-hidden': 'true' }),
+    el('span', { class: 'sr-only' }, checked ? 'gewählt: ' : ''),
+    label, detail ? el('span', { class: 'pf-detail' }, ` ${detail}`) : null);
+}
+
+const DIR_ARROW = { in: '↓', out: '↑' };
+
+// Eingang | Ausgang: two halves, the chosen one filled.
+function directionTiles(directions) {
+  return el('div', { class: 'pf-dir' }, ...directions.map(d => el('div', { class: d.checked ? 'pf-dir-half on' : 'pf-dir-half' },
+    el('span', { class: d.checked ? 'pf-dot on' : 'pf-dot', 'aria-hidden': 'true' }),
+    el('span', { class: 'pf-dir-arrow', 'aria-hidden': 'true' }, DIR_ARROW[d.key] || ''),
+    el('span', { class: 'pf-dir-word' }, d.checked ? el('span', { class: 'sr-only' }, 'gewählt: ') : null, d.label))));
+}
+
+// Routine / Priorität / Notfall as one block (one of them), then the
+// separate "Stab herhören!" box.
+function priorityBlock(s) {
+  return el('div', { class: 'pf-prio-wrap' },
+    el('div', { class: 'pf-prio-block' }, ...s.priorities.map(p => el('div', { class: `pf-prio-opt pfp-${p.key}${p.checked ? ' on' : ''}` }, dot(p.checked, p.label)))),
+    el('div', { class: s.alarm ? 'pf-alarm-box on' : 'pf-alarm-box' }, box(s.alarm, 'Stab herhören!')));
 }
 
 function cell(label, ...content) {
@@ -27,23 +59,18 @@ export function renderFormSheet(s) {
         s.blank ? el('div', { class: 'pf-num pf-write' }) : el('div', { class: 'pf-num' }, s.number),
         s.deleted ? el('div', { class: 'pf-cap' }, 'GELÖSCHT') : null)),
     el('div', { class: 'pf-row pf-4' },
-      cell('Richtung', ...s.directions.map(d => box(d.checked, d.label))),
+      el('div', { class: 'pf-cell pf-dir-cell' }, el('span', { class: 'pf-cap' }, 'Richtung'), directionTiles(s.directions)),
       cell('Datum', el('span', { class: 'pf-val' }, s.date)),
       cell('Uhrzeit', el('span', { class: 'pf-val' }, s.time), el('span', { class: 'pf-small' }, s.blank ? 'MEZ / MESZ / UTC' : s.utc)),
-      s.blank
-        ? cell('Priorität', ...s.priorities.map(p => box(false, p.label)), box(false, el('b', {}, 'Stab herhören!')))
-        : el('div', { class: s.urgent || s.alarm ? 'pf-cell pf-prio urgent' : 'pf-cell pf-prio' },
-          el('span', { class: 'pf-cap' }, 'Priorität'),
-          el('span', { class: 'pf-val' }, s.priority),
-          s.alarm ? el('span', { class: 'pf-alarm' }, 'STAB HERHÖREN!') : null)),
+      cell('Priorität', priorityBlock(s))),
     el('div', { class: 'pf-row' },
-      cell('Übermittlung', el('span', { class: 'pf-opts' }, ...s.channels.map(c => box(c.checked, c.label, c.detail))))),
+      cell('Übermittlung', el('span', { class: 'pf-opts' }, ...s.channels.map(c => dot(c.checked, c.label, c.detail))))),
     el('div', { class: 'pf-row pf-2' },
       cell('Von', el('span', { class: 'pf-val' }, s.from)),
       cell('An', el('span', { class: 'pf-val' }, s.to))),
     el('div', { class: 'pf-row' },
       s.blank
-        ? cell('Betreff', el('span', { class: 'pf-opts' }, ...s.types.map(t => box(false, t))), el('span', { class: 'pf-write' }))
+        ? cell('Betreff', el('span', { class: 'pf-opts' }, ...s.types.map(t => dot(false, t))), el('span', { class: 'pf-write' }))
         : cell('Betreff', el('span', { class: 'pf-val pf-subject' }, s.subject || '–', el('span', { class: 'pf-small' }, ` (${s.type})`)))),
     el('div', { class: 'pf-row pf-grow' },
       el('div', { class: 'pf-cell pf-text' },

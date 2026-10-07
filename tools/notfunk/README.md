@@ -129,6 +129,7 @@ name, and a distribution list ("Verteiler").
 | Edits, deletes | Edits keep the previous version as a revision. Deletes are soft, and a deleted message keeps its number. | #31, ÖVSV § 6.7 (complete records) |
 | Exports | **Geschäftsbuch CSV** (E-31 columns + Notfunk fields; `;` with BOM for Excel de-AT), JSON backup/restore. Planned: KMZ for messages with a location (#27). | E-31 forms |
 | Print / PDF | Through the browser's print dialog ("Als PDF sichern"), no PDF library: an A4 layout (`@page`, `@media print` in `style.css`). Three printouts: the **Meldeaufnahmeformular** of one message (E-31 fields, an empty "Geschäftszahl, Auszeichnung" box for the staff, "Fassung n" to match the edit history), the **message book** for a time range (Geschäftsbuch columns, header repeated on each page), and an **empty form** to print a stack of for working without a device (number of copies in the print dialog). | E-31 forms; works offline and on iOS |
+| Paper form design | The form says by its shapes what to mark, without extra words: a **circle** = choose exactly one (direction, channel, type, priority), a **square** = an extra mark (Stab herhören!, rückgelesen). The three priorities are one joined block; "Stab herhören!" sits apart in a heavy box. Eingang and Ausgang are two big halves side by side with an arrow. A printed message uses the same shapes, filled (the chosen half or priority inverted). | common paper-form conventions; readable without explanation |
 
 ## Using it
 
@@ -137,6 +138,11 @@ name, and a distribution list ("Verteiler").
   operator, the **own post** ("Eigene Stelle", e.g. "Stab": recipient of
   incoming and sender of outgoing messages unless typed otherwise), and a
   default frequency/relay.
+- **Einsatz panel** above the form (like the confirmation log's Header):
+  name, station, operator (shift change), own post, frequency and relay
+  can change at any time and apply to new messages; stored messages keep
+  what they were saved with. An untouched form follows new defaults. The
+  station code can only change while the operation has no message.
 - **Entry form:** keyboard only, like the confirmation log: Tab/Enter next
   field, digits pick an option, Shift+Enter saves, Esc discards (with
   "Rückgängig"). The next number is shown ("→ W1-008") but taken only on
