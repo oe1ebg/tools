@@ -81,12 +81,13 @@ main{ max-width:1200px; margin:0 auto; padding:1em; }
 .grid-form > .field{ max-width:100%; }
 .grid-form select{ max-width:100%; }
 /* Header forms: a grid of equal columns instead of free wrapping, so the
-   groups (Station / Betriebsart / Verbindung) line up. A column holds a
-   20-character locator; callsigns, MHz, CTCSS/DCS take one, QTH, Relais
+   groups (Station / Betriebsart / Verbindung) line up. A column (14.5em)
+   holds a 20-character locator at the 15px field size; callsigns, MHz,
+   CTCSS/DCS take one, QTH, Relais
    and Weg two (`span` in HEADER_FIELDS), headings and the mode chips the
    whole row. Inputs fill their cell; the info line wraps to it. Top-aligned
    like the entry form: hints never move inputs. */
-#log-header, #new-header{ display:grid; grid-template-columns:repeat(auto-fill, minmax(13em, 1fr)); align-items:start; }
+#log-header, #new-header{ display:grid; grid-template-columns:repeat(auto-fill, minmax(14.5em, 1fr)); align-items:start; }
 #log-header > *, #new-header > *{ min-width:0; }
 #log-header > .sub, #new-header > .sub, #log-header > .wide, #new-header > .wide{ grid-column:1 / -1; }
 #log-header > .span-2, #new-header > .span-2{ grid-column:span 2; }

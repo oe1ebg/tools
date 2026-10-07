@@ -260,7 +260,7 @@ export function renderCandidates(container, res, opts = {}) {
   });
 }
 
-function setStatus(text, cls) {
+function setPanelStatus(text, cls) {
   const s = $('#loc-status');
   s.textContent = text;
   s.className = 'hint' + (cls ? ' ' + cls : '');
@@ -302,7 +302,7 @@ export function initLocationPanel() {
     const t = performance.now();
     const res = locate(idx, q, { utmRef: utmRef() });
     renderCandidates(results, res);
-    setStatus(`${await locationStatusText()} · Suche ${Math.round(performance.now() - t)} ms`, 'ok');
+    setPanelStatus(`${await locationStatusText()} · Suche ${Math.round(performance.now() - t)} ms`, 'ok');
   };
   input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(run, 150); });
   prec.addEventListener('change', () => { prefSet(LOC_PREC_KEY, prec.value); run(); });
@@ -310,40 +310,44 @@ export function initLocationPanel() {
   const open = async () => {
     panel.hidden = false;
     input.focus();
-    setStatus('Wien-Daten werden geladen…');
+    setPanelStatus('Wien-Daten werden geladen…');
     const idx = await loadLocationIndex();
     if (!idx) {
-      setStatus('Wien-Daten nicht verfügbar (nicht gebaut?) – Standortsuche deaktiviert.', 'err');
+      setPanelStatus('Wien-Daten nicht verfügbar (nicht gebaut?) – Standortsuche deaktiviert.', 'err');
       return;
     }
-    setStatus(await locationStatusText(), 'ok');
+    setPanelStatus(await locationStatusText(), 'ok');
     run();
   };
   $('#btn-loc').addEventListener('click', () => (panel.hidden ? open() : (panel.hidden = true)));
   $('#loc-close').addEventListener('click', () => { panel.hidden = true; });
 
   // Preload in the background so the index is ready (and cached) before it's needed.
-  setTimeout(async () => {
-    const idx = await loadLocationIndex();
-    // Footer "Datenquellen", grouped by origin (index.html).
-    const wien = $('#st-location-wien');
-    if (!wien) return;
-    if (!idx) {
-      wien.textContent = 'Wien-Daten nicht verfügbar';
-      return;
-    }
-    const n = new Intl.NumberFormat('de-AT');
-    const list = items => items.filter(Boolean).flatMap((x, i) => (i ? [' · ', x] : [x]));
-    fill(wien, list([
-      sourceItem('addresses', `${n.format(idx.counts.addresses)} Adressen, Stand ${standDate(idx.meta.addresses_retrieved)}`),
-      idx.meta.gip_names_retrieved ? sourceItem('gipNames', `${n.format(idx.counts.gip)} Ortsnamen, Stand ${standDate(idx.meta.gip_names_retrieved)}`) : null,
-      idx.meta.stops_retrieved ? sourceItem('stops', `${n.format(idx.counts.stops)} Haltestellen, Stand ${standDate(idx.meta.stops_retrieved)}`) : null,
-    ]));
-    fill($('#st-location-at'), idx.areasMeta ? list([
-      sourceItem('adressregister', `${n.format(idx.counts.postcodes)} PLZ, Stichtag ${standDate(idx.areasMeta.stichtag)}`),
-      sourceItem('bezirke', `${n.format(idx.counts.bezirke)} Bezirke`),
-    ]) : null);
-    fill($('#st-location-osm'),
-      sourceItem('osm', `${n.format(idx.counts.osm)} Orte (davon ${n.format(idx.counts.umland)} im Umland), Stand ${standDate(idx.meta.places_retrieved)}`));
-  }, 800);
+  setTimeout(fillLocationSources, 800);
+}
+
+// Footer "Datenquellen" of a tool using the lookup: fills #st-location-wien,
+// #st-location-at and #st-location-osm (where present) from the index.
+export async function fillLocationSources() {
+  const idx = await loadLocationIndex();
+  // Footer "Datenquellen", grouped by origin (index.html).
+  const wien = $('#st-location-wien');
+  if (!wien) return;
+  if (!idx) {
+    wien.textContent = 'Wien-Daten nicht verfügbar';
+    return;
+  }
+  const n = new Intl.NumberFormat('de-AT');
+  const list = items => items.filter(Boolean).flatMap((x, i) => (i ? [' · ', x] : [x]));
+  fill(wien, list([
+    sourceItem('addresses', `${n.format(idx.counts.addresses)} Adressen, Stand ${standDate(idx.meta.addresses_retrieved)}`),
+    idx.meta.gip_names_retrieved ? sourceItem('gipNames', `${n.format(idx.counts.gip)} Ortsnamen, Stand ${standDate(idx.meta.gip_names_retrieved)}`) : null,
+    idx.meta.stops_retrieved ? sourceItem('stops', `${n.format(idx.counts.stops)} Haltestellen, Stand ${standDate(idx.meta.stops_retrieved)}`) : null,
+  ]));
+  fill($('#st-location-at'), idx.areasMeta ? list([
+    sourceItem('adressregister', `${n.format(idx.counts.postcodes)} PLZ, Stichtag ${standDate(idx.areasMeta.stichtag)}`),
+    sourceItem('bezirke', `${n.format(idx.counts.bezirke)} Bezirke`),
+  ]) : null);
+  fill($('#st-location-osm'),
+    sourceItem('osm', `${n.format(idx.counts.osm)} Orte (davon ${n.format(idx.counts.umland)} im Umland), Stand ${standDate(idx.meta.places_retrieved)}`));
 }

@@ -28,8 +28,11 @@ button.primary{ background:var(--accent); border-color:var(--accent); color:#fff
 button.primary:hover:not(:disabled){ color:#fff; filter:brightness(1.1); }
 button.danger:hover:not(:disabled){ border-color:var(--err); color:var(--err); }
 button.link{ background:none; border:none; padding:0; color:var(--accent-text); }
-input[type=text], input:not([type]), select, textarea{
-  font:inherit; color:var(--text); background:var(--bg);
+/* one size for every field in the forms (15px, easy to read while
+   logging); a tool may set a bigger one where it matters (confirm's
+   callsign field) */
+input[type=text], input[type=search], input:not([type]), select, textarea{
+  font:inherit; font-size:15px; color:var(--text); background:var(--bg);
   border:1px solid var(--line-strong); border-radius:4px; padding:.35em .5em;
 }
 input:focus, select:focus, textarea:focus{ outline:2px solid var(--accent); outline-offset:-1px; }
