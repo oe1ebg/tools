@@ -2128,6 +2128,8 @@ async function main() {
   fill($('#st-map-wien'), sourceItem('districts', 'Karte'));
   fill($('#st-map-lib'), sourceItem('leaflet', 'Kartenbibliothek'));
   route();
+  // Everything is wired: the browser tests wait for this.
+  globalThis.CONFIRM_READY = true;
 }
 
 main();

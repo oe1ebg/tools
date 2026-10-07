@@ -119,6 +119,12 @@ service workers are missing on plain `http://` and `file://`.
   (`trackExpanded()`); every field has a `<label>` or `aria-label`;
   decorative glyphs are `aria-hidden`; status lines are `role="status"` /
   `aria-live` and only rewritten when their text changes.
+- **Readable in a hurry, at any age** (the tools with log forms load
+  `css/forms.css`): fields, buttons and option chips 15px, field labels
+  12.5px, hints and info lines 13.5px, page text 15px; nothing under 12px
+  on screen. Under `@media (pointer: coarse)` every button, option chip
+  and checkbox label is at least 44px high. A bigger size where it
+  matters is fine (confirm's callsign field, 24px).
 - **Touch:** fields at 16px or more under `@media (pointer: coarse)` (iOS
   zooms into smaller ones), `enterkeyhint`, `autocorrect="off"` and
   `autocapitalize="characters"` on callsign/locator fields; an Enter that

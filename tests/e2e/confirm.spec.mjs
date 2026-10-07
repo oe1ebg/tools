@@ -9,6 +9,7 @@ async function openNewLog(page, title) {
   // (the <h1> is hidden at phone widths)
   await expect(page).toHaveTitle('Bestätigungsverkehr');
   await expect(page.locator('#view-events')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => globalThis.CONFIRM_READY === true)).toBe(true);
   await page.getByRole('button', { name: '+ Neues Log' }).click();
   await page.locator('#new-event input[name="title"]').fill(title);
   await page.getByRole('button', { name: /Log anlegen/ }).click();
@@ -71,6 +72,7 @@ test('logs a check-in and exports CSV and ADIF', async ({ page }) => {
 
 test('offline location search finds a landmark', async ({ page }) => {
   await page.goto('confirm/');
+  await expect.poll(() => page.evaluate(() => globalThis.CONFIRM_READY === true)).toBe(true);
   await page.getByRole('button', { name: /Standort/ }).click();
   await expect(page.locator('#loc-panel')).toBeVisible();
   await page.locator('#loc-q').fill('Donauturm');

@@ -22,7 +22,7 @@ test('confirm-offline.html runs from file://', async ({ page, request }, testInf
   const { url, requests } = await openSavedCopy(page, request, 'confirm/confirm-offline.html', testInfo);
   await expect(page).toHaveTitle('Bestätigungsverkehr');
   await expect(page.locator('#view-events')).toBeVisible();
-  await expect.poll(() => page.evaluate(() => globalThis.CONFIRM_STARTED === true)).toBe(true);
+  await expect.poll(() => page.evaluate(() => globalThis.CONFIRM_READY === true)).toBe(true);
   // the offline data is inlined: the location search works without a server
   await page.getByRole('button', { name: /Standort/ }).click();
   await page.locator('#loc-q').fill('Donauturm');
