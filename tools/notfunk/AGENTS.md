@@ -21,8 +21,15 @@ provisional until the Notfunkreferat Wien confirms it.
   only, `export` only on function/const/let/class, top-level names unique
   across all modules the tool loads (shared ones included).
 - **Print:** the printouts are data (`js/print.js`, tested) rendered by
-  `js/printview.js` into `#print-sheet`; the layout is `@media print` in
-  `style.css` (A4). Keep the E-31 field order of the form.
+  `js/printview.js` into `#print-sheet`; the layout is the `.pf-*` rules in
+  `style.css` (A4). A message must fit one page (the e2e test counts the
+  PDF pages in Chromium): white, thin lines, no filled areas, nothing that
+  depends on printed backgrounds. Keep the E-31 field order and the words
+  of the web form (both use the same labels).
+- **Words:** German, the same in the form, the help dialog (`index.html`),
+  the printout, the CSV and the manual (`content/tools/notfunk-anleitung.md`).
+  Notfunk-Nr. and "Referenz Meldesammelstelle" are never mixed up. After
+  visible changes re-run `just oe1ebg screenshots` for the manual.
 - **Not in the nav** (`zensical.toml`) or llms.txt until the format is
   confirmed; the "Entwurf" banner stays until then.
 - **Check changes** with `just oe1ebg test`, and in a browser with

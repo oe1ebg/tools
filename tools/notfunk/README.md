@@ -120,17 +120,17 @@ name, and a distribution list ("Verteiler").
 
 | Topic | Decision | Why |
 | --- | --- | --- |
-| Record layout | One record per message with the SKKM Meldeaufnahmeformular fields: direction, number, time, channel, from/to, subject, verbatim text, operator, remarks. Notfunk extras: frequency/relay, station and place of origin, filing time (relayed traffic), read-back, location, reply link, distribution. | SKKM 4.10.1, E-31, ÖVSV § 6.7, ARENA |
-| Numbering | `<station prefix>-<running number>` (e.g. `W1-007`), gapless per operation and prefix, never reused. Each device or station gets its own prefix, so logs from several devices merge without collisions. The staff's own Geschäftszahl stays a separate field for the Meldesammelstelle. | #31; E-31 keeps GZ and ETB numbers separate too |
+| Record layout | One record per message with the SKKM Meldeaufnahmeformular fields: direction, number, time, channel, from/to, subject, verbatim text, operator, remarks. Notfunk extras: the radio station (Gegenstelle) apart from the sender/addressee, frequency/relay, station and place of origin, filing time (relayed traffic), read-back, location of the event (Ort / Einsatzstelle), Bezug (answer, correction or addition to a number), distribution, the Meldesammelstelle's reference. | SKKM 4.10.1, E-31, ÖVSV § 6.7, ARENA |
+| Numbering | `<station prefix>-<running number>` (e.g. `W1-007`), gapless per operation and prefix, never reused. Each device or station gets its own prefix, so logs from several devices merge without collisions. The staff's own number ("Referenz Meldesammelstelle / Geschäftsbuch-Nr.", `staffRef`) is a separate field, filled in once it is reported back, only to match the two lists; it is never called "Nr." or "GZ" in the tool. | #31; E-31 keeps GZ and ETB numbers separate too |
 | Number safety | Taken only when saving, in the **same storage transaction** as the message and the counter (`shared/js/storage.js` `atomic()`). A failed save consumes nothing, and two tabs can't take the same number. The next number is max(counter, highest stored) + 1, so even a lost counter write never reuses one. A restore never lowers a counter. | `js/numbering.js`, tested |
-| Time | Stored as ISO 8601 UTC. Shown and exported as Vienna local time in the staff-form format `TT.MM.JJJJ hh:mm` **with the zone** (MEZ/MESZ), plus a UTC column. A DTG isn't used: no Austrian civil source uses it. | E-31; ARENA uses UTC |
-| Priority | Provisional: Routine / Priorität / Notfall (IARU/ARENA), plus a separate "Stab herhören!" alarm flag. | No Austrian staff scheme exists; open question |
+| Time | Stored as ISO 8601 UTC. Shown and exported as Vienna local time in the staff-form format `TT.MM.JJJJ hh:mm` **with the zone** (MEZ/MESZ), plus a UTC column. A DTG isn't used: no Austrian civil source uses it. The message time is "Empfangen am" / "Gesendet am", prefilled with date and time at the first keystroke of a new message (so midnight and paper entries stay right), correctable; the time it was saved (`created`, "Erfasst am") is kept apart. | E-31; ARENA uses UTC |
+| Urgency ("Dringlichkeit") | Provisional: Routine / Dringend / Notfall (IARU/ARENA precedences; keys `routine`/`priority`/`emergency`), plus "Stab herhören!": the box only *asks* for the announcement (`alarm`); the announcement itself is recorded with time and person (`alarmDone`), so a ticked box never pretends it happened. | No Austrian staff scheme exists; open question |
 | Message type | Meldung / Auftrag / Frage / Anforderung / Lagemeldung | LFV Salzburg (Meldung/Befehl/Frage), SKKM special forms |
-| Status | erfasst → weitergeleitet → quittiert → beantwortet, forward only, each step with time and operator. Replies link to the message they answer. | #31 |
+| Status | In the words of the direction. Eingang: erfasst → übergeben (to whom, when) → übernommen (by whom, when). Ausgang: zur Übertragung → übertragen (to which station, when, read back) → Empfang bestätigt (by whom, when); failed attempts / queries are logged without changing the status. Each step once, the handover never goes back; "beantwortet" comes from saving a reply and doesn't block recording the handover later. None of the steps means that an order in the text was carried out. Stored keys unchanged (`forwarded`, `acknowledged`), so older data reads as übergeben/übertragen and übernommen/Empfang bestätigt. | #31, handover note of Oct 2026 |
 | Edits, deletes | Edits keep the previous version as a revision. Deletes are soft, and a deleted message keeps its number. | #31, ÖVSV § 6.7 (complete records) |
 | Exports | **Geschäftsbuch CSV** (E-31 columns + Notfunk fields; `;` with BOM for Excel de-AT), JSON backup/restore. Planned: KMZ for messages with a location (#27). | E-31 forms |
-| Print / PDF | Through the browser's print dialog ("Als PDF sichern"), no PDF library: an A4 layout (`@page`, `@media print` in `style.css`). Three printouts: the **Meldeaufnahmeformular** of one message (E-31 fields, an empty "Geschäftszahl, Auszeichnung" box for the staff, "Fassung n" to match the edit history), the **message book** for a time range (Geschäftsbuch columns, header repeated on each page), and an **empty form** to print a stack of for working without a device (number of copies in the print dialog). | E-31 forms; works offline and on iOS |
-| Paper form design | The form says by its shapes what to mark, without extra words: a **circle** = choose exactly one (direction, channel, type, priority), a **square** = an extra mark (Stab herhören!, rückgelesen). The three priorities are one joined block; "Stab herhören!" sits apart in a heavy box. Eingang and Ausgang are two big halves side by side with an arrow. A printed message uses the same shapes, filled (the chosen half or priority inverted). | common paper-form conventions; readable without explanation |
+| Print / PDF | Through the browser's print dialog ("Als PDF sichern"), no PDF library: an A4 layout (`@page`, the `.pf-*` rules in `style.css`). Three printouts: the **Meldeaufnahmeformular** of one message on **one A4 page** ("Fassung n" to match the edit history), the **message book** for a time range (Geschäftsbuch columns, header repeated on each page), and an **empty form** to print a stack of (number of copies in the print dialog). The form page has no page margin (named page `pfform`), which keeps Chrome's and Edge's header/footer lines off it; a dialog before the first print says to switch "Kopf- und Fußzeilen" off (can be turned off). A long text first gets tighter spacing, then a smaller font down to 10 pt (`fitForm()` measures the sheet off-screen); beyond that (about 2,500 characters) it flows over several pages with the number on each, and the dialog says so first. | E-31 forms; works offline and on iOS; handover note of Oct 2026 |
+| Paper form design | White, thin lines, no filled areas (nothing depends on printed backgrounds; saves toner, works in black and white, also from the dark theme). On top: title, **↓ EINGANG \| ↑ AUSGANG** (the chosen one with a thick frame and ✕, the other pale), a big box for the Notfunk-Nr.; then one dashed row **"Nur von der Meldesammelstelle / dem Stab auszufüllen"** (Referenz / Geschäftsbuch-Nr., Federführend, Mitwirkend, Zur Kenntnis; only the reference is filled in); two narrow rows for Empfangen/Gesendet am (date · time zone, UTC, Erfasst), Übermittlung, Dringlichkeit (one joined block, "Stab herhören!" next to it) and Meldungsart; Von/An (with the Gegenstelle), Betreff/Ort/Bezug; the verbatim text takes the rest of the page; then Aufgenommen von, Anmerkungen, and the handover (Eingang) or transmission (Ausgang). A **circle** = choose one, a **square** = an extra mark. Frequency and relay stay in the book, not on paper. | common paper-form conventions; reviewed as a mockup (Oct 2026) |
 
 ## Using it
 
@@ -145,19 +145,37 @@ name, and a distribution list ("Verteiler").
   what they were saved with. An untouched form follows new defaults. The
   station code can only change while the operation has no message.
 - **Entry form:** keyboard only, like the confirmation log: Tab/Enter next
-  field, digits pick an option, Shift+Enter saves, Esc discards (with
-  "Rückgängig"). The next number is shown ("→ W1-008") but taken only on
-  saving. Von/An complete from the stations heard in this operation and the
-  callsign list, Relais from the ÖVSV list, Standort from the offline
-  location lookup. The half-typed message is kept as a draft.
+  field (Enter in the text is a new line), digits pick an option,
+  Shift+Enter or Ctrl/⌘+Enter saves. Required fields (`*`: time, Von, An,
+  Betreff, Inhalt) block saving with the error at the field; warnings
+  (no Gegenstelle, time in the future or more than an hour back, no
+  read-back) ask once, saving again saves anyway. Esc closes suggestions
+  first, then asks "Eingabe verwerfen?" for a filled form (Esc again =
+  keep); "Rückgängig" after discarding. The next number is shown
+  ("→ W1-008") but taken only on saving. Von/An/Gegenstelle/Ursprungsstation
+  complete from the stations heard in this operation and the callsign
+  list, Relais from the ÖVSV list, Ort / Einsatzstelle and Ursprungsort
+  from the offline location lookup (which never changes the text).
+  Frequencies take a comma or a point and are shown as `145,500`. The
+  half-typed message is kept as a draft ("✓ Entwurf gesichert").
+- **Help:** "? Hilfe", F1, or ? outside text fields opens a dialog with the
+  keys, the flow, who is who, places, times, confirmations, numbers and
+  urgency; Esc closes it and the focus goes back to the field. The
+  manual with screenshots is `content/tools/notfunk-anleitung.md`
+  (`/tools/notfunk-anleitung/`, linked from the help; screenshots from
+  `just oe1ebg screenshots`).
 - **Book:** newest first, filters (offen, Eingang, Ausgang, Notfall +
-  Priorität, search), the next status step as a button, an "Formular"
-  button per row; a summary says how many emergencies are open, how many
-  aren't acknowledged, and whether the numbers are gapless.
-- **One message:** verbatim text, all fields, the status steps, replies
-  ("Antwort erfassen" swaps Von/An and links the reply; saving it marks the
-  original "beantwortet"), earlier versions, print, delete (soft; the
-  number stays taken) and restore.
+  Dringend, search incl. the reference), the next status step as a button,
+  an "Ausdruck" button per row; a summary says how many emergencies are
+  open, how many aren't confirmed, and whether the numbers are gapless. The
+  header shows the backup state ("Letzte Sicherung 14:40 · 3 Meldungen
+  ungesichert", a click downloads a backup).
+- **One message:** verbatim text, all fields, the flow (Ablauf) with a small
+  form for the next step (to whom / by whom, when), failed attempts, the
+  Meldesammelstelle's reference (an edit with a revision), the
+  "Stab herhören!" announcement, replies ("Antwort erfassen" swaps Von/An
+  and sets the Bezug; saving it marks the original "beantwortet"), earlier
+  versions, print, delete (soft; the number stays taken) and restore.
 
 ## Code
 
@@ -168,11 +186,13 @@ name, and a distribution list ("Verteiler").
   counters, drafts, stations).
 - `js/form.js`: the entry form as data <-> message fields (pure, tested).
 - `js/print.js`: what the printouts show (pure, tested);
-  `js/printview.js` turns it into the print-only sheet.
+  `js/printview.js` turns it into the print-only sheet and measures the
+  one-page fit.
 - `js/numbering.js`: message numbers (format, next number, atomic save,
   restore counters, gap check).
 - `js/model.js`: the message record (fields, validation, edit with revision,
-  soft delete, status, filters, time formatting).
+  soft delete, status steps per direction, attempts, the announcement,
+  filters, time and frequency formatting).
 - `js/export.js`: Geschäftsbuch CSV, JSON backup, restore merge (by id,
   newer `updated` wins, number clashes reported, counters never lowered).
 - From `tools/shared/` (shared with the confirmation log): `storage.js`

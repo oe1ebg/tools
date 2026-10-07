@@ -1,7 +1,8 @@
 // Notfunk-Meldebuch (/tools/notfunk/): an operation is created, messages get
 // gapless numbers (a deleted one keeps its number), the status moves on,
 // a reply marks the original answered, an edit keeps a revision, the
-// Geschäftsbuch CSV downloads and the print layout shows only the form.
+// Geschäftsbuch CSV downloads, the print layout shows only the form (one
+// A4 page), the help opens and closes without touching the form.
 import { test, expect, downloadText } from './fixtures.mjs';
 
 async function openNewOp(page, name, prefix) {
@@ -21,8 +22,10 @@ async function openNewOp(page, name, prefix) {
 
 async function addMessage(page, from, subject, text = `${subject}, wörtlich.`) {
   await page.locator('#m-from').fill(from);
+  await page.locator('#m-peer').fill('OE1ABC');
   await page.locator('#m-subject').fill(subject);
   await page.locator('#m-text').fill(text);
+  await page.locator('#m-readback').check();
   await page.locator('#btn-save').click();
   await expect(page.locator('#book-body')).toContainText(subject);
 }
@@ -45,9 +48,9 @@ test('numbers, status, reply, edit, delete and CSV', async ({ page }) => {
   await addMessage(page, 'Lichtinsel 5', 'Diesel');
   expect(await numbers(page)).toEqual(['W1-003', 'W1-002', 'W1-001']);
 
-  // forward W1-001 from the table
-  await page.getByRole('button', { name: 'W1-001 weiterleiten' }).click();
-  await expect(page.locator('#book-body tr', { hasText: 'W1-001' })).toContainText('weitergeleitet');
+  // hand W1-001 over from the table
+  await page.getByRole('button', { name: 'W1-001 übergeben' }).click();
+  await expect(page.locator('#book-body tr', { hasText: 'W1-001' })).toContainText('übergeben');
 
   // delete W1-002: the number stays taken
   await page.locator('#book-body a', { hasText: 'W1-002' }).click();
@@ -62,7 +65,7 @@ test('numbers, status, reply, edit, delete and CSV', async ({ page }) => {
   // reply to W1-001: the reply gets W1-004, the original is answered
   await page.locator('#book-body a', { hasText: 'W1-001' }).click();
   await page.getByRole('button', { name: 'Antwort erfassen' }).click();
-  await expect(page.locator('#form-reply')).toContainText('W1-001');
+  await expect(page.locator('#form-reply')).toContainText('Antwort auf W1-001');
   await expect(page.locator('#m-to')).toHaveValue('Lichtinsel 3');
   await page.locator('#m-text').fill('Tankwagen um 16 Uhr.');
   await page.locator('#btn-save').click();
@@ -84,34 +87,103 @@ test('numbers, status, reply, edit, delete and CSV', async ({ page }) => {
   const download = await csv;
   expect(download.suggestedFilename()).toMatch(/^meldebuch-W1-\d{4}-\d{2}-\d{2}\.csv$/);
   const text = await downloadText(download);
-  expect(text.split('\r\n')[0]).toContain('GZ;Datum;Uhrzeit');
+  expect(text.split('\r\n')[0]).toContain('Notfunk-Nr.;Referenz Meldesammelstelle;Datum;Uhrzeit');
   for (const n of ['W1-001', 'W1-003', 'W1-004']) expect(text).toContain(n);
   expect(text).not.toContain('W1-002');
 });
 
-test('keyboard: Shift+Enter saves, Esc discards with undo', async ({ page }) => {
+test('keyboard: Shift+Enter saves, warnings ask once, Esc asks before discarding', async ({ page }) => {
   await openNewOp(page, 'E2E Tastatur', 'k1');
   await page.locator('#m-from').fill('LI 9');
+  // the time is prefilled at the first keystroke, with the date
+  await expect(page.locator('#m-time')).toHaveValue(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
   await page.locator('#m-subject').fill('Probe');
+  // missing text: an error at the field, nothing saved
   await page.locator('#m-subject').press('Shift+Enter');
+  await expect(page.locator('#m-text-err')).toHaveText('Inhalt fehlt');
+  await expect(page.locator('#m-text')).toBeFocused();
+  // Enter in the text is a new line
+  await page.locator('#m-text').type('Zeile 1');
+  await page.locator('#m-text').press('Enter');
+  await page.locator('#m-text').type('Zeile 2');
+  await expect(page.locator('#m-text')).toHaveValue('Zeile 1\nZeile 2');
+  // warnings (no radio station, no read-back): asked once, then saved
+  await page.locator('#m-text').press('Control+Enter');
+  await expect(page.locator('#warn-bar')).toBeVisible();
+  await expect(page.locator('#warn-list')).toContainText('Gegenstelle fehlt');
+  await page.locator('#m-text').press('Shift+Enter');
   await expect(page.locator('#book-body')).toContainText('K1-001');
+  // Esc on a filled form asks; Esc again keeps it
   await page.locator('#m-subject').fill('halb');
   await page.locator('#m-subject').press('Escape');
+  await expect(page.locator('#discard-bar')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#discard-bar')).toBeHidden();
+  await expect(page.locator('#m-subject')).toHaveValue('halb');
+  await expect(page.locator('#m-subject')).toBeFocused();
+  // discard, then undo
+  await page.locator('#m-subject').press('Escape');
+  await page.getByRole('button', { name: 'Verwerfen', exact: true }).last().click();
   await expect(page.locator('#m-subject')).toHaveValue('');
   await page.getByRole('button', { name: 'Rückgängig' }).click();
   await expect(page.locator('#m-subject')).toHaveValue('halb');
 });
 
-test('print: only the Meldeaufnahmeformular', async ({ page }) => {
+test('help: F1 opens it, Esc closes it, the form and the focus stay', async ({ page }) => {
+  await openNewOp(page, 'E2E Hilfe', 'q1');
+  await page.locator('#m-to').fill('Stab S4');
+  await page.locator('#m-to').press('F1');
+  await expect(page.locator('#help-dlg')).toBeVisible();
+  await expect(page.locator('#help-dlg')).toContainText('Gegenstelle');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#help-dlg')).toBeHidden();
+  await expect(page.locator('#m-to')).toBeFocused();
+  await expect(page.locator('#m-to')).toHaveValue('Stab S4');
+  await page.getByRole('button', { name: 'Hilfe' }).click();
+  await expect(page.locator('#help-dlg')).toBeVisible();
+  await page.getByRole('button', { name: 'Schließen (Esc)' }).click();
+  await expect(page.locator('#help-dlg')).toBeHidden();
+});
+
+test('handover: steps with who and when, the staff reference apart from the number', async ({ page }) => {
+  await openNewOp(page, 'E2E Übergabe', 'u1');
+  await addMessage(page, 'Lichtinsel 2', 'Wasser');
+  await page.locator('#book-body a', { hasText: 'U1-001' }).click();
+  await page.getByLabel('Übergeben an').fill('Meldesammelstelle');
+  await page.getByRole('button', { name: 'Übergabe eintragen' }).click();
+  await expect(page.locator('#msg-detail')).toContainText('an Meldesammelstelle');
+  await page.getByLabel('Übernommen durch').fill('S6 Huber');
+  await page.getByRole('button', { name: 'Übernahme eintragen' }).click();
+  await expect(page.locator('#msg-detail')).toContainText('durch S6 Huber');
+  await expect(page.getByRole('button', { name: 'Übernahme eintragen' })).toHaveCount(0);
+  await page.getByLabel('Referenz / Geschäftsbuch-Nr.').fill('GZ 0412');
+  await page.getByRole('button', { name: 'Referenz eintragen' }).click();
+  await expect(page.locator('#msg-detail .detail-tags')).toContainText('Ref. GZ 0412');
+  await page.getByRole('button', { name: '← Meldebuch' }).click();
+  const row = page.locator('#book-body tr', { hasText: 'U1-001' });
+  await expect(row).toContainText('übernommen');
+  await expect(row).toContainText('Ref. GZ 0412');
+});
+
+test('print: one A4 page, white, the staff block on top', async ({ page, browserName }) => {
   await openNewOp(page, 'E2E Druck', 'p1');
   await addMessage(page, 'Lichtinsel 12', 'Aggregat ausgefallen');
   await page.evaluate(() => { globalThis.print = () => {}; });
-  await page.getByRole('button', { name: 'Meldeaufnahmeformular P1-001 drucken' }).click();
+  await page.getByRole('button', { name: 'Ausdruck P1-001 (Meldeaufnahmeformular)' }).click();
+  // the first time: how to set up the print dialog
+  await expect(page.locator('#print-dlg')).toBeVisible();
+  await expect(page.locator('#print-dlg')).toContainText('Kopf- und Fußzeilen');
+  await page.locator('#print-dlg-ok').click();
   await page.emulateMedia({ media: 'print' });
   await expect(page.locator('#print-sheet .pf-num')).toHaveText('P1-001');
-  await expect(page.locator('#print-sheet')).toContainText('Vom Stab auszufüllen: Geschäftszahl, Auszeichnung');
+  await expect(page.locator('#print-sheet .pf-dir.on')).toContainText('EINGANG');
+  await expect(page.locator('#print-sheet .pf-staff')).toContainText('Nur von der Meldesammelstelle / dem Stab auszufüllen');
   await expect(page.locator('#view-book')).toBeHidden();
   await expect(page.locator('#site-header')).toBeHidden();
+  if (browserName === 'chromium') {
+    const pdf = (await page.pdf({ preferCSSPageSize: true })).toString('latin1');
+    expect(pdf.match(/\/Type\s*\/Page[^s]/g)).toHaveLength(1);
+  }
   await page.emulateMedia({ media: 'screen' });
   await expect(page.locator('#print-sheet')).toBeHidden();
 });
@@ -149,7 +221,7 @@ test('print: an empty form to print a stack of', async ({ page }) => {
   await page.getByRole('button', { name: 'Leeres Formular drucken / PDF' }).click();
   await page.emulateMedia({ media: 'print' });
   await expect(page.locator('#print-sheet .pf-sheet.blank')).toBeVisible();
-  await expect(page.locator('#print-sheet .pf-box.on')).toHaveCount(0);
+  await expect(page.locator('#print-sheet .pf-box.on, #print-sheet .pf-dot.on')).toHaveCount(0);
   await expect(page.locator('#print-sheet')).toContainText('Stab herhören!');
   await expect(page.locator('#view-ops')).toBeHidden();
 });

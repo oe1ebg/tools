@@ -3,14 +3,16 @@
 // - toGeschaeftsbuchCSV(): one row per message, columns of the SKKM
 //   Geschäftsbuch kept by S6 / the Meldesammelstelle (ÖBFV E-31 annex: GZ,
 //   Datum, Uhrzeit, Ein/Aus, eingegangen von / weitergeleitet an, Betreff,
-//   Anmerkungen) plus the Notfunk fields. Semicolon-separated with a BOM, so
-//   Excel in a German locale opens it directly.
+//   Anmerkungen) plus the Notfunk fields. The first column is the Notfunk
+//   number; the Meldesammelstelle's own number (Geschäftszahl) is the
+//   separate column "Referenz Meldesammelstelle". Semicolon-separated
+//   with a BOM, so Excel in a German locale opens it directly.
 // - toBackup() / parseBackup() / mergeBackup(): the full JSON backup of an
 //   operation (messages incl. deleted ones, revisions, counters). A restore
 //   only adds or updates records and never lowers a counter, so no message
 //   number is ever handed out twice (numbering.counterAfterImport()).
 
-import { DIRECTIONS, CHANNELS, MESSAGE_TYPES, PRIORITIES, STATUS_LABELS, currentStatus, liveMessages, fmtVienna, fmtUtc } from './model.js';
+import { DIRECTIONS, CHANNELS, MESSAGE_TYPES, PRIORITIES, REF_KINDS, statusLabel, statusEntry, currentStatus, liveMessages, fmtVienna, fmtUtc, fmtFreq } from './model.js';
 import { counterAfterImport } from './numbering.js';
 
 export const BACKUP_FORMAT = 'oe1ebg-notfunk-backup';
@@ -33,26 +35,37 @@ function splitVienna(iso) {
 }
 
 export const GB_COLUMNS = [
-  'GZ', 'Datum', 'Uhrzeit', 'UTC', 'Ein/Aus', 'eingegangen von / weitergeleitet an', 'Betreff', 'Inhalt',
-  'Art', 'Priorität', 'Alarm', 'Übermittlung', 'Frequenz/Relais', 'Absender', 'Empfänger', 'Verteiler',
-  'Status', 'Antwort auf', 'Standort', 'Bearbeiter', 'Anmerkungen',
+  'Notfunk-Nr.', 'Referenz Meldesammelstelle', 'Datum', 'Uhrzeit', 'UTC', 'Ein/Aus', 'eingegangen von / weitergeleitet an', 'Betreff', 'Inhalt',
+  'Art', 'Dringlichkeit', 'Stab herhören!', 'Übermittlung', 'Gegenstelle', 'Frequenz/Relais', 'Absender', 'Adressat', 'Verteiler',
+  'Rücklesen bestätigt', 'Status', 'Übergeben / übertragen an', 'Übergeben / übertragen um', 'Übernommen / Empfang bestätigt durch',
+  'Bezug', 'Ort / Einsatzstelle', 'Aufgenommen von', 'Erfasst', 'Anmerkungen',
 ];
+
+function timeOnly(iso) {
+  return iso ? splitVienna(iso).time : '';
+}
 
 export function toGeschaeftsbuchCSV(msgs, sep = ';') {
   const byId = new Map(msgs.map(m => [m.id, m]));
   const rows = [GB_COLUMNS];
   for (const m of liveMessages(msgs)) {
     const { date, time } = splitVienna(m.ts);
+    const fwd = statusEntry(m, 'forwarded');
+    const ack = statusEntry(m, 'acknowledged');
+    const ref = m.replyTo ? byId.get(m.replyTo)?.number || m.refNumber || '' : m.refNumber || '';
     rows.push([
-      m.number, date, time, fmtUtc(m.ts), DIRECTIONS[m.direction],
+      m.number, m.staffRef || '', date, time, fmtUtc(m.ts), DIRECTIONS[m.direction],
       partyLabel(m.direction === 'in' ? m.from : m.to), m.subject, m.text,
-      MESSAGE_TYPES[m.type], PRIORITIES[m.priority], m.alarm ? 'Stab herhören!' : '', CHANNELS[m.channel],
-      [m.radio.freq, m.radio.via].filter(Boolean).join(' via '), partyLabel(m.from), partyLabel(m.to), m.distribution.join(', '),
-      STATUS_LABELS[currentStatus(m)], m.replyTo ? byId.get(m.replyTo)?.number || '' : '',
-      m.location ? m.location.label || `${m.location.lat}, ${m.location.lon}` : '', m.operator, m.remarks,
+      MESSAGE_TYPES[m.type], PRIORITIES[m.priority],
+      m.alarm ? (m.alarmDone ? `angesagt ${timeOnly(m.alarmDone.at)}` : 'angefordert') : '', CHANNELS[m.channel],
+      m.peer || '', [fmtFreq(m.radio.freq), m.radio.via].filter(Boolean).join(' via '), partyLabel(m.from), partyLabel(m.to), m.distribution.join(', '),
+      m.readBack ? 'ja' : '', statusLabel(currentStatus(m), m.direction),
+      fwd?.to || '', fwd ? timeOnly(fwd.at) : '', ack ? [ack.who, timeOnly(ack.at)].filter(Boolean).join(' ') : '',
+      ref ? `${REF_KINDS[m.refKind] || REF_KINDS.antwort} ${ref}` : '',
+      m.location ? m.location.label || `${m.location.lat}, ${m.location.lon}` : '', m.operator, fmtVienna(m.created), m.remarks,
     ]);
   }
-  return '﻿' + rows.map(r => r.map(v => csvField(v, sep)).join(sep)).join('\r\n') + '\r\n';
+  return '\ufeff' + rows.map(r => r.map(v => csvField(v, sep)).join(sep)).join('\r\n') + '\r\n';
 }
 
 export function toBackup({ operation, messages, revisions, counters }, now) {

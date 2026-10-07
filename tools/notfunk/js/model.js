@@ -19,18 +19,50 @@ export const CHANNELS = {
 export const MESSAGE_TYPES = {
   meldung: 'Meldung', auftrag: 'Auftrag', frage: 'Frage', anforderung: 'Anforderung', lagemeldung: 'Lagemeldung',
 };
-// Provisional: no Austrian staff document defines priority levels (README,
-// open question 3). These follow the IARU/ARENA radiogram precedences;
-// `alarm` marks a message to announce with "Stab herhören!" (ÖBFV E-31 4.1.5).
-export const PRIORITIES = { routine: 'Routine', priority: 'Priorität', emergency: 'Notfall' };
+// Dringlichkeit. Provisional: no Austrian staff document defines levels
+// (README, open question 3); three levels after the IARU/ARENA radiogram
+// precedences (keys kept from the first draft). `alarm` asks for the
+// message to be announced with "Stab herhören!" (ÖBFV E-31 4.1.5); the
+// announcement itself is recorded separately (announceAlarm()), so a
+// ticked box never pretends it happened.
+export const PRIORITIES = { routine: 'Routine', priority: 'Dringend', emergency: 'Notfall' };
 // Handling states in order; a message can skip states but never go back.
+// The words depend on the direction: an incoming message is handed over to
+// the Meldesammelstelle (übergeben) and taken over by it (übernommen), an
+// outgoing one is transmitted (übertragen) and its receipt confirmed. None
+// of them means that an order in the text has been carried out.
 export const STATUS_FLOW = ['logged', 'forwarded', 'acknowledged', 'answered'];
-export const STATUS_LABELS = { logged: 'erfasst', forwarded: 'weitergeleitet', acknowledged: 'quittiert', answered: 'beantwortet' };
+export const STATUS_WORDS = {
+  in: { logged: 'erfasst', forwarded: 'übergeben', acknowledged: 'übernommen', answered: 'beantwortet' },
+  out: { logged: 'zur Übertragung', forwarded: 'übertragen', acknowledged: 'Empfang bestätigt', answered: 'beantwortet' },
+};
+// The label of a state for a message (or a direction).
+export function statusLabel(state, direction) {
+  return (STATUS_WORDS[direction] || STATUS_WORDS.in)[state] || state;
+}
+// Bezug: what a message refers to (replyTo = the id of that message in
+// this operation, refNumber = its number as typed, also from elsewhere).
+export const REF_KINDS = { antwort: 'Antwort auf', korrektur: 'Korrektur zu', ergaenzung: 'Ergänzung zu' };
 
 const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
 
 function trimmed(v) {
   return String(v ?? '').trim();
+}
+
+// A frequency as typed ("145,5", "145.500 MHz") -> "145.500" (point, at
+// least three decimals); anything that isn't a number is kept as typed.
+export function normFreq(v) {
+  const t = trimmed(v).replace(/\s*mhz$/i, '');
+  if (!/^\d{1,5}([.,]\d{1,6})?$/.test(t)) return t;
+  const [int, dec = ''] = t.replace(',', '.').split('.');
+  return `${int}.${dec.padEnd(3, '0')}`;
+}
+
+// "145.500" -> "145,500" (German decimal comma, as shown and printed).
+export function fmtFreq(v) {
+  const t = normFreq(v);
+  return /^\d+\.\d+$/.test(t) ? t.replace('.', ',') : t;
 }
 
 function party(p) {
@@ -43,7 +75,10 @@ export function messageFields(f) {
     direction: f.direction,
     ts: f.ts,
     channel: f.channel || 'funk',
-    radio: { freq: trimmed(f.radio?.freq), via: trimmed(f.radio?.via).toUpperCase() },
+    radio: { freq: normFreq(f.radio?.freq), via: trimmed(f.radio?.via).toUpperCase() },
+    // Gegenstelle: the radio station heard (in) or sent to (out); from/to
+    // are the sender and addressee of the message itself.
+    peer: trimmed(f.peer).toUpperCase(),
     type: f.type || 'meldung',
     priority: f.priority || 'routine',
     alarm: !!f.alarm,
@@ -53,10 +88,18 @@ export function messageFields(f) {
     subject: trimmed(f.subject),
     text: String(f.text ?? '').replace(/\r\n?/g, '\n').trim(), // verbatim: inner whitespace kept
     stichzeit: f.stichzeit || null,
-    origin: { station: trimmed(f.origin?.station).toUpperCase(), place: trimmed(f.origin?.place), filed: f.origin?.filed || null },
+    origin: {
+      station: trimmed(f.origin?.station).toUpperCase(), place: trimmed(f.origin?.place), filed: f.origin?.filed || null,
+      placeLoc: f.origin?.placeLoc || null,
+    },
     readBack: !!f.readBack,
     location: f.location || null,
     replyTo: f.replyTo || null,
+    refKind: f.refKind in REF_KINDS ? f.refKind : (f.replyTo || trimmed(f.refNumber) ? 'antwort' : null),
+    refNumber: trimmed(f.refNumber).toUpperCase(),
+    // the Meldesammelstelle's own number for this message (Geschäftsbuch),
+    // once it is reported back; never the Notfunk number
+    staffRef: trimmed(f.staffRef),
     remarks: trimmed(f.remarks),
   };
 }
@@ -69,13 +112,26 @@ export function validateMessage(f) {
   if (!ISO_RE.test(f.ts || '')) errs.push('Zeit fehlt oder ist ungültig');
   if (!(f.channel in CHANNELS)) errs.push('unbekannter Übermittlungsweg');
   if (!(f.type in MESSAGE_TYPES)) errs.push('unbekannte Nachrichtenart');
-  if (!(f.priority in PRIORITIES)) errs.push('unbekannte Priorität');
+  if (!(f.priority in PRIORITIES)) errs.push('unbekannte Dringlichkeit');
   if (!f.from.name && !f.from.call) errs.push('Absender fehlt');
-  if (!f.to.name && !f.to.call) errs.push('Empfänger fehlt');
+  if (!f.to.name && !f.to.call) errs.push('Adressat fehlt');
+  // (the form asks for both; older records may have only one of them)
   if (!f.text && !f.subject) errs.push('Betreff oder Inhalt fehlt');
   for (const k of ['stichzeit']) if (f[k] && !ISO_RE.test(f[k])) errs.push('Stichzeit ist ungültig');
   if (f.origin.filed && !ISO_RE.test(f.origin.filed)) errs.push('Aufgabezeit ist ungültig');
   return errs;
+}
+
+// What the time of a message is called: received (in) or sent (out).
+export function timeLabel(direction) {
+  return direction === 'out' ? 'Gesendet am' : 'Empfangen am';
+}
+
+// The read-back confirmation, worded for the direction.
+export function readBackLabel(direction) {
+  return direction === 'out'
+    ? 'Von der Gegenstelle rückgelesen und als richtig bestätigt'
+    : 'Rücklesen erfolgt und vom Absender als richtig bestätigt';
 }
 
 // A new message record. numbered: { prefix, seq, number } from
@@ -90,6 +146,7 @@ export function newMessage(fields, numbered, meta) {
     ...f,
     operator: trimmed(meta.operator).toUpperCase(),
     status: [{ state: 'logged', at: meta.now, by: trimmed(meta.operator).toUpperCase(), note: '' }],
+    attempts: [], alarmDone: null,
     created: meta.now, updated: meta.now, deleted: null,
   };
 }
@@ -113,17 +170,61 @@ export function restoreDeleted(msg, { now }) {
   return { ...msg, deleted: null, updated: now };
 }
 
+// The furthest state reached. The handover steps (forwarded, acknowledged)
+// and the answer are separate facts: a reply can come before the handover
+// is recorded, and the handover can still be recorded after it.
 export function currentStatus(msg) {
-  return msg.status[msg.status.length - 1].state;
+  return STATUS_FLOW[Math.max(...msg.status.map(s => STATUS_FLOW.indexOf(s.state)))];
 }
 
-// Advance the handling status; throws when going backwards or repeating.
-export function setStatus(msg, state, { operator, now, note = '' }) {
-  const from = STATUS_FLOW.indexOf(currentStatus(msg));
-  const to = STATUS_FLOW.indexOf(state);
-  if (to < 0) throw new Error(`unbekannter Status: ${state}`);
-  if (to <= from) throw new Error(`Status kann nicht von „${STATUS_LABELS[STATUS_FLOW[from]]}“ auf „${STATUS_LABELS[state]}“ zurückgesetzt werden`);
-  return { ...msg, status: [...msg.status, { state, at: now, by: trimmed(operator).toUpperCase(), note: trimmed(note) }], updated: now };
+const HANDOVER = ['forwarded', 'acknowledged'];
+
+// The next handover step not recorded yet (forwarded, then acknowledged),
+// or null.
+export function nextHandover(msg) {
+  const done = new Set(msg.status.map(s => s.state));
+  if (done.has('acknowledged')) return null;
+  return done.has('forwarded') ? 'acknowledged' : 'forwarded';
+}
+
+// Record a status step; throws when it is recorded already or would go
+// back (handing over after the takeover, answering twice).
+// at: when it happened (default now; `recorded` is always now), to: handed
+// over / transmitted to whom, who: taken over / receipt confirmed by whom,
+// readBack: an outgoing message was read back by the receiving station.
+export function setStatus(msg, state, { operator, now, at = null, to = '', who = '', note = '', readBack = false }) {
+  if (!STATUS_FLOW.includes(state) || state === 'logged') throw new Error(`unbekannter Status: ${state}`);
+  const done = new Set(msg.status.map(s => s.state));
+  const back = HANDOVER.includes(state)
+    ? HANDOVER.slice(HANDOVER.indexOf(state)).some(s => done.has(s))
+    : done.has(state);
+  if (back) throw new Error(`Status kann nicht von „${statusLabel(currentStatus(msg), msg.direction)}“ auf „${statusLabel(state, msg.direction)}“ zurückgesetzt werden`);
+  if (at && !ISO_RE.test(at)) throw new Error('Zeitpunkt ist ungültig');
+  const entry = {
+    state, at: at || now, recorded: now, by: trimmed(operator).toUpperCase(),
+    to: trimmed(to), who: trimmed(who), note: trimmed(note),
+  };
+  if (readBack) entry.readBack = true;
+  return { ...msg, ...(readBack ? { readBack: true } : {}), status: [...msg.status, entry], updated: now };
+}
+
+// The status entry of a state, if it was reached.
+export function statusEntry(msg, state) {
+  return msg.status.find(s => s.state === state) || null;
+}
+
+// A failed transmission attempt or a query back (Rückfrage): logged, the
+// status stays where it is.
+export function addAttempt(msg, { operator, now, at = null, note = '' }) {
+  if (at && !ISO_RE.test(at)) throw new Error('Zeitpunkt ist ungültig');
+  return { ...msg, attempts: [...(msg.attempts || []), { at: at || now, recorded: now, by: trimmed(operator).toUpperCase(), note: trimmed(note) }], updated: now };
+}
+
+// "Stab herhören!" was actually announced: when, by / to whom.
+export function announceAlarm(msg, { operator, now, at = null, note = '' }) {
+  if (!msg.alarm) throw new Error('„Stab herhören!“ ist für diese Meldung nicht angefordert');
+  if (at && !ISO_RE.test(at)) throw new Error('Zeitpunkt ist ungültig');
+  return { ...msg, alarmDone: { at: at || now, recorded: now, by: trimmed(operator).toUpperCase(), note: trimmed(note) }, updated: now };
 }
 
 // Live (not deleted) messages in number order per prefix, then by time.
@@ -137,15 +238,15 @@ export function repliesTo(msgs, id) {
 }
 
 // Filters for the message book and the map: { direction, priority, status,
-// open: true = not yet acknowledged/answered, query: text search }.
+// open: true = not yet taken over / receipt not confirmed, query: text search }.
 export function filterMessages(msgs, flt = {}) {
   const q = trimmed(flt.query).toLowerCase();
   return liveMessages(msgs).filter(m =>
     (!flt.direction || m.direction === flt.direction)
     && (!flt.priority || m.priority === flt.priority)
     && (!flt.status || currentStatus(m) === flt.status)
-    && (!flt.open || STATUS_FLOW.indexOf(currentStatus(m)) < STATUS_FLOW.indexOf('acknowledged'))
-    && (!q || [m.number, m.subject, m.text, m.from.name, m.from.call, m.to.name, m.to.call].join(' ').toLowerCase().includes(q)));
+    && (!flt.open || !m.status.some(x => x.state === 'acknowledged'))
+    && (!q || [m.number, m.staffRef, m.peer, m.subject, m.text, m.from.name, m.from.call, m.to.name, m.to.call].join(' ').toLowerCase().includes(q)));
 }
 
 const VIENNA_FMT = new Intl.DateTimeFormat('de-AT', {

@@ -9,15 +9,16 @@
 // (`op.home`, e.g. "Stab") is the default recipient of incoming and the
 // default sender of outgoing messages.
 
-import { STATUS_FLOW, STATUS_LABELS, currentStatus, messageFields, validateMessage, liveMessages } from './model.js';
-import { numberGaps } from './numbering.js';
+import { STATUS_FLOW, statusLabel, currentStatus, nextHandover, messageFields, validateMessage, liveMessages, normFreq } from './model.js';
+import { numberGaps, parseNumber, formatNumber } from './numbering.js';
 import { normalizeCall, isPlausibleCall } from '../../shared/js/callbook.js';
 import { parseTimeInput, splitTime } from '../../shared/js/time.js';
 
 export const FORM_DEFAULTS = {
   direction: 'in', time: '', channel: 'funk', freq: '', via: '', type: 'meldung', priority: 'routine', alarm: false,
-  from: '', to: '', subject: '', text: '', readBack: false, stichzeit: '', distribution: '', remarks: '',
-  origStation: '', origPlace: '', origFiled: '', replyTo: null, location: null, locationText: '',
+  from: '', to: '', peer: '', subject: '', text: '', readBack: false, stichzeit: '', distribution: '', remarks: '',
+  origStation: '', origPlace: '', origPlaceLoc: null, origFiled: '', replyTo: null, refKind: 'antwort', ref: '',
+  location: null, locationText: '',
   // the stored time of an edited message: kept as it is (seconds included)
   // as long as the time field still shows it
   ts: null,
@@ -25,7 +26,7 @@ export const FORM_DEFAULTS = {
 
 // A fresh form for an operation: its default frequency/relay and own post.
 export function emptyForm(op) {
-  return { ...FORM_DEFAULTS, freq: op?.freq || '', via: op?.via || '', to: op?.home || '' };
+  return { ...FORM_DEFAULTS, freq: op?.freq ? normFreq(op.freq) : '', via: op?.via || '', to: op?.home || '' };
 }
 
 // Switching Eingang/Ausgang moves the own post to the other side when it
@@ -62,34 +63,60 @@ export function readTime(text, mode, nowIso) {
   return String(text ?? '').trim() ? parseTimeInput(text, mode, nowIso) : nowIso;
 }
 
+// A typed message number ("w1-7") as stored ("W1-007"); anything else as typed.
+export function normalizeRef(text) {
+  const t = String(text ?? '').trim();
+  const n = parseNumber(t);
+  return n ? formatNumber(n.prefix, n.seq) : t.toUpperCase();
+}
+
 // "2026-10-07 14:05" in the given mode, for putting a stored time back into
-// the form (seconds dropped).
+// the form (seconds dropped). Also the prefill of the time field when a
+// message is begun: with the date, so a message finished after midnight
+// or typed in later from paper keeps the right day.
 export function timeText(iso, mode) {
   const { date, time } = splitTime(iso, mode);
   return date ? `${date} ${time.slice(0, 5)}` : '';
 }
 
-// Form -> { fields, errors }: fields for model.newMessage()/editMessage(),
-// errors (German) that block saving.
-export function formToFields(form, { mode = 'local', now }) {
-  const errors = [];
+const TIME_HINT = 'HH:MM oder JJJJ-MM-TT HH:MM';
+const isBlankText = v => !String(v ?? '').trim();
+
+// Form -> { fields, errors, fieldErrors, warnings }: fields for
+// model.newMessage()/editMessage(); fieldErrors (German, by form field:
+// time, from, to, subject, text, stichzeit, origFiled) block saving and are
+// shown at the field, errors is the same as a list; warnings only ask
+// before saving (missing radio station, a time far off, no read-back).
+// byNumber: the operation's messages by number, to link the Bezug.
+// editing: an edit of a stored message (no time warnings).
+export function formToFields(form, { mode = 'local', now, byNumber = new Map(), editing = false }) {
+  const fieldErrors = {};
   const ts = form.ts && form.time === timeText(form.ts, mode) ? form.ts : readTime(form.time, mode, now);
-  if (!ts) errors.push('Zeit: HH:MM oder JJJJ-MM-TT HH:MM');
+  if (!ts) fieldErrors.time = `Datum und Uhrzeit als ${TIME_HINT}`;
+  if (isBlankText(form.from)) fieldErrors.from = 'Absender fehlt: wer gibt die Meldung auf?';
+  if (isBlankText(form.to)) fieldErrors.to = 'Adressat fehlt: für wen ist die Meldung?';
+  if (isBlankText(form.subject)) fieldErrors.subject = 'Betreff fehlt';
+  if (isBlankText(form.text)) fieldErrors.text = 'Inhalt fehlt';
   let stichzeit = null;
-  if (form.type === 'lagemeldung' && String(form.stichzeit ?? '').trim()) {
+  if (form.type === 'lagemeldung' && !isBlankText(form.stichzeit)) {
     stichzeit = readTime(form.stichzeit, mode, ts || now);
-    if (!stichzeit) errors.push('Stichzeit: HH:MM oder JJJJ-MM-TT HH:MM');
+    if (!stichzeit) fieldErrors.stichzeit = `Stichzeit als ${TIME_HINT}`;
   }
   let filed = null;
-  if (String(form.origFiled ?? '').trim()) {
+  if (!isBlankText(form.origFiled)) {
     filed = readTime(form.origFiled, mode, ts || now);
-    if (!filed) errors.push('Aufgabezeit: HH:MM oder JJJJ-MM-TT HH:MM');
+    if (!filed) fieldErrors.origFiled = `Aufgabezeit als ${TIME_HINT}`;
   }
+  // Bezug: a number of this operation links the message, anything else is
+  // kept as typed (e.g. a number of another station).
+  const refNumber = normalizeRef(form.ref);
+  const refMsg = refNumber ? byNumber.get(refNumber) : null;
   const fields = messageFields({
     direction: form.direction,
     ts: ts || now,
     channel: form.channel,
     radio: { freq: form.freq, via: form.via },
+    peer: form.channel === 'funk' ? form.peer : '',
     type: form.type,
     priority: form.priority,
     alarm: form.alarm,
@@ -99,16 +126,35 @@ export function formToFields(form, { mode = 'local', now }) {
     subject: form.subject,
     text: form.text,
     stichzeit,
-    origin: { station: form.origStation, place: form.origPlace, filed },
+    origin: { station: form.origStation, place: form.origPlace, filed, placeLoc: isBlankText(form.origPlace) ? null : form.origPlaceLoc || null },
     readBack: form.readBack,
     location: form.location || null,
-    replyTo: form.replyTo || null,
+    replyTo: refMsg ? refMsg.id : refNumber ? null : form.replyTo || null,
+    refKind: refNumber || form.replyTo ? form.refKind : null,
+    refNumber: refMsg ? refMsg.number : refNumber,
     remarks: form.remarks,
   });
-  // Unreadable times were replaced above (now / none), so validateMessage()
-  // reports only the other problems.
-  errors.push(...validateMessage(fields));
-  return { fields, errors };
+  // Unreadable times were replaced above (now / none), and the form asks
+  // for more than the model, so the model adds only what is left.
+  const errors = Object.values(fieldErrors);
+  if (!errors.length) errors.push(...validateMessage(fields));
+  const warnings = [];
+  if (fields.channel === 'funk' && !fields.peer) warnings.push('Gegenstelle fehlt');
+  if (ts && !editing) {
+    const min = Math.round((Date.parse(now) - Date.parse(ts)) / 60000);
+    if (min < -5) warnings.push('Zeit liegt in der Zukunft');
+    else if (min > 60) warnings.push(`Zeit liegt ${min < 120 ? `${min} min` : `${Math.round(min / 60)} h`} zurück (Nachtrag?)`);
+  }
+  if (fields.direction === 'in' && !fields.readBack && fields.text) warnings.push('Rücklesen nicht bestätigt');
+  return { fields, errors, fieldErrors, warnings };
+}
+
+// Has anything of the message been typed yet? (The time is prefilled at
+// the first keystroke.) Defaults from the operation don't count.
+export function formIsBlank(f, op) {
+  const def = emptyForm(op);
+  return ['from', 'to', 'peer', 'subject', 'text', 'remarks', 'distribution', 'locationText', 'ref', 'origStation', 'origPlace', 'origFiled', 'stichzeit']
+    .every(k => isBlankText(f[k]) || f[k] === def[k]) && !f.replyTo;
 }
 
 // A stored message back into the form (editing).
@@ -117,10 +163,12 @@ export function messageToForm(msg, mode = 'local') {
     ...FORM_DEFAULTS,
     direction: msg.direction, time: timeText(msg.ts, mode), ts: msg.ts, channel: msg.channel,
     freq: msg.radio?.freq || '', via: msg.radio?.via || '', type: msg.type, priority: msg.priority, alarm: !!msg.alarm,
-    from: partyText(msg.from), to: partyText(msg.to), subject: msg.subject, text: msg.text, readBack: !!msg.readBack,
+    from: partyText(msg.from), to: partyText(msg.to), peer: msg.peer || '', subject: msg.subject, text: msg.text, readBack: !!msg.readBack,
     stichzeit: msg.stichzeit ? timeText(msg.stichzeit, mode) : '', distribution: (msg.distribution || []).join(', '),
     remarks: msg.remarks || '', origStation: msg.origin?.station || '', origPlace: msg.origin?.place || '',
+    origPlaceLoc: msg.origin?.placeLoc || null,
     origFiled: msg.origin?.filed ? timeText(msg.origin.filed, mode) : '', replyTo: msg.replyTo || null,
+    refKind: msg.refKind || 'antwort', ref: msg.refNumber || '',
     location: msg.location || null, locationText: msg.location?.input || msg.location?.label || '',
   };
 }
@@ -133,37 +181,42 @@ export function replyForm(msg, op) {
   return {
     ...emptyForm(op),
     direction: msg.direction === 'in' ? 'out' : 'in',
-    channel: msg.channel, freq: msg.radio?.freq || '', via: msg.radio?.via || '',
+    channel: msg.channel, freq: msg.radio?.freq || '', via: msg.radio?.via || '', peer: msg.peer || '',
     type: REPLY_TYPE[msg.type] || msg.type, priority: msg.priority,
     from: partyText(msg.to), to: partyText(msg.from),
     subject: msg.subject ? `Antwort: ${msg.subject.replace(/^Antwort: /, '')}` : 'Antwort',
-    replyTo: msg.id,
+    replyTo: msg.id, refKind: 'antwort', ref: msg.number,
   };
 }
 
-// The next handling step offered as a button in the book: forwarding and
-// acknowledging are explicit; "beantwortet" follows from saving a reply.
-const NEXT_STEP = { logged: ['forwarded', 'weiterleiten'], forwarded: ['acknowledged', 'quittieren'] };
+// The next handling step offered as a button in the book: handing over /
+// transmitting and the confirmation are explicit; "beantwortet" follows
+// from saving a reply (and doesn't stop the handover being recorded).
+const STEP_LABELS = {
+  in: { forwarded: 'übergeben', acknowledged: 'Übernahme bestätigt' },
+  out: { forwarded: 'übertragen', acknowledged: 'Empfang bestätigt' },
+};
 
 export function nextStep(msg) {
-  const s = NEXT_STEP[currentStatus(msg)];
-  return s ? { state: s[0], label: s[1], done: STATUS_LABELS[s[0]] } : null;
+  const state = nextHandover(msg);
+  return state ? { state, label: (STEP_LABELS[msg.direction] || STEP_LABELS.in)[state], done: statusLabel(state, msg.direction) } : null;
 }
 
-// Status steps for the detail view: every state of the flow, done or not.
+// Status steps for the detail view: every state of the flow, done or not
+// (a handover step is skipped when a later one is recorded without it).
 export function statusSteps(msg) {
   const at = new Map(msg.status.map(s => [s.state, s]));
-  const cur = STATUS_FLOW.indexOf(currentStatus(msg));
-  return STATUS_FLOW.map((state, i) => ({
-    state, label: STATUS_LABELS[state], entry: at.get(state) || null,
-    done: at.has(state), skipped: !at.has(state) && i < cur, next: i === cur + 1,
+  const next = nextHandover(msg);
+  return STATUS_FLOW.map(state => ({
+    state, label: statusLabel(state, msg.direction), entry: at.get(state) || null,
+    done: at.has(state), skipped: state === 'forwarded' && !at.has(state) && at.has('acknowledged'), next: state === next,
   }));
 }
 
 // Counts for the summary above the book.
 export function bookSummary(msgs) {
   const live = liveMessages(msgs);
-  const open = m => STATUS_FLOW.indexOf(currentStatus(m)) < STATUS_FLOW.indexOf('acknowledged');
+  const open = m => !m.status.some(x => x.state === 'acknowledged');
   const prefixes = [...new Set(live.map(m => m.prefix))].sort();
   const range = prefixes.map(p => {
     const seqs = msgs.filter(m => m.prefix === p).map(m => m.seq);

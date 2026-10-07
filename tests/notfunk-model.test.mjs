@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   newMessage, editMessage, softDelete, setStatus, currentStatus, validateMessage, messageFields,
-  filterMessages, repliesTo, fmtVienna, fmtUtc,
+  filterMessages, repliesTo, fmtVienna, fmtUtc, statusEntry, statusLabel, addAttempt, announceAlarm,
 } from '../tools/notfunk/js/model.js';
 import { toGeschaeftsbuchCSV, toBackup, parseBackup, mergeBackup, GB_COLUMNS } from '../tools/notfunk/js/export.js';
 import { formatNumber } from '../tools/notfunk/js/numbering.js';
@@ -36,7 +36,7 @@ test('validation: essentials only', () => {
   assert.deepEqual(validateMessage(messageFields(base)), []);
   const errs = validateMessage(messageFields({ ...base, direction: 'x', ts: '5.10.', from: {}, to: {}, subject: '', text: ' ', priority: 'blitz' }));
   assert.equal(errs.length, 6);
-  assert.throws(() => msg({ to: {} }), /Empfänger fehlt/);
+  assert.throws(() => msg({ to: {} }), /Adressat fehlt/);
 });
 
 test('edit keeps the number and stores the old version', () => {
@@ -50,14 +50,50 @@ test('edit keeps the number and stores the old version', () => {
   assert.equal(revision.messageId, m.id);
 });
 
-test('status only moves forward', () => {
+test('status: each step once, the handover never goes back', () => {
   let m = msg({}, 3);
   m = setStatus(m, 'forwarded', { operator: 'a', now: T0 });
   m = setStatus(m, 'answered', { operator: 'a', now: T0, note: 'siehe W1-004' });
   assert.equal(currentStatus(m), 'answered');
   assert.equal(m.status.length, 3);
-  assert.throws(() => setStatus(m, 'acknowledged', { operator: 'a', now: T0 }), /zurückgesetzt/);
+  assert.throws(() => setStatus(m, 'forwarded', { operator: 'a', now: T0 }), /zurückgesetzt/);
+  assert.throws(() => setStatus(m, 'answered', { operator: 'a', now: T0 }), /zurückgesetzt/);
+  // the takeover can still be recorded after a reply; handing over after it can't
+  const ack = setStatus(m, 'acknowledged', { operator: 'a', now: T0 });
+  assert.equal(currentStatus(ack), 'answered');
+  assert.throws(() => setStatus(setStatus(msg({}, 9), 'acknowledged', { operator: 'a', now: T0 }), 'forwarded', { operator: 'a', now: T0 }), /zurückgesetzt/);
   assert.throws(() => setStatus(m, 'nope', { operator: 'a', now: T0 }), /unbekannt/);
+});
+
+test('status steps keep who and when; the words depend on the direction', () => {
+  let m = msg({}, 4);
+  m = setStatus(m, 'forwarded', { operator: 'oe1ebg', now: T0, at: '2026-10-05T12:00:00.000Z', to: 'Meldesammelstelle' });
+  assert.deepEqual(statusEntry(m, 'forwarded'), { state: 'forwarded', at: '2026-10-05T12:00:00.000Z', recorded: T0, by: 'OE1EBG', to: 'Meldesammelstelle', who: '', note: '' });
+  assert.throws(() => setStatus(m, 'acknowledged', { operator: 'a', now: T0, at: '14:00' }), /Zeitpunkt/);
+  assert.equal(statusLabel('acknowledged', 'in'), 'übernommen');
+  assert.equal(statusLabel('logged', 'out'), 'zur Übertragung');
+  assert.equal(statusLabel('acknowledged', 'out'), 'Empfang bestätigt');
+  // an outgoing message read back at the transmission
+  const out = setStatus(msg({ direction: 'out' }, 5), 'forwarded', { operator: 'a', now: T0, readBack: true });
+  assert.equal(out.readBack, true);
+  assert.equal(statusEntry(out, 'forwarded').readBack, true);
+});
+
+test('failed attempts and the announcement are logged, the status stays', () => {
+  const m = addAttempt(msg({ direction: 'out' }, 6), { operator: 'a', now: T0, note: 'keine Antwort' });
+  assert.equal(currentStatus(m), 'logged');
+  assert.deepEqual(m.attempts.map(a => a.note), ['keine Antwort']);
+  assert.throws(() => announceAlarm(m, { operator: 'a', now: T0 }), /nicht angefordert/);
+  const al = announceAlarm(msg({ alarm: true }, 7), { operator: 'a', now: T0, note: 'LdS' });
+  assert.deepEqual([al.alarm, al.alarmDone.at, al.alarmDone.note], [true, T0, 'LdS']);
+});
+
+test('the staff reference is kept apart from the number, an edit keeps the old one', () => {
+  const m = msg({}, 8);
+  assert.equal(m.staffRef, '');
+  const { next, revision } = editMessage(m, { staffRef: ' GZ 0412 ' }, { revisionId: 'r', operator: 'a', now: T0 });
+  assert.deepEqual([next.staffRef, next.number, revision.old.staffRef], ['GZ 0412', 'W1-008', '']);
+  assert.deepEqual(filterMessages([next], { query: 'gz 0412' }).map(x => x.number), ['W1-008']);
 });
 
 test('filters, replies, deleted messages hidden', () => {
@@ -84,12 +120,12 @@ test('Geschäftsbuch CSV', () => {
   const a = msg({ alarm: true, priority: 'priority' }, 20);
   const b = msg({ direction: 'out', from: { name: 'ELS' }, to: { name: 'LI Floridsdorf', call: 'OE1ABC' }, replyTo: 'm20', subject: 'Re; Strom' }, 21);
   const csv = toGeschaeftsbuchCSV([b, a, softDelete(msg({}, 22), { operator: 'x', now: T0 })]);
-  assert.ok(csv.startsWith('﻿GZ;Datum;Uhrzeit;UTC;Ein/Aus;'));
+  assert.ok(csv.startsWith('﻿Notfunk-Nr.;Referenz Meldesammelstelle;Datum;Uhrzeit;UTC;Ein/Aus;'));
   const lines = csv.slice(1).trimEnd().split('\r\n');
   assert.equal(lines[0].split(';').length, GB_COLUMNS.length);
-  assert.match(lines[1], /^W1-020;05\.10\.2026;14:07 MESZ;05\.10\.2026 12:07 UTC;Eingang;Lichtinsel Floridsdorf \/ OE1ABC;Stromausfall;"Seit 13:50 Uhr kein Strom\nim Bereich Am Spitz\.  Bitte um Info\.";Meldung;Priorität;Stab herhören!;Funk;145\.500 via OE1XUU;/);
-  assert.match(lines.slice(2).join('\n'), /^W1-021;.*;Ausgang;LI Floridsdorf \/ OE1ABC;"Re; Strom";/m);
-  assert.match(lines.slice(2).join('\n'), /;erfasst;W1-020;;OE1XYZ;$/m);
+  assert.match(lines[1], /^W1-020;;05\.10\.2026;14:07 MESZ;05\.10\.2026 12:07 UTC;Eingang;Lichtinsel Floridsdorf \/ OE1ABC;Stromausfall;"Seit 13:50 Uhr kein Strom\nim Bereich Am Spitz\.  Bitte um Info\.";Meldung;Dringend;angefordert;Funk;;145,500 via OE1XUU;/);
+  assert.match(lines.slice(2).join('\n'), /^W1-021;;.*;Ausgang;LI Floridsdorf \/ OE1ABC;"Re; Strom";/m);
+  assert.match(lines.slice(2).join('\n'), /;zur Übertragung;;;;Antwort auf W1-020;;OE1XYZ;05\.10\.2026 14:07 MESZ;$/m);
   assert.ok(!csv.includes('W1-022'), 'deleted messages are not in the Geschäftsbuch');
 });
 

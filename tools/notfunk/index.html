@@ -28,6 +28,7 @@
   <span id="clock" class="clock" role="timer" aria-label="Uhrzeit"><b id="clock-local">--:--</b> <span id="clock-zone"></span> <span id="clock-utc" class="dim"></span></span>
   <span id="st-offline" class="chip">offline: prüfe…</span>
   <span id="st-storage" class="chip">Speicher: prüfe…</span>
+  <button type="button" id="st-backup" class="chip chip-btn" hidden title="Sicherung (JSON) dieses Einsatzes jetzt herunterladen"></button>
   <button id="btn-update" type="button" class="primary" hidden title="Neue Version installieren (Daten bleiben erhalten)">Update verfügbar</button>
   <div id="theme-toggle" role="group" aria-label="Farbschema">
     <button type="button" data-theme-choice="light" aria-pressed="false">hell</button>
@@ -85,7 +86,7 @@
           <div class="ac-hints"><div id="n-via-info" class="ac-info" aria-live="polite"></div></div></div>
       </div>
       <p class="hint" id="n-prefix-help">Das Kürzel steht vor jeder Nummer (W1-001, W1-002 …). Jedes Gerät bzw. jede Station eines Einsatzes bekommt ein eigenes Kürzel, dann lassen sich die Bücher ohne doppelte Nummern zusammenführen.</p>
-      <p class="hint" id="n-home-help">Eigene Stelle: Empfänger eingehender und Absender ausgehender Meldungen, solange nichts anderes eingetragen ist.</p>
+      <p class="hint" id="n-home-help">Eigene Stelle: Adressat eingehender und Absender ausgehender Meldungen, solange nichts anderes eingetragen ist.</p>
       <div class="toolbar form-foot">
         <button type="submit" class="primary">Einsatz anlegen</button>
         <button type="button" id="btn-cancel-op">Abbrechen (Esc)</button>
@@ -122,7 +123,7 @@
         <label class="field"><span>Von</span><input id="pr-from" class="mono" placeholder="Beginn" aria-describedby="pr-help"></label>
         <label class="field"><span>Bis</span><input id="pr-to" class="mono" placeholder="jetzt" aria-describedby="pr-help"></label>
       </div>
-      <p class="hint" id="pr-help">Zeitraum als HH:MM oder JJJJ-MM-TT HH:MM (Ortszeit), leer = ganzer Einsatz. Als PDF: im Druckdialog „Als PDF sichern“ bzw. „Als PDF speichern“ wählen. Mehrere leere Formulare: „Leeres Formular“ und im Druckdialog die Anzahl (Kopien) einstellen.</p>
+      <p class="hint" id="pr-help">Zeitraum als HH:MM oder JJJJ-MM-TT HH:MM (Ortszeit), leer = ganzer Einsatz. Als PDF: im Druckdialog „Als PDF sichern“ bzw. „Als PDF speichern“ wählen, „Kopf- und Fußzeilen“ ausschalten. Mehrere leere Formulare: „Leeres Formular“ und im Druckdialog die Anzahl (Kopien) einstellen.</p>
       <div class="toolbar form-foot">
         <button type="submit" class="primary">Meldebuch drucken</button>
         <button type="button" id="btn-blank-form-book" title="Leeres Meldeaufnahmeformular mit dem Namen dieses Einsatzes; Anzahl im Druckdialog wählen">Leeres Formular</button>
@@ -155,72 +156,112 @@
 
     <div id="lock-banner" class="banner warn" role="status" hidden></div>
 
-    <form id="msg-form" autocomplete="off">
+    <form id="msg-form" autocomplete="off" novalidate>
       <div class="form-head">
         <span id="form-title" class="form-title">Neue Meldung</span>
-        <span id="form-number" class="mono accent"></span>
-        <span id="form-number-help" class="hint">Nummer wird erst beim Speichern vergeben</span>
+        <span id="form-number" class="mono accent" title="Die Nummer wird erst beim Speichern vergeben"></span>
+        <button type="button" id="btn-form-op" class="link sub" title="Operator wechseln (Schichtwechsel): im Feld „Einsatz“">Aufnahme <b id="form-op" class="mono"></b></button>
         <span id="form-reply" class="chip" hidden></span>
+        <span class="spacer"></span>
+        <span id="draft-status" class="draft-status" role="status"></span>
+        <button type="button" id="btn-help" class="help-btn" aria-haspopup="dialog" aria-controls="help-dlg" aria-keyshortcuts="F1" title="Hilfe zur Meldeaufnahme (F1)"><span aria-hidden="true">?</span> Hilfe</button>
       </div>
-      <div class="grid-form msg-grid">
-        <!-- Richtung, Zeit, Übermittlung: one flowing row (each as wide as it
-             needs, Übermittlung takes the rest) -->
-        <div class="wide row-flow">
-          <div class="field"><span id="m-dir-label">Richtung</span>
-            <div id="m-dir" class="radio-group" role="radiogroup" aria-labelledby="m-dir-label"></div></div>
-          <label class="field time-field"><span>Zeit <span id="m-time-zone"></span></span>
-            <input id="m-time" class="mono" placeholder="jetzt" enterkeyhint="next" aria-describedby="m-time-help">
-            <span id="m-time-help" class="sr-only">Leer: Zeitpunkt des Speicherns. Sonst HH:MM oder JJJJ-MM-TT HH:MM in Ortszeit.</span></label>
-          <div class="field channel-field"><span id="m-channel-label">Übermittlung</span>
-            <div id="m-channel" class="radio-group" role="radiogroup" aria-labelledby="m-channel-label"></div></div>
-        </div>
 
-        <div class="field ac-field span-2"><label for="m-from">Von</label>
-          <div class="ac-wrap"><input id="m-from" enterkeyhint="next" spellcheck="false" aria-describedby="m-from-info"><div id="m-from-pop" class="ac-pop"></div></div>
-          <div class="ac-hints"><div id="m-from-info" class="ac-info" aria-live="polite"></div></div></div>
-        <div class="field ac-field span-2"><label for="m-to">An</label>
-          <div class="ac-wrap"><input id="m-to" enterkeyhint="next" spellcheck="false" aria-describedby="m-to-info"><div id="m-to-pop" class="ac-pop"></div></div>
-          <div class="ac-hints"><div id="m-to-info" class="ac-info" aria-live="polite"></div></div></div>
-        <label class="field radio-only"><span>Frequenz MHz</span>
-          <input id="m-freq" class="mono" inputmode="decimal" enterkeyhint="next"></label>
-        <div class="field ac-field radio-only"><label for="m-via">Relais</label>
+      <div class="row-flow">
+        <div class="field"><span id="m-dir-label">Richtung</span>
+          <div id="m-dir" class="radio-group" role="radiogroup" aria-labelledby="m-dir-label"></div></div>
+        <label class="field time-field"><span><span id="m-time-label" class="req">Empfangen am</span> <span id="m-time-zone" class="dim"></span></span>
+          <input id="m-time" class="mono" placeholder="JJJJ-MM-TT HH:MM" enterkeyhint="next" aria-describedby="m-time-err" title="Beim ersten Tastendruck vorbelegt. HH:MM oder JJJJ-MM-TT HH:MM (Ortszeit); leer = Zeitpunkt des Speicherns">
+          <span id="m-time-err" class="ferr" data-field="time"></span></label>
+        <div class="field channel-field"><span id="m-channel-label">Übermittlung</span>
+          <div id="m-channel" class="radio-group" role="radiogroup" aria-labelledby="m-channel-label"></div></div>
+      </div>
+
+      <div class="row-flow radio-row radio-only" role="group" aria-label="Funkverbindung">
+        <div class="field ac-field call-field"><label for="m-peer" id="m-peer-label">Gegenstelle</label>
+          <div class="ac-wrap"><input id="m-peer" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-describedby="m-peer-info" title="Übermittelnde Funkstation (Eingang) bzw. empfangende Funkstation (Ausgang)"><div id="m-peer-pop" class="ac-pop"></div></div>
+          <div class="ac-hints"><div id="m-peer-info" class="ac-info" aria-live="polite"></div></div></div>
+        <label class="field freq-field"><span>Frequenz MHz</span>
+          <input id="m-freq" class="mono" inputmode="decimal" enterkeyhint="next" title="Komma oder Punkt, z. B. 145,500"></label>
+        <div class="field ac-field call-field"><label for="m-via">Relais</label>
           <div class="ac-wrap"><input id="m-via" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-describedby="m-via-info"><div id="m-via-pop" class="ac-pop"></div></div>
           <div class="ac-hints"><div id="m-via-info" class="ac-info" aria-live="polite"></div></div></div>
-        <label class="field"><span>Art</span><select id="m-type"></select></label>
-        <div class="field span-3"><span id="m-prio-label">Priorität</span>
-          <div class="prio-line">
-            <div id="m-prio" class="radio-group prio" role="radiogroup" aria-labelledby="m-prio-label"></div>
-            <label class="check alarm-check" title="Meldung sofort im Stab ansagen"><input type="checkbox" id="m-alarm"> <b>Stab herhören!</b></label>
-          </div></div>
-
-        <label class="field wide"><span>Betreff</span><input id="m-subject" enterkeyhint="next"></label>
-        <label class="field wide"><span>Inhalt – wörtlich, wie übermittelt</span>
-          <textarea id="m-text" rows="3" enterkeyhint="enter"></textarea></label>
-        <label class="field span-2 lage-only" hidden><span>Stichzeit (Lagemeldung)</span>
-          <input id="m-stichzeit" class="mono" placeholder="HH:MM" enterkeyhint="next"></label>
       </div>
 
+      <div class="grid-form msg-grid">
+        <div class="field ac-field span-2"><label for="m-from" class="req">Von (Absender)</label>
+          <div class="ac-wrap"><input id="m-from" enterkeyhint="next" spellcheck="false" aria-describedby="m-from-err m-from-info" title="Wer die Meldung aufgibt, z. B. FF Floridsdorf, Einsatzleiter"><div id="m-from-pop" class="ac-pop"></div></div>
+          <div class="ac-hints"><div id="m-from-err" class="ferr" data-field="from"></div><div id="m-from-info" class="ac-info" aria-live="polite"></div></div></div>
+        <div class="field ac-field span-2"><label for="m-to" class="req">An (Adressat)</label>
+          <div class="ac-wrap"><input id="m-to" enterkeyhint="next" spellcheck="false" aria-describedby="m-to-err m-to-info" title="Für wen die Meldung bestimmt ist, z. B. Stab"><div id="m-to-pop" class="ac-pop"></div></div>
+          <div class="ac-hints"><div id="m-to-err" class="ferr" data-field="to"></div><div id="m-to-info" class="ac-info" aria-live="polite"></div></div></div>
+      </div>
+
+      <div class="row-flow">
+        <label class="field"><span>Meldungsart</span><select id="m-type"></select></label>
+        <div class="field"><span id="m-prio-label">Dringlichkeit</span>
+          <div class="prio-line">
+            <div id="m-prio" class="radio-group prio" role="radiogroup" aria-labelledby="m-prio-label"></div>
+            <label class="check alarm-check" title="„Stab herhören!“ anfordern: die Meldung soll sofort im Stab angesagt werden. Die Ansage selbst wird bei der Meldung eingetragen."><input type="checkbox" id="m-alarm"> <b>Stab herhören!</b></label>
+          </div></div>
+        <label class="field span-2 lage-only stich-field" hidden><span>Stichzeit</span>
+          <input id="m-stichzeit" class="mono" placeholder="HH:MM" enterkeyhint="next" aria-describedby="m-stichzeit-err" title="Zeitpunkt, auf den sich die Lagemeldung bezieht">
+          <span id="m-stichzeit-err" class="ferr" data-field="stichzeit"></span></label>
+      </div>
+
+      <div class="grid-form msg-grid">
+        <label class="field span-3"><span class="req">Betreff</span><input id="m-subject" enterkeyhint="next" aria-describedby="m-subject-err">
+          <span id="m-subject-err" class="ferr" data-field="subject"></span></label>
+        <div class="field ac-field span-2"><label for="m-loc">Ort / Einsatzstelle</label>
+          <div class="ac-wrap"><input id="m-loc" enterkeyhint="next" spellcheck="false" aria-describedby="m-loc-info" title="Wo das gemeldete Ereignis ist: Adresse, Ort, Locator oder UTMREF"><div id="m-loc-pop" class="ac-pop"></div></div>
+          <div class="ac-hints loc-hints"><div id="m-loc-info" class="ac-info" aria-live="polite"></div></div></div>
+        <label class="field wide"><span class="req">Inhalt – wörtlich</span>
+          <textarea id="m-text" rows="4" enterkeyhint="enter" aria-describedby="m-text-err" title="Wortlaut, wie übermittelt. Enter = neue Zeile"></textarea>
+          <span id="m-text-err" class="ferr" data-field="text"></span></label>
+      </div>
+      <label class="check readback-check"><input type="checkbox" id="m-readback"> <span id="m-readback-label">Rücklesen erfolgt und vom Absender als richtig bestätigt</span></label>
+
       <details id="m-more" class="more">
-        <summary>Weitere Felder: Standort, Verteiler, Ursprung, Anmerkungen</summary>
-        <div class="grid-form msg-grid">
-          <div class="field ac-field span-2"><label for="m-loc">Standort</label>
-            <div class="ac-wrap"><input id="m-loc" enterkeyhint="next" spellcheck="false" aria-describedby="m-loc-info"><div id="m-loc-pop" class="ac-pop"></div></div>
-            <div class="ac-hints loc-hints"><div id="m-loc-info" class="ac-info" aria-live="polite"></div></div></div>
-          <label class="field span-2"><span>Verteiler</span><input id="m-distribution" placeholder="z. B. S3, S4" enterkeyhint="next"></label>
-          <label class="field"><span>Ursprungsstation</span><input id="m-orig-station" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-describedby="m-orig-help"></label>
-          <label class="field"><span>Ursprungsort</span><input id="m-orig-place" enterkeyhint="next" aria-describedby="m-orig-help"></label>
-          <label class="field"><span>Aufgabezeit</span><input id="m-orig-filed" class="mono" placeholder="HH:MM" enterkeyhint="next" aria-describedby="m-orig-help"></label>
-          <label class="field wide"><span>Anmerkungen / weitere Veranlassung</span><input id="m-remarks" enterkeyhint="done"></label>
+        <summary>Weitere Felder: Bezug, Verteiler, Ursprung, Anmerkungen</summary>
+        <div class="row-flow">
+          <div class="field ref-field"><span id="m-ref-label">Bezug</span>
+            <div class="ref-line">
+              <select id="m-ref-kind" aria-label="Art des Bezugs"></select>
+              <input id="m-ref" class="mono" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="W1-003" enterkeyhint="next" aria-labelledby="m-ref-label" aria-describedby="m-ref-info">
+            </div>
+            <div class="ac-hints"><div id="m-ref-info" class="ac-info" aria-live="polite"></div></div></div>
+          <label class="field dist-field"><span>Verteiler</span><input id="m-distribution" placeholder="z. B. S3, S4" enterkeyhint="next"></label>
         </div>
-        <p class="hint" id="m-orig-help">Ursprung: nur bei weitergeleiteten Meldungen, wo und wann sie aufgegeben wurden.</p>
+        <div class="row-flow" role="group" aria-label="Ursprung (bei weitergegebenen Meldungen)">
+          <div class="field ac-field call-field"><label for="m-orig-station">Ursprungsstation</label>
+            <div class="ac-wrap"><input id="m-orig-station" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-describedby="m-orig-station-info" title="Station, bei der die Meldung ursprünglich aufgegeben wurde"><div id="m-orig-station-pop" class="ac-pop"></div></div>
+            <div class="ac-hints"><div id="m-orig-station-info" class="ac-info" aria-live="polite"></div></div></div>
+          <div class="field ac-field place-field"><label for="m-orig-place">Ursprungsort</label>
+            <div class="ac-wrap"><input id="m-orig-place" enterkeyhint="next" spellcheck="false" aria-describedby="m-orig-place-info" title="Ort, an dem die Meldung ursprünglich aufgegeben wurde"><div id="m-orig-place-pop" class="ac-pop"></div></div>
+            <div class="ac-hints loc-hints"><div id="m-orig-place-info" class="ac-info" aria-live="polite"></div></div></div>
+          <label class="field time-field"><span>Aufgabezeit</span><input id="m-orig-filed" class="mono" placeholder="HH:MM" enterkeyhint="next" aria-describedby="m-orig-filed-err" title="Wann die Meldung bei der Ursprungsstation aufgegeben wurde">
+            <span id="m-orig-filed-err" class="ferr" data-field="origFiled"></span></label>
+        </div>
+        <label class="field"><span>Anmerkungen / weitere Veranlassung</span><input id="m-remarks" enterkeyhint="done"></label>
       </details>
 
       <div class="form-actions">
-        <label class="check"><input type="checkbox" id="m-readback"> rückgelesen</label>
+        <span class="hint kbd-hint"><kbd>⇧</kbd>+<kbd>Enter</kbd> oder <kbd>Strg</kbd>+<kbd>Enter</kbd> speichert</span>
         <span class="spacer"></span>
-        <span class="hint kbd-hint">Tab/Enter nächstes Feld · Ziffern bei Auswahl · <kbd>⇧</kbd>+<kbd>Enter</kbd> speichert</span>
-        <button type="button" id="btn-discard" aria-keyshortcuts="Escape">Verwerfen (Esc)</button>
-        <button type="submit" id="btn-save" class="primary" aria-keyshortcuts="Shift+Enter">Speichern</button>
+        <button type="button" id="btn-discard" aria-keyshortcuts="Escape">Verwerfen</button>
+        <button type="submit" id="btn-save" class="primary" aria-keyshortcuts="Shift+Enter Control+Enter">Speichern</button>
+      </div>
+      <div id="warn-bar" class="bar warn" role="alert" hidden>
+        <span><b>Vor dem Speichern prüfen:</b> <span id="warn-list"></span></span>
+        <span class="spacer"></span>
+        <button type="button" id="btn-save-anyway" class="primary">Trotzdem speichern <span aria-hidden="true">⇧⏎</span></button>
+        <button type="button" id="btn-warn-back">Zurück zum Formular</button>
+      </div>
+      <div id="discard-bar" class="bar err" role="alert" hidden>
+        <b>Eingabe verwerfen?</b>
+        <span class="spacer"></span>
+        <button type="button" id="btn-discard-yes">Verwerfen</button>
+        <button type="button" id="btn-discard-no" class="primary">Weiter erfassen (Esc)</button>
       </div>
       <div id="form-status" class="form-status" role="status"></div>
     </form>
@@ -233,17 +274,17 @@
         <button type="button" data-filter="open" aria-pressed="false">offen</button>
         <button type="button" data-filter="in" aria-pressed="false">↓ Eingang</button>
         <button type="button" data-filter="out" aria-pressed="false">↑ Ausgang</button>
-        <button type="button" data-filter="urgent" aria-pressed="false">Notfall + Priorität</button>
+        <button type="button" data-filter="urgent" aria-pressed="false">Notfall + Dringend</button>
       </div>
       <span class="spacer"></span>
-      <input id="book-search" type="search" placeholder="Suche: Nummer, Betreff, Station …" aria-label="Meldungen durchsuchen">
+      <input id="book-search" type="search" placeholder="Suche: Nummer, Referenz, Betreff, Station …" aria-label="Meldungen durchsuchen">
     </div>
 
     <div id="book-status" class="log-status" role="status" aria-live="polite"></div>
     <div class="table-wrap">
       <table class="book">
         <caption class="sr-only">Meldungen</caption>
-        <thead><tr><th scope="col">Nr.</th><th scope="col">Zeit</th><th scope="col">Ein/Aus</th><th scope="col">Von → An</th><th scope="col">Betreff · Inhalt</th><th scope="col">Art · Priorität</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Aktion</span></th></tr></thead>
+        <thead><tr><th scope="col">Nr.</th><th scope="col">Zeit</th><th scope="col">Ein/Aus</th><th scope="col">Von → An</th><th scope="col">Betreff · Inhalt</th><th scope="col">Art · Dringlichkeit</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Aktion</span></th></tr></thead>
         <tbody id="book-body"></tbody>
       </table>
     </div>
@@ -266,6 +307,124 @@
   <!-- Print-only: filled right before window.print() (js/printview.js). -->
   <div id="print-sheet" class="print-only"></div>
 </main>
+
+<!-- Help for the entry form: F1, "? Hilfe", or ? outside text fields. Esc
+     or "Schließen" closes it; the focus goes back to the field it came from. -->
+<dialog id="help-dlg" class="help-dlg" aria-labelledby="help-title">
+  <div class="help-head">
+    <h2 id="help-title">Hilfe zur Meldeaufnahme</h2>
+    <a id="help-manual" href="../notfunk-anleitung/" target="_blank" rel="noopener">Ausführliche Anleitung (online)</a>
+    <button type="button" id="help-close" class="primary">Schließen (Esc)</button>
+  </div>
+  <div class="help-body">
+    <nav class="help-nav" aria-label="Abschnitte der Hilfe">
+      <a href="#h-kb">Tastatur</a><a href="#h-flow">Ablauf</a><a href="#h-who">Wer ist wer</a><a href="#h-where">Orte</a>
+      <a href="#h-when">Zeiten</a><a href="#h-conf">Bestätigungen</a><a href="#h-num">Nummern</a><a href="#h-prio">Dringlichkeit</a>
+    </nav>
+    <div class="help-content">
+      <section id="h-kb" aria-labelledby="h-kb-t">
+        <h3 id="h-kb-t">Tastatur</h3>
+        <dl class="kb">
+          <dt><kbd>Tab</kbd> / <kbd>Enter</kbd></dt><dd>nächstes Feld; <kbd>⇧</kbd>+<kbd>Tab</kbd> zurück. Im Inhalt macht <kbd>Enter</kbd> eine neue Zeile.</dd>
+          <dt><kbd>1</kbd>–<kbd>7</kbd>, <kbd>←</kbd> <kbd>→</kbd></dt><dd>in Richtung, Übermittlung und Dringlichkeit: Ziffer wählt die n-te Möglichkeit, Pfeiltasten wechseln</dd>
+          <dt><kbd>↓</kbd> <kbd>↑</kbd>, <kbd>Enter</kbd></dt><dd>in Von, An, Gegenstelle, Relais, Ort / Einsatzstelle, Ursprungsstation und Ursprungsort: Vorschläge durchgehen, <kbd>Enter</kbd> übernimmt den markierten. Ohne Markierung übernimmt <kbd>Enter</kbd> nur einen Vorschlag, der das Getippte vervollständigt; sonst bleibt der getippte Text.</dd>
+          <dt><kbd>Leertaste</kbd></dt><dd>Kästchen setzen oder löschen (Stab herhören!, Rücklesen)</dd>
+          <dt><kbd>⇧</kbd>+<kbd>Enter</kbd>, <kbd>Strg</kbd>+<kbd>Enter</kbd></dt><dd>speichern, aus jedem Feld (am Mac auch <kbd>⌘</kbd>+<kbd>Enter</kbd>). Fehlt etwas, steht der Hinweis direkt am Feld. Gibt es nur Hinweise (z. B. Gegenstelle fehlt), fragt das Formular nach; noch einmal <kbd>⇧</kbd>+<kbd>Enter</kbd> speichert trotzdem.</dd>
+          <dt><kbd>Esc</kbd></dt><dd>schließt zuerst offene Vorschläge. Danach bei ausgefülltem Formular: fragt „Eingabe verwerfen?“; noch einmal <kbd>Esc</kbd> heißt weiter erfassen. Nach dem Verwerfen ist „Rückgängig“ möglich. In dieser Hilfe: schließt die Hilfe.</dd>
+          <dt><kbd>F1</kbd>, <kbd>?</kbd></dt><dd>diese Hilfe öffnen (<kbd>?</kbd> nur außerhalb von Textfeldern). Die Eingabe bleibt, wie sie ist.</dd>
+        </dl>
+      </section>
+      <section id="h-flow" aria-labelledby="h-flow-t">
+        <h3 id="h-flow-t">Ablauf</h3>
+        <ol class="flow-list">
+          <li><b>Wortlaut aufnehmen:</b> Inhalt wörtlich, wie übermittelt.</li>
+          <li><b>Rücklesen bestätigen:</b> beim Eingang rücklesen, der Absender bestätigt; beim Ausgang liest die Gegenstelle zurück.</li>
+          <li><b>Meldung sichern:</b> Speichern vergibt die Notfunk-Nummer.</li>
+          <li><b>Übergabe bzw. Übertragung dokumentieren:</b> bei der Meldung (Klick auf die Nummer) „übergeben“ / „übertragen“ und die Bestätigung eintragen.</li>
+          <li><b>Externe Referenz ergänzen:</b> die Nummer, die die Meldesammelstelle zurückmeldet.</li>
+        </ol>
+        <p>Ein Ausgang zeigt im Meldebuch, ob er nur <i>zur Übertragung</i> vorliegt, <i>übertragen</i> wurde oder der <i>Empfang bestätigt</i> ist. „Übergeben“ oder „übertragen“ heißt nie, dass ein Auftrag im Inhalt erledigt ist.</p>
+        <p>Der halb ausgefüllte Entwurf wird laufend auf dem Gerät gesichert („Entwurf gesichert“ oben im Formular); er bleibt auch nach einem Neuladen erhalten.</p>
+      </section>
+      <section id="h-who" aria-labelledby="h-who-t">
+        <h3 id="h-who-t">Wer ist wer</h3>
+        <dl class="kb">
+          <dt>Von (Absender)</dt><dd>wer die Meldung fachlich aufgibt. <span class="ex">FF Floridsdorf, Einsatzleiter</span></dd>
+          <dt>An (Adressat)</dt><dd>für wen sie bestimmt ist. <span class="ex">Stab</span> <span class="ex">S4</span> Vorgabe: die Eigene Stelle des Einsatzes.</dd>
+          <dt>Gegenstelle</dt><dd>die Funkstation, von der die Meldung gehört wurde (Eingang) bzw. an die sie gesendet wird (Ausgang). <span class="ex">OE1ABC</span> Unbekannte Stationen einfach eintippen.</dd>
+          <dt>Ursprungsstation</dt><dd>Station, bei der die Meldung ursprünglich aufgegeben wurde; bei Weitergaben oft nicht die Gegenstelle.</dd>
+          <dt>Operator</dt><dd>wer hier am Gerät aufnimmt („Aufnahme“ oben im Formular). Beim Schichtwechsel im Feld „Einsatz“ ändern; gespeicherte Meldungen behalten ihren Operator.</dd>
+        </dl>
+      </section>
+      <section id="h-where" aria-labelledby="h-where-t">
+        <h3 id="h-where-t">Orte</h3>
+        <dl class="kb">
+          <dt>Ort / Einsatzstelle</dt><dd>wo das gemeldete Ereignis ist. <span class="ex">Brünner Straße 68</span> <span class="ex">JN88EG</span> Ein Vorschlag ergänzt Postleitzahl und Locator; der Inhalt der Meldung bleibt unverändert.</dd>
+          <dt>Ursprungsort</dt><dd>wo die Meldung ursprünglich aufgegeben wurde; kann vom Ereignisort abweichen.</dd>
+          <dt>Stationsstandort</dt><dd>wo die eigene Station steht: gehört zum Einsatz (Station), nicht zur Meldung.</dd>
+        </dl>
+      </section>
+      <section id="h-when" aria-labelledby="h-when-t">
+        <h3 id="h-when-t">Zeiten</h3>
+        <dl class="kb">
+          <dt>Empfangen am / Gesendet am</dt><dd>wann die Meldung übermittelt wurde, in Ortszeit (MEZ/MESZ). Beim ersten Tastendruck mit Datum und Uhrzeit vorbelegt, korrigierbar: <span class="ex">14:05</span> oder <span class="ex">2026-10-08 14:05</span>. Bei Nachträgen vom Papier das tatsächliche Datum und die Uhrzeit eintragen.</dd>
+          <dt>Erfasst am</dt><dd>wann die Meldung hier gespeichert wurde; automatisch.</dd>
+          <dt>Aufgabezeit</dt><dd>wann die Meldung bei der Ursprungsstation aufgegeben wurde.</dd>
+          <dt>Stichzeit</dt><dd>nur bei Lagemeldungen: auf welchen Zeitpunkt sich die Lage bezieht.</dd>
+        </dl>
+      </section>
+      <section id="h-conf" aria-labelledby="h-conf-t">
+        <h3 id="h-conf-t">Bestätigungen</h3>
+        <dl class="kb">
+          <dt>Rücklesen</dt><dd>der Wortlaut wurde zurückgelesen und als richtig bestätigt (Eingang: vom Absender, Ausgang: von der Gegenstelle).</dd>
+          <dt>Empfang bestätigt</dt><dd>Ausgang: die Gegenstelle hat den Empfang bestätigt.</dd>
+          <dt>Übergeben / übernommen</dt><dd>Eingang: an die Meldesammelstelle übergeben, von ihr übernommen (mit Name und Zeitpunkt).</dd>
+          <dt>Fehlversuch / Rückfrage</dt><dd>Ausgang: eine Übertragung hat nicht geklappt oder es gibt eine Rückfrage; wird mit Zeit vermerkt.</dd>
+        </dl>
+      </section>
+      <section id="h-num" aria-labelledby="h-num-t">
+        <h3 id="h-num-t">Nummern</h3>
+        <dl class="kb">
+          <dt>Notfunk-Nr.</dt><dd>unsere laufende Nummer, z. B. <span class="ex">W1-007</span>: lückenlos, wird nie doppelt vergeben, auch nicht nach Löschen.</dd>
+          <dt>Referenz Meldesammelstelle</dt><dd>die Nummer, unter der die Meldesammelstelle die Meldung führt (Geschäftsbuch). Wird bei der Meldung nachgetragen, wenn sie zurückgemeldet wird. Nicht mit der Notfunk-Nr. verwechseln.</dd>
+          <dt>Bezug</dt><dd>Antwort, Korrektur oder Ergänzung zu einer anderen Meldung: deren Nummer.</dd>
+        </dl>
+      </section>
+      <section id="h-prio" aria-labelledby="h-prio-t">
+        <h3 id="h-prio-t">Dringlichkeit und „Stab herhören!“</h3>
+        <dl class="kb">
+          <dt>Routine</dt><dd>alles, was in der normalen Reihenfolge bearbeitet wird.</dd>
+          <dt>Dringend</dt><dd>soll vor Routine-Meldungen übermittelt und bearbeitet werden.</dd>
+          <dt>Notfall</dt><dd>Gefahr für Leib und Leben oder unmittelbar drohender großer Schaden: sofort.</dd>
+          <dt>Stab herhören!</dt><dd>die Meldung soll sofort im Stab angesagt werden. Das Kästchen fordert die Ansage nur an; ob und wann angesagt wurde, wird bei der Meldung eingetragen.</dd>
+        </dl>
+        <p class="hint">Vorläufig: die Stufen sind noch mit der Meldesammelstelle abzustimmen.</p>
+      </section>
+    </div>
+  </div>
+</dialog>
+
+<!-- Before printing a message: settings hint and, for a long text, how many
+     pages it takes. -->
+<dialog id="print-dlg" class="print-dlg" aria-labelledby="print-dlg-title">
+  <form method="dialog">
+    <h2 id="print-dlg-title">Ausdruck / PDF</h2>
+    <p id="print-dlg-long" class="banner warn" hidden></p>
+    <div id="print-dlg-hint">
+      <p>Im Druckdialog einstellen:</p>
+      <ul>
+        <li><b>Kopf- und Fußzeilen</b> ausschalten (sonst druckt der Browser Adresse, Datum und Seitenzahl dazu)</li>
+        <li>Papierformat <b>A4</b>, Skalierung <b>100 %</b> (bzw. „Standard“)</li>
+        <li>als PDF: Ziel „Als PDF sichern“ bzw. „Als PDF speichern“</li>
+      </ul>
+      <label class="check"><input type="checkbox" id="print-dlg-off"> Diesen Hinweis nicht mehr zeigen</label>
+    </div>
+    <div class="toolbar form-foot">
+      <button type="submit" value="print" id="print-dlg-ok" class="primary">Drucken / PDF</button>
+      <button type="submit" value="cancel">Abbrechen</button>
+    </div>
+  </form>
+</dialog>
 
 <footer class="no-print">
   Läuft vollständig offline im Browser; alle Daten bleiben auf diesem Gerät (<span id="st-backend">?</span>).

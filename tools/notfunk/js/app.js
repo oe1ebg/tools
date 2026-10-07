@@ -17,7 +17,7 @@ import { prefGet, prefSet } from '../../shared/js/prefs.js';
 import { loadDataFile } from '../../shared/js/data.js';
 import { buildCallbook, lookupCall, normalizeCall } from '../../shared/js/callbook.js';
 import { formatMHz } from '../../shared/js/repeaters.js';
-import { newId, nowIso, zoneLabel } from '../../shared/js/time.js';
+import { newId, nowIso } from '../../shared/js/time.js';
 import { attachCallSearch } from '../../shared/js/callsearch.js';
 import { attachRepeaterSearch, loadRepeaterIndex } from '../../shared/js/repeaterui.js';
 import { createLocationField, describeLocation } from '../../shared/js/locfield.js';
@@ -25,18 +25,21 @@ import { loadLocationIndex, fillLocationSources } from '../../shared/js/location
 import { sourceItem, standDate, trackOnline, mapLinks } from '../../shared/js/sources.js';
 import { initOffline, setChip } from '../../shared/js/offline.js';
 import {
-  DIRECTIONS, CHANNELS, MESSAGE_TYPES, PRIORITIES, STATUS_FLOW, STATUS_LABELS, newMessage, editMessage, softDelete,
-  restoreDeleted, setStatus, currentStatus, filterMessages, repliesTo, fmtVienna, fmtUtc,
+  DIRECTIONS, CHANNELS, MESSAGE_TYPES, PRIORITIES, REF_KINDS, STATUS_FLOW, statusLabel, statusEntry, timeLabel, readBackLabel,
+  newMessage, editMessage, softDelete, restoreDeleted, setStatus, addAttempt, announceAlarm, currentStatus, filterMessages,
+  repliesTo, fmtVienna, fmtUtc, normFreq, fmtFreq,
 } from './model.js';
 import { saveNumbered, normalizePrefix, PREFIX_RE, nextSeq, formatNumber, counterKey } from './numbering.js';
 import { toGeschaeftsbuchCSV, toBackup, parseBackup, mergeBackup } from './export.js';
 import {
-  emptyForm, setDirection, formToFields, messageToForm, replyForm, nextStep, statusSteps, bookSummary, partyText, readTime,
+  emptyForm, setDirection, formToFields, formIsBlank, messageToForm, replyForm, nextStep, statusSteps, bookSummary, partyText,
+  readTime, timeText, normalizeRef,
 } from './form.js';
 import { formSheet, blankFormSheet, bookSheet } from './print.js';
-import { renderFormSheet, renderBookSheet, printSheet } from './printview.js';
+import { renderFormSheet, fittedFormSheet, renderBookSheet, printSheet } from './printview.js';
 
 const LAST_OP_KEY = 'oe1ebg-notfunk-last-op';
+const PRINT_HINT_KEY = 'oe1ebg-notfunk-print-hint-off';
 const MODE = 'local'; // times are typed and shown in the device's local time (Vienna)
 
 const state = {
@@ -51,7 +54,11 @@ const state = {
   query: '',
   callbook: null,
   locField: null,
+  origLocField: null,
   rptSearch: null,
+  showErrors: false, // field errors are shown after the first save attempt
+  warned: '',        // the warnings already shown once (saving again = save anyway)
+  saving: false,
   channel: null,
   draftTimer: null,
 };
@@ -149,7 +156,7 @@ async function renderOps() {
     el('div', { class: 'info' },
       el('div', { class: 't' }, op.name),
       el('div', { class: 'meta' }, `${fmtVienna(op.created).split(' ')[0]} · Station ${op.prefix}${op.station ? ` ${op.station}` : ''} · ${counts.get(op.id) || 0} Meldungen`),
-      el('div', { class: 'meta' }, [op.operator && `Op ${op.operator}`, op.home && `Eigene Stelle ${op.home}`, op.freq && `${op.freq} MHz`, op.via && `via ${op.via}`].filter(Boolean).join(' · '))),
+      el('div', { class: 'meta' }, [op.operator && `Op ${op.operator}`, op.home && `Eigene Stelle ${op.home}`, op.freq && `${fmtFreq(op.freq)} MHz`, op.via && `via ${op.via}`].filter(Boolean).join(' · '))),
     el('div', { class: 'actions' }, actions));
   }));
 }
@@ -174,7 +181,7 @@ function openNewOpForm() {
   $('#n-station').value = last.station || '';
   $('#n-operator').value = last.operator || '';
   $('#n-home').value = last.home || 'Stab';
-  $('#n-freq').value = last.freq || '';
+  $('#n-freq').value = fmtFreq(last.freq || '');
   $('#n-via').value = last.via || '';
   renderPartyInfo('#n-operator', '#n-operator-info');
   state.newOpRpt?.refresh();
@@ -191,7 +198,7 @@ async function createOp() {
   const now = nowIso();
   const op = {
     id: newId(), name: v('#n-name'), prefix, station: v('#n-station'), operator: normalizeCall(v('#n-operator')),
-    home: v('#n-home'), freq: v('#n-freq'), via: normalizeCall(v('#n-via')), created: now, updated: now, archived: false, deleted: null,
+    home: v('#n-home'), freq: normFreq(v('#n-freq')), via: normalizeCall(v('#n-via')), created: now, updated: now, archived: false, deleted: null,
   };
   try {
     await state.store.tx([{ store: 'operations', put: op }]);
@@ -217,7 +224,7 @@ const OP_PANEL_KEY = 'oe1ebg-notfunk-op-open';
 
 function renderOpPanel() {
   const op = state.op;
-  for (const [k, sel] of Object.entries(OP_FIELDS)) if (document.activeElement !== $(sel)) $(sel).value = op[k] || '';
+  for (const [k, sel] of Object.entries(OP_FIELDS)) if (document.activeElement !== $(sel)) $(sel).value = k === 'freq' ? fmtFreq(op[k] || '') : op[k] || '';
   $('#e-prefix').readOnly = state.msgs.length > 0;
   renderPartyInfo('#e-operator', '#e-operator-info');
   state.opRpt?.refresh();
@@ -226,9 +233,10 @@ function renderOpPanel() {
     `${op.prefix}${op.station ? ` ${op.station}` : ''}`,
     op.operator ? `Op ${op.operator}` : 'Operator fehlt',
     op.home && `Eigene Stelle ${op.home}`,
-    op.freq && `${op.freq} MHz`,
+    op.freq && `${fmtFreq(op.freq)} MHz`,
     op.via && `via ${op.via}`,
   ].filter(Boolean).join(' · '));
+  renderBackupChip();
   $('#op-sum').classList.toggle('warn-text', !op.operator);
 }
 
@@ -238,7 +246,7 @@ async function saveOpPanel() {
   const status = $('#op-status');
   const patch = {
     name: v('#e-name') || op.name, station: v('#e-station'), operator: normalizeCall(v('#e-operator')),
-    home: v('#e-home'), freq: v('#e-freq'), via: normalizeCall(v('#e-via')),
+    home: v('#e-home'), freq: normFreq(v('#e-freq')), via: normalizeCall(v('#e-via')),
   };
   const prefix = normalizePrefix(v('#e-prefix'));
   if (prefix !== op.prefix) {
@@ -257,7 +265,7 @@ async function saveOpPanel() {
   // An untouched form follows the new defaults (frequency, relay, own post).
   const f = readForm();
   const follow = {};
-  if (f.freq === (op.freq || '')) follow.freq = patch.freq;
+  if (normFreq(f.freq) === normFreq(op.freq || '')) follow.freq = patch.freq;
   if (f.via === (op.via || '')) follow.via = patch.via;
   if (f.to === (op.home || '') && f.direction === 'in') follow.to = patch.home;
   if (f.from === (op.home || '') && f.direction === 'out') follow.from = patch.home;
@@ -299,7 +307,7 @@ function attachOpLookups(prefix, onChange) {
     getHeader: () => ({ myGrid: '', repeaterFreq: $(`#${prefix}-freq`).value }),
     onPick: r => {
       via.value = r.call;
-      if (r.out) $(`#${prefix}-freq`).value = formatMHz(r.out);
+      if (r.out) $(`#${prefix}-freq`).value = fmtFreq(formatMHz(r.out));
       onChange();
     },
   });
@@ -324,6 +332,7 @@ function initOpPanel() {
 
 function showView(id) {
   for (const v of ['#view-ops', '#view-book', '#view-msg']) $(v).hidden = v !== id;
+  renderBackupChip();
 }
 
 async function route() {
@@ -377,6 +386,7 @@ async function leaveOp() {
 async function reloadMsgs() {
   if (!state.op) return;
   await loadOp();
+  renderBackupChip();
   if (!$('#view-book').hidden) renderBook();
   const m = /\/m\/([\w-]+)/.exec(location.hash);
   if (m && !$('#view-msg').hidden) renderDetail(m[1]);
@@ -417,9 +427,10 @@ function readForm() {
   return {
     direction: radioValue('m-dir'), time: v('#m-time'), channel: radioValue('m-channel'),
     freq: v('#m-freq'), via: v('#m-via'), type: v('#m-type'), priority: radioValue('m-prio'), alarm: $('#m-alarm').checked,
-    from: v('#m-from'), to: v('#m-to'), subject: v('#m-subject'), text: v('#m-text'), readBack: $('#m-readback').checked,
+    from: v('#m-from'), to: v('#m-to'), peer: v('#m-peer'), subject: v('#m-subject'), text: v('#m-text'), readBack: $('#m-readback').checked,
     stichzeit: v('#m-stichzeit'), distribution: v('#m-distribution'), remarks: v('#m-remarks'),
-    origStation: v('#m-orig-station'), origPlace: v('#m-orig-place'), origFiled: v('#m-orig-filed'),
+    origStation: v('#m-orig-station'), origPlace: v('#m-orig-place'), origPlaceLoc: state.origLocField?.get() || null, origFiled: v('#m-orig-filed'),
+    refKind: v('#m-ref-kind') || 'antwort', ref: v('#m-ref'),
     replyTo: $('#msg-form').dataset.replyTo || null,
     ts: $('#msg-form').dataset.ts || null,
     location: state.locField?.get() || null, locationText: v('#m-loc'),
@@ -431,10 +442,11 @@ function writeForm(f) {
   setRadio('m-channel', f.channel);
   setRadio('m-prio', f.priority);
   const set = (id, val) => { $(id).value = val ?? ''; };
-  set('#m-time', f.time); set('#m-freq', f.freq); set('#m-via', f.via); set('#m-type', f.type);
-  set('#m-from', f.from); set('#m-to', f.to); set('#m-subject', f.subject); set('#m-text', f.text);
+  set('#m-time', f.time); set('#m-freq', fmtFreq(f.freq)); set('#m-via', f.via); set('#m-type', f.type);
+  set('#m-from', f.from); set('#m-to', f.to); set('#m-peer', f.peer); set('#m-subject', f.subject); set('#m-text', f.text);
   set('#m-stichzeit', f.stichzeit); set('#m-distribution', f.distribution); set('#m-remarks', f.remarks);
-  set('#m-orig-station', f.origStation); set('#m-orig-place', f.origPlace); set('#m-orig-filed', f.origFiled);
+  set('#m-orig-station', f.origStation); set('#m-orig-filed', f.origFiled);
+  set('#m-ref-kind', f.refKind || 'antwort'); set('#m-ref', f.ref);
   $('#m-alarm').checked = !!f.alarm;
   $('#m-readback').checked = !!f.readBack;
   if (f.replyTo) $('#msg-form').dataset.replyTo = f.replyTo;
@@ -447,9 +459,20 @@ function writeForm(f) {
     if (f.location) state.locField.set(f.location);
     else { state.locField.clear(); if (f.locationText) state.locField.refresh(); }
   }
-  $('#m-more').open = !!(f.location || f.locationText || f.distribution || f.remarks || f.origStation || f.origPlace || f.origFiled);
+  if (state.origLocField) {
+    $('#m-orig-place').value = f.origPlace || '';
+    if (f.origPlaceLoc) state.origLocField.set(f.origPlaceLoc);
+    else state.origLocField.clear();
+  } else {
+    set('#m-orig-place', f.origPlace);
+  }
+  $('#m-more').open = !!(f.ref || f.distribution || f.remarks || f.origStation || f.origPlace || f.origFiled);
   state.rptSearch?.refresh();
+  state.showErrors = false;
+  state.warned = '';
+  hideBars();
   renderFormState();
+  growText();
 }
 
 // Number preview, edit/reply state, the fields that depend on others.
@@ -458,22 +481,62 @@ function renderFormState() {
   const editing = state.editing;
   setText($('#form-title'), editing ? 'Meldung bearbeiten' : 'Neue Meldung');
   setText($('#form-number'), editing ? editing.number : `→ ${previewNumber()}`);
-  $('#form-number-help').hidden = !!editing;
-  const reply = f.replyTo && state.msgs.find(m => m.id === f.replyTo);
+  setText($('#form-op'), state.op.operator || 'Operator fehlt');
+  $('#form-op').classList.toggle('warn-text', !state.op.operator);
+  // the Bezug: a number of this operation shows what it refers to
+  const refNo = normalizeRef(f.ref);
+  const refMsg = refNo && state.msgs.find(m => m.number === refNo && !m.deleted);
   const chip = $('#form-reply');
-  chip.hidden = !reply;
-  if (reply) {
-    fill(chip, `Antwort auf ${reply.number} `,
-      el('button', { type: 'button', class: 'link', 'aria-label': `Bezug auf ${reply.number} entfernen`, onclick: () => { delete $('#msg-form').dataset.replyTo; onFormChange(); } }, '✕'));
+  chip.hidden = !refNo;
+  if (refNo) {
+    fill(chip, `${REF_KINDS[f.refKind] || REF_KINDS.antwort} ${refNo} `,
+      el('button', { type: 'button', class: 'link', 'aria-label': `Bezug auf ${refNo} entfernen`, onclick: () => { delete $('#msg-form').dataset.replyTo; $('#m-ref').value = ''; onFormChange(); } }, '✕'));
   }
+  setText($('#m-ref-info'), !refNo ? '' : refMsg ? `${refMsg.number}: ${refMsg.subject || refMsg.text.slice(0, 50)}` : 'nicht in diesem Einsatz – wird als Text gespeichert');
   setText($('#btn-save'), editing ? `Änderung speichern ⇧⏎` : `Speichern als ${previewNumber()} ⇧⏎`);
   for (const n of document.querySelectorAll('#msg-form .lage-only')) n.hidden = f.type !== 'lagemeldung';
   for (const n of document.querySelectorAll('#msg-form .radio-only')) n.hidden = f.channel !== 'funk';
   $('#msg-form').classList.toggle('urgent', f.priority === 'emergency' || f.alarm);
   $('#msg-form').classList.toggle('editing', !!editing);
-  $('#m-time-zone').textContent = `(${zoneLabel(nowIso(), MODE)})`;
+  // the words that depend on the direction
+  setText($('#m-time-label'), timeLabel(f.direction));
+  setText($('#m-readback-label'), readBackLabel(f.direction));
+  $('#m-peer').title = f.direction === 'out' ? 'Empfangende Funkstation' : 'Übermittelnde Funkstation';
+  setText($('#m-time-zone'), viennaClock(nowIso()).zone);
   renderPartyInfo('#m-from', '#m-from-info');
   renderPartyInfo('#m-to', '#m-to-info');
+  renderPartyInfo('#m-peer', '#m-peer-info');
+  renderPartyInfo('#m-orig-station', '#m-orig-station-info');
+  if (state.showErrors) showFieldErrors(check(f).fieldErrors);
+}
+
+// The form checked as it would be saved.
+function check(f = readForm()) {
+  return formToFields(f, { mode: MODE, now: nowIso(), byNumber: new Map(state.msgs.filter(m => !m.deleted).map(m => [m.number, m])), editing: !!state.editing });
+}
+
+// Errors at the fields (German), aria-invalid on the inputs.
+const ERROR_INPUTS = { time: '#m-time', from: '#m-from', to: '#m-to', subject: '#m-subject', text: '#m-text', stichzeit: '#m-stichzeit', origFiled: '#m-orig-filed' };
+
+function showFieldErrors(errs) {
+  for (const [k, sel] of Object.entries(ERROR_INPUTS)) {
+    const msg = errs[k] || '';
+    setText(document.querySelector(`#msg-form .ferr[data-field="${k}"]`), msg);
+    if (msg) $(sel).setAttribute('aria-invalid', 'true');
+    else $(sel).removeAttribute('aria-invalid');
+  }
+}
+
+// The message text grows with what is typed.
+function growText() {
+  const t = $('#m-text');
+  t.style.height = '';
+  if (t.scrollHeight > t.clientHeight) t.style.height = `${t.scrollHeight + 2}px`;
+}
+
+function hideBars() {
+  $('#warn-bar').hidden = true;
+  $('#discard-bar').hidden = true;
 }
 
 // The info line under Von/An and the operator fields: the callbook entry
@@ -491,26 +554,36 @@ function previewNumber() {
   return formatNumber(state.op.prefix, nextSeq(state.counter, state.msgs, state.op.prefix));
 }
 
-function onFormChange() {
+function onFormChange(ev) {
+  // The time is prefilled when a new message is begun (the first keystroke
+  // in any other field), with the date, and can be corrected.
+  const t = $('#m-time');
+  if (!state.editing && !t.value.trim() && ev?.target && ev.target !== t && !formIsBlank(readForm(), state.op)) {
+    t.value = timeText(nowIso(), MODE);
+  }
+  if (ev?.target?.id === 'm-text') growText();
+  if (!$('#warn-bar').hidden) { $('#warn-bar').hidden = true; state.warned = ''; }
   renderFormState();
   clearTimeout(state.draftTimer);
   state.draftTimer = setTimeout(flushDraft, 600);
 }
 
 function formIsEmpty(f) {
-  const blank = emptyForm(state.op);
-  return ['from', 'subject', 'text', 'time', 'remarks', 'distribution', 'locationText'].every(k => !String(f[k] ?? '').trim() || f[k] === blank[k]) && !f.replyTo;
+  return formIsBlank(f, state.op);
 }
 
 async function flushDraft() {
   clearTimeout(state.draftTimer);
   if (!state.op || $('#view-book').hidden && $('#view-msg').hidden) return;
   const f = readForm();
+  const empty = formIsEmpty(f) && !state.editing;
   try {
-    if (formIsEmpty(f) && !state.editing) await state.store.tx([{ store: 'drafts', del: state.op.id }]);
+    if (empty) await state.store.tx([{ store: 'drafts', del: state.op.id }]);
     else await state.store.tx([{ store: 'drafts', put: { eventId: state.op.id, form: f, editingId: state.editing?.id || null, saved: nowIso() } }]);
+    setText($('#draft-status'), empty ? '' : `✓ Entwurf gesichert ${viennaClock(nowIso()).time}`);
   } catch (e) {
     console.warn('Entwurf nicht gespeichert', e);
+    setText($('#draft-status'), 'Entwurf nicht gesichert!');
   }
 }
 
@@ -518,6 +591,7 @@ async function restoreDraft() {
   const d = await state.store.get('drafts', state.op.id);
   state.editing = d?.editingId ? state.msgs.find(m => m.id === d.editingId) || null : null;
   writeForm(d?.form || emptyForm(state.op));
+  setText($('#draft-status'), d ? `✓ Entwurf gesichert ${viennaClock(d.saved).time}` : '');
 }
 
 function resetForm(keep = true) {
@@ -529,14 +603,43 @@ function resetForm(keep = true) {
   writeForm(next);
 }
 
-async function saveMessage() {
+// Save (⇧⏎, Strg+⏎, the button). Errors block and are shown at the fields;
+// warnings ask once (the bar), saving again saves anyway.
+async function saveMessage({ anyway = false } = {}) {
+  // a second ⇧⏎ while the first save is still running must not save twice
+  if (state.saving) return;
+  state.saving = true;
+  try {
+    await saveMessageNow(anyway);
+  } finally {
+    state.saving = false;
+  }
+}
+
+async function saveMessageNow(anyway) {
   const status = $('#form-status');
   const form = readForm();
   const now = nowIso();
-  const { fields, errors } = formToFields(form, { mode: MODE, now });
+  const { fields, errors, fieldErrors, warnings } = check(form);
+  state.showErrors = true;
+  showFieldErrors(fieldErrors);
   if (errors.length) {
     status.className = 'form-status err';
     status.textContent = `Nicht gespeichert: ${errors.join(' · ')}`;
+    const first = Object.keys(ERROR_INPUTS).find(k => fieldErrors[k]);
+    if (first) {
+      if (first === 'origFiled') $('#m-more').open = true;
+      $(ERROR_INPUTS[first]).focus();
+    }
+    return;
+  }
+  const sig = warnings.join('|');
+  if (warnings.length && !anyway && state.warned !== sig) {
+    state.warned = sig;
+    setText($('#warn-list'), warnings.join(' · '));
+    $('#discard-bar').hidden = true;
+    $('#warn-bar').hidden = false;
+    status.textContent = '';
     return;
   }
   const operator = state.op.operator || '';
@@ -544,14 +647,16 @@ async function saveMessage() {
   let saved;
   try {
     if (state.editing) {
-      const { next, revision } = editMessage(state.editing, fields, { revisionId: newId(), operator, now });
+      // The staff reference is kept with the message, not in the form.
+      const { staffRef: _ref, ...changes } = fields;
+      const { next, revision } = editMessage(state.editing, changes, { revisionId: newId(), operator, now });
       await state.store.tx([{ store: 'messages', put: next }, { store: 'revisions', put: revision }]);
       saved = next;
     } else {
       saved = await saveNumbered(state.store, { opId: op.id, prefix: op.prefix, recordStore: 'messages' },
         numbered => newMessage(fields, numbered, { id: newId(), opId: op.id, operator, now }));
       // A reply marks the message it answers as answered.
-      const orig = saved.replyTo && state.msgs.find(m => m.id === saved.replyTo);
+      const orig = saved.refKind === 'antwort' && saved.replyTo && state.msgs.find(m => m.id === saved.replyTo);
       if (orig && STATUS_FLOW.indexOf(currentStatus(orig)) < STATUS_FLOW.indexOf('answered')) {
         await state.store.tx([{ store: 'messages', put: setStatus(orig, 'answered', { operator, now, note: saved.number }) }]);
       }
@@ -569,15 +674,16 @@ async function saveMessage() {
   await flushDraft();
   renderBook();
   bookStatus(`${saved.number} ${wasEdit ? 'geändert (vorige Fassung gespeichert)' : 'gespeichert'}: ${saved.subject || saved.text.slice(0, 60)}`);
+  renderBackupChip();
   broadcast({ type: 'msgs', opId: op.id });
   flashRow(saved.id);
   $('#m-from').focus();
 }
 
-// Who was heard, per operation, for the Von/An completion.
+// Who was heard, per operation, for the completion of Von/An/Gegenstelle.
 async function rememberStations(fields) {
   const ops = [];
-  for (const p of [fields.from, fields.to]) {
+  for (const p of [fields.from, fields.to, { name: '', call: fields.peer }]) {
     const text = partyText(p);
     if (!text || text === state.op.home) continue;
     ops.push({ store: 'stations', put: { id: `${state.op.id}:${text}`, eventId: state.op.id, text, call: p.call, last: nowIso() } });
@@ -590,9 +696,29 @@ async function recentStations() {
   return list.sort((a, b) => (a.last < b.last ? 1 : -1));
 }
 
+// Esc / "Verwerfen": an empty form is left alone; a filled one asks first
+// (the bar: "Verwerfen" or "Weiter erfassen", Esc again = keep). After
+// discarding, "Rückgängig" brings it back.
+let discardReturn = null;
+
+function askDiscard() {
+  if (formIsEmpty(readForm()) && !state.editing) return;
+  if (!$('#discard-bar').hidden) { keepEditing(); return; }
+  discardReturn = document.activeElement?.closest('#msg-form') ? document.activeElement : $('#m-from');
+  $('#warn-bar').hidden = true;
+  $('#discard-bar').hidden = false;
+  $('#btn-discard-no').focus();
+}
+
+function keepEditing() {
+  $('#discard-bar').hidden = true;
+  (discardReturn || $('#m-from')).focus();
+}
+
 function discardForm() {
   const before = readForm();
   const editing = state.editing;
+  $('#discard-bar').hidden = true;
   if (formIsEmpty(before) && !editing) return;
   resetForm();
   flushDraft();
@@ -603,6 +729,7 @@ function discardForm() {
       type: 'button', class: 'link',
       onclick: () => { state.editing = editing; writeForm(before); fill(status); onFormChange(); $('#m-from').focus(); },
     }, 'Rückgängig'));
+  $('#m-from').focus();
 }
 
 function startEdit(msg) {
@@ -624,6 +751,7 @@ function initForm() {
   radioGroup($('#m-channel'), 'm-channel', CHANNELS);
   radioGroup($('#m-prio'), 'm-prio', PRIORITIES);
   fill($('#m-type'), Object.entries(MESSAGE_TYPES).map(([v, l]) => el('option', { value: v }, l)));
+  fill($('#m-ref-kind'), Object.entries(REF_KINDS).map(([v, l]) => el('option', { value: v }, l)));
   const form = $('#msg-form');
   // Direction switch: the own post moves to the other side.
   $('#m-dir').addEventListener('change', () => {
@@ -636,25 +764,36 @@ function initForm() {
   });
   form.addEventListener('input', onFormChange);
   form.addEventListener('change', onFormChange);
+  // one way to write a frequency: 145,500
+  $('#m-freq').addEventListener('change', () => { $('#m-freq').value = fmtFreq($('#m-freq').value); });
   form.addEventListener('submit', ev => { ev.preventDefault(); saveMessage(); });
   form.addEventListener('keydown', ev => {
-    if (ev.key === 'Enter' && ev.shiftKey && !isComposing(ev)) {
+    if (isComposing(ev)) return;
+    if (ev.key === 'Enter' && (ev.shiftKey || ev.ctrlKey || ev.metaKey)) {
+      // ⇧⏎ / Strg+⏎ / ⌘⏎ save from any field; with the warnings shown,
+      // saving again saves anyway
       ev.preventDefault();
-      saveMessage();
-    } else if (ev.key === 'Enter' && !isComposing(ev) && ev.target.tagName === 'INPUT' && ev.target.type !== 'checkbox' && !ev.defaultPrevented) {
+      saveMessage({ anyway: !$('#warn-bar').hidden });
+    } else if (ev.key === 'Enter' && ev.target.tagName === 'INPUT' && ev.target.type !== 'checkbox' && !ev.defaultPrevented) {
       ev.preventDefault();
       focusNext(form, ev.target);
     } else if (ev.key === 'Escape' && !ev.defaultPrevented) {
       ev.preventDefault();
-      discardForm();
+      if (!$('#warn-bar').hidden) { $('#warn-bar').hidden = true; state.warned = ''; return; }
+      askDiscard();
     }
   });
-  $('#btn-discard').addEventListener('click', discardForm);
+  $('#btn-discard').addEventListener('click', askDiscard);
+  $('#btn-discard-yes').addEventListener('click', discardForm);
+  $('#btn-discard-no').addEventListener('click', keepEditing);
+  $('#btn-save-anyway').addEventListener('click', () => saveMessage({ anyway: true }));
+  $('#btn-warn-back').addEventListener('click', () => { $('#warn-bar').hidden = true; state.warned = ''; $('#m-from').focus(); });
+  $('#btn-form-op').addEventListener('click', () => { $('#op-panel').open = true; $('#e-operator').focus(); });
 
   // Completion: stations heard in this operation first, then the callbook.
   let recent = [];
   const refreshRecent = async () => { recent = (await recentStations()).filter(s => s.call).map(s => ({ call: s.call, title: s.text })); };
-  for (const key of ['from', 'to']) {
+  for (const key of ['from', 'to', 'peer', 'orig-station']) {
     const input = $(`#m-${key}`);
     input.addEventListener('focus', refreshRecent);
     attachCallSearch({
@@ -668,10 +807,50 @@ function initForm() {
   state.rptSearch = attachRepeaterSearch({
     input: $('#m-via'), pop: $('#m-via-pop'), info: $('#m-via-info'),
     getHeader: () => ({ myGrid: '', repeaterFreq: $('#m-freq').value }),
-    onPick: r => { $('#m-freq').value = r.out ? String(r.out) : $('#m-freq').value; onFormChange(); },
+    onPick: r => { if (r.out) $('#m-freq').value = fmtFreq(formatMHz(r.out)); onFormChange(); },
   });
+  // Location lookups: they add a resolved place next to the text typed,
+  // never change the message text.
   state.locField = createLocationField({
     input: $('#m-loc'), chip: $('#m-loc-info'), results: $('#m-loc-pop'), onChange: onFormChange,
+  });
+  state.origLocField = createLocationField({
+    input: $('#m-orig-place'), chip: $('#m-orig-place-info'), results: $('#m-orig-place-pop'), onChange: onFormChange,
+  });
+  initHelp();
+}
+
+/* ---------------------------------------------------------------- help */
+
+// The help dialog: "? Hilfe", F1, or ? outside text fields. Closing it
+// (Esc, "Schließen") puts the focus back where it was; the form is
+// untouched.
+function initHelp() {
+  const dlg = $('#help-dlg');
+  let back = null;
+  const open = () => {
+    if (dlg.open) return;
+    back = document.activeElement;
+    dlg.showModal();
+    $('#help-close').focus();
+  };
+  dlg.addEventListener('close', () => { if (back?.isConnected) back.focus(); back = null; });
+  $('#help-close').addEventListener('click', () => dlg.close());
+  $('#btn-help').addEventListener('click', open);
+  // the section links scroll inside the dialog, without changing the route
+  for (const a of dlg.querySelectorAll('.help-nav a')) {
+    a.addEventListener('click', ev => {
+      ev.preventDefault();
+      dlg.querySelector(a.getAttribute('href'))?.scrollIntoView({ block: 'start' });
+    });
+  }
+  document.addEventListener('keydown', ev => {
+    if (ev.ctrlKey || ev.metaKey || ev.altKey || isComposing(ev) || $('#view-book').hidden) return;
+    const typing = ev.target.closest?.('input, textarea, select, [contenteditable]');
+    if (ev.key === 'F1' || (ev.key === '?' && !typing)) {
+      ev.preventDefault();
+      open();
+    }
   });
 }
 
@@ -691,35 +870,51 @@ function pill(cls, text) {
 
 function statusPill(msg) {
   const s = currentStatus(msg);
-  return pill(`st-${s}`, STATUS_LABELS[s]);
+  return pill(`st-${s}`, statusLabel(s, msg.direction));
 }
 
 function prioPill(msg) {
   return msg.priority === 'routine' ? el('span', { class: 'dim' }, PRIORITIES.routine) : pill(`pr-${msg.priority}`, PRIORITIES[msg.priority]);
 }
 
+// "Stab herhören!": asked for, and whether the announcement is recorded.
 function alarmBadge(msg) {
-  return msg.alarm ? el('span', { class: 'alarm-badge' }, 'STAB HERHÖREN!') : null;
+  if (!msg.alarm) return null;
+  return el('span', { class: msg.alarmDone ? 'alarm-badge done' : 'alarm-badge' }, msg.alarmDone ? 'STAB HERHÖREN! ✓' : 'STAB HERHÖREN! – Ansage offen');
 }
 
-async function advance(msg, state_) {
-  const operator = state.op.operator || '';
+// Stores a changed message (status step, attempt, announcement) and says so.
+async function storeMsg(next, text) {
   try {
-    await state.store.tx([{ store: 'messages', put: setStatus(msg, state_, { operator, now: nowIso() }) }]);
+    await state.store.tx([{ store: 'messages', put: next }]);
   } catch (e) {
     showSaveError(e);
-    return;
+    return false;
   }
   await reloadMsgs();
-  bookStatus(`${msg.number}: ${STATUS_LABELS[state_]}`);
+  bookStatus(text);
   broadcast({ type: 'msgs', opId: state.op.id });
+  return true;
+}
+
+// A status step: now, by the operator, with optional details (to whom,
+// confirmed by whom, at what time).
+async function advance(msg, state_, details = {}) {
+  let next;
+  try {
+    next = setStatus(msg, state_, { operator: state.op.operator || '', now: nowIso(), ...details });
+  } catch (e) {
+    return e.message;
+  }
+  await storeMsg(next, `${msg.number}: ${statusLabel(state_, msg.direction)}`);
+  return '';
 }
 
 function renderSummary() {
   const s = bookSummary(state.msgs);
   fill($('#book-summary'),
     s.emergencyOpen ? el('span', { class: 'sum sum-err' }, el('b', {}, String(s.emergencyOpen)), ' Notfall offen') : null,
-    s.unacknowledged ? el('span', { class: 'sum sum-warn' }, el('b', {}, String(s.unacknowledged)), ' nicht quittiert') : null,
+    s.unacknowledged ? el('span', { class: 'sum sum-warn' }, el('b', {}, String(s.unacknowledged)), ' noch nicht bestätigt') : null,
     el('span', { class: 'sum' }, el('b', {}, String(s.total)), ` Meldungen${s.range.length ? ` · ${s.range.join(', ')}` : ''}${s.gaps.length ? '' : s.total ? ', lückenlos' : ''}`),
     s.gaps.length ? el('span', { class: 'sum sum-err' }, `Lücke: ${s.gaps.join(', ')}`) : null);
 }
@@ -740,17 +935,18 @@ function renderBook() {
       const step = nextStep(m);
       const last = m.status[m.status.length - 1];
       return el('tr', { 'data-id': m.id, class: m.priority === 'emergency' || m.alarm ? 'urgent' : null },
-        el('td', { class: 'num' }, el('a', { href: `#/e/${state.op.id}/m/${m.id}` }, m.number)),
+        el('td', { class: 'num' }, el('a', { href: `#/e/${state.op.id}/m/${m.id}` }, m.number),
+          m.staffRef ? el('div', { class: 'sub', title: 'Referenz der Meldesammelstelle' }, `Ref. ${m.staffRef}`) : null),
         el('td', { class: 'mono' }, viennaTime(m.ts)),
         el('td', { class: 'nowrap' }, m.direction === 'in' ? '↓ Ein' : '↑ Aus'),
         el('td', { class: 'parties' }, partyText(m.from), el('span', { class: 'dim' }, ' → '), partyText(m.to),
-          el('div', { class: 'sub' }, [CHANNELS[m.channel], m.radio.freq, m.radio.via && `via ${m.radio.via}`, m.stichzeit && `Stichzeit ${viennaTime(m.stichzeit)}`].filter(Boolean).join(' · '))),
+          el('div', { class: 'sub' }, [CHANNELS[m.channel], m.peer, fmtFreq(m.radio.freq), m.radio.via && `via ${m.radio.via}`, m.stichzeit && `Stichzeit ${viennaTime(m.stichzeit)}`].filter(Boolean).join(' · '))),
         el('td', { class: 'content' }, alarmBadge(m), el('b', {}, m.subject || ''), el('div', { class: 'sub clamp' }, m.text)),
         el('td', { class: 'nowrap' }, MESSAGE_TYPES[m.type], el('div', {}, prioPill(m))),
         el('td', { class: 'nowrap' }, statusPill(m), el('div', { class: 'sub mono' }, `${viennaTime(last.at)} ${last.by}`)),
         el('td', { class: 'act' },
           step ? el('button', { type: 'button', class: 'mini', onclick: () => advance(m, step.state), 'aria-label': `${m.number} ${step.label}` }, step.label) : null,
-          el('button', { type: 'button', class: 'mini', onclick: () => printForm(m), 'aria-label': `Meldeaufnahmeformular ${m.number} drucken` }, 'Formular')));
+          el('button', { type: 'button', class: 'mini', onclick: () => printForm(m), 'aria-label': `Ausdruck ${m.number} (Meldeaufnahmeformular)` }, 'Ausdruck')));
     }));
   }
   renderTrash();
@@ -799,6 +995,143 @@ async function restoreMsg(m) {
 
 /* ---------------------------------------------------------------- one message */
 
+// A small inline form in the detail view (a status step, the staff
+// reference, an announcement): labelled inputs, a button, an error line.
+// fields: [{ key, label, value, placeholder, mono, check }]; onSubmit(values)
+// returns an error text or ''.
+let inlineSeq = 0;
+function inlineForm(fields, button, onSubmit) {
+  const err = el('div', { class: 'ferr', role: 'status' });
+  const inputs = {};
+  const rows = fields.map(f => {
+    const id = `if-${++inlineSeq}`;
+    if (f.check) {
+      inputs[f.key] = el('input', { type: 'checkbox', id });
+      return el('label', { class: 'check', for: id }, inputs[f.key], ` ${f.label}`);
+    }
+    inputs[f.key] = el('input', { id, class: f.mono ? 'mono' : null, placeholder: f.placeholder || null, value: f.value || '', autocomplete: 'off' });
+    return el('label', { class: 'field', for: id }, el('span', {}, f.label), inputs[f.key]);
+  });
+  const form = el('form', { class: 'inline-form', autocomplete: 'off', novalidate: '' },
+    el('div', { class: 'inline-fields' }, ...rows.filter(r => r.classList.contains('field'))),
+    ...rows.filter(r => !r.classList.contains('field')),
+    el('div', { class: 'inline-foot' }, el('button', { type: 'submit' }, button), err));
+  form.addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const values = Object.fromEntries(Object.entries(inputs).map(([k, i]) => [k, i.type === 'checkbox' ? i.checked : i.value.trim()]));
+    err.textContent = await onSubmit(values) || '';
+  });
+  return form;
+}
+
+// A typed time (HH:MM, JJJJ-MM-TT HH:MM; empty = now) or an error.
+function stepTime(text) {
+  if (!text) return { at: null };
+  const at = readTime(text, MODE, nowIso());
+  return at ? { at } : { error: 'Zeitpunkt: HH:MM oder JJJJ-MM-TT HH:MM' };
+}
+
+// The handling of a message as steps: taken down, read back, saved, then
+// handed over / transmitted and confirmed, each with who and when. Steps
+// not done yet get a small form (a step can be skipped, never undone).
+function flowCard(m) {
+  const out = m.direction === 'out';
+  const editable = !m.deleted;
+  const when = (iso, by) => [fmtVienna(iso), by].filter(Boolean).join(' · ');
+  const item = (done, label, ...detail) => el('li', { class: done ? 'done' : '' },
+    el('span', { class: 'dot', 'aria-hidden': 'true' }),
+    el('div', {}, el('div', { class: 'step-label' }, label, done ? el('span', { class: 'sr-only' }, ' (erledigt)') : null), ...detail));
+  const fwd = statusEntry(m, 'forwarded');
+  const ack = statusEntry(m, 'acknowledged');
+  const ans = statusEntry(m, 'answered');
+  const items = [];
+  if (out) {
+    items.push(item(true, 'Liegt zur Übertragung vor', el('div', { class: 'sub mono' }, `${m.number} · ${when(m.created, m.operator)}`)));
+  } else {
+    items.push(item(true, 'Wortlaut aufgenommen', el('div', { class: 'sub mono' }, when(m.ts, m.operator))));
+    items.push(item(m.readBack, 'Rücklesen bestätigt', el('div', { class: 'sub' }, m.readBack ? 'vom Absender als richtig bestätigt' : 'nicht vermerkt')));
+    items.push(item(true, `Gesichert als ${m.number}`, el('div', { class: 'sub mono' }, fmtVienna(m.created))));
+  }
+  for (const a of m.attempts || []) {
+    items.push(el('li', { class: 'attempt' }, el('span', { class: 'dot', 'aria-hidden': 'true' }),
+      el('div', {}, el('div', { class: 'step-label' }, 'Fehlversuch / Rückfrage'), el('div', { class: 'sub mono' }, [when(a.at, a.by), a.note].filter(Boolean).join(' · ')))));
+  }
+  const stepForm = (state_) => {
+    // only the next step gets a form (one at a time, in order)
+    if (!editable || nextStep(m)?.state !== state_) return null;
+    const fields = state_ === 'forwarded'
+      ? [{ key: 'to', label: out ? 'Übertragen an' : 'Übergeben an', value: out ? m.peer : '', placeholder: out ? 'Funkstation' : 'Meldesammelstelle' },
+        { key: 'at', label: out ? 'Übertragungszeitpunkt' : 'Übergabezeitpunkt', placeholder: 'jetzt', mono: true },
+        ...(out ? [{ key: 'readBack', label: readBackLabel('out'), check: true }] : [])]
+      : [{ key: 'who', label: out ? 'Empfang bestätigt durch' : 'Übernommen durch', value: out ? m.peer : '', placeholder: out ? 'Funkstation' : 'Name / Funktion' },
+        { key: 'at', label: 'Zeitpunkt', placeholder: 'jetzt', mono: true }];
+    const button = state_ === 'forwarded' ? (out ? 'Übertragung eintragen' : 'Übergabe eintragen') : (out ? 'Empfang eintragen' : 'Übernahme eintragen');
+    return inlineForm(fields, button, async v => {
+      const t = stepTime(v.at);
+      if (t.error) return t.error;
+      return advance(m, state_, { at: t.at, to: v.to || '', who: v.who || '', readBack: !!v.readBack });
+    });
+  };
+  items.push(item(!!fwd, out ? 'Übertragen' : 'Übergeben',
+    fwd ? el('div', { class: 'sub mono' }, [fwd.to && `an ${fwd.to}`, when(fwd.at, fwd.by), fwd.readBack ? 'rückgelesen ✓' : ''].filter(Boolean).join(' · ')) : stepForm('forwarded')));
+  items.push(item(!!ack, out ? 'Empfang bestätigt' : 'Übernahme bestätigt',
+    ack ? el('div', { class: 'sub mono' }, [ack.who && `durch ${ack.who}`, when(ack.at, ack.by)].filter(Boolean).join(' · ')) : stepForm('acknowledged')));
+  items.push(item(!!ans, 'Beantwortet', el('div', { class: 'sub' }, ans ? `${when(ans.at, ans.by)}${ans.note ? ` · ${ans.note}` : ''}` : 'mit „Antwort erfassen“')));
+  return el('section', { 'aria-label': 'Ablauf' },
+    el('h3', { class: 'cap' }, out ? 'Ablauf (Ausgang)' : 'Ablauf (Eingang)'),
+    el('ol', { class: 'steps' }, items),
+    out && editable && !ack ? el('details', { class: 'attempt-add' }, el('summary', {}, 'Fehlversuch / Rückfrage eintragen'),
+      inlineForm([{ key: 'note', label: 'Was war', placeholder: 'z. B. keine Antwort, Rückfrage zu …' }, { key: 'at', label: 'Zeitpunkt', placeholder: 'jetzt', mono: true }],
+        'Eintragen', async v => {
+          const t = stepTime(v.at);
+          if (t.error) return t.error;
+          await storeMsg(addAttempt(m, { operator: state.op.operator || '', now: nowIso(), at: t.at, note: v.note }), `${m.number}: Fehlversuch / Rückfrage vermerkt`);
+          return '';
+        })) : null,
+    el('p', { class: 'hint' }, out
+      ? '„Übertragen“ heißt: gesendet. Erst „Empfang bestätigt“ heißt, die Gegenstelle hat sie.'
+      : '„Übergeben“ heißt: die Meldung liegt bei der Meldesammelstelle. Es heißt nicht, dass ein Auftrag im Inhalt erledigt ist.'));
+}
+
+// The Meldesammelstelle's own number, to match the two lists. Changing it
+// keeps the previous version, like any edit.
+function staffRefCard(m) {
+  return el('section', { class: 'staff-card', 'aria-label': 'Referenz der Meldesammelstelle' },
+    el('h3', { class: 'cap' }, 'Referenz der Meldesammelstelle'),
+    m.deleted ? el('p', {}, m.staffRef || '–') : inlineForm([{ key: 'ref', label: 'Referenz / Geschäftsbuch-Nr.', value: m.staffRef || '', mono: true }],
+      m.staffRef ? 'Referenz ändern' : 'Referenz eintragen', async v => {
+        if (v.ref === (m.staffRef || '')) return '';
+        const { next, revision } = editMessage(m, { staffRef: v.ref }, { revisionId: newId(), operator: state.op.operator || '', now: nowIso() });
+        try {
+          await state.store.tx([{ store: 'messages', put: next }, { store: 'revisions', put: revision }]);
+        } catch (e) {
+          showSaveError(e);
+          return 'nicht gespeichert';
+        }
+        await reloadMsgs();
+        bookStatus(`${m.number}: Referenz der Meldesammelstelle ${v.ref || 'entfernt'}`);
+        broadcast({ type: 'msgs', opId: state.op.id });
+        return '';
+      }),
+    el('p', { class: 'hint' }, `Nur zum Zuordnen: die Nummer, unter der die Meldesammelstelle die Meldung führt. Nicht die Notfunk-Nr. ${m.number}.`));
+}
+
+function alarmCard(m) {
+  if (!m.alarm) return null;
+  const d = m.alarmDone;
+  return el('section', { 'aria-label': 'Stab herhören!' },
+    el('h3', { class: 'cap' }, '„Stab herhören!“'),
+    d ? el('p', {}, pill('st-answered', 'angesagt'), ' ', el('span', { class: 'mono' }, [fmtVienna(d.at), d.by, d.note].filter(Boolean).join(' · ')))
+      : el('p', {}, pill('st-logged', 'angefordert'), ' Ansage noch nicht eingetragen.'),
+    !d && !m.deleted ? inlineForm([{ key: 'at', label: 'Angesagt um', placeholder: 'jetzt', mono: true }, { key: 'note', label: 'durch / an', placeholder: 'z. B. LdS, Lautsprecher' }],
+      'Ansage eintragen', async v => {
+        const t = stepTime(v.at);
+        if (t.error) return t.error;
+        await storeMsg(announceAlarm(m, { operator: state.op.operator || '', now: nowIso(), at: t.at, note: v.note }), `${m.number}: „Stab herhören!“ angesagt`);
+        return '';
+      }) : null);
+}
+
 function renderDetail(id) {
   const m = state.msgs.find(x => x.id === id);
   const box = $('#msg-detail');
@@ -809,69 +1142,88 @@ function renderDetail(id) {
   }
   $('#msg-title').textContent = m.number;
   const byId = new Map(state.msgs.map(x => [x.id, x]));
-  const step = nextStep(m);
   const revs = state.revisions.filter(r => r.messageId === m.id).sort((a, b) => (a.at < b.at ? 1 : -1));
   const kv = (k, ...v) => [el('dt', {}, k), el('dd', {}, ...v)];
   const link = x => el('a', { href: `#/e/${state.op.id}/m/${x.id}`, class: 'mono' }, x.number);
   const replies = repliesTo(state.msgs, m.id);
+  const ref = m.replyTo && byId.get(m.replyTo);
+  const refKind = REF_KINDS[m.refKind] || REF_KINDS.antwort;
   fill(box, el('div', { class: 'detail' },
     el('article', { class: 'detail-main' },
       el('div', { class: 'detail-tags' },
         m.deleted ? pill('st-deleted', 'gelöscht') : null,
+        statusPill(m),
         m.priority !== 'routine' ? pill(`pr-${m.priority}`, PRIORITIES[m.priority]) : null,
         alarmBadge(m),
-        el('span', { class: 'dim' }, `${m.direction === 'in' ? '↓' : '↑'} ${DIRECTIONS[m.direction]} · ${MESSAGE_TYPES[m.type]}`)),
+        el('span', { class: 'dim' }, `${m.direction === 'in' ? '↓' : '↑'} ${DIRECTIONS[m.direction]} · ${MESSAGE_TYPES[m.type]}`),
+        m.staffRef ? el('span', { class: 'chip' }, `Ref. ${m.staffRef}`) : null),
       el('h3', { class: 'detail-subject' }, m.subject || '(ohne Betreff)'),
       el('section', { class: 'verbatim', 'aria-label': 'Inhalt, wörtlich' },
-        el('div', { class: 'cap' }, 'Inhalt – wörtlich', m.readBack ? el('span', { class: 'ok' }, ' ✓ rückgelesen') : null),
-        el('p', {}, m.text || '–')),
+        el('div', { class: 'cap' }, 'Inhalt – wörtlich'),
+        el('p', {}, m.text || '–'),
+        el('div', { class: m.readBack ? 'sub ok' : 'sub' }, m.readBack ? `✓ ${readBackLabel(m.direction)}` : 'Rücklesen nicht vermerkt')),
       el('dl', { class: 'kv' },
-        ...kv('Zeit', el('span', { class: 'mono' }, fmtVienna(m.ts)), el('span', { class: 'dim mono' }, ` · ${fmtUtc(m.ts)}`)),
-        ...kv('Von', partyText(m.from)),
-        ...kv('An', partyText(m.to)),
+        ...kv(timeLabel(m.direction), el('span', { class: 'mono' }, fmtVienna(m.ts)), el('span', { class: 'dim mono' }, ` · ${fmtUtc(m.ts)}`)),
+        ...kv('Erfasst am', el('span', { class: 'mono' }, `${fmtVienna(m.created)} · ${m.operator || '–'}`)),
+        ...kv('Von (Absender)', partyText(m.from)),
+        ...kv('An (Adressat)', partyText(m.to)),
+        ...(m.peer ? kv('Gegenstelle', el('span', { class: 'mono' }, m.peer), el('span', { class: 'dim' }, m.direction === 'out' ? ' (empfangende Funkstation)' : ' (übermittelnde Funkstation)')) : []),
         ...(m.distribution.length ? kv('Verteiler', m.distribution.join(', ')) : []),
-        ...kv('Übermittlung', [CHANNELS[m.channel], m.radio.freq && `${m.radio.freq} MHz`, m.radio.via && `via ${m.radio.via}`].filter(Boolean).join(' · ')),
+        ...kv('Übermittlung', [CHANNELS[m.channel], m.radio.freq && `${fmtFreq(m.radio.freq)} MHz`, m.radio.via && `via ${m.radio.via}`].filter(Boolean).join(' · ')),
+        ...(m.location ? kv('Ort / Einsatzstelle', describeLocation(m.location), ' ', mapLinks(m.location)) : []),
         ...(m.stichzeit ? kv('Stichzeit', fmtVienna(m.stichzeit)) : []),
-        ...(m.origin.station || m.origin.place || m.origin.filed ? kv('Ursprung', [m.origin.station, m.origin.place, m.origin.filed && fmtVienna(m.origin.filed)].filter(Boolean).join(' · ')) : []),
-        ...(m.location ? kv('Standort', describeLocation(m.location), ' ', mapLinks(m.location)) : []),
-        ...kv('Aufgenommen', el('span', { class: 'mono' }, m.operator || '–')),
+        ...(m.origin.station || m.origin.place || m.origin.filed ? kv('Ursprung', [m.origin.station, m.origin.placeLoc ? describeLocation(m.origin.placeLoc) : m.origin.place, m.origin.filed && `aufgegeben ${fmtVienna(m.origin.filed)}`].filter(Boolean).join(' · ')) : []),
+        ...(ref ? kv('Bezug', `${refKind} `, link(ref), ` ${ref.subject}`) : m.refNumber ? kv('Bezug', `${refKind} ${m.refNumber}`) : []),
         ...(m.remarks ? kv('Anmerkungen', m.remarks) : [])),
       el('div', { class: 'toolbar detail-actions' },
-        step && !m.deleted ? el('button', { type: 'button', class: 'primary', onclick: () => advance(m, step.state) }, `Als ${step.done} markieren`) : null,
         m.deleted ? null : el('button', { type: 'button', onclick: () => startReply(m) }, 'Antwort erfassen'),
         m.deleted ? null : el('button', { type: 'button', onclick: () => startEdit(m) }, 'Bearbeiten'),
-        el('button', { type: 'button', onclick: () => printForm(m) }, 'Meldeaufnahmeformular drucken / PDF'),
+        el('button', { type: 'button', class: 'primary', onclick: () => printForm(m) }, 'Ausdruck / PDF'),
         m.deleted
           ? el('button', { type: 'button', onclick: () => restoreMsg(m) }, 'Wiederherstellen')
           : el('button', { type: 'button', class: 'danger', onclick: () => deleteMsg(m) }, 'Löschen'))),
     el('aside', { class: 'detail-side' },
-      el('section', { 'aria-label': 'Bearbeitung' },
-        el('h3', { class: 'cap' }, 'Bearbeitung'),
-        el('ol', { class: 'steps' }, statusSteps(m).map(s => el('li', { class: s.done ? 'done' : s.next ? 'next' : s.skipped ? 'skipped' : '' },
-          el('span', { class: 'dot', 'aria-hidden': 'true' }),
-          el('div', {},
-            el('div', { class: 'step-label' }, s.label, s.done ? el('span', { class: 'sr-only' }, ' (erledigt)') : s.skipped ? ' (übersprungen)' : ''),
-            el('div', { class: 'sub mono' }, s.entry ? `${fmtVienna(s.entry.at)} · ${s.entry.by}${s.entry.note ? ` · ${s.entry.note}` : ''}` : s.state === 'answered' ? 'mit „Antwort erfassen“' : ''))))),
-        el('p', { class: 'hint' }, 'Nur vorwärts: ein Schritt kann übersprungen, aber nicht zurückgenommen werden.')),
-      el('section', { 'aria-label': 'Bezug' },
-        el('h3', { class: 'cap' }, 'Bezug'),
-        m.replyTo && byId.get(m.replyTo) ? el('p', {}, 'Antwort auf ', link(byId.get(m.replyTo)), ` ${byId.get(m.replyTo).subject}`) : null,
-        el('p', {}, 'Antworten: ', replies.length ? replies.flatMap((r, i) => [i ? ', ' : '', link(r)]) : el('span', { class: 'dim' }, 'noch keine'))),
+      flowCard(m),
+      staffRefCard(m),
+      alarmCard(m),
+      el('section', { 'aria-label': 'Antworten' },
+        el('h3', { class: 'cap' }, 'Antworten'),
+        el('p', {}, replies.length ? replies.flatMap((r, i) => [i ? ', ' : '', link(r)]) : el('span', { class: 'dim' }, 'noch keine'))),
       el('section', { 'aria-label': 'Fassungen' },
         el('h3', { class: 'cap' }, 'Fassungen'),
         revs.length ? el('ul', { class: 'revs' }, revs.map(r => el('li', {},
           el('details', {},
             el('summary', {}, el('span', { class: 'mono' }, `${fmtVienna(r.at)} ${r.by || ''}`), ' geändert; vorher:'),
-            el('div', { class: 'sub' }, el('b', {}, r.old.subject || ''), ' ', r.old.text))))) : null,
+            el('div', { class: 'sub' }, el('b', {}, r.old.subject || ''), ' ', r.old.text, r.old.staffRef !== undefined && r.old.staffRef !== m.staffRef ? ` · Referenz: ${r.old.staffRef || '–'}` : ''))))) : null,
         el('p', { class: 'sub' }, el('span', { class: 'mono' }, `${fmtVienna(m.created)} ${m.operator || ''}`), ' erfasst'),
         el('p', { class: 'hint' }, 'Jede Änderung behält die vorige Fassung. Die Nummer bleibt immer gleich.')))));
 }
 
 /* ---------------------------------------------------------------- print, exports, backup */
 
+// One message on one A4 page. Before printing, a dialog says how to set up
+// the print dialog (header and footer lines off, A4, 100 %; can be turned
+// off) and, when the text is too long for one page, how many pages it takes.
 function printForm(m) {
   const revisions = state.revisions.filter(r => r.messageId === m.id).length;
-  printSheet(renderFormSheet(formSheet(m, state.op, { now: nowIso(), revisions, byId: new Map(state.msgs.map(x => [x.id, x])) })), 'form');
+  const { node, fit } = fittedFormSheet(formSheet(m, state.op, { now: nowIso(), revisions, byId: new Map(state.msgs.map(x => [x.id, x])) }));
+  const long = fit.pages > 1;
+  const hint = prefGet(PRINT_HINT_KEY) !== '1';
+  const kind = long ? 'book' : 'form';
+  if (!long && !hint) { printSheet(node, kind); return; }
+  const dlg = $('#print-dlg');
+  $('#print-dlg-long').hidden = !long;
+  setText($('#print-dlg-long'), long
+    ? `${m.number} ist zu lang für eine Seite: der Ausdruck hat ${fit.pages} Seiten, jede mit der Nummer oben. Nichts wird abgeschnitten.`
+    : '');
+  $('#print-dlg-hint').hidden = !hint;
+  $('#print-dlg-off').checked = false;
+  dlg.returnValue = '';
+  dlg.showModal();
+  dlg.addEventListener('close', () => {
+    if ($('#print-dlg-off').checked) prefSet(PRINT_HINT_KEY, '1');
+    if (dlg.returnValue === 'print') printSheet(node, kind);
+  }, { once: true });
 }
 
 // An empty form (for a stack of paper forms): with the operation's name
@@ -896,8 +1248,25 @@ function printBook() {
 
 async function exportBackup() {
   const [counters] = await Promise.all([state.store.getByEvent('counters', state.op.id)]);
-  download(toBackup({ operation: state.op, messages: state.msgs, revisions: state.revisions, counters }, nowIso()), `${fileStem()}-sicherung.json`, 'application/json');
+  const now = nowIso();
+  download(toBackup({ operation: state.op, messages: state.msgs, revisions: state.revisions, counters }, now), `${fileStem()}-sicherung.json`, 'application/json');
   bookStatus('Sicherung (JSON) heruntergeladen');
+  await updateOp(state.op, { backupAt: now });
+  renderBackupChip();
+}
+
+// How current the last backup (JSON) of the open operation is: messages
+// saved or changed since then. A click downloads a new one.
+function renderBackupChip() {
+  const chip = $('#st-backup');
+  if (!state.op || $('#view-ops').hidden === false) { chip.hidden = true; return; }
+  const at = state.op.backupAt;
+  const since = state.msgs.filter(m => !at || m.updated > at).length;
+  chip.hidden = !at && !since;
+  chip.className = `chip chip-btn ${since ? 'warn' : 'ok'}`;
+  setText(chip, at
+    ? `Letzte Sicherung ${viennaClock(at).time}${since ? ` · ${since} ${since === 1 ? 'Meldung' : 'Meldungen'} ungesichert` : ' ✓'}`
+    : `Noch keine Sicherung · ${since} ${since === 1 ? 'Meldung' : 'Meldungen'}`);
 }
 
 function showImportMsg(cls, ...content) {
@@ -978,6 +1347,8 @@ async function loadRepeaterFooter() {
 
 function wire() {
   $('#btn-new-op').addEventListener('click', () => ($('#new-op').hidden ? openNewOpForm() : ($('#new-op').hidden = true)));
+  // one way to write a frequency: 145,500
+  for (const sel of ['#n-freq', '#e-freq']) $(sel).addEventListener('change', () => { $(sel).value = fmtFreq($(sel).value); });
   trackExpanded($('#btn-new-op'), $('#new-op'));
   $('#btn-cancel-op').addEventListener('click', () => { $('#new-op').hidden = true; });
   state.newOpRpt = attachOpLookups('n', () => {});
@@ -1020,6 +1391,7 @@ function wire() {
     bookStatus('Geschäftsbuch (CSV) heruntergeladen');
   });
   $('#btn-backup').addEventListener('click', exportBackup);
+  $('#st-backup').addEventListener('click', exportBackup);
   trackExpanded($('#btn-print-book'), $('#print-range'));
   $('#btn-print-book').addEventListener('click', () => { $('#print-range').hidden = !$('#print-range').hidden; if (!$('#print-range').hidden) $('#pr-from').focus(); });
   $('#btn-print-cancel').addEventListener('click', () => { $('#print-range').hidden = true; });
@@ -1053,7 +1425,7 @@ async function main() {
   initOffline({
     build: globalThis.NOTFUNK_BUILD,
     beforeReload: flushDraft,
-    fileHidden: ['#offline-file-link', '#offline-card', '#data-sources-link', '#home-link'],
+    fileHidden: ['#offline-file-link', '#offline-card', '#data-sources-link', '#home-link', '#help-manual'],
   });
   loadCallbook();
   loadRepeaterFooter();
