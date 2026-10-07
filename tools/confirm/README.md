@@ -68,6 +68,12 @@ index route.
   background, but it only takes over when the user clicks
   **"Update verfügbar"**, so the app never changes in the middle of a net.
   The update path was tested: the data and the half-typed draft survive it.
+  The page looks for a new version on load, when it comes back online, when
+  it comes back to the foreground (an installed app resumes without a
+  reload; at most once a minute) and hourly while it stays open. The
+  update activates for every open tab and window of the tool at once and
+  deletes the old cache, so all of them reload, not only the one where
+  Update was clicked (each saves its draft and header first).
 - **Version in the footer.** It reads `commit abc1234 · data 1a2b3c4d5e6f`.
   The commit is the git short SHA the build came from, linked to the commit
   on GitHub (no link for local `dev` builds). CI passes it as the Docker

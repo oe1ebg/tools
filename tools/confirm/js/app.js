@@ -169,34 +169,62 @@ async function initOffline() {
     setChip('#st-offline', 'nicht offline-fähig', 'err');
     return;
   }
+  // An update replaces a controller this page already had. Without one,
+  // a controllerchange is just the first install claiming the page.
+  let hadController = !!navigator.serviceWorker.controller;
   let updating = false;
+  let reloading = false;
+  const reloadForUpdate = async () => {
+    if (reloading) return;
+    reloading = true;
+    await flushDraft();
+    await flushHeader();
+    location.reload();
+  };
   const offerUpdate = () => {
     if (!reg.waiting || !navigator.serviceWorker.controller) return;
     const btn = $('#btn-update');
     btn.hidden = false;
     btn.onclick = async () => {
+      // Another tab may have activated it meanwhile: then only reload.
+      if (!reg.waiting) return reloadForUpdate();
       updating = true;
       await flushDraft();
+      await flushHeader();
       reg.waiting.postMessage('skipWaiting');
     };
   };
-  reg.addEventListener('updatefound', () => {
-    const w = reg.installing;
-    w?.addEventListener('statechange', () => {
-      if (w.state === 'installed') offerUpdate();
-      if (w.state === 'activated') reportOfflineVersion();
-    });
+  const watch = w => w?.addEventListener('statechange', () => {
+    if (w.state === 'installed') offerUpdate();
+    if (w.state === 'activated') reportOfflineVersion();
   });
+  reg.addEventListener('updatefound', () => watch(reg.installing));
+  // The browser's own update check may have started before this listener.
+  watch(reg.installing);
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (updating) location.reload();
+    // Update clicked here, or in another tab of this tool: the old cache is
+    // gone, so every open tab must load the new version (draft kept).
+    if (updating || hadController) reloadForUpdate();
     else reportOfflineVersion();
+    hadController = true;
   });
   offerUpdate();
   reportOfflineVersion();
-  // Look for a new version whenever we (re)gain connectivity — never required.
-  const check = () => reg.update().catch(() => {});
+  // Look for a new version when we (re)gain connectivity, when the page comes
+  // back to the foreground (an installed app resumes without a reload) and
+  // hourly while it stays open — never required.
+  let lastCheck = 0;
+  const check = () => {
+    if (!navigator.onLine || Date.now() - lastCheck < 60e3) return;
+    lastCheck = Date.now();
+    reg.update().catch(() => {});
+  };
   window.addEventListener('online', check);
-  if (navigator.onLine) check();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') check();
+  });
+  setInterval(check, 60 * 60e3);
+  check();
 }
 
 function reportOfflineVersion() {
