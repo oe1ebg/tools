@@ -119,6 +119,21 @@ District names, landmarks missing from OpenStreetMap and common shorthand
 (e.g. "Steffl", "Hbf", "DI") are maintained in this repository
 (`location-aliases.toml`).
 
+## Notfunk-Meldebuch
+
+The [Notfunk-Meldebuch](notfunk/index.html) (draft) works fully offline and
+uses the same build-time data as the confirmation log above, without the
+map: the [Austrian callsign list](#austrian-callsign-list-rufzeichenliste),
+the [ÖVSV repeater database](#ovsv-repeater-database), the Vienna
+[addresses](#stadt-wien-adressen-standorte-wien) and
+[landmarks](#openstreetmap-vienna-landmarks-and-map-outlines) (not the map
+outlines), the Austria-wide PLZ and Bezirke from the
+[BEV](#bev-osterreichisches-adressregister) and
+[Statistik Austria](#statistik-austria-politische-bezirke), and the
+[own data](#own-data). It has no datasets of its own and never contacts any
+of these sources; its footer lists the sources with the date of the data it
+contains.
+
 ## SOTA Alerts Map
 
 The [SOTA Alerts Map](sota-alerts/index.html) is an online tool: alerts, map

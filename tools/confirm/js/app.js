@@ -143,7 +143,7 @@ function startOffline() {
     build: globalThis.CONFIRM_BUILD,
     beforeReload: async () => { await flushDraft(); await flushHeader(); },
     // Online-only parts; ../ is the folder the offline file sits in.
-    fileHidden: ['#offline-file-link', '#offline-card', '#data-sources-link', '#home-link', '#help-manual'],
+    fileHidden: ['#offline-file-link', '#offline-card', '#data-sources-link', '#home-link', '#manual-link', '#help-manual'],
   });
 }
 

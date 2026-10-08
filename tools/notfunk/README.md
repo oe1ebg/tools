@@ -162,7 +162,7 @@ name, and a distribution list ("Verteiler").
   keys, the flow, who is who, places, times, confirmations, numbers and
   urgency; Esc closes it and the focus goes back to the field. The
   manual with screenshots is `content/tools/notfunk-anleitung.md`
-  (`/tools/notfunk-anleitung/`, linked from the help; screenshots from
+  (`/tools/notfunk-anleitung/`, linked from the header and the help; screenshots from
   `just oe1ebg screenshots`).
 - **Book:** newest first, filters (offen, Eingang, Ausgang, Notfall +
   Dringend, search incl. the reference), the next status step as a button,
@@ -217,8 +217,8 @@ Tests: `tests/notfunk-model.test.mjs`, `notfunk-numbering.test.mjs`,
    through them MD Krisenmanagement); adapt fields and wording.
 2. Funkbuch (quick radio log) next to the message book.
 3. Map view (offline basemap, messages by priority/status), KMZ export (#27).
-4. Once confirmed: `nav`/llms.txt entries and the data-sources page (#29),
-   remove the "Entwurf" banner.
+4. Once confirmed: remove the "Entwurf" banner and the "(draft)" in the nav
+   and on the tools overview.
 
 ## Open questions
 

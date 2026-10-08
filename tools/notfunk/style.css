@@ -34,6 +34,7 @@ kbd{ font:12.5px var(--font-mono); border:1px solid var(--line-strong); border-b
 }
 #site-header a{ color:var(--text-dim); text-decoration:none; }
 #site-header a:hover{ color:var(--accent-text); }
+#site-header #manual-link{ border:1px solid var(--line); border-radius:4px; padding:.1em .5em; }
 #site-header .title{ font-size:inherit; margin:0; font-weight:600; letter-spacing:.04em; text-transform:uppercase; }
 .clock{ font-family:var(--font-mono); font-size:13.5px; color:var(--text-dim); white-space:nowrap; }
 .clock b{ font-size:18px; color:var(--text); }

@@ -1,5 +1,11 @@
 # Bestätigungsverkehr: Anleitung
 
+[Bestätigungsverkehr öffnen <span aria-hidden="true">→</span>](confirm/index.html){ .tool-launch }
+[Alle Tools](index.md) ·
+[Offline-Datei](confirm/confirm-offline.html){ download="bestaetigungsverkehr-offline.html" } ·
+[Datenquellen](data-sources.md#bestatigungsverkehr-confirmation-log)
+{ .tool-actions }
+
 Der [Bestätigungsverkehr](confirm/index.html) ist ein Logbuch für Runden, in
 denen sich Stationen nur melden: Bestätigungsverkehr nach einem Rundspruch,
 RST-Runden oder Umfragen wie den Zivilschutz-Probealarm. Er läuft vollständig
@@ -7,6 +13,17 @@ im Browser und ohne Internet; alle Daten bleiben auf dem Gerät.
 
 Die Kurzfassung steht im Werkzeug selbst: **„? Hilfe“** unter dem
 Eingabefeld oder die Taste <kbd>?</kbd> (außerhalb von Textfeldern).
+
+## Kurz: so geht's los
+
+1. [Bestätigungsverkehr öffnen](confirm/index.html), einmal mit Internet;
+   danach läuft er auch offline ([Vorbereitung](#vorbereitung)).
+2. „+ Neues Log“: Titel und Vorlage wählen ([Ein Log anlegen](#ein-log-anlegen)),
+   dann Operator, Station und Relais eintragen ([Kopfdaten](#kopfdaten)).
+3. Das erste Rufzeichen eintippen und mit <kbd>⇧</kbd>+<kbd>Enter</kbd>
+   speichern ([Check-ins aufnehmen](#check-ins-aufnehmen)).
+4. Am Ende „Exportieren ▾“ → „Sicherung (JSON)“, dazu CSV oder ADIF
+   ([Export und Sicherung](#export-und-sicherung)).
 
 ## Vorbereitung
 
@@ -181,3 +198,8 @@ eingegeben werden. Gespeichert wird immer die genaue Zeit; CSV
 | <kbd>Esc</kbd> | Zeile verwerfen (mit „Rückgängig“) |
 | `!` am Anfang des Rufzeichens | Operator-Kommentar statt Check-in |
 | <kbd>?</kbd> | Hilfe ein- und ausblenden (außerhalb von Textfeldern) |
+
+---
+
+[Bestätigungsverkehr öffnen <span aria-hidden="true">→</span>](confirm/index.html){ .tool-launch }
+{ .tool-actions }

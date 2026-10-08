@@ -20,6 +20,7 @@ body{
 }
 #site-header a{ color:var(--text-dim); text-decoration:none; }
 #site-header a:hover{ color:var(--accent-text); }
+#site-header #manual-link{ border:1px solid var(--line); border-radius:4px; padding:.1em .5em; }
 /* the page title (h1), as small caps text in the header bar */
 #site-header .title{ font-size:inherit; margin:0; font-weight:600; letter-spacing:.04em; text-transform:uppercase; }
 #time-toggle{ display:inline-flex; border:1px solid var(--line); border-radius:4px; overflow:hidden; }

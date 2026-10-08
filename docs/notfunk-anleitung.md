@@ -1,5 +1,11 @@
 # Notfunk-Meldebuch: Anleitung
 
+[Notfunk-Meldebuch öffnen <span aria-hidden="true">→</span>](notfunk/index.html){ .tool-launch }
+[Alle Tools](index.md) ·
+[Offline-Datei](notfunk/notfunk-offline.html){ download="notfunk-meldebuch-offline.html" } ·
+[Datenquellen](data-sources.md#notfunk-meldebuch)
+{ .tool-actions }
+
 Das [Notfunk-Meldebuch](notfunk/index.html) ist ein Meldebuch für den
 Notfunk: Meldungen aufnehmen, lückenlos nummerieren, an die
 Meldesammelstelle übergeben, übertragen und ausdrucken. Es läuft vollständig
@@ -12,6 +18,17 @@ im Browser und ohne Internet; alle Daten bleiben auf dem Gerät.
 
 Die Kurzfassung steht im Werkzeug selbst: **„? Hilfe“** oben im Formular oder
 <kbd>F1</kbd>.
+
+## Kurz: so geht's los
+
+1. [Notfunk-Meldebuch öffnen](notfunk/index.html), einmal mit Internet;
+   danach läuft es auch offline ([Vorbereitung](#vorbereitung)).
+2. „+ Neuer Einsatz“: Name und Stationskürzel eintragen
+   ([Einen Einsatz anlegen](#einen-einsatz-anlegen)).
+3. Die erste Meldung aufnehmen und speichern; dabei wird die Nummer vergeben
+   ([Eine Meldung aufnehmen](#eine-meldung-aufnehmen)).
+4. Regelmäßig eine Sicherung (JSON) herunterladen
+   ([Exporte und Sicherung](#exporte-und-sicherung)).
 
 ## Vorbereitung
 
@@ -291,3 +308,8 @@ Mit der Meldesammelstelle bzw. dem Stab abzustimmen:
 - Verfahren für „Stab herhören!“.
 - Welche Übergabe- und Empfangsbestätigungen nötig sind.
 - Umgang mit Meldungen, die nicht lesbar auf eine Seite passen.
+
+---
+
+[Notfunk-Meldebuch öffnen <span aria-hidden="true">→</span>](notfunk/index.html){ .tool-launch }
+{ .tool-actions }

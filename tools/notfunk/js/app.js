@@ -1425,7 +1425,7 @@ async function main() {
   initOffline({
     build: globalThis.NOTFUNK_BUILD,
     beforeReload: flushDraft,
-    fileHidden: ['#offline-file-link', '#offline-card', '#data-sources-link', '#home-link', '#help-manual'],
+    fileHidden: ['#offline-file-link', '#offline-card', '#data-sources-link', '#home-link', '#manual-link', '#help-manual'],
   });
   loadCallbook();
   loadRepeaterFooter();
