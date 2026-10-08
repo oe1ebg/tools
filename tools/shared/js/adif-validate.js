@@ -567,7 +567,10 @@ export function validateAdif(source, options = {}) {
           if (appTypes.has(name) && appTypes.get(name) !== indicator) report('warning', 'APP_FIELD_TYPE_INCONSISTENT', `${name} has type ${indicator} here, but ${appTypes.get(name)} in an earlier QSO.`);
           else appTypes.set(name, indicator);
         }
-        if (!typeName) typeName = 'String';
+        // ADIF 3.1.7 IV.A.4: without an indicator the contents must conform
+        // to MultilineString (so line breaks are fine).
+        if (!indicator) typeName = 'MultilineString';
+        else if (!typeName) typeName = 'String';
         def = null;
       } else {
         reportOnce('warning', 'UNKNOWN_FIELD', name, `${name} is not an ADIF ${ADIF_SPEC_VERSION} field; application-specific data belongs in APP_{PROGRAMID}_${name} (or a USERDEF).`, offset);

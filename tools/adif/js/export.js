@@ -9,10 +9,12 @@ import { ADIF_SPEC_FIELDS } from '../../shared/js/adif-spec-data.js';
 export const ADI_MIME = 'application/octet-stream';
 
 // Values may keep < and > (legal inside a length-delimited value), and
-// MultilineString fields (ADDRESS, NOTES, ...) their line breaks.
+// MultilineString fields (ADDRESS, NOTES, ...) their line breaks. So may
+// application-defined fields: they are written without a type indicator,
+// which ADIF reads as MultilineString.
 const ASCII_OPTS = { keepBrackets: true };
 const MULTILINE_OPTS = { keepBrackets: true, multiline: true };
-const asciiOpts = col => ADIF_SPEC_FIELDS[col]?.type === 'MultilineString' ? MULTILINE_OPTS : ASCII_OPTS;
+const asciiOpts = col => ADIF_SPEC_FIELDS[col]?.type === 'MultilineString' || col.startsWith('APP_') ? MULTILINE_OPTS : ASCII_OPTS;
 
 // ADI is an ASCII format (ADIF 3.1.7: String = ASCII 32-126, the length
 // counts characters): values are transliterated like in the confirmation

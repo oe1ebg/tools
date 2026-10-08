@@ -5,7 +5,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateAdif } from '../tools/shared/js/adif-validate.js';
@@ -178,6 +177,7 @@ test('datatypes and enumerations from the spec data', () => {
   assert.ok(has({ COMMENT: 'Grüße' }, 'INVALID_CHARACTER'));
   assert.ok(has({ COMMENT: 'a\r\nb' }, 'INVALID_CHARACTER'));
   assert.ok(!has({ NOTES: 'a\r\nb' }, 'INVALID_CHARACTER'), 'MultilineString may break lines');
+  assert.ok(!has({ APP_OE1EBG_WX: 'a\r\nb' }, 'INVALID_CHARACTER'), 'an APP field without type is MultilineString');
   assert.ok(has({ NAME_INTL: 'Jörg' }, 'INTL_FIELD_IN_ADI'));
   assert.ok(has({ GRIDSQUARE: 'JN88', GRIDSQUARE_EXT: 'ab' }, 'GRIDSQUARE_EXT_MISMATCH'));
   assert.ok(!has({ GRIDSQUARE: 'JN88ee12', GRIDSQUARE_EXT: 'ab' }, 'GRIDSQUARE_EXT_MISMATCH'));
@@ -229,21 +229,4 @@ test('cross-check: every confirmation-log template exports without errors or war
   }
 });
 
-// Differential test against ADIF Multitool (github.com/flwyd/adif-multitool),
-// only where `adifmt` is installed (not in CI). adifmt exits 1 when it finds
-// errors; this validator should agree on "has errors" except where the
-// README documents a deliberate difference.
-const ADIFMT_DIFFERS = {
-  // adifmt reads the declared 5 characters and ignores the rest silently
-  'invalid-length.adi': { adifmtErrors: false },
-};
-const adifmt = spawnSync('adifmt', ['version'], { encoding: 'utf8' });
-test('differential: adifmt validate agrees on which fixtures have errors', { skip: adifmt.error || adifmt.status !== 0 ? 'adifmt not on PATH' : false }, () => {
-  for (const name of Object.keys(EXPECTED)) {
-    const res = spawnSync('adifmt', ['validate', join(FIXTURES, name)], { encoding: 'utf8' });
-    const theirs = res.status !== 0;
-    const ours = check(fixture(name)).errors > 0;
-    const expectedTheirs = ADIFMT_DIFFERS[name]?.adifmtErrors ?? ours;
-    assert.equal(theirs, expectedTheirs, `${name}: adifmt exit ${res.status}: ${res.stderr}`);
-  }
-});
+// Cross-checks against adifmt and adif-checker: adif-crosscheck.test.mjs.

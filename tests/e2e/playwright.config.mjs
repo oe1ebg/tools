@@ -24,9 +24,12 @@ export default defineConfig({
   retries: ci ? 1 : 0,
   workers: ci ? 2 : undefined,
   // CI: annotations on the PR, the HTML report as an artifact on failure,
-  // test-results.json for the per-browser table in the job summary.
+  // test-results.json for the per-browser table in the job summary, and
+  // JUnit XML (tests/reports/, with the browser project in each test name)
+  // for the test report check and the uploaded results.
   reporter: ci
-    ? [['list'], ['github'], report, ['json', { outputFile: 'test-results.json' }]]
+    ? [['list'], ['github'], report, ['json', { outputFile: 'test-results.json' }],
+      ['junit', { outputFile: '../reports/e2e.xml', includeProjectInTestName: true }]]
     : [['list'], report],
   use: {
     baseURL,

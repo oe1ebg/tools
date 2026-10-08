@@ -78,9 +78,10 @@ many values that changed.
   header fields): such fields round-trip as opaque strings and the export
   writes no USERDEF header. (The validator does read USERDEF declarations
   of a loaded file and checks the fields against them.)
+  They are exported as String, so a line break in them becomes a blank.
 - Likewise, the data type indicator of application-defined fields
-  (`<APP_X_Y:3:N>`) is not kept. Both kinds are exported as String, so a
-  line break in them becomes a blank.
+  (`<APP_X_Y:3:N>`) is not kept; they are exported without one, which ADIF
+  reads as MultilineString (line breaks kept).
 
 ## Validation
 
@@ -159,7 +160,7 @@ new ADIF version). Only the cross-field checks and heuristics are code.
 | `EMPTY_RECORD` | warning | `<EOR>` with no fields |
 | `MISSING_QSO_FIELD` | warning | no CALL, QSO_DATE, TIME_ON, BAND or FREQ, MODE |
 | `SUSPICIOUS_CITY_VALUE` | warning | `MY_CITY`/`QTH` holds a locator ("Did you mean MY_GRIDSQUARE?") |
-| `APP_FIELD_WITHOUT_TYPE` | info | `APP_` field without type letter (once per field name) |
+| `APP_FIELD_WITHOUT_TYPE` | info | `APP_` field without type letter (once per field name); its value is checked as MultilineString, as ADIF says |
 | `IMPORT_ONLY_FIELD` | info | `GUEST_OP`, `VE_PROV` |
 | `FREQUENCY_OUTSIDE_BANDS` | info | FREQ in no ADIF band, no BAND given |
 | `LINE_BREAK_NOT_CRLF` | info | bare CR or LF in a MultilineString |
@@ -169,27 +170,44 @@ Not checked (yet): secondary subdivisions (`CNTY`, except where ADIF lists
 codes for the DXCC entity), `USACA_COUNTIES`, the 2-or-4 rule of
 `VUCC_GRIDS`, CQ/ITU zones against DXCC, CONT against DXCC.
 
-**Compared with `adifmt validate`** (ADIF Multitool v0.1.22,
-github.com/flwyd/adif-multitool; run over `oe1ebg/tests/fixtures/adif/` by
-the optional differential test in `tests/adif-validate.test.mjs`, which
-only runs when `adifmt` is on PATH). Both agree on which fixtures have
-errors, except where this validator is deliberately stricter or more
-tolerant:
+## Cross-checks with other tools
 
-- `<CALL:5>OE1ABC`: adifmt reads `OE1AB` and passes; here it is a
-  `FIELD_LENGTH_MISMATCH` error (the issue asks for it).
-- Malformed or truncated files: adifmt stops at the first syntax error and
-  reports nothing else; here the scan continues and reports every QSO.
-- adifmt has no BAND/FREQ check, no locator-in-city heuristic, no warning
-  for a newer `ADIF_VER`, no unknown-field check; those files pass there
-  (exit 0) and get warnings here.
-- adifmt accepts import-only values such as `MODE=C4FM` silently; here they
-  are `IMPORT_ONLY_VALUE` warnings.
-- Same results for dates, times, enumerations (MODE errors, SUBMODE/MODE
-  mismatch as a warning), locator lengths and USERDEF enums/ranges.
-- The official ADIF 3.1.7 test file (`tests/ADIF_317_test_QSOs_*.adi` in
-  the resources archive, 6197 QSOs) gives 0 issues; see *Official test
-  QSOs*.
+`oe1ebg/tests/adif-crosscheck.test.mjs` runs two independent tools on the
+same inputs and expects the same answer to "are there errors?":
+
+- **adifmt** (ADIF Multitool, github.com/flwyd/adif-multitool): types,
+  enumerations, ranges (`adifmt validate`);
+- **adif-checker** (github.com/k0swe/adif-checker): ADI syntax only (tags,
+  lengths, stray bytes), so it is compared with our syntax errors.
+
+Inputs: the fixtures, the official test QSOs (whole and per group), the
+ADIF editor's export of them, the confirmation log's exports (every
+template), and single invalid values per data type plus valid edge cases.
+Both tools are pinned in `oe1ebg/tests/tools/go.mod` (Dependabot) and built
+by `just oe1ebg crosscheck-tools`; `just oe1ebg crosscheck` runs the test.
+Without the tools it skips; CI builds them and requires them.
+
+**A disagreement is not automatically our bug.** Look the case up in the
+ADIF specification first; then fix our code, or record the tool's deviation
+in the test (the `differs` of the case, with the spec section). Recorded so
+far:
+
+| Input | Us | Tool | Spec |
+| --- | --- | --- | --- |
+| `<CALL:5>OE1ABC` | `FIELD_LENGTH_MISMATCH` | adifmt: ok (reads `OE1AB`) | IV.A.1; adif-checker agrees with us |
+| `GRIDSQUARE=SZ88` | `INVALID_GRIDSQUARE` | adifmt: ok | III.A.1: the first pair is A–R |
+| `NAME_INTL` in .adi | `INTL_FIELD_IN_ADI` | adifmt: ok | IV.A.1: no Intl types in ADI |
+| `CREDIT_SUBMITTED=DXCC:CARD&FAX` | `INVALID_ENUM` | adifmt: ok | III.A CreditList: QSL_Medium values only |
+| `ANT_AZ=370` | info | adifmt: error | field ANT_AZ: outside 0–360 is import-only |
+| text between records (official test file) | ok | adif-checker: error | IV.A.2 lists Header, Record…; the spec's own test file has it |
+| `COMMENT=Grüße` | `INVALID_CHARACTER` | adif-checker: error too (counts bytes) | ADI is ASCII |
+
+Found and fixed through these: an application-defined field without a type
+indicator is MultilineString (IV.A.4), not String; line breaks in it are
+valid. Beyond errors, the validator also warns where adifmt is silent:
+BAND/FREQ, locator in a city field, newer `ADIF_VER`, unknown fields,
+import-only values such as `MODE=C4FM`. Malformed files: adifmt stops at
+the first syntax error, the validator reports every QSO.
 
 ## Official test QSOs
 
@@ -205,7 +223,8 @@ status, bands/frequencies/modes, other fields; every QSO in exactly one
 group), so a failure names the part of the spec. Each run requires:
 - the validator: no issue at all;
 - the editor's export (`parseADIF` → `serializeADIF`): no error, every
-  value unchanged, except the known gaps above (USERDEF and APP types).
+  value unchanged, except the known gaps above (USERDEF fields lose line
+  breaks, APP fields their type indicator).
 
 ## ADIF version compliance
 
