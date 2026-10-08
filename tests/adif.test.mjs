@@ -105,6 +105,16 @@ test('editor ADI export is ASCII (transliterated), keeps < > inside values, and 
   assert.equal(adifChangedValues(recs, cols), 1);
 });
 
+test('editor ADI export keeps line breaks (as CR LF) only in MultilineString fields', () => {
+  assert.equal(adifAscii('a\nb\r\nc\rd\te', { multiline: true }), 'a\r\nb\r\nc\r\nd e');
+  const recs = [{ CALL: 'OE1AB', QSO_DATE: '20261004', TIME_ON: '1830', ADDRESS: 'Gasse 1\nWien', COMMENT: 'a\r\nb' }];
+  const cols = ['CALL', 'QSO_DATE', 'TIME_ON', 'ADDRESS', 'COMMENT'];
+  const out = serializeADIF(recs, cols, '2026-10-06T00:00:00Z');
+  assert.ok(out.includes('<ADDRESS:13>Gasse 1\r\nWien '), out);
+  assert.ok(out.includes('<COMMENT:3>a b '), out);
+  assert.equal(adifChangedValues(recs, cols), 2, 'LF → CR LF and the COMMENT line break');
+});
+
 test('parseADIFAuto: lengths counted in UTF-8 bytes (common in practice) are detected', () => {
   // "Müller" / "Jürgen" = 6 characters, 7 bytes each; one value followed by a space, one directly by the next tag
   const bytes = '<CALL:5>OE1AB <NAME:7>Müller <QTH:4>Wien <EOR>\n<CALL:6>DL1XYZ <NAME:7>Jürgen<QTH:4>Graz<EOR>\n';

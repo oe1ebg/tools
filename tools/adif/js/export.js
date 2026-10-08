@@ -3,12 +3,16 @@
 // unit-tested in oe1ebg/tests/.
 
 import { adifAscii, adifAsciiField } from '../../shared/js/adif.js';
+import { ADIF_SPEC_FIELDS } from '../../shared/js/adif-spec-data.js';
 
 // No registered MIME type for ADIF; text/plain makes Safari save ".adi.txt".
 export const ADI_MIME = 'application/octet-stream';
 
-// Values may keep < and > (legal inside a length-delimited value).
+// Values may keep < and > (legal inside a length-delimited value), and
+// MultilineString fields (ADDRESS, NOTES, ...) their line breaks.
 const ASCII_OPTS = { keepBrackets: true };
+const MULTILINE_OPTS = { keepBrackets: true, multiline: true };
+const asciiOpts = col => ADIF_SPEC_FIELDS[col]?.type === 'MultilineString' ? MULTILINE_OPTS : ASCII_OPTS;
 
 // ADI is an ASCII format (ADIF 3.1.7: String = ASCII 32-126, the length
 // counts characters): values are transliterated like in the confirmation
@@ -19,7 +23,7 @@ export function serializeADIF(records, columns, createdIso = new Date().toISOStr
   out += `<PROGRAMID:10>ADIFEditor\n<ADIF_VER:5>3.1.7\n<CREATED_TIMESTAMP:15>${ts}\n<EOH>\n\n`;
   for (const rec of records){
     let line = "";
-    for (const col of columns) line += adifAsciiField(col, rec[col], ASCII_OPTS); // skips empty values
+    for (const col of columns) line += adifAsciiField(col, rec[col], asciiOpts(col)); // skips empty values
     out += line + "<EOR>\n";
   }
   return out;
@@ -31,7 +35,7 @@ export function adifChangedValues(records, columns){
   let n = 0;
   for (const rec of records) for (const col of columns) {
     const v = rec[col];
-    if (v !== undefined && v !== null && v !== '' && adifAscii(v, ASCII_OPTS) !== String(v)) n++;
+    if (v !== undefined && v !== null && v !== '' && adifAscii(v, asciiOpts(col)) !== String(v)) n++;
   }
   return n;
 }

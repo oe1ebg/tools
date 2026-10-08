@@ -1,0 +1,3 @@
+# The official ADIF test QSOs, byte for byte (CRLF line breaks are part of
+# their MultilineString values).
+*.adi -text

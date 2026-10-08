@@ -17,6 +17,10 @@ from pathlib import Path
 #
 #   https://adif.org.uk/317/resources  (redirects to ADIF_317_resources_<date>.zip)
 #
+# It also copies the archive's official test QSOs (tests/ADIF_*_test_QSOs_*.adi)
+# to tests/fixtures/adif-spec/, which tests/adif-official.test.mjs validates
+# and round-trips through the ADIF editor.
+#
 # Nothing is typed in by hand. The output is committed, so regular builds
 # never touch the network: run `just build-adif-spec` only when the target
 # ADIF version changes (update SPEC_VERSION and RESOURCES_URL, then review
@@ -30,6 +34,7 @@ RESOURCES_URL = "https://adif.org.uk/317/resources"
 OE1EBG_DIR = Path(__file__).resolve().parent.parent
 CACHE_DIR = OE1EBG_DIR / ".cache" / "adif-spec"
 OUTPUT_PATH = OE1EBG_DIR / "tools" / "shared" / "js" / "adif-spec-data.js"
+TEST_QSOS_PATH = OE1EBG_DIR / "tests" / "fixtures" / "adif-spec" / "test-qsos.adi"
 
 # Enumerations whose values are scoped by another field's value (the
 # "[DXCC]" / "[MODE]" in fields.csv): file -> column holding the scope value.
@@ -188,11 +193,23 @@ def render(spec: dict) -> str:
     return text
 
 
+def test_qsos(data: bytes) -> bytes:
+    """The archive's tests/ADIF_<ver>_test_QSOs_<date>.adi, byte for byte."""
+    with zipfile.ZipFile(io.BytesIO(data)) as z:
+        names = [n for n in z.namelist()
+                 if n.split("/")[-2:-1] == ["tests"] and n.endswith(".adi") and "_test_QSOs_" in n]
+        if len(names) != 1:
+            raise SystemExit(f"resources archive: expected one tests/*_test_QSOs_*.adi, found {names}")
+        log(f"test QSOs from {names[0]}")
+        return z.read(names[0])
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--zip", help="read this resources archive instead of downloading it")
     args = ap.parse_args()
-    csvs = read_csvs(resources_zip(args.zip))
+    data = resources_zip(args.zip)
+    csvs = read_csvs(data)
     check_version("fields", csvs["fields"])
     check_version("datatypes", csvs["datatypes"])
     spec = {
@@ -204,6 +221,10 @@ def main() -> None:
     OUTPUT_PATH.write_text(text, encoding="utf-8")
     log(f"wrote {OUTPUT_PATH.relative_to(OE1EBG_DIR)} ({len(text.encode()) / 1024:.0f} KiB, "
         f"{len(spec['fields'])} fields, {len(spec['enums'])} enumerations)")
+    qsos = test_qsos(data)
+    TEST_QSOS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    TEST_QSOS_PATH.write_bytes(qsos)
+    log(f"wrote {TEST_QSOS_PATH.relative_to(OE1EBG_DIR)} ({len(qsos) / 1024:.0f} KiB)")
 
 
 if __name__ == "__main__":

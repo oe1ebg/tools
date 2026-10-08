@@ -6,14 +6,18 @@
 // length-delimited value, but naive readers split on them, and the
 // confirmation log's free text doesn't need them. keepBrackets: for the
 // ADIF editor, which shouldn't change other programs' data more than needed.
-export function adifAscii(s, { keepBrackets = false } = {}) {
-  const t = String(s ?? '')
+// multiline: for MultilineString fields, keeps line breaks (as CR LF, the
+// only line break ADIF allows); otherwise they become blanks.
+export function adifAscii(s, { keepBrackets = false, multiline = false } = {}) {
+  let t = String(s ?? '')
     .replace(/Ä/g, 'Ae').replace(/Ö/g, 'Oe').replace(/Ü/g, 'Ue')
     .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
-    .normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
-    .replace(/[\r\n\t]+/g, ' ');
+    .normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+  t = multiline
+    ? t.replace(/\r\n|\r|\n/g, '\r\n').replace(/\t/g, ' ')
+    : t.replace(/[\r\n\t]+/g, ' ');
   return (keepBrackets ? t : t.replace(/[<>]/g, ''))
-    .replace(/[^\x20-\x7e]/g, '?')
+    .replace(multiline ? /[^\x20-\x7e\r\n]/g : /[^\x20-\x7e]/g, '?')
     .trim();
 }
 

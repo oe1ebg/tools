@@ -59,15 +59,17 @@ string logic with no DOM dependency):
 - Files with no final `<EOR>` recover the trailing record with a warning.
 
 **Editing:** a cell takes its value when it loses focus; Enter takes it
-and moves one row down (ADIF values have no line breaks), Esc restores the
+and moves one row down (only MultilineString fields such as ADDRESS or
+NOTES may hold line breaks; those from a loaded file are kept), Esc restores the
 value from before the edit. Cells are `contenteditable="plaintext-only"`
 where supported, so pasted text brings no markup. With edits that haven't
 been exported (ADI or CSV), closing or reloading the tab asks first.
 
 **Encoding:** files are read as UTF-8, else as Windows-1252 (with a
 warning). The ADI export is ASCII, as ADIF requires: other characters are
-transliterated (ä → ae, é → e, the rest → ?), and the editor says how many
-values that changed.
+transliterated (ä → ae, é → e, the rest → ?), line breaks become blanks
+except in MultilineString fields (written as CR LF), and the editor says how
+many values that changed.
 
 **Known gaps** (not implemented — flag if you want these):
 - No ADX (XML variant) read/write, `.adi` only.
@@ -76,6 +78,9 @@ values that changed.
   header fields): such fields round-trip as opaque strings and the export
   writes no USERDEF header. (The validator does read USERDEF declarations
   of a loaded file and checks the fields against them.)
+- Likewise, the data type indicator of application-defined fields
+  (`<APP_X_Y:3:N>`) is not kept. Both kinds are exported as String, so a
+  line break in them becomes a blank.
 
 ## Validation
 
@@ -183,7 +188,24 @@ tolerant:
 - Same results for dates, times, enumerations (MODE errors, SUBMODE/MODE
   mismatch as a warning), locator lengths and USERDEF enums/ranges.
 - The official ADIF 3.1.7 test file (`tests/ADIF_317_test_QSOs_*.adi` in
-  the resources archive, 6197 QSOs) gives 0 issues.
+  the resources archive, 6197 QSOs) gives 0 issues; see *Official test
+  QSOs*.
+
+## Official test QSOs
+
+The resources archive holds test QSOs that use every field and enumeration
+value of the spec (minus deleted and import-only ones), one QSO each.
+`scripts/build_adif_spec.py` copies them, byte for byte, to
+`oe1ebg/tests/fixtures/adif-spec/test-qsos.adi` (committed, so the tests
+need no network; CR LF kept via `.gitattributes`).
+`oe1ebg/tests/adif-official.test.mjs` runs on the whole file and on groups
+of it (user-defined and application-defined fields, primary and secondary
+subdivisions, DXCC entities, contests/credits/awards, QSL and upload
+status, bands/frequencies/modes, other fields; every QSO in exactly one
+group), so a failure names the part of the spec. Each run requires:
+- the validator: no issue at all;
+- the editor's export (`parseADIF` → `serializeADIF`): no error, every
+  value unchanged, except the known gaps above (USERDEF and APP types).
 
 ## ADIF version compliance
 
