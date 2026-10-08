@@ -15,7 +15,7 @@ async function loadSample(page) {
   await expect(page.locator('#stats')).toContainText('3 QSOs');
 }
 
-test('loads an .adi file and exports it again', async ({ page }) => {
+test('loads an .adi file and exports it again', { tag: '@adif' }, async ({ page }) => {
   await loadSample(page);
   const body = page.locator('#drop table tbody');
   for (const call of ['OE1ABC', 'OE3XYZ', 'DL1AA']) await expect(body).toContainText(call);

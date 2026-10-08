@@ -185,7 +185,7 @@ ADIF editor's export of them, the confirmation log's exports (every
 template), and single invalid values per data type plus valid edge cases.
 Both tools are pinned in `oe1ebg/tests/tools/go.mod` (Dependabot) and built
 by `just oe1ebg crosscheck-tools`; `just oe1ebg crosscheck` runs the test.
-Without the tools it skips; CI builds them and requires them.
+Without the tools it skips; CI builds them and requires them whenever ADIF code changed (AGENTS.md, *CI scope*).
 
 **A disagreement is not automatically our bug.** Look the case up in the
 ADIF specification first; then fix our code, or record the tool's deviation

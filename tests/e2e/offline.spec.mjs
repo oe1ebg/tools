@@ -41,7 +41,7 @@ test('notfunk-offline.html runs from file://', async ({ page, request }, testInf
   expect(requests.filter(u => u !== url && !u.startsWith('blob:') && !u.startsWith('data:'))).toEqual([]);
 });
 
-test('adif-editor.html runs from file://', async ({ page, request }, testInfo) => {
+test('adif-editor.html runs from file://', { tag: '@adif' }, async ({ page, request }, testInfo) => {
   const { url, requests } = await openSavedCopy(page, request, 'tools/adif/adif-editor.html', testInfo);
   await expect(page).toHaveTitle('ADIF Editor');
   await expect(page.locator('#btn-open')).toBeVisible();
