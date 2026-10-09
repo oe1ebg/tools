@@ -239,8 +239,11 @@ Under the validation bar, a collapsible `<details id="compliance">`
 
 The facts come from `build-info.js`, generated (git-ignored) by
 `scripts/build_adif.py` next to `adif-editor.html` and inlined into it:
-`self.ADIF_BUILD = { commit, version, run, adifmt, adifChecker }`.
-`commit` is `GIT_SHA` (Justfile, CI), `version` a content hash of the
+`self.ADIF_BUILD = { commit, version, run, adifmt, adifChecker, commitFull }`.
+`commit` is `GIT_SHA` (Justfile, CI) shortened to 7 characters,
+`commitFull` the full SHA (`null` if `GIT_SHA` is short): GitHub resolves
+`/commit/<short>` but answers `/commit/<short>/checks` with a 404, so the
+checks link needs it and is left out without it. `version` a content hash of the
 bundle, `run` is `BUILD_RUN_URL` (the Justfile builds it from GitHub
 Actions' `GITHUB_SERVER_URL`/`GITHUB_REPOSITORY`/`GITHUB_RUN_ID`; `null`
 locally), and the tool versions are read from `tests/tools/go.mod`. On a dev

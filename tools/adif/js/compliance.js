@@ -2,7 +2,7 @@
 // index.html): what the in-browser check covers, how the editor itself is
 // verified, and where this build comes from. The build facts come from
 // build-info.js (scripts/build_adif.py): self.ADIF_BUILD = { commit,
-// version, run, adifmt, adifChecker }; without it (dev server) the panel
+// version, run, adifmt, adifChecker, commitFull }; without it (dev server) the panel
 // says "development build". Fills itself when imported (app.js).
 
 import { el, fill } from '../../shared/js/dom.js';
@@ -32,7 +32,8 @@ export function complianceFacts(build) {
   return {
     commit,
     commitUrl: commit ? commitUrl(commit) : null,
-    checksUrl: commit ? `${commitUrl(commit)}/checks` : null,
+    // GitHub's checks page needs the full SHA (/commit/<short>/checks is a 404)
+    checksUrl: /^[0-9a-f]{40}$/.test(b.commitFull || '') ? `${commitUrl(b.commitFull)}/checks` : null,
     runUrl: run ? b.run : null,
     runId: run ? run[1] : null,
     version: b.version || null,
@@ -66,7 +67,7 @@ function provenance(f) {
   }
   return el('ul', null,
     el('li', null, 'Commit ', extLink(f.commitUrl, f.commit), extIcon(),
-      ' · ', extLink(f.checksUrl, 'checks for this commit'), extIcon()),
+      f.checksUrl ? [' · ', extLink(f.checksUrl, 'checks for this commit'), extIcon()] : null),
     el('li', null,
       f.runUrl ? ['Built by ', extLink(f.runUrl, `GitHub Actions run ${f.runId}`), extIcon()] : 'Local build (not built by CI)',
       f.version ? ` · content ${f.version}` : null),

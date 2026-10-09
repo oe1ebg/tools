@@ -32,6 +32,9 @@ test('overview and manuals link the repository, version and commit', t => {
   assert.ok(f.includes(`<a href="${REPO_URL}">github.com/oe1ebg/tools</a>`), f);
   assert.ok(f.includes('Version v1.2.3'), f);
   assert.ok(f.includes(`<a href="${REPO_URL}/commit/abc1234">abc1234</a>`), f);
+  // a full SHA (CI, Justfile) links in full, shows short
+  const full = 'abc1234' + '0'.repeat(33);
+  assert.ok(footer('v1.2.3', full).includes(`<a href="${REPO_URL}/commit/${full}">abc1234</a>`));
   // dev builds and anything that isn't a SHA: no commit link, escaped
   const dev = footer('dev', 'dev');
   assert.ok(dev.includes('(commit dev)') && !dev.includes('/commit/'), dev);

@@ -120,7 +120,7 @@ def footer(version: str, sha: str) -> str:
     commitUrl() in tools/shared/js/sources.js)."""
     commit = html.escape(sha)
     if re.fullmatch(r"[0-9a-f]{7,40}", sha):
-        commit = f'<a href="{REPO_URL}/commit/{sha}">{sha}</a>'
+        commit = f'<a href="{REPO_URL}/commit/{sha}">{sha[:7]}</a>'
     return (f'<footer class="doc-footer">Quellcode: <a href="{REPO_URL}">github.com/oe1ebg/tools</a>'
             f" · Version {html.escape(version)} (commit {commit})</footer>")
 
@@ -134,7 +134,7 @@ def git_sha() -> str:
     if os.environ.get("GIT_SHA"):
         return os.environ["GIT_SHA"]
     try:
-        return subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT_DIR,
+        return subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT_DIR,
                               capture_output=True, text=True, check=True).stdout.strip()
     except (OSError, subprocess.CalledProcessError):
         return "dev"

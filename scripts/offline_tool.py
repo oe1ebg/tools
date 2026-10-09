@@ -94,6 +94,13 @@ def git_commit() -> str:
     return sha[:7] if re.fullmatch(r"[0-9a-f]{7,40}", sha) else "dev"
 
 
+def git_commit_full() -> str | None:
+    """Full commit SHA (40 chars) from $GIT_SHA, else None: GitHub resolves
+    /commit/<short> but not /commit/<short>/checks."""
+    sha = os.environ.get("GIT_SHA", "").strip().lower()
+    return sha if re.fullmatch(r"[0-9a-f]{40}", sha) else None
+
+
 def build_run() -> str | None:
     """URL of the CI run that builds this ($BUILD_RUN_URL, set by the
     Justfile from GitHub Actions' GITHUB_SERVER_URL/GITHUB_REPOSITORY/
