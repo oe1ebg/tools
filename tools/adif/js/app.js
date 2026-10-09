@@ -1,5 +1,9 @@
 // ADIF editor: state, table rendering, file loading and the toolbar.
 // Everything runs in the browser; nothing is uploaded.
+//
+// The log, the view and the per-record validation issues live in
+// state.js (the view contract is documented there); the table body is
+// virtualized (table.js): only the rows around the visible part exist.
 
 import { ADIF_FIELDS, ADIF_FIELD_MAP } from './fields.js';
 import { parseADIFAuto } from '../../shared/js/adif.js';
@@ -8,6 +12,8 @@ import { el, fill, isComposing, trackExpanded } from '../../shared/js/dom.js';
 import { validateAdif } from '../../shared/js/adif-validate.js';
 import { ADIF_SPEC_VERSION } from '../../shared/js/adif-spec-data.js';
 import { renderCompliance } from './compliance.js';
+import { records, recordFile, issuesByIndex, view, bindViewHooks, replaceView, viewLength, viewIndexAt } from './state.js';
+import { VirtualBody } from './table.js';
 
 function populateFieldDatalist(){
   const dl = document.getElementById('adif-field-list');
@@ -25,8 +31,8 @@ function populateFieldDatalist(){
 
 /* ---------- state ---------- */
 
-let records = [];   // array of {FIELD: value}
 let columns = [];   // ordered field names
+let colIndex = new Map(); // field name -> position in columns
 let fileMeta = [];  // [{name, adifVer, programId, programVersion}], one per loaded file
 let dirty = false;  // edits since the last export (asked about before leaving the page)
 
@@ -35,10 +41,15 @@ function markDirty(){ dirty = true; scheduleRevalidate(); }
 function rebuildColumns(){
   const seen = new Set(columns);
   for (const rec of records){
-    for (const k of Object.keys(rec)){
+    for (const k in rec){
       if (!seen.has(k)){ seen.add(k); columns.push(k); }
     }
   }
+}
+
+function hasAnyValue(rec){
+  for (const k in rec) if (rec[k] !== undefined && rec[k] !== null && rec[k] !== '') return true;
+  return false;
 }
 
 function addWarning(msg){
@@ -64,6 +75,10 @@ function clearWarnings(){
 let validationView = null;
 let fileValidations = [];
 let revalidateTimer = 0;
+let revalidateIdle = 0;
+// record object -> { worst, issues, byField } of the current validation
+// view; issuesByIndex (state.js) is the same by current record index.
+let issuesByRec = new Map();
 const SEVERITY_RANK = { error: 3, warning: 2, info: 1 };
 const SEVERITY_GLYPH = { error: '✕', warning: '⚠', info: 'ⓘ' };
 const MAX_LISTED_ISSUES = 500;
@@ -82,43 +97,89 @@ function validateFile(name, text, parsed){
 function showFileValidations(){
   const scope = fileValidations.length === 1 ? fileValidations[0].label : `${fileValidations.length} files`;
   validationView = { scope, results: fileValidations };
+  indexValidation();
+}
+
+// Idle time where the browser has it (not Safari 15.4), else a timeout.
+function whenIdle(fn){
+  return typeof requestIdleCallback === 'function' ? requestIdleCallback(fn, { timeout: 1000 }) : setTimeout(fn, 0);
+}
+function cancelIdle(handle){
+  if (typeof cancelIdleCallback === 'function') cancelIdleCallback(handle);
+  else clearTimeout(handle);
+}
+
+// "checking…" while an edit waits for its re-check.
+function setChecking(on){
+  const box = document.getElementById('validation');
+  let note = document.getElementById('validation-checking');
+  if (!note){
+    note = el('span', { id: 'validation-checking', class: 'v-checking', hidden: true }, 'checking…');
+    document.getElementById('validation-summary').after(note);
+  }
+  note.hidden = !on;
+  box.classList.toggle('is-checking', on);
+  if (on) document.getElementById('validation-summary').setAttribute('aria-busy', 'true');
+  else document.getElementById('validation-summary').removeAttribute('aria-busy');
 }
 
 // After an edit: check the log as the ADI export would write it (records
-// in table order, so result record i is records[i]).
+// in table order, so result record i is the i-th record with a value).
+// Debounced, then run when the browser is idle.
 function scheduleRevalidate(){
   clearTimeout(revalidateTimer);
-  revalidateTimer = setTimeout(() => {
-    if (!records.length){ validationView = null; renderValidation(); return; }
-    // rows without any value (e.g. just added) are not checked
-    const filled = records.filter(rec => columns.some(c => rec[c] !== undefined && rec[c] !== null && rec[c] !== ''));
-    let result;
-    try { result = validateAdif(serializeADIF(filled, columns)); }
-    catch (e){ console.error(e); return; }
-    validationView = { scope: 'current log, as it would be exported', results: [{ label: 'current log', result, recs: filled }] };
-    flagCells();
-    renderValidation();
-  }, 150);
+  if (revalidateIdle) cancelIdle(revalidateIdle);
+  revalidateIdle = 0;
+  if (records.length) setChecking(true);
+  revalidateTimer = setTimeout(() => { revalidateIdle = whenIdle(revalidate); }, 150);
 }
 
-// record -> Map(field -> [issue]); issues without a field under ''.
-function issuesByRecord(){
-  const map = new Map();
+function revalidate(){
+  revalidateIdle = 0;
+  if (!records.length){ validationView = null; indexValidation(); setChecking(false); renderValidation(); return; }
+  // rows without any value (e.g. just added) are not checked
+  const filled = records.filter(hasAnyValue);
+  let result;
+  try { result = validateAdif(serializeADIF(filled, columns)); }
+  catch (e){ console.error(e); setChecking(false); return; }
+  validationView = { scope: 'current log, as it would be exported', results: [{ label: 'current log', result, recs: filled }] };
+  indexValidation();
+  body?.forEachRow((tr, ri) => applyFlags(tr, ri));
+  setChecking(false);
+  renderValidation();
+}
+
+// issuesByRec from the validation view, then issuesByIndex.
+function indexValidation(){
+  issuesByRec = new Map();
   for (const { result, recs } of validationView?.results || []){
     if (!result) continue;
     for (const issue of result.issues){
       const rec = issue.recordType === 'qso' ? recs[issue.recordIndex] : null;
       if (!rec) continue;
-      if (!map.has(rec)) map.set(rec, new Map());
-      const byField = map.get(rec);
+      let entry = issuesByRec.get(rec);
+      if (!entry){ entry = { worst: 'info', issues: [], byField: new Map() }; issuesByRec.set(rec, entry); }
+      entry.issues.push(issue);
+      if (SEVERITY_RANK[issue.severity] > SEVERITY_RANK[entry.worst]) entry.worst = issue.severity;
       // BAND/FREQ, MODE/SUBMODE: flag both cells
       for (const f of (issue.field || '').split('/')){
-        if (!byField.has(f)) byField.set(f, []);
-        byField.get(f).push(issue);
+        let list = entry.byField.get(f);
+        if (!list) entry.byField.set(f, list = []);
+        list.push(issue);
       }
     }
   }
-  return map;
+  reindexIssues();
+}
+
+// issuesByIndex after the records moved (load, sort, add, delete).
+function reindexIssues(){
+  issuesByIndex.clear();
+  if (!issuesByRec.size) return;
+  for (let i = 0; i < records.length; i++){
+    const entry = issuesByRec.get(records[i]);
+    if (entry) issuesByIndex.set(i, entry);
+  }
 }
 
 function worstSeverity(issues){
@@ -129,34 +190,31 @@ function issueTitle(issues){
   return issues.map(i => `${SEVERITY_GLYPH[i.severity]} ${i.message} (${i.code})`).join('\n');
 }
 
-// Problem cells: class cell-error|warning|info and the messages as title;
-// the row number shows the worst severity of its QSO.
-function flagCells(){
-  const tbody = dropEl.querySelector('tbody');
-  if (!tbody) return;
-  const map = issuesByRecord();
-  [...tbody.rows].forEach((tr, ri) => {
-    const byField = map.get(records[ri]);
-    const numTd = tr.cells[0];
-    numTd.classList.remove('row-error', 'row-warning');
-    numTd.removeAttribute('title');
-    if (byField){
-      const all = [...new Set([...byField.values()].flat())];
-      const sev = worstSeverity(all);
-      if (sev !== 'info') numTd.classList.add(`row-${sev}`);
-      numTd.title = issueTitle(all);
-    }
-    columns.forEach((col, ci) => {
-      const td = tr.cells[ci + 1];
-      if (!td) return;
+// Problem cells of one rendered row: class cell-error|warning|info and the
+// messages as title; the row number shows the worst severity of its QSO.
+function applyFlags(tr, ri){
+  const num = tr.firstChild;
+  if (tr.classList.contains('flagged')){
+    tr.classList.remove('flagged');
+    num.classList.remove('row-error', 'row-warning');
+    num.removeAttribute('title');
+    for (const td of tr.querySelectorAll('.cell-error, .cell-warning, .cell-info')){
       td.classList.remove('cell-error', 'cell-warning', 'cell-info');
-      const list = byField?.get(col);
-      if (list){
-        td.classList.add(`cell-${worstSeverity(list)}`);
-        td.title = issueTitle(list);
-      } else td.removeAttribute('title');
-    });
-  });
+      td.removeAttribute('title');
+    }
+  }
+  const entry = issuesByIndex.get(ri);
+  if (!entry) return;
+  tr.classList.add('flagged');
+  if (entry.worst !== 'info') num.classList.add(`row-${entry.worst}`);
+  num.title = issueTitle(entry.issues);
+  for (const [field, list] of entry.byField){
+    const ci = colIndex.get(field);
+    if (ci === undefined) continue;
+    const td = tr.children[ci + 1];
+    td.classList.add(`cell-${worstSeverity(list)}`);
+    td.title = issueTitle(list);
+  }
 }
 
 function updateIssuesButton(){
@@ -166,6 +224,8 @@ function updateIssuesButton(){
 }
 
 function plural(n, word){ return `${n} ${word}${n === 1 ? '' : 's'}`; }
+
+let issuesStale = true; // the issue list needs a rebuild before it's shown
 
 function renderValidation(){
   const box = document.getElementById('validation');
@@ -198,55 +258,176 @@ function renderValidation(){
   const total = n.errors + n.warnings + n.infos;
   document.getElementById('btn-issues').hidden = total === 0;
   if (total === 0) panel.hidden = true;
-  fill(panel, issueGroups(results));
+  // the list is built when it's open (or opened)
+  issuesStale = true;
+  if (!panel.hidden) renderIssueList();
   updateIssuesButton();
 }
 
+function renderIssueList(){
+  const results = (validationView?.results || []).filter(r => r.result);
+  fill(document.getElementById('validation-issues'), issueGroups(results));
+  issuesStale = false;
+}
+
 // The issue list: general issues per file, then one group per QSO (with
-// its current row in the table).
+// its current row in the table). Only the first MAX_LISTED_ISSUES are
+// built; the rest is counted.
 function issueGroups(results){
   const groups = [];
-  let listed = 0, skipped = 0;
+  let listed = 0, total = 0;
+  for (const { result } of results) total += result.issues.length;
+  const full = () => listed >= MAX_LISTED_ISSUES;
+  // current table row of a record object (only the flagged ones are needed)
+  const rowOf = new Map();
+  for (const ri of issuesByIndex.keys()) rowOf.set(records[ri], ri);
   const fieldLabel = i => (i.field ? i.field.replace('/', ' / ') : i.recordType === 'qso' ? '(QSO)' : `(${i.recordType})`);
-  const item = issue => {
-    if (listed >= MAX_LISTED_ISSUES){ skipped++; return null; }
-    listed++;
-    return el('li', {},
-      el('span', { class: `sev-${issue.severity}`, role: 'img', 'aria-label': issue.severity }, SEVERITY_GLYPH[issue.severity]),
-      el('span', { class: 'v-field' }, fieldLabel(issue)),
-      el('span', {}, issue.message, el('span', { class: 'v-code' }, issue.code),
-        issue.line ? el('span', { class: 'v-loc' }, `line ${issue.line}:${issue.column}`) : null));
+  const items = issues => {
+    const out = [];
+    for (const issue of issues){
+      if (full()) break;
+      listed++;
+      out.push(el('li', {},
+        el('span', { class: `sev-${issue.severity}`, role: 'img', 'aria-label': issue.severity }, SEVERITY_GLYPH[issue.severity]),
+        el('span', { class: 'v-field' }, fieldLabel(issue)),
+        el('span', {}, issue.message, el('span', { class: 'v-code' }, issue.code),
+          issue.line ? el('span', { class: 'v-loc' }, `line ${issue.line}:${issue.column}`) : null)));
+    }
+    return out;
   };
   for (const { label, result, recs } of results){
+    if (full()) break;
     const prefix = results.length > 1 ? `${label} · ` : '';
     const byRec = new Map();
     const general = [];
     for (const i of result.issues){
       const rec = i.recordType === 'qso' ? recs[i.recordIndex] : null;
       if (!rec){ general.push(i); continue; }
-      if (!byRec.has(rec)) byRec.set(rec, []);
-      byRec.get(rec).push(i);
+      let list = byRec.get(rec);
+      if (!list) byRec.set(rec, list = []);
+      list.push(i);
     }
-    if (general.length) groups.push(el('div', { class: 'v-group' }, el('h2', {}, `${prefix}File`), el('ul', {}, general.map(item))));
+    if (general.length) groups.push(el('div', { class: 'v-group' }, el('h2', {}, `${prefix}File`), el('ul', {}, items(general))));
     for (const [rec, issues] of byRec){
-      const row = records.indexOf(rec) + 1;
-      const where = [rec.CALL, row ? `row ${row}` : 'removed from the table'].filter(Boolean).join(' · ');
+      if (full()) break;
+      const ri = rowOf.get(rec);
+      const where = [rec.CALL, ri !== undefined ? `row ${ri + 1}` : 'removed from the table'].filter(Boolean).join(' · ');
       groups.push(el('div', { class: 'v-group' },
         el('h2', {}, `${prefix}QSO #${issues[0].recordIndex + 1} `, el('span', { class: 'dim' }, where)),
-        el('ul', {}, issues.map(item))));
+        el('ul', {}, items(issues))));
     }
   }
-  if (skipped) groups.push(el('p', { class: 'v-more' }, `… and ${skipped} more (the first ${MAX_LISTED_ISSUES} are listed).`));
+  const skipped = total - listed;
+  if (skipped > 0) groups.push(el('p', { class: 'v-more' }, `… and ${skipped} more (the first ${MAX_LISTED_ISSUES} are listed).`));
   return groups;
 }
 
 /* ---------- rendering ---------- */
 
-function setPlainEditable(node){
-  try { node.contentEditable = 'plaintext-only'; } catch { node.contentEditable = 'true'; }
-}
+// contenteditable="plaintext-only" where supported (pasted text brings no
+// markup), else "true"; decided once.
+const EDITABLE = (() => {
+  try { document.createElement('td').contentEditable = 'plaintext-only'; return 'plaintext-only'; }
+  catch { return 'true'; }
+})();
 
 const dropEl = document.getElementById('drop');
+let body = null;     // VirtualBody of the current table
+let protoRow = null; // an empty row of the current columns, cloned per row
+let colEls = [];     // <col> per field, widened when a longer value is typed
+let colChars = [];   // their width in characters
+
+// Cells are one line high (the virtual table needs a fixed row height):
+// line breaks show as ¶ until the cell is edited.
+function displayValue(v){
+  return /[\r\n]/.test(v) ? v.replace(/\r\n|\r|\n/g, '¶') : v;
+}
+
+// Width of a displayed value in characters.
+function displayWidth(v){
+  return /[\r\n]/.test(v) ? displayValue(v).length : v.length;
+}
+
+// Column widths from the longest value of each field, in pixels of the
+// table's monospace font (measured: `ch` of a <col> differs between
+// browsers), so they don't change as rows scroll in and out. A value
+// longer than MAX_COL_CHARS is cut (…) by the cells' max-width anyway.
+const MAX_COL_CHARS = 44;
+let charPx = 7.8, cellPadPx = 16.6;
+
+function measureFont(){
+  const probe = el('span', { class: 'char-probe', 'aria-hidden': 'true' }, '0'.repeat(50));
+  dropEl.appendChild(probe);
+  const w = probe.getBoundingClientRect().width / 50;
+  const fs = parseFloat(getComputedStyle(probe).fontSize);
+  probe.remove();
+  if (w > 0) charPx = w;
+  if (fs > 0) cellPadPx = 1.2 * fs + 1; // padding .6em on both sides + border
+}
+
+function colWidth(chars){ return `${Math.ceil(chars * charPx + cellPadPx)}px`; }
+
+function buildColgroup(){
+  const longest = new Map();
+  for (const rec of records){
+    for (const k in rec){
+      const len = displayWidth(String(rec[k]));
+      if (len > (longest.get(k) || 0)) longest.set(k, len);
+    }
+  }
+  colEls = [];
+  colChars = [];
+  // the row number column fits the largest number (+ the delete button)
+  const numCol = el('col', { class: 'rownum-col' });
+  numCol.style.width = `calc(${String(records.length).length + 1}ch + 2.6em)`;
+  const group = el('colgroup', {}, numCol);
+  for (const col of columns){
+    const chars = Math.min(MAX_COL_CHARS, Math.max(4, longest.get(col) || 0));
+    const c = document.createElement('col');
+    c.style.width = colWidth(chars);
+    colEls.push(c);
+    colChars.push(chars);
+    group.appendChild(c);
+  }
+  return group;
+}
+
+function widenColumn(col, value){
+  const ci = colIndex.get(col);
+  if (ci === undefined) return;
+  const chars = Math.min(MAX_COL_CHARS, displayWidth(String(value)));
+  if (chars > colChars[ci]){ colChars[ci] = chars; colEls[ci].style.width = colWidth(chars); }
+}
+
+function buildProtoRow(){
+  const tr = document.createElement('tr');
+  tr.appendChild(el('td', { class: 'rownum' }, '', el('button', { type: 'button', class: 'del', title: 'delete row' }, '×')));
+  for (const col of columns){
+    const td = document.createElement('td');
+    td.setAttribute('contenteditable', EDITABLE);
+    td.spellcheck = false;
+    td.dataset.col = col;
+    tr.appendChild(td);
+  }
+  return tr;
+}
+
+function renderRow(ri){
+  const tr = protoRow.cloneNode(true);
+  tr.dataset.ri = String(ri);
+  const num = tr.firstChild;
+  num.firstChild.data = String(ri + 1);
+  num.lastChild.setAttribute('aria-label', `delete row ${ri + 1}`);
+  const rec = records[ri];
+  let td = num.nextSibling;
+  for (const col of columns){
+    const v = rec[col];
+    if (v !== undefined && v !== null && v !== '') td.textContent = displayValue(String(v));
+    td = td.nextSibling;
+  }
+  applyFlags(tr, ri);
+  return tr;
+}
 
 function setExportButtonsDisabled(disabled){
   document.getElementById('btn-export').disabled = disabled;
@@ -254,7 +435,15 @@ function setExportButtonsDisabled(disabled){
   document.getElementById('btn-export-sota').disabled = disabled;
 }
 
+function sortLabel(col){
+  return sortState.col === col ? (sortState.asc ? 'ascending' : 'descending') : null;
+}
+
+// The whole table (after loading, and when the columns change); scrolling,
+// sorting and view changes only re-render the body's window.
 function render(){
+  body?.destroy();
+  body = null;
   dropEl.classList.remove('empty');
   if (records.length === 0){
     dropEl.classList.add('empty');
@@ -267,74 +456,34 @@ function render(){
     return;
   }
   setExportButtonsDisabled(false);
+  colIndex = new Map(columns.map((c, i) => [c, i]));
+  protoRow = buildProtoRow();
 
-  const table = document.createElement('table');
-  const thead = document.createElement('thead');
-  const htr = document.createElement('tr');
-  const rowNumTh = document.createElement('th');
-  rowNumTh.className = 'rownum-col';
-  rowNumTh.scope = 'col';
-  rowNumTh.textContent = '#';
-  htr.appendChild(rowNumTh);
-  columns.forEach((col, ci) => {
+  const htr = el('tr', { 'aria-rowindex': '1' }, el('th', { class: 'rownum-col', scope: 'col' }, '#'));
+  for (const col of columns){
     const fieldDef = ADIF_FIELD_MAP.get(col);
-    const sorted = sortState.col === col;
-    htr.appendChild(el('th', { scope: 'col', 'aria-sort': sorted ? (sortState.asc ? 'ascending' : 'descending') : null },
+    htr.appendChild(el('th', { scope: 'col', 'data-col': col, 'aria-sort': sortLabel(col) },
       el('span', { class: 'colhead' },
         el('button', {
           type: 'button', class: 'sortcol',
           title: 'click to sort' + (fieldDef
             ? ` — ${fieldDef.type}: ${fieldDef.desc}`
             : ' — no ADIF definition (custom/application field)'),
-          onclick: () => sortByColumn(col),
         }, col),
-        el('button', { type: 'button', class: 'rmcol', title: 'remove column', 'aria-label': `remove column ${col}`,
-          onclick: () => removeColumn(col) }, '×'))));
+        el('button', { type: 'button', class: 'rmcol', title: 'remove column', 'aria-label': `remove column ${col}` }, '×'))));
+  }
+  const thead = el('thead', {}, htr);
+  thead.addEventListener('click', e => {
+    const btn = e.target.closest('button');
+    const col = btn?.closest('th')?.dataset.col;
+    if (!col) return;
+    if (btn.classList.contains('sortcol')) sortByColumn(col);
+    else if (btn.classList.contains('rmcol')) removeColumn(col);
   });
-  thead.appendChild(htr);
-  table.appendChild(thead);
-
   const tbody = document.createElement('tbody');
-  records.forEach((rec, ri) => {
-    const tr = document.createElement('tr');
-    const numTd = document.createElement('td');
-    numTd.className = 'rownum';
-    numTd.append(String(ri + 1), el('button', { type: 'button', class: 'del', title: 'delete row',
-      'aria-label': `delete row ${ri + 1}`, onclick: () => deleteRow(ri) }, '×'));
-    tr.appendChild(numTd);
-    columns.forEach((col, ci) => {
-      const td = document.createElement('td');
-      setPlainEditable(td);
-      td.spellcheck = false;
-      td.textContent = rec[col] !== undefined ? rec[col] : '';
-      // Enter takes the value and moves one row down (ADIF values have no
-      // line breaks), Esc restores the value from before the edit.
-      let before = td.textContent;
-      td.addEventListener('focus', () => { before = td.textContent; });
-      td.addEventListener('keydown', e => {
-        if (e.key === 'Enter' && !isComposing(e)){
-          e.preventDefault();
-          const below = tr.nextElementSibling?.children[ci + 1];
-          if (below) below.focus(); else td.blur();
-        } else if (e.key === 'Escape'){
-          e.preventDefault();
-          td.textContent = before;
-          td.blur();
-        }
-      });
-      td.addEventListener('blur', () => {
-        const v = td.textContent;
-        if (v === (rec[col] ?? '')) return;
-        if (v === '') delete rec[col];
-        else rec[col] = v;
-        markDirty();
-        updateStats();
-      });
-      tr.appendChild(td);
-    });
-    tbody.appendChild(tr);
-  });
-  table.appendChild(tbody);
+  bindBodyEvents(tbody);
+  measureFont();
+  const table = el('table', {}, buildColgroup(), thead, tbody);
 
   fill(dropEl, table);
 
@@ -359,17 +508,127 @@ function render(){
 
   dropEl.appendChild(addRowDiv);
 
+  body = new VirtualBody(dropEl, table, {
+    columns: columns.length + 1,
+    rowCount: viewLength,
+    rowKey: viewIndexAt,
+    renderRow,
+    beforeRemove: tr => { const td = tr.querySelector('td[data-col]:focus'); if (td) commitCell(td); },
+  });
+  body.update(true);
+
   updateStats();
   updateFileInfo();
-  flagCells();
   renderValidation();
+}
+
+// The body after the view, the order or the rows changed.
+function refreshBody(){
+  if (body) body.update(true);
+  else render();
+}
+
+// The display position of a record in the view (-1: not shown).
+function posOf(ri){
+  return view ? view.indexOf(ri) : (ri < records.length ? ri : -1);
+}
+
+// Scroll a display position into the window and focus a cell of it
+// (col: field name; omitted: the row's first field).
+function focusCell(pos, col){
+  if (!body || pos < 0 || pos >= viewLength()) return false;
+  const tr = body.reveal(pos);
+  if (!tr) return false;
+  const ci = col === undefined ? 0 : colIndex.get(col);
+  const td = tr.children[(ci ?? 0) + 1];
+  if (!td) return false;
+  td.focus({ preventScroll: true });
+  td.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  return true;
+}
+
+/* ---------- editing (delegated on the table body) ---------- */
+
+let editBefore = ''; // value of the focused cell when it got the focus
+
+// Takes a cell's text into its record (on blur, Enter, or before its row
+// scrolls out of the window).
+function commitCell(td){
+  const tr = td.parentNode;
+  const ri = Number(tr?.dataset.ri);
+  const col = td.dataset.col;
+  const rec = records[ri];
+  if (!rec || !col) return;
+  const v = td.textContent;
+  if (v !== (rec[col] ?? '')){
+    if (v === '') delete rec[col];
+    else { rec[col] = v; widenColumn(col, v); }
+    markDirty();
+    if (col === 'BAND' || col === 'MODE') scheduleStats();
+  }
+  const shown = displayValue(rec[col] ?? '');
+  if (td.textContent !== shown) td.textContent = shown;
+}
+
+function bindBodyEvents(tbody){
+  tbody.addEventListener('focusin', e => {
+    const td = e.target.closest('td[data-col]');
+    if (!td) return;
+    const rec = records[Number(td.parentNode.dataset.ri)];
+    const raw = rec?.[td.dataset.col] ?? '';
+    // the full value (with its line breaks) while editing
+    if (td.textContent !== raw) td.textContent = raw;
+    editBefore = raw;
+  });
+  tbody.addEventListener('focusout', e => {
+    const td = e.target.closest('td[data-col]');
+    if (td && td.isConnected) commitCell(td);
+  });
+  // Enter takes the value and moves one row down (ADIF values have no
+  // line breaks), Esc restores the value from before the edit, Tab at
+  // the end/start of a row goes on to the next/previous row (scrolled in).
+  tbody.addEventListener('keydown', e => {
+    const td = e.target.closest('td[data-col]');
+    const tr = e.target.closest('tr');
+    if (!tr?.dataset.ri) return;
+    const pos = posOf(Number(tr.dataset.ri));
+    if (td && e.key === 'Enter' && !isComposing(e)){
+      e.preventDefault();
+      if (!focusCell(pos + 1, td.dataset.col)) td.blur();
+    } else if (td && e.key === 'Escape'){
+      e.preventDefault();
+      td.textContent = editBefore;
+      td.blur();
+    } else if (e.key === 'Tab' && !e.shiftKey && td && !td.nextElementSibling && pos + 1 < viewLength()){
+      e.preventDefault();
+      focusCell(pos + 1);
+    } else if (e.key === 'Tab' && e.shiftKey && !td && e.target.classList.contains('del') && pos > 0){
+      e.preventDefault();
+      focusCell(pos - 1, columns[columns.length - 1]);
+    }
+  });
+  tbody.addEventListener('click', e => {
+    const del = e.target.closest('button.del');
+    const tr = del?.closest('tr');
+    if (tr?.dataset.ri) deleteRow(Number(tr.dataset.ri));
+  });
+}
+
+/* ---------- toolbar status ---------- */
+
+let statsFrame = 0;
+function scheduleStats(){
+  if (!statsFrame) statsFrame = requestAnimationFrame(() => { statsFrame = 0; updateStats(); });
 }
 
 function updateStats(){
   const stats = document.getElementById('stats');
   if (records.length === 0){ stats.textContent = ''; return; }
-  const bands = new Set(records.map(r => r.BAND).filter(Boolean));
-  const modes = new Set(records.map(r => r.MODE).filter(Boolean));
+  const bands = new Set(), modes = new Set();
+  for (const r of records){
+    if (r.BAND) bands.add(r.BAND);
+    if (r.MODE) modes.add(r.MODE);
+  }
   // Built from nodes: BAND/MODE come straight from the loaded file.
   fill(stats, el('b', {}, records.length), ' QSOs',
     fileMeta.length > 1 ? [' from ', el('b', {}, fileMeta.length), ' files'] : null,
@@ -388,14 +647,27 @@ function updateFileInfo(){
 
 function addRow(){
   records.push({});
+  recordFile.push('');
+  if (view) replaceView([...view, records.length - 1]);
   markDirty();
-  render();
+  updateStats();
+  refreshBody();
+  focusCell(viewLength() - 1);
 }
 
-function deleteRow(idx){
-  records.splice(idx, 1);
+function deleteRow(ri){
+  records.splice(ri, 1);
+  recordFile.splice(ri, 1);
+  if (view){
+    const next = [];
+    for (const i of view) if (i !== ri) next.push(i > ri ? i - 1 : i);
+    replaceView(next);
+  }
+  reindexIssues();
   markDirty();
-  render();
+  updateStats();
+  if (!records.length) render();
+  else refreshBody();
 }
 
 function addColumn(name){
@@ -413,22 +685,46 @@ function removeColumn(name){
 }
 
 let sortState = { col: null, asc: true };
+const collator = new Intl.Collator();
+
+// Sorts the log itself (exports follow the table order): keys computed
+// once, an index array sorted (stable), records and recordFile permuted,
+// an active view remapped.
 function sortByColumn(col){
   if (sortState.col === col) sortState.asc = !sortState.asc;
   else { sortState = { col, asc: true }; }
-  records.sort((a, b) => {
-    const av = a[col] ?? '';
-    const bv = b[col] ?? '';
-    const an = parseFloat(av), bn = parseFloat(bv);
-    let cmp;
-    if (!isNaN(an) && !isNaN(bn) && String(an) === av.trim() && String(bn) === bv.trim()){
-      cmp = an - bn;
-    } else {
-      cmp = av.localeCompare(bv);
-    }
-    return sortState.asc ? cmp : -cmp;
+  const n = records.length;
+  const strs = new Array(n), nums = new Float64Array(n);
+  for (let i = 0; i < n; i++){
+    const v = records[i][col] ?? '';
+    const s = String(v);
+    const num = parseFloat(s);
+    strs[i] = s;
+    nums[i] = !isNaN(num) && String(num) === s.trim() ? num : NaN;
+  }
+  const sign = sortState.asc ? 1 : -1;
+  const order = Array.from({ length: n }, (_, i) => i);
+  order.sort((a, b) => {
+    const an = nums[a], bn = nums[b];
+    const cmp = an === an && bn === bn ? an - bn : collator.compare(strs[a], strs[b]);
+    return sign * cmp;
   });
-  render();
+  const recs = records.slice(), files = recordFile.slice();
+  const newPos = new Array(n);
+  for (let i = 0; i < n; i++){
+    records[i] = recs[order[i]];
+    recordFile[i] = files[order[i]];
+    newPos[order[i]] = i;
+  }
+  if (view) replaceView(view.map(i => newPos[i]).sort((a, b) => a - b));
+  reindexIssues();
+  for (const th of dropEl.querySelectorAll('thead th[data-col]')){
+    const label = sortLabel(th.dataset.col);
+    if (label) th.setAttribute('aria-sort', label);
+    else th.removeAttribute('aria-sort');
+  }
+  refreshBody();
+  renderValidation();
 }
 
 function applyCommentTemplate(template){
@@ -441,6 +737,9 @@ function applyCommentTemplate(template){
   }
   if (changed){ markDirty(); rebuildColumns(); render(); }
 }
+
+// state.js: setView() re-renders the window, scrollToRecord() scrolls.
+bindViewHooks(refreshBody, ri => { focusCell(posOf(ri)); });
 
 /* ---------- file loading ---------- */
 
@@ -460,6 +759,17 @@ function loadFiles(fileList){
   const files = Array.from(fileList);
   let pending = files.length;
   if (!pending) return;
+  const firstNew = records.length;
+  const done = () => {
+    if (--pending > 0) return;
+    rebuildColumns();
+    if (view){ // the new records join an active view
+      const shown = new Set(view);
+      replaceView([...view, ...records.map((_, i) => i).filter(i => i >= firstNew && !shown.has(i))]);
+    }
+    showFileValidations();
+    render();
+  };
   files.forEach(file => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -468,8 +778,7 @@ function loadFiles(fileList){
       const text = decodeLog(reader.result, file.name, warnings);
       const parsed = parseADIFAuto(text, warnings, file.name, headerInfo);
       fileValidations.push(validateFile(file.name, text, parsed));
-      records = records.concat(parsed);
-      rebuildColumns();
+      for (const rec of parsed){ records.push(rec); recordFile.push(file.name); }
       fileMeta.push({
         name: file.name,
         adifVer: headerInfo.ADIF_VER || null,
@@ -477,13 +786,11 @@ function loadFiles(fileList){
         programVersion: headerInfo.PROGRAMVERSION || null,
       });
       warnings.forEach(addWarning);
-      pending--;
-      if (pending === 0){ showFileValidations(); render(); }
+      done();
     };
     reader.onerror = () => {
       addWarning(`${file.name}: could not be read.`);
-      pending--;
-      if (pending === 0){ showFileValidations(); render(); }
+      done();
     };
     reader.readAsArrayBuffer(file);
   });
@@ -531,7 +838,14 @@ function swapExt(filename, ext){
   return `${base}.${ext}`;
 }
 
+// A cell still being edited counts: take its value before exporting.
+function commitFocusedCell(){
+  const td = document.activeElement?.closest?.('#drop td[data-col]');
+  if (td) commitCell(td);
+}
+
 document.getElementById('btn-export').addEventListener('click', () => {
+  commitFocusedCell();
   const name = document.getElementById('filename-input').value.trim() || 'export.adi';
   // .adi is ASCII: say which values had to be transliterated
   const changed = adifChangedValues(records, columns);
@@ -541,12 +855,14 @@ document.getElementById('btn-export').addEventListener('click', () => {
 });
 
 document.getElementById('btn-export-csv').addEventListener('click', () => {
+  commitFocusedCell();
   const name = swapExt(document.getElementById('filename-input').value, 'csv');
   downloadText(serializeCSV(records, columns), 'text/csv', name);
   dirty = false;
 });
 
 document.getElementById('btn-export-sota').addEventListener('click', () => {
+  commitFocusedCell();
   const mode = document.getElementById('sota-mode').value;
   downloadText(serializeSotaCsv(records, mode), 'text/csv', `sota-${mode}.csv`);
 });
@@ -571,6 +887,7 @@ trackExpanded(document.getElementById('btn-issues'), document.getElementById('va
 document.getElementById('btn-issues').addEventListener('click', () => {
   const panel = document.getElementById('validation-issues');
   panel.hidden = !panel.hidden;
+  if (!panel.hidden && issuesStale) renderIssueList();
   updateIssuesButton();
 });
 
