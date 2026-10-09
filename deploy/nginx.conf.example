@@ -22,18 +22,19 @@ server {
         index index.html;
     }
 
-    # PWA files of the offline tools (confirm/, notfunk/, the worker logic in
-    # shared/js/sw-core.js): the browser must revalidate these to notice a
-    # new version as soon as it's online. Everything else is answered from
-    # the service worker's cache anyway.
+    # Revalidate pages, scripts, styles and data (Cache-Control: no-cache
+    # keeps the cached copy but asks the server first; an unchanged file is
+    # a 304). Without it, browsers guess a lifetime from Last-Modified and
+    # can mix an old and a new release after a deploy: the ADIF editor and
+    # the SOTA Alerts Map have no service worker, and the PWAs (confirm,
+    # notfunk) must see a new sw.js/precache.js to offer the update. The PWAs
+    # answer everything else from their versioned cache, so it costs them
+    # nothing. Directory URLs (…/confirm/) get it through the index redirect.
+    location ~ \.(html|js|mjs|css|json)$ {
+        add_header Cache-Control "no-cache";
+    }
     location ~ \.webmanifest$ {
         default_type application/manifest+json;   # not in nginx's mime.types
-        add_header Cache-Control "no-cache";
-    }
-    location ~ /(sw|sw-core|precache|build-info)\.js$ {
-        add_header Cache-Control "no-cache";
-    }
-    location ~ /(confirm|notfunk)/(index\.html)?$ {
         add_header Cache-Control "no-cache";
     }
 }
