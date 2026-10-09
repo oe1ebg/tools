@@ -7,7 +7,7 @@ import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
-import { commitUrl, versionItems, REPO_URL } from '../tools/shared/js/sources.js';
+import { commitUrl, versionItems, repoUrl, repoLink, REPO_URL } from '../tools/shared/js/sources.js';
 
 const OE1EBG = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIR = join(OE1EBG, 'tools', 'confirm');
@@ -167,4 +167,25 @@ test('commit link only for real SHAs, built in the link-only module', () => {
   assert.deepEqual(versionItems(undefined, undefined), ['commit ', 'dev', ' · data dev']);
   assert.deepEqual(versionItems({ commit: 'dev', version: '111111111111' }, '1a2b3c4d5e6f'), ['commit ', 'dev', ' · data 1a2b3c4d5e6f']);
   assert.deepEqual(versionItems({ commit: 'dev', version: '111111111111' }), ['commit ', 'dev', ' · data 111111111111']);
+});
+
+test('source link: the repository or a tool folder on main, opened in a new tab', () => {
+  assert.equal(repoUrl(), REPO_URL);
+  assert.equal(repoUrl('tools/confirm'), `${REPO_URL}/tree/main/tools/confirm`);
+  for (const p of ['../x', 'tools/../x', '/tools', 'tools/x?y', 'a b', 'https://x.y']) assert.equal(repoUrl(p), null, p);
+  // minimal DOM for el(): records attributes and text
+  const node = () => ({ attrs: {}, text: [], setAttribute(k, v) { this.attrs[k] = v; }, append(...c) { this.text.push(...c); } });
+  const { document: doc, Node: N } = globalThis;
+  globalThis.document = { createElement: tag => Object.assign(node(), { tag }) };
+  globalThis.Node = class {};
+  try {
+    const a = repoLink('Quellcode', 'tools/notfunk');
+    assert.equal(a.tag, 'a');
+    assert.deepEqual(a.attrs, { href: `${REPO_URL}/tree/main/tools/notfunk`, target: '_blank', rel: 'noopener' });
+    assert.deepEqual(a.text, ['Quellcode']);
+    assert.equal(repoLink('Quellcode', '../evil').attrs.href, REPO_URL);
+  } finally {
+    globalThis.document = doc;
+    globalThis.Node = N;
+  }
 });

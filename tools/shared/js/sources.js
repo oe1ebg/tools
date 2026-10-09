@@ -65,8 +65,17 @@ export const DATA_SOURCES = {
   },
 };
 
-// Source repository of the tools, for the commit link in the footer.
+// Source repository of the tools, for the commit and "Quellcode" links.
 export const REPO_URL = 'https://github.com/oe1ebg/tools';
+
+// The repository, or one of its folders on main ("tools/confirm"); null for
+// a path that is not a plain relative path.
+export function repoUrl(path) {
+  if (!path) return REPO_URL;
+  const p = String(path);
+  return /^[A-Za-z0-9_-]+(\/[A-Za-z0-9_.-]+)*$/.test(p) && !/(^|\/)\.\.?(\/|$)/.test(p)
+    ? `${REPO_URL}/tree/main/${p}` : null;
+}
 
 // Link target for a build's commit, or null for "dev"/unknown builds.
 export function commitUrl(sha) {
@@ -93,6 +102,12 @@ export function standDate(iso) {
 
 function extLink(url, text) {
   return el('a', { href: url, target: '_blank', rel: 'noopener' }, text);
+}
+
+// Link to the source code: the repository, or a tool's folder in it
+// (repoLink('Quellcode', 'tools/confirm')).
+export function repoLink(label, path) {
+  return extLink(repoUrl(path) || REPO_URL, label);
 }
 
 // "<label> (CC BY 4.0) – <detail>" with links to dataset and licence.
