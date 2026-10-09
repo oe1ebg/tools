@@ -38,6 +38,9 @@ TOOLS_DIR = ROOT_DIR / "tools"
 DOCS_DIR = ROOT_DIR / "docs"
 OUT_DIR = ROOT_DIR / "site" / "tools"
 
+# Source repository (REPO_URL in tools/shared/js/sources.js).
+REPO_URL = "https://github.com/oe1ebg/tools"
+
 IGNORE = shutil.ignore_patterns("*.md", ".*", "__pycache__")
 
 # docs/<name>.md -> <name>/index.html, in this order on the overview page.
@@ -69,6 +72,7 @@ PAGE = """<!doctype html>
 <main class="doc">
 {nav}
 {body}
+{footer}
 </main>
 </body>
 </html>
@@ -110,9 +114,20 @@ def render(md_text: str) -> str:
     )
 
 
-def page(title: str, body: str, up: str, home: bool) -> str:
+def footer(version: str, sha: str) -> str:
+    """Footer of the overview and the manuals: the source repository and
+    this build's version and commit (linked when it is a real SHA, like
+    commitUrl() in tools/shared/js/sources.js)."""
+    commit = html.escape(sha)
+    if re.fullmatch(r"[0-9a-f]{7,40}", sha):
+        commit = f'<a href="{REPO_URL}/commit/{sha}">{sha}</a>'
+    return (f'<footer class="doc-footer">Quellcode: <a href="{REPO_URL}">github.com/oe1ebg/tools</a>'
+            f" · Version {html.escape(version)} (commit {commit})</footer>")
+
+
+def page(title: str, body: str, up: str, home: bool, foot: str = "") -> str:
     nav = '<p class="doc-nav"><a href="../">← Alle Tools</a></p>' if home else ""
-    return PAGE.format(title=html.escape(title), up=up, nav=nav, body=body)
+    return PAGE.format(title=html.escape(title), up=up, nav=nav, body=body, footer=foot)
 
 
 def git_sha() -> str:
@@ -129,6 +144,9 @@ def main() -> None:
     if OUT_DIR.exists():
         shutil.rmtree(OUT_DIR)
     OUT_DIR.mkdir(parents=True)
+    version = os.environ.get("TOOLS_VERSION", "dev")
+    sha = git_sha()
+    foot = footer(version, sha)
 
     for src in sorted(p for p in TOOLS_DIR.iterdir() if p.is_dir() and not p.name.startswith(".")):
         if src.name != "shared" and not (src / "index.html").exists():
@@ -140,7 +158,7 @@ def main() -> None:
     for name, title in MANUALS.items():
         body = render((DOCS_DIR / f"{name}.md").read_text(encoding="utf-8"))
         (OUT_DIR / name).mkdir()
-        (OUT_DIR / name / "index.html").write_text(page(title, body, "../", True), encoding="utf-8")
+        (OUT_DIR / name / "index.html").write_text(page(title, body, "../", True, foot), encoding="utf-8")
         print(f"rendered docs/{name}.md -> {name}/index.html")
     if (DOCS_DIR / "img").is_dir():
         shutil.copytree(DOCS_DIR / "img", OUT_DIR / "img")
@@ -153,12 +171,12 @@ def main() -> None:
         for d, (t, desc) in TOOLS.items() if (OUT_DIR / d).is_dir())
     docs = "\n".join(f'<li><a href="{n}/">{html.escape(t)}</a></li>' for n, t in MANUALS.items())
     body = f"<h1>Tools</h1>\n<ul>\n{items}\n</ul>\n<h2>Anleitungen</h2>\n<ul>\n{docs}\n</ul>"
-    (OUT_DIR / "index.html").write_text(page("Tools", body, "", False), encoding="utf-8")
+    (OUT_DIR / "index.html").write_text(page("Tools", body, "", False, foot), encoding="utf-8")
 
     manifest = {
         "name": "oe1ebg-tools",
-        "version": os.environ.get("TOOLS_VERSION", "dev"),
-        "commit": git_sha(),
+        "version": version,
+        "commit": sha,
         "built": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
     (OUT_DIR / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")

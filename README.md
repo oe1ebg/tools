@@ -2,7 +2,8 @@
 
 Standalone browser tools for radio amateurs, developed for
 [oe1ebg.at](https://oe1ebg.at/tools/) but usable on any static webserver,
-including servers without internet access:
+including servers without internet access. Source code, issues and releases:
+[github.com/oe1ebg/tools](https://github.com/oe1ebg/tools).
 
 | Tool | Directory | Needs internet? |
 | --- | --- | --- |

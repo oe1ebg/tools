@@ -3,7 +3,8 @@
 [Bestätigungsverkehr öffnen <span aria-hidden="true">→</span>](confirm/index.html){ .tool-launch }
 [Alle Tools](index.md) ·
 [Offline-Datei](confirm/confirm-offline.html){ download="bestaetigungsverkehr-offline.html" } ·
-[Datenquellen](data-sources.md#bestatigungsverkehr-confirmation-log)
+[Datenquellen](data-sources.md#bestatigungsverkehr-confirmation-log) ·
+[Quellcode](https://github.com/oe1ebg/tools/tree/main/tools/confirm)
 { .tool-actions }
 
 Der [Bestätigungsverkehr](confirm/index.html) ist ein Logbuch für Runden, in

@@ -27,7 +27,7 @@ import { openMap, closeMap, refreshMap, mapVisible } from './mapview.js';
 import { createLocationField, describeLocation, locationOptions } from '../../shared/js/locfield.js';
 import { attachRepeaterSearch, loadRepeaterIndex } from '../../shared/js/repeaterui.js';
 import { attachCallSearch } from '../../shared/js/callsearch.js';
-import { sourceItem, trackOnline } from '../../shared/js/sources.js';
+import { sourceItem, trackOnline, repoLink } from '../../shared/js/sources.js';
 import { initOffline, setChip } from '../../shared/js/offline.js';
 import { createLineRepeater } from './linerepeater.js';
 import { formatShift, formatMHz } from '../../shared/js/repeaters.js';
@@ -2126,6 +2126,7 @@ async function main() {
   loadRepeaterFooter();
   fill($('#st-map-wien'), sourceItem('districts', 'Karte'));
   fill($('#st-map-lib'), sourceItem('leaflet', 'Kartenbibliothek'));
+  fill($('#st-source'), ' · ', repoLink('Quellcode', 'tools/confirm'));
   route();
   // Everything is wired: the browser tests wait for this.
   globalThis.CONFIRM_READY = true;

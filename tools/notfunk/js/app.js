@@ -22,7 +22,7 @@ import { attachCallSearch } from '../../shared/js/callsearch.js';
 import { attachRepeaterSearch, loadRepeaterIndex } from '../../shared/js/repeaterui.js';
 import { createLocationField, describeLocation } from '../../shared/js/locfield.js';
 import { loadLocationIndex, fillLocationSources } from '../../shared/js/locationui.js';
-import { sourceItem, standDate, trackOnline, mapLinks } from '../../shared/js/sources.js';
+import { sourceItem, standDate, trackOnline, mapLinks, repoLink } from '../../shared/js/sources.js';
 import { initOffline, setChip } from '../../shared/js/offline.js';
 import {
   DIRECTIONS, CHANNELS, MESSAGE_TYPES, PRIORITIES, REF_KINDS, STATUS_FLOW, statusLabel, statusEntry, timeLabel, readBackLabel,
@@ -1427,6 +1427,7 @@ async function main() {
     beforeReload: flushDraft,
     fileHidden: ['#offline-file-link', '#offline-card', '#data-sources-link', '#home-link', '#manual-link', '#help-manual'],
   });
+  fill($('#st-source'), ' · ', repoLink('Quellcode', 'tools/notfunk'));
   loadCallbook();
   loadRepeaterFooter();
   // The location index is big: build it in the background, after the page is up.

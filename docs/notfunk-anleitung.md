@@ -3,7 +3,8 @@
 [Notfunk-Meldebuch öffnen <span aria-hidden="true">→</span>](notfunk/index.html){ .tool-launch }
 [Alle Tools](index.md) ·
 [Offline-Datei](notfunk/notfunk-offline.html){ download="notfunk-meldebuch-offline.html" } ·
-[Datenquellen](data-sources.md#notfunk-meldebuch)
+[Datenquellen](data-sources.md#notfunk-meldebuch) ·
+[Quellcode](https://github.com/oe1ebg/tools/tree/main/tools/notfunk)
 { .tool-actions }
 
 Das [Notfunk-Meldebuch](notfunk/index.html) ist ein Meldebuch für den

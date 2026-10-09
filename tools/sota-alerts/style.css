@@ -340,7 +340,7 @@ input[type=date]{ min-width:9.5em; }
    along with everything else with nowhere else to give). */
 @media (max-width: 600px){
   #site-header{ flex-wrap:wrap; }
-  .badge{ flex-basis:100%; order:10; white-space:normal; }
+  span.badge{ flex-basis:100%; order:10; white-space:normal; }
 
   .mobile-only{ display:inline-flex; }
 
