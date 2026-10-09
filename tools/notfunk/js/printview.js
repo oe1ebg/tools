@@ -14,11 +14,15 @@
 // A long text first gets tighter spacing and a smaller font (down to
 // 10 pt, never less); if it still doesn't fit, the sheet flows over
 // several pages, each starting with the number, and app.js says so before
-// printing. The form page has no page margin (the named page `pfform` in
-// style.css), which also keeps Chrome's and Edge's header and footer lines
-// (URL, date, page number) off it. Browsers without named pages (Safari
-// before 18) print it with the normal page margins instead
-// (html.pf-margins: the sheet is sized to the smaller area).
+// printing. The form page has no page margin (printSheet() sets the margin
+// of style.css's @page rule to 0 while it prints), which also keeps
+// Chrome's and Edge's header and footer lines (URL, date, page number) off
+// it. Not a named page: Safari accepts `page:` (CSS.supports says yes) but
+// prints with the default page's margins. Where the @page rule can't be
+// reached, the form prints with the normal page margins (html.pf-margins:
+// the sheet is sized to the smaller area). The sheet's size is Safari's A4
+// page (WebKit prints 1 CSS px as 0.8 pt: 197 × 278 mm in CSS units, see
+// style.css), which also fits Chrome's and Firefox's full 210 × 297 mm.
 
 import { $, el, fill } from '../../shared/js/dom.js';
 
@@ -126,18 +130,31 @@ export function renderFormSheet(s) {
       el('span', {}, s.blank ? 'Blatt ____' : `Fassung ${s.version}`)));
 }
 
-// A4 without page margin (the sheet keeps the margins as padding), or the
-// area inside the page margins (12 mm, 14 mm) where named pages are missing.
 const MM = 96 / 25.4;
-const NAMED_PAGES = !!globalThis.CSS?.supports?.('page', 'pfform');
-const PAGE_H = (NAMED_PAGES ? 297 : 297 - 24) * MM;
 // fit levels (style.css .pf-sheet.fit-1 … fit-3): tighter, then 11 / 10.5 / 10 pt
 const FIT_LEVELS = 3;
+
+// The @page rule of style.css (there is only one), or null where the
+// browser doesn't expose it.
+function pageRule() {
+  if (!globalThis.CSSPageRule) return null;
+  for (const sheet of document.styleSheets) {
+    let rules;
+    try { rules = sheet.cssRules; } catch { continue; }
+    for (const rule of rules) if (rule instanceof CSSPageRule) return rule;
+  }
+  return null;
+}
 
 // How the form fits: { level, pages }. level 0 = as designed; pages > 1 =
 // it doesn't fit on one page even at the smallest readable size.
 export function fitForm(sheet) {
-  document.documentElement.classList.toggle('pf-margins', !NAMED_PAGES);
+  // The sheet's printed height (style.css): Safari's A4 page without page
+  // margin (the sheet keeps the margins as padding), or the area inside the
+  // page margins (12 mm, 14 mm).
+  const noMargin = !!pageRule();
+  const pageH = (noMargin ? 276 : 252) * MM;
+  document.documentElement.classList.toggle('pf-margins', !noMargin);
   const probe = el('div', { class: 'pf-measure', 'aria-hidden': 'true' });
   document.body.append(probe);
   probe.append(sheet);
@@ -145,7 +162,7 @@ export function fitForm(sheet) {
   for (let level = 0; level <= FIT_LEVELS && !result; level++) {
     sheet.classList.remove(`fit-${level - 1}`);
     if (level) sheet.classList.add(`fit-${level}`);
-    if (sheet.scrollHeight <= PAGE_H - 2) result = { level, pages: 1 };
+    if (sheet.scrollHeight <= pageH) result = { level, pages: 1 };
   }
   if (!result) result = { level: FIT_LEVELS, pages: Math.ceil(sheet.scrollHeight / ((297 - 24) * MM)) };
   probe.remove();
@@ -191,14 +208,19 @@ export function renderBookSheet(b) {
 
 // Puts the sheet in place and opens the print dialog; the sheet is removed
 // again afterwards (it is print-only, but stale content would confuse a
-// later browser-menu print). kind: 'form' or 'book'.
+// later browser-menu print). kind: 'form' (one page, no page margin) or
+// 'book' (the book, or a form over several pages: normal page margins).
 export function printSheet(node, kind) {
   const sheet = $('#print-sheet');
   fill(sheet, node);
   document.documentElement.dataset.print = kind;
-  document.documentElement.classList.toggle('pf-margins', !NAMED_PAGES);
+  const rule = kind === 'form' ? pageRule() : null;
+  const margin = rule?.style.margin;
+  if (rule) rule.style.margin = '0';
+  document.documentElement.classList.toggle('pf-margins', kind === 'form' && !rule);
   const done = () => {
     fill(sheet);
+    if (rule) rule.style.margin = margin;
     delete document.documentElement.dataset.print;
     globalThis.removeEventListener('afterprint', done);
   };

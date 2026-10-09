@@ -180,10 +180,19 @@ test('print: one A4 page, white, the staff block on top', async ({ page, browser
   await expect(page.locator('#print-sheet .pf-staff')).toContainText('Nur von der Meldesammelstelle / dem Stab auszufüllen');
   await expect(page.locator('#view-book')).toBeHidden();
   await expect(page.locator('#site-header')).toBeHidden();
+  // one page in Safari too: no page margin while the form prints, and the
+  // sheet fits WebKit's A4 page (it prints 1 px as 0.8 pt: 744 × 1052 px)
+  const pageMargin = () => page.evaluate(() => [...document.styleSheets].flatMap(s => [...s.cssRules])
+    .find(r => r instanceof CSSPageRule).style.marginTop);
+  expect(await pageMargin()).toBe('0px');
+  const box = await page.locator('#print-sheet .pf-sheet').boundingBox();
+  expect(box.height).toBeLessThanOrEqual(1052);
   if (browserName === 'chromium') {
     const pdf = (await page.pdf({ preferCSSPageSize: true })).toString('latin1');
     expect(pdf.match(/\/Type\s*\/Page[^s]/g)).toHaveLength(1);
   }
+  await page.evaluate(() => globalThis.dispatchEvent(new Event('afterprint')));
+  expect(await pageMargin()).toBe('12mm');
   await page.emulateMedia({ media: 'screen' });
   await expect(page.locator('#print-sheet')).toBeHidden();
 });
