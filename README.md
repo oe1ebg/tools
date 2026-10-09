@@ -32,11 +32,14 @@ mv oe1ebg-tools-vX.Y.Z /srv/www/tools        # any directory / URL prefix
 - **Links are all relative.** The bundle works under any URL prefix, and
   `shared/` must stay next to the tool directories. The PWAs (confirm,
   notfunk) need a secure context, which means HTTPS or `localhost`.
-- **Serve the PWA files with revalidation.** `sw.js`, `sw-core.js`,
-  `precache.js`, `build-info.js`, `*.webmanifest` and the two PWAs'
-  `index.html` must be served with `Cache-Control: no-cache`, and
-  `.webmanifest` as `application/manifest+json`. See
-  `deploy/nginx.conf.example` and `deploy/htaccess.example`.
+- **Serve pages, scripts, styles and data with revalidation.** `*.html`,
+  `*.js`, `*.mjs`, `*.css`, `*.json` and `*.webmanifest` need
+  `Cache-Control: no-cache`, and `.webmanifest` must be served as
+  `application/manifest+json`. Otherwise a browser can mix files from an
+  old and a new release after a deploy, and the PWAs only notice an update
+  late. File names are not hashed; the PWAs keep each release in their own
+  versioned cache. See `deploy/nginx.conf.example` and
+  `deploy/htaccess.example`.
 - **The data is frozen at build time.** Callsigns, repeaters, locations and
   summits are as of the build date. A weekly CI job rebuilds the current
   release with fresh data (see *Data refresh* below). To refresh an offline

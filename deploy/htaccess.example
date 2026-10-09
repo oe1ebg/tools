@@ -9,10 +9,8 @@ AddDefaultCharset utf-8
 </IfModule>
 
 <IfModule mod_headers.c>
-  <FilesMatch "(\.webmanifest|^sw\.js|^sw-core\.js|^precache\.js|^build-info\.js)$">
+  # Revalidate pages, scripts, styles and data (see nginx.conf.example).
+  <FilesMatch "\.(html|js|mjs|css|json|webmanifest)$">
     Header set Cache-Control "no-cache"
   </FilesMatch>
 </IfModule>
-# Also revalidate confirm/index.html and notfunk/index.html: put
-#   <FilesMatch "^index\.html$"> Header set Cache-Control "no-cache" </FilesMatch>
-# into an .htaccess in confirm/ and notfunk/.
