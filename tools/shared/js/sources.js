@@ -65,8 +65,8 @@ export const DATA_SOURCES = {
   },
 };
 
-// Source repository of this site, for the commit link in the footer.
-export const REPO_URL = 'https://github.com/ebirn/web_outdated_at';
+// Source repository of the tools, for the commit link in the footer.
+export const REPO_URL = 'https://github.com/oe1ebg/tools';
 
 // Link target for a build's commit, or null for "dev"/unknown builds.
 export function commitUrl(sha) {

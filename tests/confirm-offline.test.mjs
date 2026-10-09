@@ -161,7 +161,7 @@ test('commit: shown via build-info.js, never part of the content hash', () => {
 
 test('commit link only for real SHAs, built in the link-only module', () => {
   assert.equal(commitUrl('abc1234'), `${REPO_URL}/commit/abc1234`);
-  assert.match(REPO_URL, /^https:\/\/github\.com\/ebirn\/web_outdated_at$/);
+  assert.match(REPO_URL, /^https:\/\/github\.com\/oe1ebg\/tools$/);
   for (const s of ['dev', '', null, undefined, 'abc12', 'xyz1234', 'abc1234/../x']) assert.equal(commitUrl(s), null, String(s));
   // no link (and no DOM needed) for dev builds
   assert.deepEqual(versionItems(undefined, undefined), ['commit ', 'dev', ' · data dev']);
