@@ -62,8 +62,12 @@ string logic with no DOM dependency):
 and moves one row down (only MultilineString fields such as ADDRESS or
 NOTES may hold line breaks; those from a loaded file are kept), Esc restores the
 value from before the edit. Cells are `contenteditable="plaintext-only"`
-where supported, so pasted text brings no markup. With edits that haven't
-been exported (ADI or CSV), closing or reloading the tab asks first.
+where supported, so pasted text brings no markup. Cells are one line high
+(the table is virtualized, see *Performance*): long values end in …, line
+breaks show as ¶; the cell shows the whole value while it is edited. Tab
+at the end of a row goes on to the next row's first field. With edits
+that haven't been exported (ADI or CSV), closing or reloading the tab
+asks first.
 
 **Encoding:** files are read as UTF-8, else as Windows-1252 (with a
 warning). The ADI export is ASCII, as ADIF requires: other characters are
@@ -99,6 +103,9 @@ text (so it catches wrong lengths, malformed tags, non-ASCII, header
 problems). After any edit it re-checks the log *as the ADI export would
 write it* (`serializeADIF`), with the rows in table order; rows without any
 value are skipped. Sorting keeps the flags (they belong to the record).
+The re-check waits 150 ms after the last edit and then runs when the
+browser is idle (`requestIdleCallback`, a timeout in Safari); meanwhile
+the bar says "checking…" (`aria-busy` on the status).
 
 **Semantics** (issue #56, comment): `valid` = no `error`; warnings and
 infos never fail validation. `error` = ADIF syntax or specification
@@ -262,6 +269,63 @@ group), so a failure names the part of the spec. Each run requires:
   value unchanged, except the known gaps above (USERDEF fields lose line
   breaks, APP fields their type indicator).
 
+## Performance
+
+Logs of tens of thousands of QSOs stay usable:
+
+- **Virtualized table body** (`js/table.js`): only the rows in and around
+  the visible part (one screen above and below) exist in the DOM, between
+  two spacer rows; rows have one fixed height (measured), scrolling
+  re-renders the window in a `requestAnimationFrame`. Columns get fixed
+  widths from the longest value (a `<colgroup>`), so nothing jumps while
+  scrolling. One `focusin`/`focusout`/`keydown`/`click` listener on the
+  body handles every cell (event delegation via `data-ri`/`data-col`); a
+  cell being edited is committed before its row scrolls out; Enter and Tab
+  scroll the next row into the window before focusing it.
+- **Validation flags per rendered row**: each validation result is indexed
+  once (record index → issues, `issuesByIndex` in `js/state.js`); a row
+  gets its `cell-*`/`row-*` classes when it is rendered. The issue list
+  stops building at 500 issues and is only built while it's open.
+- **Pure hot paths**: `serializeADIF` builds an array and joins it and
+  skips empty values early; `adifAscii` returns printable-ASCII values
+  without the transliteration chain; the validator's cross-field checks
+  look at the few enumerations that depend on another field and use a
+  prebuilt band table. `tests/adif-validate-snapshot.test.mjs` proves the
+  validator and the export still give byte-identical output.
+- Sorting computes the keys once (numbers, else `Intl.Collator`), sorts an
+  index array and permutes the log; loading appends and collects the
+  columns once; the toolbar statistics are recomputed once per change
+  batch.
+
+`js/state.js` documents the **view contract** for code that changes what
+the table shows (search/filter): `records` (the source of truth; exports
+always write all of it), `recordFile` (source file per record), `view`
+(record indices in display order, or null) with `setView(v)`, and
+`issuesByIndex`.
+
+**Measured** (MacBook, Apple silicon; `node scripts/bench_adif.mjs` for the
+pure parts, median of 3; the browser numbers with Playwright in Chromium,
+1400×900, file → table + validation shown, and an edit → re-check done
+including the 150 ms debounce):
+
+| | before | after |
+| --- | --- | --- |
+| official test QSOs (6197 QSOs × 180 fields, 1 MB): validate | 114 ms | 33 ms |
+| … serialize (ADI export) | 228 ms | 12 ms |
+| … edit loop (serialize + validate) | 341 ms | 44 ms |
+| … browser: load and render | 4.4 s, 1.12 M cells | 0.13 s, ~60 rows / 10.5 k cells |
+| … browser: edit → re-checked | 1.7 s (UI blocked) | 0.29 s |
+| synthetic 50 000 QSOs (7.3 MB): validate | 845 ms | 222 ms |
+| … serialize | 1838 ms | 107 ms |
+| … edit loop | 2701 ms | 329 ms |
+| … browser: load and render | did not finish in 10 min | 0.34 s |
+| … browser: edit → re-checked | – | 0.49 s |
+
+Validation stays well under 150 ms for 6k QSOs, so it runs on the main
+thread (a Web Worker would need a Blob-URL worker in the single-file
+`file://` bundle, which `scripts/single_file.py` doesn't support). At
+50 000 QSOs one re-check takes about a third of a second of idle time.
+
 ## ADIF version compliance
 
 The tool targets and declares **ADIF 3.1.7** (https://www.adif.org/317/ADIF_317.htm)
@@ -302,7 +366,10 @@ typed by hand.
   build provenance*); its pure parts tested in
   `oe1ebg/tests/adif-compliance.test.mjs`.
 - `build-info.js` — generated by `scripts/build_adif.py`, git-ignored.
-- `js/app.js` (state, table, file loading, toolbar), `js/export.js` (ADI,
+- `js/app.js` (table rendering, editing, validation display, file
+  loading, toolbar), `js/state.js` (the log, the view and the issue index:
+  the view contract), `js/table.js` (the virtualized table body),
+  `js/export.js` (ADI,
   CSV and SOTA CSV export; pure, unit-tested in `oe1ebg/tests/adif.test.mjs`),
   `js/fields.js` (ADIF 3.1.7 field reference data).
 - `../shared/js/adif.js` — ADI parsing and field encoding, shared with the
@@ -310,7 +377,10 @@ typed by hand.
 - `../shared/js/adif-validate.js` + `../shared/js/adif-spec-data.js` — the
   validator and its generated spec data (see *Validation*), tested in
   `oe1ebg/tests/adif-validate.test.mjs` with the fixtures in
-  `oe1ebg/tests/fixtures/adif/`.
+  `oe1ebg/tests/fixtures/adif/`, their output pinned by
+  `oe1ebg/tests/adif-validate-snapshot.test.mjs`.
+- `oe1ebg/scripts/bench_adif.mjs` — timing of parse, validate and
+  serialize (see *Performance*).
 - `adif-editor.html` — generated by `scripts/build_adif.py`
   (`just build-adif`, part of `build`), git-ignored: the whole editor
   in one HTML file, modules inlined (`scripts/single_file.py`). This is the

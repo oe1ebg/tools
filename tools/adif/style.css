@@ -220,11 +220,16 @@ th.rownum-col, td.rownum{
   border-right:1px solid var(--accent-dim);
   user-select:none;
   font-family:var(--font-ui);
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
 }
 td.rownum{ background:var(--bg); z-index:1; }
 td.rownum .del{ cursor:pointer; color:var(--text-dim); margin-left:.6em; background:none; border:none; padding:0; font:inherit; }
 td.rownum .del:hover{ background:none; }
 td.rownum .del:hover{ color:var(--err); }
+/* The body is virtualized (js/table.js): rows of one fixed height, so
+   values stay on one line (cut with …) until the cell is edited; the
+   column widths come from a <colgroup> sized to the longest value. */
 tbody td{
   border-bottom:1px solid var(--line);
   border-right:1px solid var(--line);
@@ -232,9 +237,28 @@ tbody td{
   white-space:pre;
   min-width:4em;
   max-width:28em;
-  overflow-x:auto;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+tbody td[contenteditable]:focus{
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+  text-overflow:clip;
+}
+.char-probe{
+  position:absolute;
+  visibility:hidden;
+  white-space:pre;
+  font-family:var(--font-mono);
+}
+tbody tr.spacer td{
+  padding:0;
+  border:0;
+  min-width:0;
+  background:none;
 }
 tbody tr:hover td{ background:rgba(82,108,254,0.04); }
+tbody tr.spacer:hover td{ background:none; }
 #addcol{
   display:flex; align-items:center; gap:.4em;
   padding:.3em .5em;
@@ -273,6 +297,8 @@ tbody tr:hover td{ background:rgba(82,108,254,0.04); }
 .v-counts .n-warning{ color:var(--warn); }
 .v-counts .n-info{ color:var(--accent-text); }
 .v-scope{ color:var(--text-dim); }
+.v-checking{ color:var(--text-dim); font-style:italic; }
+.validation.is-checking #validation-summary{ opacity:.6; }
 
 #validation-issues{
   display:grid;
