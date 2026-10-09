@@ -44,7 +44,7 @@ CACHE_MAX_AGE_SECONDS = 30 * 24 * 60 * 60
 
 OE1EBG_DIR = Path(__file__).resolve().parent.parent
 CACHE_DIR = OE1EBG_DIR / ".cache" / "austria-areas"
-SNAPSHOT_PATH = OE1EBG_DIR / "austria-areas.json"
+SNAPSHOT_PATH = OE1EBG_DIR / "data-src" / "austria-areas.json"
 OUTPUT_PATH = OE1EBG_DIR / "tools" / "shared" / "data" / "austria-areas.json"
 
 # Bundesland by the first GKZ digit (short forms as used in addresses).

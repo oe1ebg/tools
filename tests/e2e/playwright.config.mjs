@@ -1,7 +1,7 @@
-// Browser smoke tests for the oe1ebg tools (issue #57), run against a built
-// site: in CI the production image (docker-publish-oe1ebg.yml, job
-// `validate`, BASE_URL=http://localhost:8080), locally `just e2e`, which
-// serves site/ from `just build`.
+// Browser smoke tests for the oe1ebg tools (issue #57), run against the
+// built bundle at <BASE_URL>tools/: in CI nginx with deploy/nginx.conf.example
+// (ci.yml, job `validate`, BASE_URL=http://localhost:8080/), locally
+// `just e2e`, which serves site/ from `just build`.
 //
 // @playwright/test is not a committed dependency: CI and `just e2e` install
 // the version of the pinned Playwright image (tests/e2e/images.Dockerfile)

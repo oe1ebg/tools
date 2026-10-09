@@ -12,8 +12,8 @@ from single_file import bundle_modules, inline_vendor, module_order, script_safe
 
 # Build step shared by the offline tools (tools/confirm/, tools/notfunk/):
 # scripts/build_<tool>.py describes the tool (OfflineTool) and calls build().
-# Runs before scripts/stage_tools.py and `zensical build`, which copy the
-# generated files into content/tools/<tool>/ and then site/.
+# Runs before scripts/build_site.py, which copies the generated files into
+# the bundle (site/tools/<tool>/).
 # Stdlib only. Produces three git-ignored files in the tool's directory:
 #
 # 1. <bundle> (e.g. confirm-offline.html): the whole tool in ONE file (all
@@ -81,7 +81,7 @@ class OfflineTool:
         # Not precached by the service worker. The single-file bundle
         # duplicates everything else (incl. the multi-MB data), so it's only
         # a download. Markdown (README.md, AGENTS.md) isn't published at all
-        # (scripts/stage_tools.py).
+        # (scripts/build_site.py).
         return {"sw.js", PRECACHE_NAME, self.bundle, BUILD_INFO_NAME}
 
     def block_re(self, kind: str) -> re.Pattern[str]:

@@ -37,7 +37,7 @@ function assertValidAndRoundTrips(text, count, label) {
 }
 
 test(`official ADIF ${ADIF_SPEC_VERSION} test QSOs: the file matches the spec version`, () => {
-  assert.equal(whole.header.fields.ADIF_VER, ADIF_SPEC_VERSION, 'rerun `just oe1ebg build-adif-spec`');
+  assert.equal(whole.header.fields.ADIF_VER, ADIF_SPEC_VERSION, 'rerun `just build-adif-spec`');
   assert.equal(whole.records.length, (SOURCE.match(/<eor>/gi) || []).length);
 });
 

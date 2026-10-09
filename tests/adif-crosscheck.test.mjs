@@ -4,7 +4,7 @@
 //   adif-checker  github.com/k0swe/adif-checker: ADI syntax only (tags,
 //                 lengths, stray bytes)
 // Both are pinned in tests/tools/go.mod and built into tests/tools/bin/ by
-// `just oe1ebg crosscheck-tools` (Go, or the golang image). Without them the
+// `just crosscheck-tools` (Go, or the golang image). Without them the
 // tests skip, unless ADIF_CROSSCHECK=require (CI), which makes that a failure.
 //
 // Per input file the question is the same for every tool: does it find
@@ -45,7 +45,7 @@ const TOOLS = {
   'adif-checker': { bin: findTool('adif-checker', 'ADIF_CHECKER'), args: f => [f] },
 };
 const missing = Object.entries(TOOLS).filter(([, t]) => !t.bin).map(([name]) => name);
-const skip = missing.length ? `not found: ${missing.join(', ')} (just oe1ebg crosscheck-tools)` : false;
+const skip = missing.length ? `not found: ${missing.join(', ')} (just crosscheck-tools)` : false;
 
 const work = mkdtempSync(join(tmpdir(), 'adif-crosscheck-'));
 let fileNo = 0;

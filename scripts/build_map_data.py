@@ -55,7 +55,7 @@ MIN_WATER_AREA_M2 = 20_000  # drop tiny ponds/fragments
 
 OE1EBG_DIR = Path(__file__).resolve().parent.parent
 CACHE_DIR = OE1EBG_DIR / ".cache" / "vienna-map"
-OSM_SNAPSHOT_PATH = OE1EBG_DIR / "map-osm.json"
+OSM_SNAPSHOT_PATH = OE1EBG_DIR / "data-src" / "map-osm.json"
 OUTPUT_PATH = OE1EBG_DIR / "tools" / "shared" / "data" / "vienna-map.json"
 
 

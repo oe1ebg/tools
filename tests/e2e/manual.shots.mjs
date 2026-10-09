@@ -1,10 +1,10 @@
 // The screenshots of the manuals (see shots.config.mjs). Each block sets up
 // example data through the UI, the way a user would, and saves PNGs into
-// content/tools/img/ (committed). Re-run after visible changes to a tool.
+// docs/img/ (committed). Re-run after visible changes to a tool.
 import { fileURLToPath } from 'node:url';
 import { test, expect } from '@playwright/test';
 
-const IMG = fileURLToPath(new URL('../../content/tools/img/', import.meta.url));
+const IMG = fileURLToPath(new URL('../../docs/img/', import.meta.url));
 const at = iso => new Date(iso);
 
 async function shot(target, name) {

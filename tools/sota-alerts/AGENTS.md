@@ -72,7 +72,7 @@ parse, so there's no separate step to remember.
 
 ## Verifying changes to this tool
 
-- `just oe1ebg test` runs `tests/sota-alerts.test.mjs`: the pure modules
+- `just test` runs `tests/sota-alerts.test.mjs`: the pure modules
   and the resolver's rules (cache → static lookup → live API, `force`
   straight to the live API, at most `FETCH_POOL_SIZE` live requests at
   once). Keep these green when touching the lookup.
@@ -80,6 +80,6 @@ parse, so there's no separate step to remember.
   oe1ebg e2e`) stubs the SOTA API and tiles and asserts which SOTA
   requests the page makes on load — a summit from the static lookup must
   not be fetched live.
-- For anything else, run it (`just oe1ebg preview`) and watch the Network
+- For anything else, run it (`just preview`) and watch the Network
   tab, not just the rendered map: the whole point of the static-first
   lookup is *fewer live SOTA requests*, which a screenshot won't show.

@@ -9,10 +9,8 @@ and if not, the phone platform and its major version). It is served
 at `https://oe1ebg.at/tools/confirm/` (until October 2026 at `/confirm/`,
 now redirected; see "Move to /tools/" in `../shared/README.md`), and the source is in `tools/confirm/`.
 
-`scripts/stage_tools.py` copies `tools/confirm/` into the Zensical
-`docs_dir` (`content/tools/confirm/`) at build time, leaving out the Markdown
-files: a `README.md` inside the `docs_dir` would take over that section's
-index route.
+`scripts/build_site.py` copies `tools/confirm/` into the bundle
+(`site/tools/confirm/`) at build time, leaving out the Markdown files.
 
 ## Hard requirements
 

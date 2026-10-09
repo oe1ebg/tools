@@ -24,15 +24,15 @@ for (const b of read('./node_modules/playwright-core/browsers.json').browsers) {
   else console.log(`ok: ${b.name} ${b.browserVersion} (${dir})`);
 }
 
-// The image brings its own Node; it should be the major of oe1ebg/.nvmrc
+// The image brings its own Node; it should be the major of .nvmrc
 // (the one the unit tests and local work use). A warning: Playwright moves
 // its images to a new Node line on its own schedule.
 const nvmrc = readFileSync(new URL('../../.nvmrc', import.meta.url), 'utf8').trim();
 const major = v => v.replace(/^v/, '').split('.')[0];
 if (major(process.version) !== major(nvmrc)) {
-  console.log(`::warning::Playwright image runs Node ${process.version}, oe1ebg/.nvmrc says ${nvmrc}`);
+  console.log(`::warning::Playwright image runs Node ${process.version}, .nvmrc says ${nvmrc}`);
 } else {
-  console.log(`ok: Node ${process.version} (oe1ebg/.nvmrc ${nvmrc})`);
+  console.log(`ok: Node ${process.version} (.nvmrc ${nvmrc})`);
 }
 
 if (problems.length) {

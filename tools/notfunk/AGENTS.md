@@ -27,10 +27,10 @@ provisional until the Notfunkreferat Wien confirms it.
   depends on printed backgrounds. Keep the E-31 field order and the words
   of the web form (both use the same labels).
 - **Words:** German, the same in the form, the help dialog (`index.html`),
-  the printout, the CSV and the manual (`content/tools/notfunk-anleitung.md`).
+  the printout, the CSV and the manual (`docs/notfunk-anleitung.md`).
   Notfunk-Nr. and "Referenz Meldesammelstelle" are never mixed up. After
-  visible changes re-run `just oe1ebg screenshots` for the manual.
-- **Not in the nav** (`zensical.toml`) or llms.txt until the format is
+  visible changes re-run `just screenshots` for the manual.
+- **Not in the oe1ebg.at nav** or llms.txt until the format is
   confirmed; the "Entwurf" banner stays until then.
-- **Check changes** with `just oe1ebg test`, and in a browser with
-  `just oe1ebg e2e` (or against the nginx image: `BASE_URL=…`).
+- **Check changes** with `just test`, and in a browser with
+  `just e2e` (or against the nginx image: `BASE_URL=…`).

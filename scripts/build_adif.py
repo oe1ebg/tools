@@ -9,8 +9,8 @@ from single_file import bundle_modules, inline_vendor, script_safe
 # adif-editor.html: the whole editor in ONE file (js/ modules and the
 # tools/shared/ modules they import, inlined by scripts/single_file.py), so
 # it can be saved and opened via file://, where module scripts don't load.
-# The published /adif/ page itself loads the ES modules. Runs before
-# scripts/stage_tools.py. Stdlib only.
+# The published adif/ page itself loads the ES modules. Runs before
+# scripts/build_site.py. Stdlib only.
 
 ADIF_DIR = Path(__file__).resolve().parent.parent / "tools" / "adif"
 BUNDLE_NAME = "adif-editor.html"

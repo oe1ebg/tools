@@ -179,9 +179,9 @@ and `meta`. All coordinates are `[lat, lon]` (Leaflet order), rounded to
 
 ## Verify a change
 
-1. Run `just test` (from `oe1ebg/`).
-2. Run `just build-confirm && uv run zensical build --clean`, then serve
-   `site/` and open `/tools/confirm/`. Check these:
+1. Run `just test`.
+2. Run `just build && just serve` and open
+   http://localhost:8000/tools/confirm/. Check these:
    - logging, plus a repeat check-in (the warning box and the `2×` badge);
    - an operator comment via `!` and an automatic marker from an operator
      change in the header (banner rows; not counted in Stationen/Check-ins);

@@ -1,6 +1,6 @@
-// Screenshots for the manuals (content/tools/confirm-anleitung.md,
-// notfunk-anleitung.md), not a test: `just oe1ebg screenshots` after
-// `just oe1ebg build`. Same server and browser setup as the smoke tests
+// Screenshots for the manuals (docs/confirm-anleitung.md,
+// notfunk-anleitung.md), not a test: `just screenshots` after
+// `just build`. Same server and browser setup as the smoke tests
 // (playwright.config.mjs); light theme, Vienna time, a fixed clock and
 // example data, so the pictures only change when the tools do.
 import { defineConfig, devices } from '@playwright/test';

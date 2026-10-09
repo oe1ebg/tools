@@ -524,7 +524,7 @@ current state rather than treating the URL as continuously live.
 ## Files
 
 - `index.html` — the page; it loads `js/app.js` as an ES module, so serve
-  it over http (`just oe1ebg serve` / `just oe1ebg preview` from the repo
+  it over http (`just serve` / `just preview` from the repo
   root); the `data/` lookups never worked from `file://` anyway. There is
   no single-file version: the tool needs the network (SOTA API, tiles).
 - `js/` — plain ES modules, like the ADIF editor's:
@@ -549,10 +549,8 @@ current state rather than treating the URL as continuously live.
 - `../shared/vendor/leaflet/` — vendored Leaflet 1.9.4 (`leaflet.js`,
   `leaflet.css`, `LICENSE`), shared with the confirmation log.
 
-`scripts/stage_tools.py` copies this directory into the Zensical
-`docs_dir` (`content/tools/sota-alerts/`) at build time without its Markdown
-files — a `README.md` inside a `docs_dir` subdirectory is treated as that
-section's index page and would silently hide `index.html`.
+`scripts/build_site.py` copies this directory into the bundle
+(`site/tools/sota-alerts/`) at build time without its Markdown files.
 
 ## Known gaps (not implemented — flag if you want these)
 
@@ -597,7 +595,7 @@ section's index page and would silently hide `index.html`.
   tried — an environment-specific quirk in that one HTTP client, not
   something reproducible via curl. This couldn't be resolved or ruled out
   for real browsers from this environment (no browser available to test
-  directly) — check it works in an actual browser via `just oe1ebg serve`
+  directly) — check it works in an actual browser via `just serve`
   before relying on it.
 - No S2S (summit-to-summit) QSO-level data or chaser locator information —
   investigated, and this doesn't appear to be available via any public,

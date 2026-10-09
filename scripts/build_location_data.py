@@ -129,8 +129,8 @@ NAME_TAGS = [
 
 OE1EBG_DIR = Path(__file__).resolve().parent.parent
 CACHE_DIR = OE1EBG_DIR / ".cache" / "vienna-location"
-ALIASES_PATH = OE1EBG_DIR / "location-aliases.toml"
-POIS_SNAPSHOT_PATH = OE1EBG_DIR / "location-pois.json"
+ALIASES_PATH = OE1EBG_DIR / "data-src" / "location-aliases.toml"
+POIS_SNAPSHOT_PATH = OE1EBG_DIR / "data-src" / "location-pois.json"
 OUTPUT_PATH = OE1EBG_DIR / "tools" / "shared" / "data" / "vienna-locations.json"
 
 

@@ -1,7 +1,7 @@
 # tools/shared/
 
-Code and vendored libraries used by more than one tool. `scripts/stage_tools.py`
-publishes this directory at `/tools/shared/` like any tool directory (without this
+Code and vendored libraries used by more than one tool. `scripts/build_site.py`
+copies this directory into the bundle like any tool directory (without this
 README). The tools reference it by relative path (`../shared/…` from a
 tool's `index.html`, `../../shared/…` from its `js/`), which resolves the same
 way in `tools/` and on the site, so the node tests import the same files the
@@ -66,7 +66,7 @@ installed PWA: browsers reject a redirected service-worker script, so an old
 install would stay on its cached version without notice. Instead:
 
 - `/confirm/sw.js` and `/notfunk/sw.js` are exempt from the redirect and
-  serve `js/sw-move.js` (staged by `scripts/stage_tools.py`). The old app
+  serve `js/sw-move.js` (staged by the oe1ebg.at site's `scripts/stage_tools.py`). The old app
   finds it through its normal update check and only switches when the user
   clicks "Update". Then, online, its old address goes to the network and is
   redirected to the new app. Offline, the old app keeps working from its old
@@ -79,7 +79,7 @@ install would stay on its cached version without notice. Instead:
   delete the old caches).
 
 After the transition period (about April 2027), remove `sw-move.js`, `MOVED`
-in `stage_tools.py`, the `location =` exemptions in nginx, `#old-install`
+in the site's `stage_tools.py`, the `location =` exemptions in its nginx config, `#old-install`
 and `checkOldInstall()`. The redirects stay.
 
 ## Rules
@@ -106,7 +106,7 @@ and `checkOldInstall()`. The redirects stay.
 - **Storage schemas belong to the tools.** `storage.js` is only the
   mechanism; a tool's database name, stores and migrations stay in the tool
   (e.g. `../confirm/js/db.js`). Never change one tool's schema from here.
-- A change here affects every tool listed above: run `just oe1ebg test` and
+- A change here affects every tool listed above: run `just test` and
   check each user.
 
 ## HTML & interop rules (all tools)

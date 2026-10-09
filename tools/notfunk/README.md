@@ -161,9 +161,9 @@ name, and a distribution list ("Verteiler").
 - **Help:** "? Hilfe", F1, or ? outside text fields opens a dialog with the
   keys, the flow, who is who, places, times, confirmations, numbers and
   urgency; Esc closes it and the focus goes back to the field. The
-  manual with screenshots is `content/tools/notfunk-anleitung.md`
+  manual with screenshots is `docs/notfunk-anleitung.md`
   (`/tools/notfunk-anleitung/`, linked from the header and the help; screenshots from
-  `just oe1ebg screenshots`).
+  `just screenshots`).
 - **Book:** newest first, filters (offen, Eingang, Ausgang, Notfall +
   Dringend, search incl. the reference), the next status step as a button,
   an "Ausdruck" button per row; a summary says how many emergencies are
