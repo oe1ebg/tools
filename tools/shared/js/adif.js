@@ -1,6 +1,8 @@
 // ADIF (.adi) helpers shared by the ADIF editor and the confirmation log's
 // export. Only the ADI text format (spec: adif.org.uk).
 
+const ADIF_PRINTABLE_RE = /^[\x20-\x7e]*$/;
+
 // ADIF .adi is an ASCII format: transliterate German characters, replace
 // anything else non-ASCII. By default also drop "<" ">": legal inside a
 // length-delimited value, but naive readers split on them, and the
@@ -9,7 +11,10 @@
 // multiline: for MultilineString fields, keeps line breaks (as CR LF, the
 // only line break ADIF allows); otherwise they become blanks.
 export function adifAscii(s, { keepBrackets = false, multiline = false } = {}) {
-  let t = String(s ?? '')
+  const raw = String(s ?? '');
+  // fast path: printable ASCII only (the usual case) needs no transliteration
+  if (ADIF_PRINTABLE_RE.test(raw)) return (keepBrackets ? raw : raw.replace(/[<>]/g, '')).trim();
+  let t = raw
     .replace(/Ä/g, 'Ae').replace(/Ö/g, 'Oe').replace(/Ü/g, 'Ue')
     .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
     .normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
