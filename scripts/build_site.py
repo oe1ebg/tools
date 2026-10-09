@@ -16,7 +16,10 @@ from markdown.treeprocessors import Treeprocessor
 # Assembles the deployable bundle in site/tools/ (git-ignored): a copy of
 # tools/<tool>/ without Markdown and dotfiles, the manuals from docs/
 # rendered to <name>/index.html, their screenshots (img/), an overview page
-# (index.html) and manifest.json (version, commit, build time).
+# (index.html), manifest.json (version, commit, build time) and the
+# manuals' Markdown sources in docs/, for sites that render them in their
+# own theme (they link MkDocs-style, as if docs/*.md sat next to img/ and
+# the tool directories, e.g. content/tools/*.md on oe1ebg.at).
 #
 # Runs after the data and bundle steps (they write into tools/). Every link
 # inside the bundle is relative and stays inside it, so site/tools/ works
@@ -141,6 +144,9 @@ def main() -> None:
         print(f"rendered docs/{name}.md -> {name}/index.html")
     if (DOCS_DIR / "img").is_dir():
         shutil.copytree(DOCS_DIR / "img", OUT_DIR / "img")
+    (OUT_DIR / "docs").mkdir()
+    for name in MANUALS:
+        shutil.copyfile(DOCS_DIR / f"{name}.md", OUT_DIR / "docs" / f"{name}.md")
 
     items = "\n".join(
         f'<li><a href="{d}/">{html.escape(t)}</a> — {html.escape(desc)}</li>'
