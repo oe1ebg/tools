@@ -315,26 +315,32 @@ body > footer details.vendor-license pre{ white-space:pre-wrap; }
 }
 
 /* ---------- print (A4; "Als PDF sichern" in the print dialog) ---------- */
-/* The form is one page without page margin (named page pfform: no room
-   for the browser's header and footer lines); the book and a form that
-   needs several pages use the normal margins. Paper is white with black
-   lines only: nothing depends on printed backgrounds. */
+/* The form is one page without page margin (no room for the browser's
+   header and footer lines): printview.js sets this @page rule's margin to
+   0 while a one-page form prints. No named page for it: Safari accepts
+   `page:` but prints with the default page's margins. The book and a form
+   that needs several pages use the normal margins. Paper is white with
+   black lines only: nothing depends on printed backgrounds.
+   Sized for Safari (macOS and iOS): WebKit prints 1 CSS px as 0.8 pt, not
+   0.75 pt, so its A4 page is 744 × 1052 px (197 × 278 mm in CSS units)
+   instead of 210 × 297 mm. The sheet is 276 mm high (and measured at
+   197 mm wide), which fits there and leaves some room at the bottom in
+   Chrome and Firefox. A taller sheet spills onto a second page in Safari. */
 @media screen{ .print-only{ display:none; } }
 @page{ size:A4; margin:12mm 14mm; }
-@page pfform{ size:A4; margin:0; }
 @media print{
   :root{ color-scheme:light; }
   html, body{ background:#fff; color:#000; font-size:10.5pt; }
   .no-print, #site-header, body > footer, dialog{ display:none !important; }
   main{ max-width:none; padding:0; margin:0; }
   .print-only{ display:block; }
-  .pf-sheet:not(.multi){ height:296mm; page:pfform; overflow:hidden; }
-  html.pf-margins .pf-sheet:not(.multi){ height:272mm; padding:0; }
+  .pf-sheet:not(.multi){ height:276mm; overflow:hidden; }
+  html.pf-margins .pf-sheet:not(.multi){ height:252mm; padding:0; }
   .pf-sheet.multi{ padding:0; }
 }
 /* off-screen copy at the printed width, to measure the fit (printview.js) */
-.pf-measure{ position:absolute; left:-10000px; top:0; width:210mm; visibility:hidden; }
-html.pf-margins .pf-measure{ width:182mm; }
+.pf-measure{ position:absolute; left:-10000px; top:0; width:197mm; visibility:hidden; }
+html.pf-margins .pf-measure{ width:169mm; }
 html.pf-margins .pf-measure .pf-sheet{ padding:0; }
 
 .pf-sheet{
