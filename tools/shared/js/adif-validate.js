@@ -611,17 +611,25 @@ function avRecordAt(records, offset) {
 
 /* ---------- cross-field checks and heuristics ---------- */
 
+// Built once: the band ranges in spec order, bands by lower-case name, and
+// the fields whose enumeration depends on another field (spec order).
+const AV_BAND_RANGES = ADIF_SPEC_ENUMS.Band?.ranges || {};
+const AV_BAND_LIST = Object.keys(AV_BAND_RANGES).map(b => [b, AV_BAND_RANGES[b][0], AV_BAND_RANGES[b][1]]);
+const AV_BAND_BY_LOWER = new Map();
+for (const [b] of AV_BAND_LIST) if (!AV_BAND_BY_LOWER.has(b.toLowerCase())) AV_BAND_BY_LOWER.set(b.toLowerCase(), b);
+const AV_SCOPED_ENUM_FIELDS = Object.entries(ADIF_SPEC_FIELDS).filter(([, def]) => def.enumScope && def.enum !== 'Submode');
+
 function avBandOf(mhz) {
-  const ranges = ADIF_SPEC_ENUMS.Band?.ranges || {};
-  return Object.keys(ranges).find(b => mhz >= ranges[b][0] && mhz <= ranges[b][1]);
+  for (const [b, lo, hi] of AV_BAND_LIST) if (mhz >= lo && mhz <= hi) return b;
+  return undefined;
 }
 
 function avCrossChecks(rec, issue) {
   const f = rec.fields;
   const has = k => f[k] !== undefined && f[k] !== '';
   const at = (field, extra = {}) => ({ recordType: 'qso', recordIndex: rec.index, field, value: f[field], offset: rec.offsets[field] ?? rec.offset, ...extra });
-  const ranges = ADIF_SPEC_ENUMS.Band?.ranges || {};
-  const bandKey = b => Object.keys(ranges).find(k => k.toLowerCase() === String(b).toLowerCase());
+  const ranges = AV_BAND_RANGES;
+  const bandKey = b => AV_BAND_BY_LOWER.get(String(b).toLowerCase());
 
   for (const [freqField, bandField] of [['FREQ', 'BAND'], ['FREQ_RX', 'BAND_RX']]) {
     if (!has(freqField) || !/^-?(?:\d+\.?\d*|\.\d+)$/.test(f[freqField])) continue;
@@ -653,8 +661,8 @@ function avCrossChecks(rec, issue) {
   }
 
   // Enumerations whose values depend on another field (STATE by DXCC, …).
-  for (const [name, def] of Object.entries(ADIF_SPEC_FIELDS)) {
-    if (!def.enumScope || def.enum === 'Submode' || !has(name) || !has(def.enumScope)) continue;
+  for (const [name, def] of AV_SCOPED_ENUM_FIELDS) {
+    if (!has(name) || !has(def.enumScope)) continue;
     const idx = avEnumIndex(def.enum);
     const scope = /^\d+$/.test(f[def.enumScope]) ? String(parseInt(f[def.enumScope], 10)) : f[def.enumScope].toUpperCase();
     const allowed = idx?.byScope?.get(scope);
