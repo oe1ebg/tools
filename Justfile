@@ -11,6 +11,11 @@ container_tool := `command -v docker >/dev/null 2>&1 && echo docker || command -
 # checkout. An exported GIT_SHA wins.
 git_sha := env("GIT_SHA", `git rev-parse --short HEAD 2>/dev/null || echo dev`)
 
+# The CI run that builds the bundle, shown in the ADIF editor's compliance
+# panel (scripts/build_adif.py): from GitHub Actions' own variables, empty
+# (= "local build") elsewhere. An exported BUILD_RUN_URL wins.
+build_run := env("BUILD_RUN_URL", if env("GITHUB_RUN_ID", "") == "" { "" } else { env("GITHUB_SERVER_URL", "https://github.com") + "/" + env("GITHUB_REPOSITORY", "") + "/actions/runs/" + env("GITHUB_RUN_ID") })
+
 # Release version written into manifest.json and the tarball names; CI sets
 # it from the tag. Defaults to `git describe`.
 version := env("TOOLS_VERSION", `git describe --tags --always --dirty 2>/dev/null || echo dev`)
@@ -105,10 +110,11 @@ build-confirm: fetch-callsigns fetch-repeaters build-location build-areas build-
 build-notfunk: fetch-callsigns fetch-repeaters build-location build-areas
     GIT_SHA={{git_sha}} uv run python scripts/build_notfunk.py
 
-# The ADIF editor's single-file version (tools/adif/adif-editor.html).
-[doc("Build the ADIF editor's single-file adif-editor.html")]
+# The ADIF editor's single-file version (tools/adif/adif-editor.html) and
+# build-info.js (commit, CI run, cross-check tool versions).
+[doc("Build the ADIF editor's single-file adif-editor.html + build-info.js")]
 build-adif:
-    uv run python scripts/build_adif.py
+    GIT_SHA={{git_sha}} BUILD_RUN_URL={{quote(build_run)}} uv run python scripts/build_adif.py
 
 # Assemble site/tools/ (scripts/build_site.py): the tools without Markdown,
 # the rendered manuals, the overview page and manifest.json. Re-run after
@@ -208,4 +214,4 @@ vnu:
 # Remove generated files (keeps .cache/, so the data steps stay cheap).
 [doc("Remove generated files and the bundle (keeps .cache/)")]
 clean:
-    rm -rf site dist tools/sota-alerts/data tools/shared/data tools/confirm/precache.js tools/confirm/confirm-offline.html tools/confirm/build-info.js tools/notfunk/precache.js tools/notfunk/notfunk-offline.html tools/notfunk/build-info.js tools/adif/adif-editor.html tests/e2e/report tests/e2e/test-results tests/e2e/test-results.json
+    rm -rf site dist tools/sota-alerts/data tools/shared/data tools/confirm/precache.js tools/confirm/confirm-offline.html tools/confirm/build-info.js tools/notfunk/precache.js tools/notfunk/notfunk-offline.html tools/notfunk/build-info.js tools/adif/adif-editor.html tools/adif/build-info.js tests/e2e/report tests/e2e/test-results tests/e2e/test-results.json

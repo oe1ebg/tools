@@ -100,7 +100,7 @@ export function standDate(iso) {
   return m ? `${m[3]}.${m[2]}.${m[1]}` : String(iso || '?');
 }
 
-function extLink(url, text) {
+export function extLink(url, text) {
   return el('a', { href: url, target: '_blank', rel: 'noopener' }, text);
 }
 

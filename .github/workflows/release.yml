@@ -1,8 +1,8 @@
 name: Release
 
-# On a version tag vX.Y.Z: run the unit tests, build the bundle with fresh
-# data (no download cache) and publish dist/oe1ebg-tools-vX.Y.Z.tar.gz, its
-# .sha256 and SHA256SUMS as the GitHub release of that tag. The release
+# On a version tag vX.Y.Z: run the unit tests (with the ADIF cross-checks
+# required), build the bundle with fresh data (no download cache) and
+# publish dist/oe1ebg-tools-vX.Y.Z.tar.gz, its .sha256 and SHA256SUMS as the GitHub release of that tag. The release
 # assets are immutable; data.yml rebuilds the newest release with fresh data
 # every week into the rolling release `data-latest`.
 
@@ -32,10 +32,25 @@ jobs:
         with:
           node-version-file: .nvmrc
 
+      - name: Set up Go (ADIF cross-check tools)
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: tests/tools/go.mod
+          cache-dependency-path: tests/tools/go.sum
+
+      - name: Build the ADIF cross-check tools (adifmt, adif-checker)
+        run: tests/tools/build.sh
+
+      # ADIF_CROSSCHECK=require: the ADIF cross-checks against adifmt and
+      # adif-checker must run and pass (they skip without the tools), or the
+      # release is not published. BUILD_RUN_URL: this run, shown as the
+      # build's provenance in the ADIF editor (scripts/build_adif.py).
       - name: Build the release tarball
         env:
           GIT_SHA: ${{ github.sha }}
           TOOLS_VERSION: ${{ github.ref_name }}
+          BUILD_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ADIF_CROSSCHECK: require
         run: |
           uvx --from rust-just just dist
           uvx --from rust-just just test

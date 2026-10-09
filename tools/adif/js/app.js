@@ -7,6 +7,7 @@ import { serializeADIF, serializeCSV, serializeSotaCsv, adifChangedValues, ADI_M
 import { el, fill, isComposing, trackExpanded } from '../../shared/js/dom.js';
 import { validateAdif } from '../../shared/js/adif-validate.js';
 import { ADIF_SPEC_VERSION } from '../../shared/js/adif-spec-data.js';
+import { renderCompliance } from './compliance.js';
 
 function populateFieldDatalist(){
   const dl = document.getElementById('adif-field-list');
