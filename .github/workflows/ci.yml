@@ -1,0 +1,370 @@
+name: CI
+
+# Unit tests, ADIF cross-checks, the bundle build, the HTML check and the
+# browser tests (against the bundle served by deploy/nginx.conf.example).
+# Releases: release.yml; weekly data rebuild: data.yml.
+
+on:
+  workflow_dispatch:
+  # Weekly full run (every check, all browsers), so the parts that pushes
+  # and PRs skip (see `changes`) are still exercised.
+  schedule:
+    - cron: '16 4 * * 1'
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+# A new push to a PR cancels that PR's run still in progress.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # What this run has to check (AGENTS.md, "CI scope"):
+  #   adif      ADIF code changed: ADIF unit tests, cross-checks (Go tools),
+  #             the ADIF editor's browser tests
+  #   site      something the bundle is built from changed: bundle build,
+  #             HTML check and browser tests
+  #   browsers  the Playwright projects: all five on PRs, Chromium only on a
+  #             push to main (the PR already ran all of them)
+  # Scheduled and manual runs and version tags check everything.
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read # paths-filter lists a PR's files through the API
+    outputs:
+      adif: ${{ steps.scope.outputs.all == 'true' || steps.filter.outputs.adif == 'true' }}
+      site: ${{ steps.scope.outputs.all == 'true' || steps.filter.outputs.site == 'true' }}
+      browsers: ${{ steps.scope.outputs.browsers }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Run scope
+        id: scope
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+        run: |
+          all=false
+          case "$EVENT" in schedule | workflow_dispatch) all=true ;; esac
+          case "$REF" in refs/tags/*) all=true ;; esac
+          browsers='["chromium","firefox","webkit","mobile-chromium","mobile-webkit"]'
+          if [ "$EVENT" = push ] && [ "$REF" = refs/heads/main ]; then browsers='["chromium"]'; fi
+          echo "all=$all" >> "$GITHUB_OUTPUT"
+          echo "browsers=$browsers" >> "$GITHUB_OUTPUT"
+
+      - name: Changed parts
+        id: filter
+        if: steps.scope.outputs.all != 'true'
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          # this workflow and the Node version affect everything
+          filters: |
+            adif:
+              - '.github/workflows/ci.yml'
+              - '.nvmrc'
+              - 'tools/adif/**'
+              - 'tools/shared/js/adif*.js'
+              - 'tools/confirm/js/export.js'
+              - 'tools/confirm/js/templates.js'
+              - 'tools/confirm/js/model.js'
+              - 'scripts/build_adif*.py'
+              - 'scripts/single_file.py'
+              - 'tests/adif*'
+              - 'tests/confirm-adif-spec.test.mjs'
+              - 'tests/fixtures/adif/**'
+              - 'tests/fixtures/adif-spec/**'
+              - 'tests/tools/**'
+              - 'tests/e2e/adif.spec.mjs'
+            site:
+              - '.github/workflows/ci.yml'
+              - '.nvmrc'
+              - 'tools/**'
+              - 'docs/**'
+              - 'tests/e2e/**'
+              - 'deploy/**'
+              - 'scripts/**'
+              - 'data-src/**'
+              - 'Justfile'
+              - 'pyproject.toml'
+              - 'uv.lock'
+
+      - name: Summary
+        env:
+          ADIF: ${{ steps.scope.outputs.all == 'true' || steps.filter.outputs.adif == 'true' }}
+          SITE: ${{ steps.scope.outputs.all == 'true' || steps.filter.outputs.site == 'true' }}
+          BROWSERS: ${{ steps.scope.outputs.browsers }}
+        run: |
+          {
+            echo '### Scope of this run'
+            echo
+            echo "- ADIF checks (unit tests, cross-checks, browser test): **$ADIF**"
+            echo "- HTML check and browser tests: **$SITE** (projects: \`$BROWSERS\`)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # node --test tests/ (zero dependencies; the bundle tests run the
+  # stdlib-only build scripts with the runner's python3). Tests that need
+  # the built data (location gold set) skip themselves without it. The ADIF
+  # cross-checks need adifmt and adif-checker (Go, pinned in
+  # tests/tools/go.mod) and must not skip here; without ADIF changes
+  # the ADIF test files and the Go tools are left out. Results: the "Unit
+  # tests" check (per test file and case), the job summary, and the JUnit
+  # XML as an artifact.
+  test:
+    needs: changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write # the test report check (action-junit-report)
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+
+      # Warns (does not fail) when .nvmrc is behind the newest Node LTS.
+      - name: Node version check
+        run: node tests/check-node.mjs
+
+      - name: Set up Go (ADIF cross-check tools)
+        if: needs.changes.outputs.adif == 'true'
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: tests/tools/go.mod
+          cache-dependency-path: tests/tools/go.sum
+
+      - name: Build the ADIF cross-check tools (adifmt, adif-checker)
+        if: needs.changes.outputs.adif == 'true'
+        run: tests/tools/build.sh
+
+      - name: Run tests
+        env:
+          ADIF: ${{ needs.changes.outputs.adif }}
+        # files, not the directory: Node 24 (.nvmrc) takes "tests/" as a module path
+        run: |
+          set -- tests/*.test.mjs
+          if [ "$ADIF" = true ]; then
+            export ADIF_CROSSCHECK=require
+          else
+            # the ADIF test files: tests/adif*.test.mjs, confirm-adif-spec
+            for f; do case "$f" in tests/adif*|tests/confirm-adif-spec.test.mjs) ;; *) set -- "$@" "$f" ;; esac; shift; done
+            echo "No ADIF changes: ADIF tests left out." | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+          mkdir -p tests/reports  # node does not create the reporter's directory
+          node --test \
+            --test-reporter=spec --test-reporter-destination=stdout \
+            --test-reporter=./tests/junit-reporter.mjs --test-reporter-destination=tests/reports/node.xml \
+            "$@"
+
+      - name: Test report
+        if: ${{ !cancelled() }}
+        uses: mikepenz/action-junit-report@b7b80d7ac5b1da46d6aaff9fb57ad50d8453bcb3 # v6.6.0
+        with:
+          report_paths: tests/reports/node.xml
+          check_name: Unit tests
+          detailed_summary: true
+          include_time_in_summary: true
+          group_suite: true
+          require_tests: true
+          # a fork's PR has a read-only token: annotations only, no check
+          annotate_only: ${{ github.event.pull_request.head.repo.fork == true }}
+
+      - name: Upload the test results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: unit-test-results
+          path: tests/reports/
+          retention-days: 30
+          if-no-files-found: warn
+
+  # The bundle (site/tools/, `just build`: data + offline files + manuals)
+  # for `validate`, built once and handed to the browser jobs as an artifact.
+  # The data downloads are cached per ISO week / month like the release
+  # builds refresh them.
+  bundle:
+    needs: changes
+    if: needs.changes.outputs.site == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+
+      - name: Data epoch
+        id: epoch
+        run: echo "week=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
+
+      - name: Data download cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache
+          key: data-${{ steps.epoch.outputs.week }}
+          restore-keys: data-
+
+      - name: Build the bundle
+        env:
+          GIT_SHA: ${{ github.sha }}
+        run: uvx --from rust-just just build
+
+      - name: Upload the bundle
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: site
+          path: site/
+          retention-days: 1
+          if-no-files-found: error
+
+  # Build-time validation of the tools (issue #57) against the bundle (from
+  # `bundle`) served by nginx with deploy/nginx.conf.example at /tools/:
+  # Nu Html Checker on the tool pages, Playwright smoke tests in
+  # Chromium, Firefox, WebKit and two phone viewports. Both tools run from
+  # images pinned in tests/e2e/images.Dockerfile (Dependabot);
+  # nothing is installed into the repo. One job per Playwright project, in
+  # parallel (`changes` picks them); the HTML check runs in the chromium
+  # job. Skipped when nothing the bundle is built from changed.
+  validate:
+    needs: [changes, bundle]
+    if: needs.changes.outputs.site == 'true'
+    name: validate (${{ matrix.project }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write # the browser test report check (action-junit-report)
+    strategy:
+      fail-fast: false
+      matrix:
+        project: ${{ fromJSON(needs.changes.outputs.browsers) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Download the bundle
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: site
+          path: ${{ runner.temp }}/site
+
+      - name: Start nginx with deploy/nginx.conf.example (port 8080)
+        run: |
+          image=$(awk '$1 == "FROM" && $4 == "nginx" { print $2 }' tests/e2e/images.Dockerfile)
+          docker run -d --name site -p 8080:8080 \
+            -v "$RUNNER_TEMP/site:/srv/www:ro" \
+            -v "$GITHUB_WORKSPACE/deploy/nginx.conf.example:/etc/nginx/conf.d/default.conf:ro" \
+            "$image"
+          for _ in $(seq 30); do curl -fsS -o /dev/null http://localhost:8080/tools/ && break; sleep 1; done
+          curl -fsS -o /dev/null http://localhost:8080/tools/
+
+      - name: Read the pinned tool images
+        id: images
+        run: |
+          f=tests/e2e/images.Dockerfile
+          vnu=$(awk '$1 == "FROM" && $4 == "vnu" { print $2 }' "$f")
+          pw=$(awk '$1 == "FROM" && $4 == "playwright" { print $2 }' "$f")
+          # mcr.microsoft.com/playwright:v1.2.3-noble@sha256:… -> 1.2.3
+          version=$(printf '%s\n' "$pw" | sed -nE 's#^mcr\.microsoft\.com/playwright:v([0-9]+\.[0-9]+\.[0-9]+)-[a-z]+@sha256:[0-9a-f]{64}$#\1#p')
+          if [ -z "$vnu" ] || [ -z "$version" ]; then
+            echo "::error file=$f::cannot read the vnu/playwright image pins"
+            exit 1
+          fi
+          {
+            echo "vnu=$vnu"
+            echo "playwright=$pw"
+            echo "playwright-version=$version"
+          } >> "$GITHUB_OUTPUT"
+
+      # Errors fail the job; warnings are printed only. Once per run.
+      - name: HTML validation (Nu Html Checker)
+        if: matrix.project == 'chromium'
+        env:
+          VNU_IMAGE: ${{ steps.images.outputs.vnu }}
+        run: |
+          docker run --rm \
+            -v "$RUNNER_TEMP/site:/site:ro" \
+            -v "$GITHUB_WORKSPACE/tests/e2e:/e2e:ro" \
+            "$VNU_IMAGE" sh /e2e/vnu.sh /site
+
+      # @playwright/test is installed at the image's version into the
+      # throwaway tests/e2e/node_modules/ (no package.json in the repo);
+      # check-playwright.mjs fails on any version/browser mismatch. Tests
+      # tagged @adif only run when ADIF code changed.
+      - name: Browser tests (Playwright, ${{ matrix.project }})
+        if: ${{ !cancelled() }}
+        env:
+          PW_IMAGE: ${{ steps.images.outputs.playwright }}
+          PW_VERSION: ${{ steps.images.outputs.playwright-version }}
+          PW_PROJECT: ${{ matrix.project }}
+          PW_GREP_INVERT: ${{ needs.changes.outputs.adif != 'true' && '@adif' || '' }}
+        run: |
+          docker run --rm --network host --ipc host \
+            --user "$(id -u):$(id -g)" -e HOME=/tmp \
+            -e CI=1 -e BASE_URL=http://localhost:8080/ -e PW_VERSION -e PW_PROJECT -e PW_GREP_INVERT \
+            -v "$GITHUB_WORKSPACE:/work" -w /work/tests/e2e \
+            "$PW_IMAGE" bash -euo pipefail -c '
+              npm install --no-save --no-package-lock --no-audit --no-fund "@playwright/test@$PW_VERSION"
+              node check-playwright.mjs
+              npx playwright test --project="$PW_PROJECT" ${PW_GREP_INVERT:+--grep-invert "$PW_GREP_INVERT"}'
+
+      - name: Browser results per project
+        if: ${{ !cancelled() && hashFiles('tests/e2e/test-results.json') != '' }}
+        run: |
+          {
+            echo '### Browser tests'
+            echo
+            echo '| project | passed | flaky | failed | skipped |'
+            echo '|---|---|---|---|---|'
+            jq -r '[.. | objects | select(has("projectName") and has("status"))]
+              | group_by(.projectName)[]
+              | "| \(.[0].projectName) | \(map(select(.status == "expected")) | length) | \(map(select(.status == "flaky")) | length) | \(map(select(.status == "unexpected")) | length) | \(map(select(.status == "skipped")) | length) |"' \
+              tests/e2e/test-results.json
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # JUnit from the Playwright run (playwright.config.mjs, CI only): the
+      # "Browser tests" check with every test per browser project.
+      - name: Browser test report
+        if: ${{ !cancelled() && hashFiles('tests/reports/e2e.xml') != '' }}
+        uses: mikepenz/action-junit-report@b7b80d7ac5b1da46d6aaff9fb57ad50d8453bcb3 # v6.6.0
+        with:
+          report_paths: tests/reports/e2e.xml
+          check_name: Browser tests (${{ matrix.project }})
+          detailed_summary: true
+          include_time_in_summary: true
+          group_suite: true
+          require_tests: true
+          annotate_only: ${{ github.event.pull_request.head.repo.fork == true }}
+
+      - name: Upload the browser test results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: browser-test-results-${{ matrix.project }}
+          path: |
+            tests/reports/
+            tests/e2e/test-results.json
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Upload the Playwright report
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-report-${{ matrix.project }}
+          path: |
+            tests/e2e/report/
+            tests/e2e/test-results/
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: nginx log
+        if: ${{ failure() }}
+        run: docker logs site

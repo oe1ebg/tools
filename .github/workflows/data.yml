@@ -1,0 +1,86 @@
+name: Weekly data rebuild
+
+# The tools ship their data (callsigns, repeaters, locations, summits) built
+# in: it is inlined into the offline bundles and part of the service-worker
+# precache hash, so it can't be swapped separately. Once a week this
+# rebuilds the newest release tag with fresh data and uploads
+# oe1ebg-tools-<tag>.tar.gz (+ .sha256, SHA256SUMS) to the rolling
+# prerelease `data-latest`, replacing last week's. manifest.json in the
+# tarball has the build time. Sites that want fresh data (oe1ebg.at)
+# download from there; anyone who wants a fixed state uses the release of
+# the tag itself.
+
+on:
+  schedule:
+    - cron: '16 4 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+
+permissions:
+  contents: read
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # update the data-latest release
+    steps:
+      - name: Find the newest release tag
+        id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          tag=$(gh release list --repo "$REPO" --exclude-drafts --exclude-pre-releases --json tagName,isLatest --jq '.[] | select(.isLatest) | .tagName')
+          if [ -z "$tag" ]; then echo "no release yet, nothing to rebuild" | tee -a "$GITHUB_STEP_SUMMARY"; fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout the release tag
+        if: steps.tag.outputs.tag != ''
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.tag.outputs.tag }}
+
+      - name: Set up uv
+        if: steps.tag.outputs.tag != ''
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+
+      - name: Set up Node.js
+        if: steps.tag.outputs.tag != ''
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+
+      # The unit tests include plausibility checks of the fresh data
+      # (callsign and repeater lists, location gold set): a broken upstream
+      # export fails here instead of shipping.
+      - name: Build with fresh data
+        if: steps.tag.outputs.tag != ''
+        env:
+          GIT_SHA: ${{ github.sha }}
+          TOOLS_VERSION: ${{ steps.tag.outputs.tag }}
+        run: |
+          uvx --from rust-just just dist
+          uvx --from rust-just just test
+          (cd dist && cat ./*.sha256 > SHA256SUMS)
+
+      - name: Upload to data-latest
+        if: steps.tag.outputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          if ! gh release view data-latest --repo "$REPO" >/dev/null 2>&1; then
+            gh release create data-latest --repo "$REPO" --prerelease --latest=false \
+              --target "$(git rev-parse HEAD)" --title "Data rebuild of the newest release" \
+              --notes "Weekly rebuild (data.yml) of the newest release with fresh data. Replaced every week."
+          fi
+          # Last week's assets of other versions would be stale: keep only this one.
+          gh release view data-latest --repo "$REPO" --json assets --jq '.assets[].name' |
+            grep -v -x -F -e "oe1ebg-tools-$TAG.tar.gz" -e "oe1ebg-tools-$TAG.tar.gz.sha256" -e SHA256SUMS |
+            while read -r a; do gh release delete-asset data-latest "$a" --repo "$REPO" --yes; done
+          gh release upload data-latest --repo "$REPO" --clobber dist/*.tar.gz dist/*.sha256 dist/SHA256SUMS
+          echo "data-latest: oe1ebg-tools-$TAG.tar.gz rebuilt $(date -u +%FT%TZ)" >> "$GITHUB_STEP_SUMMARY"
