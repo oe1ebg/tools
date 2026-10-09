@@ -14,6 +14,7 @@ tools/notfunk/precache.js
 tools/notfunk/notfunk-offline.html
 tools/notfunk/build-info.js
 tools/adif/adif-editor.html
+tools/adif/build-info.js
 # The assembled bundle (scripts/build_site.py) and release tarballs
 site
 dist

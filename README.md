@@ -103,7 +103,9 @@ just dist      # dist/oe1ebg-tools-<version>.tar.gz + .sha256
   the bundle build, the HTML check and the browser tests against the bundle
   served by `deploy/nginx.conf.example`.
 - **`release.yml`** runs on a `vX.Y.Z` tag. It builds the bundle with fresh
-  data and attaches the tarball and checksums to the GitHub release.
+  data, runs the tests with the ADIF cross-checks required (a failure stops
+  the release) and attaches the tarball and checksums to the GitHub release.
+  The ADIF editor's compliance panel links the run that built it.
 - **`data.yml`** runs weekly. It rebuilds the latest release tag with fresh
   data and uploads the result to the rolling release `data-latest`, under the
   same asset name and with its own `SHA256SUMS`. The data is built into the

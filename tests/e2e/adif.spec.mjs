@@ -36,3 +36,17 @@ test('loads an .adi file and exports it again', { tag: '@adif' }, async ({ page 
   expect(csv.split(/\r?\n/)[0]).toContain('CALL');
   expect(csv).toContain('OE3XYZ');
 });
+
+test('compliance panel names the spec, the cross-check tools and this build', { tag: '@adif' }, async ({ page }) => {
+  await page.goto('tools/adif/');
+  const panel = page.locator('#compliance');
+  await panel.locator('summary').click();
+  await expect(panel).toContainText('ADIF 3.1.7');
+  await expect(panel.getByRole('link', { name: 'adifmt' })).toHaveAttribute('rel', 'noopener');
+  await expect(panel.getByRole('link', { name: 'adif-checker' })).toBeVisible();
+  // build-info.js (scripts/build_adif.py): a commit link, unless built outside git
+  const commit = await page.evaluate(() => globalThis.ADIF_BUILD?.commit);
+  expect(commit).toBeTruthy();
+  if (commit === 'dev') await expect(panel).toContainText('Development build');
+  else await expect(panel.getByRole('link', { name: 'checks for this commit' })).toHaveAttribute('href', /\/commit\/[0-9a-f]+\/checks$/);
+});

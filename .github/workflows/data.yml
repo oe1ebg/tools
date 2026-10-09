@@ -53,15 +53,32 @@ jobs:
         with:
           node-version-file: .nvmrc
 
+      - name: Set up Go (ADIF cross-check tools)
+        if: steps.tag.outputs.tag != ''
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: tests/tools/go.mod
+          cache-dependency-path: tests/tools/go.sum
+
+      - name: Build the ADIF cross-check tools (adifmt, adif-checker)
+        if: steps.tag.outputs.tag != ''
+        run: tests/tools/build.sh
+
       # The unit tests include plausibility checks of the fresh data
       # (callsign and repeater lists, location gold set): a broken upstream
-      # export fails here instead of shipping.
+      # export fails here instead of shipping. ADIF_CROSSCHECK=require: the
+      # ADIF cross-checks must run and pass too, as for a release.
+      # GIT_SHA: the tag's commit (github.sha is the default branch's here);
+      # BUILD_RUN_URL: this run, the ADIF editor's build provenance.
       - name: Build with fresh data
         if: steps.tag.outputs.tag != ''
         env:
-          GIT_SHA: ${{ github.sha }}
           TOOLS_VERSION: ${{ steps.tag.outputs.tag }}
+          BUILD_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ADIF_CROSSCHECK: require
         run: |
+          GIT_SHA=$(git rev-parse HEAD)
+          export GIT_SHA
           uvx --from rust-just just dist
           uvx --from rust-just just test
           (cd dist && cat ./*.sha256 > SHA256SUMS)
