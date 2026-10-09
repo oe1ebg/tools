@@ -12,7 +12,9 @@ import { el, fill, isComposing, trackExpanded } from '../../shared/js/dom.js';
 import { validateAdif } from '../../shared/js/adif-validate.js';
 import { ADIF_SPEC_VERSION } from '../../shared/js/adif-spec-data.js';
 import { renderCompliance } from './compliance.js';
-import { records, recordFile, issuesByIndex, view, bindViewHooks, replaceView, viewLength, viewIndexAt } from './state.js';
+import { records, recordFile, issuesByIndex, view, setView, scrollToRecord, bindViewHooks, replaceView, viewLength, viewIndexAt } from './state.js';
+import { computeView, isFilterActive, invalidateRecord, invalidateAllRecords, revealRecordFilter } from './filter.js';
+import { initFilterUI } from './filter-ui.js';
 import { VirtualBody } from './table.js';
 
 function populateFieldDatalist(){
@@ -147,6 +149,7 @@ function revalidate(){
   body?.forEachRow((tr, ri) => applyFlags(tr, ri));
   setChecking(false);
   renderValidation();
+  if (filterUI.getState().status !== 'any') applyFilter();
 }
 
 // issuesByRec from the validation view, then issuesByIndex.
@@ -311,9 +314,12 @@ function issueGroups(results){
     for (const [rec, issues] of byRec){
       if (full()) break;
       const ri = rowOf.get(rec);
-      const where = [rec.CALL, ri !== undefined ? `row ${ri + 1}` : 'removed from the table'].filter(Boolean).join(' · ');
+      const where = [rec.CALL, ri !== undefined ? null : 'removed from the table'].filter(Boolean).join(' · ');
+      // "row N" shows the QSO: clears the filters that hide it, scrolls to it
+      const goto = ri !== undefined ? el('button', { type: 'button', class: 'v-goto', 'aria-label': `show row ${ri + 1} in the table`,
+        onclick: () => revealRecord(rec) }, `row ${ri + 1}`) : null;
       groups.push(el('div', { class: 'v-group' },
-        el('h2', {}, `${prefix}QSO #${issues[0].recordIndex + 1} `, el('span', { class: 'dim' }, where)),
+        el('h2', {}, `${prefix}QSO #${issues[0].recordIndex + 1} `, el('span', { class: 'dim' }, where, where && goto ? ' · ' : ''), goto),
         el('ul', {}, items(issues))));
     }
   }
@@ -563,6 +569,8 @@ function commitCell(td){
   if (v !== (rec[col] ?? '')){
     if (v === '') delete rec[col];
     else { rec[col] = v; widenColumn(col, v); }
+    invalidateRecord(rec);
+    if (view) filterPinned.add(rec); // stays shown even if it no longer matches
     markDirty();
     if (col === 'BAND' || col === 'MODE') scheduleStats();
   }
@@ -622,6 +630,7 @@ function scheduleStats(){
 }
 
 function updateStats(){
+  syncFilterBar();
   const stats = document.getElementById('stats');
   if (records.length === 0){ stats.textContent = ''; return; }
   const bands = new Set(), modes = new Set();
@@ -681,6 +690,8 @@ function removeColumn(name){
   columns = columns.filter(c => c !== name);
   markDirty();
   for (const rec of records) delete rec[name];
+  invalidateAllRecords();
+  replaceView(filterView());
   render();
 }
 
@@ -735,8 +746,65 @@ function applyCommentTemplate(template){
     const filled = template.replace(re, (_, name) => rec[name.toUpperCase()] || '');
     if (filled !== ''){ rec.COMMENT = filled; changed = true; }
   }
-  if (changed){ markDirty(); rebuildColumns(); render(); }
+  if (changed){ markDirty(); invalidateAllRecords(); rebuildColumns(); replaceView(filterView()); render(); }
 }
+
+/* ---------- search & filter (js/filter.js, js/filter-ui.js) ---------- */
+// The filter sets the view (state.js) when the filter, the validation
+// result (status filter), the loaded files or the columns change. After
+// add/delete/sort the view is remapped by those operations above, not
+// re-filtered. Exports always write the whole log.
+
+const filterPinned = new Set(); // records edited while filtered: shown until the filter changes
+
+// The view the filter bar asks for (null: all). Kept in it even if they no
+// longer match: edited records and the record holding the focus (keyboard
+// navigation needs its position in the view).
+function filterView(){
+  const state = filterUI.getState();
+  if (!records.length || !isFilterActive(state)) return null;
+  const keep = [];
+  if (filterPinned.size) records.forEach((r, i) => { if (filterPinned.has(r)) keep.push(i); });
+  const focused = document.activeElement?.closest?.('#drop tr[data-ri]');
+  if (focused) keep.push(Number(focused.dataset.ri));
+  return computeView(records, state, { issuesByIndex, recordFile, keep });
+}
+
+function sameView(a, b){
+  if (a === b) return true;
+  if (!a || !b || a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
+// Re-run the filter; the table is re-rendered only when the view changed
+// (a focused cell stays as it is).
+function applyFilter(){
+  const v = filterView();
+  if (!sameView(v, view)) setView(v);
+  syncFilterBar();
+}
+
+// Bar visibility, its "search in" and file options (rebuilt only when they
+// change) and the counter.
+function syncFilterBar(){
+  filterUI.show(records.length > 0);
+  filterUI.setFields(columns);
+  filterUI.setFiles([...new Set(fileMeta.map(f => f.name))]);
+  filterUI.setCount(viewLength(), records.length);
+}
+
+// From the issue list: clear the filters that hide this QSO, then go to it.
+function revealRecord(rec){
+  const ri = records.indexOf(rec);
+  if (ri < 0) return;
+  filterUI.setState(revealRecordFilter(records, filterUI.getState(), ri, { issuesByIndex, recordFile }));
+  filterPinned.clear();
+  applyFilter();
+  scrollToRecord(ri);
+}
+
+const filterUI = initFilterUI({ onChange: () => { filterPinned.clear(); applyFilter(); } });
 
 // state.js: setView() re-renders the window, scrollToRecord() scrolls.
 bindViewHooks(refreshBody, ri => { focusCell(posOf(ri)); });
@@ -759,15 +827,11 @@ function loadFiles(fileList){
   const files = Array.from(fileList);
   let pending = files.length;
   if (!pending) return;
-  const firstNew = records.length;
   const done = () => {
     if (--pending > 0) return;
     rebuildColumns();
-    if (view){ // the new records join an active view
-      const shown = new Set(view);
-      replaceView([...view, ...records.map((_, i) => i).filter(i => i >= firstNew && !shown.has(i))]);
-    }
     showFileValidations();
+    replaceView(filterView()); // an active filter applies to the new records too
     render();
   };
   files.forEach(file => {

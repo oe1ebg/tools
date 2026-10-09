@@ -96,3 +96,109 @@ test('a large log loads fast, scrolls and exports edits', { tag: '@adif' }, asyn
   expect(check.records).toHaveLength(6197);
   expect(check.records[6196].fields.CALL).toBe('OE1ZZZ');
 });
+
+// Search & filter: only the table's view changes, exports keep every QSO.
+const INVALID_DATE = fileURLToPath(new URL('../fixtures/adif/invalid-date.adi', import.meta.url));
+// rendered rows (the log is small enough for the virtual window to hold all)
+const shownRows = page => page.locator('#drop table tbody tr[data-ri]');
+
+test('search finds a callsign, clearing shows all again', { tag: '@adif' }, async ({ page }) => {
+  await loadSample(page);
+  await expect(page.locator('#filter-bar')).toBeVisible();
+  await expect(page.locator('#flt-file-wrap')).toBeHidden(); // one file only
+  await page.locator('#flt-text').fill('oe3');
+  await expect(shownRows(page)).toHaveCount(1);
+  await expect(shownRows(page)).toContainText('OE3XYZ');
+  await expect(page.locator('#flt-count')).toHaveText('1 of 3 QSOs shown');
+  await expect(page.locator('#flt-note')).toBeVisible();
+  await page.locator('#flt-text-field').selectOption('MODE');
+  await expect(shownRows(page)).toHaveCount(0);
+  await page.locator('#flt-clear').click();
+  await expect(shownRows(page)).toHaveCount(3);
+  await expect(page.locator('#flt-count')).toHaveText('');
+  await expect(page.locator('#flt-note')).toBeHidden();
+});
+
+test('an edited QSO stays shown until the filter changes', { tag: '@adif' }, async ({ page }) => {
+  await loadSample(page);
+  await page.locator('#flt-text').fill('oe3');
+  await expect(page.locator('#flt-count')).toHaveText('1 of 3 QSOs shown');
+  const call = page.locator('#drop tbody tr[data-ri="1"] td[data-col="CALL"]');
+  await call.click();
+  await call.fill('DL9ZZ');
+  await call.press('Enter');
+  await expect(call).toHaveText('DL9ZZ');
+  await expect(page.locator('#validation-summary')).toContainText('current log'); // re-checked
+  await expect(shownRows(page)).toHaveCount(1);
+  // a new filter drops it: "oe" now matches OE1ABC and DL1AA (MY_SOTA_REF OE/WI-001)
+  await page.locator('#flt-text').fill('oe');
+  await expect(page.locator('#flt-count')).toHaveText('2 of 3 QSOs shown');
+  await expect(call).toHaveCount(0);
+});
+
+test('status and file filters; the issue list reveals a hidden QSO', { tag: '@adif' }, async ({ page }) => {
+  await loadSample(page);
+  await page.locator('#file-input').setInputFiles(INVALID_DATE);
+  await expect(page.locator('#stats')).toContainText('4 QSOs');
+  await expect(page.locator('#flt-file-wrap')).toBeVisible();
+
+  await page.locator('#flt-status').selectOption('errors');
+  await expect(shownRows(page)).toHaveCount(1);
+  await expect(shownRows(page)).toContainText('20260230');
+  await expect(page.locator('#flt-count')).toHaveText('1 of 4 QSOs shown');
+
+  await page.locator('#flt-status').selectOption('any');
+  await page.locator('#flt-file').selectOption('sample.adi');
+  await expect(shownRows(page)).toHaveCount(3);
+
+  // the issue's "row 4" clears the file filter that hides it and goes there
+  await page.locator('#btn-issues').click();
+  await page.getByRole('button', { name: 'show row 4 in the table' }).click();
+  await expect(page.locator('#flt-file')).toHaveValue('');
+  await expect(shownRows(page)).toHaveCount(4);
+  await expect(page.locator('#drop tbody tr[data-ri="3"] td:focus')).toHaveCount(1);
+});
+
+test('field condition: counter, and the export still has every QSO', { tag: '@adif' }, async ({ page }) => {
+  await loadSample(page);
+  await page.locator('#flt-add-cond').click();
+  await page.getByLabel('condition 1 field').fill('MODE');
+  await page.getByLabel('condition 1 operator').selectOption('eq');
+  await page.getByLabel('condition 1 value').fill('fm');
+  await expect(page.locator('#flt-count')).toHaveText('1 of 3 QSOs shown');
+  await expect(shownRows(page)).toContainText('OE1ABC');
+  await page.getByLabel('condition 1 operator').selectOption('notempty');
+  await expect(page.locator('#flt-count')).toHaveText('3 of 3 QSOs shown');
+  await page.getByLabel('condition 1 field').fill('MY_SOTA_REF');
+  await expect(page.locator('#flt-count')).toHaveText('1 of 3 QSOs shown');
+
+  const adiDownload = page.waitForEvent('download');
+  await page.locator('#btn-export').click();
+  const { records } = readADI(await downloadText(await adiDownload));
+  expect(records.map(r => r.CALL)).toEqual(['OE1ABC', 'OE3XYZ', 'DL1AA']);
+});
+
+test('filters the large official log; the export keeps all 6197 QSOs', { tag: '@adif' }, async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto('tools/adif/');
+  await page.locator('#file-input').setInputFiles(OFFICIAL);
+  await expect(page.locator('#stats')).toContainText('6197 QSOs', { timeout: 30_000 });
+  const count = page.locator('#flt-count');
+  await page.locator('#flt-add-cond').click();
+  await page.getByLabel('condition 1 field').fill('MODE');
+  await page.getByLabel('condition 1 operator').selectOption('eq');
+  await page.getByLabel('condition 1 value').fill('CW');
+  await expect(count).toHaveText('154 of 6197 QSOs shown'); // <MODE:2>CW in the file
+  const modes = await page.locator('#drop tbody tr[data-ri] td[data-col="MODE"]').allTextContents();
+  expect(modes.length).toBeGreaterThan(0);
+  expect(modes.every(m => m === 'CW')).toBe(true);
+  // a search on top of it
+  await page.locator('#flt-text').fill('zzzz-no-such-value');
+  await expect(count).toHaveText('0 of 6197 QSOs shown');
+  await expect(shownRows(page)).toHaveCount(0);
+
+  const adiDownload = page.waitForEvent('download');
+  await page.locator('#btn-export').click();
+  const check = validateAdif(await downloadText(await adiDownload), { today: '20991231' });
+  expect(check.records).toHaveLength(6197);
+});
