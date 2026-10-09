@@ -7,9 +7,10 @@ port := "8000"
 container_tool := `command -v docker >/dev/null 2>&1 && echo docker || command -v podman >/dev/null 2>&1 && echo podman || echo none`
 
 # Commit shown in the offline tools' footer (scripts/offline_tool.py) and in
-# site/tools/manifest.json. Locally it's HEAD, or "dev" outside a git
+# site/tools/manifest.json; full SHA, shortened where shown (GitHub's
+# /commit/<sha>/checks needs the full one). Locally it's HEAD, or "dev" outside a git
 # checkout. An exported GIT_SHA wins.
-git_sha := env("GIT_SHA", `git rev-parse --short HEAD 2>/dev/null || echo dev`)
+git_sha := env("GIT_SHA", `git rev-parse HEAD 2>/dev/null || echo dev`)
 
 # The CI run that builds the bundle, shown in the ADIF editor's compliance
 # panel (scripts/build_adif.py): from GitHub Actions' own variables, empty
