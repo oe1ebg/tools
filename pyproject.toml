@@ -1,0 +1,16 @@
+[project]
+name = "oe1ebg-tools"
+version = "0.1.0"
+description = "Standalone browser tools for radio amateurs: offline check-in log, Notfunk message log, ADIF editor, SOTA alerts map"
+readme = "README.md"
+requires-python = ">=3.14"
+# The bundle build steps are stdlib-only; these are for the data fetch
+# (fetch_callsigns.py parses a PDF) and the manuals (build_site.py).
+# pyproj is only needed for `just refresh-areas` (uv run --with pyproj).
+dependencies = [
+    "pdfplumber>=0.11.10",
+    "markdown>=3.8",
+]
+
+[tool.uv]
+package = false

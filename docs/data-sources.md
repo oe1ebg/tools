@@ -1,16 +1,17 @@
 # Data sources and licences
 
-Every dataset and third-party library the tools on this site use, grouped by
+Every dataset and third-party library the tools use, grouped by
 tool: who publishes it, what is taken from it, under which licence, where it
 comes from, how often it is refreshed, and the attribution it requires.
 
-**How refreshes work.** The site is rebuilt as a Docker image whenever
-something under `oe1ebg/` changes (there is no scheduled rebuild). Each
-build re-fetches the "weekly" datasets if the ISO week has changed since the
-last cached build, and the "monthly" ones if the month has changed.
-Datasets marked *snapshot* are committed to the repository and only updated
-by hand; regular builds never contact their source. Datasets marked *live*
-are fetched by your browser while you use the tool.
+**How refreshes work.** The tools are released as a bundle with the data
+built in. Each release, and the weekly data rebuild of the current release,
+re-fetches the "weekly" datasets; the "monthly" ones are cached for up to
+30 days. Datasets marked *snapshot* are committed to the repository and only
+updated by hand; regular builds never contact their source. Datasets marked
+*live* are fetched by your browser while you use the tool. A copy of the
+bundle on another server has the data of the day it was built
+(`manifest.json` in the bundle).
 
 ## Bestätigungsverkehr (confirmation log)
 
@@ -192,18 +193,6 @@ picker and help texts are derived from the field list of the
 [ADIF 3.1.7 specification](https://www.adif.org/317/ADIF_317.htm)
 (published by the ADIF Developers Group, freely available).
 
-## Notebooks
-
-The [notebooks](../notebooks.md) page includes notebooks fetched from another
-repository at build time.
-
-- **Moxon antenna calculator and theory** – from
-  [ebirn/Moxon_OE1EBG](https://github.com/ebirn/Moxon_OE1EBG) (OE1EBG),
-  licence
-  [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/),
-  fetched from the `main` branch at each weekly build (list in
-  `external-notebooks.txt`).
-
 ## Software libraries
 
 - **Leaflet 1.9.4** – map library, vendored (one copy, used by the confirmation
@@ -211,6 +200,3 @@ repository at build time.
   © 2010–2023 Volodymyr Agafonkin, © 2010–2011 CloudMade.
   [BSD 2-Clause](https://github.com/Leaflet/Leaflet/blob/main/LICENSE),
   [leafletjs.com](https://leafletjs.com/).
-- The notebooks run in [JupyterLite](https://jupyterlite.readthedocs.io/)
-  (Pyodide kernel); packages such as pandas or matplotlib are installed into
-  your browser from the Pyodide package index when a notebook needs them.

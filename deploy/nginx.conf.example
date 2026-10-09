@@ -1,0 +1,39 @@
+# Example nginx server for the oe1ebg tools bundle. Untar the release
+# tarball into the docroot (here: /srv/www/tools/, served at /tools/);
+# any other directory or prefix works the same, all links are relative.
+# Used as-is by CI (tests run against it), so keep it working.
+server {
+    listen       8080;
+    server_name  _;
+    root /srv/www;
+
+    # The offline tools' data files (shared/data/*.json) are several MB raw.
+    gzip on;
+    gzip_comp_level 6;
+    gzip_min_length 1024;
+    gzip_vary on;
+    gzip_types text/plain text/css application/javascript application/json application/manifest+json image/svg+xml;
+
+    charset utf-8;
+    charset_types text/plain text/css application/javascript application/json application/manifest+json image/svg+xml;
+    absolute_redirect off;
+
+    location / {
+        index index.html;
+    }
+
+    # PWA files of the offline tools (confirm/, notfunk/, the worker logic in
+    # shared/js/sw-core.js): the browser must revalidate these to notice a
+    # new version as soon as it's online. Everything else is answered from
+    # the service worker's cache anyway.
+    location ~ \.webmanifest$ {
+        default_type application/manifest+json;   # not in nginx's mime.types
+        add_header Cache-Control "no-cache";
+    }
+    location ~ /(sw|sw-core|precache|build-info)\.js$ {
+        add_header Cache-Control "no-cache";
+    }
+    location ~ /(confirm|notfunk)/(index\.html)?$ {
+        add_header Cache-Control "no-cache";
+    }
+}

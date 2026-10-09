@@ -1,0 +1,62 @@
+/* Manuals and the overview page of the standalone bundle
+   (scripts/build_site.py renders docs/*.md with this). Uses the colour
+   tokens of tools.css; a site embedding the tools renders the manuals in
+   its own theme instead. */
+
+.doc {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 1rem 1rem 4rem;
+  line-height: 1.6;
+}
+
+.doc img {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.doc a { color: var(--accent-text); }
+
+.doc kbd {
+  font-family: var(--font-mono);
+  font-size: .85em;
+  padding: .1em .35em;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  background: var(--bg-raised);
+}
+
+.doc table { border-collapse: collapse; }
+.doc th, .doc td { border: 1px solid var(--line); padding: .3em .6em; text-align: left; }
+
+.doc-nav { font-size: .9em; }
+
+.doc .tool-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem;
+}
+
+.doc .tool-actions .tool-launch {
+  display: inline-block;
+  padding: .45rem 1rem;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.doc .admonition {
+  border-left: 4px solid var(--accent);
+  background: var(--accent-soft);
+  padding: .5rem 1rem;
+  margin: 1rem 0;
+  border-radius: 4px;
+}
+
+.doc .admonition.warning { border-color: var(--warn); background: var(--warn-soft); }
+.doc .admonition-title { font-weight: 600; margin: 0; }
