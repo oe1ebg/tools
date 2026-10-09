@@ -357,6 +357,27 @@ string (e.g. `{RST_SENT} {RST_RCVD} thx`) applied to every record whose
 `COMMENT` is currently blank — it never overwrites a `COMMENT` you already
 typed by hand.
 
+## Search & filter
+
+A filter bar under the toolbar narrows the **table's view** only; every
+export still writes the whole log (the bar says so while a filter is
+active, next to the "n of N QSOs shown" counter). Filters, all ANDed:
+free-text search (case-insensitive substring, any field's value or one
+field's), validation status (QSOs with errors / warnings / info, or
+issue-free), field conditions (equals, starts with, contains, is empty,
+is not empty; case-insensitive), the source file (only with more than one
+file loaded) and a `QSO_DATE` range. A QSO edited while filtered stays
+visible until the filter is changed, even if it no longer matches. "row N"
+in the issue list clears the filters that hide that QSO and goes to it.
+
+`js/filter.js` is pure (`computeView(records, state, ctx)` returns the
+record indices to show, or `null` for all) and tested in
+`oe1ebg/tests/adif-filter.test.mjs`; `js/filter-ui.js` is the bar. The
+filter sets the view (`js/state.js`, `setView`) when the filter, the
+validation result, the loaded files or the columns change; after adding,
+deleting or sorting rows the view is remapped, not filtered again. The
+record holding the focus always stays in the view.
+
 ## Files
 
 - `index.html` — markup and CSS; served at the pretty URL `/tools/adif/` on
@@ -371,7 +392,8 @@ typed by hand.
   the view contract), `js/table.js` (the virtualized table body),
   `js/export.js` (ADI,
   CSV and SOTA CSV export; pure, unit-tested in `oe1ebg/tests/adif.test.mjs`),
-  `js/fields.js` (ADIF 3.1.7 field reference data).
+  `js/fields.js` (ADIF 3.1.7 field reference data), `js/filter.js` +
+  `js/filter-ui.js` (search & filter, see above).
 - `../shared/js/adif.js` — ADI parsing and field encoding, shared with the
   confirmation log's ADIF export.
 - `../shared/js/adif-validate.js` + `../shared/js/adif-spec-data.js` — the

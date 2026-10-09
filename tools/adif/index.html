@@ -58,6 +58,41 @@
   <span class="hint">only fills rows where COMMENT is currently empty — placeholders like {RST_SENT} pull from that record's field</span>
 </div>
 
+<!-- Search & filter (js/filter-ui.js, js/filter.js): only the table's view
+     changes, every export writes the whole log. -->
+<div id="filter-bar" role="search" aria-label="filter QSOs" hidden>
+  <div class="flt-line">
+    <label for="flt-text">search</label>
+    <input type="search" id="flt-text" placeholder="call, comment, …" autocomplete="off" spellcheck="false" enterkeyhint="search">
+    <select id="flt-text-field" aria-label="search in">
+      <option value="">all fields</option>
+    </select>
+    <label for="flt-status">status</label>
+    <select id="flt-status">
+      <option value="any">any</option>
+      <option value="errors">with errors</option>
+      <option value="warnings">with warnings</option>
+      <option value="info">with info</option>
+      <option value="clean">issue-free</option>
+    </select>
+    <span id="flt-file-wrap" hidden>
+      <label for="flt-file">file</label>
+      <select id="flt-file">
+        <option value="">all files</option>
+      </select>
+    </span>
+    <label for="flt-from">QSO_DATE from</label>
+    <input type="date" id="flt-from">
+    <label for="flt-to">to</label>
+    <input type="date" id="flt-to">
+    <button type="button" id="flt-add-cond">+ condition</button>
+    <button type="button" id="flt-clear">clear filters</button>
+    <span id="flt-count" role="status"></span>
+    <span id="flt-note" class="hint" hidden>exports include all QSOs</span>
+  </div>
+  <div id="flt-conds"></div>
+</div>
+
 <div id="file-info"></div>
 
 <div id="warnings" role="status"></div>

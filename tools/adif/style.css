@@ -355,3 +355,46 @@ td.rownum.row-warning{ color:var(--warn); font-weight:600; }
 @media (pointer: coarse){
   :root input, :root select, :root textarea{ font-size:16px; }
 }
+
+/* Search & filter bar (js/filter-ui.js). */
+#filter-bar{
+  display:grid;
+  gap:.4em;
+  padding:.45em .8em;
+  background:var(--bg-raised);
+  border-bottom:1px solid var(--line);
+  font-size:12px;
+}
+#filter-bar[hidden]{ display:none; }
+.flt-line, .flt-cond, #flt-file-wrap{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:.4em .6em;
+}
+#flt-conds{ display:grid; gap:.3em; }
+#flt-conds:empty{ display:none; }
+#filter-bar label{ color:var(--text-dim); }
+#filter-bar input[type=search], #filter-bar input[type=date]{
+  font-family:var(--font-ui);
+  font-size:12px;
+  background:var(--bg);
+  color:var(--text);
+  border:1px solid var(--line-strong);
+  padding:.3em .5em;
+  border-radius:.2rem;
+}
+#filter-bar input:focus{ outline:1px solid var(--accent); outline-offset:-1px; }
+#flt-text{ width:14em; }
+.flt-cond-field{ width:12em; }
+.flt-cond-value{ width:14em; }
+.flt-cond-rm{ padding:.2em .55em; }
+#flt-count{ font-weight:600; font-variant-numeric:tabular-nums; }
+#filter-bar .hint{ color:var(--text-dim); }
+/* "row N" in the issue list: jumps to that QSO */
+.v-goto{
+  background:none; border:none; padding:0;
+  font:inherit; color:var(--accent-text);
+  text-decoration:underline; cursor:pointer;
+}
+.v-goto:hover{ background:none; }
