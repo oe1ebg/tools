@@ -15,7 +15,7 @@
 # the digest is the pin (vnu --version is printed in the job log).
 FROM ghcr.io/validator/validator:latest@sha256:3cb7d2f446677b84fb123427bc029e535739e2314b035b5824a4eb0557803761 AS vnu
 
-FROM mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27 AS playwright
+FROM mcr.microsoft.com/playwright:v1.64.0-noble@sha256:06a9939e57531807f8d5fd76ce44b53165ffb7d7501d87ab10e285c20b1e971f AS playwright
 
 # The webserver the browser tests run against, with
 # deploy/nginx.conf.example: the bundle as a third party would serve it.
