@@ -1,0 +1,138 @@
+{
+  "export": "564ec33624b1d0b79b0665a423399471d3f085328b613529d838c9ee1023e89c",
+  "official test QSOs": {
+    "records": 6197,
+    "counts": {},
+    "issues": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "official test QSOs, mutated": {
+    "records": 6197,
+    "counts": {
+      "error INVALID_ENUM": 210,
+      "info APP_FIELD_WITHOUT_TYPE": 10,
+      "warning BAND_FREQUENCY_MISMATCH": 867,
+      "warning GRIDSQUARE_EXT_MISMATCH": 270,
+      "warning INCOMPLETE_LOCATION": 214,
+      "warning MISSING_QSO_FIELD": 592,
+      "warning MODE_SUBMODE_MISMATCH": 342,
+      "warning NONSTANDARD_ENUM_VALUE": 134,
+      "warning SUSPICIOUS_CITY_VALUE": 365,
+      "warning UNKNOWN_FIELD": 10
+    },
+    "issues": "4b8c44112122c677b191ae328839f5763fc1eb3bd2a41c91a99067d246d4bedb"
+  },
+  "fixtures/adif/application-fields.adi": {
+    "records": 2,
+    "counts": {
+      "info APP_FIELD_WITHOUT_TYPE": 1
+    },
+    "issues": "e43aa44f2103d26b0cdc545c1d4cecc28c2cdbc3e907041eaa930727b88990eb"
+  },
+  "fixtures/adif/band-frequency-mismatch.adi": {
+    "records": 1,
+    "counts": {
+      "warning BAND_FREQUENCY_MISMATCH": 1
+    },
+    "issues": "b05f076b2bbc2494cea99b3918dfedcc85a99ce7211f43ff7da17e912b635e00"
+  },
+  "fixtures/adif/future-version.adi": {
+    "records": 1,
+    "counts": {
+      "warning UNSUPPORTED_ADIF_VERSION": 1
+    },
+    "issues": "7a8a7f9f56839992b3f1837d514dafac3f059ab712faba21d361ed3c74200533"
+  },
+  "fixtures/adif/headerless.adi": {
+    "records": 2,
+    "counts": {
+      "info NO_HEADER": 1
+    },
+    "issues": "6ea3e4818307e7eaca04c35e0f0ed55354b8060d5dc2c9a06b3189a51836601a"
+  },
+  "fixtures/adif/invalid-date.adi": {
+    "records": 1,
+    "counts": {
+      "error INVALID_DATE": 1
+    },
+    "issues": "b5308479a95ccc4ea848f9aec076302cacc855378ef8c4b6abec8f451a9e36d9"
+  },
+  "fixtures/adif/invalid-grid.adi": {
+    "records": 1,
+    "counts": {
+      "error INVALID_GRIDSQUARE": 2
+    },
+    "issues": "8a06c42fb1f1e0540fa42a737ff37a2cdf19c479ecaf2695a7060dc476e2b853"
+  },
+  "fixtures/adif/invalid-length.adi": {
+    "records": 1,
+    "counts": {
+      "error FIELD_LENGTH_MISMATCH": 1
+    },
+    "issues": "02b01fd1dab6feb4686e2590817d1b6391d0f79f232ad92dc70f5830aebe21df"
+  },
+  "fixtures/adif/invalid-mode.adi": {
+    "records": 1,
+    "counts": {
+      "error INVALID_ENUM": 1
+    },
+    "issues": "0117d0c6225219f96fe79ae7566c4efe37a737c400472b79ddaedcd7a0f1d378"
+  },
+  "fixtures/adif/invalid-time.adi": {
+    "records": 1,
+    "counts": {
+      "error INVALID_TIME": 1
+    },
+    "issues": "3859787b58836eeef7e90148f70e2435a2ff29d2bf50c85c359a380217addd43"
+  },
+  "fixtures/adif/malformed-record.adi": {
+    "records": 3,
+    "counts": {
+      "error FIELD_LENGTH_MISMATCH": 1,
+      "error MALFORMED_FIELD": 2,
+      "warning MISSING_QSO_FIELD": 1
+    },
+    "issues": "440c5797ab23a1213717b535e3a8ba8effdf431477913fbe116dbf05b9240253"
+  },
+  "fixtures/adif/mode-submode-mismatch.adi": {
+    "records": 2,
+    "counts": {
+      "warning MODE_SUBMODE_MISMATCH": 1
+    },
+    "issues": "69884ee3f1c50db8437049263b786e92c8d941289fc8f04c6d9bba7031601972"
+  },
+  "fixtures/adif/suspicious-city.adi": {
+    "records": 1,
+    "counts": {
+      "warning SUSPICIOUS_CITY_VALUE": 1
+    },
+    "issues": "3b38a75c34deb4cfe5ed7fe2fc075cc06accc2a4403ec944409e4812b55de7af"
+  },
+  "fixtures/adif/truncated.adi": {
+    "records": 2,
+    "counts": {
+      "error MISSING_EOR": 1,
+      "error TRUNCATED_FIELD": 1,
+      "warning MISSING_QSO_FIELD": 1
+    },
+    "issues": "262a7135e0e0faf39cbe44fe37b2696f8d741a1aeb48b0e083606757db2f3dc0"
+  },
+  "fixtures/adif/userdef.adi": {
+    "records": 2,
+    "counts": {
+      "error INVALID_ENUM": 1,
+      "error INVALID_NUMBER": 1,
+      "error NUMBER_OUT_OF_RANGE": 1
+    },
+    "issues": "89837f0b66cc15f77ce35b33512fab40af2832c455a244dd41f46a622486d1ad"
+  },
+  "fixtures/adif/valid-minimal.adi": {
+    "records": 1,
+    "counts": {},
+    "issues": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "fixtures/adif/valid-repeater.adi": {
+    "records": 1,
+    "counts": {},
+    "issues": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  }
+}
