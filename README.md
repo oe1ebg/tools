@@ -107,6 +107,17 @@ just dist      # dist/oe1ebg-tools-<version>.tar.gz + .sha256
   swapped in separately; a data refresh always means a rebuild of the whole
   bundle at a fixed code version.
 
+## License
+
+The code and the manuals are under the [MIT license](LICENSE). Two kinds of
+content in the bundle keep their own licences:
+
+- **Bundled data:** `tools/shared/data/` and `tools/sota-alerts/data/` (CC BY
+  4.0, ODbL, …). `docs/data-sources.md` lists each dataset with its licence
+  and required attribution.
+- **Leaflet:** the vendored copy (`tools/shared/vendor/leaflet/`) is under
+  BSD-2-Clause, with its `LICENSE` file next to it.
+
 ## History
 
 This repository was split out of `ebirn/web_outdated_at` with its history.
