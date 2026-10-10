@@ -24,11 +24,12 @@ try {
 
 const CACHE = PRECACHE ? `${CONFIG.prefix}-${PRECACHE.version}` : `${CONFIG.prefix}-dev`;
 const SCOPE = new URL('./', self.location).pathname;
-// Precached files outside the scope: the modules and Leaflet from
-// tools/shared/ (published at /tools/shared/, listed as ../shared/… in
-// precache.js). A controlled page's requests reach this worker whatever
-// their URL, so these are served from the cache like everything else.
-const EXTRA = new Set(PRECACHE ? PRECACHE.files.map(f => new URL(f, self.location).pathname).filter(p => !p.startsWith(SCOPE)) : []);
+// Paths of the precached files, including those outside the scope: the
+// modules and Leaflet from tools/shared/ (published at /tools/shared/,
+// listed as ../shared/… in precache.js). A controlled page's requests reach
+// this worker whatever their URL, so these are served from the cache like
+// everything else.
+const FILES = new Set(PRECACHE ? PRECACHE.files.map(f => new URL(f, self.location).pathname) : []);
 
 self.addEventListener('install', event => {
   if (!PRECACHE) return;
@@ -59,11 +60,18 @@ self.addEventListener('fetch', event => {
   const req = event.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
-  if (url.origin !== self.location.origin || !(url.pathname.startsWith(SCOPE) || EXTRA.has(url.pathname))) return;
+  if (url.origin !== self.location.origin) return;
+  // Only precached files, and index.html as the tool's start page. Anything
+  // else goes to the network untouched, above all the single-file bundle
+  // (<tool>-offline.html, not precached): Firefox sends its
+  // <a download> click as a navigation, and a navigation fallback to './'
+  // made it save the ~30 KB start page instead of the multi-MB file.
+  let key;
+  if (FILES.has(url.pathname)) key = req;
+  else if (req.mode === 'navigate' && url.pathname === `${SCOPE}index.html`) key = './';
+  else return;
   event.respondWith((async () => {
-    const cache = await caches.open(CACHE);
-    let hit = await cache.match(req, { ignoreSearch: true });
-    if (!hit && req.mode === 'navigate') hit = await cache.match('./');
+    const hit = await (await caches.open(CACHE)).match(key, { ignoreSearch: true });
     if (hit) return hit;
     try {
       return await fetch(req);
