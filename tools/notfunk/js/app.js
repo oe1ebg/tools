@@ -26,7 +26,7 @@ import { sourceItem, standDate, trackOnline, mapLinks, repoLink } from '../../sh
 import { initOffline, setChip } from '../../shared/js/offline.js';
 import {
   DIRECTIONS, CHANNELS, MESSAGE_TYPES, PRIORITIES, REF_KINDS, STATUS_FLOW, statusLabel, statusEntry, timeLabel, readBackLabel,
-  newMessage, editMessage, softDelete, restoreDeleted, setStatus, addAttempt, announceAlarm, currentStatus, filterMessages,
+  newMessage, editMessage, softDelete, restoreDeleted, setStatus, addAttempt, currentStatus, filterMessages,
   repliesTo, fmtVienna, viennaTime, zoneHint, normFreq, fmtFreq,
 } from './model.js';
 import { saveNumbered, normalizePrefix, PREFIX_RE, nextSeq, formatNumber, counterKey } from './numbering.js';
@@ -416,7 +416,7 @@ function readForm() {
   const v = id => $(id).value;
   return {
     direction: radioValue('m-dir'), date: v('#m-date'), time: v('#m-time'), zone: $('#m-zone').hidden ? '' : v('#m-zone'), channel: radioValue('m-channel'),
-    freq: v('#m-freq'), via: v('#m-via'), type: v('#m-type'), priority: radioValue('m-prio'), alarm: $('#m-alarm').checked,
+    freq: v('#m-freq'), via: v('#m-via'), type: v('#m-type'), priority: radioValue('m-prio'),
     from: v('#m-from'), to: v('#m-to'), peer: v('#m-peer'), subject: v('#m-subject'), text: v('#m-text'), readBack: $('#m-readback').checked,
     stichzeit: v('#m-stichzeit'), distribution: v('#m-distribution'), remarks: v('#m-remarks'),
     origStation: v('#m-orig-station'), origPlace: v('#m-orig-place'), origPlaceLoc: state.origLocField?.get() || null, origFiled: v('#m-orig-filed'),
@@ -447,7 +447,6 @@ function writeForm(form) {
   set('#m-stichzeit', f.stichzeit); set('#m-distribution', f.distribution); set('#m-remarks', f.remarks);
   set('#m-orig-station', f.origStation); set('#m-orig-filed', f.origFiled);
   set('#m-ref-kind', f.refKind || 'antwort'); set('#m-ref', f.ref);
-  $('#m-alarm').checked = !!f.alarm;
   $('#m-readback').checked = !!f.readBack;
   if (f.replyTo) $('#msg-form').dataset.replyTo = f.replyTo;
   else delete $('#msg-form').dataset.replyTo;
@@ -499,15 +498,13 @@ function renderFormState() {
   setText($('#btn-save'), editing ? `Änderung speichern ⇧⏎` : `Speichern als ${previewNumber()} ⇧⏎`);
   for (const n of document.querySelectorAll('#msg-form .lage-only')) n.hidden = f.type !== 'lagemeldung';
   for (const n of document.querySelectorAll('#msg-form .radio-only')) n.hidden = f.channel !== 'funk';
-  $('#msg-form').classList.toggle('urgent', f.priority === 'emergency' || f.alarm);
+  $('#msg-form').classList.toggle('urgent', f.priority === 'emergency');
   $('#msg-form').classList.toggle('editing', !!editing);
   // the words that depend on the direction
   setText($('#m-time-label'), timeLabel(f.direction));
   setText($('#m-readback-label'), readBackLabel(f.direction));
   $('#m-peer').title = f.direction === 'out' ? 'Empfangende Funkstation' : 'Übermittelnde Funkstation';
   showZone();
-  renderPartyInfo('#m-from', '#m-from-info');
-  renderPartyInfo('#m-to', '#m-to-info');
   renderPartyInfo('#m-peer', '#m-peer-info');
   renderPartyInfo('#m-orig-station', '#m-orig-station-info');
   if (state.showErrors) showFieldErrors(check(f).fieldErrors);
@@ -698,15 +695,12 @@ async function saveMessageNow(anyway) {
   $('#m-from').focus();
 }
 
-// Who was heard, per operation, for the completion of Von/An/Gegenstelle.
+// Who was heard, per operation, for the completion of the Funkstelle and
+// the Ursprungsstation (Von/An are free text, no callsign search).
 async function rememberStations(fields) {
-  const ops = [];
-  for (const p of [fields.from, fields.to, { name: '', call: fields.peer }]) {
-    const text = partyText(p);
-    if (!text || text === state.op.home) continue;
-    ops.push({ store: 'stations', put: { id: `${state.op.id}:${text}`, eventId: state.op.id, text, call: p.call, last: nowIso() } });
-  }
-  if (ops.length) await state.store.tx(ops);
+  const call = fields.peer;
+  if (!call || call === state.op.home) return;
+  await state.store.tx([{ store: 'stations', put: { id: `${state.op.id}:${call}`, eventId: state.op.id, text: call, call, last: nowIso() } }]);
 }
 
 async function recentStations() {
@@ -811,7 +805,7 @@ function initForm() {
   // Completion: stations heard in this operation first, then the callbook.
   let recent = [];
   const refreshRecent = async () => { recent = (await recentStations()).filter(s => s.call).map(s => ({ call: s.call, title: s.text })); };
-  for (const key of ['from', 'to', 'peer', 'orig-station']) {
+  for (const key of ['peer', 'orig-station']) {
     const input = $(`#m-${key}`);
     input.addEventListener('focus', refreshRecent);
     attachCallSearch({
@@ -891,13 +885,7 @@ function prioPill(msg) {
   return msg.priority === 'routine' ? el('span', { class: 'dim' }, PRIORITIES.routine) : pill(`pr-${msg.priority}`, PRIORITIES[msg.priority]);
 }
 
-// "Stab herhören!": asked for, and whether the announcement is recorded.
-function alarmBadge(msg) {
-  if (!msg.alarm) return null;
-  return el('span', { class: msg.alarmDone ? 'alarm-badge done' : 'alarm-badge' }, msg.alarmDone ? 'STAB HERHÖREN! ✓' : 'STAB HERHÖREN! – Ansage offen');
-}
-
-// Stores a changed message (status step, attempt, announcement) and says so.
+// Stores a changed message (status step, attempt) and says so.
 async function storeMsg(next, text) {
   try {
     await state.store.tx([{ store: 'messages', put: next }]);
@@ -939,7 +927,7 @@ function renderBook() {
   renderSummary();
   const f = FILTERS[state.filter];
   let list = filterMessages(state.msgs, { ...f, urgent: undefined, query: state.query });
-  if (f.urgent) list = list.filter(m => m.priority !== 'routine' || m.alarm);
+  if (f.urgent) list = list.filter(m => m.priority !== 'routine');
   list.reverse(); // newest first
   const body = $('#book-body');
   if (!list.length) {
@@ -948,14 +936,14 @@ function renderBook() {
     fill(body, list.map(m => {
       const step = nextStep(m);
       const last = m.status[m.status.length - 1];
-      return el('tr', { 'data-id': m.id, class: m.priority === 'emergency' || m.alarm ? 'urgent' : null },
+      return el('tr', { 'data-id': m.id, class: m.priority === 'emergency' ? 'urgent' : null },
         el('td', { class: 'num' }, el('a', { href: `#/e/${state.op.id}/m/${m.id}` }, m.number),
           m.staffRef ? el('div', { class: 'sub', title: 'Referenz der Meldesammelstelle' }, `Ref. ${m.staffRef}`) : null),
         el('td', { class: 'mono' }, viennaTime(m.ts)),
         el('td', { class: 'nowrap' }, m.direction === 'in' ? '↓ Ein' : '↑ Aus'),
         el('td', { class: 'parties' }, partyText(m.from), el('span', { class: 'dim' }, ' → '), partyText(m.to),
           el('div', { class: 'sub' }, [CHANNELS[m.channel], m.peer, fmtFreq(m.radio.freq), m.radio.via && `via ${m.radio.via}`, m.stichzeit && `Stichzeit ${viennaTime(m.stichzeit)}`].filter(Boolean).join(' · '))),
-        el('td', { class: 'content' }, alarmBadge(m), el('b', {}, m.subject || ''), el('div', { class: 'sub clamp' }, m.text)),
+        el('td', { class: 'content' }, el('b', {}, m.subject || ''), el('div', { class: 'sub clamp' }, m.text)),
         el('td', { class: 'nowrap' }, MESSAGE_TYPES[m.type], el('div', {}, prioPill(m))),
         el('td', { class: 'nowrap' }, statusPill(m), el('div', { class: 'sub mono' }, `${viennaTime(last.at)} ${last.by}`)),
         el('td', { class: 'act' },
@@ -1105,7 +1093,7 @@ function flowCard(m) {
           return '';
         })) : null,
     el('p', { class: 'hint' }, out
-      ? '„Übertragen“ heißt: gesendet. Erst „Empfang bestätigt“ heißt, die Gegenstelle hat sie.'
+      ? '„Übertragen“ heißt: gesendet. Erst „Empfang bestätigt“ heißt, die Funkstelle hat sie.'
       : '„Übergeben“ heißt: die Meldung liegt bei der Meldesammelstelle. Es heißt nicht, dass ein Auftrag im Inhalt erledigt ist.'));
 }
 
@@ -1132,22 +1120,6 @@ function staffRefCard(m) {
     el('p', { class: 'hint' }, `Nur zum Zuordnen: die Nummer, unter der die Meldesammelstelle die Meldung führt. Nicht die Notfunk-Nr. ${m.number}.`));
 }
 
-function alarmCard(m) {
-  if (!m.alarm) return null;
-  const d = m.alarmDone;
-  return el('section', { 'aria-label': 'Stab herhören!' },
-    el('h3', { class: 'cap' }, '„Stab herhören!“'),
-    d ? el('p', {}, pill('st-answered', 'angesagt'), ' ', el('span', { class: 'mono' }, [fmtVienna(d.at), d.by, d.note].filter(Boolean).join(' · ')))
-      : el('p', {}, pill('st-logged', 'angefordert'), ' Ansage noch nicht eingetragen.'),
-    !d && !m.deleted ? inlineForm([{ key: 'at', label: 'Angesagt um', time: true }, { key: 'note', label: 'durch / an', placeholder: 'z. B. LdS, Lautsprecher' }],
-      'Ansage eintragen', async v => {
-        const t = stepTime(v.at);
-        if (t.error) return t.error;
-        await storeMsg(announceAlarm(m, { operator: state.op.operator || '', now: nowIso(), at: t.at, note: v.note }), `${m.number}: „Stab herhören!“ angesagt`);
-        return '';
-      }) : null);
-}
-
 function renderDetail(id) {
   const m = state.msgs.find(x => x.id === id);
   const box = $('#msg-detail');
@@ -1170,7 +1142,6 @@ function renderDetail(id) {
         m.deleted ? pill('st-deleted', 'gelöscht') : null,
         statusPill(m),
         m.priority !== 'routine' ? pill(`pr-${m.priority}`, PRIORITIES[m.priority]) : null,
-        alarmBadge(m),
         el('span', { class: 'dim' }, `${m.direction === 'in' ? '↓' : '↑'} ${DIRECTIONS[m.direction]} · ${MESSAGE_TYPES[m.type]}`),
         m.staffRef ? el('span', { class: 'chip' }, `Ref. ${m.staffRef}`) : null),
       el('h3', { class: 'detail-subject' }, m.subject || '(ohne Betreff)'),
@@ -1183,7 +1154,7 @@ function renderDetail(id) {
         ...kv('Erfasst am', el('span', { class: 'mono' }, `${fmtVienna(m.created)} · ${m.operator || '–'}`)),
         ...kv('Von (Absender)', partyText(m.from)),
         ...kv('An (Adressat)', partyText(m.to)),
-        ...(m.peer ? kv('Gegenstelle', el('span', { class: 'mono' }, m.peer), el('span', { class: 'dim' }, m.direction === 'out' ? ' (empfangende Funkstation)' : ' (übermittelnde Funkstation)')) : []),
+        ...(m.peer ? kv('Funkstelle', el('span', { class: 'mono' }, m.peer), el('span', { class: 'dim' }, m.direction === 'out' ? ' (empfangende Funkstation)' : ' (übermittelnde Funkstation)')) : []),
         ...(m.distribution.length ? kv('Verteiler', m.distribution.join(', ')) : []),
         ...kv('Übermittlung', [CHANNELS[m.channel], m.radio.freq && `${fmtFreq(m.radio.freq)} MHz`, m.radio.via && `via ${m.radio.via}`].filter(Boolean).join(' · ')),
         ...(m.location ? kv('Ort / Einsatzstelle', describeLocation(m.location), ' ', mapLinks(m.location)) : []),
@@ -1201,7 +1172,6 @@ function renderDetail(id) {
     el('aside', { class: 'detail-side' },
       flowCard(m),
       staffRefCard(m),
-      alarmCard(m),
       el('section', { 'aria-label': 'Antworten' },
         el('h3', { class: 'cap' }, 'Antworten'),
         el('p', {}, replies.length ? replies.flatMap((r, i) => [i ? ', ' : '', link(r)]) : el('span', { class: 'dim' }, 'noch keine'))),

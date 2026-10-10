@@ -118,13 +118,8 @@ details.hdr .hint{ margin:.6em 0 0; }
 .dt-pair input[type=time]{ width:6.5em; }
 .row-flow .channel-field{ flex:1 1 20em; min-width:0; }
 
-/* the priority buttons: equal width and height; "Stab herhören!" next to
-   them at the same height */
-.prio-line{ display:flex; flex-wrap:wrap; align-items:stretch; gap:.3em .8em; }
+/* the priority buttons: equal width and height */
 .radio-group.prio label{ min-width:6.2em; display:inline-flex; justify-content:center; align-items:center; box-sizing:border-box; }
-.alarm-check{ justify-content:center; box-sizing:border-box; padding:.4em .9em; border:1px solid var(--err); border-radius:5px; color:var(--err); background:var(--bg); cursor:pointer; }
-.alarm-check:has(input:checked){ background:var(--err); color:#fff; }
-.alarm-check:has(input:focus-visible){ outline:2px solid var(--accent); outline-offset:2px; }
 .radio-group.prio label:has(input[value="emergency"]:checked){ border-color:var(--err); background:var(--err-soft); }
 .radio-group.prio input[value="emergency"]:checked + span{ color:var(--err); }
 .radio-group.prio label:has(input[value="priority"]:checked){ border-color:var(--warn); background:var(--warn-soft); }
@@ -204,8 +199,6 @@ table.book tr.fresh td{ background:var(--accent-soft); }
 .st-acknowledged{ color:var(--accent-text); background:var(--accent-soft); }
 .st-answered{ color:var(--ok); border-color:var(--ok); }
 .st-deleted{ color:var(--text-dim); border-color:var(--line-strong); }
-.alarm-badge{ display:inline-block; font-size:12.5px; font-weight:700; letter-spacing:.06em; color:#fff; background:var(--err); border-radius:3px; padding:0 .4em; margin-right:.4em; }
-.alarm-badge.done{ color:var(--err); background:none; border:1px solid var(--err); }
 details.misc{ margin-top:1em; font-size:14.5px; }
 details.misc > summary{ cursor:pointer; color:var(--text-dim); }
 #trash-list{ padding-left:1.2em; }
@@ -387,7 +380,7 @@ html.pf-margins .pf-measure .pf-sheet{ padding:0; }
 .pf-4{ grid-template-columns:1fr .8fr 1fr .8fr; }
 .pf-cell{ padding:var(--pf-pad) 2.5mm; display:flex; flex-direction:column; gap:.5pt; min-width:0; }
 .pf-cell + .pf-cell{ border-left:.75pt solid #000; }
-.pf-inline{ flex-direction:row; flex-wrap:wrap; align-items:center; gap:1pt 2.4mm; font-size:8.6pt; }
+.pf-inline{ flex-direction:row; flex-wrap:wrap; align-items:center; align-content:flex-start; gap:1pt 2.4mm; font-size:8.6pt; }
 .pf-inline > .pf-cap, .pf-inline > .pf-full{ flex-basis:100%; }
 /* circle = choose one (filled by its border: no background needed);
    square = an extra mark */
@@ -396,12 +389,14 @@ html.pf-margins .pf-measure .pf-sheet{ padding:0; }
 .pf-dot{ display:inline-block; box-sizing:border-box; width:8pt; height:8pt; border:.9pt solid #000; border-radius:50%; flex:none; }
 .pf-dot.on{ border-width:4pt; }
 .pf-box{ display:inline-grid; place-items:center; box-sizing:border-box; width:8.5pt; height:8.5pt; border:.9pt solid #000; font-size:7pt; font-weight:800; line-height:1; flex:none; }
-/* Dringlichkeit: one joined block, the chosen level underlined */
-.pf-prio{ display:inline-flex; border:.9pt solid #000; border-radius:3pt; overflow:hidden; }
-.pf-prio > .pf-opt{ padding:.6mm 2mm; border-bottom:1.6pt solid transparent; }
-.pf-prio > .pf-opt + .pf-opt{ border-left:.75pt solid #000; }
-.pf-prio > .pf-opt.on{ border-bottom-color:#000; }
-.pf-alarm{ border:1.8pt solid #000; padding:.4mm 1.8mm; font-weight:800; text-transform:uppercase; letter-spacing:.03em; font-size:7.8pt; }
+/* the choices (Übermittlung, Dringlichkeit, Meldungsart): each option a
+   tile big enough to tick by hand, the chosen one with a thick frame
+   (borders only, no filled areas) */
+.pf-choices{ flex-basis:100%; display:flex; flex-wrap:wrap; gap:1.3mm; margin-top:.6mm; }
+.pf-choices > .pf-opt{ border:.75pt solid #000; border-radius:2pt; padding:1.3mm 2.4mm; gap:1.8mm; font-size:9.5pt; }
+.pf-choices > .pf-opt.on{ border-width:2pt; padding:calc(1.3mm - 1.25pt) calc(2.4mm - 1.25pt); }
+.pf-choices .pf-dot{ width:10pt; height:10pt; }
+.pf-choices .pf-dot.on{ border-width:5pt; }
 /* the verbatim text gets all the room that is left */
 .pf-text{ flex:1; display:flex; flex-direction:column; border:.75pt solid #000; border-top:none; padding:var(--pf-pad) 2.5mm; min-height:30mm; }
 .pf-text p{ flex:1; margin:1mm 0 2mm; font-size:var(--pf-text); line-height:1.45; white-space:pre-wrap; overflow-wrap:anywhere; }

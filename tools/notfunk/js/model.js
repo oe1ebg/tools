@@ -23,10 +23,9 @@ export const MESSAGE_TYPES = {
 };
 // Dringlichkeit. Provisional: no Austrian staff document defines levels
 // (README, open question 3); three levels after the IARU/ARENA radiogram
-// precedences (keys kept from the first draft). `alarm` asks for the
-// message to be announced with "Stab herhören!" (ÖBFV E-31 4.1.5); the
-// announcement itself is recorded separately (announceAlarm()), so a
-// ticked box never pretends it happened.
+// precedences (keys kept from the first draft). Records from earlier
+// drafts may still carry `alarm` / `alarmDone` ("Stab herhören!"); they
+// are kept as they are but no longer shown or set.
 export const PRIORITIES = { routine: 'Routine', priority: 'Dringend', emergency: 'Notfall' };
 // Handling states in order; a message can skip states but never go back.
 // The words depend on the direction: an incoming message is handed over to
@@ -78,12 +77,11 @@ export function messageFields(f) {
     ts: f.ts,
     channel: f.channel || 'funk',
     radio: { freq: normFreq(f.radio?.freq), via: trimmed(f.radio?.via).toUpperCase() },
-    // Gegenstelle: the radio station heard (in) or sent to (out); from/to
+    // Funkstelle: the radio station heard (in) or sent to (out); from/to
     // are the sender and addressee of the message itself.
     peer: trimmed(f.peer).toUpperCase(),
     type: f.type || 'meldung',
     priority: f.priority || 'routine',
-    alarm: !!f.alarm,
     from: party(f.from),
     to: party(f.to),
     distribution: (f.distribution || []).map(trimmed).filter(Boolean),
@@ -132,7 +130,7 @@ export function timeLabel(direction) {
 // The read-back confirmation, worded for the direction.
 export function readBackLabel(direction) {
   return direction === 'out'
-    ? 'Von der Gegenstelle rückgelesen und als richtig bestätigt'
+    ? 'Von der Funkstelle rückgelesen und als richtig bestätigt'
     : 'Rücklesen erfolgt und vom Absender als richtig bestätigt';
 }
 
@@ -148,7 +146,7 @@ export function newMessage(fields, numbered, meta) {
     ...f,
     operator: trimmed(meta.operator).toUpperCase(),
     status: [{ state: 'logged', at: meta.now, by: trimmed(meta.operator).toUpperCase(), note: '' }],
-    attempts: [], alarmDone: null,
+    attempts: [],
     created: meta.now, updated: meta.now, deleted: null,
   };
 }
@@ -220,13 +218,6 @@ export function statusEntry(msg, state) {
 export function addAttempt(msg, { operator, now, at = null, note = '' }) {
   if (at && !ISO_RE.test(at)) throw new Error('Zeitpunkt ist ungültig');
   return { ...msg, attempts: [...(msg.attempts || []), { at: at || now, recorded: now, by: trimmed(operator).toUpperCase(), note: trimmed(note) }], updated: now };
-}
-
-// "Stab herhören!" was actually announced: when, by / to whom.
-export function announceAlarm(msg, { operator, now, at = null, note = '' }) {
-  if (!msg.alarm) throw new Error('„Stab herhören!“ ist für diese Meldung nicht angefordert');
-  if (at && !ISO_RE.test(at)) throw new Error('Zeitpunkt ist ungültig');
-  return { ...msg, alarmDone: { at: at || now, recorded: now, by: trimmed(operator).toUpperCase(), note: trimmed(note) }, updated: now };
 }
 
 // Live (not deleted) messages in number order per prefix, then by time.

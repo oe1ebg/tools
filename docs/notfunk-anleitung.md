@@ -72,7 +72,7 @@ Operator, der sie aufgenommen hat.
 
 1. **Wortlaut aufnehmen:** den Inhalt wörtlich, wie übermittelt.
 2. **Rücklesen bestätigen:** beim Eingang zurücklesen, der Absender bestätigt.
-   Beim Ausgang liest die Gegenstelle zurück.
+   Beim Ausgang liest die Funkstelle zurück.
 3. **Meldung sichern:** Speichern vergibt die Notfunk-Nummer.
 4. **Übergabe bzw. Übertragung dokumentieren:** bei der Meldung „übergeben“
    (Eingang) bzw. „übertragen“ (Ausgang) eintragen, danach die Bestätigung.
@@ -96,13 +96,12 @@ Das Formular steht im Meldebuch ganz oben. Die nächste Nummer wird angezeigt
 | Richtung | Eingang (↓) oder Ausgang (↑) | |
 | Empfangen am / Gesendet am | wann die Meldung übermittelt wurde: Datum und Uhrzeit in zwei Feldern, Ortszeit. Wird beim ersten Tastendruck mit jetzt vorbelegt und kann korrigiert werden. | 08.10.2026 · 14:05 |
 | Übermittlung | Funk, Telefon, mündlich, Melder, E-Mail, Fax, anders | Funk |
-| Gegenstelle | die Funkstation, von der die Meldung gehört wurde (Eingang) bzw. an die sie gesendet wird (Ausgang); nur bei Funk | OE1ABC |
+| Funkstelle | die Funkstation, von der die Meldung gehört wurde (Eingang) bzw. an die sie gesendet wird (Ausgang); nur bei Funk | OE1ABC |
 | Frequenz MHz, Relais | Vorgabe aus dem Einsatz; Komma oder Punkt | 145,500 · OE1XUU |
 | Von (Absender) | wer die Meldung fachlich aufgibt | FF Floridsdorf, Einsatzleiter |
 | An (Adressat) | für wen sie bestimmt ist | Stab, S4 |
 | Meldungsart | Meldung, Auftrag, Frage, Anforderung, Lagemeldung | |
 | Dringlichkeit | Routine, Dringend, Notfall (siehe unten) | |
-| Stab herhören! | die Meldung soll sofort im Stab angesagt werden | |
 | Betreff | kurzer Betreff | Stromausfall Pflegeheim |
 | Ort / Einsatzstelle | wo das gemeldete Ereignis ist; Adresse, Ort, Locator oder UTMREF | Brünner Straße 68 |
 | Inhalt – wörtlich | der Wortlaut; <kbd>Enter</kbd> macht eine neue Zeile | |
@@ -128,7 +127,7 @@ Unter **„Weitere Felder“**:
 
 - **Von / An** sind Absender und Adressat der Meldung selbst, etwa
   „FF Floridsdorf, Einsatzleiter“ an „Stab“.
-- Die **Gegenstelle** ist die Funkstation, über die die Meldung kam oder an
+- Die **Funkstelle** ist die Funkstation, über die die Meldung kam oder an
   die sie geht. Bei Weitergaben ist sie oft nicht die
   **Ursprungsstation**.
 - Der **Operator** ist, wer hier am Gerät aufnimmt.
@@ -175,7 +174,7 @@ nicht; so eine Uhrzeit nimmt das Formular nicht an.
 
 - <kbd>⇧</kbd>+<kbd>Enter</kbd> oder <kbd>Strg</kbd>+<kbd>Enter</kbd> (am Mac auch <kbd>⌘</kbd>+<kbd>Enter</kbd>) speichert,
   aus jedem Feld.
-- Fehlt nur etwas, das nicht zwingend ist (Gegenstelle, Rücklesen) oder liegt
+- Fehlt nur etwas, das nicht zwingend ist (die Funkstelle), oder liegt
   die Zeit weit zurück, erscheint **„Vor dem Speichern prüfen“**. Noch einmal
   <kbd>⇧</kbd>+<kbd>Enter</kbd> oder „Trotzdem speichern“ speichert.
 - <kbd>Esc</kbd> schließt zuerst offene Vorschläge. Bei ausgefülltem Formular fragt
@@ -184,18 +183,13 @@ nicht; so eine Uhrzeit nimmt das Formular nicht an.
 - Der halb ausgefüllte **Entwurf** wird laufend gesichert („✓ Entwurf
   gesichert“) und ist auch nach einem Neuladen noch da.
 
-### Dringlichkeit und „Stab herhören!“
+### Dringlichkeit
 
 | Stufe | Bedeutung (vorläufig) |
 | --- | --- |
 | Routine | alles, was in der normalen Reihenfolge bearbeitet wird |
 | Dringend | vor Routine-Meldungen übermitteln und bearbeiten |
 | Notfall | Gefahr für Leib und Leben oder unmittelbar drohender großer Schaden: sofort |
-
-**„Stab herhören!“** fordert an, dass die Meldung sofort im Stab angesagt
-wird. Das Kästchen sagt nur, dass angesagt werden *soll*: die Ansage selbst
-wird bei der Meldung mit Zeit und Person eingetragen. Bis dahin steht im
-Meldebuch „Stab herhören! – Ansage offen“.
 
 ## Das Meldebuch
 
@@ -228,7 +222,7 @@ rechts der **Ablauf**.
 
 - **Eingang:** „Übergeben an“ (z. B. Meldesammelstelle) mit Zeitpunkt, dann
   „Übernommen durch“ mit Zeitpunkt.
-- **Ausgang:** „Übertragen an“ (die Gegenstelle) mit Zeitpunkt und ob sie
+- **Ausgang:** „Übertragen an“ (die Funkstelle) mit Zeitpunkt und ob sie
   zurückgelesen hat, dann „Empfang bestätigt durch“. Klappt eine Übertragung
   nicht oder gibt es eine Rückfrage: „Fehlversuch / Rückfrage eintragen“.
 - Zeitpunkt leer = jetzt; sonst die Uhrzeit, z. B. `14:10`.
@@ -285,7 +279,7 @@ Zeitraum (Von/Bis je Datum und Uhrzeit; nur ein Datum = der ganze Tag).
 - **Geschäftsbuch (CSV):** eine Zeile pro Meldung, für Excel. Spalten u. a.
   Notfunk-Nr., Referenz Meldesammelstelle, Datum, Uhrzeit (Ortszeit),
   Zeitstempel (ISO 8601 mit Zeitzone, z. B. `2026-10-08T14:05:00+02:00`, für
-  Programme), Ein/Aus, Betreff, Inhalt, Dringlichkeit, Gegenstelle, Status,
+  Programme), Ein/Aus, Betreff, Inhalt, Dringlichkeit, Funkstelle, Status,
   Übergabe, Bezug.
 - **Sicherung (JSON):** der ganze Einsatz mit gelöschten Meldungen und allen
   Fassungen. Auf der Startseite mit „Sicherung importieren…“ wieder
@@ -299,8 +293,8 @@ Zeitraum (Von/Bis je Datum und Uhrzeit; nur ein Datum = der ganze Tag).
 | <kbd>Tab</kbd> / <kbd>Enter</kbd> | nächstes Feld (im Inhalt: <kbd>Enter</kbd> = neue Zeile) |
 | <kbd>⇧</kbd>+<kbd>Tab</kbd> | vorheriges Feld |
 | <kbd>1</kbd> – <kbd>7</kbd>, <kbd>←</kbd> <kbd>→</kbd> | Auswahl in Richtung, Übermittlung, Dringlichkeit |
-| <kbd>↓</kbd> <kbd>↑</kbd>, <kbd>Enter</kbd> | Vorschläge durchgehen und übernehmen (Von, An, Gegenstelle, Relais, Orte, Ursprung) |
-| <kbd>Leertaste</kbd> | Kästchen setzen (Stab herhören!, Rücklesen) |
+| <kbd>↓</kbd> <kbd>↑</kbd>, <kbd>Enter</kbd> | Vorschläge durchgehen und übernehmen (Funkstelle, Relais, Orte, Ursprung) |
+| <kbd>Leertaste</kbd> | Kästchen setzen (Rücklesen) |
 | <kbd>⇧</kbd>+<kbd>Enter</kbd>, <kbd>Strg</kbd>+<kbd>Enter</kbd> | speichern |
 | <kbd>Esc</kbd> | Vorschläge schließen, dann „Eingabe verwerfen?“; noch einmal = weiter erfassen |
 | <kbd>F1</kbd>, <kbd>?</kbd> | Hilfe (<kbd>?</kbd> nur außerhalb von Textfeldern); <kbd>Esc</kbd> schließt sie |
@@ -319,7 +313,6 @@ Mit der Meldesammelstelle bzw. dem Stab abzustimmen:
 
 - Bezeichnung und Nummernschema der externen Referenz.
 - Dringlichkeitsstufen und ihre Bedeutung.
-- Verfahren für „Stab herhören!“.
 - Welche Übergabe- und Empfangsbestätigungen nötig sind.
 - Umgang mit Meldungen, die nicht lesbar auf eine Seite passen.
 

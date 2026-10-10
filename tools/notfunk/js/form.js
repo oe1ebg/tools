@@ -15,7 +15,7 @@ import { normalizeCall, isPlausibleCall } from '../../shared/js/callbook.js';
 import { wallClock, wallToInstants, closestTo } from '../../shared/js/time.js';
 
 export const FORM_DEFAULTS = {
-  direction: 'in', date: '', time: '', zone: '', channel: 'funk', freq: '', via: '', type: 'meldung', priority: 'routine', alarm: false,
+  direction: 'in', date: '', time: '', zone: '', channel: 'funk', freq: '', via: '', type: 'meldung', priority: 'routine',
   from: '', to: '', peer: '', subject: '', text: '', readBack: false, stichzeit: '', distribution: '', remarks: '',
   origStation: '', origPlace: '', origPlaceLoc: null, origFiled: '', replyTo: null, refKind: 'antwort', ref: '',
   location: null, locationText: '',
@@ -143,7 +143,8 @@ const isBlankText = v => !String(v ?? '').trim();
 // model.newMessage()/editMessage(); fieldErrors (German, by form field:
 // time, from, to, subject, text, stichzeit, origFiled) block saving and are
 // shown at the field, errors is the same as a list; warnings only ask
-// before saving (missing radio station, a time far off, no read-back).
+// before saving (missing Funkstelle, a time far off); the read-back is
+// optional and never asked for.
 // byNumber: the operation's messages by number, to link the Bezug.
 // editing: an edit of a stored message (no time warnings).
 export function formToFields(form, { now, byNumber = new Map(), editing = false }) {
@@ -179,7 +180,6 @@ export function formToFields(form, { now, byNumber = new Map(), editing = false 
     peer: form.channel === 'funk' ? form.peer : '',
     type: form.type,
     priority: form.priority,
-    alarm: form.alarm,
     from: parseParty(form.from),
     to: parseParty(form.to),
     distribution: String(form.distribution ?? '').split(/[,;]/),
@@ -199,13 +199,12 @@ export function formToFields(form, { now, byNumber = new Map(), editing = false 
   const errors = Object.values(fieldErrors);
   if (!errors.length) errors.push(...validateMessage(fields));
   const warnings = [];
-  if (fields.channel === 'funk' && !fields.peer) warnings.push('Gegenstelle fehlt');
+  if (fields.channel === 'funk' && !fields.peer) warnings.push('Funkstelle fehlt');
   if (ts && !editing) {
     const min = Math.round((Date.parse(now) - Date.parse(ts)) / 60000);
     if (min < -5) warnings.push('Zeit liegt in der Zukunft');
     else if (min > 60) warnings.push(`Zeit liegt ${min < 120 ? `${min} min` : `${Math.round(min / 60)} h`} zurück (Nachtrag?)`);
   }
-  if (fields.direction === 'in' && !fields.readBack && fields.text) warnings.push('Rücklesen nicht bestätigt');
   return { fields, errors, fieldErrors, warnings };
 }
 
@@ -222,7 +221,7 @@ export function messageToForm(msg) {
   return {
     ...FORM_DEFAULTS,
     direction: msg.direction, date: dateText(msg.ts), time: clockText(msg.ts), zone: zoneHint(msg.ts), ts: msg.ts, channel: msg.channel,
-    freq: msg.radio?.freq || '', via: msg.radio?.via || '', type: msg.type, priority: msg.priority, alarm: !!msg.alarm,
+    freq: msg.radio?.freq || '', via: msg.radio?.via || '', type: msg.type, priority: msg.priority,
     from: partyText(msg.from), to: partyText(msg.to), peer: msg.peer || '', subject: msg.subject, text: msg.text, readBack: !!msg.readBack,
     stichzeit: clockText(msg.stichzeit), stichzeitTs: msg.stichzeit || null, distribution: (msg.distribution || []).join(', '),
     remarks: msg.remarks || '', origStation: msg.origin?.station || '', origPlace: msg.origin?.place || '',
@@ -284,7 +283,7 @@ export function bookSummary(msgs) {
   });
   return {
     total: live.length,
-    emergencyOpen: live.filter(m => (m.priority === 'emergency' || m.alarm) && open(m)).length,
+    emergencyOpen: live.filter(m => m.priority === 'emergency' && open(m)).length,
     unacknowledged: live.filter(open).length,
     range,
     // deleted messages keep their number, so they count for gaps too

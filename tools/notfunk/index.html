@@ -187,7 +187,7 @@
       </div>
 
       <div class="row-flow radio-row radio-only" role="group" aria-label="Funkverbindung">
-        <div class="field ac-field call-field"><label for="m-peer" id="m-peer-label">Gegenstelle</label>
+        <div class="field ac-field call-field"><label for="m-peer" id="m-peer-label">Funkstelle</label>
           <div class="ac-wrap"><input id="m-peer" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-describedby="m-peer-info" title="Übermittelnde Funkstation (Eingang) bzw. empfangende Funkstation (Ausgang)"><div id="m-peer-pop" class="ac-pop"></div></div>
           <div class="ac-hints"><div id="m-peer-info" class="ac-info" aria-live="polite"></div></div></div>
         <label class="field freq-field"><span>Frequenz MHz</span>
@@ -198,21 +198,18 @@
       </div>
 
       <div class="grid-form msg-grid">
-        <div class="field ac-field span-2"><label for="m-from" class="req">Von (Absender)</label>
-          <div class="ac-wrap"><input id="m-from" enterkeyhint="next" spellcheck="false" aria-describedby="m-from-err m-from-info" title="Wer die Meldung aufgibt, z. B. FF Floridsdorf, Einsatzleiter"><div id="m-from-pop" class="ac-pop"></div></div>
-          <div class="ac-hints"><div id="m-from-err" class="ferr" data-field="from"></div><div id="m-from-info" class="ac-info" aria-live="polite"></div></div></div>
-        <div class="field ac-field span-2"><label for="m-to" class="req">An (Adressat)</label>
-          <div class="ac-wrap"><input id="m-to" enterkeyhint="next" spellcheck="false" aria-describedby="m-to-err m-to-info" title="Für wen die Meldung bestimmt ist, z. B. Stab"><div id="m-to-pop" class="ac-pop"></div></div>
-          <div class="ac-hints"><div id="m-to-err" class="ferr" data-field="to"></div><div id="m-to-info" class="ac-info" aria-live="polite"></div></div></div>
+        <div class="field span-2"><label for="m-from" class="req">Von (Absender)</label>
+          <input id="m-from" enterkeyhint="next" spellcheck="false" aria-describedby="m-from-err" title="Wer die Meldung aufgibt, z. B. FF Floridsdorf, Einsatzleiter">
+          <div id="m-from-err" class="ferr" data-field="from"></div></div>
+        <div class="field span-2"><label for="m-to" class="req">An (Adressat)</label>
+          <input id="m-to" enterkeyhint="next" spellcheck="false" aria-describedby="m-to-err" title="Für wen die Meldung bestimmt ist, z. B. Stab">
+          <div id="m-to-err" class="ferr" data-field="to"></div></div>
       </div>
 
       <div class="row-flow">
         <label class="field"><span>Meldungsart</span><select id="m-type"></select></label>
         <div class="field"><span id="m-prio-label">Dringlichkeit</span>
-          <div class="prio-line">
-            <div id="m-prio" class="radio-group prio" role="radiogroup" aria-labelledby="m-prio-label"></div>
-            <label class="check alarm-check" title="„Stab herhören!“ anfordern: die Meldung soll sofort im Stab angesagt werden. Die Ansage selbst wird bei der Meldung eingetragen."><input type="checkbox" id="m-alarm"> <b>Stab herhören!</b></label>
-          </div></div>
+          <div id="m-prio" class="radio-group prio" role="radiogroup" aria-labelledby="m-prio-label"></div></div>
         <label class="field span-2 lage-only stich-field" hidden><span>Stichzeit</span>
           <input type="time" id="m-stichzeit" aria-describedby="m-stichzeit-err" title="Uhrzeit, auf die sich die Lagemeldung bezieht (die letzte vor der Meldung, auch vom Vortag)">
           <span id="m-stichzeit-err" class="ferr" data-field="stichzeit"></span></label>
@@ -336,9 +333,9 @@
         <dl class="kb">
           <dt><kbd>Tab</kbd> / <kbd>Enter</kbd></dt><dd>nächstes Feld; <kbd>⇧</kbd>+<kbd>Tab</kbd> zurück. Im Inhalt macht <kbd>Enter</kbd> eine neue Zeile.</dd>
           <dt><kbd>1</kbd>–<kbd>7</kbd>, <kbd>←</kbd> <kbd>→</kbd></dt><dd>in Richtung, Übermittlung und Dringlichkeit: Ziffer wählt die n-te Möglichkeit, Pfeiltasten wechseln</dd>
-          <dt><kbd>↓</kbd> <kbd>↑</kbd>, <kbd>Enter</kbd></dt><dd>in Von, An, Gegenstelle, Relais, Ort / Einsatzstelle, Ursprungsstation und Ursprungsort: Vorschläge durchgehen, <kbd>Enter</kbd> übernimmt den markierten. Ohne Markierung übernimmt <kbd>Enter</kbd> nur einen Vorschlag, der das Getippte vervollständigt; sonst bleibt der getippte Text.</dd>
-          <dt><kbd>Leertaste</kbd></dt><dd>Kästchen setzen oder löschen (Stab herhören!, Rücklesen)</dd>
-          <dt><kbd>⇧</kbd>+<kbd>Enter</kbd>, <kbd>Strg</kbd>+<kbd>Enter</kbd></dt><dd>speichern, aus jedem Feld (am Mac auch <kbd>⌘</kbd>+<kbd>Enter</kbd>). Fehlt etwas, steht der Hinweis direkt am Feld. Gibt es nur Hinweise (z. B. Gegenstelle fehlt), fragt das Formular nach; noch einmal <kbd>⇧</kbd>+<kbd>Enter</kbd> speichert trotzdem.</dd>
+          <dt><kbd>↓</kbd> <kbd>↑</kbd>, <kbd>Enter</kbd></dt><dd>in Funkstelle, Relais, Ort / Einsatzstelle, Ursprungsstation und Ursprungsort: Vorschläge durchgehen, <kbd>Enter</kbd> übernimmt den markierten. Ohne Markierung übernimmt <kbd>Enter</kbd> nur einen Vorschlag, der das Getippte vervollständigt; sonst bleibt der getippte Text.</dd>
+          <dt><kbd>Leertaste</kbd></dt><dd>Kästchen setzen oder löschen (Rücklesen)</dd>
+          <dt><kbd>⇧</kbd>+<kbd>Enter</kbd>, <kbd>Strg</kbd>+<kbd>Enter</kbd></dt><dd>speichern, aus jedem Feld (am Mac auch <kbd>⌘</kbd>+<kbd>Enter</kbd>). Fehlt etwas, steht der Hinweis direkt am Feld. Gibt es nur Hinweise (z. B. Funkstelle fehlt), fragt das Formular nach; noch einmal <kbd>⇧</kbd>+<kbd>Enter</kbd> speichert trotzdem.</dd>
           <dt><kbd>Esc</kbd></dt><dd>schließt zuerst offene Vorschläge. Danach bei ausgefülltem Formular: fragt „Eingabe verwerfen?“; noch einmal <kbd>Esc</kbd> heißt weiter erfassen. Nach dem Verwerfen ist „Rückgängig“ möglich. In dieser Hilfe: schließt die Hilfe.</dd>
           <dt><kbd>F1</kbd>, <kbd>?</kbd></dt><dd>diese Hilfe öffnen (<kbd>?</kbd> nur außerhalb von Textfeldern). Die Eingabe bleibt, wie sie ist.</dd>
         </dl>
@@ -347,7 +344,7 @@
         <h3 id="h-flow-t">Ablauf</h3>
         <ol class="flow-list">
           <li><b>Wortlaut aufnehmen:</b> Inhalt wörtlich, wie übermittelt.</li>
-          <li><b>Rücklesen bestätigen:</b> beim Eingang rücklesen, der Absender bestätigt; beim Ausgang liest die Gegenstelle zurück.</li>
+          <li><b>Rücklesen bestätigen:</b> beim Eingang rücklesen, der Absender bestätigt; beim Ausgang liest die Funkstelle zurück.</li>
           <li><b>Meldung sichern:</b> Speichern vergibt die Notfunk-Nummer.</li>
           <li><b>Übergabe bzw. Übertragung dokumentieren:</b> bei der Meldung (Klick auf die Nummer) „übergeben“ / „übertragen“ und die Bestätigung eintragen.</li>
           <li><b>Externe Referenz ergänzen:</b> die Nummer, die die Meldesammelstelle zurückmeldet.</li>
@@ -360,8 +357,8 @@
         <dl class="kb">
           <dt>Von (Absender)</dt><dd>wer die Meldung fachlich aufgibt. <span class="ex">FF Floridsdorf, Einsatzleiter</span></dd>
           <dt>An (Adressat)</dt><dd>für wen sie bestimmt ist. <span class="ex">Stab</span> <span class="ex">S4</span> Vorgabe: die Eigene Stelle des Einsatzes.</dd>
-          <dt>Gegenstelle</dt><dd>die Funkstation, von der die Meldung gehört wurde (Eingang) bzw. an die sie gesendet wird (Ausgang). <span class="ex">OE1ABC</span> Unbekannte Stationen einfach eintippen.</dd>
-          <dt>Ursprungsstation</dt><dd>Station, bei der die Meldung ursprünglich aufgegeben wurde; bei Weitergaben oft nicht die Gegenstelle.</dd>
+          <dt>Funkstelle</dt><dd>die Funkstation, von der die Meldung gehört wurde (Eingang) bzw. an die sie gesendet wird (Ausgang). <span class="ex">OE1ABC</span> Unbekannte Stationen einfach eintippen.</dd>
+          <dt>Ursprungsstation</dt><dd>Station, bei der die Meldung ursprünglich aufgegeben wurde; bei Weitergaben oft nicht die Funkstelle.</dd>
           <dt>Operator</dt><dd>wer hier am Gerät aufnimmt („Aufnahme“ oben im Formular). Beim Schichtwechsel im Feld „Einsatz“ ändern; gespeicherte Meldungen behalten ihren Operator.</dd>
         </dl>
       </section>
@@ -385,8 +382,8 @@
       <section id="h-conf" aria-labelledby="h-conf-t">
         <h3 id="h-conf-t">Bestätigungen</h3>
         <dl class="kb">
-          <dt>Rücklesen</dt><dd>der Wortlaut wurde zurückgelesen und als richtig bestätigt (Eingang: vom Absender, Ausgang: von der Gegenstelle).</dd>
-          <dt>Empfang bestätigt</dt><dd>Ausgang: die Gegenstelle hat den Empfang bestätigt.</dd>
+          <dt>Rücklesen</dt><dd>der Wortlaut wurde zurückgelesen und als richtig bestätigt (Eingang: vom Absender, Ausgang: von der Funkstelle).</dd>
+          <dt>Empfang bestätigt</dt><dd>Ausgang: die Funkstelle hat den Empfang bestätigt.</dd>
           <dt>Übergeben / übernommen</dt><dd>Eingang: an die Meldesammelstelle übergeben, von ihr übernommen (mit Name und Zeitpunkt).</dd>
           <dt>Fehlversuch / Rückfrage</dt><dd>Ausgang: eine Übertragung hat nicht geklappt oder es gibt eine Rückfrage; wird mit Zeit vermerkt.</dd>
         </dl>
@@ -400,12 +397,11 @@
         </dl>
       </section>
       <section id="h-prio" aria-labelledby="h-prio-t">
-        <h3 id="h-prio-t">Dringlichkeit und „Stab herhören!“</h3>
+        <h3 id="h-prio-t">Dringlichkeit</h3>
         <dl class="kb">
           <dt>Routine</dt><dd>alles, was in der normalen Reihenfolge bearbeitet wird.</dd>
           <dt>Dringend</dt><dd>soll vor Routine-Meldungen übermittelt und bearbeitet werden.</dd>
           <dt>Notfall</dt><dd>Gefahr für Leib und Leben oder unmittelbar drohender großer Schaden: sofort.</dd>
-          <dt>Stab herhören!</dt><dd>die Meldung soll sofort im Stab angesagt werden. Das Kästchen fordert die Ansage nur an; ob und wann angesagt wurde, wird bei der Meldung eingetragen.</dd>
         </dl>
         <p class="hint">Vorläufig: die Stufen sind noch mit der Meldesammelstelle abzustimmen.</p>
       </section>

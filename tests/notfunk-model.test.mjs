@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   newMessage, editMessage, softDelete, setStatus, currentStatus, validateMessage, messageFields,
-  filterMessages, repliesTo, fmtVienna, viennaTime, isoVienna, zoneHint, statusEntry, statusLabel, addAttempt, announceAlarm,
+  filterMessages, repliesTo, fmtVienna, viennaTime, isoVienna, zoneHint, statusEntry, statusLabel, addAttempt,
 } from '../tools/notfunk/js/model.js';
 import { toGeschaeftsbuchCSV, toBackup, parseBackup, mergeBackup, GB_COLUMNS } from '../tools/notfunk/js/export.js';
 import { formatNumber } from '../tools/notfunk/js/numbering.js';
@@ -79,13 +79,10 @@ test('status steps keep who and when; the words depend on the direction', () => 
   assert.equal(statusEntry(out, 'forwarded').readBack, true);
 });
 
-test('failed attempts and the announcement are logged, the status stays', () => {
+test('failed attempts are logged, the status stays', () => {
   const m = addAttempt(msg({ direction: 'out' }, 6), { operator: 'a', now: T0, note: 'keine Antwort' });
   assert.equal(currentStatus(m), 'logged');
   assert.deepEqual(m.attempts.map(a => a.note), ['keine Antwort']);
-  assert.throws(() => announceAlarm(m, { operator: 'a', now: T0 }), /nicht angefordert/);
-  const al = announceAlarm(msg({ alarm: true }, 7), { operator: 'a', now: T0, note: 'LdS' });
-  assert.deepEqual([al.alarm, al.alarmDone.at, al.alarmDone.note], [true, T0, 'LdS']);
 });
 
 test('the staff reference is kept apart from the number, an edit keeps the old one', () => {
@@ -122,13 +119,13 @@ test('time formats: Austrian local time, the zone only in the repeated hour', ()
 });
 
 test('Geschäftsbuch CSV', () => {
-  const a = msg({ alarm: true, priority: 'priority' }, 20);
+  const a = msg({ priority: 'priority' }, 20);
   const b = msg({ direction: 'out', from: { name: 'ELS' }, to: { name: 'LI Floridsdorf', call: 'OE1ABC' }, replyTo: 'm20', subject: 'Re; Strom' }, 21);
   const csv = toGeschaeftsbuchCSV([b, a, softDelete(msg({}, 22), { operator: 'x', now: T0 })]);
   assert.ok(csv.startsWith('﻿Notfunk-Nr.;Referenz Meldesammelstelle;Datum;Uhrzeit;Zeitstempel (ISO 8601);Ein/Aus;'));
   const lines = csv.slice(1).trimEnd().split('\r\n');
   assert.equal(lines[0].split(';').length, GB_COLUMNS.length);
-  assert.match(lines[1], /^W1-020;;05\.10\.2026;14:07;2026-10-05T14:07:00\+02:00;Eingang;Lichtinsel Floridsdorf \/ OE1ABC;Stromausfall;"Seit 13:50 Uhr kein Strom\nim Bereich Am Spitz\.  Bitte um Info\.";Meldung;Dringend;angefordert;Funk;;145,500 via OE1XUU;/);
+  assert.match(lines[1], /^W1-020;;05\.10\.2026;14:07;2026-10-05T14:07:00\+02:00;Eingang;Lichtinsel Floridsdorf \/ OE1ABC;Stromausfall;"Seit 13:50 Uhr kein Strom\nim Bereich Am Spitz\.  Bitte um Info\.";Meldung;Dringend;Funk;;145,500 via OE1XUU;/);
   assert.match(lines.slice(2).join('\n'), /^W1-021;;.*;Ausgang;LI Floridsdorf \/ OE1ABC;"Re; Strom";/m);
   assert.match(lines.slice(2).join('\n'), /;zur Übertragung;;;;Antwort auf W1-020;;OE1XYZ;05\.10\.2026 14:07;$/m);
   assert.ok(!csv.includes('W1-022'), 'deleted messages are not in the Geschäftsbuch');

@@ -71,12 +71,12 @@ test('Notfunk-Meldebuch', async ({ page }) => {
   await expect(page.locator('#book-body')).toContainText('W1-001');
 
   await msg({
-    time: '2026-10-08T12:20:00Z', from: 'Lichtinsel 7 Stammersdorf', peer: 'OE1XYZ', readBack: false,
+    time: '2026-10-08T12:20:00Z', from: 'Lichtinsel 7 Stammersdorf', peer: '', readBack: false,
     subject: 'Lage Lichtinsel 7', text: 'Lichtinsel 7 besetzt, 2 Personen. Funk und Notstrom in Ordnung. Ca. 30 Personen aus der Umgebung vor Ort, keine Verletzten.',
   });
   await page.locator('#m-text').press('Shift+Enter');
   await expect(page.locator('#warn-bar')).toBeVisible();
-  await shotAround(page, ['#msg-form .readback-check', '#warn-bar'], 'notfunk-hinweis');
+  await shotAround(page, ['#msg-form .radio-row', '#warn-bar'], 'notfunk-hinweis');
   await page.locator('#m-text').press('Shift+Enter');
   await expect(page.locator('#book-body')).toContainText('W1-002');
 

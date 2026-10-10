@@ -31,7 +31,7 @@ function partyLabel(p) {
 
 export const GB_COLUMNS = [
   'Notfunk-Nr.', 'Referenz Meldesammelstelle', 'Datum', 'Uhrzeit', 'Zeitstempel (ISO 8601)', 'Ein/Aus', 'eingegangen von / weitergeleitet an', 'Betreff', 'Inhalt',
-  'Art', 'Dringlichkeit', 'Stab herhören!', 'Übermittlung', 'Gegenstelle', 'Frequenz/Relais', 'Absender', 'Adressat', 'Verteiler',
+  'Art', 'Dringlichkeit', 'Übermittlung', 'Funkstelle', 'Frequenz/Relais', 'Absender', 'Adressat', 'Verteiler',
   'Rücklesen bestätigt', 'Status', 'Übergeben / übertragen an', 'Übergeben / übertragen um', 'Übernommen / Empfang bestätigt durch',
   'Bezug', 'Ort / Einsatzstelle', 'Aufgenommen von', 'Erfasst', 'Anmerkungen',
 ];
@@ -47,7 +47,7 @@ export function toGeschaeftsbuchCSV(msgs, sep = ';') {
       m.number, m.staffRef || '', viennaDate(m.ts), viennaTime(m.ts), isoVienna(m.ts), DIRECTIONS[m.direction],
       partyLabel(m.direction === 'in' ? m.from : m.to), m.subject, m.text,
       MESSAGE_TYPES[m.type], PRIORITIES[m.priority],
-      m.alarm ? (m.alarmDone ? `angesagt ${viennaTime(m.alarmDone.at)}` : 'angefordert') : '', CHANNELS[m.channel],
+      CHANNELS[m.channel],
       m.peer || '', [fmtFreq(m.radio.freq), m.radio.via].filter(Boolean).join(' via '), partyLabel(m.from), partyLabel(m.to), m.distribution.join(', '),
       m.readBack ? 'ja' : '', statusLabel(currentStatus(m), m.direction),
       fwd?.to || '', fwd ? viennaTime(fwd.at) : '', ack ? [ack.who, viennaTime(ack.at)].filter(Boolean).join(' ') : '',

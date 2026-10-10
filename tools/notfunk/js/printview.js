@@ -7,7 +7,7 @@
 // The form is one A4 page: white, thin lines, no filled areas (nothing
 // depends on printed backgrounds, so it also reads in black and white and
 // saves toner). A circle = choose exactly one (channel, urgency, type), a
-// square = an extra mark (Stab herhören!, Rücklesen). The chosen direction
+// square = an extra mark (Rücklesen). The chosen direction
 // gets a thick frame and an ✕, the other one is pale.
 //
 // One page: fitForm() measures the sheet off-screen at the printed width.
@@ -80,16 +80,16 @@ function whenCell(s) {
     el('span', { class: 'pf-small' }, `erfasst ${s.created}`));
 }
 
-function priorityCell(s) {
-  return el('div', { class: 'pf-cell pf-inline' }, cap('Dringlichkeit'),
-    el('span', { class: 'pf-prio' }, ...s.priorities.map(p => dot(p.checked, p.label))),
-    el('span', { class: 'pf-alarm' }, box(s.alarm, 'Stab herhören!')),
-    s.alarmDone ? el('span', { class: 'pf-small' }, `angesagt ${s.alarmDone}`) : null);
+// A choice (Übermittlung, Dringlichkeit, Meldungsart): every option as a
+// tile, big enough to tick by hand; the chosen one is marked.
+function choiceCell(label, options) {
+  return el('div', { class: 'pf-cell pf-inline' }, cap(label),
+    el('span', { class: 'pf-choices' }, ...options.map(o => dot(o.checked, o.label))));
 }
 
 export function renderFormSheet(s) {
   const peerLine = side => (s.blank || (side === 'from') === (s.direction !== 'out'))
-    ? el('div', { class: 'pf-small' }, `Gegenstelle: ${s.peer}`) : null;
+    ? el('div', { class: 'pf-small' }, `Funkstelle: ${s.peer}`) : null;
   return el('article', { class: s.blank ? 'pf-sheet blank' : 'pf-sheet' },
     el('header', { class: 'pf-top' },
       el('div', { class: 'pf-titlebox' },
@@ -101,12 +101,10 @@ export function renderFormSheet(s) {
     staffBlock(s),
     el('div', { class: 'pf-row pf-ab pf-first' },
       whenCell(s),
-      el('div', { class: 'pf-cell pf-inline' }, cap('Übermittlung'),
-        ...s.channels.map(c => dot(c.checked, c.key === 'anders' && s.channelOther ? `anders: ${s.channelOther}` : c.label)))),
+      choiceCell('Übermittlung', s.channels.map(c => ({ ...c, label: c.key === 'anders' && s.channelOther ? `anders: ${s.channelOther}` : c.label })))),
     el('div', { class: 'pf-row pf-ab' },
-      priorityCell(s),
-      el('div', { class: 'pf-cell pf-inline' }, cap('Meldungsart'),
-        ...(s.blank ? s.types.map(t => dot(false, t)) : [el('span', { class: 'pf-val' }, s.type)]))),
+      choiceCell('Dringlichkeit', s.priorities),
+      choiceCell('Meldungsart', s.types)),
     el('div', { class: 'pf-row pf-2' },
       cell('Von (Absender)', val(s.from), peerLine('from')),
       cell('An (Adressat)', val(s.to), peerLine('to'), el('div', { class: 'pf-small' }, `Verteiler: ${s.distribution}`))),
@@ -198,7 +196,7 @@ export function renderBookSheet(b) {
         el('td', {}, r.time),
         el('td', {}, r.direction),
         el('td', {}, r.party),
-        el('td', {}, el('b', {}, r.alarm ? 'STAB HERHÖREN! ' : '', r.subject), r.text ? el('div', { class: 'pb-text' }, r.text) : null),
+        el('td', {}, el('b', {}, r.subject), r.text ? el('div', { class: 'pb-text' }, r.text) : null),
         el('td', {}, r.type, r.priority ? el('div', { class: 'pb-prio' }, r.priority) : null),
         el('td', {}, r.status),
         el('td', {}, r.operator)))))

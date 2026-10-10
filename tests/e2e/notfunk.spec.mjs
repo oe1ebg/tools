@@ -111,7 +111,7 @@ test('keyboard: Shift+Enter saves, warnings ask once, Esc asks before discarding
   // warnings (no radio station, no read-back): asked once, then saved
   await page.locator('#m-text').press('Control+Enter');
   await expect(page.locator('#warn-bar')).toBeVisible();
-  await expect(page.locator('#warn-list')).toContainText('Gegenstelle fehlt');
+  await expect(page.locator('#warn-list')).toContainText('Funkstelle fehlt');
   await page.locator('#m-text').press('Shift+Enter');
   await expect(page.locator('#book-body')).toContainText('K1-001');
   // Esc on a filled form asks; Esc again keeps it
@@ -157,7 +157,7 @@ test('help: F1 opens it, Esc closes it, the form and the focus stay', async ({ p
   await page.locator('#m-to').fill('Stab S4');
   await page.locator('#m-to').press('F1');
   await expect(page.locator('#help-dlg')).toBeVisible();
-  await expect(page.locator('#help-dlg')).toContainText('Gegenstelle');
+  await expect(page.locator('#help-dlg')).toContainText('Funkstelle');
   await page.keyboard.press('Escape');
   await expect(page.locator('#help-dlg')).toBeHidden();
   await expect(page.locator('#m-to')).toBeFocused();
@@ -254,7 +254,8 @@ test('print: an empty form to print a stack of', async ({ page }) => {
   await page.emulateMedia({ media: 'print' });
   await expect(page.locator('#print-sheet .pf-sheet.blank')).toBeVisible();
   await expect(page.locator('#print-sheet .pf-box.on, #print-sheet .pf-dot.on')).toHaveCount(0);
-  await expect(page.locator('#print-sheet')).toContainText('Stab herhören!');
+  await expect(page.locator('#print-sheet')).toContainText('Dringlichkeit');
+  await expect(page.locator('#print-sheet')).not.toContainText('Stab herhören!');
   await expect(page.locator('#view-ops')).toBeHidden();
 });
 
