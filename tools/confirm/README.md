@@ -111,6 +111,28 @@ now redirected; see "Move to /tools/" in `../shared/README.md`), and the source 
   `durability: "strict"`, and the UI only says "gespeichert" after the
   commit has succeeded. If the write fails, a red banner appears and the
   input stays in the form.
+- **Wording contract (saved / draft / backup).** "gespeichert" only after
+  the commit; a draft is a best-effort copy that can be lost (another tab,
+  cleared site data, quota) and is never called saved; "Sicherung" in the UI
+  means a file download was *started*: the browser does not tell us whether
+  it finished or where it went, so no text may say a backup is "kept" or
+  "safe". Backups are plaintext JSON; the revision history is not
+  tamper-evident. The manual (`docs/confirm-anleitung.md`, "Gespeichert,
+  Entwurf und Sicherung") says the same.
+- **Import (`importBackup`).** The file is validated first (nothing is
+  written when it isn't a valid backup); all logs of a file are written in
+  one transaction, all or nothing; nothing stored is overwritten (a log whose
+  id exists comes in as a copy, "(Import)"); old backups import with
+  warnings listed ("Hinweise zur Sicherung").
+- **Fallback.** Without IndexedDB, localStorage is used. Without Web Locks
+  (plain `http://` is not a secure context) two tabs are not serialised; the
+  per-event single-writer lock of the app relies on the same API.
+  `offerFallbackMigration()` offers to copy fallback records into IndexedDB
+  ("In IndexedDB übernehmen"), never overwriting, and lists what it kept
+  with the reason. Details: `../shared/README.md`, "Storage contract".
+- **Origin trust.** Storage is per origin, not per directory: same-origin
+  scripts can read it. See the root `README.md`, "Trust, storage and
+  backups".
 - **Drafts.** The half-typed line is saved as a draft (debounced 300 ms, and
   flushed on `visibilitychange`/`pagehide`), then restored after a reload or
   crash.

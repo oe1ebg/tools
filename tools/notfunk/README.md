@@ -163,6 +163,22 @@ name, and a distribution list ("Verteiler").
   from the offline location lookup (which never changes the text).
   Frequencies take a comma or a point and are shown as `145,500`. The
   half-typed message is kept as a draft ("✓ Entwurf gesichert").
+- **Saved / draft / backup wording.** Same contract as the confirmation log
+  (`../confirm/README.md`, Persistence). Notices in the banner, as of the
+  storage/recovery work: "NICHT GESPEICHERT – … wurde inzwischen geändert"
+  (compare-and-set conflict: nothing written, current version loaded, the
+  input stays); "ENTWURF NICHT GESICHERT" (another tab holds another draft:
+  keep mine / load the other); "ENTWURF PRÜFEN" (an edit draft of an older
+  version: apply to the current version / discard, nothing is saved before
+  the choice); "ENTWURF" (the edited message no longer exists: the draft
+  would become a new message). A backup is read from the stored data, not the
+  tab's memory (only when the storage is unreadable the tab's state is used,
+  and the status says so); "Sicherung (JSON) heruntergeladen" means a download
+  was started. A restore skips unusable records and lists them. Numbers are
+  never reused; in the localStorage fallback without Web Locks (plain
+  `http://`) two tabs can take the same number, a documented limitation. The
+  manual describes all of this; its screenshots of the notices are pending
+  (see the HTML comments in `docs/notfunk-anleitung.md`).
 - **Help:** "? Hilfe", F1, or ? outside text fields opens a dialog with the
   keys, the flow, who is who, places, times, confirmations, numbers and
   urgency; Esc closes it and the focus goes back to the field. The

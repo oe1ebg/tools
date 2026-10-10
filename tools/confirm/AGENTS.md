@@ -107,6 +107,12 @@ are in `oe1ebg/tools/confirm/README.md`.
   `js/export.js`, which resolves like the map. A zone-less input takes its
   zone from `utmRef()` (set by `app.js` from the log header), default 33U.
   Details: README "UTMREF".
+- **Saved / draft / backup wording:** "gespeichert" only after the commit; a
+  draft is never called saved; "Sicherung" texts say a download was started,
+  never that a backup is kept or safe; import is all-or-nothing, copy-on-
+  import, old backups with warnings. The manual's section "Gespeichert,
+  Entwurf und Sicherung" and the UI/help must say the same. Storage is per
+  origin and plaintext (README "Persistence").
 
 ## Data
 
