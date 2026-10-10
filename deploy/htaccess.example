@@ -6,6 +6,7 @@
 # or the headers are gone after the switch. Same rules as
 # nginx.conf.example, which explains each of them; the policies must stay
 # the same as there (tests/deploy-headers.test.mjs compares them).
+# Origin note: see nginx.conf.example (storage is per origin, not directory).
 AddType application/manifest+json .webmanifest
 AddDefaultCharset utf-8
 
