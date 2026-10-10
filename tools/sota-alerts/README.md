@@ -587,16 +587,25 @@ current state rather than treating the URL as continuously live.
   the OSM/Overpass "find in view" feature (see Features above) cover this
   partially; a real bulk/region listing endpoint doesn't appear to exist on
   `api2.sota.org.uk` itself.
-- **The "find in view" (Overpass) feature is unverified in an actual
-  browser.** While building it, `curl` against Overpass consistently
-  succeeded (proving the query, CORS, and endpoint are all fine), but
-  Node.js's own `fetch()` consistently got a `406 Not Acceptable` from
-  Overpass's Apache backend regardless of method (GET/POST) or headers
-  tried — an environment-specific quirk in that one HTTP client, not
-  something reproducible via curl. This couldn't be resolved or ruled out
-  for real browsers from this environment (no browser available to test
-  directly) — check it works in an actual browser via `just serve`
-  before relying on it.
+- **Overpass availability and client identification:** `overpass-api.de`
+  requires a Referer for browser clients, or a custom identifying User-Agent
+  for scripts ([operator guidance](https://github.com/drolbr/Overpass-API/issues/791)).
+  A stock `curl`/Node request can get HTTP 406 without CORS headers; that
+  does not establish that a normal browser request fails. Checked again
+  on 2026-10-10: an identifying script User-Agent passed the rejection but
+  received HTTP 504 with CORS headers because the server was busy.
+  A subsequent live Chromium test of the updated client request from
+  `localhost` sent an origin-only Referer and received HTTP 200, JSON and
+  `Access-Control-Allow-Origin: *` for a tiny bounding box.
+  The browser request uses form-encoded `data`, omits credentials and sets
+  `referrerPolicy: 'origin'` so no page path or shared-link parameters are
+  sent. Privacy settings can still suppress the Referer, and server-side
+  bans or outages cannot be repaired by JavaScript. Searches are serialized,
+  time out after 35 seconds and wait at least 30 seconds after HTTP 429
+  (longer when an exposed `Retry-After` requests it), with no automatic
+  retries or alternate-server fallback. Errors suggest name/code search
+  where appropriate. Stubbed tests verify request handling; they do not
+  guarantee the live service is available.
 - No S2S (summit-to-summit) QSO-level data or chaser locator information —
   investigated, and this doesn't appear to be available via any public,
   unauthenticated SOTA endpoint (the "spots" endpoint itself is

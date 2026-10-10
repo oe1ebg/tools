@@ -25,7 +25,7 @@ whenever the data doesn't need to be second-by-second fresh.
 | `GET api2.sota.org.uk/api/summits/search/{term}` | `searchSummits()`, from `doSummitSearch()` | typing (debounced 350ms, ≥3 chars), search button, Enter | 1 per distinct term per session | `summitSearchCache` (session `Map`, case-insensitive) skips a repeat of the exact same term; `AbortController` cancels a still-in-flight search when a newer one supersedes it |
 | `GET data/summit-lookup.json` (same-origin, not SOTA) | `loadSummitLookup()` | first call to `resolveSummits()` that needs it (in practice, page load) | ≤1 per session, memoized | `lazy()` (in-flight-promise guard), a failed load is kept as an empty map (no retry) |
 | `GET data/summits.json` (same-origin, not SOTA) | `loadAllSummits()` | "toggle all summits" overlay click | ≤1 per session, memoized | Lazy — never loaded unless the overlay is turned on |
-| `POST overpass-api.de/api/interpreter` (not SOTA) | `searchOsmSummitsInView()`, from `doAreaSearch()` | "find in view" click | 1 per click | Hard-capped to ≤4° viewport span before firing |
+| `POST overpass-api.de/api/interpreter` (not SOTA) | `searchOsmSummitsInView()`, from `doAreaSearch()` | "find in view" click | 1 per click, no automatic retries | Hard-capped to ≤4° viewport span; one request at a time; 35-second timeout; at least 30-second cooldown after HTTP 429 (respect exposed `Retry-After`); form-encoded `data`, no credentials, origin-only Referer |
 
 Every request is in `js/api.js`; the static-first resolver is `js/lookup.js`
 (the functions above: `fetchAlerts`, `fetchSummit`, `searchSummits`,

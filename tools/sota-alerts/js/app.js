@@ -350,6 +350,8 @@ async function doSummitSearch(term){
 }
 
 async function doAreaSearch(){
+  const btn = $id('btn-area-search');
+  if (btn.disabled) return;
   const bounds = mapView.map.getBounds();
   if (bounds.getNorth() - bounds.getSouth() > AREA_SEARCH_MAX_SPAN_DEG || bounds.getEast() - bounds.getWest() > AREA_SEARCH_MAX_SPAN_DEG){
     hint('zoom in further before searching this area (keeps the query small and fast).');
@@ -359,8 +361,10 @@ async function doAreaSearch(){
   hint('searching OpenStreetMap for tagged summits in view…');
   searchPanel().classList.add('show');
   let elements;
+  btn.disabled = true;
   try { elements = await searchOsmSummitsInView(bounds); }
   catch (err) { hint(`OSM search failed (${err.message}).`); return; }
+  finally { btn.disabled = false; }
   const cands = elements.map(candidateFromOsmElement).filter(c => c && c.lat != null);
   showCandidates(cands, 'no OSM-tagged SOTA summits found in this view (coverage is partial — most summits aren\'t tagged in OSM yet).');
 }
