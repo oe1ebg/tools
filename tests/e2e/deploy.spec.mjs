@@ -37,7 +37,6 @@ test('pages, scripts, styles and manifests are served with no-cache', async ({ r
 // run the pages under them (the fixture fails on any CSP violation).
 const SECURITY = {
   'x-content-type-options': 'nosniff',
-  'x-frame-options': 'DENY',
   'referrer-policy': 'strict-origin-when-cross-origin',
 };
 
@@ -50,14 +49,29 @@ test('security headers on pages, assets and errors', async ({ request }) => {
     expect(res.status(), path).toBe(path.includes('no-such') ? 404 : 200);
     for (const [name, value] of Object.entries(SECURITY)) expect(res.headers()[name], `${path}: ${name}`).toBe(value);
     csp[path] = res.headers()['content-security-policy'];
-    expect(csp[path], path).toContain("frame-ancestors 'none'");
+    // framing: only adif-editor.html, by its own origin (tools/adif/README.md,
+    // "Zensical integration")
+    const embeddable = path.endsWith('adif-editor.html');
+    expect(csp[path], path).toContain(embeddable ? "frame-ancestors 'self'" : "frame-ancestors 'none'");
+    expect(res.headers()['x-frame-options'], path).toBe(embeddable ? 'SAMEORIGIN' : 'DENY');
   }
   expect(csp['tools/confirm/']).toMatch(/script-src 'self' 'sha256-/);
   expect(csp['tools/confirm/']).not.toMatch(/script-src[^;]*unsafe-inline/);
   expect(csp['tools/no-such-file.html']).toBe(csp['tools/']);
   expect(csp['tools/sota-alerts/']).toContain('https://api2.sota.org.uk');
   expect(csp['tools/confirm/confirm-offline.html']).toContain("script-src 'self' 'unsafe-inline'");
-  expect(csp['tools/adif/adif-editor.html']).toBe(csp['tools/confirm/confirm-offline.html']);
+  expect(csp['tools/adif/adif-editor.html']).toContain("script-src 'self' 'unsafe-inline'");
+});
+
+// The documented embedding: a page of the same site shows adif-editor.html
+// in an <iframe>. The embedding page is stubbed (same origin, no headers).
+test('adif-editor.html can be embedded by a page of the same origin', { tag: '@adif' }, async ({ page }) => {
+  await page.route('**/tools/embed-test.html', route => route.fulfill({
+    contentType: 'text/html',
+    body: '<!doctype html><title>embed</title><iframe src="adif/adif-editor.html" title="ADIF Editor"></iframe>',
+  }));
+  await page.goto('tools/embed-test.html');
+  await expect(page.frameLocator('iframe').locator('#btn-open')).toBeVisible();
 });
 
 // The inline load-failure script of confirm/ and notfunk/ runs (its hash is

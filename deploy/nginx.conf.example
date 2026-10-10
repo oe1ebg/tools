@@ -4,7 +4,7 @@
 # README.md ("Updating a deployment") has the atomic way to install and switch
 # releases. Used as-is by CI (tests run against it), so keep it working.
 #
-# The two `map` blocks belong in the http context, like the server block:
+# The `map` blocks belong in the http context, like the server block:
 # a file in /etc/nginx/conf.d/ (where CI mounts this one) is included there.
 # Their names start with oe1ebg_ so they don't clash with other sites.
 
@@ -27,14 +27,23 @@
 #                  header applies); served here they still load nothing
 #                  from elsewhere.
 # Everything: no plugins, no <base>, no framing (frame-ancestors has to be a
-# header, it is ignored in a <meta> tag). Style attributes are allowed
-# (style-src-attr): the pages have none (tests/tools-html.test.mjs), but
+# header, it is ignored in a <meta> tag), except adif-editor.html by pages
+# of the same origin: tools/adif/README.md ("Zensical integration")
+# documents embedding it in an <iframe> of a site page. Style attributes
+# are allowed (style-src-attr): the pages have none (tools-html.test.mjs), but
 # WebKit reports the internals of its own <select> as blocked inline style;
 # stylesheets and <style> elements stay restricted.
 map $uri $oe1ebg_csp {
     default                                                "default-src 'self'; script-src 'self' 'sha256-BFKCNN17mvY1faBbmDv6Qs2zM9TIJ4uOPbK2JRYPmY0=' 'sha256-4QzxWl/E8EGSZSZaTG6/Yh0/RwJ7dKruDne0oFCzeIQ='; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
     ~/sota-alerts/                                         "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: https://*.tile.opentopomap.org https://tile.openstreetmap.org https://mapsneu.wien.gv.at; connect-src 'self' https://api2.sota.org.uk https://overpass-api.de; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
-    ~/(confirm-offline|notfunk-offline|adif-editor)\.html$ "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
+    ~/adif-editor\.html$                                   "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'";
+    ~/(confirm-offline|notfunk-offline)\.html$             "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
+}
+
+# X-Frame-Options for browsers without frame-ancestors, the same rule.
+map $uri $oe1ebg_frame_options {
+    default                "DENY";
+    ~/adif-editor\.html$  "SAMEORIGIN";
 }
 
 # Revalidate pages, scripts, styles and data (Cache-Control: no-cache
@@ -70,7 +79,7 @@ server {
     # `always`: on error responses (404, …) too.
     add_header Content-Security-Policy $oe1ebg_csp always;
     add_header X-Content-Type-Options "nosniff" always;
-    add_header X-Frame-Options "DENY" always;
+    add_header X-Frame-Options $oe1ebg_frame_options always;
     # Cross-origin requests (SOTA API, map tiles) carry the origin only; the
     # OpenStreetMap tile policy wants a Referer.
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
