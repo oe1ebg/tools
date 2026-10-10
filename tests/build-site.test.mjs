@@ -51,3 +51,25 @@ test('build_site renders the footer on every page', async () => {
   assert.match(src, /\{footer\}\n<\/main>/);
   assert.equal((src.match(/page\([^)]*, foot\)/g) || []).length, 2, 'overview and manuals');
 });
+
+// The development stub (`just dev-precache`) must never be staged: the
+// bundle would ship tools that cannot work offline.
+test('stage refuses a development precache.js stub', t => {
+  const code = 'import sys, json, tempfile; from pathlib import Path; sys.path.insert(0, "scripts"); import build_site; '
+    + 'd = Path(tempfile.mkdtemp()); '
+    + '(d / "a").mkdir(); (d / "b").mkdir(); '
+    + '(d / "a" / "precache.js").write_text("self.A_PRECACHE = { dev: true };\\n"); '
+    + '(d / "b" / "precache.js").write_text("self.B_PRECACHE = {\\n  version: \\"1\\",\\n  files: [\\"./\\"],\\n};\\n"); '
+    + 'print(json.dumps([p.parent.name for p in build_site.dev_stubs(d)]))';
+  for (const [cmd, pre] of [['uv', ['run', 'python']], ['python3', []]]) {
+    try {
+      const out = execFileSync(cmd, [...pre, '-c', code], { cwd: OE1EBG, stdio: 'pipe', encoding: 'utf8' }).trim();
+      assert.deepEqual(JSON.parse(out), ['a']);
+      return;
+    } catch (e) {
+      if (e.code !== 'ENOENT' && !/ModuleNotFoundError/.test(String(e.stderr))) throw e;
+    }
+  }
+  assert.ok(!DATA_REQUIRED, 'DATA_TESTS=require, but no Python with python-markdown (uv sync)');
+  t.skip('no Python with python-markdown');
+});

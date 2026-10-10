@@ -40,16 +40,24 @@ export function offlineStatus(reply) {
 }
 
 // The save hook (beforeReload) contract: it resolves `true` when everything
-// typed is safe in storage (or there was nothing to save). `false`, any other
-// value or a rejection means the save FAILED: the update/reload then does not
-// happen (tools/shared/README.md, "Save hook").
-export async function saveSucceeded(beforeReload) {
+// typed is safe in storage (or there was nothing to save, or what is not
+// saved is already stored elsewhere and unchanged). Anything else means the
+// save FAILED and the update/reload does not happen: `false`, another value,
+// a rejection, or, to say why, a string or { message } (shown in the banner,
+// in German, about the actual risk). tools/shared/README.md, "Save hook".
+export async function runSaveHook(beforeReload) {
   try {
-    return (await beforeReload()) === true;
+    const r = await beforeReload();
+    if (r === true) return { ok: true, message: '' };
+    const message = typeof r === 'string' ? r : (r && typeof r.message === 'string' ? r.message : '');
+    return { ok: false, message };
   } catch (e) {
     console.warn('Sichern vor dem Update fehlgeschlagen', e);
-    return false;
+    return { ok: false, message: '' };
   }
+}
+export async function saveSucceeded(beforeReload) {
+  return (await runSaveHook(beforeReload)).ok;
 }
 
 // Registers sw.js and runs the update flow. opts:
@@ -88,7 +96,7 @@ export async function initOffline({ build = null, beforeReload = async () => tru
   let updating = false;
   let reloading = false;
   let attempting = false;
-  let forced = false;
+  let forceNext = false; // "Trotzdem aktualisieren": the next check only, then the hook counts again
 
   const updChip = el('span', { id: 'st-update', class: 'chip warn', role: 'status', hidden: true });
   ($('#btn-update') || $('#st-offline')).after(updChip);
@@ -105,51 +113,60 @@ export async function initOffline({ build = null, beforeReload = async () => tru
   // the save hook reports success. On failure nothing happens: the page, the
   // old worker and its cache stay, the input stays in the form, and the
   // banner says what to do. "Trotzdem aktualisieren" (asks to confirm) is the
-  // one explicit way past it.
-  const afterSave = async (action, what) => {
+  // one explicit way past it, for that one action. `note` adds to the banner.
+  const afterSave = async (action, what, note = '') => {
     if (attempting) return;
     attempting = true;
-    let ok;
+    let res;
     try {
-      ok = forced || await saveSucceeded(beforeReload);
+      res = forceNext ? { ok: true } : await runSaveHook(beforeReload);
+      forceNext = false;
     } finally {
       attempting = false;
     }
-    if (ok) { hideProblem(); action(); return; }
+    if (res.ok) { hideProblem(); action(); return; }
     fill(problem,
       el('strong', {}, `${what} nicht ausgeführt: `),
-      'Die laufende Eingabe konnte nicht gesichert werden. Sie bleibt in diesem Fenster erhalten. ',
-      'Sichere sie zuerst (Text kopieren oder die Sicherung/den Export des Werkzeugs nutzen) und versuche es dann erneut.',
-      el('button', { type: 'button', id: 'btn-update-retry', onclick: () => afterSave(action, what) }, 'Erneut versuchen'),
+      `${res.message || 'Die laufende Eingabe konnte nicht gesichert werden.'} Sie bleibt in diesem Fenster erhalten. `,
+      'Sichere sie zuerst (Text kopieren oder die Sicherung/den Export des Werkzeugs nutzen) und versuche es dann erneut. ',
+      note,
+      el('button', { type: 'button', id: 'btn-update-retry', onclick: () => afterSave(action, what, note) }, 'Erneut versuchen'),
       el('button', { type: 'button', id: 'btn-update-anyway', onclick: () => {
         if (!globalThis.confirm('Nicht gesicherte Eingaben gehen verloren. Trotzdem aktualisieren?')) return;
-        forced = true;
+        // a local update continues with a controllerchange that runs the
+        // hook again: skip it once, but only for a short while
+        forceNext = true;
+        setTimeout(() => { forceNext = false; }, 10e3);
         hideProblem();
         action();
       } }, 'Trotzdem aktualisieren'));
     problem.hidden = false;
   };
 
+  const doReload = () => { reloading = true; location.reload(); };
   const reloadForUpdate = () => {
     if (reloading) return;
-    afterSave(() => { reloading = true; location.reload(); }, 'Neuladen');
+    afterSave(doReload, 'Neuladen', 'Diese Seite läuft noch mit der alten Version unter der neuen: Sobald die Eingabe gesichert ist, einmal neu laden. ');
+  };
+  // The waiting worker is looked up when the action runs (another tab may
+  // have activated it while the banner was up): then only reload.
+  const doUpdate = () => {
+    if (!reg.waiting) return doReload();
+    updating = true;
+    reg.waiting.postMessage('skipWaiting');
   };
   const offerUpdate = () => {
     if (!reg.waiting || !navigator.serviceWorker.controller) return;
     setUpdateNote('');
     const btn = $('#btn-update');
     btn.hidden = false;
-    btn.onclick = () => {
-      // Another tab may have activated it meanwhile: then only reload.
-      if (!reg.waiting) return reloadForUpdate();
-      afterSave(() => { updating = true; reg.waiting.postMessage('skipWaiting'); }, 'Update');
-    };
+    btn.onclick = () => afterSave(doUpdate, 'Update');
   };
   const watch = w => w?.addEventListener('statechange', () => {
     if (w.state === 'installed') offerUpdate();
     if (w.state === 'activated') reportOfflineVersion();
-    if (w.state === 'redundant') {
-      // installation failed (broken manifest, files missing, network)
+    if (w.state === 'redundant' && !reg.installing && !reg.waiting) {
+      // installation failed (not just replaced by a newer install: broken manifest, files missing, network)
       if (navigator.serviceWorker.controller) {
         setUpdateNote('Update fehlgeschlagen', 'Die neue Version konnte nicht geladen werden. Die installierte Version läuft weiter.');
       } else if (!reg.active) {
@@ -236,16 +253,26 @@ function reportOfflineVersion() {
     setChip('#st-offline', 'offline: wird eingerichtet…', 'warn');
     return;
   }
-  const ch = new MessageChannel();
+  // A worker the browser has stopped needs a moment (or a second message) to
+  // wake up: ask again once before saying "nicht bereit", and a late reply
+  // still replaces that text.
+  let attempt = 0;
   let answered = false;
-  ch.port1.onmessage = ev => {
-    answered = true;
-    const st = offlineStatus(ev.data);
-    setChip('#st-offline', st.text, st.cls);
-    $('#st-offline').title = st.title || '';
-    showVersion(ev.data && ev.data.version);
+  const ask = () => {
+    const ch = new MessageChannel();
+    ch.port1.onmessage = ev => {
+      answered = true;
+      const st = offlineStatus(ev.data);
+      setChip('#st-offline', st.text, st.cls);
+      $('#st-offline').title = st.title || '';
+      showVersion(ev.data && ev.data.version);
+    };
+    ctl.postMessage('version', [ch.port2]);
+    setTimeout(() => {
+      if (answered) return;
+      if (++attempt < 2) ask();
+      else setChip('#st-offline', 'offline nicht bereit', 'err');
+    }, 5e3);
   };
-  ctl.postMessage('version', [ch.port2]);
-  // a worker that never answers is not "ready" either
-  setTimeout(() => { if (!answered) setChip('#st-offline', 'offline nicht bereit', 'err'); }, 10e3);
+  ask();
 }

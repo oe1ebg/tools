@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
-import { offlineStatus, saveSucceeded } from '../tools/shared/js/offline.js';
+import { offlineStatus, saveSucceeded, runSaveHook } from '../tools/shared/js/offline.js';
 
 const SRC = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'tools', 'shared', 'js', 'sw-core.js'), 'utf8');
 
@@ -149,4 +149,26 @@ test('save hook contract: only true is success', async () => {
   } finally {
     console.warn = warn;
   }
+});
+
+test('save hook: a string or { message } says why, only true is success', async () => {
+  const warn = console.warn;
+  console.warn = () => {};
+  try {
+    assert.deepEqual(await runSaveHook(async () => true), { ok: true, message: '' });
+    assert.deepEqual(await runSaveHook(async () => 'Entwurf liegt woanders'), { ok: false, message: 'Entwurf liegt woanders' });
+    assert.deepEqual(await runSaveHook(async () => ({ message: 'x' })), { ok: false, message: 'x' });
+    assert.deepEqual(await runSaveHook(async () => false), { ok: false, message: '' });
+    assert.deepEqual(await runSaveHook(async () => { throw new Error('quota'); }), { ok: false, message: '' });
+  } finally {
+    console.warn = warn;
+  }
+});
+
+test('a development worker never deletes caches (a production cache survives)', async () => {
+  const { handlers, store } = load({ dev: true }, { cached: { name: 'tools-x-abc123', paths: ['/tools/x/'] } });
+  let p;
+  handlers.activate({ waitUntil: x => { p = x; } });
+  await p;
+  assert.deepEqual([...store.keys()], ['tools-x-abc123']);
 });

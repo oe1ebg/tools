@@ -66,7 +66,8 @@ self.addEventListener('install', event => {
 
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
-    for (const key of await caches.keys()) {
+    // A development worker owns no cache: it must not wipe a production one.
+    for (const key of DEV ? [] : await caches.keys()) {
       if (key.startsWith(`${CONFIG.prefix}-`) && key !== CACHE) await caches.delete(key);
     }
     await self.clients.claim();

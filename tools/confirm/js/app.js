@@ -775,7 +775,15 @@ async function flushMarkers({ openForEdit = true } = {}) {
 // or just saved), false when the save failed (the edit stays in the form and
 // is tried again by the next flush): the update flow relies on it.
 let headerUnsaved = false;
+let headerFlight = null; // the write in progress: a flush waits for it (reload mid-write)
 async function flushHeader() {
+  const prev = headerFlight;
+  if (prev) await prev.catch(() => {}); // its outcome is in headerUnsaved: a failure is tried again below
+  const run = flushHeaderNow();
+  headerFlight = run;
+  try { return await run; } finally { if (headerFlight === run) headerFlight = null; }
+}
+async function flushHeaderNow() {
   if ((!state.headerTimer && !headerUnsaved) || !state.event) return true;
   clearTimeout(state.headerTimer);
   state.headerTimer = null;
@@ -1507,7 +1515,15 @@ function scheduleDraft() {
 // Resolves true when the half-typed line is safe (nothing pending, or saved),
 // false when saving failed; the next flush then tries again (draftUnsaved).
 let draftUnsaved = false;
+let draftFlight = null; // the write in progress: a flush waits for it (reload mid-write)
 async function flushDraft() {
+  const prev = draftFlight;
+  if (prev) await prev.catch(() => {}); // its outcome is in draftUnsaved: a failure is tried again below
+  const run = flushDraftNow();
+  draftFlight = run;
+  try { return await run; } finally { if (draftFlight === run) draftFlight = null; }
+}
+async function flushDraftNow() {
   if ((!state.draftTimer && !draftUnsaved) || !state.event || state.readOnly) return true;
   clearTimeout(state.draftTimer);
   state.draftTimer = null;

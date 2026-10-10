@@ -228,12 +228,44 @@ for (const tool of Object.keys(TOOLS)) {
 
       // this tab saw the controller change but could not save: it stays
       await expect(page.locator('#update-problem')).toContainText('Neuladen nicht ausgeführt', { timeout: 15_000 });
+      // it says that this page runs old code under the new worker
+      await expect(page.locator('#update-problem')).toContainText('alten Version');
       expect(await marker(page)).toBe('same page');
       await expect(input).toHaveValue(typed);
       await restoreStorage(page);
       await page.locator('#btn-update-retry').click();
       await expect.poll(() => marker(page), { timeout: 30_000 }).toBeUndefined();
       expectSaveErrors(problems);
+    });
+
+    test('a waiting version replaced by a newer install, or a failed newer one, is no "Update fehlgeschlagen"', async ({ page, context }) => {
+      await openReady(page, tool);
+      await stageUpdate(page, context, tool);
+      // v3 supersedes the waiting v2 (v2 becomes redundant)
+      await registerVersion(page, 'v3');
+      await expect.poll(() => page.evaluate(async () => (await navigator.serviceWorker.getRegistration()).waiting?.scriptURL), { timeout: 30_000 }).toContain('sw.js?v3');
+      await expect(page.locator('#st-update')).toBeHidden();
+      await expect(page.locator('#btn-update')).toBeVisible();
+      // a broken v4 fails, but a good waiting version is still on offer
+      await context.route(`**/tools/${tool}/precache.js`, route => route.fulfill(scriptJs(GARBAGE)));
+      await registerVersion(page, 'v4');
+      await page.waitForTimeout(1500);
+      await expect(page.locator('#st-update')).toBeHidden();
+      await expect(page.locator('#btn-update')).toBeVisible();
+    });
+
+    test('a service worker that does not answer the first status request is asked again', async ({ page }) => {
+      await page.addInitScript(() => {
+        // the first 'version' message gets lost (a worker the browser had stopped)
+        let dropped = false;
+        const post = ServiceWorker.prototype.postMessage;
+        ServiceWorker.prototype.postMessage = function (msg, ...rest) {
+          if (msg === 'version' && !dropped) { dropped = true; return undefined; }
+          return post.call(this, msg, ...rest);
+        };
+      });
+      await page.goto(TOOLS[tool].path);
+      await expect(page.locator('#st-offline')).toHaveText('offline bereit ✓', { timeout: 45_000 });
     });
 
     test('a resumed tab offers the update it missed', async ({ page, context }) => {
@@ -246,3 +278,99 @@ for (const tool of Object.keys(TOOLS)) {
     });
   });
 }
+
+// An update must not overtake a draft write that is still running (reload
+// mid-write): the hook waits for it. The drafts store is held busy by a
+// transaction of the test, so the app's write is in flight for ~2.5 s.
+test('confirm: the update waits for a draft write in flight and the draft survives', async ({ page, context, browserName }) => {
+  test.skip(browserName !== 'chromium', 'service workers: Chromium only');
+  await openReady(page, 'confirm');
+  await TOOLS.confirm.typeInput(page);
+  await stageUpdate(page, context, 'confirm');
+  await page.evaluate(() => new Promise((resolve, reject) => {
+    const open = indexedDB.open('oe1ebg-confirm');
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const db = open.result;
+      const tx = db.transaction('drafts', 'readwrite');
+      const st = tx.objectStore('drafts');
+      const end = Date.now() + 2500;
+      const spin = () => { if (Date.now() < end) st.get('none').onsuccess = spin; };
+      spin();
+      tx.oncomplete = () => db.close();
+      resolve();
+    };
+  }));
+  await page.locator('#f-call').fill('OE1ABCX');
+  await page.waitForTimeout(600); // the debounce has fired: the write is queued behind the busy store
+  await page.evaluate(() => { globalThis.__marker = 'same page'; });
+  await page.locator('#btn-update').click();
+  await page.waitForTimeout(600);
+  expect(await marker(page)).toBe('same page'); // still waiting for the write
+  await expect.poll(() => marker(page), { timeout: 30_000 }).toBeUndefined(); // then reloaded
+  await expect.poll(() => page.evaluate(TOOLS.confirm.ready)).toBe(true);
+  await expect(page.locator('#f-call')).toHaveValue('OE1ABCX');
+});
+
+// notfunk: an older edit draft held back for review is stored already, so it
+// is not "unsaved input": the update goes through; what is typed after it is.
+test('notfunk: a held-back older draft does not block the update, new input does', async ({ page, context, browserName, problems }) => {
+  test.skip(browserName !== 'chromium', 'service workers: Chromium only');
+  await openReady(page, 'notfunk');
+  await page.getByRole('button', { name: '+ Neuer Einsatz' }).click();
+  await page.locator('#n-name').fill('E2E Held');
+  await page.locator('#n-prefix').fill('h1');
+  await page.locator('#n-operator').fill('oe1ebg');
+  await page.getByRole('button', { name: 'Einsatz anlegen' }).click();
+  await expect(page.locator('#view-book')).toBeVisible();
+  await page.locator('#m-from').fill('Lichtinsel 2');
+  await page.locator('#m-peer').fill('OE1ABC');
+  await page.locator('#m-subject').fill('Wasser');
+  await page.locator('#m-text').fill('old text');
+  await page.locator('#m-readback').check();
+  await page.locator('#btn-save').click();
+  await expect(page.locator('#book-body')).toContainText('Wasser');
+  await page.locator('#book-body a', { hasText: 'H1-001' }).click();
+  await page.getByRole('button', { name: 'Bearbeiten' }).click();
+  await page.locator('#m-subject').fill('Wasser dringend');
+  await page.waitForTimeout(1000);
+  // the draft as written before bases were kept, and the message changed after it
+  await page.evaluate(() => new Promise((resolve, reject) => {
+    const open = indexedDB.open('oe1ebg-notfunk');
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const db = open.result;
+      const tx = db.transaction(['drafts', 'messages'], 'readwrite');
+      const drafts = tx.objectStore('drafts');
+      const msgs = tx.objectStore('messages');
+      drafts.getAll().onsuccess = ev => {
+        const d = ev.target.result[0];
+        delete d.base;
+        delete d.updated;
+        drafts.put(d);
+        msgs.getAll().onsuccess = ev2 => {
+          const m = ev2.target.result[0];
+          m.text = 'new text from tab B';
+          m.updated = new Date(Date.parse(d.saved) - 60000).toISOString();
+          msgs.put(m);
+        };
+      };
+      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.onerror = () => reject(tx.error);
+    };
+  }));
+  await page.reload();
+  await expect(page.locator('#banner')).toContainText('ENTWURF PRÜFEN');
+  await stageUpdate(page, context, 'notfunk');
+  await page.evaluate(() => { globalThis.__marker = 'same page'; });
+  // something typed after the notice is not stored: held back, with the reason
+  await page.locator('#m-subject').fill('Wasser sehr dringend');
+  await page.locator('#btn-update').click();
+  await expect(page.locator('#update-problem')).toContainText('Ein älterer Entwurf wartet');
+  expect(await marker(page)).toBe('same page');
+  // back to what the held-back draft shows: nothing is at risk, the update goes through
+  await page.locator('#m-subject').fill('Wasser dringend');
+  await page.locator('#btn-update-retry').click();
+  await expect.poll(() => marker(page), { timeout: 30_000 }).toBeUndefined();
+  expectSaveErrors(problems);
+});
