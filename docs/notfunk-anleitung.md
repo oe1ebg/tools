@@ -53,15 +53,15 @@ angekommen ist und noch irgendwo liegt, kann es nicht wissen; siehe
 **Neue Version.** Erscheint „Update verfügbar“, ist eine neue Version
 geladen. Sie wird erst nach einem Klick darauf aktiv, nie von selbst mitten
 im Betrieb. Gespeicherte Meldungen und die vergebenen Nummern bleiben
-unverändert. Vor dem Neuladen wird der halb ausgefüllte Entwurf gesichert und
-danach zurückgeholt; ein Entwurf ist aber keine gespeicherte Meldung. Vor
+unverändert. Vor dem Neuladen versucht das Meldebuch, den halb ausgefüllten
+Entwurf zu sichern, und holt ihn danach zurück. Das geschieht nur, wenn kein
+Entwurfs-Hinweis (siehe unten) oder Fehler angezeigt wird; sonst läuft das
+Neuladen trotzdem, und der Text sollte vorher kopiert werden. Ein Entwurf
+ist keine gespeicherte Meldung. Vor
 dem Update eine laufende Meldung speichern, wenn sie fertig ist, und im
 Einsatz lieber erst nach einer ruhigen Phase aktualisieren. Das Update gilt
 für alle offenen Tabs und Fenster gleichzeitig.
 
-<!-- TODO(#13): Zusage zum Update (Entwurf, mehrere Tabs, Zeitpunkt) nach dem
-     Umbau der Update- und Entwurfslogik prüfen und wie im Werkzeug
-     formulieren. -->
 
 ## Einen Einsatz anlegen
 
@@ -242,9 +242,6 @@ es doch, überschreibt das Meldebuch nichts stillschweigend:
   Einsatz nicht mehr“:** Der Entwurf steht im Formular und würde als **neue**
   Meldung gespeichert, mit einer neuen Nummer.
 
-<!-- TODO(Screenshots): neue Aufnahmen für „NICHT GESPEICHERT“, „ENTWURF NICHT
-     GESICHERT“ und „ENTWURF PRÜFEN“ fehlen. Siehe die Liste am Ende der
-     Anleitung. -->
 
 ### Dringlichkeit
 
@@ -370,10 +367,14 @@ Zeitraum (Von/Bis je Datum und Uhrzeit; nur ein Datum = der ganze Tag).
   wird; ist sie als Ganzes unbrauchbar („Nicht importiert“), ändert sich
   nichts. Einzelne fehlerhafte Datensätze werden **ausgelassen** und mit
   Grund aufgelistet („Aus der Datei ausgelassen“); die übrigen werden
-  übernommen. Meldungen, deren Nummer oder ID schon mit einer anderen Meldung
-  belegt ist, und Antworten auf eine fehlende Meldung werden nicht
-  übernommen und mit ihrer Nummer genannt. Nummernzähler gehen nie zurück,
-  eine neuere Fassung gewinnt.
+  übernommen. Das Ergebnis nennt, wie viele Meldungen neu und wie viele
+  aktualisiert wurden (eine Meldung wird nur durch eine neuere Fassung
+  derselben Meldung ersetzt). Meldungen, deren Nummer oder ID schon mit
+  einer anderen Meldung belegt ist, erscheinen unter „Nicht übernommen
+  (Nummer oder ID schon mit anderer Meldung belegt)“, Antworten auf eine
+  fehlende oder nicht übernommene Meldung unter „Nicht übernommen (Bezug …)“,
+  jeweils mit der Nummer. Die Nummernzähler gehen durch einen Import nie
+  zurück.
 - **Ersatzspeicher.** Steht in der Fußzeile „localStorage (Ersatzspeicher)“,
   war IndexedDB nicht verfügbar. Der Ersatzspeicher ist klein (rund 5 MB) und
   hat bei einer Adresse mit `http://` (statt HTTPS oder `localhost`) keine
@@ -417,14 +418,6 @@ Zeitraum (Von/Bis je Datum und Uhrzeit; nur ein Datum = der ganze Tag).
 bleibt, wie sie ist; nach dem Schließen ist der Cursor wieder im vorigen
 Feld.
 
-## Hinweise zu dieser Anleitung
-
-<!-- TODO(Screenshots) nach der Textangleichung zu #13 neu aufnehmen
-     (`just screenshots`): notfunk-hinweis.png (Hinweise und Banner),
-     notfunk-meldung.png (Formular mit Entwurfsstatus), notfunk-meldebuch.png
-     (Sicherungsstand oben rechts), notfunk-meldung-detail.png (falls sich die
-     Bearbeiten-Hinweise ändern), notfunk-hilfe.png (Hilfetext). Neu
-     aufzunehmen: NICHT GESPEICHERT, ENTWURF NICHT GESICHERT, ENTWURF PRÜFEN. -->
 
 Die Hinweise bei Konflikten und Entwürfen stehen so im Werkzeug; ändert sich
 ihr Wortlaut, ändert sich diese Anleitung mit.

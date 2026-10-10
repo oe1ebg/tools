@@ -44,16 +44,15 @@ nicht von selbst. Steht dort „nicht dauerhaft“, regelmäßig eine Sicherung
 **Neue Version.** Erscheint „Update verfügbar“, ist eine neue Version
 geladen. Sie wird erst nach einem Klick darauf aktiv, nie mitten in einer
 Runde. Gespeicherte Zeilen und Logs bleiben unverändert. Vor dem Neuladen
-sichert das Werkzeug die halb getippte Zeile und die Kopfdaten als Entwurf
-und holt sie danach zurück; ein Entwurf ist aber keine gespeicherte Zeile
+versucht das Werkzeug, die halb getippte Zeile und die Kopfdaten als Entwurf
+zu sichern, und holt sie danach zurück. Schlägt das Sichern fehl, erscheint
+ein Hinweis, das Neuladen läuft trotzdem: Steht ein Fehlerhinweis, den Text
+vor dem Update kopieren. Ein Entwurf ist keine gespeicherte Zeile
 (siehe [Gespeichert, Entwurf und Sicherung](#gespeichert-entwurf-und-sicherung)).
 Wer auf Nummer sicher gehen will, speichert eine laufende Zeile
 (<kbd>⇧</kbd>+<kbd>Enter</kbd>) vor dem Update. Das Update gilt für alle offenen
 Tabs und Fenster des Werkzeugs gleichzeitig.
 
-<!-- TODO(#13): Zusage zum Update (Entwurf, Kopfdaten, mehrere Tabs) nach dem
-     Umbau der Update- und Entwurfslogik prüfen und hier wie im Werkzeug
-     formulieren. -->
 
 **Mehrere Tabs.** Ein Log sollte nur in einem Tab offen sein; sonst warnt
 das Werkzeug („nur ein Tab pro Log!“).
@@ -82,13 +81,17 @@ allen Zeilen, auch den gelöschten, und enthält die Daten **unverschlüsselt**.
 - Die Datei wird zuerst geprüft. Ist sie keine gültige Sicherung des
   Bestätigungsverkehrs, wird nichts importiert und nichts verändert.
 - Alle Logs der Datei werden **ganz oder gar nicht** übernommen.
-- Importiert wird als Kopie: Es wird nie etwas Vorhandenes überschrieben.
-  Gibt es ein Log schon, kommt es als „(Import)“ dazu.
-- Ältere Sicherungen lassen sich importieren; fehlt etwas oder weicht etwas
-  ab, steht es als Hinweis unter „Hinweise zur Sicherung“, übernommen wird
-  alles wie gespeichert.
+- Es wird nie etwas Vorhandenes überschrieben. Ist die ID des Logs, einer
+  seiner Zeilen oder einer früheren Fassung schon gespeichert, kommt das Log
+  als Kopie mit neuen IDs und dem Zusatz „(Import)“ dazu. Andere Logs
+  behalten ID und Titel.
+- Ältere Sicherungen lassen sich importieren. Fehlt etwas oder weicht etwas
+  ab, steht es als Hinweis unter „Hinweise zur Sicherung“. Es wird nichts
+  weggelassen; nötige Werte werden bei Bedarf ergänzt (z. B. der
+  Zähler für die nächste Nummer), und eine Zeile ohne lesbare Zeit
+  bekommt ihre Erstellungs- bzw. Exportzeit, mit Hinweis.
 
-**Ersatzspeicher.** Steht oben „localStorage (Ersatzspeicher)“, war
+**Ersatzspeicher.** Steht in der Fußzeile „localStorage (Ersatzspeicher)“, war
 IndexedDB nicht verfügbar. Der Ersatzspeicher ist klein (rund 5 MB) und hat
 bei einer Adresse mit `http://` (statt HTTPS oder `localhost`) keine
 Sperre zwischen Tabs: zwei Tabs könnten dann gleichzeitig schreiben. Nur
