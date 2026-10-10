@@ -129,7 +129,19 @@ lacks is copied, a structurally equal one (key order doesn't matter)
 counted as identical, a different one goes to the schema's optional
 `merge(store, current, incoming)` (Notfunk: counters keep the higher
 number) and otherwise is **kept**: IndexedDB is not overwritten and the
-record stays in localStorage, listed in `kept`. Only after the commit are
+record stays in localStorage, listed in `kept`. Keys are not enough: the
+schema's optional `migration` declares `unique` values per store and
+`parents`, checked in the migration transaction against IndexedDB and
+the other migrated records. A record whose unique value is taken (reason
+`duplicate`) or whose parent is neither in IndexedDB nor migrated
+(`parent`, cascading) is kept too, never renumbered. Notfunk: a message's
+(operation, prefix, seq) and (operation, number); revision → message,
+message/counter/station/draft → operation. Confirm: a line's (event,
+seq); revision → line, line/snapshot/draft → event. `migration.fixup(api,
+migrated)` then runs in the same transaction (Notfunk: counters never
+below a migrated number; confirm: `nextSeq` above every migrated line).
+`planFallbackMigration(schema, ls, current, all)` returns the plan without
+running it. Only after the commit are
 the copied, merged and identical records removed from localStorage.
 Result: `{ copied, merged, identical, kept: [{ store, key, reason }] }`.
 `storageui.js` offers it in its own box after the page's banner
