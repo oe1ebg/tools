@@ -6,6 +6,7 @@
 
 import { openStorage } from './db.js';
 import { requestPersistence } from '../../shared/js/storage.js';
+import { openStorageWithNotices, offerFallbackMigration } from '../../shared/js/storageui.js';
 import {
   MODES, modeInfo, headerSnapshot, emptyHeader, checkinNumbers, previousCheckins, adifModeText, SIGNALLING,
   signallingText, REPEATER_KEYS, parseMHz, liveSorted, stats, isComment, COMMENT_CATEGORIES, newComment,
@@ -2088,7 +2089,7 @@ async function loadRepeaterFooter() {
 
 async function main() {
   globalThis.CONFIRM_STARTED = true;
-  state.store = await openStorage();
+  state.store = await openStorageWithNotices(openStorage, $('#banner'));
   if (!state.store) {
     showFatal('Dieser Browser erlaubt keine lokale Speicherung (privater Modus?). Ohne Speicher kann nichts sicher geloggt werden.');
     return;
@@ -2099,6 +2100,8 @@ async function main() {
     b.className = 'banner warn';
     b.textContent = 'IndexedDB nicht verfügbar – Daten liegen im kleineren localStorage. Häufig exportieren.';
     b.hidden = false;
+  } else {
+    offerFallbackMigration(state.store, $('#banner'));
   }
   wire();
   $('#st-tabs').hidden = !!navigator.locks;

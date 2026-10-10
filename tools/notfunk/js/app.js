@@ -12,6 +12,7 @@
 
 import { openNotfunkStorage } from './db.js';
 import { requestPersistence } from '../../shared/js/storage.js';
+import { openStorageWithNotices, offerFallbackMigration } from '../../shared/js/storageui.js';
 import { $, el, fill, focusNext, submitForm, isComposing, trackExpanded } from '../../shared/js/dom.js';
 import { prefGet, prefSet } from '../../shared/js/prefs.js';
 import { loadDataFile } from '../../shared/js/data.js';
@@ -1487,7 +1488,7 @@ function wire() {
 
 async function main() {
   globalThis.NOTFUNK_STARTED = true;
-  state.store = await openNotfunkStorage();
+  state.store = await openStorageWithNotices(openNotfunkStorage, $('#banner'));
   if (!state.store) {
     showFatal('Dieser Browser erlaubt keine lokale Speicherung (privater Modus?). Ohne Speicher kann nichts sicher aufgezeichnet werden.');
     return;
@@ -1496,6 +1497,8 @@ async function main() {
   if (state.store.kind !== 'indexeddb') {
     showFatal('Achtung: IndexedDB ist nicht verfügbar, die Daten liegen im kleineren Ersatzspeicher (localStorage). Häufig sichern.');
     $('#banner').className = 'banner warn no-print';
+  } else {
+    offerFallbackMigration(state.store, $('#banner'));
   }
   wire();
   initForm();
