@@ -135,6 +135,14 @@ test('cross-check ADIF editor export of the official test QSOs', { skip }, () =>
   crossCheck('editor export', roundTrip(SOURCE).adi);
 });
 
+// Typed USERDEF/APP fields with line breaks and tag-shaped text in values
+// (issue #12), as the editor writes them back.
+for (const name of ['userdef-typed.adi', 'tag-in-value.adi']) {
+  test(`cross-check ADIF editor export of fixture ${name}`, { skip }, () => {
+    crossCheck(`editor export of ${name}`, roundTrip(readFileSync(join(FIXTURES, name), 'utf8')).adi);
+  });
+}
+
 test('cross-check confirmation-log exports (every template)', { skip }, () => {
   const header = {
     operator: 'OE1EBG', station: 'OE1XKS', freq: '145,500', mode: 'FM', myGrid: 'jn88ef12ab', myQth: 'Wien Döbling',
@@ -202,6 +210,10 @@ const VALUES = [
   [{ TIME_ON: '235959' }, null],
   [{ NOTES: 'a\r\nb' }, null],
   [{ APP_OE1EBG_WX: 'a\r\nb' }, null],
+  // tag-shaped text inside a value, the declared length is right (IV.A.1);
+  // we add a TAG_IN_VALUE warning, no error
+  [{ NOTES: 'a <EOR> b <EOH>' }, null],
+  [{ COMMENT: 'copied <CALL:4>OE1A' }, null],
   [{ GRIDSQUARE: 'jn88ef12' }, null],
   [{ FREQ: '14.07' }, null],
   [{ MODE: 'MFSK', SUBMODE: 'FT4' }, null],

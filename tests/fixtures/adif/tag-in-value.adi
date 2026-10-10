@@ -1,0 +1,5 @@
+Test fixture for oe1ebg/tests/adif-validate.test.mjs: tag-shaped text inside values (issue #12)
+<ADIF_VER:5>3.1.7 <PROGRAMID:11>OE1EBG_TEST <PROGRAMVERSION:14>1.0 <EOH> beta
+<EOH>
+<CALL:6>OE1ABC <QSO_DATE:8>20261004 <TIME_ON:4>1902 <BAND:2>2m <FREQ:7>145.500 <MODE:2>FM <NOTES:31>see <EOR> and <EOH> in the text <EOR>
+<CALL:6>OE3XYZ <QSO_DATE:8>20261004 <TIME_ON:4>1902 <BAND:2>2m <FREQ:7>145.500 <MODE:2>FM <COMMENT:32>copied <CALL:4>OE1A from the log<EOR>

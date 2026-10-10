@@ -28,15 +28,34 @@ export function adifAscii(s, { keepBrackets = false, multiline = false } = {}) {
 
 // One `<NAME:len>value ` field, or '' for an empty/missing value (ADIF has
 // no empty fields). The value is written as is; see adifAsciiField().
-export function adifField(name, value) {
+// type: an optional data type indicator (<NAME:len:N>).
+export function adifField(name, value, type = '') {
   if (value === undefined || value === null || value === '') return '';
   const v = String(value);
-  return `<${name}:${v.length}>${v} `;
+  return `<${name}:${v.length}${type ? ':' + type : ''}>${v} `;
 }
 
 // adifField() with the value made plain ASCII first (adifAscii()).
-export function adifAsciiField(name, value, opts) {
-  return adifField(name, adifAscii(value, opts));
+export function adifAsciiField(name, value, opts, type = '') {
+  return adifField(name, adifAscii(value, opts), type);
+}
+
+// The fields of an ADI header, read by their lengths (so "<EOH>" inside a
+// value doesn't end it), up to <EOH>: { end (after <EOH>), fields:
+// [[NAME, value, type]] }, or null when there is no <EOH> that way.
+function adifHeaderFields(text) {
+  const re = /<([A-Za-z0-9_]+)(?::(\d+)(?::([A-Za-z]+))?)?>/g;
+  const fields = [];
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    const name = m[1].toUpperCase();
+    if (name === 'EOH' && m[2] === undefined) return { end: re.lastIndex, fields };
+    if (m[2] === undefined) continue;
+    const len = parseInt(m[2], 10);
+    fields.push([name, text.slice(re.lastIndex, re.lastIndex + len), m[3] ? m[3].toUpperCase() : '']);
+    re.lastIndex += len;
+  }
+  return null;
 }
 
 // Records of an ADI file as [{FIELD: value}] (field names upper-cased).
@@ -45,35 +64,46 @@ export function adifAsciiField(name, value, opts) {
 // into headerInfo when given. stats (optional): stats.unclean counts the
 // values that don't end where a separator or the next tag starts, a sign
 // that the lengths were counted in another unit (see parseADIFAuto()).
-export function parseADIF(text, warnings, sourceLabel, headerInfo, stats) {
-  const tagRe = /<([A-Za-z0-9_]+)(?::(\d+)(?::[A-Za-z]+)?)?>/g;
+// defs (optional): what the file says about the fields' types, for an
+// export that keeps it: defs.userdefs = [{ name, type, spec }] from the
+// header's USERDEFn fields (name upper-cased, type the indicator letter or
+// '', spec the declaration as written: NAME, NAME,{A,B} or NAME,{min:max});
+// defs.types = { NAME: 'N' }, the first data type indicator of each field
+// in the records.
+export function parseADIF(text, warnings, sourceLabel, headerInfo, stats, defs) {
+  const tagRe = /<([A-Za-z0-9_]+)(?::(\d+)(?::([A-Za-z]+))?)?>/g;
   let bodyStart = 0;
+  let header = [];
   const firstNonWs = text.match(/\S/);
   if (!firstNonWs || firstNonWs[0] !== '<' || !/^\s*<[A-Za-z]+:\d/.test(text)) {
-    // Likely has a free-text header; look for <EOH>
-    const eoh = /<eoh>/i.exec(text);
-    if (eoh) {
-      bodyStart = eoh.index + eoh[0].length;
-    } else if (firstNonWs && firstNonWs[0] !== '<') {
-      warnings.push(`${sourceLabel}: no <EOH> tag found; parsing entire file as records.`);
+    // Likely has a free-text header: read its fields up to <EOH>; if the
+    // lengths don't lead there (a wrong length), the first "<EOH>" text.
+    const h = adifHeaderFields(text);
+    if (h) {
+      bodyStart = h.end;
+      header = h.fields;
+    } else {
+      const eoh = /<eoh>/i.exec(text);
+      if (eoh) {
+        bodyStart = eoh.index + eoh[0].length;
+        header = adifHeaderFields(text.slice(0, eoh.index) + '<EOH>')?.fields || [];
+      } else if (firstNonWs && firstNonWs[0] !== '<') {
+        warnings.push(`${sourceLabel}: no <EOH> tag found; parsing entire file as records.`);
+      }
     }
   }
-  if (headerInfo && bodyStart > 0) {
-    // Header fields (e.g. <ADIF_VER:5>3.1.7) live before <EOH> and use the same
-    // tag syntax as body fields, so scan just that slice with its own loop —
-    // only when a real <EOH> was found, never as a fallback over body text.
-    const headerText = text.slice(0, bodyStart);
-    const hRe = /<([A-Za-z0-9_]+)(?::(\d+)(?::[A-Za-z]+)?)?>/g;
-    let hm;
-    while ((hm = hRe.exec(headerText)) !== null) {
-      const hname = hm[1].toUpperCase();
-      if (hname === 'EOH' || hm[2] === undefined) continue;
-      const hlen = parseInt(hm[2], 10);
-      const hval = headerText.slice(hRe.lastIndex, hRe.lastIndex + hlen);
-      if (hname === 'ADIF_VER' || hname === 'PROGRAMID' || hname === 'PROGRAMVERSION') {
-        headerInfo[hname] = hval;
-      }
-      hRe.lastIndex += hlen;
+  if (defs) {
+    defs.userdefs = defs.userdefs || [];
+    defs.types = defs.types || {};
+  }
+  for (const [hname, hval, htype] of header) {
+    if (headerInfo && (hname === 'ADIF_VER' || hname === 'PROGRAMID' || hname === 'PROGRAMVERSION')) {
+      headerInfo[hname] = hval;
+    }
+    if (defs && /^USERDEF\d+$/.test(hname)) {
+      const spec = hval.trim();
+      const name = spec.split(/[,{]/)[0].trim().toUpperCase();
+      if (name) defs.userdefs.push({ name, type: htype, spec });
     }
   }
   const body = text.slice(bodyStart);
@@ -104,6 +134,7 @@ export function parseADIF(text, warnings, sourceLabel, headerInfo, stats) {
       if ((next !== '' && next !== '<' && !/\s/.test(next)) || /[\s<]$/.test(value)) stats.unclean++;
     }
     current[name] = value;
+    if (defs && m[3] && !(name in defs.types)) defs.types[name] = m[3].toUpperCase();
     any = true;
     tagRe.lastIndex = tagEnd + len;
   }
@@ -131,18 +162,24 @@ function fromUtf8ByteString(s) {
 // bytes: then every value with an umlaut is cut in the wrong place. For a
 // non-ASCII file both readings are tried, and the byte reading wins when its
 // values line up with the separators and tags better (stats.unclean).
-export function parseADIFAuto(text, warnings, sourceLabel, headerInfo) {
-  if (!/[^\x00-\x7f]/.test(text)) return parseADIF(text, warnings, sourceLabel, headerInfo);
+export function parseADIFAuto(text, warnings, sourceLabel, headerInfo, defs) {
+  if (!/[^\x00-\x7f]/.test(text)) return parseADIF(text, warnings, sourceLabel, headerInfo, undefined, defs);
   const charStats = { unclean: 0 }, byteStats = { unclean: 0 };
   const charWarnings = [], byteWarnings = [];
   const charHeader = {}, byteHeader = {};
-  const asChars = parseADIF(text, charWarnings, sourceLabel, charHeader, charStats);
-  const asBytes = parseADIF(utf8ByteString(text), byteWarnings, sourceLabel, byteHeader, byteStats);
+  const charDefs = {}, byteDefs = {};
+  const asChars = parseADIF(text, charWarnings, sourceLabel, charHeader, charStats, charDefs);
+  const asBytes = parseADIF(utf8ByteString(text), byteWarnings, sourceLabel, byteHeader, byteStats, byteDefs);
   const useBytes = byteStats.unclean < charStats.unclean;
   warnings.push(...(useBytes ? byteWarnings : charWarnings));
   if (useBytes) warnings.push(`${sourceLabel}: field lengths count UTF-8 bytes, not characters (as the file's program writes them); read that way.`);
   const header = useBytes ? byteHeader : charHeader;
   if (headerInfo) for (const [k, v] of Object.entries(header)) headerInfo[k] = useBytes ? fromUtf8ByteString(v) : v;
+  if (defs) {
+    const d = useBytes ? byteDefs : charDefs;
+    defs.userdefs = (defs.userdefs || []).concat(d.userdefs.map(u => (useBytes ? { ...u, spec: fromUtf8ByteString(u.spec) } : u)));
+    defs.types = Object.assign(defs.types || {}, d.types);
+  }
   if (!useBytes) return asChars;
   return asBytes.map(rec => Object.fromEntries(Object.entries(rec).map(([k, v]) => [k, fromUtf8ByteString(v)])));
 }

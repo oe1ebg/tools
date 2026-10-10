@@ -63,7 +63,7 @@ function current() {
   const inputs = { 'official test QSOs': official };
   const exported = mutated();
   inputs['official test QSOs, mutated'] = exported;
-  for (const f of readdirSync(join(DIR, 'fixtures', 'adif')).sort()) {
+  for (const f of readdirSync(join(DIR, 'fixtures', 'adif')).filter(n => n.endsWith('.adi')).sort()) {
     inputs[`fixtures/adif/${f}`] = readFileSync(join(DIR, 'fixtures', 'adif', f), 'utf8');
   }
   const out = { export: sha(exported) };

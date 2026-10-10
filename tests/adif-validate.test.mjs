@@ -55,6 +55,9 @@ const EXPECTED = {
   'userdef.adi': { valid: false, errors: ['INVALID_NUMBER', 'INVALID_ENUM', 'NUMBER_OUT_OF_RANGE'], warnings: [] },
   'truncated.adi': { valid: false, errors: ['MISSING_EOR', 'TRUNCATED_FIELD'], warnings: ['MISSING_QSO_FIELD'] },
   'headerless.adi': { valid: true, errors: [], warnings: [], infos: ['NO_HEADER'] },
+  // literal <EOR>, <EOH>, <CALL:4> inside values whose declared length is right (issue #12)
+  'tag-in-value.adi': { valid: true, errors: [], warnings: ['TAG_IN_VALUE', 'TAG_IN_VALUE', 'TAG_IN_VALUE'] },
+  'userdef-typed.adi': { valid: true, errors: [], warnings: [], infos: ['APP_FIELD_WITHOUT_TYPE'] },
 };
 
 test('every fixture has an expectation', () => {
@@ -92,6 +95,32 @@ test('validation continues after a malformed record: QSO 1 and 3 survive', () =>
   // the too-long CALL is cut at the next tag, the scan resyncs there
   assert.equal(r.records[1].fields.CALL, 'OE1XYZ');
   assert.equal(r.records[1].fields.QSO_DATE, '20261004');
+});
+
+test('tag-shaped text inside a value: the declared length counts (IV.A.1), a wrong length still does not', () => {
+  const r = check(fixture('tag-in-value.adi'));
+  assert.equal(r.records.length, 2);
+  assert.equal(r.header.fields.PROGRAMVERSION, '1.0 <EOH> beta', '<EOH> inside a header value does not end the header');
+  assert.equal(r.records[0].fields.NOTES, 'see <EOR> and <EOH> in the text');
+  assert.equal(r.records[1].fields.COMMENT, 'copied <CALL:4>OE1A from the log');
+  assert.equal(r.records[1].fields.CALL, 'OE3XYZ', 'the embedded <CALL:4> is no field');
+  // A value that ends at a separator, the next tag or the end of the file is read as declared.
+  const q = v => `h\n<EOH><CALL:6>OE1ABC <NOTES:${v.length}>${v}`;
+  for (const [text, label] of [[q('a <EOR> b') + ' <EOR>', 'blank after'], [q('a <EOR> b') + '<EOR>', 'tag after'], [q('<EOR>'), 'end of file']]) {
+    const x = check(text);
+    assert.ok(!codes(x).includes('FIELD_LENGTH_MISMATCH'), `${label}: ${codes(x)}`);
+    assert.ok(codes(x).includes('TAG_IN_VALUE'), label);
+    assert.equal(x.records[0].fields.NOTES, text.includes('a <EOR> b') ? 'a <EOR> b' : '<EOR>', label);
+  }
+  // Malformed lengths keep their errors: too long into the next tag ...
+  const long = check('h\n<EOH><CALL:9>OE1ABC <EOR><CALL:6>OE3XYZ <EOR>');
+  assert.ok(codes(long).includes('FIELD_LENGTH_MISMATCH'));
+  assert.equal(long.records.length, 2, 'resync at the next tag');
+  assert.equal(long.records[0].fields.CALL, 'OE1ABC');
+  // ... too short (text right after the value) ...
+  assert.ok(codes(check('h\n<EOH><CALL:5>OE1ABC <EOR>')).includes('FIELD_LENGTH_MISMATCH'));
+  // ... and counting the line break (a one-line field).
+  assert.ok(codes(check('h\n<EOH><CALL:7>OE1ABC\n<EOR>')).includes('FIELD_LENGTH_MISMATCH'));
 });
 
 test('line and column are 1-based positions of the tag', () => {

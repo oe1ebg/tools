@@ -46,11 +46,14 @@ actually earns its keep (the propagation-dashboard notebook work).
 - Field length is taken literally from the `<FIELD:LEN>` declaration, not
   inferred from delimiters — this matches spec behavior (values are not
   required to be separated by whitespace) and was verified against
-  deliberately squeezed-together sample records with no separators.
+  deliberately squeezed-together sample records with no separators. Text
+  that looks like a tag inside a value (`<NOTES:9>a <EOR> b`, also `<EOH>`
+  inside a header value) stays part of the value (issue #12).
 - Trailing fields after the last `<EOR>` (malformed/truncated files) are
   recovered as a final record rather than silently dropped, with a warning.
 - Export always regenerates a minimal `<EOH>`-terminated header; it does not
-  attempt to preserve arbitrary free-text header content from the input file.
+  attempt to preserve arbitrary free-text header content from the input file,
+  only the USERDEF declarations (see *Field definitions*).
 
 **Verified before handoff** (Node, outside the browser, since this is pure
 string logic with no DOM dependency):
@@ -75,17 +78,38 @@ transliterated (ä → ae, é → e, the rest → ?), line breaks become blanks
 except in MultilineString fields (written as CR LF), and the editor says how
 many values that changed.
 
+**Field definitions** (issue #12): what a file says about fields ADIF
+doesn't define is kept through load → edit → export. `parseADIF(…, defs)`
+(`../shared/js/adif.js`) collects the header's `USERDEFn` declarations as
+written (type letter, enumeration `{A,B}` or range `{min:max}`) and the
+first data type indicator of each field in the records; `js/export.js`
+merges them per loaded file (`mergeFieldDefs`) and `serializeADIF(…,
+defs)` writes them back: `<USERDEFn:len:T>` in the header (renumbered
+1…n in load order), the indicator on application-defined fields
+(`<APP_X_Y:1:N>`), none on USERDEF fields (their type is in the header).
+Line breaks stay in fields of type M (USERDEF or `APP_` with `:M`, or an
+`APP_` field without indicator, which ADIF reads as MultilineString); in
+any other type they become a blank, counted in the export's note.
+Removing a column drops its declaration. Without `defs` the export is
+the same as before. Combining files whose declarations differ:
+- same USERDEF name and type, other enumeration values or range: the
+  export declares the union of the values / the wider range (or no
+  restriction when one file has none), so the values of both files stay
+  valid; the warnings box says so;
+- same name, another type (USERDEF, or the indicator of an `APP_` field):
+  the first loaded file's declaration stays. The warnings box names the
+  conflict at load, and the validation panel switches right away to the
+  check of the log *as it would be exported*, so every value that no
+  longer fits its declaration is in the issue list (and flagged in the
+  table) before anything is exported.
+
 **Known gaps** (not implemented — flag if you want these):
 - No ADX (XML variant) read/write, `.adi` only.
 - No in-browser paste-from-clipboard entry point (file/drag-drop only).
-- The editor itself keeps no USERDEF field type declarations (`<USERDEFn>`
-  header fields): such fields round-trip as opaque strings and the export
-  writes no USERDEF header. (The validator does read USERDEF declarations
-  of a loaded file and checks the fields against them.)
-  They are exported as String, so a line break in them becomes a blank.
-- Likewise, the data type indicator of application-defined fields
-  (`<APP_X_Y:3:N>`) is not kept; they are exported without one, which ADIF
-  reads as MultilineString (line breaks kept).
+- Type indicators of ADIF's own fields (`<CALL:5:S>`) aren't written back:
+  their type is fixed by the spec.
+- A USERDEF declared with an Intl type (`I`, `G`) is kept, but ADI values
+  stay ASCII.
 
 ## Validation
 
@@ -117,10 +141,15 @@ recordIndex (0-based into records), field, value, offset, line, column }`.
 Input never makes it throw: when no field structure can be found the result
 holds one `UNRECOVERABLE_PARSE_ERROR`.
 
-**How it works.** A tolerant scanner reads tags; when a declared length
-runs into the next tag, the value is cut there and the scan resyncs, so one
-wrong length doesn't swallow the following fields; a broken QSO is reported
-and the next ones are still read. Field and value checks are driven by
+**How it works.** A tolerant scanner reads tags. The declared length
+counts (ADIF 3.1.7 IV.A.1): when tag-shaped text lies inside it
+(`<EOR>`, `<EOH>`, `<CALL:4>`) and the value ends cleanly (a blank or
+line break, a tag, or the end of the file follows), that text is part of
+the value, with a `TAG_IN_VALUE` warning. When a declared length runs into
+the next tag and does *not* end cleanly, it is too long: the value is cut
+at that tag and the scan resyncs, so one wrong length doesn't swallow the
+following fields; a broken QSO is reported and the next ones are still
+read. Field and value checks are driven by
 `../shared/js/adif-spec-data.js`, generated from the official ADIF 3.1.7
 resources archive (`https://adif.org.uk/317/resources`, `exports/csv/`:
 data types, fields, enumerations) by `scripts/build_adif_spec.py`
@@ -134,7 +163,7 @@ new ADIF version). Only the cross-field checks and heuristics are code.
 | `UNRECOVERABLE_PARSE_ERROR` | error | empty input or no field tag at all |
 | `MALFORMED_FIELD` | error | `<` without `>`, tag without length, bad length/type syntax |
 | `TRUNCATED_FIELD` | error | declared length runs past the end of the file |
-| `FIELD_LENGTH_MISMATCH` | error | value continues after the declared length, runs into the next tag, or the length counted the line break |
+| `FIELD_LENGTH_MISMATCH` | error | value continues after the declared length, runs into the next tag without ending cleanly, or the length counted the line break |
 | `MISSING_EOH` / `DUPLICATE_EOH` | error | header text without `<EOH>`; a second `<EOH>` |
 | `MISSING_EOR` | error | fields after the last `<EOR>` (still read as a QSO) |
 | `MALFORMED_RECORD` | error | `<EOR>` inside the header |
@@ -153,6 +182,7 @@ new ADIF version). Only the cross-field checks and heuristics are code.
 | `INVALID_LOCATION` | error | not `XDDD MM.MMM`, wrong direction letter, out of range |
 | `UNSUPPORTED_ADIF_VERSION` | warning | file declares a newer ADIF than 3.1.7 |
 | `HEADER_STARTS_WITH_TAG` | warning | file starts with `<` but has an `<EOH>` |
+| `TAG_IN_VALUE` | warning | tag-shaped text inside a value whose declared length ends cleanly: read as part of the value (IV.A.1); a too-long length can look the same, and naive readers split there |
 | `UNKNOWN_FIELD` | warning | not an ADIF 3.1.7 field, not `APP_`, not USERDEF (once per field name) |
 | `FIELD_NOT_IN_HEADER` / `HEADER_FIELD_IN_RECORD` | warning | QSO field in the header, or the other way round |
 | `TYPE_INDICATOR_MISMATCH` | warning | type letter differs from the field's type |
@@ -188,8 +218,12 @@ same inputs and expects the same answer to "are there errors?":
   lengths, stray bytes), so it is compared with our syntax errors.
 
 Inputs: the fixtures, the official test QSOs (whole and per group), the
-ADIF editor's export of them, the confirmation log's exports (every
-template), and single invalid values per data type plus valid edge cases.
+ADIF editor's export of them (with their USERDEF declarations and typed
+`APP_` fields), the editor's export of the fixtures with typed/multiline
+user-defined fields and tag-shaped text in values, the confirmation log's
+exports (every template), and single invalid values per data type plus
+valid edge cases (`NOTES` holding `<EOR>`/`<EOH>`, `COMMENT` holding
+`<CALL:4>…`: both tools read the declared length, as we do).
 Both tools are pinned in `oe1ebg/tests/tools/go.mod` (Dependabot) and built
 by `just crosscheck-tools`; `just crosscheck` runs the test.
 Without the tools it skips; CI builds them and requires them
@@ -268,9 +302,9 @@ subdivisions, DXCC entities, contests/credits/awards, QSL and upload
 status, bands/frequencies/modes, other fields; every QSO in exactly one
 group), so a failure names the part of the spec. Each run requires:
 - the validator: no issue at all;
-- the editor's export (`parseADIF` → `serializeADIF`): no error, every
-  value unchanged, except the known gaps above (USERDEF fields lose line
-  breaks, APP fields their type indicator).
+- the editor's export (`parseADIF` → `serializeADIF` with the file's field
+  definitions): no issue at all, the USERDEF declarations kept, every
+  value unchanged (multiline USERDEF and `APP_` values included).
 
 ## Performance
 
@@ -347,10 +381,18 @@ The tool targets and declares **ADIF 3.1.7** (https://www.adif.org/317/ADIF_317.
 ## Exports
 
 Beyond `.adi`, the toolbar offers:
-- **`.csv`** — every current column/row, RFC4180-quoted, for spreadsheet use.
+- **`.csv`** — every current column/row, RFC4180-quoted, for spreadsheet use;
+  spreadsheet-safe: a value or field name starting with `=`, `+`, `-`, `@`
+  or a control character gets a leading `'` (plain numbers like `-10`
+  don't; `../shared/js/csv.js`, policy in `../shared/README.md`), and the
+  warnings box says how many. The `.adi` export keeps the values exact.
 - **SOTA V2 CSV** (activator/chaser mode toggle) — the format SOTA's own
   database importer expects (`V2,<call>,<summit>,<date>,<time>,<band>,<mode>,
   <call>,<summit>,<comment>`), verified against sotadata.org.uk's own docs.
+  SOTA's importer has no quoting: commas become `;` and line breaks (and
+  other control characters) a blank, so one QSO is one line; the warnings
+  box says how many values that changed. No leading `'` (not for a
+  spreadsheet).
   Note SOTA's database also accepts standard ADIF directly via `MY_SOTA_REF`/
   `SOTA_REF`/`COMMENT` — the CSV export exists as an alternative for people
   who prefer it, not because ADIF import doesn't work.
