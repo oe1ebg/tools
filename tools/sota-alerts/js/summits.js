@@ -14,6 +14,23 @@ export function splitSummitKey(key){
   return { assoc, code: parts.join('/') };
 }
 
+// The build-time data files (data/summit-lookup.json, data/summits.json):
+// the input must be a non-empty array, and at least MIN_VALID_SHARE of its
+// rows valid — anything else means a broken or changed file, and throws.
+// The valid rows are returned, the few invalid ones skipped.
+export const MIN_VALID_SHARE = 0.9;
+export function checkedRows(rows, isValid, what){
+  if (!Array.isArray(rows)) throw new Error(`the ${what} isn't in the expected format`);
+  if (!rows.length) throw new Error(`the ${what} is empty`);
+  const valid = rows.filter(isValid);
+  if (valid.length < rows.length * MIN_VALID_SHARE) throw new Error(`the ${what} isn't in the expected format (${rows.length - valid.length} of ${rows.length} entries invalid)`);
+  return valid;
+}
+const isLookupRow = row => Array.isArray(row) && typeof row[0] === 'string' && row[0].includes('/') && isLatLon(row[1], row[2]);
+const isSummitRecord = r => isObject(r) && typeof r.key === 'string' && r.key.includes('/') && isLatLon(r.lat, r.lon);
+// data/summits.json (the "all summits" overlay) -> its valid records.
+export const summitsFromRecords = records => checkedRows(records, isSummitRecord, 'all-summits data');
+
 // Coordinates as numbers within range, from any of the sources.
 export const isLatLon = (lat, lon) => typeof lat === 'number' && typeof lon === 'number'
   && Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180;
@@ -59,12 +76,14 @@ export function candidateFromOsmElement(el){
 
 // data/summit-lookup.json rows ([key, lat, lon, name, altM, points,
 // bonusPoints], oe1ebg/scripts/fetch_summits.py) -> Map<key, record>.
+// Throws unless the file looks like what the build writes, so a broken or
+// changed file counts as a failed load (lookup.js then caps the live
+// lookups and the page warns) rather than as an empty list, which would
+// silently send every summit to the live API.
 export function lookupFromRows(rows){
   const map = new Map();
-  for (const row of rows){
-    if (!Array.isArray(row)) continue;
+  for (const row of checkedRows(rows, isLookupRow, 'summit list')){
     const [key, lat, lon, name, altM, points, bonusPoints] = row;
-    if (typeof key !== 'string' || !isLatLon(lat, lon)) continue;
     const rec = { name, lat, lon, locator: null };
     if (altM != null) rec.altM = altM;
     if (points != null) rec.points = points;

@@ -9,7 +9,7 @@ import {
   matchesBandModeFilter, facetsPresent, BAND_SORT_ORDER, MODE_SORT_ORDER, parseOwnCallsigns, isOwnAlert,
 } from './alerts.js';
 import { formatAlertsBrief, timeDisplayPair } from './format.js';
-import { splitSummitKey, candidateFromSearchResult, candidateFromOsmElement, lookupFromRows } from './summits.js';
+import { splitSummitKey, candidateFromSearchResult, candidateFromOsmElement, lookupFromRows, summitsFromRecords } from './summits.js';
 import { createSummitResolver, lazy, lazyRetryOnDemand, FALLBACK_LIVE_BUDGET } from './lookup.js';
 import { shareSearch, parseShareSearch, sharedLinkKeys, MAX_SHARED_PINS, MAX_SHARED_LIVE_LOOKUPS } from './share.js';
 import { createLatest, createExclusive, isAbort } from './request.js';
@@ -53,7 +53,7 @@ const saveCandidates = () => warnUnless(store.saveCandidates(state.candidates), 
 // only once more per "refresh alerts" click; meanwhile the resolver caps
 // the live lookups (FALLBACK_LIVE_BUDGET) and noteLookupStatus() says so.
 const loadSummitLookup = lazyRetryOnDemand(async () => lookupFromRows(await fetchJson(SUMMIT_LOOKUP_URL)));
-const loadAllSummits = lazy(() => fetchJson(ALL_SUMMITS_URL));
+const loadAllSummits = lazy(async () => summitsFromRecords(await fetchJson(ALL_SUMMITS_URL)));
 
 const resolveSummits = createSummitResolver({
   loadCache: store.loadSummitCache,

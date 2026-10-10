@@ -22,12 +22,15 @@ export function normalizeAlert(raw){
 }
 
 // An item of the feed that can be shown: an object with a summit
-// (association and summit code, non-empty strings) and a parseable date.
+// (association and summit code, non-empty strings) and a date starting
+// YYYY-MM-DDT that also parses (the date window works on its first ten
+// characters; Date.parse alone is lenient and differs between browsers).
 export function isValidAlert(raw){
   return !!raw && typeof raw === 'object' && !Array.isArray(raw)
     && typeof raw.associationCode === 'string' && raw.associationCode !== ''
     && typeof raw.summitCode === 'string' && raw.summitCode !== ''
-    && typeof raw.dateActivated === 'string' && Number.isFinite(Date.parse(raw.dateActivated));
+    && typeof raw.dateActivated === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(raw.dateActivated)
+    && Number.isFinite(Date.parse(raw.dateActivated));
 }
 
 // The alerts feed as received -> { alerts (normalized), skipped }.
