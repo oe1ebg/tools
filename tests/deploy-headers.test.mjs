@@ -20,8 +20,11 @@ const NGINX = read('deploy/nginx.conf.example');
 const HTACCESS = read('deploy/htaccess.example');
 
 // --- the two configs
+//
+// Both parse to { header: { default, rules: [[regex source, value]] } }:
+// what is sent for a URI is the value of the first matching rule, else the
+// default ('' = not sent).
 
-// { csp: { default, rules: [[RegExp source, policy]] }, headers: {name: value} }
 function parseNginx(text) {
   text = text.replace(/#[^\n]*/g, '');
   const maps = {};
@@ -33,33 +36,33 @@ function parseNginx(text) {
     maps[name] = m;
   }
   const headers = {}, always = new Set();
-  for (const [, name, value, a] of text.matchAll(/add_header\s+(\S+)\s+("[^"]*"|\S+?)(\s+always)?\s*;/g)) {
-    headers[name] = value.replace(/^"|"$/g, '');
+  for (const [, name, raw, a] of text.matchAll(/add_header\s+(\S+)\s+("[^"]*"|\S+?)(\s+always)?\s*;/g)) {
+    const value = raw.replace(/^"|"$/g, '');
+    headers[name] = value.startsWith('$') ? maps[value.slice(1)] : { default: value, rules: [] };
+    assert.ok(headers[name], `map for ${value}`);
     if (a) always.add(name);
   }
-  const csp = maps[headers['Content-Security-Policy']?.slice(1)];
-  return { csp, headers, always, locations: text.match(/location\b[^{]*\{[^}]*\}/g) || [] };
+  return { headers, always, locations: text.match(/location\b[^{]*\{[^}]*\}/g) || [] };
 }
 
+// `Header always set` only (the Cache-Control rule is a <FilesMatch>).
 function parseHtaccess(text) {
-  const csp = { default: '', rules: [] }, headers = {};
+  const headers = {};
   for (const [, name, value, cond] of text.matchAll(/^\s*Header always set (\S+) "([^"]*)"(?: "expr=%\{REQUEST_URI\} =~ m#(.*)#")?$/gm)) {
-    if (name !== 'Content-Security-Policy') headers[name] = value;
-    else if (cond) csp.rules.push([cond, value]);
-    else csp.default = value;
+    const h = headers[name] ||= { default: '', rules: [] };
+    // a later `set` replaces an earlier one: the last matching rule wins
+    if (cond) h.rules.unshift([cond, value]); else h.default = value;
   }
-  return { csp, headers };
+  return { headers };
 }
 
+const SECURITY = ['Content-Security-Policy', 'X-Content-Type-Options', 'X-Frame-Options', 'Referrer-Policy'];
 const nginx = parseNginx(NGINX);
 const htaccess = parseHtaccess(HTACCESS);
-const CSP = nginx.csp;
+const CSP = nginx.headers['Content-Security-Policy'];
 
-// The policy nginx sends for a URI ($uri: the first matching regex wins).
-function policyFor(uri, csp = CSP) {
-  const hit = csp.rules.find(([rx]) => new RegExp(rx).test(uri));
-  return hit ? hit[1] : csp.default;
-}
+const sent = (h, uri) => (h.rules.find(([rx]) => new RegExp(rx).test(uri)) || [, h.default])[1];
+const policyFor = uri => sent(CSP, uri);
 const directive = (policy, name) => {
   const d = policy.split(';').map(s => s.trim().split(/\s+/)).find(([n]) => n === name);
   return d ? d.slice(1) : null;
@@ -90,30 +93,44 @@ function pages(base) {
 }
 
 test('nginx sets every header at server level, for error responses too', () => {
-  for (const name of ['Content-Security-Policy', 'X-Content-Type-Options', 'X-Frame-Options', 'Referrer-Policy']) {
+  for (const name of SECURITY) {
     assert.ok(nginx.headers[name], `add_header ${name}`);
     assert.ok(nginx.always.has(name), `add_header ${name} … always`);
   }
-  assert.equal(nginx.headers['X-Content-Type-Options'], 'nosniff');
-  assert.equal(nginx.headers['X-Frame-Options'], 'DENY');
+  assert.equal(nginx.headers['X-Content-Type-Options'].default, 'nosniff');
   // a location with its own add_header would drop all server-level ones
   for (const loc of nginx.locations) assert.ok(!/add_header/.test(loc), `add_header inside ${loc}`);
 });
 
-test('htaccess.example sends the same headers and policies as nginx.conf.example', () => {
-  assert.equal(htaccess.csp.default, CSP.default, 'default policy');
-  assert.deepEqual(htaccess.csp.rules, CSP.rules, 'location policies, same order and patterns');
-  for (const name of ['X-Content-Type-Options', 'X-Frame-Options', 'Referrer-Policy']) {
-    assert.equal(htaccess.headers[name], nginx.headers[name], name);
+// Every URI the tests know of, plus a few the rules single out.
+const URIS = () => [...new Set([
+  ...pages('tools').map(([u]) => u), ...BUNDLES.map(b => `/${b}`),
+  '/tools/', '/tools/confirm/js/app.js', '/tools/sota-alerts/js/map.js', '/tools/no-such-file',
+  '/prefix/tools/adif/adif-editor.html', '/prefix/tools/sota-alerts/index.html',
+])];
+
+test('htaccess.example sends the same headers as nginx.conf.example', () => {
+  for (const name of SECURITY) {
+    assert.ok(htaccess.headers[name], `Header always set ${name}`);
+    for (const uri of URIS()) {
+      assert.equal(sent(htaccess.headers[name], uri), sent(nginx.headers[name], uri), `${name} for ${uri}`);
+    }
   }
 });
 
-test('every policy forbids framing, plugins and <base>', () => {
+// Framing: refused everywhere, except adif-editor.html by its own origin
+// (tools/adif/README.md, "Zensical integration": an <iframe> in a site page).
+test('every policy forbids plugins and <base>; framing only same-origin for adif-editor.html', () => {
   for (const p of [CSP.default, ...CSP.rules.map(r => r[1])]) {
-    assert.deepEqual(directive(p, 'frame-ancestors'), ["'none'"], p);
     assert.deepEqual(directive(p, 'object-src'), ["'none'"], p);
     assert.deepEqual(directive(p, 'base-uri'), ["'none'"], p);
     assert.deepEqual(directive(p, 'default-src'), ["'self'"], p);
+  }
+  const xfo = nginx.headers['X-Frame-Options'];
+  for (const uri of URIS()) {
+    const embeddable = uri.endsWith('/adif/adif-editor.html');
+    assert.deepEqual(directive(policyFor(uri), 'frame-ancestors'), [embeddable ? "'self'" : "'none'"], uri);
+    assert.equal(sent(xfo, uri), embeddable ? 'SAMEORIGIN' : 'DENY', uri);
   }
 });
 

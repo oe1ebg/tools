@@ -69,18 +69,36 @@ of copying a new release over the old one:
 cd /srv/www                                   # the docroot, any prefix below it
 sha256sum -c oe1ebg-tools-vX.Y.Z.tar.gz.sha256
 mkdir -p releases && tar -C releases -xzf oe1ebg-tools-vX.Y.Z.tar.gz
+# Apache with .htaccess only: your copy of deploy/htaccess.example, kept
+# outside releases/ (the tarball has none)
+cp /etc/oe1ebg-tools.htaccess releases/oe1ebg-tools-vX.Y.Z/.htaccess
 ln -sfn releases/oe1ebg-tools-vX.Y.Z tools.new
 mv -T tools.new tools                         # rename(2): the switch is atomic
 ```
 
 `mv -T` is GNU coreutils (Linux); the first time, move a `tools` that is
 still a real directory out of the way. Rolling back is the same switch to
-the previous directory; delete old
-release directories once nobody needs them. The webserver must follow
-symlinks (nginx and Apache's `FollowSymLinks` do by default). Without
-symlinks, unpack next to the live directory and swap the two with `mv`.
-The release CI installs every tarball this way under `/a/b/tools/` before
-it is published (`validate-dist.yml`).
+the previous directory; delete old release directories once nobody needs
+them. The webserver must follow symlinks (nginx and Apache's
+`FollowSymLinks` do by default). Without symlinks, unpack next to the live
+directory and swap the two with `mv`. The release CI installs every tarball
+this way under `/a/b/tools/` before it is published (`validate-dist.yml`).
+
+**Headers live outside the release.** The nginx example is server
+configuration and keeps working across switches. An `.htaccess` inside the
+release directory does not: each new release directory starts without one,
+and after the switch the Content-Security-Policy, the framing protection
+and `Cache-Control` would silently be gone. With Apache, use one of:
+
+- the vhost: the `<IfModule mod_headers.c>` block of the example inside
+  `<Directory "/srv/www/tools">`, the symlink's path (Apache matches the
+  path as requested, not the release directory it points to);
+- an `.htaccess` in the directory that holds the `tools` symlink: it applies
+  below it, through the symlink too, but also to everything else there;
+- a copy in every new release before the switch, as above.
+
+All three were checked with Apache 2.4 against a symlinked release. Check
+the headers after the first switch (`curl -I https://…/tools/confirm/`).
 
 Why it matters: an upload over the live directory is not atomic, and for a
 while the server has files of both releases. The service worker's precache

@@ -1,5 +1,9 @@
 # Example .htaccess for Apache 2.4 (mod_mime, mod_headers, mod_deflate),
-# placed in the directory the bundle was untarred to. Same rules as
+# placed in the directory the bundle was untarred to. The tarball has no
+# .htaccess: with a release directory per version behind a symlink, copy
+# this into each new one before the switch, or put it into the directory
+# holding the symlink or the vhost (README.md, "Updating a deployment"),
+# or the headers are gone after the switch. Same rules as
 # nginx.conf.example, which explains each of them; the policies must stay
 # the same as there (tests/deploy-headers.test.mjs compares them).
 AddType application/manifest+json .webmanifest
@@ -22,8 +26,10 @@ AddDefaultCharset utf-8
   # attributes: see nginx.conf.example.
   Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'sha256-BFKCNN17mvY1faBbmDv6Qs2zM9TIJ4uOPbK2JRYPmY0=' 'sha256-4QzxWl/E8EGSZSZaTG6/Yh0/RwJ7dKruDne0oFCzeIQ='; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
   Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: https://*.tile.opentopomap.org https://tile.openstreetmap.org https://mapsneu.wien.gv.at; connect-src 'self' https://api2.sota.org.uk https://overpass-api.de; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'" "expr=%{REQUEST_URI} =~ m#/sota-alerts/#"
-  Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'" "expr=%{REQUEST_URI} =~ m#/(confirm-offline|notfunk-offline|adif-editor)\.html$#"
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'" "expr=%{REQUEST_URI} =~ m#/adif-editor\.html$#"
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'" "expr=%{REQUEST_URI} =~ m#/(confirm-offline|notfunk-offline)\.html$#"
   Header always set X-Content-Type-Options "nosniff"
   Header always set X-Frame-Options "DENY"
+  Header always set X-Frame-Options "SAMEORIGIN" "expr=%{REQUEST_URI} =~ m#/adif-editor\.html$#"
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
 </IfModule>
