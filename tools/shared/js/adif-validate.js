@@ -123,17 +123,6 @@ function avLineIndex(source) {
 
 /* ---------- scanner ---------- */
 
-// Does a value ending at `end` end cleanly: at the end of the file, before
-// a blank/line break, or right before a plausible tag?
-function avCleanEnd(source, end) {
-  if (end >= source.length) return true;
-  const c = source.charCodeAt(end);
-  if (c === 32 || c === 9 || c === 10 || c === 13) return true;
-  if (c !== 60) return false; // '<'
-  AV_NEXT_TAG_RE.lastIndex = end;
-  return AV_NEXT_TAG_RE.test(source);
-}
-
 // Tokens of an .adi text: { kind: 'tag'|'eoh'|'eor', name, type, value,
 // offset (of '<'), valueOffset }. Recoverable syntax problems are reported
 // through issue(); the scan never stops early.
@@ -184,57 +173,50 @@ function avScan(source, issue) {
       AV_NEXT_TAG_RE.lastIndex = tagEnd + i;
       if (AV_NEXT_TAG_RE.test(source)) { cut = i; break; }
     }
-    // The length is what counts (ADIF 3.1.7 IV.A.1: the value is the
-    // declared number of characters after the tag; any character but the
-    // field's type limits may be in it): when the value ends where a
-    // separator, the next tag or the end of the file follows, the
-    // tag-shaped text is part of the value. A warning, since a too long
-    // length can also end like that and naive readers split there.
-    if (cut >= 0 && end <= source.length && avCleanEnd(source, end)) {
-      // An <EOR> inside the value is the typical sign of a too long length
-      // that swallowed the end of the QSO (and maybe the next one's
-      // fields): valid per spec, but its own, clearer warning.
-      if (/<eor>/i.test(available)) {
-        issue('warning', 'RECORD_END_IN_VALUE',
-          `<${upper}:${len}>: the value "${avShort(available)}" contains <EOR>; read as part of the value, as the declared length says, so no QSO ends there. If the length is too long, this value swallows the end of the QSO and the fields after it (two QSOs read as one): check the length.`,
-          { offset: lt, field: upper, value: available });
-      } else {
-        issue('warning', 'TAG_IN_VALUE',
-          `<${upper}:${len}>: the value "${avShort(available)}" contains text that looks like an ADIF tag; read as part of the value, as the declared length says. If that is not intended, the length is wrong (programs that split on tags will misread it too).`,
-          { offset: lt, field: upper, value: available });
-      }
-      tokens.push({ kind: 'tag', name: upper, type, value: available, offset: lt, valueOffset: tagEnd });
-      pos = end;
-      continue;
-    }
-    // A declared length that runs into the next tag and doesn't end
-    // cleanly: cut the value there and continue with that tag (resync),
-    // so one wrong length doesn't swallow the following fields.
-    if (cut >= 0) {
-      const value = available.slice(0, cut).replace(/\s+$/, '');
-      issue('error', 'FIELD_LENGTH_MISMATCH',
-        `<${upper}:${len}> declares ${len} characters, but the value "${avShort(value)}" has ${value.length} before the next tag.`,
-        { offset: lt, field: upper, value });
-      tokens.push({ kind: 'tag', name: upper, type, value, offset: lt, valueOffset: tagEnd });
-      pos = tagEnd + cut;
-      continue;
-    }
     if (end > source.length) {
+      // The file ends inside the declared length. With a tag inside the
+      // available text the length was too long: cut the value there and
+      // continue with that tag (resync), so one wrong length doesn't
+      // swallow the following fields.
+      if (cut >= 0) {
+        const value = available.slice(0, cut).replace(/\s+$/, '');
+        issue('error', 'FIELD_LENGTH_MISMATCH',
+          `<${upper}:${len}> declares ${len} characters, but the file ends after ${available.length}; the value "${avShort(value)}" has ${value.length} before the next tag.`,
+          { offset: lt, field: upper, value });
+        tokens.push({ kind: 'tag', name: upper, type, value, offset: lt, valueOffset: tagEnd, unsure: true });
+        pos = tagEnd + cut;
+        continue;
+      }
       issue('error', 'TRUNCATED_FIELD', `<${upper}:${len}> declares ${len} characters, but the file ends after ${available.length}.`,
         { offset: lt, field: upper, value: available });
       tokens.push({ kind: 'tag', name: upper, type, value: available, offset: lt, valueOffset: tagEnd, unsure: true });
       break;
     }
-    // Text right after the value (no separator, no tag): the declared
-    // length is too short. The value is read as declared, as other
-    // programs would read it.
+    // The declared length fits: it is what counts. The value is the
+    // declared number of characters (ADIF 3.1.7 IV.A.1), never split at
+    // tag-shaped text inside it, and characters after it outside a field
+    // or <EOR> are ignored (IV.A.6). Suspicious boundaries are warnings
+    // only; they don't change how the file is read.
     const rest = /^[^\s<]+/.exec(source.slice(end, end + 200));
+    const at = { offset: lt, field: upper, value: available };
     if (rest) {
-      issue('error', 'FIELD_LENGTH_MISMATCH',
-        `<${upper}:${len}>: the value "${avShort(available)}" (${len} characters as declared) is followed directly by "${avShort(rest[0])}"; the declared length does not match the value.`,
-        { offset: lt, field: upper, value: available });
+      const bytes = /[^\x00-\x7f]/.test(available) ? ' The value has non-ASCII characters: the length was probably counted in UTF-8 bytes, not characters.' : '';
+      issue('warning', 'FIELD_LENGTH_MISMATCH',
+        `<${upper}:${len}>: the value "${avShort(available)}" (${len} characters as declared) is followed directly by "${avShort(rest[0])}". ADIF ignores text outside fields (IV.A.6), so it is read as declared, but the declared length probably does not match the value${cut >= 0 ? ' (too long: it runs over a tag)' : ''}.${bytes}`,
+        at);
+    } else if (cut >= 0 && /<eor>/i.test(available)) {
+      // An <EOR> inside the value is the typical sign of a too long length
+      // that swallowed the end of the QSO (and maybe the next one's
+      // fields): valid per spec, but its own, clearer warning.
+      issue('warning', 'RECORD_END_IN_VALUE',
+        `<${upper}:${len}>: the value "${avShort(available)}" contains <EOR>; read as part of the value, as the declared length says, so no QSO ends there. If the length is too long, this value swallows the end of the QSO and the fields after it (two QSOs read as one): check the length.`,
+        at);
+    } else if (cut >= 0) {
+      issue('warning', 'TAG_IN_VALUE',
+        `<${upper}:${len}>: the value "${avShort(available)}" contains text that looks like an ADIF tag; read as part of the value, as the declared length says. If that is not intended, the length is wrong (programs that split on tags will misread it too).`,
+        at);
     }
-    tokens.push({ kind: 'tag', name: upper, type, value: available, offset: lt, valueOffset: tagEnd, unsure: !!rest });
+    tokens.push({ kind: 'tag', name: upper, type, value: available, offset: lt, valueOffset: tagEnd });
     pos = end;
   }
   return tokens;
@@ -596,16 +578,20 @@ export function validateAdif(source, options = {}) {
           report('error', 'INVALID_APPLICATION_FIELD', `${name}: application-defined fields are named APP_{PROGRAMID}_{FIELDNAME}.`);
           continue;
         }
-        typeName = AV_INDICATOR_TYPES[indicator];
         if (!indicator) reportOnce('info', 'APP_FIELD_WITHOUT_TYPE', name, `${name} has no data type indicator (e.g. <${name}:LENGTH:S>); other programs read it as text.`, offset);
-        else if (typeName) {
-          if (appTypes.has(name) && appTypes.get(name) !== indicator) report('warning', 'APP_FIELD_TYPE_INCONSISTENT', `${name} has type ${indicator} here, but ${appTypes.get(name)} in an earlier QSO.`);
-          else appTypes.set(name, indicator);
-        }
         // ADIF 3.1.7 IV.A.4: without an indicator the contents must conform
-        // to MultilineString (so line breaks are fine).
-        if (!indicator) typeName = 'MultilineString';
-        else if (!typeName) typeName = 'String';
+        // to MultilineString (so line breaks are fine), and the first
+        // occurrence of an application-defined field in a file determines
+        // its data type: later values are checked against that.
+        const own = !indicator ? 'M' : AV_INDICATOR_TYPES[indicator] ? indicator : '';
+        if (own) {
+          if (!appTypes.has(name)) appTypes.set(name, own);
+          const first = appTypes.get(name);
+          if (first !== own) report('warning', 'APP_FIELD_TYPE_INCONSISTENT', `${name} has type ${indicator || 'M (no indicator)'} here, but ${first} at its first occurrence in the file, which determines its type (IV.A.4); checked as ${first}.`);
+          typeName = AV_INDICATOR_TYPES[first];
+        } else {
+          typeName = 'String';
+        }
         def = null;
       } else {
         reportOnce('warning', 'UNKNOWN_FIELD', name, `${name} is not an ADIF ${ADIF_SPEC_VERSION} field; application-specific data belongs in APP_{PROGRAMID}_${name} (or a USERDEF).`, offset);
