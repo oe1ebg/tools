@@ -7,7 +7,7 @@
 // is covered in the browser by tests/e2e/storage.spec.mjs.
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { openToolStorage, assertUnchanged, ConflictError } from '../tools/shared/js/storage.js';
+import { openToolStorage, assertUnchanged, ConflictError, StorageBusyError } from '../tools/shared/js/storage.js';
 import { saveNumbered, numberGaps } from '../tools/notfunk/js/numbering.js';
 
 // localStorage stand-in. failOn(n): the n-th setItem from now throws a
@@ -130,17 +130,46 @@ test('a batch a dead tab left half-written is rolled back on the next open and b
   assert.equal(ls.getItem('test:v1:#journal'), null);
 });
 
-test('without Web Locks a young journal is left alone (it may be another tab mid-batch)', async () => {
-  ls.setItem('test:v1:#journal', JSON.stringify({ at: Date.now(), changes: [{ k: 'test:v1:messages:a', before: null }] }));
+test('without Web Locks a young journal of another tab is never overwritten: the write is refused', async () => {
+  const other = { at: Date.now(), page: 'other-tab', changes: [{ k: 'test:v1:messages:a', before: null }] };
+  ls.setItem('test:v1:#journal', JSON.stringify(other));
   ls.setItem('test:v1:messages:a', '{"id":"a"}');
   const s = await open({ locks: null });
   assert.equal(s.crossTabLock, false);
-  assert.equal(s.recovery, null);
-  assert.ok(await s.get('messages', 'a'));
-  ls.setItem('test:v1:#journal', JSON.stringify({ at: Date.now() - 120000, changes: [{ k: 'test:v1:messages:a', before: null }] }));
+  assert.deepEqual(s.recovery, { pending: true });
+  await assert.rejects(s.tx([{ store: 'messages', put: { id: 'b', eventId: 'e' } }]), err => err instanceof StorageBusyError);
+  await assert.rejects(s.atomic(['messages'], async ({ put }) => put('messages', { id: 'b', eventId: 'e' })), StorageBusyError);
+  assert.deepEqual(JSON.parse(ls.getItem('test:v1:#journal')), other, 'journal untouched');
+  assert.equal(await s.get('messages', 'b'), undefined);
+  // a minute later it counts as orphaned: rolled back, then the write goes through
+  ls.setItem('test:v1:#journal', JSON.stringify({ ...other, at: Date.now() - 120000 }));
+  await s.tx([{ store: 'messages', put: { id: 'b', eventId: 'e' } }]);
+  assert.equal(await s.get('messages', 'a'), undefined, 'the dead batch was undone');
+  assert.ok(await s.get('messages', 'b'));
+  assert.equal(ls.getItem('test:v1:#journal'), null);
+  ls.setItem('test:v1:#journal', JSON.stringify({ ...other, at: Date.now() - 120000 }));
+  ls.setItem('test:v1:messages:a', '{"id":"a"}');
   const s2 = await open({ locks: null });
   assert.deepEqual(s2.recovery, { rolledBack: 1 });
   assert.equal(await s2.get('messages', 'a'), undefined);
+});
+
+test('without Web Locks a failed rollback of this page is undone before the next write', async () => {
+  const s = await open({ locks: null });
+  await s.tx([{ store: 'messages', put: { id: 'a', eventId: 'e', v: 1 } }]);
+  const before = ls.dump();
+  ls.freezeAfter(2); // journal + first record; then the write and the rollback fail
+  await assert.rejects(s.tx([
+    { store: 'messages', put: { id: 'a', eventId: 'e', v: 2 } },
+    { store: 'messages', put: { id: 'b', eventId: 'e', v: 2 } },
+  ]));
+  ls.thaw();
+  assert.ok(ls.getItem('test:v1:#journal'), 'the journal stayed');
+  await s.tx([{ store: 'counters', put: { id: 'c', eventId: 'e', last: 1 } }]);
+  assert.equal((await s.get('messages', 'a')).v, 1);
+  assert.equal(await s.get('messages', 'b'), undefined);
+  assert.equal(ls.getItem('test:v1:#journal'), null);
+  assert.deepEqual(Object.keys(ls.dump()).sort(), [...Object.keys(before), 'test:v1:counters:c'].sort());
 });
 
 const saveOn = (store, i) => saveNumbered(store, { opId: 'op1', prefix: 'W1', recordStore: 'messages' },
