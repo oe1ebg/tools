@@ -13,8 +13,12 @@ import { test as base, expect } from '@playwright/test';
 const CONSOLE_ERROR_ALLOWLIST = [];
 
 export const test = base.extend({
-  problems: [async ({ page, baseURL }, use) => {
+  // Further origins that belong to the bundle under test (the prefix proxy
+  // of pwa-identity.spec.mjs); checked like the base URL's origin.
+  extraOrigins: [[], { option: true }],
+  problems: [async ({ page, baseURL, extraOrigins }, use) => {
     const origin = new URL(baseURL).origin;
+    const ours = new Set([origin, ...extraOrigins]);
     const problems = [];
     // Content-Security-Policy violations (deploy/nginx.conf.example) as
     // console errors in every engine, whatever the browser logs itself.
@@ -32,7 +36,7 @@ export const test = base.extend({
       problems.push(`console.error: ${text}${loc && loc.url ? ` (${loc.url}:${loc.lineNumber})` : ''}`);
     });
     page.on('response', res => {
-      if (res.status() >= 400 && new URL(res.url()).origin === origin) {
+      if (res.status() >= 400 && ours.has(new URL(res.url()).origin)) {
         problems.push(`HTTP ${res.status()} ${res.url()}`);
       }
     });
@@ -40,7 +44,7 @@ export const test = base.extend({
       const url = route.request().url();
       // file://: the saved single-file bundles (offline.spec.mjs checks
       // their requests itself)
-      if (new URL(url).origin === origin || url.startsWith('file:')) return route.continue();
+      if (ours.has(new URL(url).origin) || url.startsWith('file:')) return route.continue();
       problems.push(`unexpected request to another host: ${url}`);
       return route.abort('blockedbyclient');
     });

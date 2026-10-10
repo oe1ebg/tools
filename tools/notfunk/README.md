@@ -181,6 +181,13 @@ name, and a distribution list ("Verteiler").
   and sets the Bezug; saving it marks the original "beantwortet"), earlier
   versions, print, delete (soft; the number stays taken) and restore.
 
+## App identity
+
+- **App identity.** `manifest.webmanifest` has no `id` on purpose (the
+  identity is the resolved `start_url`, distinct from the confirmation log's
+  on the same origin); rationale, existing installs and test in
+  `../confirm/README.md`, "App identity" (#28).
+
 ## Code
 
 - `index.html`, `style.css` (incl. the print layout), `sw.js` (on the shared
