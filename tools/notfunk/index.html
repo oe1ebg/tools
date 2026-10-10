@@ -72,22 +72,35 @@
         <label class="field span-2"><span>Einsatz / Übung</span>
           <input id="n-name" required enterkeyhint="next" placeholder="z. B. Übung Blackout Wien"></label>
         <label class="field"><span>Stationskürzel</span>
-          <input id="n-prefix" required maxlength="6" class="mono" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" placeholder="W1" aria-describedby="n-prefix-help"></label>
-        <label class="field span-2"><span>Standort der Station</span>
-          <input id="n-station" enterkeyhint="next" placeholder="z. B. Einsatzleitstelle, Lichtinsel 12" aria-describedby="n-station-help"></label>
-        <div class="field ac-field"><label for="n-operator">Operator</label>
-          <div class="ac-wrap"><input id="n-operator" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-describedby="n-operator-info"><div id="n-operator-pop" class="ac-pop"></div></div>
-          <div class="ac-hints"><div id="n-operator-info" class="ac-info" aria-live="polite"></div></div></div>
-        <label class="field"><span>Für Stelle</span>
-          <input id="n-home" enterkeyhint="next" placeholder="Stab" aria-describedby="n-home-help"></label>
-        <label class="field"><span>Frequenz MHz</span>
-          <input id="n-freq" class="mono" inputmode="decimal" enterkeyhint="next" placeholder="145.500"></label>
-        <div class="field ac-field"><label for="n-via">Relais</label>
-          <div class="ac-wrap"><input id="n-via" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="done" aria-describedby="n-via-info"><div id="n-via-pop" class="ac-pop"></div></div>
-          <div class="ac-hints"><div id="n-via-info" class="ac-info" aria-live="polite"></div></div></div>
+          <input id="n-prefix" required maxlength="6" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" placeholder="W1" aria-describedby="n-prefix-help"></label>
       </div>
+      <fieldset class="op-group">
+        <legend>Eigene Station</legend>
+        <div class="grid-form op-grid">
+          <div class="field"><label for="n-call">Stationsrufzeichen</label>
+            <input id="n-call" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" placeholder="OE1XKS" aria-describedby="n-call-info" title="Rufzeichen der eigenen Funkstation, z. B. die Klubstation; kann vom Rufzeichen des Operators abweichen">
+            <div class="ac-hints"><div id="n-call-info" class="ac-info" aria-live="polite"></div></div></div>
+          <label class="field span-2"><span>Standort der Station (Adresse)</span>
+            <input id="n-station" enterkeyhint="next" placeholder="z. B. Lichtinsel 12, Brünner Straße 68" aria-describedby="n-station-help" title="Wo das eigene Funkgerät steht (steht oben im Ausdruck)"></label>
+          <label class="field"><span>Für Stelle</span>
+            <input id="n-home" enterkeyhint="next" placeholder="Stab" aria-describedby="n-home-help" title="Für wen die Station arbeitet, z. B. Stab: Vorgabe für An (Eingang) bzw. Von (Ausgang)"></label>
+          <label class="field"><span>Frequenz MHz</span>
+            <input id="n-freq" class="mono" inputmode="decimal" enterkeyhint="next" placeholder="145.500"></label>
+          <div class="field ac-field"><label for="n-via">Relais</label>
+            <div class="ac-wrap"><input id="n-via" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-describedby="n-via-info"><div id="n-via-pop" class="ac-pop"></div></div>
+            <div class="ac-hints"><div id="n-via-info" class="ac-info" aria-live="polite"></div></div></div>
+        </div>
+      </fieldset>
+      <fieldset class="op-group">
+        <legend>Am Gerät</legend>
+        <div class="grid-form op-grid">
+          <div class="field ac-field"><label for="n-operator">Operator</label>
+            <div class="ac-wrap"><input id="n-operator" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="done" aria-describedby="n-operator-info" title="Wer hier am Gerät aufnimmt; beim Schichtwechsel ändern"><div id="n-operator-pop" class="ac-pop"></div></div>
+            <div class="ac-hints"><div id="n-operator-info" class="ac-info" aria-live="polite"></div></div></div>
+        </div>
+      </fieldset>
       <p class="hint" id="n-prefix-help">Das Kürzel steht vor jeder Nummer (W1-001, W1-002 …). Jedes Gerät bzw. jede Station eines Einsatzes bekommt ein eigenes Kürzel, dann lassen sich die Bücher ohne doppelte Nummern zusammenführen.</p>
-      <p class="hint" id="n-station-help">Standort der Station: wo das eigene Funkgerät steht (steht oben im Ausdruck).</p>
+      <p class="hint" id="n-station-help">Stationsrufzeichen und Standort der Station (Adresse): die eigene Funkstation, z. B. OE1XKS in der Lichtinsel 12; das Rufzeichen kann vom Operator abweichen. Beides steht oben im Ausdruck.</p>
       <p class="hint" id="n-home-help">Für Stelle: für wen die Station arbeitet, z. B. Stab. Steht bei neuen Meldungen als Adressat eingehender und Absender ausgehender Meldungen, solange nichts anderes eingetragen ist.</p>
       <div class="toolbar form-foot">
         <button type="submit" class="primary">Einsatz anlegen</button>
@@ -138,21 +151,39 @@
 
     <details class="hdr" id="op-panel">
       <summary><b>Einsatz</b> <span class="hdr-sum" id="op-sum"></span></summary>
-      <div class="body">
-        <div class="grid-form op-grid" id="op-form">
-          <label class="field span-2"><span>Einsatz / Übung</span><input id="e-name" enterkeyhint="next"></label>
-          <label class="field"><span>Stationskürzel</span><input id="e-prefix" maxlength="6" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-describedby="e-prefix-help"></label>
-          <label class="field span-2"><span>Standort der Station</span><input id="e-station" enterkeyhint="next" title="Wo das eigene Funkgerät steht (steht oben im Ausdruck)"></label>
-          <div class="field ac-field"><label for="e-operator">Operator</label>
-          <div class="ac-wrap"><input id="e-operator" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-describedby="e-operator-info"><div id="e-operator-pop" class="ac-pop"></div></div>
-          <div class="ac-hints"><div id="e-operator-info" class="ac-info" aria-live="polite"></div></div></div>
-          <label class="field"><span>Für Stelle</span><input id="e-home" enterkeyhint="next" title="Für wen die Station arbeitet, z. B. Stab: Vorgabe für An (Eingang) bzw. Von (Ausgang)"></label>
-          <label class="field"><span>Frequenz MHz</span><input id="e-freq" class="mono" inputmode="decimal" enterkeyhint="next"></label>
-          <div class="field ac-field"><label for="e-via">Relais</label>
-          <div class="ac-wrap"><input id="e-via" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="done" aria-describedby="e-via-info"><div id="e-via-pop" class="ac-pop"></div></div>
-          <div class="ac-hints"><div id="e-via-info" class="ac-info" aria-live="polite"></div></div></div>
+      <div class="body" id="op-form">
+        <div class="grid-form op-grid">
+          <label class="field span-2"><span>Einsatz / Übung</span>
+            <input id="e-name" enterkeyhint="next"></label>
+          <label class="field"><span>Stationskürzel</span>
+            <input id="e-prefix" maxlength="6" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-describedby="e-prefix-help"></label>
         </div>
-        <p class="hint">Änderungen gelten für neue Meldungen; gespeicherte behalten Operator, Frequenz und Nummer vom Zeitpunkt der Aufnahme. Ein Operatorwechsel (Schichtwechsel) wird hier eingetragen.</p>
+        <fieldset class="op-group">
+          <legend>Eigene Station</legend>
+          <div class="grid-form op-grid">
+            <div class="field"><label for="e-call">Stationsrufzeichen</label>
+              <input id="e-call" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-describedby="e-call-info" title="Rufzeichen der eigenen Funkstation, z. B. die Klubstation; kann vom Rufzeichen des Operators abweichen">
+              <div class="ac-hints"><div id="e-call-info" class="ac-info" aria-live="polite"></div></div></div>
+            <label class="field span-2"><span>Standort der Station (Adresse)</span>
+              <input id="e-station" enterkeyhint="next" title="Wo das eigene Funkgerät steht (steht oben im Ausdruck)"></label>
+            <label class="field"><span>Für Stelle</span>
+              <input id="e-home" enterkeyhint="next" title="Für wen die Station arbeitet, z. B. Stab: Vorgabe für An (Eingang) bzw. Von (Ausgang)"></label>
+            <label class="field"><span>Frequenz MHz</span>
+              <input id="e-freq" class="mono" inputmode="decimal" enterkeyhint="next"></label>
+            <div class="field ac-field"><label for="e-via">Relais</label>
+              <div class="ac-wrap"><input id="e-via" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-describedby="e-via-info"><div id="e-via-pop" class="ac-pop"></div></div>
+              <div class="ac-hints"><div id="e-via-info" class="ac-info" aria-live="polite"></div></div></div>
+          </div>
+        </fieldset>
+        <fieldset class="op-group">
+          <legend>Am Gerät</legend>
+          <div class="grid-form op-grid">
+            <div class="field ac-field"><label for="e-operator">Operator</label>
+              <div class="ac-wrap"><input id="e-operator" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="done" aria-describedby="e-operator-info" title="Wer hier am Gerät aufnimmt; beim Schichtwechsel ändern"><div id="e-operator-pop" class="ac-pop"></div></div>
+              <div class="ac-hints"><div id="e-operator-info" class="ac-info" aria-live="polite"></div></div></div>
+          </div>
+        </fieldset>
+        <p class="hint">Änderungen gelten für neue Meldungen; gespeicherte behalten Stationsrufzeichen, Operator, Frequenz und Nummer vom Zeitpunkt der Aufnahme. Ein Operatorwechsel (Schichtwechsel) wird hier eingetragen.</p>
         <p class="hint" id="e-prefix-help">Das Stationskürzel lässt sich nur ändern, solange der Einsatz noch keine Meldung hat.</p>
         <p id="op-status" class="form-status" role="status"></p>
       </div>
@@ -164,7 +195,7 @@
       <div class="form-head">
         <span id="form-title" class="form-title">Neue Meldung</span>
         <span id="form-number" class="mono accent" title="Die Nummer wird erst beim Speichern vergeben"></span>
-        <button type="button" id="btn-form-op" class="link sub" title="Operator wechseln (Schichtwechsel): im Feld „Einsatz“">Aufnahme <b id="form-op" class="mono"></b></button>
+        <button type="button" id="btn-form-op" class="link sub" title="Station und Operator (Schichtwechsel): im Feld „Einsatz“"><span id="form-station"></span>Aufnahme <b id="form-op" class="mono"></b></button>
         <span id="form-reply" class="chip" hidden></span>
         <span class="spacer"></span>
         <span id="draft-status" class="draft-status" role="status"></span>
@@ -361,6 +392,7 @@
           <dt>Für Stelle</dt><dd>für wen die eigene Station arbeitet <span class="ex">Stab</span>; im Einsatz eingetragen. Steht bei Eingängen automatisch bei An, bei Ausgängen bei Von.</dd>
           <dt>Funkstelle</dt><dd>die Funkstation, von der die Meldung gehört wurde (Eingang) bzw. an die sie gesendet wird (Ausgang). <span class="ex">OE1ABC</span> Unbekannte Stationen einfach eintippen.</dd>
           <dt>Ursprungsstation</dt><dd>Station, bei der die Meldung ursprünglich aufgegeben wurde; bei Weitergaben oft nicht die Funkstelle.</dd>
+          <dt>Stationsrufzeichen</dt><dd>das Rufzeichen der eigenen Funkstation <span class="ex">OE1XKS</span>, z. B. einer Klubstation; im Einsatz eingetragen und bei jeder Meldung mitgespeichert. Kann vom Rufzeichen des Operators abweichen.</dd>
           <dt>Operator</dt><dd>wer hier am Gerät aufnimmt („Aufnahme“ oben im Formular). Beim Schichtwechsel im Feld „Einsatz“ ändern; gespeicherte Meldungen behalten ihren Operator.</dd>
         </dl>
       </section>
@@ -369,7 +401,7 @@
         <dl class="kb">
           <dt>Ort</dt><dd>wo das gemeldete Ereignis ist. <span class="ex">Brünner Straße 68</span> <span class="ex">JN88EG</span> Ein Vorschlag ergänzt Postleitzahl und Locator; der Inhalt der Meldung bleibt unverändert.</dd>
           <dt>Ursprungsort</dt><dd>wo die Meldung ursprünglich aufgegeben wurde; kann vom Ereignisort abweichen.</dd>
-          <dt>Standort der Station</dt><dd>wo das eigene Funkgerät steht <span class="ex">Lichtinsel 12 Floridsdorf</span>; im Einsatz eingetragen, gilt für alle Meldungen.</dd>
+          <dt>Standort der Station (Adresse)</dt><dd>wo das eigene Funkgerät steht <span class="ex">Lichtinsel 12 Floridsdorf</span>; im Einsatz eingetragen, gilt für alle Meldungen.</dd>
         </dl>
       </section>
       <section id="h-when" aria-labelledby="h-when-t">

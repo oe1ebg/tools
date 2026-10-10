@@ -135,8 +135,10 @@ name, and a distribution list ("Verteiler").
 ## Using it
 
 - **Einsätze:** an operation has a name, a **station code** (the number
-  prefix, e.g. `W1`; one per device or station), where the station is
-  ("Standort der Station", `station`), the operator, the **own post** ("Für
+  prefix, e.g. `W1`; one per device or station), the own station's
+  callsign ("Stationsrufzeichen", `call`, e.g. a club station; kept with
+  every message as `stationCall`, like the operator), where the station
+  is ("Standort der Station (Adresse)", `station`), the operator, the **own post** ("Für
   Stelle", `home`, e.g. "Stab": recipient of
   incoming and sender of outgoing messages unless typed otherwise), and a
   default frequency/relay.

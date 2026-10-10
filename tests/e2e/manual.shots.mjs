@@ -34,6 +34,7 @@ test('Notfunk-Meldebuch', async ({ page }) => {
   await page.getByRole('button', { name: '+ Neuer Einsatz' }).click();
   await page.locator('#n-name').fill('Übung Blackout Wien');
   await page.locator('#n-prefix').fill('W1');
+  await page.locator('#n-call').fill('OE1XKS');
   await page.locator('#n-station').fill('Lichtinsel 12 Floridsdorf');
   await page.locator('#n-operator').fill('OE1EBG');
   await page.locator('#n-home').fill('Stab');

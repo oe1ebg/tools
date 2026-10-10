@@ -282,6 +282,14 @@ test('Einsatz header: a change applies to new messages, the code stays once used
   await expect(page.locator('#e-prefix')).toBeEditable();
   await addMessage(page, 'LI 1', 'Erste');
   await expect(page.locator('#e-prefix')).not.toBeEditable();
+  // the book row: Von → An, below the Funkstelle and via relay or direct
+  await expect(page.locator('#book-body tr', { hasText: 'H1-001' }).locator('td.parties')).toContainText('OE1ABC · direkt');
+  // the own station's callsign, apart from the operator's
+  await page.locator('#e-call').fill('oe1xks');
+  await page.locator('#e-call').press('Tab');
+  await expect(page.locator('#op-sum')).toContainText('OE1XKS');
+  await expect(page.locator('#form-station')).toHaveText('Station OE1XKS · ');
+  await expect(page.locator('#form-op')).toHaveText('OE1EBG');
   // a complete call that isn't in the callsign list: Enter keeps it, also
   // once the suggestions (100 ms after typing, e.g. OE3XYL) are there
   await page.locator('#e-operator').fill('oe3xyz');

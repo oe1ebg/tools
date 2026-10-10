@@ -170,7 +170,7 @@ async function renderOps() {
     },
     el('div', { class: 'info' },
       el('div', { class: 't' }, op.name),
-      el('div', { class: 'meta' }, `${fmtVienna(op.created).split(' ')[0]} · Station ${op.prefix}${op.station ? ` ${op.station}` : ''} · ${counts.get(op.id) || 0} Meldungen`),
+      el('div', { class: 'meta' }, `${fmtVienna(op.created).split(' ')[0]} · ${['Station', op.prefix, op.call].filter(Boolean).join(' ')}${op.station ? ` · ${op.station}` : ''} · ${counts.get(op.id) || 0} Meldungen`),
       el('div', { class: 'meta' }, [op.operator && `Op ${op.operator}`, op.home && `für ${op.home}`, op.freq && `${fmtFreq(op.freq)} MHz`, op.via && `via ${op.via}`].filter(Boolean).join(' · '))),
     el('div', { class: 'actions' }, actions));
   }));
@@ -193,12 +193,14 @@ function openNewOpForm() {
   form.hidden = false;
   const last = JSON.parse(prefGet(LAST_OP_KEY) || '{}');
   $('#n-prefix').value = last.prefix || '';
+  $('#n-call').value = last.call || '';
   $('#n-station').value = last.station || '';
   $('#n-operator').value = last.operator || '';
   $('#n-home').value = last.home || 'Stab';
   $('#n-freq').value = fmtFreq(last.freq || '');
   $('#n-via').value = last.via || '';
   renderPartyInfo('#n-operator', '#n-operator-info');
+  renderPartyInfo('#n-call', '#n-call-info');
   state.newOpRpt?.refresh();
   $('#n-name').focus();
 }
@@ -212,7 +214,7 @@ async function createOp() {
   status.textContent = '';
   const now = nowIso();
   const op = {
-    id: newId(), name: v('#n-name'), prefix, station: v('#n-station'), operator: normalizeCall(v('#n-operator')),
+    id: newId(), name: v('#n-name'), prefix, call: normalizeCall(v('#n-call')), station: v('#n-station'), operator: normalizeCall(v('#n-operator')),
     home: v('#n-home'), freq: normFreq(v('#n-freq')), via: normalizeCall(v('#n-via')), created: now, updated: now, archived: false, deleted: null,
   };
   try {
@@ -221,7 +223,7 @@ async function createOp() {
     showSaveError(e);
     return;
   }
-  prefSet(LAST_OP_KEY, JSON.stringify({ prefix, station: op.station, operator: op.operator, home: op.home, freq: op.freq, via: op.via }));
+  prefSet(LAST_OP_KEY, JSON.stringify({ prefix, call: op.call, station: op.station, operator: op.operator, home: op.home, freq: op.freq, via: op.via }));
   $('#new-op').hidden = true;
   $('#new-op').reset();
   broadcast({ type: 'ops' });
@@ -234,7 +236,7 @@ async function createOp() {
 // changes apply to new messages (stored ones keep what they were saved
 // with). The station code is the number prefix: it can only change while
 // the operation has no message, so no number is ever ambiguous.
-const OP_FIELDS = { name: '#e-name', prefix: '#e-prefix', station: '#e-station', operator: '#e-operator', home: '#e-home', freq: '#e-freq', via: '#e-via' };
+const OP_FIELDS = { name: '#e-name', prefix: '#e-prefix', call: '#e-call', station: '#e-station', operator: '#e-operator', home: '#e-home', freq: '#e-freq', via: '#e-via' };
 const OP_PANEL_KEY = 'oe1ebg-notfunk-op-open';
 
 function renderOpPanel() {
@@ -242,10 +244,13 @@ function renderOpPanel() {
   for (const [k, sel] of Object.entries(OP_FIELDS)) if (document.activeElement !== $(sel)) $(sel).value = k === 'freq' ? fmtFreq(op[k] || '') : op[k] || '';
   $('#e-prefix').readOnly = state.msgs.length > 0;
   renderPartyInfo('#e-operator', '#e-operator-info');
+  renderPartyInfo('#e-call', '#e-call-info');
   state.opRpt?.refresh();
   $('#book-title').textContent = op.name;
   setText($('#op-sum'), [
-    `${op.prefix}${op.station ? ` ${op.station}` : ''}`,
+    op.prefix,
+    op.call,
+    op.station,
     op.operator ? `Op ${op.operator}` : 'Operator fehlt',
     op.home && `für ${op.home}`,
     op.freq && `${fmtFreq(op.freq)} MHz`,
@@ -260,7 +265,7 @@ async function saveOpPanel() {
   const v = sel => $(sel).value.trim();
   const status = $('#op-status');
   const patch = {
-    name: v('#e-name') || op.name, station: v('#e-station'), operator: normalizeCall(v('#e-operator')),
+    name: v('#e-name') || op.name, call: normalizeCall(v('#e-call')), station: v('#e-station'), operator: normalizeCall(v('#e-operator')),
     home: v('#e-home'), freq: normFreq(v('#e-freq')), via: normalizeCall(v('#e-via')),
   };
   const prefix = normalizePrefix(v('#e-prefix'));
@@ -292,7 +297,7 @@ async function saveOpPanel() {
   bookStatus(`Einsatz geändert: ${Object.keys(patch).filter(k => (op[k] || '') !== patch[k]).map(k => OP_LABELS[k]).join(', ')}`);
 }
 
-const OP_LABELS = { name: 'Name', prefix: 'Stationskürzel', station: 'Standort der Station', operator: 'Operator', home: 'Für Stelle', freq: 'Frequenz', via: 'Relais' };
+const OP_LABELS = { name: 'Name', prefix: 'Stationskürzel', call: 'Stationsrufzeichen', station: 'Standort der Station (Adresse)', operator: 'Operator', home: 'Für Stelle', freq: 'Frequenz', via: 'Relais' };
 
 // Completion on the operator and relay fields of an operation (the
 // "+ Neuer Einsatz" form and the Einsatz panel), as in the confirmation
@@ -316,6 +321,7 @@ function attachOpLookups(prefix, onChange) {
     onPick: () => { renderPartyInfo(`#${prefix}-operator`, `#${prefix}-operator-info`); onChange(); },
   });
   op.addEventListener('input', () => renderPartyInfo(`#${prefix}-operator`, `#${prefix}-operator-info`));
+  $(`#${prefix}-call`).addEventListener('input', () => renderPartyInfo(`#${prefix}-call`, `#${prefix}-call-info`));
   const via = $(`#${prefix}-via`);
   return attachRepeaterSearch({
     input: via, pop: $(`#${prefix}-via-pop`), info: $(`#${prefix}-via-info`),
@@ -513,6 +519,7 @@ function renderFormState() {
   const editing = state.editing;
   setText($('#form-title'), editing ? 'Meldung bearbeiten' : 'Neue Meldung');
   setText($('#form-number'), editing ? editing.number : `→ ${previewNumber()}`);
+  setText($('#form-station'), state.op.call ? `Station ${state.op.call} · ` : '');
   setText($('#form-op'), state.op.operator || 'Operator fehlt');
   $('#form-op').classList.toggle('warn-text', !state.op.operator);
   // the Bezug: a number of this operation shows what it refers to
@@ -716,7 +723,7 @@ async function saveMessageNow(anyway) {
       saved = next;
     } else {
       saved = await saveNumbered(state.store, { opId: op.id, prefix: op.prefix, recordStore: 'messages' },
-        numbered => newMessage(fields, numbered, { id: newId(), opId: op.id, operator, now }));
+        numbered => newMessage(fields, numbered, { id: newId(), opId: op.id, operator, stationCall: op.call || '', now }));
       // A reply marks the message it answers as answered.
       const orig = saved.refKind === 'antwort' && saved.replyTo && state.msgs.find(m => m.id === saved.replyTo);
       if (orig && STATUS_FLOW.indexOf(currentStatus(orig)) < STATUS_FLOW.indexOf('answered')) {
@@ -1025,7 +1032,10 @@ function renderBook() {
         el('td', { class: 'mono' }, viennaTime(m.ts)),
         el('td', { class: 'nowrap' }, m.direction === 'in' ? '↓ Ein' : '↑ Aus'),
         el('td', { class: 'parties' }, partyText(m.from), el('span', { class: 'dim' }, ' → '), partyText(m.to),
-          el('div', { class: 'sub' }, [CHANNELS[m.channel], m.peer, fmtFreq(m.radio.freq), m.radio.via && `via ${m.radio.via}`, m.stichzeit && `Stichzeit ${viennaTime(m.stichzeit)}`].filter(Boolean).join(' · '))),
+          // below: by radio the Funkstelle and via relay or direct; else the channel
+          el('div', { class: 'sub' }, (m.channel === 'funk'
+            ? [m.peer, m.radio.via ? `via ${m.radio.via}` : 'direkt', fmtFreq(m.radio.freq)]
+            : [CHANNELS[m.channel]]).concat(m.stichzeit ? `Stichzeit ${viennaTime(m.stichzeit)}` : []).filter(Boolean).join(' · '))),
         el('td', { class: 'content' }, el('b', {}, m.subject || ''), el('div', { class: 'sub clamp' }, m.text)),
         el('td', { class: 'nowrap' }, MESSAGE_TYPES[m.type], el('div', {}, prioPill(m))),
         el('td', { class: 'nowrap' }, statusPill(m), el('div', { class: 'sub mono' }, `${viennaTime(last.at)} ${last.by}`)),

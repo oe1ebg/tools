@@ -12,7 +12,7 @@ import { newMessage, setStatus, softDelete, addAttempt, normFreq, fmtFreq } from
 import { formatNumber } from '../tools/notfunk/js/numbering.js';
 
 const NOW = '2026-10-07T12:53:00.000Z'; // 14:53 MESZ
-const OP = { id: 'op1', name: 'Übung Blackout Wien', prefix: 'W1', station: 'Einsatzleitstelle', home: 'Stab', freq: '145.500', via: '' };
+const OP = { id: 'op1', name: 'Übung Blackout Wien', prefix: 'W1', call: 'OE1XKS', station: 'Einsatzleitstelle', home: 'Stab', freq: '145.500', via: '' };
 
 function save(form, seq, now = NOW) {
   const { fields, errors } = formToFields(form, { now });
@@ -256,6 +256,9 @@ test('Meldeaufnahmeformular: fields, date + time, staff block, handover', () => 
   const s = formSheet(m, OP, { now: NOW, revisions: 1 });
   assert.equal(s.number, 'W1-007');
   assert.equal(s.staffRef, 'GZ 0412');
+  // the own station: code, callsign (kept with the message, else the operation's) and address
+  assert.equal(s.station, 'W1 · OE1XKS · Einsatzleitstelle');
+  assert.equal(formSheet({ ...m, stationCall: 'OE3ABC' }, { ...OP, call: 'OE1XKS' }, { now: NOW }).station, 'W1 · OE3ABC · Einsatzleitstelle', 'the message keeps its own');
   assert.deepEqual([s.timeLabel, s.date, s.time], ['Empfangen am', '2026-10-07', '14:53'], 'local time, no zone');
   assert.deepEqual(s.directions.map(d => [d.label, d.checked]), [['Eingang', true], ['Ausgang', false]]);
   assert.deepEqual(s.channels.filter(c => c.checked).map(c => c.label), ['Funk']);
