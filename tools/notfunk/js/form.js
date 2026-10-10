@@ -142,14 +142,18 @@ export function normalizeRef(text) {
 }
 
 // Drafts from before date and time were split hold "2026-10-07 14:05" in
-// `time`; Stichzeit and Aufgabezeit may hold a date too.
+// `time`; Stichzeit and Aufgabezeit may hold a date too. A time typed in
+// another spelling ("1405", "14.05": the field turns it into 14:05 only when
+// it is left, the draft can be saved before) is normalised; text that can't
+// be read is kept as typed, so the warning at the field shows it.
 export function upgradeForm(f) {
   const out = { ...FORM_DEFAULTS, ...f };
   const m = /^(\d{4}-\d{2}-\d{2})[ T](\d{1,2}:\d{2})/.exec(out.time || '');
   if (m && !out.date) Object.assign(out, { date: m[1], time: m[2].padStart(5, '0') });
   for (const k of ['stichzeit', 'origFiled']) {
-    const t = /(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(out[k] || '');
-    out[k] = t ? `${t[1].padStart(2, '0')}:${t[2]}` : '';
+    const raw = String(out[k] ?? '');
+    const t = normTime(raw) ?? /(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(raw);
+    out[k] = typeof t === 'string' ? t : t ? `${t[1].padStart(2, '0')}:${t[2]}` : raw;
   }
   return out;
 }
@@ -168,8 +172,13 @@ export function formToFields(form, { now, byNumber = new Map(), editing = false 
   const fieldErrors = {};
   // an edited message keeps its stored times while the fields still show them
   const keptTs = form.ts && form.date === dateText(form.ts) && form.time === clockText(form.ts) && (form.zone || '') === zoneHint(form.ts) ? form.ts : null;
-  const keep = (stored, time) => (stored && time === clockText(stored) ? stored : null);
   const ts = keptTs || readDateTime(form.date, form.time, now, form.zone);
+  // Stichzeit/Aufgabezeit show no date: the stored one is kept only while the
+  // message's own date and time are the stored ones too (a moved message
+  // would keep a time of the old day); otherwise it is read again against
+  // the new message time.
+  const sameMessageTime = !!form.ts && ts === form.ts;
+  const keep = (stored, time) => (stored && sameMessageTime && time === clockText(stored) ? stored : null);
   if (!ts) {
     fieldErrors.time = normDate(form.date) === null ? 'Datum als JJJJ-MM-TT, z. B. 2026-10-08'
       : isBlankText(form.time) ? 'Uhrzeit fehlt'
