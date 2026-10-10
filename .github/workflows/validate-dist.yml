@@ -1,0 +1,144 @@
+name: Validate the release tarball
+
+# Called by release.yml and data.yml before they publish: the exact
+# tarball (the `dist` artifact of the calling run, checked against its
+# .sha256) is unpacked and installed the way README.md ("Deployment")
+# describes an atomic deployment: into its own release directory, made live
+# by a symlink, here under a deeper URL prefix than oe1ebg.at's (/a/b/tools/)
+# to show that nothing depends on /tools/. nginx serves it with
+# deploy/nginx.conf.example; then the same checks as ci.yml's `validate`:
+# Nu Html Checker and the Playwright tests in every browser project, the
+# ADIF ones included. Images pinned in tests/e2e/images.Dockerfile. Keep the
+# steps in line with ci.yml's `validate`.
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: commit the tarball was built from (tests and nginx config from there)
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: validate (${{ matrix.project }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [chromium, firefox, webkit, mobile-chromium, mobile-webkit]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Download the tarball
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dist
+          path: ${{ runner.temp }}/dist
+
+      # releases/<name>/ is the unpacked tarball; a/b/tools is the symlink a
+      # deployment switches (ln -sfn + mv -T, README.md "Deployment").
+      - name: Install the tarball (release directory + symlink)
+        run: |
+          cd "$RUNNER_TEMP/dist"
+          sha256sum -c ./*.tar.gz.sha256
+          sha256sum -c SHA256SUMS
+          set -- ./*.tar.gz
+          if [ "$#" -ne 1 ]; then echo "::error::expected one tarball, found $#"; exit 1; fi
+          name=$(basename "$1" .tar.gz)
+          www="$RUNNER_TEMP/www"
+          mkdir -p "$www/releases" "$www/a/b"
+          tar -C "$www/releases" -xzf "$1"
+          test -f "$www/releases/$name/index.html"
+          ln -s "../../releases/$name" "$www/a/b/tools.new"
+          mv -T "$www/a/b/tools.new" "$www/a/b/tools"
+
+      - name: Start nginx with deploy/nginx.conf.example (port 8080)
+        run: |
+          image=$(awk '$1 == "FROM" && $4 == "nginx" { print $2 }' tests/e2e/images.Dockerfile)
+          docker run -d --name site -p 8080:8080 \
+            -v "$RUNNER_TEMP/www:/srv/www:ro" \
+            -v "$GITHUB_WORKSPACE/deploy/nginx.conf.example:/etc/nginx/conf.d/default.conf:ro" \
+            "$image"
+          for _ in $(seq 30); do curl -fsS -o /dev/null http://localhost:8080/a/b/tools/ && break; sleep 1; done
+          curl -fsS -o /dev/null http://localhost:8080/a/b/tools/
+
+      - name: Read the pinned tool images
+        id: images
+        run: |
+          f=tests/e2e/images.Dockerfile
+          vnu=$(awk '$1 == "FROM" && $4 == "vnu" { print $2 }' "$f")
+          pw=$(awk '$1 == "FROM" && $4 == "playwright" { print $2 }' "$f")
+          version=$(printf '%s\n' "$pw" | sed -nE 's#^mcr\.microsoft\.com/playwright:v([0-9]+\.[0-9]+\.[0-9]+)-[a-z]+@sha256:[0-9a-f]{64}$#\1#p')
+          if [ -z "$vnu" ] || [ -z "$version" ]; then
+            echo "::error file=$f::cannot read the vnu/playwright image pins"
+            exit 1
+          fi
+          {
+            echo "vnu=$vnu"
+            echo "playwright=$pw"
+            echo "playwright-version=$version"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: HTML validation (Nu Html Checker)
+        if: matrix.project == 'chromium'
+        env:
+          VNU_IMAGE: ${{ steps.images.outputs.vnu }}
+        run: |
+          docker run --rm \
+            -v "$RUNNER_TEMP/www:/srv/www:ro" \
+            -v "$GITHUB_WORKSPACE/tests/e2e:/e2e:ro" \
+            "$VNU_IMAGE" sh /e2e/vnu.sh /srv/www/a/b
+
+      - name: Browser tests (Playwright, ${{ matrix.project }})
+        if: ${{ !cancelled() }}
+        env:
+          PW_IMAGE: ${{ steps.images.outputs.playwright }}
+          PW_VERSION: ${{ steps.images.outputs.playwright-version }}
+          PW_PROJECT: ${{ matrix.project }}
+        run: |
+          docker run --rm --network host --ipc host \
+            --user "$(id -u):$(id -g)" -e HOME=/tmp \
+            -e CI=1 -e BASE_URL=http://localhost:8080/a/b/ -e PW_VERSION -e PW_PROJECT \
+            -v "$GITHUB_WORKSPACE:/work" -w /work/tests/e2e \
+            "$PW_IMAGE" bash -euo pipefail -c '
+              npm install --no-save --no-package-lock --no-audit --no-fund "@playwright/test@$PW_VERSION"
+              node check-playwright.mjs
+              npx playwright test --project="$PW_PROJECT"'
+
+      - name: Browser results
+        if: ${{ !cancelled() && hashFiles('tests/e2e/test-results.json') != '' }}
+        run: |
+          {
+            echo "### Browser tests of the tarball (${{ matrix.project }})"
+            echo
+            echo '| project | passed | flaky | failed | skipped |'
+            echo '|---|---|---|---|---|'
+            jq -r '[.. | objects | select(has("projectName") and has("status"))]
+              | group_by(.projectName)[]
+              | "| \(.[0].projectName) | \(map(select(.status == "expected")) | length) | \(map(select(.status == "flaky")) | length) | \(map(select(.status == "unexpected")) | length) | \(map(select(.status == "skipped")) | length) |"' \
+              tests/e2e/test-results.json
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the browser test results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist-browser-test-results-${{ matrix.project }}
+          path: |
+            tests/reports/
+            tests/e2e/test-results.json
+            tests/e2e/report/
+            tests/e2e/test-results/
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: nginx log
+        if: ${{ failure() }}
+        run: docker logs site

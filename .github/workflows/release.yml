@@ -1,10 +1,14 @@
 name: Release
 
-# On a version tag vX.Y.Z: run the unit tests (with the ADIF cross-checks
-# required), build the bundle with fresh data (no download cache) and
-# publish dist/oe1ebg-tools-vX.Y.Z.tar.gz, its .sha256 and SHA256SUMS as the GitHub release of that tag. The release
-# assets are immutable; data.yml rebuilds the newest release with fresh data
-# every week into the rolling release `data-latest`.
+# On a version tag vX.Y.Z: build the bundle with fresh data (no download
+# cache) and run the unit tests (ADIF cross-checks and the real-data checks
+# required), validate the exact tarball (validate-dist.yml: unpacked,
+# served by nginx with deploy/nginx.conf.example, Nu Html Checker and
+# Playwright in every browser project), and only then publish
+# dist/oe1ebg-tools-vX.Y.Z.tar.gz, its .sha256 and SHA256SUMS as the GitHub
+# release of that tag. The release assets are immutable; data.yml rebuilds
+# the newest release with fresh data every week into the rolling release
+# `data-latest`.
 
 on:
   push:
@@ -14,12 +18,10 @@ permissions:
   contents: read
 
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # create the release
-      id-token: write # build provenance attestation
-      attestations: write
+      contents: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -43,18 +45,57 @@ jobs:
 
       # ADIF_CROSSCHECK=require: the ADIF cross-checks against adifmt and
       # adif-checker must run and pass (they skip without the tools), or the
-      # release is not published. BUILD_RUN_URL: this run, shown as the
-      # build's provenance in the ADIF editor (scripts/build_adif.py).
+      # release is not published. DATA_TESTS=require: the same for the
+      # checks of the fresh data (callsign and repeater lists, location gold
+      # set, basemap; tests/real-data.mjs). BUILD_RUN_URL: this run, shown
+      # as the build's provenance in the ADIF editor (scripts/build_adif.py).
       - name: Build the release tarball
         env:
           GIT_SHA: ${{ github.sha }}
           TOOLS_VERSION: ${{ github.ref_name }}
           BUILD_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           ADIF_CROSSCHECK: require
+          DATA_TESTS: require
         run: |
           uvx --from rust-just just dist
           uvx --from rust-just just test
           (cd dist && cat ./*.sha256 > SHA256SUMS)
+
+      - name: Upload the tarball
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist
+          path: |
+            dist/*.tar.gz
+            dist/*.sha256
+            dist/SHA256SUMS
+          retention-days: 7
+          if-no-files-found: error
+
+  validate:
+    needs: build
+    uses: ./.github/workflows/validate-dist.yml
+    permissions:
+      contents: read
+    with:
+      ref: ${{ github.sha }}
+
+  publish:
+    needs: [build, validate]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the release
+      id-token: write # build provenance attestation
+      attestations: write
+    steps:
+      - name: Download the validated tarball
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dist
+          path: dist
+
+      - name: Check the checksums
+        run: cd dist && sha256sum -c SHA256SUMS
 
       - name: Attest build provenance
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
@@ -65,4 +106,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
-        run: gh release create "$TAG" dist/*.tar.gz dist/*.sha256 dist/SHA256SUMS --verify-tag --generate-notes --title "$TAG"
+          REPO: ${{ github.repository }}
+        run: gh release create "$TAG" dist/*.tar.gz dist/*.sha256 dist/SHA256SUMS --repo "$REPO" --verify-tag --generate-notes --title "$TAG"

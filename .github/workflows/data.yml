@@ -8,7 +8,9 @@ name: Weekly data rebuild
 # prerelease `data-latest`, replacing last week's. manifest.json in the
 # tarball has the build time. Sites that want fresh data (oe1ebg.at)
 # download from there; anyone who wants a fixed state uses the release of
-# the tag itself.
+# the tag itself. As for a release, the tarball is published only after
+# validate-dist.yml has checked it (HTML check and browser tests against
+# the unpacked tarball under nginx).
 
 on:
   schedule:
@@ -25,7 +27,10 @@ jobs:
   rebuild:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # update the data-latest release
+      contents: read
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      sha: ${{ steps.sha.outputs.sha }}
     steps:
       - name: Find the newest release tag
         id: tag
@@ -42,6 +47,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ steps.tag.outputs.tag }}
+
+      - name: Tag commit
+        id: sha
+        if: steps.tag.outputs.tag != ''
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Set up uv
         if: steps.tag.outputs.tag != ''
@@ -66,8 +76,10 @@ jobs:
 
       # The unit tests include plausibility checks of the fresh data
       # (callsign and repeater lists, location gold set): a broken upstream
-      # export fails here instead of shipping. ADIF_CROSSCHECK=require: the
-      # ADIF cross-checks must run and pass too, as for a release.
+      # export fails here instead of shipping; DATA_TESTS=require makes them
+      # fail instead of skip without the data (tests/real-data.mjs, tags
+      # from before it ignore the flag). ADIF_CROSSCHECK=require: the ADIF
+      # cross-checks must run and pass too, as for a release.
       # GIT_SHA: the tag's commit (github.sha is the default branch's here);
       # BUILD_RUN_URL: this run, the ADIF editor's build provenance.
       - name: Build with fresh data
@@ -76,28 +88,72 @@ jobs:
           TOOLS_VERSION: ${{ steps.tag.outputs.tag }}
           BUILD_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           ADIF_CROSSCHECK: require
+          DATA_TESTS: require
+          GIT_SHA: ${{ steps.sha.outputs.sha }}
         run: |
-          GIT_SHA=$(git rev-parse HEAD)
-          export GIT_SHA
           uvx --from rust-just just dist
           uvx --from rust-just just test
           (cd dist && cat ./*.sha256 > SHA256SUMS)
 
-      - name: Upload to data-latest
+      - name: Upload the tarball
         if: steps.tag.outputs.tag != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist
+          path: |
+            dist/*.tar.gz
+            dist/*.sha256
+            dist/SHA256SUMS
+          retention-days: 7
+          if-no-files-found: error
+
+  # Tests and nginx config of the tag the tarball was built from.
+  validate:
+    needs: rebuild
+    if: needs.rebuild.outputs.tag != ''
+    uses: ./.github/workflows/validate-dist.yml
+    permissions:
+      contents: read
+    with:
+      ref: ${{ needs.rebuild.outputs.sha }}
+
+  publish:
+    needs: [rebuild, validate]
+    if: needs.rebuild.outputs.tag != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # update the data-latest release
+    steps:
+      - name: Download the validated tarball
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dist
+          path: dist
+
+      - name: Check the checksums
+        run: cd dist && sha256sum -c SHA256SUMS
+
+      # This week's assets first (--clobber replaces each of last week's
+      # files of the same version), the stale ones of other versions only
+      # afterwards: the prerelease never lacks a tarball or its checksums.
+      # Each file is replaced on its own, so a download in that moment can
+      # pair last week's tarball with this week's checksum; the check then
+      # fails, it never passes a wrong file.
+      - name: Upload to data-latest
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          TAG: ${{ steps.tag.outputs.tag }}
+          TAG: ${{ needs.rebuild.outputs.tag }}
+          SHA: ${{ needs.rebuild.outputs.sha }}
         run: |
           if ! gh release view data-latest --repo "$REPO" >/dev/null 2>&1; then
             gh release create data-latest --repo "$REPO" --prerelease --latest=false \
-              --target "$(git rev-parse HEAD)" --title "Data rebuild of the newest release" \
+              --target "$SHA" --title "Data rebuild of the newest release" \
               --notes "Weekly rebuild (data.yml) of the newest release with fresh data. Replaced every week."
           fi
-          # Last week's assets of other versions would be stale: keep only this one.
+          gh release upload data-latest --repo "$REPO" --clobber dist/*.tar.gz dist/*.sha256 dist/SHA256SUMS
+          # Last week's assets of other versions are stale now: keep only this one.
           gh release view data-latest --repo "$REPO" --json assets --jq '.assets[].name' |
             grep -v -x -F -e "oe1ebg-tools-$TAG.tar.gz" -e "oe1ebg-tools-$TAG.tar.gz.sha256" -e SHA256SUMS |
             while read -r a; do gh release delete-asset data-latest "$a" --repo "$REPO" --yes; done
-          gh release upload data-latest --repo "$REPO" --clobber dist/*.tar.gz dist/*.sha256 dist/SHA256SUMS
           echo "data-latest: oe1ebg-tools-$TAG.tar.gz rebuilt $(date -u +%FT%TZ)" >> "$GITHUB_STEP_SUMMARY"

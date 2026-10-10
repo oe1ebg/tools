@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { buildCallbook, baseCall, isOECall, lookupCall, withinOneEdit, suggestCalls } from '../tools/shared/js/callbook.js';
+import { skipWithout } from './real-data.mjs';
 
 const book = buildCallbook({
   stand: '2026-09-10',
@@ -55,7 +56,7 @@ test('suggestCalls: prefix first, then typos, no exact match', () => {
 
 // Sanity check of the real generated list, when it has been built.
 const real = new URL('../tools/shared/data/callsigns-oe.json', import.meta.url);
-test('generated callsign list is plausible', { skip: !existsSync(real) && 'run `just fetch-callsigns` first' }, () => {
+test('generated callsign list is plausible', { skip: skipWithout(existsSync(real), 'run `just fetch-callsigns` first') }, () => {
   const data = JSON.parse(readFileSync(real, 'utf8'));
   assert.match(data.stand, /^\d{4}-\d{2}-\d{2}$/);
   assert.ok(data.calls.length > 5000, `${data.calls.length} calls`);
