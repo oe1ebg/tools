@@ -40,6 +40,26 @@ export function adifAsciiField(name, value, opts, type = '') {
   return adifField(name, adifAscii(value, opts), type);
 }
 
+// A plausible tag: <EOR>, <EOH> or a name with a length.
+const ADIF_PLAUSIBLE_TAG_RE = /<(?:eor|eoh|[A-Za-z][A-Za-z0-9_]*:\d+(?::[A-Za-z])?)>/iy;
+
+// Where a value declared as text[start, end) must be cut because its
+// length is too long whatever the reading (ADIF 3.1.7 IV.A.1, IV.A.6): at
+// the first tag inside it when a tag starts inside and ends after it, or
+// when the text ends before `end`; -1 when the length holds (tags lying
+// wholly inside the value are part of it).
+function adifCutAt(text, start, end) {
+  let first = -1;
+  const stop = Math.min(end, text.length);
+  for (let i = text.indexOf('<', start); i >= 0 && i < stop; i = text.indexOf('<', i + 1)) {
+    ADIF_PLAUSIBLE_TAG_RE.lastIndex = i;
+    if (!ADIF_PLAUSIBLE_TAG_RE.test(text)) continue;
+    if (first < 0) first = i;
+    if (ADIF_PLAUSIBLE_TAG_RE.lastIndex > end) return first;
+  }
+  return end > text.length ? first : -1;
+}
+
 // The fields of an ADI header, read by their lengths (so "<EOH>" inside a
 // value doesn't end it), up to <EOH>: { end (after <EOH>), fields:
 // [[NAME, value, type]] }, or null when there is no <EOH> that way.
@@ -166,10 +186,15 @@ export function parseADIF(text, warnings, sourceLabel, headerInfo, stats, defs) 
       continue;
     }
     const len = parseInt(lenStr, 10);
-    const value = body.slice(tagEnd, tagEnd + len);
+    // A length ending inside a tag or past the end of the text is too
+    // long: cut at the first tag inside it (as adif-validate.js does).
+    const cutAt = adifCutAt(body, tagEnd, tagEnd + len);
+    const valueEnd = cutAt >= 0 ? cutAt : tagEnd + len;
+    const value = cutAt >= 0 ? body.slice(tagEnd, cutAt).replace(/\s+$/, '') : body.slice(tagEnd, valueEnd);
+    if (cutAt >= 0) warnings.push(`${sourceLabel}: <${name}:${len}> runs into the next tag; the value was cut there.`);
     if (stats) {
       const next = body.charAt(tagEnd + len);
-      if ((next !== '' && next !== '<' && !/\s/.test(next)) || /[\s<]$/.test(value)) stats.unclean++;
+      if (cutAt >= 0 || (next !== '' && next !== '<' && !/\s/.test(next)) || /[\s<]$/.test(value)) stats.unclean++;
     }
     current[name] = value;
     if (defs && !(name in defs.types)) {
@@ -180,7 +205,7 @@ export function parseADIF(text, warnings, sourceLabel, headerInfo, stats, defs) 
       else if (m[3]) defs.types[name] = m[3].toUpperCase();
     }
     any = true;
-    tagRe.lastIndex = tagEnd + len;
+    tagRe.lastIndex = valueEnd;
   }
   if (any) {
     warnings.push(`${sourceLabel}: trailing fields after last <EOR>, appended as final record.`);

@@ -167,53 +167,67 @@ function avScan(source, issue) {
     const type = parts.length === 3 ? parts[2].toUpperCase() : '';
     const end = tagEnd + len;
     const available = source.slice(tagEnd, Math.min(end, source.length));
-    // Tag-shaped text inside the declared length (<EOR>, <EOH>, <CALL:4>).
-    let cut = -1;
+    // Tag-shaped text inside the declared length (<EOR>, <EOH>, <CALL:4>):
+    // the first one (cut), whether one is an <EOR>, and whether one starts
+    // inside the value but ends after it (the length ends inside a tag).
+    let cut = -1, eorInside = false, straddle = false;
     for (let i = available.indexOf('<'); i >= 0; i = available.indexOf('<', i + 1)) {
       AV_NEXT_TAG_RE.lastIndex = tagEnd + i;
-      if (AV_NEXT_TAG_RE.test(source)) { cut = i; break; }
+      if (!AV_NEXT_TAG_RE.test(source)) continue;
+      if (cut < 0) cut = i;
+      if (AV_NEXT_TAG_RE.lastIndex > end) straddle = true;
+      else if (/^<eor>$/i.test(source.slice(tagEnd + i, AV_NEXT_TAG_RE.lastIndex))) eorInside = true;
+    }
+    const bytes = /[^\x00-\x7f]/.test(available) ? ' The value has non-ASCII characters: the length was probably counted in UTF-8 bytes, not characters.' : '';
+    // A length that ends inside a tag, or runs past the end of the file,
+    // is too long; no reading of the file makes it valid. With a tag
+    // inside, cut the value at the first one and continue with that tag
+    // (resync), so one wrong length doesn't swallow the following fields
+    // (or the end of the QSO). The ADIF editor's parser reads it the same
+    // way (parseADIF in adif.js).
+    if (cut >= 0 && (straddle || end > source.length)) {
+      const value = available.slice(0, cut).replace(/\s+$/, '');
+      const why = end > source.length ? `the file ends after ${available.length}` : 'it ends inside a tag';
+      const eor = /^<eor>/i.test(available.slice(cut)) ? ' It runs over <EOR>, the end of the QSO: the QSO ends there.' : '';
+      issue('error', 'FIELD_LENGTH_MISMATCH',
+        `<${upper}:${len}> declares ${len} characters, but ${why}; the value "${avShort(value)}" has ${value.length} before the next tag.${eor}${bytes}`,
+        { offset: lt, field: upper, value });
+      tokens.push({ kind: 'tag', name: upper, type, value, offset: lt, valueOffset: tagEnd, unsure: true });
+      pos = tagEnd + cut;
+      continue;
     }
     if (end > source.length) {
-      // The file ends inside the declared length. With a tag inside the
-      // available text the length was too long: cut the value there and
-      // continue with that tag (resync), so one wrong length doesn't
-      // swallow the following fields.
-      if (cut >= 0) {
-        const value = available.slice(0, cut).replace(/\s+$/, '');
-        issue('error', 'FIELD_LENGTH_MISMATCH',
-          `<${upper}:${len}> declares ${len} characters, but the file ends after ${available.length}; the value "${avShort(value)}" has ${value.length} before the next tag.`,
-          { offset: lt, field: upper, value });
-        tokens.push({ kind: 'tag', name: upper, type, value, offset: lt, valueOffset: tagEnd, unsure: true });
-        pos = tagEnd + cut;
-        continue;
-      }
       issue('error', 'TRUNCATED_FIELD', `<${upper}:${len}> declares ${len} characters, but the file ends after ${available.length}.`,
         { offset: lt, field: upper, value: available });
       tokens.push({ kind: 'tag', name: upper, type, value: available, offset: lt, valueOffset: tagEnd, unsure: true });
       break;
     }
-    // The declared length fits: it is what counts. The value is the
-    // declared number of characters (ADIF 3.1.7 IV.A.1), never split at
-    // tag-shaped text inside it, and characters after it outside a field
-    // or <EOR> are ignored (IV.A.6). Suspicious boundaries are warnings
-    // only; they don't change how the file is read.
-    const rest = /^[^\s<]+/.exec(source.slice(end, end + 200));
+    // The declared length fits and ends outside any tag: it is what
+    // counts. The value is the declared number of characters (ADIF 3.1.7
+    // IV.A.1), never split at tags lying wholly inside it, and characters
+    // after it outside a field or <EOR> are ignored (IV.A.6). Suspicious
+    // boundaries are warnings only; they don't change how the file is read.
     const at = { offset: lt, field: upper, value: available };
-    if (rest) {
-      const bytes = /[^\x00-\x7f]/.test(available) ? ' The value has non-ASCII characters: the length was probably counted in UTF-8 bytes, not characters.' : '';
-      issue('warning', 'FIELD_LENGTH_MISMATCH',
-        `<${upper}:${len}>: the value "${avShort(available)}" (${len} characters as declared) is followed directly by "${avShort(rest[0])}". ADIF ignores text outside fields (IV.A.6), so it is read as declared, but the declared length probably does not match the value${cut >= 0 ? ' (too long: it runs over a tag)' : ''}.${bytes}`,
-        at);
-    } else if (cut >= 0 && /<eor>/i.test(available)) {
+    if (eorInside) {
       // An <EOR> inside the value is the typical sign of a too long length
       // that swallowed the end of the QSO (and maybe the next one's
       // fields): valid per spec, but its own, clearer warning.
       issue('warning', 'RECORD_END_IN_VALUE',
-        `<${upper}:${len}>: the value "${avShort(available)}" contains <EOR>; read as part of the value, as the declared length says, so no QSO ends there. If the length is too long, this value swallows the end of the QSO and the fields after it (two QSOs read as one): check the length.`,
+        `<${upper}:${len}>: the value "${avShort(available)}" contains <EOR>; read as part of the value, as the declared length says, so no QSO ends there. If the length is too long, this value swallowed the end of the QSO and the fields after it (two QSOs read as one): check the length.`,
         at);
     } else if (cut >= 0) {
       issue('warning', 'TAG_IN_VALUE',
         `<${upper}:${len}>: the value "${avShort(available)}" contains text that looks like an ADIF tag; read as part of the value, as the declared length says. If that is not intended, the length is wrong (programs that split on tags will misread it too).`,
+        at);
+    }
+    // Text after the value before the next tag: right after it (no
+    // separator), or after a blank (<NAME:3>Max Mustermann): the length
+    // probably doesn't match the value.
+    const after = /^(\s*)([^<]*?)\s*(?:<|$)/.exec(source.slice(end, end + 200));
+    if (after && after[2]) {
+      const what = after[1] ? 'followed, after a blank, by' : 'followed directly by';
+      issue('warning', 'FIELD_LENGTH_MISMATCH',
+        `<${upper}:${len}>: the value "${avShort(available)}" (${len} characters as declared) is ${what} "${avShort(after[2])}". ADIF ignores text outside fields (IV.A.6), so it is read as declared, but the declared length probably does not match the value${cut >= 0 ? ' (too long: it runs over a tag)' : after[1] ? ' (too short?)' : ''}.${bytes}`,
         at);
     }
     tokens.push({ kind: 'tag', name: upper, type, value: available, offset: lt, valueOffset: tagEnd });
@@ -552,6 +566,14 @@ export function validateAdif(source, options = {}) {
       const offset = rec.offsets[name];
       const at = { recordType: 'qso', recordIndex: rec.index, field: name, value, offset };
       const report = (severity, code, message) => issue(severity, code, message, at);
+      // The first occurrence of an application-defined field determines its
+      // type (IV.A.4), also when it has no value (<APP_X_Y:0:N>); the
+      // editor's parser takes it from there too.
+      if (name.startsWith('APP_') && !appTypes.has(name)) {
+        const ind = rec.types[name];
+        const first = !ind ? 'M' : AV_INDICATOR_TYPES[ind] ? ind : '';
+        if (first) appTypes.set(name, first);
+      }
       if (value === '') continue; // <NAME:0>: no value
       if (rec.unsure.has(name)) continue; // wrong length: already reported, the value is unreliable
       const indicator = rec.types[name];
