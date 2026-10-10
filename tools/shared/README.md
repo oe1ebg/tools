@@ -134,10 +134,13 @@ schema's optional `migration` declares `unique` values per store and
 `parents`, checked in the migration transaction against IndexedDB and
 the other migrated records. A record whose unique value is taken (reason
 `duplicate`) or whose parent is neither in IndexedDB nor migrated
-(`parent`, cascading) is kept too, never renumbered. Notfunk: a message's
-(operation, prefix, seq) and (operation, number); revision → message,
-message/counter/station/draft → operation. Confirm: a line's (event,
-seq); revision → line, line/snapshot/draft → event. `migration.fixup(api,
+(`parent`, cascading) is kept too, never renumbered. Both checks run to a
+fixpoint (a record dropped for its parent frees its number). Notfunk: a
+message's (operation, prefix, seq) and (operation, number); revision →
+message, reply → message (`replyTo`), draft → edited/replied message
+(`editingId`, `form.replyTo`), message/counter/station/draft → operation.
+Confirm: a line's (event, seq); revision → line, draft → edited line
+(`editingId`), line/snapshot/draft → event. `migration.fixup(api,
 migrated)` then runs in the same transaction (Notfunk: counters never
 below a migrated number; confirm: `nextSeq` above every migrated line).
 `planFallbackMigration(schema, ls, current, all)` returns the plan without

@@ -25,7 +25,8 @@ export const NOTFUNK_STORES = {
 // a message whose number (operation + prefix + seq, or its text) is taken
 // by another message stays in the fallback and is reported, never
 // renumbered; so does whatever belongs to a record that isn't there
-// (revision -> message, message/counter/station/draft -> operation).
+// (revision -> message, reply -> message, draft -> edited/replied message,
+// message/counter/station/draft -> operation).
 // Counters end at least at the highest migrated number.
 const opParent = [{ store: 'operations', key: r => r.eventId }];
 export const NOTFUNK_MIGRATION = {
@@ -36,10 +37,12 @@ export const NOTFUNK_MIGRATION = {
     ],
   },
   parents: {
-    messages: opParent,
+    // a reply keeps its Bezug (replyTo)
+    messages: [...opParent, { store: 'messages', key: r => r.replyTo }],
     counters: opParent,
     stations: opParent,
-    drafts: opParent,
+    // a draft editing a message, or replying to one
+    drafts: [...opParent, { store: 'messages', key: r => r.editingId }, { store: 'messages', key: r => r.form?.replyTo }],
     revisions: [{ store: 'messages', key: r => r.messageId }],
   },
   async fixup({ get, put }, migrated) {

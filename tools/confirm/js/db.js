@@ -29,15 +29,15 @@ const V1_STORES = ['events', 'entries', 'revisions', 'drafts', 'snapshots'];
 // Moving localStorage fallback records into IndexedDB (migrateFallback()):
 // a line whose number (event + seq) is taken by another line stays in the
 // fallback and is reported, never renumbered; so does whatever belongs to
-// a record that isn't there (revision -> line, line/snapshot/draft ->
-// event). An event's nextSeq ends above every migrated line.
+// a record that isn't there (revision -> line, draft -> edited line,
+// line/snapshot/draft -> event). An event's nextSeq ends above every migrated line.
 const evParent = [{ store: 'events', key: r => r.eventId }];
 export const CONFIRM_MIGRATION = {
   unique: { entries: r => (r.eventId != null && r.seq != null ? `${r.eventId}:${r.seq}` : null) },
   parents: {
     entries: evParent,
     snapshots: evParent,
-    drafts: evParent,
+    drafts: [...evParent, { store: 'entries', key: r => r.editingId }],
     revisions: [{ store: 'entries', key: r => r.entryId }],
   },
   async fixup({ get, put }, migrated) {
