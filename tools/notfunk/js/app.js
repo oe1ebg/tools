@@ -733,15 +733,16 @@ function draftConflict(e) {
 
 // A stored draft into the form. An edit draft keeps the version the edit was
 // opened on; one without it (older drafts) is checked against the message:
-// changed since it was saved, it is only shown, saving is held back until
+// its version is unknown, so it is only shown, saving is held back until
 // the user has reviewed it (reviewDraft()). A message that is gone: the
 // draft is shown as a new message, and the user is told.
 function applyDraft(d) {
   const st = draftEditState(d?.editingId ? state.msgs.find(m => m.id === d.editingId) : undefined, d);
   setEditing(st.editing, st.base);
-  state.editStale = st.stale;
   writeForm(d?.form || emptyForm(state.op));
-  if (st.stale) reviewDraft();
+  // an older draft's version is unknown: reviewed unless it holds nothing the message doesn't
+  state.editStale = st.stale && draftDiff().length > 0;
+  if (state.editStale) reviewDraft();
   else if (st.gone) showNotice('ENTWURF – Die Meldung, die dieser Entwurf bearbeitet, gibt es in diesem Einsatz nicht mehr. Der Entwurf steht im Formular und würde als neue Meldung gespeichert. ');
 }
 
@@ -753,11 +754,15 @@ const FIELD_LABELS = {
 
 // The message changed after this (older) edit draft was saved: say which
 // fields differ and let the user choose; nothing is saved before.
+function draftDiff() {
+  const { staffRef: _ref, ...mine } = check().fields;
+  return [...new Set(Object.keys(changedFields(mine, messageFields(state.editing))).map(k => FIELD_LABELS[k] || k))];
+}
+
 function reviewDraft() {
   const cur = state.editing;
-  const { staffRef: _ref, ...mine } = check().fields;
-  const diff = [...new Set(Object.keys(changedFields(mine, messageFields(cur))).map(k => FIELD_LABELS[k] || k))];
-  showNotice(`ENTWURF PRÜFEN – ${cur.number} wurde geändert, nachdem dieser Entwurf gesichert wurde (z. B. in einem anderen Tab). Der Entwurf steht im Formular, es wird nichts gespeichert, bevor Sie gewählt haben. Abweichend von der gespeicherten Fassung: ${diff.join(', ') || 'nichts'}. `,
+  const diff = draftDiff();
+  showNotice(`ENTWURF PRÜFEN – Dieser Entwurf stammt aus einer älteren Version des Werkzeugs; es ist nicht bekannt, auf welcher Fassung von ${cur.number} er beruht (sie kann inzwischen, z. B. in einem anderen Tab, geändert worden sein). Der Entwurf steht im Formular, es wird nichts gespeichert, bevor Sie gewählt haben. Abweichend von der gespeicherten Fassung: ${diff.join(', ') || 'nichts'}. `,
     el('button', { type: 'button', onclick: () => { state.editStale = false; state.editBase = editBaseOf(state.editing); $('#banner').hidden = true; } }, 'Entwurf auf die aktuelle Fassung anwenden'),
     ' ',
     el('button', { type: 'button', onclick: () => { const m = state.editing; $('#banner').hidden = true; startEdit(m); flushDraft(); } }, 'Entwurf verwerfen (gespeicherte Fassung laden)'),
