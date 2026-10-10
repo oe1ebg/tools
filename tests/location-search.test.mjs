@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { buildLocationIndex, locate, lookupCoordinates, lookupMaidenhead } from '../tools/shared/js/location/index.js';
+import { skipWithout } from './real-data.mjs';
 
 function synthetic() {
   const S = 1e5, B = (v, base) => Math.round((v - base) * S);
@@ -132,7 +133,7 @@ test('weak fuzzy matches are never auto-selected', () => {
 // --- real data -------------------------------------------------------
 const realPath = new URL('../tools/shared/data/vienna-locations.json', import.meta.url);
 const haveReal = existsSync(realPath);
-test('real data: brief examples', { skip: !haveReal && 'run `just build-location` first' }, () => {
+test('real data: brief examples', { skip: skipWithout(haveReal, 'run `just build-location` first') }, () => {
   const real = buildLocationIndex(JSON.parse(readFileSync(realPath, 'utf8')));
   const R = q => locate(real, q);
   const a = R('Währinger Straße 42').results[0];

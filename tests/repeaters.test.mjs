@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { buildRepeaterIndex, searchRepeaters, formatShift, formatMHz, positionFromLocator } from '../tools/shared/js/repeaters.js';
 import { emptyHeader, headerFromRepeater } from '../tools/confirm/js/model.js';
+import { skipWithout } from './real-data.mjs';
 
 const R = (call, site, city, lat, lon, band, out, inp, modes, extra = {}) =>
   ({ call, site, city, lat, lon, locator: '', band, out, in: inp, shift: Math.round((inp - out) * 1e4) / 1e4, ctcss: null, modes, status: 'active', ...extra });
@@ -82,7 +83,7 @@ test('formatting', () => {
 });
 
 const real = new URL('../tools/shared/data/repeaters-at.json', import.meta.url);
-test('generated repeater list is plausible', { skip: !existsSync(real) && 'run `just fetch-repeaters` first' }, () => {
+test('generated repeater list is plausible', { skip: skipWithout(existsSync(real), 'run `just fetch-repeaters` first') }, () => {
   const data = JSON.parse(readFileSync(real, 'utf8'));
   assert.ok(data.repeaters.length > 100);
   const ri = buildRepeaterIndex(data);

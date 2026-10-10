@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { stationsForMap, ownPosition, maidenheadGridLines, utmGridLines } from '../tools/confirm/js/mapdata.js';
 import { latLonToUtm } from '../tools/shared/js/utm.js';
 import { mapLinkUrls, mapLinkZoom } from '../tools/shared/js/sources.js';
+import { skipWithout } from './real-data.mjs';
 
 test('map links: Google Maps / OSM URLs, 5 decimals, zoom by type', () => {
   const u = mapLinkUrls(48.2083012, 16.37, 18);
@@ -77,7 +78,7 @@ test('utmGridLines: 1 km lines over Vienna, 10 km labels, bounded count', () => 
 });
 
 const real = new URL('../tools/shared/data/vienna-map.json', import.meta.url);
-test('generated basemap is plausible and small', { skip: !existsSync(real) && 'run `just build-map` first' }, () => {
+test('generated basemap is plausible and small', { skip: skipWithout(existsSync(real), 'run `just build-map` first') }, () => {
   const raw = readFileSync(real, 'utf8');
   assert.ok(raw.length < 2 * 1024 * 1024, `${raw.length} bytes`);
   const d = JSON.parse(raw);

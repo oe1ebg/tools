@@ -107,7 +107,8 @@ jobs:
 
   # node --test tests/ (zero dependencies; the bundle tests run the
   # stdlib-only build scripts with the runner's python3). Tests that need
-  # the built data (location gold set) skip themselves without it. The ADIF
+  # the built data (location gold set, …) skip themselves here; `bundle`
+  # runs them with DATA_TESTS=require after the build. The ADIF
   # cross-checks need adifmt and adif-checker (Go, pinned in
   # tests/tools/go.mod) and must not skip here; without ADIF changes
   # the ADIF test files and the Go tools are left out. Results: the "Unit
@@ -216,6 +217,21 @@ jobs:
         env:
           GIT_SHA: ${{ github.sha }}
         run: uvx --from rust-just just build
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+
+      # The checks that `test` skips for want of data (callsign and repeater
+      # lists, location gold set, basemap, build_site.py with python-markdown):
+      # here the data is built, so DATA_TESTS=require makes a missing file a
+      # failure. The whole suite (a few seconds); the ADIF cross-checks
+      # skip here, `test` runs them.
+      - name: Unit tests with the built data
+        env:
+          DATA_TESTS: require
+        run: node --test tests/*.test.mjs
 
       - name: Upload the bundle
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

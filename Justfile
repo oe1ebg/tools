@@ -151,10 +151,17 @@ serve:
 # --- checks
 
 # Unit tests (node --test, zero dependencies). The ADIF cross-checks skip
-# themselves without `crosscheck-tools`, the real-data checks without `data`.
+# themselves without `crosscheck-tools`, the real-data checks without `data`
+# (DATA_TESTS=require, as `test-data` and CI set it, makes that a failure).
 [doc("Run the test suite (node --test)")]
 test:
     node --test 'tests/*.test.mjs'
+
+# The test suite with the real-data checks required (tests/real-data.mjs):
+# after `just build`, nothing may skip for want of data.
+[doc("Run the test suite with the built data required (after `just build`)")]
+test-data:
+    DATA_TESTS=require node --test 'tests/*.test.mjs'
 
 # Build adifmt and adif-checker (pinned in tests/tools/go.mod) into
 # tests/tools/bin/ (git-ignored): with a local Go, else in the golang image

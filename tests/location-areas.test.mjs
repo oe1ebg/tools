@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { buildLocationIndex, locate, lookupMaidenhead } from '../tools/shared/js/location/index.js';
 import { latLonToMaidenhead } from '../tools/shared/js/maidenhead.js';
+import { skipWithout } from './real-data.mjs';
 
 function vienna() {
   const S = 1e5, B = (v, base) => Math.round((v - base) * S);
@@ -151,7 +152,7 @@ const REAL_V = new URL('../tools/shared/data/vienna-locations.json', import.meta
 const REAL_A = new URL('../tools/shared/data/austria-areas.json', import.meta.url);
 const haveReal = existsSync(REAL_V) && existsSync(REAL_A);
 
-test('real data: every PLZ and Bezirk resolves', { skip: !haveReal && 'data not built (just build-confirm)' }, () => {
+test('real data: every PLZ and Bezirk resolves', { skip: skipWithout(haveReal, 'data not built (just build-confirm)') }, () => {
   const areasData = JSON.parse(readFileSync(REAL_A, 'utf8'));
   const real = buildLocationIndex(JSON.parse(readFileSync(REAL_V, 'utf8')), areasData);
   assert.ok(areasData.plz.length > 2000);

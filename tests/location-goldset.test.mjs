@@ -1,11 +1,13 @@
 // Gold set (tests/location-goldset.txt) against the real generated data:
 // per-category hit rates and the cap on wrong/forbidden auto-selections.
-// Skipped until `just build-location` has run. Details: `just eval-location -v`.
+// Skipped until `just build-location` has run (a failure with
+// DATA_TESTS=require, tests/real-data.mjs). Details: `just eval-location -v`.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { haveRealData, loadRealIndex, loadGoldset, evaluate } from '../scripts/eval_location.mjs';
+import { skipWithout } from './real-data.mjs';
 
-test('real data: gold set', { skip: !haveRealData() && 'run `just build-location` first' }, () => {
+test('real data: gold set', { skip: skipWithout(haveRealData(), 'run `just build-location` first') }, () => {
   const { cases, minimums, maxWrongAuto } = loadGoldset();
   const { byCat, failures } = evaluate(loadRealIndex(), cases);
   const list = pred => failures.filter(pred).map(f => `  ${f.category} | ${f.query}: ${f.problems.join('; ')}`).join('\n');

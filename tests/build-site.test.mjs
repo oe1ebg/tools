@@ -6,6 +6,7 @@ import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { REPO_URL } from '../tools/shared/js/sources.js';
+import { DATA_REQUIRED } from './real-data.mjs';
 
 const OE1EBG = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -27,7 +28,10 @@ function footer(version, sha) {
 
 test('overview and manuals link the repository, version and commit', t => {
   const f = footer('v1.2.3', 'abc1234');
-  if (f === null) return t.skip('no Python with python-markdown');
+  if (f === null) {
+    assert.ok(!DATA_REQUIRED, 'DATA_TESTS=require, but no Python with python-markdown (uv sync)');
+    return t.skip('no Python with python-markdown');
+  }
   assert.match(f, /^<footer class="doc-footer">/);
   assert.ok(f.includes(`<a href="${REPO_URL}">github.com/oe1ebg/tools</a>`), f);
   assert.ok(f.includes('Version v1.2.3'), f);
