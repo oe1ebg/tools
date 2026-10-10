@@ -74,15 +74,22 @@ const isIso = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2
 const isSeq = v => Number.isSafeInteger(v) && v >= 1 && v <= MAX_SEQ;
 const seqKey = m => `${m.prefix}:${m.seq}`;
 
-// Why a stored message is not a message (German, for the import message),
-// or ''. Checks the shapes the book and the exports rely on.
-function messageProblem(m, opId) {
+// Identity problems of a stored message (German), or '': what a restore can't
+// work around (id, owner, number). A file with one is refused as a whole.
+function identityProblem(m, opId) {
   if (!isObj(m)) return 'kein Objekt';
   if (typeof m.id !== 'string' || !ID_RE.test(m.id)) return 'ungültige ID';
   if (m.eventId !== opId) return 'gehört zu einem anderen Einsatz';
   if (typeof m.prefix !== 'string' || !PREFIX_RE.test(m.prefix)) return 'ungültiges Stationskürzel';
   if (!isSeq(m.seq)) return 'ungültige laufende Nummer';
   if (m.number !== formatNumber(m.prefix, m.seq)) return 'Nummer passt nicht zu Kürzel und laufender Nummer';
+  return '';
+}
+
+// Other problems of a stored message (shapes the book and the exports rely
+// on; validateMessage() may have been tightened since the backup was made),
+// or ''. Such a message is left out and counted, the rest is restored.
+function messageProblem(m) {
   for (const k of ['subject', 'text']) if (typeof m[k] !== 'string') return `${k === 'text' ? 'Inhalt' : 'Betreff'} fehlt`;
   for (const k of ['from', 'to', 'radio', 'origin']) if (!isObj(m[k])) return `Feld ${k} fehlt`;
   if (!Array.isArray(m.distribution) || m.distribution.some(x => typeof x !== 'string')) return 'ungültiger Verteiler';
@@ -103,12 +110,14 @@ function messageProblem(m, opId) {
   return errs.length ? errs.join(', ') : '';
 }
 
-// Parsed backup or an Error message (German) for the UI. Everything the
-// restore relies on is checked here, so a damaged or hand-edited file is
-// refused as a whole instead of half-imported: version, shapes, ownership
-// (every record belongs to the backup's operation), references (replies,
-// revisions), timestamps, number = prefix + running number, no number or id
-// twice, bounded counters.
+// Parsed backup or an Error message (German) for the UI. Identity and
+// ownership are checked hard, the file is refused as a whole: format,
+// version, operation, a record of another operation, an id or a number
+// twice, number = prefix + running number. A record with only a semantic
+// problem (shape, timestamp, a revision without its message, a counter that
+// doesn't fit) is left out, never the whole backup: `dropped` lists them
+// ({ what, why }); `droppedSeqs` are the numbers of left-out messages (they
+// still count for the counters).
 export function parseBackup(json) {
   let d;
   try {
@@ -125,37 +134,60 @@ export function parseBackup(json) {
   if (typeof op.name !== 'string' || !op.name.trim()) throw new Error('Sicherung unvollständig (Name des Einsatzes)');
   if (op.prefix != null && !PREFIX_RE.test(op.prefix)) throw new Error('Sicherung fehlerhaft: Stationskürzel des Einsatzes');
   const bad = (what, why) => new Error(`Sicherung fehlerhaft: ${what}: ${why}`);
+  const dropped = [];
+  const droppedSeqs = [];
   const ids = new Set(), seqs = new Set();
   for (const [i, m] of d.messages.entries()) {
     const what = `Meldung ${isObj(m) && typeof m.number === 'string' ? m.number : i + 1}`;
-    const why = messageProblem(m, op.id);
+    const why = identityProblem(m, op.id);
     if (why) throw bad(what, why);
     if (ids.has(m.id)) throw bad(what, 'ID doppelt');
     if (seqs.has(seqKey(m))) throw bad(what, 'Nummer doppelt');
     ids.add(m.id);
     seqs.add(seqKey(m));
   }
-  for (const m of d.messages) if (m.replyTo && !ids.has(m.replyTo)) throw bad(`Meldung ${m.number}`, 'Bezug auf eine Meldung, die nicht in der Sicherung ist');
+  const messages = [];
+  for (const m of d.messages) {
+    const why = messageProblem(m);
+    if (why) {
+      dropped.push({ what: `Meldung ${m.number}`, why });
+      droppedSeqs.push({ prefix: m.prefix, seq: m.seq });
+    } else {
+      messages.push(m);
+    }
+  }
+  d.messages = messages;
+  const kept = new Set(messages.map(m => m.id));
   const revIds = new Set();
+  const revisions = [];
   for (const [i, r] of d.revisions.entries()) {
     const what = `Fassung ${i + 1}`;
-    if (!isObj(r) || typeof r.id !== 'string' || !ID_RE.test(r.id)) throw bad(what, 'ungültige ID');
-    if (r.eventId !== op.id) throw bad(what, 'gehört zu einem anderen Einsatz');
-    if (!ids.has(r.messageId)) throw bad(what, 'gehört zu einer Meldung, die nicht in der Sicherung ist');
-    if (!isIso(r.at)) throw bad(what, 'ungültiger Zeitstempel');
-    if (!isObj(r.old) || r.old.id !== r.messageId) throw bad(what, 'frühere Fassung fehlt');
-    if (revIds.has(r.id)) throw bad(what, 'ID doppelt');
+    if (isObj(r) && r.eventId !== op.id) throw bad(what, 'gehört zu einem anderen Einsatz');
+    const why = !isObj(r) || typeof r.id !== 'string' || !ID_RE.test(r.id) ? 'ungültige ID'
+      : !kept.has(r.messageId) ? 'gehört zu einer Meldung, die nicht übernommen wird'
+        : !isIso(r.at) ? 'ungültiger Zeitstempel'
+          : !isObj(r.old) || r.old.id !== r.messageId ? 'frühere Fassung fehlt'
+            : revIds.has(r.id) ? 'ID doppelt' : '';
+    if (why) { dropped.push({ what, why }); continue; }
     revIds.add(r.id);
+    revisions.push(r);
   }
+  d.revisions = revisions;
   const cIds = new Set();
+  const counters = [];
   for (const [i, c] of d.counters.entries()) {
     const what = `Zähler ${isObj(c) && c.prefix ? c.prefix : i + 1}`;
-    if (!isObj(c) || typeof c.prefix !== 'string' || !PREFIX_RE.test(c.prefix)) throw bad(what, 'ungültiges Stationskürzel');
-    if (c.eventId !== op.id || c.id !== counterKey(op.id, c.prefix)) throw bad(what, 'gehört zu einem anderen Einsatz');
-    if (!Number.isSafeInteger(c.last) || c.last < 0 || c.last > MAX_SEQ) throw bad(what, 'ungültiger Stand');
-    if (cIds.has(c.id)) throw bad(what, 'doppelt');
+    const why = !isObj(c) || typeof c.prefix !== 'string' || !PREFIX_RE.test(c.prefix) ? 'ungültiges Stationskürzel'
+      : c.eventId !== op.id || c.id !== counterKey(op.id, c.prefix) ? 'passt nicht zum Einsatz'
+        : !Number.isSafeInteger(c.last) || c.last < 0 || c.last > MAX_SEQ ? 'ungültiger Stand'
+          : cIds.has(c.id) ? 'doppelt' : '';
+    if (why) { dropped.push({ what, why }); continue; }
     cIds.add(c.id);
+    counters.push(c);
   }
+  d.counters = counters;
+  d.dropped = dropped;
+  d.droppedSeqs = droppedSeqs;
   return d;
 }
 
@@ -170,7 +202,7 @@ export function parseBackup(json) {
 // operation; allMessages / allRevisions (optional): every record of the
 // store, for the global ids. Decide and write in ONE atomic() (ops.js
 // applyBackup()), or the stored state may have moved on.
-// Returns { ops: [{ store, put }], added, updated, conflicts: [number] }.
+// Returns { ops: [{ store, put }], added, updated, conflicts: [number], unlinked: [number] }.
 export function mergeBackup(backup, existing) {
   const opId = backup.operation.id;
   const ops = [];
@@ -199,16 +231,34 @@ export function mergeBackup(backup, existing) {
       updated++;
     }
   }
+  // a reply whose target was not taken (clash, left out) is not imported
+  // either: no dangling Bezug, nothing altered
+  const unlinked = [];
+  const lostMsgs = [];
+  for (let again = true; again;) {
+    again = false;
+    for (const m of [...added_]) {
+      if (!m.replyTo || have.has(m.replyTo)) continue;
+      added_.splice(added_.indexOf(m), 1);
+      ops.splice(ops.findIndex(o => o.store === 'messages' && o.put === m), 1);
+      have.delete(m.id);
+      taken.delete(seqKey(m));
+      lostMsgs.push(m);
+      unlinked.push(m.number);
+      added--;
+      again = true;
+    }
+  }
   const revOwner = new Map((existing.allRevisions || existing.revisions).map(r => [r.id, r.eventId]));
   for (const r of backup.revisions) {
     if (r.eventId !== opId || revOwner.has(r.id) || !have.has(r.messageId)) continue;
     revOwner.set(r.id, opId);
     ops.push({ store: 'revisions', put: r });
   }
-  const counters = counterAfterImport(existing.counters, [...existing.messages, ...added_], opId);
+  const counters = counterAfterImport(existing.counters, [...existing.messages, ...added_, ...lostMsgs, ...(backup.droppedSeqs || []).map(x => ({ ...x, eventId: opId }))], opId);
   const incoming = backup.counters.filter(c => c.eventId === opId && PREFIX_RE.test(c.prefix) && Number.isSafeInteger(c.last) && c.last >= 0 && c.last <= MAX_SEQ);
   for (const c of counterAfterImport(counters, incoming.map(c => ({ eventId: c.eventId, prefix: c.prefix, seq: c.last })), opId)) {
     ops.push({ store: 'counters', put: c });
   }
-  return { ops, added, updated, conflicts };
+  return { ops, added, updated, conflicts, unlinked };
 }
