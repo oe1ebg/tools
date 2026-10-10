@@ -9,10 +9,12 @@
 //
 // A number is taken only when the message is saved, in the same storage
 // transaction that writes the message and the counter (saveNumbered()), so
-// a failed save consumes no number and two tabs can't take the same one.
-// The next number is the higher of the counter and the highest stored
-// number + 1: even the localStorage fallback (not isolated between tabs,
-// writes applied one by one) never hands out a number twice.
+// a failed save consumes no number and two tabs can't take the same one
+// (IndexedDB: one readwrite transaction; localStorage fallback: the
+// cross-tab write lock and an all-or-nothing batch, see the storage
+// contract in tools/shared/README.md). The next number is the higher of the
+// counter and the highest stored number + 1, so a lost counter never makes
+// a number come round again.
 
 export const PREFIX_RE = /^[A-Z0-9]{1,6}$/;
 

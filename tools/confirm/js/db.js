@@ -25,7 +25,8 @@ export const STORES = {
 };
 const V1_STORES = ['events', 'entries', 'revisions', 'drafts', 'snapshots'];
 
-export function openStorage() {
+// hooks: see openToolStorage() (onBlocked, onClosed).
+export function openStorage(hooks) {
   return openToolStorage({
     name: DB_NAME,
     version: DB_VERSION,
@@ -36,5 +37,5 @@ export function openStorage() {
       if (oldVersion < 1) V1_STORES.forEach(create);
       if (oldVersion < 2) create('stations');
     },
-  });
+  }, hooks);
 }
