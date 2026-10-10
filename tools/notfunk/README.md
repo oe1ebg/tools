@@ -181,6 +181,10 @@ name, and a distribution list ("Verteiler").
   and sets the Bezug; saving it marks the original "beantwortet"), earlier
   versions, print, delete (soft; the number stays taken) and restore.
 
+## App identity
+
+The manifest has no `id` on purpose; see `../confirm/README.md`, "App identity" (#28).
+
 ## Code
 
 - `index.html`, `style.css` (incl. the print layout), `sw.js` (on the shared
