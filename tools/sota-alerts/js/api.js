@@ -37,8 +37,7 @@ export function fetchAlerts(signal){
     let data;
     try { data = await res.json(); }
     catch (err) { if (isAbort(err)) throw err; throw new Error('alerts request failed: not a JSON response'); }
-    if (!Array.isArray(data)) throw new Error('alerts request failed: unexpected response');
-    return data;
+    return data; // validated by parseAlerts() (alerts.js)
   });
 }
 
@@ -57,7 +56,8 @@ export function searchSummits(term, signal){
     const res = await fetch(summitSearchUrl(term), { signal: s });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    return Array.isArray(data) ? data : [];
+    if (!Array.isArray(data)) throw new Error('unexpected response');
+    return data; // each item checked by candidateFromSearchResult()
   });
 }
 
@@ -113,7 +113,8 @@ export async function searchOsmSummitsInView(bounds){
     let data;
     try { data = await res.json(); }
     catch { throw new Error('Overpass returned an unexpected response (it may be busy — try again shortly)'); }
-    return Array.isArray(data.elements) ? data.elements : [];
+    if (!data || !Array.isArray(data.elements)) throw new Error('Overpass returned an unexpected response (it may be busy — try again shortly)');
+    return data.elements; // each element checked by candidateFromOsmElement()
   } finally {
     clearTimeout(timeout);
     overpassBusy = false;

@@ -4,13 +4,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  normalizeAlert, computeDataBounds, filterAlertsByRange, capDefaultToDate, groupAlertsBySummit,
+  normalizeAlert, parseAlerts, isValidAlert, computeDataBounds, filterAlertsByRange, capDefaultToDate, groupAlertsBySummit,
   parseFrequencyFacets, alertBandsModes, matchesBandModeFilter, facetsPresent, sortByOrder, BAND_SORT_ORDER,
   normalizeCallsignBase, parseOwnCallsigns, isOwnAlert,
 } from '../tools/sota-alerts/js/alerts.js';
 import { timeDisplayPair, formatAlertsBrief } from '../tools/sota-alerts/js/format.js';
 import {
-  splitSummitKey, summitFromApi, candidateFromSearchResult, candidateFromOsmElement, lookupFromRows,
+  splitSummitKey, isLatLon, summitFromApi, candidateFromSearchResult, candidateFromOsmElement, lookupFromRows,
   summitMetaLine, referenceDiff, referenceDiffText, sotlasPointsColor, summitLinks, sotlasMapUrl,
 } from '../tools/sota-alerts/js/summits.js';
 import { shareSearch, parseShareSearch, normalizeSummitRef, sharedLinkKeys, MAX_SHARED_PINS, MAX_SHARED_LIVE_LOOKUPS } from '../tools/sota-alerts/js/share.js';
@@ -442,4 +442,35 @@ test('shared link: the reference is resolved first, so the live cap never cuts i
   assert.ok(out.has('ZZ/TE-200'));
   assert.equal(calls.live.length, MAX_SHARED_LIVE_LOOKUPS);
   assert.equal(out.overBudget.length, 3);
+});
+
+test('parseAlerts: the feed must be a list; malformed items skipped, all malformed = broken', () => {
+  const ok = { id: 1, dateActivated: '2026-10-07T08:00:00', associationCode: 'OE', summitCode: 'WI-001', frequency: 7.032 };
+  for (const bad of [null, {}, { alerts: [] }, 'x', 42, undefined]) {
+    assert.throws(() => parseAlerts(bad), /not a list of alerts/, JSON.stringify(bad));
+  }
+  assert.throws(() => parseAlerts([null]), /no valid alerts/);
+  assert.throws(() => parseAlerts([null, 1, 'x', [], {}]), /no valid alerts/);
+  assert.deepEqual(parseAlerts([]), { alerts: [], skipped: 0 });
+  const { alerts, skipped } = parseAlerts([ok, null, { ...ok, summitCode: '' }, { ...ok, dateActivated: 'soon' }, { ...ok, associationCode: 7 }]);
+  assert.equal(skipped, 4);
+  assert.equal(alerts.length, 1);
+  assert.equal(alerts[0].frequency, '7.032'); // every field a string
+  assert.equal(isValidAlert(ok), true);
+  assert.equal(isValidAlert({ ...ok, dateActivated: null }), false);
+});
+
+test('summit shapes: malformed API, search and OSM data gives null, never a throw', () => {
+  assert.equal(isLatLon(48.2, 16.3), true);
+  for (const [lat, lon] of [[null, 1], ['48', 16], [NaN, 1], [91, 0], [0, 181], [undefined, undefined]]) assert.equal(isLatLon(lat, lon), false);
+  for (const bad of [null, [], 'x', 1, { latitude: '48', longitude: 16 }]) assert.equal(summitFromApi(bad, 'OE', 'WI-001'), null);
+  for (const bad of [null, 'x', [], { summitCode: null, latitude: 1, longitude: 1 }, { summitCode: 'OEWI', latitude: 1, longitude: 1 }, { summitCode: 'OE/WI-001' }]) {
+    assert.equal(candidateFromSearchResult(bad), null, JSON.stringify(bad));
+  }
+  for (const bad of [null, 'x', { lat: 1, lon: 1 }, { lat: 1, lon: 1, tags: null }, { tags: { 'communication:amateur_radio:sota': 'OE/WI-001' } },
+    { lat: 1, lon: 1, tags: { 'communication:amateur_radio:sota': 5 } }]) {
+    assert.equal(candidateFromOsmElement(bad), null, JSON.stringify(bad));
+  }
+  const lookup = lookupFromRows([null, ['A/B-001'], ['A/B-002', 1, 2, 'ok'], 'x', [5, 1, 2]]);
+  assert.deepEqual([...lookup.keys()], ['A/B-002']);
 });
