@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   emptyForm, setDirection, parseParty, partyText, formToFields, messageToForm, replyForm,
-  nextStep, statusSteps, bookSummary, readDateTime, readClock, readBound, dateText, clockText, needsZone, upgradeForm, formIsBlank, normalizeRef,
+  nextStep, statusSteps, bookSummary, normDate, normTime, readDateTime, readClock, readBound, dateText, clockText, needsZone, upgradeForm, formIsBlank, normalizeRef,
 } from '../tools/notfunk/js/form.js';
 import { formSheet, blankFormSheet, bookSheet } from '../tools/notfunk/js/print.js';
 import { newMessage, setStatus, softDelete, addAttempt, normFreq, fmtFreq } from '../tools/notfunk/js/model.js';
@@ -68,6 +68,16 @@ test('time: date and time in Austrian local time; empty = now, no date = today',
     { time: 'Diese Uhrzeit gibt es an dem Tag nicht (Datum ungültig oder Zeitumstellung)' });
 });
 
+test('dates and times are typed in one fixed format: YYYY-MM-DD, 24-hour HH:MM', () => {
+  assert.deepEqual(['14:05', '9:05', '14.05', '1405', '905', ''].map(normTime), ['14:05', '09:05', '14:05', '14:05', '09:05', '']);
+  assert.deepEqual(['2:30 PM', '24:00', '14:60', '14'].map(normTime), [null, null, null, null]);
+  assert.deepEqual(['2026-10-08', '20261008', ''].map(normDate), ['2026-10-08', '2026-10-08', '']);
+  assert.deepEqual(['10/08/2026', '08.10.2026', '2026/10/08'].map(normDate), [null, null, null], 'no US order, no slashes');
+  assert.equal(readDateTime('20261006', '2330', NOW), '2026-10-06T21:30:00.000Z');
+  assert.equal(formToFields({ ...filled, date: '10/07/2026', time: '14:05' }, { now: NOW }).fieldErrors.time, 'Datum als JJJJ-MM-TT, z. B. 2026-10-08');
+  assert.equal(formToFields({ ...filled, date: '', time: '2:05 PM' }, { now: NOW }).fieldErrors.time, 'Uhrzeit als HH:MM, z. B. 14:05');
+});
+
 test('time: the hour that repeats when the clocks go back needs MESZ or MEZ', () => {
   const night = '2026-10-25T02:10:00.000Z'; // 03:10 MEZ, after the change
   assert.ok(needsZone('2026-10-25', '02:30'));
@@ -81,7 +91,7 @@ test('time: the hour that repeats when the clocks go back needs MESZ or MEZ', ()
   assert.deepEqual([f.date, f.time, f.zone], ['2026-10-25', '02:30', 'MESZ']);
   assert.equal(formToFields({ ...f, zone: 'MEZ' }, { now: night }).fields.ts, '2026-10-25T01:30:00.000Z', 'choice changed on edit');
   const s = formSheet(m, OP, { now: night });
-  assert.deepEqual([s.date, s.time], ['25.10.2026', '02:30 MESZ']);
+  assert.deepEqual([s.date, s.time], ['2026-10-25', '02:30 MESZ']);
 });
 
 test('time of day (Stichzeit, Aufgabezeit, handover): the last one before, also the day before', () => {
@@ -245,7 +255,7 @@ test('Meldeaufnahmeformular: fields, date + time, staff block, handover', () => 
   const s = formSheet(m, OP, { now: NOW, revisions: 1 });
   assert.equal(s.number, 'W1-007');
   assert.equal(s.staffRef, 'GZ 0412');
-  assert.deepEqual([s.timeLabel, s.date, s.time], ['Empfangen am', '07.10.2026', '14:53'], 'local time, no zone');
+  assert.deepEqual([s.timeLabel, s.date, s.time], ['Empfangen am', '2026-10-07', '14:53'], 'local time, no zone');
   assert.deepEqual(s.directions.map(d => [d.label, d.checked]), [['Eingang', true], ['Ausgang', false]]);
   assert.deepEqual(s.channels.filter(c => c.checked).map(c => c.label), ['Funk']);
   assert.deepEqual(s.priorities.filter(p => p.checked).map(p => p.label), ['Notfall']);
@@ -292,5 +302,5 @@ test('Meldebuch printout: range, deleted left out, oldest first', () => {
   assert.deepEqual([all.rows[1].direction, all.rows[1].party, all.rows[1].priority], ['Aus', 'LI 3', '']);
   const part = bookSheet([a, b], OP, { now: NOW, fromIso: '2026-10-07T11:30:00.000Z' });
   assert.deepEqual(part.rows.map(r => r.number), ['W1-002']);
-  assert.match(part.range, /^07\.10\.2026 13:30 bis jetzt$/);
+  assert.match(part.range, /^2026-10-07 13:30 bis jetzt$/);
 });

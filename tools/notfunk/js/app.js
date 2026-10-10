@@ -33,7 +33,7 @@ import { saveNumbered, normalizePrefix, PREFIX_RE, nextSeq, formatNumber, counte
 import { toGeschaeftsbuchCSV, toBackup, parseBackup, mergeBackup } from './export.js';
 import {
   emptyForm, setDirection, formToFields, formIsBlank, messageToForm, replyForm, nextStep, statusSteps, bookSummary, partyText,
-  readDateTime, readClock, readBound, dateText, clockText, needsZone, upgradeForm, normalizeRef,
+  readDateTime, readClock, readBound, normDate, normTime, dateText, clockText, needsZone, upgradeForm, normalizeRef,
 } from './form.js';
 import { formSheet, blankFormSheet, bookSheet } from './print.js';
 import { renderFormSheet, fittedFormSheet, renderBookSheet, printSheet } from './printview.js';
@@ -802,6 +802,16 @@ function initForm() {
   $('#btn-warn-back').addEventListener('click', () => { $('#warn-bar').hidden = true; state.warned = ''; $('#m-from').focus(); });
   $('#btn-form-op').addEventListener('click', () => { $('#op-panel').open = true; $('#e-operator').focus(); });
 
+  // Typed dates and times are shown in the one format on leaving the field
+  // ("1405" -> "14:05", "20261008" -> "2026-10-08"); unreadable ones stay
+  // as typed for the error at the field.
+  document.addEventListener('focusout', ev => {
+    const t = ev.target;
+    if (!(t instanceof HTMLInputElement) || !t.matches('input.dt-date, input.dt-time')) return;
+    const norm = t.matches('.dt-date') ? normDate(t.value) : normTime(t.value);
+    if (norm && norm !== t.value) { t.value = norm; t.dispatchEvent(new Event('input', { bubbles: true })); }
+  });
+
   // Completion: stations heard in this operation first, then the callbook.
   let recent = [];
   const refreshRecent = async () => { recent = (await recentStations()).filter(s => s.call).map(s => ({ call: s.call, title: s.text })); };
@@ -1012,7 +1022,7 @@ function inlineForm(fields, button, onSubmit) {
       inputs[f.key] = el('input', { type: 'checkbox', id });
       return el('label', { class: 'check', for: id }, inputs[f.key], ` ${f.label}`);
     }
-    inputs[f.key] = el('input', { id, type: f.time ? 'time' : null, class: f.mono ? 'mono' : null, placeholder: f.placeholder || null, value: f.value || '', autocomplete: 'off' });
+    inputs[f.key] = el('input', { id, class: f.time ? 'mono dt-time' : f.mono ? 'mono' : null, inputmode: f.time ? 'numeric' : null, maxlength: f.time ? '5' : null, placeholder: f.time ? 'HH:MM' : f.placeholder || null, value: f.value || '', autocomplete: 'off' });
     return el('label', { class: 'field', for: id }, el('span', {}, f.label, f.time ? el('span', { class: 'dim' }, ' (leer = jetzt)') : null), inputs[f.key]);
   });
   const form = el('form', { class: 'inline-form', autocomplete: 'off', novalidate: '' },

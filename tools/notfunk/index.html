@@ -122,9 +122,9 @@
     <form id="print-range" class="panel" hidden autocomplete="off">
       <div class="grid-form">
         <div class="field" role="group" aria-labelledby="pr-from-label"><span id="pr-from-label">Von</span>
-          <div class="dt-pair"><input type="date" id="pr-from-date" aria-label="Von: Datum" aria-describedby="pr-help"><input type="time" id="pr-from-time" aria-label="Von: Uhrzeit" aria-describedby="pr-help"></div></div>
+          <div class="dt-pair"><input id="pr-from-date" class="mono dt-date" inputmode="numeric" placeholder="JJJJ-MM-TT" maxlength="10" spellcheck="false" aria-label="Von: Datum" aria-describedby="pr-help"><input id="pr-from-time" class="mono dt-time" inputmode="numeric" placeholder="HH:MM" maxlength="5" spellcheck="false" aria-label="Von: Uhrzeit" aria-describedby="pr-help"></div></div>
         <div class="field" role="group" aria-labelledby="pr-to-label"><span id="pr-to-label">Bis</span>
-          <div class="dt-pair"><input type="date" id="pr-to-date" aria-label="Bis: Datum" aria-describedby="pr-help"><input type="time" id="pr-to-time" aria-label="Bis: Uhrzeit" aria-describedby="pr-help"></div></div>
+          <div class="dt-pair"><input id="pr-to-date" class="mono dt-date" inputmode="numeric" placeholder="JJJJ-MM-TT" maxlength="10" spellcheck="false" aria-label="Bis: Datum" aria-describedby="pr-help"><input id="pr-to-time" class="mono dt-time" inputmode="numeric" placeholder="HH:MM" maxlength="5" spellcheck="false" aria-label="Bis: Uhrzeit" aria-describedby="pr-help"></div></div>
       </div>
       <p class="hint" id="pr-help">Zeitraum in Ortszeit: nur Datum = ganzer Tag, nur Uhrzeit = heute, leer = ganzer Einsatz. Als PDF: im Druckdialog „Als PDF sichern“ bzw. „Als PDF speichern“ wählen, „Kopf- und Fußzeilen“ ausschalten. Mehrere leere Formulare: „Leeres Formular“ und im Druckdialog die Anzahl (Kopien) einstellen.</p>
       <div class="toolbar form-foot">
@@ -176,8 +176,8 @@
         <div class="field time-field" role="group" aria-labelledby="m-time-label"><span id="m-time-label" class="req">Empfangen am</span>
           <div class="dt-pair">
             <span id="m-date-name" class="sr-only">Datum</span><span id="m-time-name" class="sr-only">Uhrzeit</span>
-            <input type="date" id="m-date" aria-labelledby="m-time-label m-date-name" aria-describedby="m-time-err" title="Datum (Ortszeit). Beim ersten Tastendruck vorbelegt; leer = heute">
-            <input type="time" id="m-time" aria-labelledby="m-time-label m-time-name" aria-describedby="m-time-err" title="Uhrzeit (Ortszeit). Beim ersten Tastendruck vorbelegt; Datum und Uhrzeit leer = Zeitpunkt des Speicherns">
+            <input id="m-date" class="mono dt-date" inputmode="numeric" placeholder="JJJJ-MM-TT" maxlength="10" spellcheck="false" enterkeyhint="next" aria-labelledby="m-time-label m-date-name" aria-describedby="m-time-err" title="Datum als JJJJ-MM-TT (Ortszeit). Beim ersten Tastendruck vorbelegt; leer = heute">
+            <input id="m-time" class="mono dt-time" inputmode="numeric" placeholder="HH:MM" maxlength="5" spellcheck="false" enterkeyhint="next" aria-labelledby="m-time-label m-time-name" aria-describedby="m-time-err" title="Uhrzeit als HH:MM, 24 Stunden (Ortszeit). Beim ersten Tastendruck vorbelegt; Datum und Uhrzeit leer = Zeitpunkt des Speicherns">
             <select id="m-zone" hidden aria-label="Uhrzeit in der Stunde der Zeitumstellung: erste (MESZ) oder zweite (MEZ)" title="Diese Uhrzeit gibt es wegen der Zeitumstellung zweimal: zuerst Sommerzeit (MESZ), eine Stunde später Winterzeit (MEZ)">
               <option value="MESZ">1. Mal (MESZ)</option><option value="MEZ">2. Mal (MEZ)</option></select>
           </div>
@@ -211,7 +211,7 @@
         <div class="field"><span id="m-prio-label">Dringlichkeit</span>
           <div id="m-prio" class="radio-group prio" role="radiogroup" aria-labelledby="m-prio-label"></div></div>
         <label class="field span-2 lage-only stich-field" hidden><span>Stichzeit</span>
-          <input type="time" id="m-stichzeit" aria-describedby="m-stichzeit-err" title="Uhrzeit, auf die sich die Lagemeldung bezieht (die letzte vor der Meldung, auch vom Vortag)">
+          <input id="m-stichzeit" class="mono dt-time" inputmode="numeric" placeholder="HH:MM" maxlength="5" spellcheck="false" enterkeyhint="next" aria-describedby="m-stichzeit-err" title="Uhrzeit, auf die sich die Lagemeldung bezieht (die letzte vor der Meldung, auch vom Vortag)">
           <span id="m-stichzeit-err" class="ferr" data-field="stichzeit"></span></label>
       </div>
 
@@ -245,7 +245,7 @@
           <div class="field ac-field place-field"><label for="m-orig-place">Ursprungsort</label>
             <div class="ac-wrap"><input id="m-orig-place" enterkeyhint="next" spellcheck="false" aria-describedby="m-orig-place-info" title="Ort, an dem die Meldung ursprünglich aufgegeben wurde"><div id="m-orig-place-pop" class="ac-pop"></div></div>
             <div class="ac-hints loc-hints"><div id="m-orig-place-info" class="ac-info" aria-live="polite"></div></div></div>
-          <label class="field time-field"><span>Aufgabezeit</span><input type="time" id="m-orig-filed" aria-describedby="m-orig-filed-err" title="Uhrzeit, zu der die Meldung bei der Ursprungsstation aufgegeben wurde (die letzte vor der Meldung, auch vom Vortag)">
+          <label class="field time-field"><span>Aufgabezeit</span><input id="m-orig-filed" class="mono dt-time" inputmode="numeric" placeholder="HH:MM" maxlength="5" spellcheck="false" enterkeyhint="next" aria-describedby="m-orig-filed-err" title="Uhrzeit, zu der die Meldung bei der Ursprungsstation aufgegeben wurde (die letzte vor der Meldung, auch vom Vortag)">
             <span id="m-orig-filed-err" class="ferr" data-field="origFiled"></span></label>
         </div>
         <label class="field"><span>Anmerkungen / weitere Veranlassung</span><input id="m-remarks" enterkeyhint="done"></label>
@@ -373,7 +373,7 @@
       <section id="h-when" aria-labelledby="h-when-t">
         <h3 id="h-when-t">Zeiten</h3>
         <dl class="kb">
-          <dt>Empfangen am / Gesendet am</dt><dd>wann die Meldung übermittelt wurde, Datum und Uhrzeit in Ortszeit. Beim ersten Tastendruck mit jetzt vorbelegt und korrigierbar. Bei Nachträgen vom Papier das tatsächliche Datum und die Uhrzeit eintragen. In der Nacht der Zeitumstellung im Oktober gibt es 02:00–02:59 zweimal: dann fragt das Formular, ob das 1. Mal (Sommerzeit) oder das 2. Mal (Winterzeit) gemeint ist.</dd>
+          <dt>Empfangen am / Gesendet am</dt><dd>wann die Meldung übermittelt wurde, in Ortszeit: Datum als <span class="ex">2026-10-08</span>, Uhrzeit im 24-Stunden-Format als <span class="ex">14:05</span> (auch <span class="ex">20261008</span> und <span class="ex">1405</span>). Beim ersten Tastendruck mit jetzt vorbelegt und korrigierbar. Bei Nachträgen vom Papier das tatsächliche Datum und die Uhrzeit eintragen. In der Nacht der Zeitumstellung im Oktober gibt es 02:00–02:59 zweimal: dann fragt das Formular, ob das 1. Mal (Sommerzeit) oder das 2. Mal (Winterzeit) gemeint ist.</dd>
           <dt>Erfasst am</dt><dd>wann die Meldung hier gespeichert wurde; automatisch.</dd>
           <dt>Aufgabezeit</dt><dd>wann die Meldung bei der Ursprungsstation aufgegeben wurde; nur die Uhrzeit (die letzte vor der Meldung, nach Mitternacht also vom Vortag).</dd>
           <dt>Stichzeit</dt><dd>nur bei Lagemeldungen: auf welche Uhrzeit sich die Lage bezieht (wie die Aufgabezeit).</dd>

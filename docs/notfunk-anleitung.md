@@ -94,7 +94,7 @@ Das Formular steht im Meldebuch ganz oben. Die nächste Nummer wird angezeigt
 | Feld | Bedeutung | Beispiel |
 | --- | --- | --- |
 | Richtung | Eingang (↓) oder Ausgang (↑) | |
-| Empfangen am / Gesendet am | wann die Meldung übermittelt wurde: Datum und Uhrzeit in zwei Feldern, Ortszeit. Wird beim ersten Tastendruck mit jetzt vorbelegt und kann korrigiert werden. | 08.10.2026 · 14:05 |
+| Empfangen am / Gesendet am | wann die Meldung übermittelt wurde: Datum (JJJJ-MM-TT) und Uhrzeit (HH:MM, 24 Stunden) in zwei Feldern, Ortszeit. Wird beim ersten Tastendruck mit jetzt vorbelegt und kann korrigiert werden. `20261008` und `1405` gehen auch. | 2026-10-08 · 14:05 |
 | Übermittlung | Funk, Telefon, mündlich, Melder, E-Mail, Fax, anders | Funk |
 | Funkstelle | die Funkstation, von der die Meldung gehört wurde (Eingang) bzw. an die sie gesendet wird (Ausgang); nur bei Funk | OE1ABC |
 | Frequenz MHz, Relais | Vorgabe aus dem Einsatz; Komma oder Punkt | 145,500 · OE1XUU |
@@ -251,7 +251,7 @@ Linien, keine schwarzen Flächen, auch aus der dunklen Ansicht.
 - Darunter der Block **„Nur von der Meldesammelstelle / dem Stab
   auszufüllen“**: Referenz / Geschäftsbuch-Nr. (vorbelegt, wenn schon
   bekannt), Federführend, Mitwirkend, Zur Kenntnis.
-- Datum und Uhrzeit (Ortszeit) in einem Feld: „08.10.2026 · 14:05“, dazu
+- Datum und Uhrzeit (Ortszeit) in einem Feld: „2026-10-08 · 14:05“, dazu
   die Erfassungszeit.
 - Unten die Übergabe (Eingang) bzw. Übertragung (Ausgang).
 
