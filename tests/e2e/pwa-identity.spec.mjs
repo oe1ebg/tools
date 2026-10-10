@@ -16,18 +16,28 @@ import { test as base, expect } from './fixtures.mjs';
 const TOOLS = { confirm: 'Bestätigungsverkehr', notfunk: 'Notfunk-Meldebuch' };
 const PREFIXES = ['', 'a/b/', 'deep/er/prefix/'];
 
+// `extraOrigins` (fixtures.mjs): the proxy is a second origin of the bundle
+// under test; without it the fixture would block its requests as foreign.
 const test = base.extend({
   prefixProxy: async ({ baseURL }, use) => {
     const upstream = new URL(baseURL);
+    const hopByHop = new Set(['connection', 'keep-alive', 'transfer-encoding', 'content-encoding', 'content-length', 'upgrade', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailer']);
     const server = http.createServer(async (req, res) => {
       const prefix = PREFIXES.find(p => p && req.url.startsWith(`/${p}`));
       if (!prefix) { res.writeHead(404).end('outside the prefixes'); return; }
       try {
-        const r = await fetch(new URL(req.url.slice(prefix.length), upstream), { redirect: 'manual' });
-        const headers = Object.fromEntries(r.headers);
-        delete headers['content-encoding'];
-        delete headers['content-length'];
-        res.writeHead(r.status, headers).end(Buffer.from(await r.arrayBuffer()));
+        // Forward the conditional/range headers; no Accept-Encoding, so the
+        // body is passed on uncompressed.
+        const headers = {};
+        for (const h of ['if-none-match', 'if-modified-since', 'range', 'accept']) if (req.headers[h]) headers[h] = req.headers[h];
+        const r = await fetch(new URL(req.url.slice(prefix.length), upstream), { method: req.method, headers, redirect: 'manual' });
+        const out = Object.fromEntries([...r.headers].filter(([k]) => !hopByHop.has(k)));
+        // A redirect that would leave the prefix breaks the simulation: fail loudly.
+        if (out.location && /^(https?:)?\//.test(out.location)) {
+          res.writeHead(502).end(`redirect escapes the prefix: ${out.location}`);
+          return;
+        }
+        res.writeHead(r.status, out).end(Buffer.from(await r.arrayBuffer()));
       } catch (err) {
         res.writeHead(502).end(String(err));
       }
@@ -45,7 +55,16 @@ test.skip(({ browserName }) => browserName !== 'chromium', 'needs the Chrome Dev
 async function resolvedManifest(page) {
   const cdp = await page.context().newCDPSession(page);
   const { url, errors, manifest } = await cdp.send('Page.getAppManifest');
-  const { installabilityErrors } = await cdp.send('Page.getInstallabilityErrors');
+  // The service worker registers asynchronously: wait for it to control the
+  // page (reload once if it only just took over), then read the errors,
+  // polled so that transient ones (no matching service worker) settle.
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  if (!await page.evaluate(() => !!navigator.serviceWorker.controller)) await page.reload();
+  let installabilityErrors;
+  await expect.poll(async () => {
+    installabilityErrors = (await cdp.send('Page.getInstallabilityErrors')).installabilityErrors;
+    return installabilityErrors;
+  }, { message: 'installability errors', timeout: 10_000 }).toEqual([]);
   await cdp.detach();
   // `manifest` holds the resolved values (absolute id, startUrl, scope);
   // the response's `data` is only the raw text.
