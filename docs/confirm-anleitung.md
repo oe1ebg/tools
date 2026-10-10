@@ -42,17 +42,19 @@ nicht von selbst. Steht dort „nicht dauerhaft“, regelmäßig eine Sicherung
 (JSON) exportieren.
 
 **Neue Version.** Erscheint „Update verfügbar“, ist eine neue Version
-geladen. Sie wird erst nach einem Klick darauf aktiv, nie mitten in einer
-Runde. Gespeicherte Zeilen und Logs bleiben unverändert. Vor dem Neuladen
-versucht das Werkzeug, die halb getippte Zeile und die Kopfdaten als Entwurf
-zu sichern, und holt sie danach zurück. Schlägt das Sichern fehl, erscheint
-ein Hinweis, das Neuladen läuft trotzdem: Steht ein Fehlerhinweis, den Text
-vor dem Update kopieren. Ein Entwurf ist keine gespeicherte Zeile
-(siehe [Gespeichert, Entwurf und Sicherung](#gespeichert-entwurf-und-sicherung)).
-Wer auf Nummer sicher gehen will, speichert eine laufende Zeile
-(<kbd>⇧</kbd>+<kbd>Enter</kbd>) vor dem Update. Das Update gilt für alle offenen
-Tabs und Fenster des Werkzeugs gleichzeitig.
-
+geladen. Sie wird erst nach einem Klick darauf aktiv, nicht von selbst. Der
+Klick lädt aber **alle** offenen Tabs und Fenster des Werkzeugs neu und kann
+dort laufende Eingaben unterbrechen; einen Aufschub je Tab gibt es nicht.
+Gespeicherte Zeilen und Logs bleiben unverändert. Beim Neuladen versucht das
+Werkzeug, die halb getippte Zeile und die Kopfdaten als Entwurf zu sichern
+und holt sie danach zurück. Das kann scheitern (zum Beispiel bei vollem
+Speicher), und das Neuladen läuft dann trotzdem weiter. **Deshalb vor jedem
+Update, in jedem offenen Tab:** fertige Zeilen speichern
+(<kbd>⇧</kbd>+<kbd>Enter</kbd>) und unfertige Eingaben außerhalb des
+Werkzeugs kopieren, auch wenn kein Fehler angezeigt wird. Ein Entwurf ist
+keine gespeicherte Zeile, und die Sicherung (JSON) enthält keine
+unfertigen Eingaben (siehe
+[Gespeichert, Entwurf und Sicherung](#gespeichert-entwurf-und-sicherung)).
 
 **Mehrere Tabs.** Ein Log sollte nur in einem Tab offen sein; sonst warnt
 das Werkzeug („nur ein Tab pro Log!“).
