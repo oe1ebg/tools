@@ -31,12 +31,12 @@ import { sourceItem, standDate, trackOnline, mapLinks, repoLink } from '../../sh
 import { initOffline, setChip } from '../../shared/js/offline.js';
 import {
   DIRECTIONS, CHANNELS, MESSAGE_TYPES, PRIORITIES, REF_KINDS, statusLabel, statusEntry, timeLabel, readBackLabel,
-  editMessage, softDelete, restoreDeleted, setStatus, addAttempt, currentStatus, filterMessages,
+  editMessage, messageFields, softDelete, restoreDeleted, setStatus, addAttempt, currentStatus, filterMessages,
   repliesTo, fmtVienna, viennaTime, zoneHint, normFreq, fmtFreq,
 } from './model.js';
 import { normalizePrefix, PREFIX_RE, nextSeq, formatNumber, counterKey } from './numbering.js';
 import { toGeschaeftsbuchCSV, toBackup, parseBackup } from './export.js';
-import { saveNewMessage, updateMessage, applyBackup, patchOperation, writeDraft, clearDraft } from './ops.js';
+import { saveNewMessage, updateMessage, changedFields, applyBackup, patchOperation, writeDraft, clearDraft } from './ops.js';
 import {
   emptyForm, setDirection, formToFields, formIsBlank, messageToForm, replyForm, nextStep, statusSteps, bookSummary, partyText,
   readDateTime, readClock, readBound, normDate, normTime, dateText, clockText, needsZone, upgradeForm, normalizeRef,
@@ -65,7 +65,8 @@ const state = {
   showErrors: false, // field errors are shown after the first save attempt
   warned: '',        // the warnings already shown once (saving again = save anyway)
   saving: false,
-  saveKey: null,     // { sig, id }: the id a failed save used, kept while the form is unchanged (a retry can't number it twice)
+  editBase: null,    // { id, fields }: the fields of the version an edit was opened on, kept after a conflict
+  saveKey: null,    // { sig, id }: the id a failed save used, kept while the form is unchanged (a retry can't number it twice)
   draftSeen: undefined, // `updated` of the draft this tab last read or wrote (undefined: none); another one = another tab's
   channel: null,
   draftTimer: null,
@@ -102,7 +103,7 @@ function showNotice(...content) {
 async function onConflict(what, keeps) {
   try { await reloadMsgs(); } catch (e) { console.warn(e); }
   showNotice(`NICHT GESPEICHERT – ${what} wurde inzwischen geändert (z. B. in einem anderen Tab oder Fenster). Die aktuelle Fassung ist geladen. `,
-    keeps ? 'Ihre Eingabe steht noch im Formular: bitte prüfen und erneut speichern. ' : 'Bitte die Angabe erneut eintragen. ');
+    keeps ? 'Ihre Eingabe steht noch im Formular: bitte prüfen und erneut speichern; dabei werden nur die Felder übernommen, die Sie geändert haben. ' : 'Bitte die Angabe erneut eintragen. ');
 }
 
 // aria-live lines are read out on every write: only write real changes.
@@ -664,8 +665,18 @@ function formIsEmpty(f) {
   return formIsBlank(f, state.op);
 }
 
-async function flushDraft() {
+// Draft writes run one after the other, each reading the form and the token
+// (draftSeen) when its turn comes: a debounce that fires during a save, or
+// the clear after it, can't work with a stale token and leave the saved
+// message's draft behind (it would come back on the next load).
+let draftChain = Promise.resolve();
+function flushDraft() {
   clearTimeout(state.draftTimer);
+  draftChain = draftChain.then(flushDraftNow, flushDraftNow);
+  return draftChain;
+}
+
+async function flushDraftNow() {
   if (!state.op || $('#view-book').hidden && $('#view-msg').hidden) return;
   const f = readForm();
   const empty = formIsEmpty(f) && !state.editing;
@@ -725,6 +736,7 @@ function resetForm(keep = true) {
   // Direction, channel and frequency usually stay the same for the next message.
   if (keep) Object.assign(next, setDirection(next, prev.direction, state.op), { channel: prev.channel, freq: prev.freq, via: prev.via });
   state.editing = null;
+  state.editBase = null;
   state.saveKey = null;
   writeForm(next);
 }
@@ -782,7 +794,11 @@ async function saveMessageNow(anyway) {
     if (wasEdit) {
       // The staff reference is kept with the message, not in the form. The
       // revision holds the record as it was stored when it was replaced.
-      const { staffRef: _ref, ...changes } = fields;
+      // Only what the user changed against the version they opened is sent,
+      // so a change another tab made to other fields is not overwritten.
+      const base = state.editBase?.id === state.editing.id ? state.editBase.fields : messageFields(state.editing);
+      const { staffRef: _ref, ...all } = fields;
+      const changes = changedFields(all, base);
       saved = await updateMessage(state.store, state.editing, cur => editMessage(cur, changes, { revisionId: newId(), operator, now }));
     } else {
       // number, message and the "answered" status of a replied-to message: one transaction
@@ -791,7 +807,11 @@ async function saveMessageNow(anyway) {
   } catch (e) {
     if (e instanceof ConflictError) {
       // changed meanwhile: the edit continues on the current version, the input stays
-      if (e.current) state.editing = e.current;
+      // (what the user opened stays the baseline of "what did I change")
+      if (e.current) {
+        if (state.editBase?.id !== state.editing.id) state.editBase = { id: state.editing.id, fields: messageFields(state.editing) };
+        state.editing = e.current;
+      }
       await onConflict(state.editing?.number || 'Die Meldung', true);
       return;
     }
@@ -804,6 +824,8 @@ async function saveMessageNow(anyway) {
   status.className = 'form-status';
   status.textContent = '';
   const notes = [];
+  // the draft of the message just saved goes first (queued behind any write in flight)
+  await flushDraft();
   try {
     await rememberStations(fields);
   } catch (e) {
@@ -812,7 +834,6 @@ async function saveMessageNow(anyway) {
   }
   try {
     await loadOp();
-    await flushDraft();
     renderBook();
     renderBackupChip();
   } catch (e) {
@@ -1078,8 +1099,7 @@ async function advance(msg, state_, details = {}) {
   } catch (e) {
     return e.message;
   }
-  await storeMsg(msg, cur => setStatus(cur, state_, step), `${msg.number}: ${statusLabel(state_, msg.direction)}`);
-  return '';
+  return await storeMsg(msg, cur => setStatus(cur, state_, step), `${msg.number}: ${statusLabel(state_, msg.direction)}`) ? '' : 'nicht gespeichert';
 }
 
 function renderSummary() {
@@ -1252,8 +1272,7 @@ function flowCard(m) {
           const t = stepTime(v.at);
           if (t.error) return t.error;
           const attempt = { operator: state.op.operator || '', now: nowIso(), at: t.at, note: v.note };
-          await storeMsg(m, cur => addAttempt(cur, attempt), `${m.number}: Fehlversuch / Rückfrage vermerkt`);
-          return '';
+          return await storeMsg(m, cur => addAttempt(cur, attempt), `${m.number}: Fehlversuch / Rückfrage vermerkt`) ? '' : 'nicht gespeichert';
         })) : null,
     el('p', { class: 'hint' }, out
       ? '„Übertragen“ heißt: gesendet. Erst „Empfang bestätigt“ heißt, die Funkstelle hat sie.'
@@ -1460,9 +1479,12 @@ async function importBackup(file) {
   }
   broadcast({ type: 'ops' });
   broadcast({ type: 'msgs', opId: backup.operation.id });
-  showImportMsg(r.conflicts.length ? 'warn' : 'ok',
+  const left = backup.dropped || [];
+  showImportMsg(r.conflicts.length || r.unlinked.length || left.length ? 'warn' : 'ok',
     `„${backup.operation.name}“: ${r.added} Meldungen neu, ${r.updated} aktualisiert. `,
-    r.conflicts.length ? el('strong', {}, `Nicht übernommen (Nummer oder ID schon mit anderer Meldung belegt): ${r.conflicts.join(', ')}. `) : null);
+    r.conflicts.length ? el('strong', {}, `Nicht übernommen (Nummer oder ID schon mit anderer Meldung belegt): ${r.conflicts.join(', ')}. `) : null,
+    r.unlinked.length ? el('strong', {}, `Nicht übernommen (Antwort auf eine nicht übernommene Meldung): ${r.unlinked.join(', ')}. `) : null,
+    left.length ? el('strong', {}, `Aus der Datei ausgelassen (${left.length}): ${left.map(x => `${x.what} (${x.why})`).join('; ')}. `) : null);
   renderOps();
 }
 

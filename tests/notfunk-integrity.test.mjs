@@ -10,7 +10,7 @@ import { NOTFUNK_STORES } from '../tools/notfunk/js/db.js';
 import { newMessage, editMessage, setStatus, currentStatus, softDelete, messageFields } from '../tools/notfunk/js/model.js';
 import { toBackup, parseBackup, mergeBackup, MAX_SEQ } from '../tools/notfunk/js/export.js';
 import { formatNumber, counterKey, numberGaps } from '../tools/notfunk/js/numbering.js';
-import { saveNewMessage, updateMessage, applyBackup, patchOperation, writeDraft, clearDraft } from '../tools/notfunk/js/ops.js';
+import { saveNewMessage, updateMessage, applyBackup, changedFields, patchOperation, writeDraft, clearDraft } from '../tools/notfunk/js/ops.js';
 
 class MemoryStorage {
   #m = new Map();
@@ -60,18 +60,9 @@ test('parseBackup accepts a complete backup and its round trip', () => {
   assert.equal(parseBackup(toBackup(d, T0)).revisions.length, 1);
 });
 
-test('parseBackup rejects incomplete, inconsistent and damaged backups', () => {
+test('parseBackup refuses a file with identity or ownership problems', () => {
   const ok = mk(1);
   const bads = {
-    'no text': { ...ok, text: undefined },
-    'no sender object': { ...ok, from: undefined },
-    'no status': { ...ok, status: [] },
-    'unknown status': { ...ok, status: [{ state: 'x', at: T0 }] },
-    'no distribution': { ...ok, distribution: undefined },
-    'no origin': { ...ok, origin: null },
-    'bad ts': { ...ok, ts: '5.10.2026' },
-    'impossible updated': { ...ok, updated: '2026-13-45T99:00:00Z' },
-    'bad deleted': { ...ok, deleted: 'gestern' },
     'bad prefix': { ...ok, prefix: 'w 1' },
     'seq 0': { ...ok, seq: 0, number: 'W1-000' },
     'seq not an integer': { ...ok, seq: 1.5 },
@@ -80,31 +71,60 @@ test('parseBackup rejects incomplete, inconsistent and damaged backups', () => {
     'number disagrees with seq': { ...ok, number: 'W1-002' },
     'other operation': { ...ok, eventId: 'op2' },
     'bad id': { ...ok, id: '../x' },
-    'no sender and recipient': { ...ok, from: {}, to: {} },
-    'unknown reply target': { ...ok, replyTo: 'nowhere' },
   };
   for (const [what, m] of Object.entries(bads)) assert.throws(() => parse(backupOf([m])), /Sicherung fehlerhaft/, what);
-  // incoming duplicates
   assert.throws(() => parse(backupOf([ok, { ...mk(2), id: ok.id }])), /ID doppelt/);
   assert.throws(() => parse(backupOf([ok, { ...mk(2), id: 'b9', seq: 1, number: 'W1-001' }])), /Nummer doppelt/);
-  // versions
   for (const version of [0, '1', 1.5, undefined, 2]) assert.throws(() => parse({ ...backupOf([ok]), version }), /version|neueren/, String(version));
+  const rev = { id: 'r1', eventId: 'op1', messageId: 'b1', at: T1, old: ok };
+  assert.throws(() => parse(backupOf([ok], { revisions: [{ ...rev, eventId: 'op2' }] })), /anderen Einsatz/);
+  assert.throws(() => parse({ ...backupOf([ok]), operation: { id: 'op1' } }), /Name/);
+  assert.throws(() => parse({ ...backupOf([ok]), operation: { ...OP, id: 'a/b' } }), /operation/);
+});
+
+test('parseBackup leaves out records with semantic problems and restores the rest', () => {
+  const ok = mk(1);
+  const soft = {
+    'no text': { ...mk(2), text: undefined },
+    'no sender object': { ...mk(3), from: undefined },
+    'no status': { ...mk(4), status: [] },
+    'unknown status': { ...mk(5), status: [{ state: 'x', at: T0 }] },
+    'no origin': { ...mk(6), origin: null },
+    'bad ts': { ...mk(7), ts: '5.10.2026' },
+    'impossible updated': { ...mk(8), updated: '2026-13-45T99:00:00Z' },
+    'no sender and recipient': { ...mk(9), from: {}, to: {} },
+  };
+  const d = parse(backupOf([ok, ...Object.values(soft)]));
+  assert.deepEqual(d.messages.map(m => m.id), ['b1']);
+  assert.equal(d.dropped.length, Object.keys(soft).length);
+  assert.deepEqual(d.droppedSeqs.map(x => x.seq), [2, 3, 4, 5, 6, 7, 8, 9], 'their numbers still count for the counters');
+  // a message that is only a dangling reply stays (the target may be stored already)
+  assert.equal(parse(backupOf([{ ...ok, replyTo: 'nowhere' }])).messages.length, 1);
   // revisions
   const rev = { id: 'r1', eventId: 'op1', messageId: 'b1', at: T1, old: ok };
-  assert.throws(() => parse(backupOf([ok], { revisions: [{ ...rev, messageId: 'zzz' }] })), /nicht in der Sicherung/);
-  assert.throws(() => parse(backupOf([ok], { revisions: [{ ...rev, eventId: 'op2' }] })), /anderen Einsatz/);
-  assert.throws(() => parse(backupOf([ok], { revisions: [{ ...rev, at: 'x' }] })), /Zeitstempel/);
-  assert.throws(() => parse(backupOf([ok], { revisions: [{ ...rev, old: null }] })), /frühere Fassung/);
-  assert.throws(() => parse(backupOf([ok], { revisions: [rev, rev] })), /ID doppelt/);
+  for (const bad of [{ messageId: 'zzz' }, { at: 'x' }, { old: null }]) {
+    const r = parse(backupOf([ok], { revisions: [{ ...rev, ...bad }] }));
+    assert.deepEqual([r.revisions.length, r.dropped.length], [0, 1], JSON.stringify(bad));
+  }
+  assert.equal(parse(backupOf([ok], { revisions: [rev, rev] })).revisions.length, 1);
   // counters
   const c = { id: 'op1:W1', eventId: 'op1', prefix: 'W1', last: 1 };
   for (const bad of [{ last: -1 }, { last: MAX_SEQ + 1 }, { last: 1e300 }, { last: '5' }, { last: NaN }, { prefix: 'a b' }, { eventId: 'op2' }, { id: 'op1:W2' }]) {
-    assert.throws(() => parse(backupOf([ok], { counters: [{ ...c, ...bad }] })), /Sicherung fehlerhaft|Sicherung/, JSON.stringify(bad));
+    const r = parse(backupOf([ok], { counters: [{ ...c, ...bad }] }));
+    assert.deepEqual([r.counters.length, r.dropped.length], [0, 1], JSON.stringify(bad));
   }
-  assert.throws(() => parse(backupOf([ok], { counters: [c, c] })), /doppelt/);
-  // the operation
-  assert.throws(() => parse({ ...backupOf([ok]), operation: { id: 'op1' } }), /Name/);
-  assert.throws(() => parse({ ...backupOf([ok]), operation: { ...OP, id: 'a/b' } }), /operation/);
+  assert.equal(parse(backupOf([ok], { counters: [c, c] })).counters.length, 1);
+});
+
+test('mergeBackup: a reply whose target was not taken is not imported', () => {
+  const target = mk(1), reply = { ...mk(2), replyTo: 'b1', refKind: 'antwort' };
+  const clash = { ...target, id: 'stored' }; // W1-001 is taken by another id
+  const r = mergeBackup(backupOf([target, reply]), { operation: OP, messages: [clash], revisions: [], counters: [] });
+  assert.equal(r.added, 0);
+  assert.deepEqual(r.conflicts, ['W1-001']);
+  assert.deepEqual(r.unlinked, ['W1-002']);
+  assert.ok(!r.ops.some(o => o.store === 'messages'));
+  assert.equal(r.ops.find(o => o.store === 'counters').put.last, 2, 'the number is still spent');
 });
 
 test('mergeBackup: two incoming records with one number: only the first is taken', () => {
@@ -172,6 +192,23 @@ test('two tabs: a stale edit does not undo a handover, and nothing is written', 
   assert.equal(currentStatus(stored), 'forwarded');
   assert.equal(stored.subject, 'Wasser');
   assert.deepEqual(await store.getByEvent('revisions', 'op1'), [], 'no revision of a refused edit');
+});
+
+test('after a conflict only the fields the user changed are applied to the current version', async () => {
+  const a = await create();
+  const opened = messageFields(a); // tab A opened this version
+  // tab B changes the remarks
+  const bEdit = await updateMessage(store, a, cur => editMessage(cur, { remarks: 'von B' }, { revisionId: 'rb', operator: 'B', now: T1 }));
+  // tab A changed the subject only; the form holds the old remarks
+  const form = { ...opened, subject: 'Wasser dringend' };
+  const changes = changedFields(form, opened);
+  assert.deepEqual(Object.keys(changes), ['subject']);
+  await assert.rejects(updateMessage(store, a, cur => editMessage(cur, changes, { revisionId: 'ra', operator: 'A', now: T1 })), ConflictError);
+  const saved = await updateMessage(store, bEdit, cur => editMessage(cur, changes, { revisionId: 'ra', operator: 'A', now: '2026-10-05T13:00:00.000Z' }));
+  assert.equal(saved.subject, 'Wasser dringend');
+  assert.equal(saved.remarks, 'von B', 'the other tab\'s change is kept');
+  const revs = await store.getByEvent('revisions', 'op1');
+  assert.equal(revs.find(r => r.id === 'ra').old.remarks, 'von B');
 });
 
 test('an edit stores the record it actually replaced as the revision', async () => {

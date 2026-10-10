@@ -408,6 +408,23 @@ test('two tabs: a second draft is not saved over the first one silently', async 
   await b.close();
 });
 
+test('save while the draft debounce is pending: no draft of the saved message comes back', async ({ page }) => {
+  await openNewOp(page, 'E2E Entwurf weg', 'd1');
+  await page.locator('#m-from').fill('Lichtinsel 3');
+  await page.locator('#m-peer').fill('OE1ABC');
+  await page.locator('#m-subject').fill('Wasser');
+  await page.locator('#m-text').fill('Kein Wasser.'); // the draft write is still pending (600 ms)
+  await page.locator('#btn-save').click();
+  await expect(page.locator('#book-body')).toContainText('Wasser');
+  await page.waitForTimeout(1200);
+  await page.reload();
+  await expect(page.locator('#view-book')).toBeVisible();
+  await expect(page.locator('#book-body')).toContainText('D1-001');
+  await expect(page.locator('#m-subject')).toHaveValue('');
+  await expect(page.locator('#m-text')).toHaveValue('');
+  expect(await numbers(page)).toEqual(['D1-001']);
+});
+
 // #20: a typed Stichzeit survives a draft restore
 test('draft restore keeps a Stichzeit typed as 1405', async ({ page }) => {
   await openNewOp(page, 'E2E Stichzeit', 's1');

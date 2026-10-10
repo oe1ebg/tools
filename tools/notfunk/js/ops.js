@@ -40,6 +40,13 @@ export function updateMessage(store, msg, change) {
   });
 }
 
+// The fields of an edit that differ from base (the fields of the version the
+// user opened). Only these are sent as changes, so what another tab changed
+// in other fields is kept when the edit is applied to the current version.
+export function changedFields(fields, base) {
+  return Object.fromEntries(Object.entries(fields).filter(([k, v]) => JSON.stringify(v) !== JSON.stringify(base[k])));
+}
+
 // Restores a backup: the merge decision and its writes in one transaction,
 // with the records as they are stored now (ids are global, numbers per
 // operation). Resolves to mergeBackup()'s result.
@@ -94,3 +101,4 @@ export async function clearDraft(store, opId, seen) {
   await store.tx([{ store: 'drafts', del: opId }]);
   return true;
 }
+// TODO(#22): with atomic() del(), make this one getUnchanged + del.
