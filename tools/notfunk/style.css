@@ -224,6 +224,8 @@ table.book td.content{ max-width:28em; }
 table.book td.act{ white-space:nowrap; text-align:right; }
 table.book td.act button + button{ margin-left:.3em; }
 table.book tr.urgent td{ background:var(--err-soft); }
+table.book tbody tr[data-id]{ cursor:pointer; }
+table.book tbody tr[data-id]:hover td{ background:var(--accent-soft); }
 table.book tr.fresh td{ background:var(--accent-soft); }
 .sub{ font-size:13.5px; color:var(--text-dim); }
 .clamp{ display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
