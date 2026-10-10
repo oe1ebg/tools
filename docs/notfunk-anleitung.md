@@ -419,9 +419,6 @@ bleibt, wie sie ist; nach dem Schließen ist der Cursor wieder im vorigen
 Feld.
 
 
-Die Hinweise bei Konflikten und Entwürfen stehen so im Werkzeug; ändert sich
-ihr Wortlaut, ändert sich diese Anleitung mit.
-
 ## Offene Abstimmungen
 
 Mit der Meldesammelstelle bzw. dem Stab abzustimmen:
