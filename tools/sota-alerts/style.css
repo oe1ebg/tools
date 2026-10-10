@@ -163,6 +163,10 @@ input[type=date]{ min-width:9.5em; }
 }
 #stats{ color:var(--text-dim); }
 #stats b{ color:var(--text); font-weight:600; }
+/* when the alerts on screen were loaded; marked once a refresh failed and
+   they are the last-known ones */
+#alerts-age{ color:var(--text-dim); }
+#alerts-age.stale{ color:var(--warn); font-weight:600; }
 #ref-indicator{ color:var(--route); white-space:nowrap; font-weight:600; }
 #ref-indicator button{ padding:0 .3em; font-size:11px; border:none; color:var(--text-dim); }
 

@@ -130,3 +130,150 @@ test('reference, filters, search, pins, popups and a shared link', async ({ page
   await expect(page).toHaveURL(/\/tools\/sota-alerts\/$/);
   await expect(page.locator('#warnings')).toBeEmpty();
 });
+
+// Request deadlines, stale searches, failed refreshes and shared-link
+// limits (#13). `held` requests stay open until the test releases them,
+// like a slow or hung server.
+function stubSota(page, handlers) {
+  return page.route('https://api2.sota.org.uk/**', route => {
+    const handler = handlers[new URL(route.request().url()).pathname];
+    if (handler) return handler(route);
+    return route.fulfill({ status: 404, json: {} });
+  });
+}
+const summitJson = { name: 'Test Peak', altM: 1000, points: 4, latitude: 47.5, longitude: 15.5, locator: 'JN77SM' };
+const searchHit = (code, name) => [{ summitCode: code, name, altM: 800, points: 2, latitude: 47.6, longitude: 15.6, locator: null }];
+// Answering a request the page has aborted meanwhile throws; that's expected.
+const release = (route, json) => route.fulfill({ json }).catch(() => {});
+const AGE = /^alerts as of \d{4}-\d\d-\d\d \d\d:\d\dZ$/;
+// On a phone the toolbar controls sit behind the "filters" toggle.
+async function showToolbar(page) {
+  const toggle = page.locator('#btn-toggle-toolbar');
+  if (await toggle.isVisible()) await toggle.click();
+}
+
+test('a hung alerts request runs into the deadline; refresh works afterwards', async ({ page }) => {
+  await page.clock.install();
+  await page.route(TILE_HOSTS, route => route.fulfill({ contentType: 'image/png', body: TILE }));
+  let calls = 0;
+  await stubSota(page, {
+    '/api/alerts': route => { if (++calls > 1) return route.fulfill({ json: alertsIn(3) }); }, // the first one never answers
+    '/api/summits/ZZ/TE-001': route => route.fulfill({ json: summitJson }),
+  });
+  await page.goto('tools/sota-alerts/');
+  await expect.poll(() => calls).toBe(1);
+  await showToolbar(page);
+  const refresh = page.locator('#btn-refresh-alerts');
+  await expect(refresh).toBeDisabled(); // start-up is still loading
+  await page.clock.fastForward('00:25');
+  await expect(page.locator('#warnings')).toContainText('could not load SOTA alerts (timed out after 20 s)');
+  await expect(page.locator('#stats')).toHaveText('0 alerts · 0 summits on map · 0 yours');
+  await expect(refresh).toBeEnabled();
+  await refresh.click();
+  await expect(page.locator('#stats')).toHaveText('2 alerts · 2 summits on map · 0 yours');
+  await expect(page.locator('#warnings')).toBeEmpty();
+  await expect(page.locator('#alerts-age')).toHaveText(AGE);
+});
+
+test('a failed refresh keeps the last-known alerts, marked as such', async ({ page }) => {
+  await page.route(TILE_HOSTS, route => route.fulfill({ contentType: 'image/png', body: TILE }));
+  let calls = 0;
+  await stubSota(page, {
+    // the second answer is broken (an HTML error page, as a busy server sends)
+    '/api/alerts': route => (++calls === 2
+      ? route.fulfill({ contentType: 'text/html', body: '<html>busy</html>' })
+      : route.fulfill({ json: alertsIn(3) })),
+    '/api/summits/ZZ/TE-001': route => route.fulfill({ json: summitJson }),
+  });
+  await page.goto('tools/sota-alerts/');
+  const stats = page.locator('#stats');
+  const age = page.locator('#alerts-age');
+  await expect(stats).toHaveText('2 alerts · 2 summits on map · 0 yours');
+  await expect(age).toHaveText(AGE);
+  await expect(age).not.toHaveClass(/stale/);
+
+  await showToolbar(page);
+  const refresh = page.locator('#btn-refresh-alerts');
+  await refresh.click();
+  await expect(page.locator('#warnings')).toContainText('could not refresh SOTA alerts (alerts request failed: not a JSON response); still showing the alerts loaded at');
+  await expect(stats).toHaveText('2 alerts · 2 summits on map · 0 yours');
+  await expect(age).toHaveClass(/stale/);
+  await expect(age).toHaveText(/^⚠ alerts as of .+ \(refresh failed\)$/);
+  await expect(refresh).toBeEnabled();
+
+  // the next refresh succeeds: fresh again, the warning gone
+  await refresh.click();
+  await expect(age).not.toHaveClass(/stale/);
+  await expect(age).toHaveText(AGE);
+  await expect(page.locator('#warnings')).toBeEmpty();
+  expect(calls).toBe(3);
+});
+
+test('summit search: an older search never replaces a newer result or reopens a cleared panel', async ({ page }) => {
+  await page.route(TILE_HOSTS, route => route.fulfill({ contentType: 'image/png', body: TILE }));
+  const held = {};
+  await stubSota(page, {
+    '/api/alerts': route => route.fulfill({ json: [] }),
+    '/api/summits/search/test': route => route.fulfill({ json: searchHit('ZZ/TE-002', 'Test Two') }),
+    '/api/summits/search/slow': route => { held.slow = route; },
+    '/api/summits/search/slower': route => { held.slower = route; },
+    '/api/summits/search/slowest': route => { held.slowest = route; },
+  });
+  await page.goto('tools/sota-alerts/');
+  await expect(page.locator('#stats')).toHaveText('0 alerts · 0 summits on map · 0 yours');
+  await showToolbar(page);
+  const input = page.locator('#summit-search');
+  const panel = page.locator('#search-panel');
+  const fresh = panel.locator('.search-result', { hasText: 'ZZ/TE-002' });
+  const stale = panel.locator('.search-result', { hasText: 'ZZ/TE-009' });
+
+  // the newer search is answered first, the older one afterwards
+  await input.fill('slow');
+  await expect.poll(() => !!held.slow).toBe(true);
+  await input.fill('test');
+  await expect(fresh).toBeVisible();
+  await release(held.slow, searchHit('ZZ/TE-009', 'Stale'));
+
+  // an older search still running when a cached term is shown again
+  await input.fill('slower');
+  await expect.poll(() => !!held.slower).toBe(true);
+  await input.fill('test'); // from the session cache, no request
+  await expect(fresh).toBeVisible();
+  await release(held.slower, searchHit('ZZ/TE-009', 'Stale'));
+
+  // the box cut below 3 characters while a search runs
+  await input.fill('slowest');
+  await expect.poll(() => !!held.slowest).toBe(true);
+  await input.fill('sl');
+  await expect(panel).toBeHidden();
+  await release(held.slowest, searchHit('ZZ/TE-009', 'Stale'));
+
+  await page.waitForTimeout(500); // time for a late response to (wrongly) show up
+  await expect(panel).toBeHidden();
+  await input.fill('test');
+  await expect(fresh).toBeVisible();
+  await expect(stale).toHaveCount(0);
+});
+
+test('a shared link: malformed and repeated pins skipped, live lookups capped', async ({ page }) => {
+  await page.route(TILE_HOSTS, route => route.fulfill({ contentType: 'image/png', body: TILE }));
+  const live = [];
+  await page.route('https://api2.sota.org.uk/**', route => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === '/api/alerts') return route.fulfill({ json: [] });
+    const m = path.match(/^\/api\/summits\/ZZ\/(TE-\d{3})$/);
+    if (m) {
+      live.push(m[1]);
+      return route.fulfill({ json: { ...summitJson, name: `Peak ${m[1]}` } });
+    }
+    return route.fulfill({ status: 404, json: {} });
+  });
+  // 12 summits in no lookup, a repeat (other case) and two malformed ones
+  const pins = Array.from({ length: 12 }, (_, i) => `ZZ/TE-1${String(i).padStart(2, '0')}`);
+  await page.goto(`tools/sota-alerts/?pins=${[...pins, 'zz/te-100', '../../etc', 'nope'].join(',')}`);
+  const warnings = page.locator('#warnings');
+  await expect(warnings).toContainText('3 pins from the shared link were skipped');
+  await expect(warnings).toContainText('2 summits from the shared link were skipped: not in the built-in summit list, and a shared link looks up at most 10 summits');
+  await expect(page.locator('#candidates-items .list-item')).toHaveCount(10);
+  expect(live).toHaveLength(10);
+});

@@ -20,14 +20,17 @@ whenever the data doesn't need to be second-by-second fresh.
 
 | Endpoint | Called from | Trigger | Frequency | Safeguards |
 |---|---|---|---|---|
-| `GET api2.sota.org.uk/api/alerts` | `fetchAlerts()` | page load, "refresh alerts" click | 1 + 1/click | None — deliberately live, no cache |
-| `GET api2.sota.org.uk/api/summits/{assoc}/{code}` | `fetchSummit()`, called only from inside `resolveSummits()`'s worker pool | fallback when a summit key is missing from **both** the `localStorage` cache **and** the static `data/summit-lookup.json` | ~1 per session in practice (bogus/placeholder codes, or summits created after the last weekly build) — down from "one per distinct summit referenced by alerts" (tens–hundreds on a cold cache) before this change | 30-day `localStorage` cache checked first; static lookup checked second; 6-way concurrency pool (`FETCH_POOL_SIZE`) as a last resort; `force=true` (the "refresh summit data" button) deliberately skips both caches for authoritative fresh data |
-| `GET api2.sota.org.uk/api/summits/search/{term}` | `searchSummits()`, from `doSummitSearch()` | typing (debounced 350ms, ≥3 chars), search button, Enter | 1 per distinct term per session | `summitSearchCache` (session `Map`, case-insensitive) skips a repeat of the exact same term; `AbortController` cancels a still-in-flight search when a newer one supersedes it |
-| `GET data/summit-lookup.json` (same-origin, not SOTA) | `loadSummitLookup()` | first call to `resolveSummits()` that needs it (in practice, page load) | ≤1 per session, memoized | `lazy()` (in-flight-promise guard), a failed load is kept as an empty map (no retry) |
-| `GET data/summits.json` (same-origin, not SOTA) | `loadAllSummits()` | "toggle all summits" overlay click | ≤1 per session, memoized | Lazy — never loaded unless the overlay is turned on |
+| `GET api2.sota.org.uk/api/alerts` | `fetchAlerts()` | page load, "refresh alerts" click | 1 + 1/click | Deliberately live, no cache; 20 s deadline; refreshes never overlap (the buttons are disabled while one runs); a failed refresh keeps the last-known alerts, marked stale |
+| `GET api2.sota.org.uk/api/summits/{assoc}/{code}` | `fetchSummit()`, called only from inside `resolveSummits()`'s worker pool | fallback when a summit key is missing from **both** the `localStorage` cache **and** the static `data/summit-lookup.json` | ~1 per session in practice (bogus/placeholder codes, or summits created after the last weekly build) — down from "one per distinct summit referenced by alerts" (tens–hundreds on a cold cache) before this change | 30-day `localStorage` cache checked first; static lookup checked second; 6-way concurrency pool (`FETCH_POOL_SIZE`) as a last resort; 15 s deadline each; a shared link: ≤50 validated pins, ≤10 of them live (`maxLive`); `force=true` (the "refresh summit data" button) deliberately skips both caches for authoritative fresh data |
+| `GET api2.sota.org.uk/api/summits/search/{term}` | `searchSummits()`, from `doSummitSearch()` | typing (debounced 350ms, ≥3 chars), search button, Enter | 1 per distinct term per session | `summitSearchCache` (session `Map`, case-insensitive) skips a repeat of the exact same term; 15 s deadline; `createLatest()` aborts a still-in-flight search as soon as anything newer takes the panel (search, cache hit, area search, box cut below 3 characters) and its result is dropped |
+| `GET data/summit-lookup.json` (same-origin, not SOTA) | `loadSummitLookup()` | first call to `resolveSummits()` that needs it (in practice, page load) | ≤1 per session, memoized | `lazy()` (in-flight-promise guard), 120 s deadline, a failed load is kept as an empty map (no retry) |
+| `GET data/summits.json` (same-origin, not SOTA) | `loadAllSummits()` | "toggle all summits" overlay click | ≤1 per session, memoized | Lazy — never loaded unless the overlay is turned on; 120 s deadline |
 | `POST overpass-api.de/api/interpreter` (not SOTA) | `searchOsmSummitsInView()`, from `doAreaSearch()` | "find in view" click | 1 per click, no automatic retries | Hard-capped to ≤4° viewport span; one request at a time; 35-second timeout; at least 30-second cooldown after HTTP 429 (respect exposed `Retry-After`); form-encoded `data`, no credentials, origin-only Referer |
 
-Every request is in `js/api.js`; the static-first resolver is `js/lookup.js`
+Every request is in `js/api.js` and runs under a deadline (`withDeadline()`
+in `js/request.js`, a timeout combined with the caller's signal by hand:
+`AbortSignal.timeout()`/`any()` are not on the browser floor); the
+static-first resolver is `js/lookup.js`
 (the functions above: `fetchAlerts`, `fetchSummit`, `searchSummits`,
 `searchOsmSummitsInView` in `api.js`; `resolveSummits` from
 `createSummitResolver()` in `lookup.js`; `doSummitSearch`, `doAreaSearch`,
@@ -64,7 +67,11 @@ authoritative fresh data" escape hatch, and diluting it with the static/
 cached paths would be surprising. `applySharedStateFromUrl()` (shared-link
 pin resolution) is routed through the same `resolveSummits()` rather than
 its own fetch loop — keep it that way rather than reintroducing a
-parallel, uncapped `Promise.all` of live calls.
+parallel, uncapped `Promise.all` of live calls. A shared link is input
+from anyone: `parseShareSearch()` validates the pins (`SUMMIT_REF_RE`),
+dedupes and caps them (`MAX_SHARED_PINS` = 50), and the resolver call
+passes `maxLive: MAX_SHARED_LIVE_LOOKUPS` (10), so one link triggers at
+most 10 live summit requests.
 
 **If you regenerate the summit data:** run `oe1ebg/scripts/fetch_summits.py`
 (or `just fetch-summits` from `oe1ebg/`) — it writes both files from one CSV
@@ -75,11 +82,15 @@ parse, so there's no separate step to remember.
 - `just test` runs `tests/sota-alerts.test.mjs`: the pure modules
   and the resolver's rules (cache → static lookup → live API, `force`
   straight to the live API, at most `FETCH_POOL_SIZE` live requests at
-  once). Keep these green when touching the lookup.
+  once, the `maxLive` budget), the deadline helper, the stale-result
+  guards and the share-link limits. Keep these green when touching the
+  lookup.
 - `tests/e2e/sota-alerts.spec.mjs` (Playwright, CI `validate` or `just
   oe1ebg e2e`) stubs the SOTA API and tiles and asserts which SOTA
   requests the page makes on load — a summit from the static lookup must
-  not be fetched live.
+  not be fetched live — plus a hung alerts request (deadline, via
+  `page.clock`), a failed refresh, out-of-order search responses and a
+  shared link over the limits.
 - For anything else, run it (`just preview`) and watch the Network
   tab, not just the rendered map: the whole point of the static-first
   lookup is *fewer live SOTA requests*, which a screenshot won't show.

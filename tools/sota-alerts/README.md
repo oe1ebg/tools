@@ -173,8 +173,10 @@ entirely instead of needing a proxy.
   `pinCandidate(cand, {asReference:true})`). Results are memoized per exact
   search term for the session (retyping/backspacing to the same term
   doesn't re-hit the API), and a still-in-flight search is aborted the
-  moment a newer one supersedes it, so a slow response to an earlier
-  keystroke can't clobber a later one's results (`doSummitSearch()`). This
+  moment anything newer takes the panel — another search, a cache hit,
+  an area search, or the box cut below 3 characters — so a slow response
+  to an earlier keystroke can't clobber a later one's results or reopen a
+  cleared panel (`doSummitSearch()`, `createLatest()` in `request.js`). This
   is what makes the
   tool useful even with zero alerts of your own: search a candidate summit,
   set it as reference right there, and see how it stacks up against
@@ -260,6 +262,15 @@ entirely instead of needing a proxy.
   the ToS section above. This tool respects the "don't hammer the API" spirit
   by caching summit lookups client-side and never polling beyond a manual
   "refresh alerts" click.
+- Every request has a deadline (`request.js`: alerts 20 s, per-summit
+  lookup and search 15 s, the same-origin data files 120 s, Overpass 35 s),
+  so a hung server can't stall start-up or a refresh. The two refresh
+  buttons and start-up run one at a time (`createExclusive()`; the buttons
+  are disabled meanwhile and enabled again afterwards, also after an
+  error). A failed "refresh alerts" keeps the alerts already shown: the
+  status bar marks them "⚠ alerts as of … (refresh failed)" and a warning
+  says why; a forced summit refresh keeps the coordinates of summits whose
+  lookup failed this time.
 - Times default to UTC (the ham-radio/ADIF convention), with a UTC/local
   toggle in the header (persisted in `localStorage`, same pattern as the
   light/dark/auto theme switch) controlling every alert-time display in the
@@ -509,10 +520,16 @@ would be surprising.
 On load (`applySharedStateFromUrl()`), pins from the URL are *merged* into
 whatever's already pinned locally — never replacing it, since opening
 someone else's shared link shouldn't wipe out summits you'd pinned
-yourself. Each pin key is resolved via the same per-summit API call used
-by search results (verified live against real and deliberately-bogus
-keys); a summit that can't be resolved surfaces as a warning rather than
-failing silently. The reference is implicitly added to the pin set too, for
+yourself. Each pin key is resolved through `resolveSummits()` (cache,
+static lookup, then the per-summit API call); a summit that can't be
+resolved surfaces as a warning rather than failing silently. A link is
+input from anyone, so `parseShareSearch()` keeps only well-formed summit
+references (`ASSOC/RR-NNN`, upper-cased), counts a repeated pin once and
+takes at most 50 pins (`MAX_SHARED_PINS`); of those, at most 10 are looked
+up live (`MAX_SHARED_LIVE_LOOKUPS`, the resolver's `maxLive`) — the rest
+of the unknown ones are skipped with a warning. A link made by "share"
+has well-formed keys, and its summits are nearly always in the static
+lookup, so neither limit gets in the way of a real link. The reference is implicitly added to the pin set too, for
 the same "needs its own marker" reason as the search-result "set as
 reference" button. Applying a shared link forces the initial view to frame
 itself to the shared content (overriding "restore my last view", which
@@ -530,22 +547,27 @@ current state rather than treating the URL as continuously live.
 - `js/` — plain ES modules, like the ADIF editor's:
   - `app.js` — state, rendering order, toolbar, start-up
   - `api.js` — every network request (the inventory in `AGENTS.md`)
+  - `request.js` — request deadlines, "latest wins" for the search panel,
+    one-at-a-time refreshes (pure)
   - `lookup.js` — the static-first summit resolver and the lazy loads
   - `alerts.js` — normalising the feed, date window, grouping, band/mode
     facets, own callsigns (pure)
   - `format.js` — UTC/local times, the one-line alert summaries (pure)
   - `summits.js` — summit shapes, meta line, distance/elevation to the
     reference, points colours, links (pure)
-  - `share.js` — the share link's query string, both ways (pure)
+  - `share.js` — the share link's query string, both ways, with the pin
+    validation and limits (pure)
   - `store.js` — what's kept in `localStorage` (via `../shared/js/prefs.js`)
   - `warnings.js` — the `#warnings` box
   - `view.js` — popups, lists, search results, facets, status bar, built
     with `el()` (no HTML strings)
   - `map.js` — Leaflet: base layers, markers, distance line, "all
     summits" overlay
-- Tests: `tests/sota-alerts.test.mjs` (node, the pure modules and the
-  resolver's order/`force`/pool rules), `tests/e2e/sota-alerts.spec.mjs`
-  (Playwright, SOTA API and tiles stubbed).
+- Tests: `tests/sota-alerts.test.mjs` (node, the pure modules, the
+  resolver's order/`force`/pool/budget rules, deadlines, stale-result
+  guards), `tests/e2e/sota-alerts.spec.mjs` (Playwright, SOTA API and
+  tiles stubbed: also a hung request, a failed refresh, stale searches and
+  a shared link over the limits).
 - `../shared/vendor/leaflet/` — vendored Leaflet 1.9.4 (`leaflet.js`,
   `leaflet.css`, `LICENSE`), shared with the confirmation log.
 
