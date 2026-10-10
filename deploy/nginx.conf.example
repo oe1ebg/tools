@@ -1,7 +1,56 @@
 # Example nginx server for the oe1ebg tools bundle. Untar the release
 # tarball into the docroot (here: /srv/www/tools/, served at /tools/);
 # any other directory or prefix works the same, all links are relative.
-# Used as-is by CI (tests run against it), so keep it working.
+# README.md ("Deployment") has the atomic way to install and switch
+# releases. Used as-is by CI (tests run against it), so keep it working.
+#
+# The two `map` blocks belong in the http context, like the server block:
+# a file in /etc/nginx/conf.d/ (where CI mounts this one) is included there.
+# Their names start with oe1ebg_ so they don't clash with other sites.
+
+# Content-Security-Policy per page. One policy for all pages, set at server
+# level below: nginx only inherits add_header into a location that has no
+# add_header of its own, so every header is set once, here, and no location
+# may add another one (or it has to repeat all of them).
+#
+#   default        tool pages and manuals: only files of the bundle; the two
+#                  inline load-failure scripts of confirm/ and notfunk/ by
+#                  hash (tests/deploy-headers.test.mjs fails when a page's
+#                  inline script and these hashes disagree).
+#   sota-alerts/   online only: SOTA's API and Overpass (connect-src) and
+#                  the three tile servers (img-src), tools/sota-alerts/js/;
+#                  data: for the blank image Leaflet puts in unloaded tiles.
+#   single-file    confirm-offline.html, notfunk-offline.html,
+#                  adif-editor.html: the whole app is inline <script> and
+#                  <style>, so 'unsafe-inline' for this location only. They
+#                  are made to be saved and opened from file:// (where no
+#                  header applies); served here they still load nothing
+#                  from elsewhere.
+# Everything: no plugins, no <base>, no framing (frame-ancestors has to be a
+# header, it is ignored in a <meta> tag). Style attributes are allowed
+# (style-src-attr): the pages have none (tests/tools-html.test.mjs), but
+# WebKit reports the internals of its own <select> as blocked inline style;
+# stylesheets and <style> elements stay restricted.
+map $uri $oe1ebg_csp {
+    default                                                "default-src 'self'; script-src 'self' 'sha256-BFKCNN17mvY1faBbmDv6Qs2zM9TIJ4uOPbK2JRYPmY0=' 'sha256-4QzxWl/E8EGSZSZaTG6/Yh0/RwJ7dKruDne0oFCzeIQ='; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
+    ~/sota-alerts/                                         "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: https://*.tile.opentopomap.org https://tile.openstreetmap.org https://mapsneu.wien.gv.at; connect-src 'self' https://api2.sota.org.uk https://overpass-api.de; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
+    ~/(confirm-offline|notfunk-offline|adif-editor)\.html$ "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
+}
+
+# Revalidate pages, scripts, styles and data (Cache-Control: no-cache
+# keeps the cached copy but asks the server first; an unchanged file is
+# a 304). Without it, browsers guess a lifetime from Last-Modified and
+# can mix an old and a new release after a deploy: the ADIF editor and
+# the SOTA Alerts Map have no service worker, and the PWAs (confirm,
+# notfunk) must see a new sw.js/precache.js to offer the update. The PWAs
+# answer everything else from their versioned cache, so it costs them
+# nothing. Directory URLs (…/confirm/) get it through the index redirect
+# ($uri is then …/confirm/index.html). An empty value sends no header.
+map $uri $oe1ebg_cache_control {
+    default                                 "";
+    ~\.(html|js|mjs|css|json|webmanifest)$  "no-cache";
+}
+
 server {
     listen       8080;
     server_name  _;
@@ -18,23 +67,20 @@ server {
     charset_types text/plain text/css application/javascript application/json application/manifest+json image/svg+xml;
     absolute_redirect off;
 
+    # `always`: on error responses (404, …) too.
+    add_header Content-Security-Policy $oe1ebg_csp always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    # Cross-origin requests (SOTA API, map tiles) carry the origin only; the
+    # OpenStreetMap tile policy wants a Referer.
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Cache-Control $oe1ebg_cache_control;
+
+    # No add_header in these locations (see above).
     location / {
         index index.html;
     }
-
-    # Revalidate pages, scripts, styles and data (Cache-Control: no-cache
-    # keeps the cached copy but asks the server first; an unchanged file is
-    # a 304). Without it, browsers guess a lifetime from Last-Modified and
-    # can mix an old and a new release after a deploy: the ADIF editor and
-    # the SOTA Alerts Map have no service worker, and the PWAs (confirm,
-    # notfunk) must see a new sw.js/precache.js to offer the update. The PWAs
-    # answer everything else from their versioned cache, so it costs them
-    # nothing. Directory URLs (…/confirm/) get it through the index redirect.
-    location ~ \.(html|js|mjs|css|json)$ {
-        add_header Cache-Control "no-cache";
-    }
     location ~ \.webmanifest$ {
         default_type application/manifest+json;   # not in nginx's mime.types
-        add_header Cache-Control "no-cache";
     }
 }

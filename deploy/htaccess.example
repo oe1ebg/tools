@@ -1,6 +1,7 @@
-# Example .htaccess for Apache (mod_mime, mod_headers, mod_deflate), placed
-# in the directory the bundle was untarred to. Same rules as
-# nginx.conf.example.
+# Example .htaccess for Apache 2.4 (mod_mime, mod_headers, mod_deflate),
+# placed in the directory the bundle was untarred to. Same rules as
+# nginx.conf.example, which explains each of them; the policies must stay
+# the same as there (tests/deploy-headers.test.mjs compares them).
 AddType application/manifest+json .webmanifest
 AddDefaultCharset utf-8
 
@@ -13,4 +14,16 @@ AddDefaultCharset utf-8
   <FilesMatch "\.(html|js|mjs|css|json|webmanifest)$">
     Header set Cache-Control "no-cache"
   </FilesMatch>
+
+  # Content-Security-Policy: one for the tool pages and manuals (the two
+  # inline load-failure scripts by hash), the SOTA Alerts Map's network
+  # hosts, 'unsafe-inline' only for the single-file bundles. `always`: on
+  # error responses too. The later `set` replaces the earlier one. Style
+  # attributes: see nginx.conf.example.
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'sha256-BFKCNN17mvY1faBbmDv6Qs2zM9TIJ4uOPbK2JRYPmY0=' 'sha256-4QzxWl/E8EGSZSZaTG6/Yh0/RwJ7dKruDne0oFCzeIQ='; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: https://*.tile.opentopomap.org https://tile.openstreetmap.org https://mapsneu.wien.gv.at; connect-src 'self' https://api2.sota.org.uk https://overpass-api.de; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'" "expr=%{REQUEST_URI} =~ m#/sota-alerts/#"
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'" "expr=%{REQUEST_URI} =~ m#/(confirm-offline|notfunk-offline|adif-editor)\.html$#"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "DENY"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
 </IfModule>
