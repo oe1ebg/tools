@@ -2,6 +2,7 @@
 // before adding one: SOTA's API is volunteer-run, be gentle on it.
 
 import { summitFromApi } from './summits.js';
+import { withDeadline, isAbort, ALERTS_TIMEOUT_MS, SUMMIT_TIMEOUT_MS, SEARCH_TIMEOUT_MS, DATA_TIMEOUT_MS } from './request.js';
 
 export const ALERTS_URL = 'https://api2.sota.org.uk/api/alerts';
 export const summitUrl = (assoc, code) => `https://api2.sota.org.uk/api/summits/${encodeURIComponent(assoc)}/${encodeURIComponent(code)}`;
@@ -23,33 +24,50 @@ export const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 let overpassBusy = false;
 let overpassRetryAt = 0;
 
+// Every fetch below runs under a deadline (request.js), and the body is
+// read inside it too: a request that hangs, or a body that stops arriving,
+// rejects with a TimeoutError instead of stalling the page. `signal` (all
+// optional) cancels it early with an AbortError.
+
 // Deliberately live, no cache: page load and "refresh alerts" only.
-export async function fetchAlerts(){
-  const res = await fetch(ALERTS_URL);
-  if (!res.ok) throw new Error(`alerts request failed: HTTP ${res.status}`);
-  return res.json();
+export function fetchAlerts(signal){
+  return withDeadline(ALERTS_TIMEOUT_MS, signal, async s => {
+    const res = await fetch(ALERTS_URL, { signal: s });
+    if (!res.ok) throw new Error(`alerts request failed: HTTP ${res.status}`);
+    let data;
+    try { data = await res.json(); }
+    catch (err) { if (isAbort(err)) throw err; throw new Error('alerts request failed: not a JSON response'); }
+    if (!Array.isArray(data)) throw new Error('alerts request failed: unexpected response');
+    return data;
+  });
 }
 
 // Only ever called through lookup.js's resolver (cache, static lookup,
-// concurrency pool), never directly.
-export async function fetchSummit(assoc, code){
-  const res = await fetch(summitUrl(assoc, code));
-  if (!res.ok) return null;
-  return summitFromApi(await res.json(), assoc, code);
+// concurrency pool, request budget), never directly.
+export function fetchSummit(assoc, code, signal){
+  return withDeadline(SUMMIT_TIMEOUT_MS, signal, async s => {
+    const res = await fetch(summitUrl(assoc, code), { signal: s });
+    if (!res.ok) return null;
+    return summitFromApi(await res.json(), assoc, code);
+  });
 }
 
-export async function searchSummits(term, signal){
-  const res = await fetch(summitSearchUrl(term), { signal });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const data = await res.json();
-  return Array.isArray(data) ? data : [];
+export function searchSummits(term, signal){
+  return withDeadline(SEARCH_TIMEOUT_MS, signal, async s => {
+    const res = await fetch(summitSearchUrl(term), { signal: s });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  });
 }
 
 // A same-origin data file (data/…).
-export async function fetchJson(url){
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+export function fetchJson(url, signal){
+  return withDeadline(DATA_TIMEOUT_MS, signal, async s => {
+    const res = await fetch(url, { signal: s });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  });
 }
 
 // bounds: Leaflet LatLngBounds (getSouth/getWest/getNorth/getEast).

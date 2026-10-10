@@ -13,8 +13,9 @@ import {
   splitSummitKey, summitFromApi, candidateFromSearchResult, candidateFromOsmElement, lookupFromRows,
   summitMetaLine, referenceDiff, referenceDiffText, sotlasPointsColor, summitLinks, sotlasMapUrl,
 } from '../tools/sota-alerts/js/summits.js';
-import { shareSearch, parseShareSearch } from '../tools/sota-alerts/js/share.js';
+import { shareSearch, parseShareSearch, normalizeSummitRef, MAX_SHARED_PINS } from '../tools/sota-alerts/js/share.js';
 import { createSummitResolver, lazy } from '../tools/sota-alerts/js/lookup.js';
+import { withDeadline, createLatest, createExclusive, TimeoutError, isAbort } from '../tools/sota-alerts/js/request.js';
 
 const alert = (date, extra = {}) => normalizeAlert({ id: 1, dateActivated: date, associationCode: 'OE', summitCode: 'WI-001', ...extra });
 
@@ -151,13 +152,33 @@ test('share link: round trip, and only what is set', () => {
   const s = { from: '2026-10-07', to: '2026-10-20', ref: 'OE/WI-001', pins: ['OE/WI-001', 'OE/NO-001'], bands: ['2m', '40m'], modes: ['CW'] };
   const search = shareSearch(s);
   assert.equal(search, 'from=2026-10-07&to=2026-10-20&ref=OE%2FWI-001&pins=OE%2FWI-001%2COE%2FNO-001&bands=2m%2C40m&modes=CW');
-  assert.deepEqual(parseShareSearch('?' + search), s);
+  assert.deepEqual(parseShareSearch('?' + search), { ...s, dropped: 0, badRef: false });
   assert.equal(shareSearch({ from: '', to: '', ref: null }), '');
   assert.equal(parseShareSearch(''), null);
   // bands/modes absent: null (keep the stored filter), not an empty filter
-  assert.deepEqual(parseShareSearch('?ref=OE/WI-001'), { from: null, to: null, ref: 'OE/WI-001', pins: [], bands: null, modes: null });
-  assert.deepEqual(parseShareSearch('?bands=&pins=,A/B,').bands, []);
-  assert.deepEqual(parseShareSearch('?bands=&pins=,A/B,').pins, ['A/B']);
+  assert.deepEqual(parseShareSearch('?ref=OE/WI-001'), { from: null, to: null, ref: 'OE/WI-001', pins: [], bands: null, modes: null, dropped: 0, badRef: false });
+  assert.deepEqual(parseShareSearch('?bands=&pins=,OE/WI-001,').bands, []);
+  assert.deepEqual(parseShareSearch('?bands=&pins=,OE/WI-001,').pins, ['OE/WI-001']);
+});
+
+test('share link: pins and reference validated, deduplicated and capped', () => {
+  assert.equal(normalizeSummitRef(' oe/wi-001 '), 'OE/WI-001');
+  for (const ok of ['W7A/AW-001', '3Y/BV-001', 'G/LD-001', 'VK1/AC-001']) assert.equal(normalizeSummitRef(ok), ok);
+  for (const bad of ['', 'A/B', 'OE/WI-1', 'OE/WI-001/x', 'OE/../WI-001', 'OE WI-001', 'TOOLONG/WI-001', '<b>/WI-001', null]) {
+    assert.equal(normalizeSummitRef(bad), null, String(bad));
+  }
+  const p = parseShareSearch('?ref=../x&pins=oe/wi-001,OE/WI-001,junk,ZZ/TE-002');
+  assert.deepEqual(p.pins, ['OE/WI-001', 'ZZ/TE-002']);
+  assert.equal(p.dropped, 2); // the repeat and the junk
+  assert.equal(p.ref, null);
+  assert.equal(p.badRef, true);
+  // the reference may also be among the pins ("share" writes it there)
+  assert.deepEqual(parseShareSearch('?ref=OE/WI-001&pins=OE/WI-001').pins, ['OE/WI-001']);
+  const many = Array.from({ length: 500 }, (_, i) => `ZZ/TE-${String(i).padStart(3, '0')}`);
+  const capped = parseShareSearch('?pins=' + many.join(','));
+  assert.equal(capped.pins.length, MAX_SHARED_PINS);
+  assert.deepEqual(capped.pins, many.slice(0, MAX_SHARED_PINS));
+  assert.equal(capped.dropped, 500 - MAX_SHARED_PINS);
 });
 
 function resolver({ cache = {}, lookup = new Map(), live = {} } = {}){
@@ -241,4 +262,105 @@ test('lazy: one load for concurrent callers; the fallback is kept, a plain failu
   assert.equal((await withFallback()).size, 0);
   await withFallback();
   assert.equal(tries2, 1);
+});
+
+test('summit lookup: maxLive caps the live requests, the rest is listed as over budget', async () => {
+  const { resolve, calls } = resolver({
+    lookup: new Map([['A/1', { name: 'static', lat: 1, lon: 1 }]]),
+    live: { 'B/1': { lat: 1, lon: 1 }, 'B/2': { lat: 2, lon: 2 }, 'B/3': { lat: 3, lon: 3 } },
+  });
+  const out = await resolve(['A/1', 'B/1', 'B/2', 'B/3'].map(entry), false, { maxLive: 2 });
+  assert.equal(calls.live.length, 2);
+  assert.ok(out.has('A/1')); // static entries don't count against the budget
+  assert.deepEqual(out.overBudget, ['B/3']);
+  assert.deepEqual((await resolve([entry('B/1')], false)).overBudget, []);
+});
+
+test('summit lookup: a failing live request is left out, the others still resolve', async () => {
+  const resolve = createSummitResolver({
+    loadCache: () => ({}), saveCache: () => {}, loadLookup: async () => new Map(),
+    fetchSummit: async (assoc, code) => { if (code === '1') throw new TimeoutError(15000); return { lat: 0, lon: 0 }; },
+  });
+  const warn = console.warn;
+  console.warn = () => {};
+  try {
+    const out = await resolve([entry('A/1'), entry('A/2')], false);
+    assert.deepEqual([...out.keys()], ['A/2']);
+  } finally { console.warn = warn; }
+});
+
+// A fake clock for withDeadline: timers only fire on tick().
+function fakeTimers(){
+  let timers = [];
+  return {
+    setTimer: (fn, ms) => { const t = { fn, ms }; timers.push(t); return t; },
+    clearTimer: t => { timers = timers.filter(x => x !== t); },
+    tick(){ const due = timers; timers = []; due.forEach(t => t.fn()); },
+    pending: () => timers.length,
+  };
+}
+
+test('withDeadline: result, timeout (also when the work ignores the signal), caller abort', async () => {
+  const clock = fakeTimers();
+  assert.equal(await withDeadline(1000, null, async () => 42, clock), 42);
+  assert.equal(clock.pending(), 0); // timer cleared
+
+  // a hung request: never settles on its own
+  let innerSignal;
+  const hung = withDeadline(20_000, null, s => { innerSignal = s; return new Promise(() => {}); }, clock);
+  clock.tick();
+  await assert.rejects(hung, err => err instanceof TimeoutError && err.name === 'TimeoutError' && /20 s/.test(err.message));
+  assert.equal(innerSignal.aborted, true); // the fetch is cancelled too
+
+  // the caller aborts: AbortError, the timer is cleared
+  const caller = new AbortController();
+  const p = withDeadline(1000, caller.signal, () => new Promise(() => {}), clock);
+  caller.abort();
+  await assert.rejects(p, isAbort);
+  assert.equal(clock.pending(), 0);
+
+  // already aborted: nothing runs
+  let ran = false;
+  await assert.rejects(withDeadline(1000, caller.signal, async () => { ran = true; }, clock), isAbort);
+  assert.equal(ran, false);
+
+  // the work's own error passes through
+  await assert.rejects(withDeadline(1000, null, async () => { throw new Error('HTTP 500'); }, clock), /HTTP 500/);
+  await assert.rejects(withDeadline(1000, null, () => { throw new Error('sync'); }, clock), /sync/);
+});
+
+test('withDeadline: real timers, a fetch-like call aborted at the deadline', async () => {
+  const fetchLike = signal => new Promise((resolve, reject) => {
+    signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+  });
+  await assert.rejects(withDeadline(5, null, fetchLike), TimeoutError);
+});
+
+test('createLatest: a newer begin() or cancel() supersedes and aborts the older one', () => {
+  const latest = createLatest();
+  const a = latest.begin();
+  assert.equal(a.isCurrent(), true);
+  const b = latest.begin(); // e.g. a cache hit: aborts a before showing its own result
+  assert.equal(a.signal.aborted, true);
+  assert.equal(a.isCurrent(), false);
+  assert.equal(b.isCurrent(), true);
+  latest.cancel(); // the box cleared / below 3 characters
+  assert.equal(b.signal.aborted, true);
+  assert.equal(b.isCurrent(), false);
+  latest.cancel(); // harmless without a running one
+});
+
+test('createExclusive: no overlapping runs, released after an error', async () => {
+  const busy = [];
+  const ex = createExclusive(b => busy.push(b));
+  let release;
+  const first = ex.run(() => new Promise(r => { release = r; }));
+  assert.equal(ex.busy(), true);
+  assert.equal(await ex.run(async () => 'second'), null); // skipped, not queued
+  release('first');
+  assert.equal(await first, 'first');
+  await assert.rejects(ex.run(async () => { throw new Error('boom'); }), /boom/);
+  assert.equal(ex.busy(), false);
+  assert.equal(await ex.run(async () => 'again'), 'again');
+  assert.deepEqual(busy, [true, false, true, false, true, false]);
 });
