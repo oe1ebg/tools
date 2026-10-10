@@ -147,21 +147,27 @@ recordIndex (0-based into records), field, value, offset, line, column }`.
 Input never makes it throw: when no field structure can be found the result
 holds one `UNRECOVERABLE_PARSE_ERROR`.
 
-**How it works.** A tolerant scanner reads tags. When the declared
-length fits in the file, it counts (ADIF 3.1.7 IV.A.1): the value is the
-declared number of characters, never split at tag-shaped text inside it,
+**How it works.** A tolerant scanner reads tags. A declared length that
+ends inside a tag (a tag starts inside the value and ends after it, e.g.
+a UTF-8 byte count: `<NAME:7>Jürgen<EOR>`) or runs past the end of the
+file is too long whatever the reading: the value is cut at the first tag
+inside it and the scan resyncs there (`FIELD_LENGTH_MISMATCH`, error,
+saying when it ran over `<EOR>`); `parseADIF` cuts the same way, so the
+editor and the validator agree on fields and QSOs. Otherwise the declared
+length counts (ADIF 3.1.7 IV.A.1): the value is the declared number of
+characters, never split at tags lying wholly inside it,
 and characters after it outside a field or `<EOR>` are ignored (IV.A.6,
 so `<NOTES:20>literal <EOR> insideignored annotation<EOR>` is valid).
 Suspicious boundaries are warnings that don't change how the file is
 read: tag-shaped text inside a value (`TAG_IN_VALUE`; `RECORD_END_IN_VALUE`
 for an `<EOR>`, which a too-long length swallowing a QSO end looks like),
-and text right after a value (`FIELD_LENGTH_MISMATCH` as a warning; with a
-hint when the value is non-ASCII, i.e. the length was probably counted in
-UTF-8 bytes). Only a length running past the end of the file is cut: at
-the tag inside it, and the scan resyncs there (`FIELD_LENGTH_MISMATCH`,
-error), or `TRUNCATED_FIELD`; a broken QSO is reported and the next ones
+and text after a value before the next tag, directly or after a blank
+(`FIELD_LENGTH_MISMATCH` as a warning, also next to `RECORD_END_IN_VALUE`;
+with a hint when the value is non-ASCII, i.e. the length was probably
+counted in UTF-8 bytes). A length past the end of the file without a tag
+inside is `TRUNCATED_FIELD`; a broken QSO is reported and the next ones
 are still read. Within a file, the first occurrence of an `APP_` field
-determines its type (IV.A.4): later values are checked against it, a
+determines its type (IV.A.4), also an empty one: later values are checked against it, a
 different type is `APP_FIELD_TYPE_INCONSISTENT`. Field and value checks are driven by
 `../shared/js/adif-spec-data.js`, generated from the official ADIF 3.1.7
 resources archive (`https://adif.org.uk/317/resources`, `exports/csv/`:
@@ -176,7 +182,7 @@ new ADIF version). Only the cross-field checks and heuristics are code.
 | `UNRECOVERABLE_PARSE_ERROR` | error | empty input or no field tag at all |
 | `MALFORMED_FIELD` | error | `<` without `>`, tag without length, bad length/type syntax |
 | `TRUNCATED_FIELD` | error | declared length runs past the end of the file |
-| `FIELD_LENGTH_MISMATCH` | error / warning | error: a length past the end of the file runs over a tag (cut there), or the length counted the line break of a one-line field; warning: text follows the value directly (read as declared, the text is ignored, IV.A.6; non-ASCII values: probably counted in bytes) |
+| `FIELD_LENGTH_MISMATCH` | error / warning | error: the length ends inside a tag or past the end of the file over a tag (cut there), or it counted the line break of a one-line field; warning: text follows the value before the next tag, directly or after a blank (read as declared, the text is ignored, IV.A.6; non-ASCII values: probably counted in bytes) |
 | `MISSING_EOH` / `DUPLICATE_EOH` | error | header text without `<EOH>`; a second `<EOH>` |
 | `MISSING_EOR` | error | fields after the last `<EOR>` (still read as a QSO) |
 | `MALFORMED_RECORD` | error | `<EOR>` inside the header |

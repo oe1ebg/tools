@@ -161,6 +161,54 @@ test('mergeFieldDefs: conflicting declarations from two files', () => {
   assert.deepEqual(r.issues.filter(i => i.severity === 'error').map(i => `${i.code} ${i.field} ${i.recordIndex}`), ['INVALID_NUMBER SWR 1']);
 });
 
+// The validator and the editor's parser must agree on where fields and
+// QSOs end, or the editor drops the per-record issues (validateFile).
+test('validator and parseADIFAuto agree on field and record boundaries', () => {
+  const B = s => new TextEncoder().encode(s).length;
+  const f = (n, v, len = v.length) => `<${n}:${len}>${v}`;
+  const H = 'h\n<ADIF_VER:5>3.1.7\n<EOH>\n';
+  const inputs = [
+    // char-counted, tricky but valid
+    H + f('CALL', 'OE1AB') + f('NOTES', 'literal <EOR> inside') + 'ignored annotation<EOR>\n',
+    H + f('CALL', 'OE1AB') + f('NOTES', 'a <CALL:4>OE1A b') + ' <EOR>\n' + f('CALL', 'OE3XY') + '<EOR>\n',
+    H + f('CALL', 'OE1AB') + f('COMMENT', '<EOH>') + '<EOR>',
+    // wrong lengths
+    H + f('CALL', 'OE1ABC', 9) + ' <EOR>' + f('CALL', 'OE3XYZ') + ' <EOR>\n',
+    H + f('COMMENT', 'hi', 12) + '<EOR>' + f('CALL', 'OE3XYZ') + '<EOR>\n',
+    H + f('CALL', 'OE1ABC', 5) + ' <EOR>\n',
+    H + f('NAME', 'Max', 3) + ' Mustermann<EOR>\n',
+    H + f('CALL', 'OE1ABC') + f('NOTES', 'abc', 50) + '<EOR>' + f('CALL', 'OE3XYZ') + '<EOR>',
+    // byte-counted UTF-8 lengths (many loggers)
+    H + f('NAME', 'Jürgen', B('Jürgen')) + f('QSO_DATE', '20261004') + '<EOR>\n',
+    H + f('NAME', 'Jürgen', B('Jürgen')) + '<EOR>' + f('NAME', 'Max') + '<EOR>\n',
+    H + f('QTH', 'Großenzersdorf Müllerstraße', B('Großenzersdorf Müllerstraße')) + ' ' + f('CALL', 'OE3ABC') + ' <EOR>\n' +
+      f('NAME', 'Jörg', B('Jörg')) + f('CALL', 'OE3XYZ') + '<EOR>\n',
+  ];
+  for (const text of inputs) {
+    const v = validateAdif(text, { today: '20991231' });
+    const p = parseADIFAuto(text, [], 'x');
+    assert.equal(v.records.length, p.length, `records: ${JSON.stringify(text)}`);
+    v.records.forEach((r, i) => {
+      assert.deepEqual(Object.keys(r.fields).sort(), Object.keys(p[i]).sort(), `fields of QSO ${i}: ${JSON.stringify(text)}`);
+      if (!/[^\x00-\x7f]/.test(text)) assert.deepEqual(r.fields, p[i], `values of QSO ${i}: ${JSON.stringify(text)}`);
+    });
+  }
+});
+
+test('APP_ type from the first occurrence, also an empty one: validator and export agree', () => {
+  const text = 'h\n<EOH>\n<CALL:5>OE1AB<APP_X_Y:0:N><EOR>\n<CALL:5>OE1AC<APP_X_Y:3>abc<EOR>\n';
+  const r = validateAdif(text, { today: '20991231' });
+  assert.ok(r.issues.some(i => i.code === 'APP_FIELD_TYPE_INCONSISTENT'), 'the N of the empty first occurrence counts');
+  assert.ok(r.issues.some(i => i.code === 'INVALID_NUMBER'), 'abc checked as N');
+  const defs = {};
+  const recs = parseADIF(text, [], 'x', undefined, undefined, defs);
+  assert.equal(defs.types.APP_X_Y, 'N');
+  const target = emptyFieldDefs();
+  mergeFieldDefs(target, defs, 'x');
+  const back = validateAdif(serializeADIF(recs, ['CALL', 'APP_X_Y'], STAMP, target), { today: '20991231' });
+  assert.ok(back.issues.some(i => i.code === 'INVALID_NUMBER'), 'the export check says the same');
+});
+
 // IV.A.4: an application-defined field without indicator is MultilineString,
 // and its first occurrence in a file determines its type.
 test('implicit APP_ types: conflicts across files in both orders, first occurrence within a file', () => {
