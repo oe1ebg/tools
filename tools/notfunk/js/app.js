@@ -95,6 +95,30 @@ function bookStatus(...content) {
 // Austrian local time ("14:53"; in the repeated hour "02:30 MESZ").
 function tick() {
   setText($('#clock-local'), viennaTime(nowIso()));
+  tickLive();
+}
+
+/* ---------------------------------------------------------------- "jetzt" */
+
+// Date and time fields that show the current time and run with the clock
+// (class "live") until someone types or picks a value, or, in the message
+// form, the message is begun. A live field means "now" when it is saved.
+function setLive(input, on) {
+  input.classList.toggle('live', on);
+  if (on) tickLive();
+}
+
+function isLive(input) {
+  return input.classList.contains('live');
+}
+
+function tickLive() {
+  const now = nowIso();
+  for (const input of document.querySelectorAll('input.live')) {
+    const v = input.classList.contains('dt-date') ? dateText(now) : clockText(now);
+    // no input event: the clock writing is no change by the operator
+    if (input.value !== v) input.value = v;
+  }
 }
 
 /* ---------------------------------------------------------------- downloads */
@@ -416,7 +440,7 @@ function setRadio(name, value) {
 function readForm() {
   const v = id => $(id).value;
   return {
-    direction: radioValue('m-dir'), date: v('#m-date'), time: v('#m-time'), zone: $('#m-zone').hidden ? '' : v('#m-zone'), channel: radioValue('m-channel'),
+    direction: radioValue('m-dir'), date: isLive($('#m-date')) ? '' : v('#m-date'), time: isLive($('#m-time')) ? '' : v('#m-time'), zone: $('#m-zone').hidden ? '' : v('#m-zone'), channel: radioValue('m-channel'),
     freq: v('#m-freq'), via: v('#m-via'), type: v('#m-type'), priority: radioValue('m-prio'),
     from: v('#m-from'), to: v('#m-to'), peer: v('#m-peer'), subject: v('#m-subject'), text: v('#m-text'), readBack: $('#m-readback').checked,
     stichzeit: v('#m-stichzeit'), distribution: v('#m-distribution'), remarks: v('#m-remarks'),
@@ -443,7 +467,12 @@ function writeForm(form) {
   setRadio('m-channel', f.channel);
   setRadio('m-prio', f.priority);
   const set = (id, val) => { $(id).value = val ?? ''; };
-  set('#m-date', f.date); set('#m-time', f.time); set('#m-freq', fmtFreq(f.freq)); set('#m-via', f.via); set('#m-type', f.type);
+  set('#m-date', f.date); set('#m-time', f.time);
+  // a new message without a time yet: date and time run with the clock
+  const live = !f.date && !f.time && !f.ts;
+  setLive($('#m-date'), live);
+  setLive($('#m-time'), live);
+  set('#m-freq', fmtFreq(f.freq)); set('#m-via', f.via); set('#m-type', f.type);
   set('#m-from', f.from); set('#m-to', f.to); set('#m-peer', f.peer); set('#m-subject', f.subject); set('#m-text', f.text);
   set('#m-stichzeit', f.stichzeit); set('#m-distribution', f.distribution); set('#m-remarks', f.remarks);
   set('#m-orig-station', f.origStation); set('#m-orig-filed', f.origFiled);
@@ -541,6 +570,21 @@ function showZone(zone) {
   sel.hidden = !need;
 }
 
+// Warnings at the fields they come from (like the errors, in the warning
+// colour), while the bar "Vor dem Speichern prüfen" is shown; hiding the
+// bar clears them (an observer, so every way of hiding it does).
+const WARN_INPUTS = { time: ['#m-date', '#m-time'], peer: ['#m-peer'] };
+
+function showFieldWarnings(warns = {}) {
+  for (const [k, sels] of Object.entries(WARN_INPUTS)) {
+    setText(document.querySelector(`#msg-form .fwarn[data-warn="${k}"]`), warns[k] || '');
+    for (const sel of sels) {
+      if (warns[k]) $(sel).dataset.warned = 'true';
+      else delete $(sel).dataset.warned;
+    }
+  }
+}
+
 // The message text grows with what is typed.
 function growText() {
   const t = $('#m-text');
@@ -569,13 +613,14 @@ function previewNumber() {
 }
 
 function onFormChange(ev) {
-  // The time is prefilled when a new message is begun (the first keystroke
-  // in any other field), with the date, and can be corrected.
+  // Date and time run with the clock until the message is begun (the
+  // first keystroke in any other field): then they stay at that moment,
+  // with the date, and can be corrected.
   const d = $('#m-date'), t = $('#m-time');
-  if (!state.editing && !d.value && !t.value && ev?.target && ev.target !== t && ev.target !== d && !formIsBlank(readForm(), state.op)) {
-    const now = nowIso();
-    d.value = dateText(now);
-    t.value = clockText(now);
+  if (isLive(t) && ev?.target && ev.target !== t && ev.target !== d && !formIsBlank(readForm(), state.op)) {
+    tickLive();
+    setLive(d, false);
+    setLive(t, false);
   }
   if (ev?.target?.id === 'm-text') growText();
   if (!$('#warn-bar').hidden) { $('#warn-bar').hidden = true; state.warned = ''; }
@@ -636,7 +681,7 @@ async function saveMessageNow(anyway) {
   const status = $('#form-status');
   const form = readForm();
   const now = nowIso();
-  const { fields, errors, fieldErrors, warnings } = check(form);
+  const { fields, errors, fieldErrors, warnings, fieldWarnings } = check(form);
   state.showErrors = true;
   showFieldErrors(fieldErrors);
   if (errors.length) {
@@ -655,6 +700,7 @@ async function saveMessageNow(anyway) {
     setText($('#warn-list'), warnings.join(' · '));
     $('#discard-bar').hidden = true;
     $('#warn-bar').hidden = false;
+    showFieldWarnings(fieldWarnings);
     status.textContent = '';
     return;
   }
@@ -801,11 +847,19 @@ function initForm() {
   $('#btn-discard-no').addEventListener('click', keepEditing);
   $('#btn-save-anyway').addEventListener('click', () => saveMessage({ anyway: true }));
   $('#btn-warn-back').addEventListener('click', () => { $('#warn-bar').hidden = true; state.warned = ''; $('#m-from').focus(); });
+  new MutationObserver(() => { if ($('#warn-bar').hidden) showFieldWarnings(); }).observe($('#warn-bar'), { attributes: true, attributeFilter: ['hidden'] });
   $('#btn-form-op').addEventListener('click', () => { $('#op-panel').open = true; $('#e-operator').focus(); });
 
   // Typed dates and times are shown in the one format on leaving the field
   // ("1405" -> "14:05", "20261008" -> "2026-10-08"); unreadable ones stay
   // as typed for the error at the field.
+  // A value typed or picked into a live field stops it running with the
+  // clock (in the message form, date and time together).
+  document.addEventListener('input', ev => {
+    const t = ev.target;
+    if (!(t instanceof HTMLInputElement) || !isLive(t)) return;
+    for (const input of t.closest('.dt-pair')?.querySelectorAll('input.live') || [t]) setLive(input, false);
+  }, true);
   document.addEventListener('focusout', ev => {
     const t = ev.target;
     if (!(t instanceof HTMLInputElement) || !t.matches('input.dt-date, input.dt-time')) return;
@@ -1032,7 +1086,7 @@ function inlineForm(fields, button, onSubmit) {
     }
     inputs[f.key] = el('input', { id, class: f.time ? 'mono dt-time' : f.mono ? 'mono' : null, inputmode: f.time ? 'numeric' : null, maxlength: f.time ? '5' : null, placeholder: f.time ? 'HH:MM' : f.placeholder || null, value: f.value || '', autocomplete: 'off' });
     const row = el('label', { class: 'field', for: id }, el('span', {}, f.label, f.time ? el('span', { class: 'dim' }, ' (leer = jetzt)') : null), inputs[f.key]);
-    if (f.time) attachTimePicker(inputs[f.key]);
+    if (f.time) { attachTimePicker(inputs[f.key]); setLive(inputs[f.key], true); }
     return row;
   });
   const form = el('form', { class: 'inline-form', autocomplete: 'off', novalidate: '' },
@@ -1041,7 +1095,8 @@ function inlineForm(fields, button, onSubmit) {
     el('div', { class: 'inline-foot' }, el('button', { type: 'submit' }, button), err));
   form.addEventListener('submit', async ev => {
     ev.preventDefault();
-    const values = Object.fromEntries(Object.entries(inputs).map(([k, i]) => [k, i.type === 'checkbox' ? i.checked : i.value.trim()]));
+    // a live time field (still running with the clock) means "now"
+    const values = Object.fromEntries(Object.entries(inputs).map(([k, i]) => [k, i.type === 'checkbox' ? i.checked : isLive(i) ? '' : i.value.trim()]));
     err.textContent = await onSubmit(values) || '';
   });
   return form;
@@ -1177,7 +1232,7 @@ function renderDetail(id) {
         ...(m.peer ? kv('Funkstelle', el('span', { class: 'mono' }, m.peer), el('span', { class: 'dim' }, m.direction === 'out' ? ' (empfangende Funkstation)' : ' (übermittelnde Funkstation)')) : []),
         ...(m.distribution.length ? kv('Verteiler', m.distribution.join(', ')) : []),
         ...kv('Übermittlung', [CHANNELS[m.channel], m.radio.freq && `${fmtFreq(m.radio.freq)} MHz`, m.radio.via && `via ${m.radio.via}`].filter(Boolean).join(' · ')),
-        ...(m.location ? kv('Ort / Einsatzstelle', describeLocation(m.location), ' ', mapLinks(m.location)) : []),
+        ...(m.location ? kv('Ort', describeLocation(m.location), ' ', mapLinks(m.location)) : []),
         ...(m.stichzeit ? kv('Stichzeit', fmtVienna(m.stichzeit)) : []),
         ...(m.origin.station || m.origin.place || m.origin.filed ? kv('Ursprung', [m.origin.station, m.origin.placeLoc ? describeLocation(m.origin.placeLoc) : m.origin.place, m.origin.filed && `aufgegeben ${fmtVienna(m.origin.filed)}`].filter(Boolean).join(' · ')) : []),
         ...(ref ? kv('Bezug', `${refKind} `, link(ref), ` ${ref.subject}`) : m.refNumber ? kv('Bezug', `${refKind} ${m.refNumber}`) : []),

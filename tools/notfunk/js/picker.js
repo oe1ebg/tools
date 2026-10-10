@@ -2,9 +2,11 @@
 // next to the field opens a small calendar (week from Monday) or a time
 // grid (hours 00–23, minutes in steps of 5). They write the one format of
 // the fields, YYYY-MM-DD and HH:MM (24 hours), never the browser's locale,
-// and work the same everywhere (also Safari 15.4, offline). Typing stays
-// the fast way: the buttons are no Tab stops. An empty field opens on
-// "now" (today, the current hour), and both have a "Jetzt" button.
+// and work the same everywhere (also Safari 15.4, offline). A click into
+// the field opens it too (focus stays in the field: typing goes on, ↓
+// moves into the dropdown, Esc closes); the buttons are no Tab stops. An
+// empty field opens on "now" (today, the current hour); both have
+// "Heute"/"Jetzt".
 //
 // pickerMonth() and shiftMonth() are pure (node-tested); the rest is DOM.
 
@@ -90,7 +92,11 @@ function attachPicker(input, kind, next) {
     // the one day that is a Tab stop: the focused, chosen or current day
     // of this month, else the 1st
     const target = [focus, chosen, today].find(d => d && d.startsWith(view)) || `${view}-01`;
-    const nav = (n, text, name) => el('button', { type: 'button', class: 'dt-nav', 'aria-label': name, onclick: () => { view = shiftMonth(view, n); focus = ''; renderDate(); } }, text);
+    const nav = (n, text, name) => el('button', { type: 'button', class: 'dt-nav', 'aria-label': name, onclick: () => {
+      view = shiftMonth(view, n); focus = ''; renderDate();
+      // the button was drawn anew: keep the focus inside, or focusout closes
+      pop.querySelector(`.dt-nav[aria-label="${name}"]`)?.focus();
+    } }, text);
     fill(pop,
       el('div', { class: 'dt-head' }, nav(-1, '‹', 'Voriger Monat'), el('b', { 'aria-live': 'polite' }, title), nav(1, '›', 'Nächster Monat')),
       el('div', { class: 'dt-grid dt-days', role: 'grid' },
@@ -123,16 +129,44 @@ function attachPicker(input, kind, next) {
       el('div', { class: 'dt-foot' }, el('button', { type: 'button', onclick: () => pick(now) }, 'Jetzt')));
   };
 
-  const open = () => {
+  // focusPop: from the button, focus goes into the dropdown; from a click
+  // into the field it stays there, so typing goes on
+  const open = (focusPop = true) => {
+    if (openPicker?.pop === pop) return;
     openPicker?.close();
     if (kind === 'date') { view = (normDate(input.value) || dateText(nowIso())).slice(0, 7); focus = ''; renderDate(); } else { view = ''; renderTime(); }
     pop.hidden = false;
     btn.setAttribute('aria-expanded', 'true');
     openPicker = { pop, close };
-    (pop.querySelector('.dt-day[tabindex="0"]') || pop.querySelector('.dt-hours .dt-cell.on') || pop.querySelector('button'))?.focus();
+    // on a narrow screen it moves left until it fits
+    pop.style.left = '';
+    const r = pop.getBoundingClientRect();
+    const over = r.right - (document.documentElement.clientWidth - 8);
+    if (over > 0) pop.style.left = `${-Math.min(over, r.left - 8)}px`;
+    if (focusPop) focusInPop();
+  };
+  const focusInPop = () => (pop.querySelector('.dt-day[tabindex="0"]') || pop.querySelector('.dt-hours .dt-cell.on') || pop.querySelector('button'))?.focus();
+  const rerender = () => {
+    if (kind === 'time') { view = ''; renderTime(); return; }
+    const d = normDate(input.value);
+    if (d) view = d.slice(0, 7);
+    renderDate();
   };
 
+  // a click in the dropdown doesn't move the focus (Safari doesn't focus
+  // buttons on click: the focus would drop to the page and close it)
+  pop.addEventListener('pointerdown', ev => ev.preventDefault());
   btn.addEventListener('click', () => (pop.hidden ? open() : close(true)));
+  input.addEventListener('click', () => open(false));
+  // the dropdown follows what is typed (or what the clock writes)
+  input.addEventListener('input', () => { if (!pop.hidden) rerender(); });
+  input.addEventListener('keydown', ev => {
+    if (pop.hidden) return;
+    if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); close(); }
+    else if (ev.key === 'ArrowDown') { ev.preventDefault(); focusInPop(); }
+  });
+  // leaving field and dropdown (Tab, a click elsewhere) closes it
+  wrap.addEventListener('focusout', () => setTimeout(() => { if (!wrap.contains(document.activeElement)) close(); }, 0));
   pop.addEventListener('keydown', ev => {
     if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); close(true); return; }
     const day = ev.target.closest?.('.dt-day');

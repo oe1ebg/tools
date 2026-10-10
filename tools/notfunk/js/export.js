@@ -33,7 +33,7 @@ export const GB_COLUMNS = [
   'Notfunk-Nr.', 'Referenz Meldesammelstelle', 'Datum', 'Uhrzeit', 'Zeitstempel (ISO 8601)', 'Ein/Aus', 'eingegangen von / weitergeleitet an', 'Betreff', 'Inhalt',
   'Art', 'Dringlichkeit', 'Übermittlung', 'Funkstelle', 'Frequenz/Relais', 'Absender', 'Adressat', 'Verteiler',
   'Rücklesen bestätigt', 'Status', 'Übergeben / übertragen an', 'Übergeben / übertragen um', 'Übernommen / Empfang bestätigt durch',
-  'Bezug', 'Ort / Einsatzstelle', 'Aufgenommen von', 'Erfasst', 'Anmerkungen',
+  'Bezug', 'Ort', 'Aufgenommen von', 'Erfasst', 'Anmerkungen',
 ];
 
 export function toGeschaeftsbuchCSV(msgs, sep = ';') {

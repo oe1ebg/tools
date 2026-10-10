@@ -176,20 +176,20 @@
         <div class="field time-field" role="group" aria-labelledby="m-time-label"><span id="m-time-label" class="req">Empfangen am</span>
           <div class="dt-pair">
             <span id="m-date-name" class="sr-only">Datum</span><span id="m-time-name" class="sr-only">Uhrzeit</span>
-            <input id="m-date" class="mono dt-date" inputmode="numeric" placeholder="JJJJ-MM-TT" maxlength="10" spellcheck="false" enterkeyhint="next" aria-labelledby="m-time-label m-date-name" aria-describedby="m-time-err" title="Datum als JJJJ-MM-TT (Ortszeit). Beim ersten Tastendruck vorbelegt; leer = heute">
-            <input id="m-time" class="mono dt-time" inputmode="numeric" placeholder="HH:MM" maxlength="5" spellcheck="false" enterkeyhint="next" aria-labelledby="m-time-label m-time-name" aria-describedby="m-time-err" title="Uhrzeit als HH:MM, 24 Stunden (Ortszeit). Beim ersten Tastendruck vorbelegt; Datum und Uhrzeit leer = Zeitpunkt des Speicherns">
+            <input id="m-date" class="mono dt-date" inputmode="numeric" placeholder="JJJJ-MM-TT" maxlength="10" spellcheck="false" enterkeyhint="next" aria-labelledby="m-time-label m-date-name" aria-describedby="m-time-err m-time-warn" title="Datum als JJJJ-MM-TT (Ortszeit). Zeigt jetzt, bis die Meldung begonnen wird; leer = heute">
+            <input id="m-time" class="mono dt-time" inputmode="numeric" placeholder="HH:MM" maxlength="5" spellcheck="false" enterkeyhint="next" aria-labelledby="m-time-label m-time-name" aria-describedby="m-time-err m-time-warn" title="Uhrzeit als HH:MM, 24 Stunden (Ortszeit). Zeigt jetzt, bis die Meldung begonnen wird; Datum und Uhrzeit leer = Zeitpunkt des Speicherns">
             <select id="m-zone" hidden aria-label="Uhrzeit in der Stunde der Zeitumstellung: erste (MESZ) oder zweite (MEZ)" title="Diese Uhrzeit gibt es wegen der Zeitumstellung zweimal: zuerst Sommerzeit (MESZ), eine Stunde später Winterzeit (MEZ)">
               <option value="MESZ">1. Mal (MESZ)</option><option value="MEZ">2. Mal (MEZ)</option></select>
           </div>
-          <span id="m-time-err" class="ferr" data-field="time"></span></div>
+          <span id="m-time-err" class="ferr" data-field="time"></span><span id="m-time-warn" class="fwarn" data-warn="time" aria-live="polite"></span></div>
         <div class="field channel-field"><span id="m-channel-label">Übermittlung</span>
           <div id="m-channel" class="radio-group" role="radiogroup" aria-labelledby="m-channel-label"></div></div>
       </div>
 
       <div class="row-flow radio-row radio-only" role="group" aria-label="Funkverbindung">
         <div class="field ac-field call-field"><label for="m-peer" id="m-peer-label">Funkstelle</label>
-          <div class="ac-wrap"><input id="m-peer" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-describedby="m-peer-info" title="Übermittelnde Funkstation (Eingang) bzw. empfangende Funkstation (Ausgang)"><div id="m-peer-pop" class="ac-pop"></div></div>
-          <div class="ac-hints"><div id="m-peer-info" class="ac-info" aria-live="polite"></div></div></div>
+          <div class="ac-wrap"><input id="m-peer" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-describedby="m-peer-warn m-peer-info" title="Übermittelnde Funkstation (Eingang) bzw. empfangende Funkstation (Ausgang)"><div id="m-peer-pop" class="ac-pop"></div></div>
+          <div class="ac-hints"><div id="m-peer-warn" class="fwarn" data-warn="peer" aria-live="polite"></div><div id="m-peer-info" class="ac-info" aria-live="polite"></div></div></div>
         <label class="field freq-field"><span>Frequenz MHz</span>
           <input id="m-freq" class="mono" inputmode="decimal" enterkeyhint="next" title="Komma oder Punkt, z. B. 145,500"></label>
         <div class="field ac-field call-field"><label for="m-via">Relais</label>
@@ -218,7 +218,7 @@
       <div class="grid-form msg-grid">
         <label class="field span-3"><span class="req">Betreff</span><input id="m-subject" enterkeyhint="next" aria-describedby="m-subject-err">
           <span id="m-subject-err" class="ferr" data-field="subject"></span></label>
-        <div class="field ac-field span-2"><label for="m-loc">Ort / Einsatzstelle</label>
+        <div class="field ac-field span-2"><label for="m-loc">Ort</label>
           <div class="ac-wrap"><input id="m-loc" enterkeyhint="next" spellcheck="false" aria-describedby="m-loc-info" title="Wo das gemeldete Ereignis ist: Adresse, Ort, Locator oder UTMREF"><div id="m-loc-pop" class="ac-pop"></div></div>
           <div class="ac-hints loc-hints"><div id="m-loc-info" class="ac-info" aria-live="polite"></div></div></div>
         <label class="field wide"><span class="req">Inhalt – wörtlich</span>
@@ -333,7 +333,7 @@
         <dl class="kb">
           <dt><kbd>Tab</kbd> / <kbd>Enter</kbd></dt><dd>nächstes Feld; <kbd>⇧</kbd>+<kbd>Tab</kbd> zurück. Im Inhalt macht <kbd>Enter</kbd> eine neue Zeile.</dd>
           <dt><kbd>1</kbd>–<kbd>7</kbd>, <kbd>←</kbd> <kbd>→</kbd></dt><dd>in Richtung, Übermittlung und Dringlichkeit: Ziffer wählt die n-te Möglichkeit, Pfeiltasten wechseln</dd>
-          <dt><kbd>↓</kbd> <kbd>↑</kbd>, <kbd>Enter</kbd></dt><dd>in Funkstelle, Relais, Ort / Einsatzstelle, Ursprungsstation und Ursprungsort: Vorschläge durchgehen, <kbd>Enter</kbd> übernimmt den markierten. Ohne Markierung übernimmt <kbd>Enter</kbd> nur einen Vorschlag, der das Getippte vervollständigt; sonst bleibt der getippte Text.</dd>
+          <dt><kbd>↓</kbd> <kbd>↑</kbd>, <kbd>Enter</kbd></dt><dd>in Funkstelle, Relais, Ort, Ursprungsstation und Ursprungsort: Vorschläge durchgehen, <kbd>Enter</kbd> übernimmt den markierten. Ohne Markierung übernimmt <kbd>Enter</kbd> nur einen Vorschlag, der das Getippte vervollständigt; sonst bleibt der getippte Text.</dd>
           <dt><kbd>Leertaste</kbd></dt><dd>Kästchen setzen oder löschen (Rücklesen)</dd>
           <dt><kbd>⇧</kbd>+<kbd>Enter</kbd>, <kbd>Strg</kbd>+<kbd>Enter</kbd></dt><dd>speichern, aus jedem Feld (am Mac auch <kbd>⌘</kbd>+<kbd>Enter</kbd>). Fehlt etwas, steht der Hinweis direkt am Feld. Gibt es nur Hinweise (z. B. Funkstelle fehlt), fragt das Formular nach; noch einmal <kbd>⇧</kbd>+<kbd>Enter</kbd> speichert trotzdem.</dd>
           <dt><kbd>Esc</kbd></dt><dd>schließt zuerst offene Vorschläge. Danach bei ausgefülltem Formular: fragt „Eingabe verwerfen?“; noch einmal <kbd>Esc</kbd> heißt weiter erfassen. Nach dem Verwerfen ist „Rückgängig“ möglich. In dieser Hilfe: schließt die Hilfe.</dd>
@@ -365,7 +365,7 @@
       <section id="h-where" aria-labelledby="h-where-t">
         <h3 id="h-where-t">Orte</h3>
         <dl class="kb">
-          <dt>Ort / Einsatzstelle</dt><dd>wo das gemeldete Ereignis ist. <span class="ex">Brünner Straße 68</span> <span class="ex">JN88EG</span> Ein Vorschlag ergänzt Postleitzahl und Locator; der Inhalt der Meldung bleibt unverändert.</dd>
+          <dt>Ort</dt><dd>wo das gemeldete Ereignis ist. <span class="ex">Brünner Straße 68</span> <span class="ex">JN88EG</span> Ein Vorschlag ergänzt Postleitzahl und Locator; der Inhalt der Meldung bleibt unverändert.</dd>
           <dt>Ursprungsort</dt><dd>wo die Meldung ursprünglich aufgegeben wurde; kann vom Ereignisort abweichen.</dd>
           <dt>Stationsstandort</dt><dd>wo die eigene Station steht: gehört zum Einsatz (Station), nicht zur Meldung.</dd>
         </dl>
@@ -373,7 +373,7 @@
       <section id="h-when" aria-labelledby="h-when-t">
         <h3 id="h-when-t">Zeiten</h3>
         <dl class="kb">
-          <dt>Empfangen am / Gesendet am</dt><dd>wann die Meldung übermittelt wurde, in Ortszeit: Datum als <span class="ex">2026-10-08</span>, Uhrzeit im 24-Stunden-Format als <span class="ex">14:05</span> (auch <span class="ex">20261008</span> und <span class="ex">1405</span>). 📅 und 🕒 neben den Feldern öffnen einen Kalender bzw. eine Uhrzeit-Auswahl. Beim ersten Tastendruck mit jetzt vorbelegt und korrigierbar. Bei Nachträgen vom Papier das tatsächliche Datum und die Uhrzeit eintragen. In der Nacht der Zeitumstellung im Oktober gibt es 02:00–02:59 zweimal: dann fragt das Formular, ob das 1. Mal (Sommerzeit) oder das 2. Mal (Winterzeit) gemeint ist.</dd>
+          <dt>Empfangen am / Gesendet am</dt><dd>wann die Meldung übermittelt wurde, in Ortszeit: Datum als <span class="ex">2026-10-08</span>, Uhrzeit im 24-Stunden-Format als <span class="ex">14:05</span> (auch <span class="ex">20261008</span> und <span class="ex">1405</span>). Ein Klick ins Feld (oder 📅 / 🕒) öffnet einen Kalender bzw. eine Uhrzeit-Auswahl. Datum und Uhrzeit zeigen von Anfang an jetzt und laufen mit der Uhr mit (grau), bis die Meldung begonnen wird; dann bleiben sie stehen und sind korrigierbar. Bei Nachträgen vom Papier das tatsächliche Datum und die Uhrzeit eintragen. In der Nacht der Zeitumstellung im Oktober gibt es 02:00–02:59 zweimal: dann fragt das Formular, ob das 1. Mal (Sommerzeit) oder das 2. Mal (Winterzeit) gemeint ist.</dd>
           <dt>Erfasst am</dt><dd>wann die Meldung hier gespeichert wurde; automatisch.</dd>
           <dt>Aufgabezeit</dt><dd>wann die Meldung bei der Ursprungsstation aufgegeben wurde; nur die Uhrzeit (die letzte vor der Meldung, nach Mitternacht also vom Vortag).</dd>
           <dt>Stichzeit</dt><dd>nur bei Lagemeldungen: auf welche Uhrzeit sich die Lage bezieht (wie die Aufgabezeit).</dd>
