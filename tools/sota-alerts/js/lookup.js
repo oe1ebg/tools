@@ -49,8 +49,12 @@ export function lazy(load, fallback){
 // fresh data, not whatever the last weekly build happened to have.
 // Entries with no coordinates or a failed lookup are simply absent from
 // the result — never guessed at.
+// `maxLive` (default unlimited) caps the number of live requests of this
+// call — a shared link passes one, so a crafted URL can't make the page
+// fetch a long list of summits; the entries over it are left out and
+// listed in the result's `overBudget` (keys, an array).
 export function createSummitResolver({ loadCache, saveCache, loadLookup, fetchSummit, now = Date.now, poolSize = FETCH_POOL_SIZE, ttlMs = SUMMIT_CACHE_TTL_MS }){
-  return async function resolveSummits(entries, force){
+  return async function resolveSummits(entries, force, { maxLive = Infinity } = {}){
     const cache = loadCache();
     const t = now();
     const result = new Map();
@@ -82,6 +86,9 @@ export function createSummitResolver({ loadCache, saveCache, loadLookup, fetchSu
       }
     }
 
+    result.overBudget = stillMissing.slice(maxLive).map(e => e.key);
+    stillMissing = stillMissing.slice(0, maxLive);
+
     let idx = 0;
     async function worker(){
       while (idx < stillMissing.length){
@@ -94,7 +101,8 @@ export function createSummitResolver({ loadCache, saveCache, loadLookup, fetchSu
             cacheChanged = true;
           }
         } catch (err) {
-          console.error(`summit lookup failed for ${e.key}:`, err);
+          // a warning, not an error: the page shows it too (checkMissingSummits)
+          console.warn(`summit lookup failed for ${e.key}:`, err);
         }
       }
     }
