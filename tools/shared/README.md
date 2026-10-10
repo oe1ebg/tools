@@ -19,7 +19,8 @@ browser loads.
 | `js/callbook.js` | Austrian callsign list: lookup, typo suggestions | confirm, notfunk |
 | `js/repeaters.js` | Austrian repeater search (callsign, site, frequency, locator, nearest) | confirm, notfunk |
 | `js/data.js` | `loadDataFile(name)`: `data/` files (fetched, or inlined in single-file bundles) | confirm, notfunk |
-| `js/storage.js` | IndexedDB storage with localStorage fallback; each tool passes its schema; `atomic()` read-modify-write in one transaction | confirm, notfunk |
+| `js/storage.js` | IndexedDB storage with localStorage fallback; each tool passes its schema; `atomic()` read-modify-write in one transaction, compare-and-set; contract below | confirm, notfunk |
+| `js/storageui.js` | the storage notices in the page banner: blocked open, connection taken over, moving fallback records into IndexedDB (UI) | confirm, notfunk |
 | `js/dom.js` | DOM helpers (`el`, `fill`, `popover`, …); the one module touching the DOM directly, besides the UI modules below | confirm, notfunk |
 | `js/time.js` | ids, "now", ISO UTC timestamps shown/typed in UTC or local time (the device's or a named zone via Intl, incl. the repeated/skipped hour at the DST change) | confirm, notfunk |
 | `js/locmeta.js` | where a resolved location came from and how it was named (`LOC_ORIGINS`, …) | confirm, notfunk |
@@ -56,6 +57,67 @@ Formats are documented in `../confirm/AGENTS.md`. Load them with
 scripts collect those literals to precache and inline exactly the files the
 tool uses. `data.js` fetches `../shared/data/<name>`, relative to the page,
 so it works for every tool published at `/tools/<tool>/`.
+
+## Storage contract (`js/storage.js`)
+
+`openToolStorage(schema, hooks)` resolves to a backend with `kind`
+`'indexeddb'` or `'localstorage'`, or `null` when neither works. Same API
+on both: `getAll`, `getByEvent`, `get`, `tx(ops)`, `atomic(stores, fn)`.
+
+| | IndexedDB | localStorage fallback |
+| --- | --- | --- |
+| `tx()` batch | one `readwrite` transaction, `durability: 'strict'`; resolves after commit | all-or-nothing via an undo journal (below); resolves after the last `setItem` |
+| a failing write (record without its key, quota, …) | transaction aborted, **no change**, rejects with the original error (e.g. `DataError`, not `AbortError`) | checked before writing / old values restored, **no change**, rejects with the original error (`DataError`, `QuotaExceededError`) |
+| writers in several tabs | serialised by IndexedDB | serialised by Web Locks (lock `<lsPrefix>write`, e.g. `oe1ebg-notfunk:v1:write`); **without Web Locks only within one page** (`crossTabLock: false`) |
+| `atomic()` | one transaction; only await the `get`/`getByEvent`/`getUnchanged` it hands in | runs under the write lock; puts are buffered and written as one batch if `fn` succeeds |
+| readers | isolated (snapshot per transaction) | not isolated: a reader in another tab can see a batch half-applied |
+| tab dies mid-write | nothing committed | the journal is rolled back on the next open and before the next write |
+| capacity | large, can be made persistent (`requestPersistence()`) | ~5 MB per origin; the journal needs room for the old values of a batch |
+
+**Undo journal** (fallback): a batch first stores the old value of every key
+it touches in `<lsPrefix>#journal` (one `setItem`), then writes, then
+removes the journal. A batch that fails is rolled back at once; a journal
+left by a tab that died is rolled back (not replayed: the caller never got
+"saved", and rolling back needs no extra room). With Web Locks a journal
+found under the lock is always orphaned; without them only one older than a
+minute is touched, as it may belong to another tab mid-batch.
+
+**Compare-and-set:** inside `atomic()`, `getUnchanged(store, key,
+expectedUpdated)` returns the stored record or throws a `ConflictError`
+(exported; `store`, `key`, `expected`, `actual`, `current`) when its
+`updated` is no longer the one the caller read; `undefined` means "must
+not exist yet", `null` matches a record without `updated`. The throw
+aborts the whole call: nothing is written. `assertUnchanged(store, key,
+record, expectedUpdated)` is the same check for a record already read.
+
+**Opening** (`hooks`, all optional):
+- `onBlocked({ oldVersion, newVersion })`: another tab still holds an
+  older version open. The open **waits** (no switch to localStorage) and
+  goes on by itself once that tab closes or reloads; the app tells the user.
+- `onClosed({ reason })`: `'versionchange'` (a newer version in another tab
+  wants to upgrade; this connection closes so it isn't blocked) or
+  `'closed'` (the browser closed it). Every later call rejects with a
+  `StorageClosedError`; the page must reload.
+- `openTimeout` (default 10 s; 0 = wait forever): no answer at all from
+  `indexedDB.open()` (not even "blocked") counts as unavailable and the
+  fallback is used, with the reason in `fallbackReason`. A success that
+  arrives later is closed at once (no leaked connection).
+- A real error (IndexedDB refused, e.g. some `file://` setups) uses the
+  fallback, with the reason in `fallbackReason`.
+
+**Fallback records after a switch back to IndexedDB:** `fallbackData()`
+reports what a session without IndexedDB left under the tool's prefix
+(`{ total, stores: { name: count }, journal }` or `null`), `readFallback(store)`
+returns those records (e.g. to export them), and `migrateFallback()` copies
+them into IndexedDB, only on request: under the fallback's write lock and
+in one IndexedDB transaction; a record IndexedDB lacks is copied, an equal
+one counted as identical, a different one goes to the schema's optional
+`merge(store, current, incoming)` (Notfunk: counters keep the higher
+number) and otherwise is **kept**: IndexedDB is not overwritten and the
+record stays in localStorage, listed in `kept`. Only after the commit are
+the copied, merged and identical records removed from localStorage.
+Result: `{ copied, merged, identical, kept: [{ store, key, reason }] }`.
+`storageui.js` offers it in the banner.
 
 ## Move to /tools/ (October 2026)
 

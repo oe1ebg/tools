@@ -20,7 +20,8 @@ export const NOTFUNK_STORES = {
   stations: { keyPath: 'id', byEvent: true },
 };
 
-export function openNotfunkStorage() {
+// hooks: see openToolStorage() (onBlocked, onClosed).
+export function openNotfunkStorage(hooks) {
   return openToolStorage({
     name: 'oe1ebg-notfunk',
     version: 1,
@@ -30,5 +31,12 @@ export function openNotfunkStorage() {
     upgrade(oldVersion, create) {
       if (oldVersion < 1) Object.keys(NOTFUNK_STORES).forEach(create);
     },
-  });
+    // Moving localStorage fallback records into IndexedDB: a counter that
+    // differs keeps the higher number (numbers are never handed out twice);
+    // anything else that differs stays in the fallback and is reported.
+    merge(store, current, incoming) {
+      if (store !== 'counters') return undefined;
+      return { ...current, last: Math.max(current.last || 0, incoming.last || 0) };
+    },
+  }, hooks);
 }
