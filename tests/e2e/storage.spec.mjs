@@ -143,7 +143,7 @@ test('fallback records are found and moved into IndexedDB without overwriting an
       { store: 'counters', put: { id: 'e:W1', eventId: 'e', last: 3 } },
     ]);
     put('messages', { id: 'new', eventId: 'e', text: 'only in ls' });
-    put('messages', { id: 'same', eventId: 'e', text: 'x' });
+    put('messages', { text: 'x', eventId: 'e', id: 'same' }); // other key order: still identical
     put('messages', { id: 'both', eventId: 'e', text: 'ls', updated: '1' });
     put('counters', { id: 'e:W1', eventId: 'e', last: 5 });
     localStorage.setItem(`${p}probe`, 'not a record');
@@ -158,13 +158,58 @@ test('fallback records are found and moved into IndexedDB without overwriting an
       counter: (await s.get('counters', 'e:W1')).last,
       left: Object.keys(localStorage).filter(k => k.startsWith(p)).sort(),
       again: await s.fallbackData(),
+      dismissed: await s.dismissConflicts().then(() => s.fallbackData()),
     };
   });
-  expect(r.found).toEqual({ total: 4, stores: { messages: 3, counters: 1 }, journal: false });
+  expect(r.found).toEqual({
+    total: 4, pending: 3, conflicts: 1, unreadable: 0, conflictsSeen: false, stores: { messages: 3, counters: 1 }, journal: false,
+  });
   expect(r.lsBoth).toBe('ls');
   expect(r.res).toEqual({ copied: 1, merged: 1, identical: 1, kept: [{ store: 'messages', key: 'both', reason: 'conflict' }] });
   expect(r.idb).toEqual({ same: 'x', both: 'idb', new: 'only in ls' });
   expect(r.counter).toBe(5);
   expect(r.left).toEqual(['st-move:v1:messages:both', 'st-move:v1:probe']);
-  expect(r.again).toEqual({ total: 1, stores: { messages: 1 }, journal: false });
+  // what stays is not offered again as pending, and can be dismissed
+  expect(r.again).toEqual({
+    total: 1, pending: 0, conflicts: 1, unreadable: 0, conflictsSeen: false, stores: { messages: 1 }, journal: false,
+  });
+  expect(r.dismissed.conflictsSeen).toBe(true);
+});
+
+// In the app: the notices use their own box, the page's error banner keeps
+// its classes (red, not printed); an offer that was taken doesn't come back,
+// kept records are shown apart until dismissed.
+test('Notfunk: fallback notices leave the error banner alone and resolve', async ({ page }) => {
+  await page.goto('tools/notfunk/');
+  await expect.poll(() => page.evaluate(() => globalThis.NOTFUNK_READY === true)).toBe(true);
+  const note = page.locator('.storage-note');
+  await expect(note).toHaveCount(0);
+  await page.evaluate(() => {
+    const p = 'oe1ebg-notfunk:v1:';
+    localStorage.setItem(`${p}operations:op-ls`, JSON.stringify({ id: 'op-ls', name: 'Aus dem Ersatzspeicher', prefix: 'W9', created: '2026-10-01T10:00:00Z', updated: '2026-10-01T10:00:00Z', archived: false, deleted: null }));
+  });
+  await page.reload();
+  await expect(note).toContainText('1 Datensätze');
+  await expect(note).toHaveClass(/no-print/);
+  await expect(page.locator('#banner')).toHaveClass('banner err no-print');
+  await note.getByRole('button', { name: 'In IndexedDB übernehmen' }).click();
+  await expect(note).toContainText('1 Datensätze aus dem Ersatzspeicher übernommen');
+  await expect(page.locator('#banner')).toHaveClass('banner err no-print');
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => globalThis.NOTFUNK_READY === true)).toBe(true);
+  await expect(note).toHaveCount(0);
+  // a record that differs from IndexedDB's stays and is shown apart
+  await page.evaluate(() => {
+    localStorage.setItem('oe1ebg-notfunk:v1:operations:op-ls', JSON.stringify({ id: 'op-ls', name: 'anders', updated: '2026-10-02T10:00:00Z' }));
+  });
+  await page.reload();
+  await expect(note).toContainText('weichen von den gespeicherten ab');
+  await expect(note.getByRole('button', { name: 'In IndexedDB übernehmen' })).toHaveCount(0);
+  await note.getByRole('button', { name: 'Ausblenden' }).click();
+  await expect(note).toBeHidden();
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => globalThis.NOTFUNK_READY === true)).toBe(true);
+  await expect(note).toHaveCount(0);
+  expect(await page.evaluate(() => localStorage.getItem('oe1ebg-notfunk:v1:operations:op-ls'))).toContain('anders');
+  await expect(page.locator('#banner')).toHaveClass('banner err no-print');
 });

@@ -20,7 +20,7 @@ browser loads.
 | `js/repeaters.js` | Austrian repeater search (callsign, site, frequency, locator, nearest) | confirm, notfunk |
 | `js/data.js` | `loadDataFile(name)`: `data/` files (fetched, or inlined in single-file bundles) | confirm, notfunk |
 | `js/storage.js` | IndexedDB storage with localStorage fallback; each tool passes its schema; `atomic()` read-modify-write in one transaction, compare-and-set; contract below | confirm, notfunk |
-| `js/storageui.js` | the storage notices in the page banner: blocked open, connection taken over, moving fallback records into IndexedDB (UI) | confirm, notfunk |
+| `js/storageui.js` | the storage notices in their own box after the page banner: blocked open, connection taken over, moving fallback records into IndexedDB (UI) | confirm, notfunk |
 | `js/dom.js` | DOM helpers (`el`, `fill`, `popover`, …); the one module touching the DOM directly, besides the UI modules below | confirm, notfunk |
 | `js/time.js` | ids, "now", ISO UTC timestamps shown/typed in UTC or local time (the device's or a named zone via Intl, incl. the repeated/skipped hour at the DST change) | confirm, notfunk |
 | `js/locmeta.js` | where a resolved location came from and how it was named (`LOC_ORIGINS`, …) | confirm, notfunk |
@@ -79,8 +79,12 @@ it touches in `<lsPrefix>#journal` (one `setItem`), then writes, then
 removes the journal. A batch that fails is rolled back at once; a journal
 left by a tab that died is rolled back (not replayed: the caller never got
 "saved", and rolling back needs no extra room). With Web Locks a journal
-found under the lock is always orphaned; without them only one older than a
-minute is touched, as it may belong to another tab mid-batch.
+found under the lock is always orphaned. A journal is **never
+overwritten**: without Web Locks one written by this page (a rollback that
+failed) or older than a minute is rolled back first; a younger one of
+another tab may still be live, so the write is refused with a
+`StorageBusyError` (exported; try again) and `recovery` on open is
+`{ pending: true }`.
 
 **Compare-and-set:** inside `atomic()`, `getUnchanged(store, key,
 expectedUpdated)` returns the stored record or throws a `ConflictError`
@@ -107,17 +111,23 @@ record, expectedUpdated)` is the same check for a record already read.
 
 **Fallback records after a switch back to IndexedDB:** `fallbackData()`
 reports what a session without IndexedDB left under the tool's prefix
-(`{ total, stores: { name: count }, journal }` or `null`), `readFallback(store)`
-returns those records (e.g. to export them), and `migrateFallback()` copies
-them into IndexedDB, only on request: under the fallback's write lock and
-in one IndexedDB transaction; a record IndexedDB lacks is copied, an equal
-one counted as identical, a different one goes to the schema's optional
+(`{ total, pending, conflicts, unreadable, conflictsSeen, stores: { name:
+count }, journal }` or `null`; `pending` is what a migration would resolve,
+`conflicts` what it would keep), `readFallback(store)` returns those
+records (e.g. to export them), `dismissConflicts()` marks the current
+conflicting records as seen (`conflictsSeen`; nothing is deleted), and
+`migrateFallback()` copies them into IndexedDB, only on request: under the
+fallback's write lock and in one IndexedDB transaction; a record IndexedDB
+lacks is copied, a structurally equal one (key order doesn't matter)
+counted as identical, a different one goes to the schema's optional
 `merge(store, current, incoming)` (Notfunk: counters keep the higher
 number) and otherwise is **kept**: IndexedDB is not overwritten and the
 record stays in localStorage, listed in `kept`. Only after the commit are
 the copied, merged and identical records removed from localStorage.
 Result: `{ copied, merged, identical, kept: [{ store, key, reason }] }`.
-`storageui.js` offers it in the banner.
+`storageui.js` offers it in its own box after the page's banner
+(`.storage-note`; the banner's own classes stay untouched), and shows kept
+records apart with "Als JSON sichern" and "Ausblenden".
 
 ## Move to /tools/ (October 2026)
 
