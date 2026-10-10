@@ -74,24 +74,32 @@ now redirected; see "Move to /tools/" in `../shared/README.md`), and the source 
   update activates for every open tab and window of the tool at once and
   deletes the old cache, so all of them reload, not only the one where
   Update was clicked (each saves its draft and header first).
-- **App identity.** `manifest.webmanifest` deliberately has no `id`: a
-  relative `id` is resolved against the *origin* of `start_url`, not the
+- **App identity** (#28). `manifest.webmanifest` deliberately has no `id`.
+  A relative `id` is resolved against the *origin* of `start_url`, not the
   manifest's directory, so `"id": "./"` gave Confirm and Notfunk the same
-  identity (`https://host/`) on one origin (#28). Without `id` the browser
-  uses the resolved `start_url` (`https://host/<prefix>/tools/confirm/`),
-  distinct per tool and following any URL prefix, with no host or path
-  hard-coded. `tests/e2e/pwa-identity.spec.mjs` checks the browser-resolved
-  `id`, `start_url`, `scope` and installability under several prefixes.
-  Chromium 156 logs no console error or installability error for the
-  missing `id`. Existing installs (identity `https://host/`):
-  the new manifest only becomes visible after the service worker update
-  (manifests are precached); the browser may then treat the app as new (a
-  second entry next to the old one, which the user removes) or as an update,
-  depending on the browser. The logbook is not affected either way: it lives
-  in the origin's IndexedDB/localStorage, which does not depend on the app
-  identity (verified in Chromium: a log created under the old manifest was
-  still there after the update). Other browsers may not offer an install
-  prompt regardless of this; engagement and already-installed state decide.
+  identity (`https://host/`) on one origin; Chrome/Edge treat one identity as
+  one app, so only one of the two could be installed (the second install
+  would open or replace the first). Without `id` the identity is the resolved
+  `start_url` (`https://host/<prefix>/tools/confirm/`): distinct per tool,
+  following any URL prefix, nothing hard-coded. Trade-off: MDN recommends an
+  explicit `id`, but any explicit origin-relative one (`/tools/confirm/`)
+  would hard-code the prefix and break the self-contained-bundle rule. So
+  **`start_url` must stay `"./"`: changing it silently changes the app
+  identity** (pinned in `tests/pwa-manifest.test.mjs`).
+  `tests/e2e/pwa-identity.spec.mjs` checks the browser-resolved `id`,
+  `start_url`, `scope` and installability errors under several prefixes
+  (Chromium only; no install flow, `PWA.install` is unavailable headless).
+  *Existing installs* (identity `https://host/`): manifests are precached, so
+  the new one is seen only after the service worker update. An installed app
+  may then keep its old stored identity (browsers do not necessarily update
+  it from a changed manifest) or the browser may offer a separate install;
+  this differs by browser and is **not verified**, only Chromium was checked
+  and only the resolved values. The logbook does not depend on it: storage
+  (IndexedDB/localStorage) is keyed by origin, not by app identity. Checked
+  once in a Chromium persistent profile: data created under the old manifest
+  was still there after swapping the manifest and applying the service
+  worker update. If a duplicate or stale app shows up, remove the old one
+  and install again; the data stays in the browser's site storage.
 - **Version in the footer.** It reads `commit abc1234 · data 1a2b3c4d5e6f`.
   The commit is the git short SHA the build came from, linked to the commit
   on GitHub (no link for local `dev` builds). CI passes it as the Docker

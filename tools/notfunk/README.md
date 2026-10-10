@@ -183,10 +183,7 @@ name, and a distribution list ("Verteiler").
 
 ## App identity
 
-- **App identity.** `manifest.webmanifest` has no `id` on purpose (the
-  identity is the resolved `start_url`, distinct from the confirmation log's
-  on the same origin); rationale, existing installs and test in
-  `../confirm/README.md`, "App identity" (#28).
+The manifest has no `id` on purpose; see `../confirm/README.md`, "App identity" (#28).
 
 ## Code
 
