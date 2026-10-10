@@ -288,7 +288,10 @@ Zeitraum (Von/Bis je Datum und Uhrzeit; nur ein Datum = der ganze Tag).
   Notfunk-Nr., Referenz Meldesammelstelle, Datum, Uhrzeit (Ortszeit),
   Zeitstempel (ISO 8601 mit Zeitzone, z. B. `2026-10-08T14:05:00+02:00`, für
   Programme), Ein/Aus, Betreff, Inhalt, Dringlichkeit, Funkstelle, Status,
-  Übergabe, Bezug.
+  Übergabe, Bezug. Werte, die mit `=`, `+`, `-` oder `@` beginnen, bekommen
+  ein `'` vorangestellt, damit Excel sie nicht als Formel ausführt (Zahlen
+  wie `-10` bleiben unverändert); die Meldung nach dem Herunterladen sagt,
+  wie viele. Die Sicherung (JSON) enthält die Werte unverändert.
 - **Sicherung (JSON):** der ganze Einsatz mit gelöschten Meldungen und allen
   Fassungen. Auf der Startseite mit „Sicherung importieren…“ wieder
   einspielen, auch auf einem anderen Gerät. Bücher mehrerer Geräte lassen

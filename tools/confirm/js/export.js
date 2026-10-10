@@ -28,6 +28,7 @@ import { adifAscii, adifAsciiField } from '../../shared/js/adif.js';
 import { isValidLocator, formatLocator } from '../../shared/js/maidenhead.js';
 import { formatMHz } from '../../shared/js/repeaters.js';
 import { utmFields, mgrsDigitsForSize, latLonToMgrs } from '../../shared/js/utm.js';
+import { csvSafeRows } from '../../shared/js/csv.js';
 
 export const ADIF_PROGRAM_ID = 'OE1EBG';
 // No registered MIME type for ADIF; text/plain makes Safari save ".adi.txt".
@@ -104,11 +105,6 @@ export function excelUtc(iso) {
   return date ? `${date} ${time}` : '';
 }
 
-function csvCell(val, sep) {
-  const s = val === undefined || val === null ? '' : String(val);
-  return s.includes(sep) || /["\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
-}
-
 function fmtMHz(v) {
   return v === null || v === undefined ? '' : String(Math.round(v * 1e6) / 1e6);
 }
@@ -164,6 +160,7 @@ function commentRow(event, e, opts) {
 
 // opts.comments: include operator comments (default: no, one row per check-in).
 // opts.qth(text): the resolved header QTH (see the top of this file).
+// opts.stats (optional object): .guarded = number of cells made formula-safe.
 export function toCSV(event, entries, sep = ';', opts = {}) {
   const withComments = !!opts.comments;
   let rows = exportRows(event, entries, opts);
@@ -180,10 +177,11 @@ export function toCSV(event, entries, sep = ';', opts = {}) {
     'freq_mhz', 'freq_rx_mhz', 'band', 'mode', 'signalisierung', 'my_locator',
     'my_utm', 'my_utm_zone', 'my_utm_easting', 'my_utm_northing', 'log',
   ];
-  const lines = [cols.join(sep)];
-  for (const r of rows) lines.push(cols.map(c => csvCell(r[c], sep)).join(sep));
+  // Spreadsheet-safe cells (../../shared/js/csv.js): text starting like a
+  // formula gets a leading ', counted in opts.stats.guarded.
+  const csv = csvSafeRows([cols, ...rows.map(r => cols.map(c => r[c]))], sep, opts.stats);
   // BOM so Excel opens UTF-8 (umlauts) correctly.
-  return '﻿' + lines.join('\r\n') + '\r\n';
+  return '﻿' + csv + '\r\n';
 }
 
 // Where a template's fields end up in the ADIF export, for the template
