@@ -51,17 +51,19 @@ angekommen ist und noch irgendwo liegt, kann es nicht wissen; siehe
 [Gespeichert, Entwurf und Sicherung](#gespeichert-entwurf-und-sicherung).
 
 **Neue Version.** Erscheint „Update verfügbar“, ist eine neue Version
-geladen. Sie wird erst nach einem Klick darauf aktiv, nie von selbst mitten
-im Betrieb. Gespeicherte Meldungen und die vergebenen Nummern bleiben
-unverändert. Vor dem Neuladen versucht das Meldebuch, den halb ausgefüllten
-Entwurf zu sichern, und holt ihn danach zurück. Das geschieht nur, wenn kein
-Entwurfs-Hinweis (siehe unten) oder Fehler angezeigt wird; sonst läuft das
-Neuladen trotzdem, und der Text sollte vorher kopiert werden. Ein Entwurf
-ist keine gespeicherte Meldung. Vor
-dem Update eine laufende Meldung speichern, wenn sie fertig ist, und im
-Einsatz lieber erst nach einer ruhigen Phase aktualisieren. Das Update gilt
-für alle offenen Tabs und Fenster gleichzeitig.
-
+geladen. Sie wird erst nach einem Klick darauf aktiv, nicht von selbst. Der
+Klick lädt aber **alle** offenen Tabs und Fenster des Meldebuchs neu und kann
+dort laufende Eingaben unterbrechen; einen Aufschub je Tab gibt es nicht.
+Gespeicherte Meldungen und die vergebenen Nummern bleiben unverändert. Beim
+Neuladen versucht das Meldebuch, den halb ausgefüllten Entwurf zu sichern und
+holt ihn danach zurück. Das kann scheitern (zum Beispiel bei vollem Speicher
+oder wenn ein Entwurfs-Hinweis, siehe unten, angezeigt wird), und das
+Neuladen läuft dann trotzdem weiter. **Deshalb vor jedem Update, in jedem
+offenen Tab:** fertige Meldungen speichern und unfertige Eingaben außerhalb
+des Meldebuchs kopieren, auch wenn kein Fehler angezeigt wird. Ein Entwurf
+ist keine gespeicherte Meldung, und die Sicherung (JSON) enthält keine
+unfertigen Eingaben. Im Einsatz lieber erst nach einer ruhigen Phase
+aktualisieren.
 
 ## Einen Einsatz anlegen
 

@@ -34,12 +34,20 @@ mv oe1ebg-tools-vX.Y.Z /srv/www/tools        # any directory / URL prefix
 `SHA256SUMS` let you check that the tarball you downloaded is the one that
 was attached to the release (an interrupted or altered download fails). The
 release workflow also creates a build provenance attestation for the
-tarball (`actions/attest-build-provenance`), which ties it to the workflow
-run that built it; with the GitHub CLI: `gh attestation verify
-oe1ebg-tools-vX.Y.Z.tar.gz --repo oe1ebg/tools`. A checksum fetched from
-the same place as the tarball does not protect against that place being
-compromised; the attestation (or a checksum you obtained another way, for
-example by pinning it in your own build as oe1ebg.at does) does. Neither
+tarball (`actions/attest-build-provenance`). `gh attestation verify
+oe1ebg-tools-vX.Y.Z.tar.gz --repo oe1ebg/tools` checks that the tarball has
+a signed attestation linked to that repository. That protects against a
+substituted artifact, as long as the signer and the trust chain (the
+repository, its workflows, GitHub) stay trusted; it does not protect against
+a compromised repository or workflow, and by itself it does not enforce
+that the build came from the intended release tag or workflow. For a tighter
+policy add `--signer-workflow oe1ebg/tools/.github/workflows/release.yml`
+and `--source-ref refs/tags/vX.Y.Z` (see the
+[`gh attestation verify`](https://cli.github.com/manual/gh_attestation_verify)
+manual). A checksum fetched from the same place as the tarball does not
+protect against that place being compromised; one you pinned independently
+(for example in your own build, as oe1ebg.at does) only protects against
+changes from those pinned bytes, not against a bad release you pinned. Neither
 says anything about the code itself, and nothing in the bundle checks files
 again after they are installed (see *Why it matters* below).
 
@@ -122,6 +130,17 @@ in a cache with the new version's name until the next release. The same
 can happen to the pages without a service worker in a browser that loads
 them in that moment. This is a deployment hazard, not something observed
 on oe1ebg.at.
+
+**Scope of the atomic switch.** It protects against incomplete uploads and
+partially populated directories: at every moment the server answers from one
+complete release. It does not make a browser's multi-file load atomic. The
+URLs are the same in every release, so a page or service worker can fetch
+`precache.js` or HTML just before the switch and modules or data just after
+it (and the other way round); the service worker caches what it gets without
+digest checks or a pinned release URL. That residual race is short, but it
+exists, so do not read the switch as "one coherent release in every client".
+Avoid switching during a net or exercise, and check the footer version
+after an update.
 
 **Assessment: asset verification (limitation).** The bundle does not verify
 its own files at runtime. Files are not content-hashed in their names, the
