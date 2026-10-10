@@ -51,10 +51,10 @@ export async function openStorageWithNotices(open, anchor) {
   return store;
 }
 
-// The fallback records as a JSON download (nothing is deleted).
-async function downloadFallback(store, stores) {
-  const data = {};
-  for (const name of stores) data[name] = await store.readFallback(name);
+// Everything in the fallback as a JSON download, entries that aren't JSON
+// with their key and stored text (nothing is deleted).
+async function downloadFallback(store) {
+  const data = await store.exportFallback();
   const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8' }));
   const a = el('a', { href: url, download: `ersatzspeicher-${new Date().toISOString().slice(0, 10)}.json` });
   document.body.append(a);
@@ -63,11 +63,15 @@ async function downloadFallback(store, stores) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+const storageErrorText = e => String(e && (e.message || e.name) || e);
+
 function keptNotice(store, anchor, found) {
-  const n = found.conflicts + found.unreadable;
   showStorageNote(anchor, 'warn',
-    `${n} Datensätze im Ersatzspeicher (localStorage) weichen von den gespeicherten ab und wurden nicht übernommen; sie bleiben dort erhalten.`,
-    el('button', { type: 'button', onclick: () => downloadFallback(store, Object.keys(found.stores)) }, 'Als JSON sichern'),
+    found.conflicts ? `${found.conflicts} Datensätze im Ersatzspeicher (localStorage) weichen von den gespeicherten ab` : '',
+    found.conflicts && found.unreadable ? ', ' : '',
+    found.unreadable ? `${found.unreadable} Einträge im Ersatzspeicher sind nicht lesbar` : '',
+    '; sie wurden nicht übernommen und bleiben dort erhalten.',
+    el('button', { type: 'button', onclick: () => downloadFallback(store).catch(e => console.error(e)) }, 'Als JSON sichern'),
     el('button', {
       type: 'button',
       onclick: async () => {
@@ -80,7 +84,8 @@ function keptNotice(store, anchor, found) {
 // IndexedDB is in use, but the localStorage fallback still holds records:
 // offer to copy them over (store.migrateFallback(); nothing in IndexedDB
 // is overwritten, what can't be copied stays in the fallback). Records it
-// can't take are shown apart, with a download, until dismissed.
+// can't take (conflicting, unreadable) are shown apart, with a download,
+// until dismissed.
 export async function offerFallbackMigration(store, anchor) {
   let found = null;
   try {
@@ -90,10 +95,13 @@ export async function offerFallbackMigration(store, anchor) {
   }
   if (!found) return;
   if (!found.pending) {
-    if (found.conflicts && !found.conflictsSeen) keptNotice(store, anchor, found);
+    if (found.conflicts + found.unreadable > 0 && !found.conflictsSeen) keptNotice(store, anchor, found);
     return;
   }
-  const run = async ev => {
+  const offer = (...before) => showStorageNote(anchor, before.length ? 'err' : 'warn', ...before,
+    `Im Ersatzspeicher (localStorage) liegen noch ${found.pending} Datensätze aus einer Sitzung ohne IndexedDB; sie werden hier nicht angezeigt.`,
+    el('button', { type: 'button', onclick: run }, before.length ? 'Nochmals versuchen' : 'In IndexedDB übernehmen'));
+  async function run(ev) {
     ev.currentTarget.disabled = true;
     try {
       const r = await store.migrateFallback();
@@ -101,15 +109,12 @@ export async function offerFallbackMigration(store, anchor) {
       showStorageNote(anchor, r.kept.length ? 'warn' : 'ok',
         `${moved} Datensätze aus dem Ersatzspeicher übernommen`,
         r.identical ? `, ${r.identical} waren schon vorhanden` : '',
-        r.kept.length ? `; ${r.kept.length} weichen von den gespeicherten ab und bleiben im Ersatzspeicher (localStorage).` : '.',
+        r.kept.length ? `; ${r.kept.length} weichen ab oder sind nicht lesbar und bleiben im Ersatzspeicher (localStorage).` : '.',
         ' Zum Anzeigen bitte neu laden.', reloadButton());
     } catch (e) {
       console.error(e);
-      showStorageNote(anchor, 'err', 'Übernahme fehlgeschlagen, nichts wurde geändert: ',
-        el('small', {}, String(e && (e.name || e.message) || e)));
+      offer('Übernahme fehlgeschlagen, nichts wurde geändert: ', el('small', {}, storageErrorText(e)), '. ');
     }
-  };
-  showStorageNote(anchor, 'warn',
-    `Im Ersatzspeicher (localStorage) liegen noch ${found.pending} Datensätze aus einer Sitzung ohne IndexedDB; sie werden hier nicht angezeigt.`,
-    el('button', { type: 'button', onclick: run }, 'In IndexedDB übernehmen'));
+  }
+  offer();
 }

@@ -130,28 +130,43 @@ test('a batch a dead tab left half-written is rolled back on the next open and b
   assert.equal(ls.getItem('test:v1:#journal'), null);
 });
 
-test('without Web Locks a young journal of another tab is never overwritten: the write is refused', async () => {
-  const other = { at: Date.now(), page: 'other-tab', changes: [{ k: 'test:v1:messages:a', before: null }] };
-  ls.setItem('test:v1:#journal', JSON.stringify(other));
+test('without Web Locks a journal of another tab is never overwritten', async () => {
+  const settle = { locks: null, journalSettleMs: 30 };
+  const journal = (at = Date.now()) => JSON.stringify({ at, page: 'other-tab', changes: [{ k: 'test:v1:messages:a', before: null }] });
+  // A tab crashed mid-batch and was reloaded at once (new page id, young
+  // journal): it stays unchanged while we wait, so it is orphaned and
+  // rolled back at open; writes work right away.
+  ls.setItem('test:v1:#journal', journal());
   ls.setItem('test:v1:messages:a', '{"id":"a"}');
-  const s = await open({ locks: null });
+  const s = await open(settle);
   assert.equal(s.crossTabLock, false);
-  assert.deepEqual(s.recovery, { pending: true });
-  await assert.rejects(s.tx([{ store: 'messages', put: { id: 'b', eventId: 'e' } }]), err => err instanceof StorageBusyError);
-  await assert.rejects(s.atomic(['messages'], async ({ put }) => put('messages', { id: 'b', eventId: 'e' })), StorageBusyError);
-  assert.deepEqual(JSON.parse(ls.getItem('test:v1:#journal')), other, 'journal untouched');
-  assert.equal(await s.get('messages', 'b'), undefined);
-  // a minute later it counts as orphaned: rolled back, then the write goes through
-  ls.setItem('test:v1:#journal', JSON.stringify({ ...other, at: Date.now() - 120000 }));
+  assert.deepEqual(s.recovery, { rolledBack: 1 });
+  assert.equal(await s.get('messages', 'a'), undefined);
   await s.tx([{ store: 'messages', put: { id: 'b', eventId: 'e' } }]);
-  assert.equal(await s.get('messages', 'a'), undefined, 'the dead batch was undone');
-  assert.ok(await s.get('messages', 'b'));
+
+  // Another tab keeps writing (its journal changes while we wait): the
+  // write is refused, with a message for the user, and its journal stays.
+  ls.setItem('test:v1:#journal', journal());
+  const busy = setInterval(() => ls.setItem('test:v1:#journal', journal(Date.now() + Math.random())), 5);
+  try {
+    const err = await s.tx([{ store: 'messages', put: { id: 'c', eventId: 'e' } }]).catch(e => e);
+    assert.ok(err instanceof StorageBusyError);
+    assert.match(err.message, /von einem anderen Tab benutzt/);
+    await assert.rejects(s.atomic(['messages'], async ({ put }) => put('messages', { id: 'c', eventId: 'e' })), StorageBusyError);
+    assert.ok(ls.getItem('test:v1:#journal'), 'journal untouched');
+    assert.equal(await s.get('messages', 'c'), undefined);
+  } finally {
+    clearInterval(busy);
+  }
+  // it stopped (the tab died): the next write rolls it back and goes through
+  await s.tx([{ store: 'messages', put: { id: 'c', eventId: 'e' } }]);
+  assert.ok(await s.get('messages', 'c'));
   assert.equal(ls.getItem('test:v1:#journal'), null);
-  ls.setItem('test:v1:#journal', JSON.stringify({ ...other, at: Date.now() - 120000 }));
+  // older than a minute: rolled back without waiting
+  ls.setItem('test:v1:#journal', journal(Date.now() - 120000));
   ls.setItem('test:v1:messages:a', '{"id":"a"}');
-  const s2 = await open({ locks: null });
+  const s2 = await open({ locks: null, journalSettleMs: 60000 });
   assert.deepEqual(s2.recovery, { rolledBack: 1 });
-  assert.equal(await s2.get('messages', 'a'), undefined);
 });
 
 test('without Web Locks a failed rollback of this page is undone before the next write', async () => {

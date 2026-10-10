@@ -5,7 +5,7 @@
 // timeout is closed again, and fallback records are found and moved into
 // IndexedDB without overwriting anything. The localStorage fallback itself
 // is covered by the node tests (tests/storage.test.mjs).
-import { test, expect } from './fixtures.mjs';
+import { test, expect, downloadText } from './fixtures.mjs';
 
 // An empty page next to the shared modules, so they import by relative URL.
 test.beforeEach(async ({ page }) => {
@@ -180,36 +180,54 @@ test('fallback records are found and moved into IndexedDB without overwriting an
 // its classes (red, not printed); an offer that was taken doesn't come back,
 // kept records are shown apart until dismissed.
 test('Notfunk: fallback notices leave the error banner alone and resolve', async ({ page }) => {
+  const ready = () => expect.poll(() => page.evaluate(() => globalThis.NOTFUNK_READY === true)).toBe(true);
+  // reload only once the page's background loads are done (a request
+  // cancelled by the reload would count as an error)
+  const reload = async () => {
+    await page.waitForTimeout(1000);
+    await page.waitForLoadState('networkidle');
+    await page.reload();
+    await ready();
+  };
   await page.goto('tools/notfunk/');
-  await expect.poll(() => page.evaluate(() => globalThis.NOTFUNK_READY === true)).toBe(true);
+  await ready();
   const note = page.locator('.storage-note');
   await expect(note).toHaveCount(0);
   await page.evaluate(() => {
     const p = 'oe1ebg-notfunk:v1:';
     localStorage.setItem(`${p}operations:op-ls`, JSON.stringify({ id: 'op-ls', name: 'Aus dem Ersatzspeicher', prefix: 'W9', created: '2026-10-01T10:00:00Z', updated: '2026-10-01T10:00:00Z', archived: false, deleted: null }));
   });
-  await page.reload();
+  await reload();
   await expect(note).toContainText('1 Datensätze');
   await expect(note).toHaveClass(/no-print/);
   await expect(page.locator('#banner')).toHaveClass('banner err no-print');
   await note.getByRole('button', { name: 'In IndexedDB übernehmen' }).click();
   await expect(note).toContainText('1 Datensätze aus dem Ersatzspeicher übernommen');
   await expect(page.locator('#banner')).toHaveClass('banner err no-print');
-  await page.reload();
-  await expect.poll(() => page.evaluate(() => globalThis.NOTFUNK_READY === true)).toBe(true);
+  await reload();
   await expect(note).toHaveCount(0);
   // a record that differs from IndexedDB's stays and is shown apart
   await page.evaluate(() => {
     localStorage.setItem('oe1ebg-notfunk:v1:operations:op-ls', JSON.stringify({ id: 'op-ls', name: 'anders', updated: '2026-10-02T10:00:00Z' }));
   });
-  await page.reload();
+  await reload();
   await expect(note).toContainText('weichen von den gespeicherten ab');
   await expect(note.getByRole('button', { name: 'In IndexedDB übernehmen' })).toHaveCount(0);
   await note.getByRole('button', { name: 'Ausblenden' }).click();
   await expect(note).toBeHidden();
-  await page.reload();
-  await expect.poll(() => page.evaluate(() => globalThis.NOTFUNK_READY === true)).toBe(true);
+  await reload();
   await expect(note).toHaveCount(0);
   expect(await page.evaluate(() => localStorage.getItem('oe1ebg-notfunk:v1:operations:op-ls'))).toContain('anders');
+  // only an unreadable entry: shown too, and in the download with its text
+  await page.evaluate(() => {
+    localStorage.removeItem('oe1ebg-notfunk:v1:operations:op-ls');
+    localStorage.setItem('oe1ebg-notfunk:v1:messages:broken', '{not json');
+  });
+  await reload();
+  await expect(note).toContainText('1 Einträge im Ersatzspeicher sind nicht lesbar');
+  const download = page.waitForEvent('download');
+  await note.getByRole('button', { name: 'Als JSON sichern' }).click();
+  const saved = JSON.parse(await downloadText(await download));
+  expect(saved.unreadable).toEqual([{ key: 'oe1ebg-notfunk:v1:messages:broken', raw: '{not json' }]);
   await expect(page.locator('#banner')).toHaveClass('banner err no-print');
 });

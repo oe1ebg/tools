@@ -80,11 +80,16 @@ removes the journal. A batch that fails is rolled back at once; a journal
 left by a tab that died is rolled back (not replayed: the caller never got
 "saved", and rolling back needs no extra room). With Web Locks a journal
 found under the lock is always orphaned. A journal is **never
-overwritten**: without Web Locks one written by this page (a rollback that
-failed) or older than a minute is rolled back first; a younger one of
-another tab may still be live, so the write is refused with a
-`StorageBusyError` (exported; try again) and `recovery` on open is
-`{ pending: true }`.
+overwritten**. Without Web Locks a journal of another tab may be live, but
+a live one lasts milliseconds (a batch is synchronous): one written by this
+page (a rollback that failed), older than a minute, or still unchanged
+after a short wait (`journalSettleMs`, 1.5 s; e.g. a tab that crashed and
+was reloaded at once) is rolled back first. Only a journal that keeps
+changing refuses the write with a `StorageBusyError` (exported; message
+"Speicher wird gerade von einem anderen Tab benutzt – bitte gleich noch
+einmal versuchen"), and `recovery` on open is then `{ pending: true }`.
+(The page id is deliberately not kept in sessionStorage: a duplicated tab
+copies it and would take another tab's live journal for its own.)
 
 **Compare-and-set:** inside `atomic()`, `getUnchanged(store, key,
 expectedUpdated)` returns the stored record or throws a `ConflictError`
@@ -113,9 +118,11 @@ record, expectedUpdated)` is the same check for a record already read.
 reports what a session without IndexedDB left under the tool's prefix
 (`{ total, pending, conflicts, unreadable, conflictsSeen, stores: { name:
 count }, journal }` or `null`; `pending` is what a migration would resolve,
-`conflicts` what it would keep), `readFallback(store)` returns those
-records (e.g. to export them), `dismissConflicts()` marks the current
-conflicting records as seen (`conflictsSeen`; nothing is deleted), and
+`conflicts` and `unreadable` (not JSON or without their key) what it would
+keep), `readFallback(store)` returns those records, `exportFallback()`
+everything for a download (`{ stores, unreadable: [{ key, raw }] }`),
+`dismissConflicts()` marks the current kept records as seen
+(`conflictsSeen`; nothing is deleted), and
 `migrateFallback()` copies them into IndexedDB, only on request: under the
 fallback's write lock and in one IndexedDB transaction; a record IndexedDB
 lacks is copied, a structurally equal one (key order doesn't matter)
@@ -127,7 +134,8 @@ the copied, merged and identical records removed from localStorage.
 Result: `{ copied, merged, identical, kept: [{ store, key, reason }] }`.
 `storageui.js` offers it in its own box after the page's banner
 (`.storage-note`; the banner's own classes stay untouched), and shows kept
-records apart with "Als JSON sichern" and "Ausblenden".
+records (conflicting or unreadable) apart with "Als JSON sichern" and
+"Ausblenden"; a failed migration shows the error and offers to try again.
 
 ## Move to /tools/ (October 2026)
 
