@@ -47,9 +47,23 @@ export function nextSeq(counter, records, prefix) {
 // Saves a new numbered record in one transaction: build({ prefix, seq,
 // number }) returns the record (it must carry eventId = opId, prefix, seq).
 // Resolves to the saved record. stores: [recordStore, 'counters'].
-export function saveNumbered(store, { opId, prefix, recordStore }, build) {
+// id (optional): the id the record gets. A record with that id in this
+// operation is returned as it is instead of a second one being numbered, so
+// a retry after a save whose outcome was lost can't number an entry twice.
+// after(api, rec) (optional) runs in the same transaction with the
+// get/getAll/getByEvent/getUnchanged/put it is handed, for what must be
+// stored together with the record (a reply marks the message it answers).
+export function saveNumbered(store, { opId, prefix, recordStore, id }, build, after) {
   if (!PREFIX_RE.test(prefix)) return Promise.reject(new Error(`Ungültiges Stationskürzel: ${prefix}`));
-  return store.atomic([recordStore, 'counters'], async ({ get, getByEvent, put }) => {
+  return store.atomic([recordStore, 'counters'], async api => {
+    const { get, getByEvent, put } = api;
+    if (id) {
+      const prior = await get(recordStore, id);
+      if (prior) {
+        if (prior.eventId !== opId) throw new Error('Die ID gehört zu einem anderen Einsatz');
+        return prior;
+      }
+    }
     const key = counterKey(opId, prefix);
     const counter = await get('counters', key);
     const records = await getByEvent(recordStore, opId);
@@ -58,6 +72,7 @@ export function saveNumbered(store, { opId, prefix, recordStore }, build) {
     if (rec.eventId !== opId || rec.prefix !== prefix || rec.seq !== seq) throw new Error('build() must keep eventId, prefix and seq');
     put(recordStore, rec);
     put('counters', { id: key, eventId: opId, prefix, last: seq });
+    if (after) await after(api, rec);
     return rec;
   });
 }

@@ -328,3 +328,99 @@ test('service worker installs the offline copy', async ({ page, browserName }) =
   await page.goto('tools/notfunk/');
   await expect(page.locator('#st-offline')).toHaveText(/offline bereit/, { timeout: 45_000 });
 });
+
+// #11: the save is one transaction; what comes after it may fail without
+// the message looking unsaved or a retry numbering it twice.
+test('save: a failing station write after the commit warns only, the message is in the book, no duplicate', async ({ page }) => {
+  await page.addInitScript(() => {
+    const put = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function inject(...args) {
+      if (this.name === 'stations') throw new DOMException('injected', 'DataError');
+      return put.apply(this, args);
+    };
+  });
+  await openNewOp(page, 'E2E Fehler', 'f1');
+  await page.locator('#m-from').fill('Lichtinsel 3');
+  await page.locator('#m-peer').fill('OE1ABC');
+  await page.locator('#m-subject').fill('Wasser');
+  await page.locator('#m-text').fill('Kein Wasser.');
+  await page.locator('#btn-save').click();
+  await expect(page.locator('#book-body')).toContainText('Wasser');
+  expect(await numbers(page)).toEqual(['F1-001']);
+  const banner = page.locator('#banner');
+  await expect(banner).toContainText('F1-001 ist gespeichert');
+  await expect(banner).not.toContainText('FEHLGESCHLAGEN');
+  // the form is clear: the same text can't be saved again by a retry
+  await expect(page.locator('#m-subject')).toHaveValue('');
+  await expect(page.locator('#form-number')).toHaveText('→ F1-002');
+  // a backup is built from what is stored
+  const download = page.waitForEvent('download');
+  await page.locator('#btn-backup').click();
+  const backup = JSON.parse(await downloadText(await download));
+  expect(backup.messages.map(m => m.number)).toEqual(['F1-001']);
+});
+
+test('two tabs: a stale edit is refused, the handover is not lost, the input stays', async ({ page, context }) => {
+  await openNewOp(page, 'E2E Tabs', 't1');
+  await addMessage(page, 'Lichtinsel 2', 'Wasser');
+  // tab A starts editing T1-001
+  await page.locator('#book-body a', { hasText: 'T1-001' }).click();
+  const detailUrl = page.url();
+  await page.getByRole('button', { name: 'Bearbeiten' }).click();
+  await page.locator('#m-subject').fill('Wasser dringend');
+  // tab B records the handover meanwhile
+  const b = await context.newPage();
+  await b.goto(detailUrl);
+  await expect.poll(() => b.evaluate(() => globalThis.NOTFUNK_READY === true)).toBe(true);
+  await b.getByLabel('Übergeben an').fill('Meldesammelstelle');
+  await b.getByRole('button', { name: 'Übergabe eintragen' }).click();
+  await expect(b.locator('#msg-detail')).toContainText('an Meldesammelstelle');
+  // tab A saves its edit: refused, with the current version loaded and the input kept
+  await expect(page.locator('#book-body tr', { hasText: 'T1-001' })).toContainText('übergeben');
+  await page.locator('#btn-save').click();
+  await expect(page.locator('#banner')).toContainText('NICHT GESPEICHERT');
+  await expect(page.locator('#banner')).toContainText('inzwischen geändert');
+  await expect(page.locator('#m-subject')).toHaveValue('Wasser dringend');
+  await expect(page.locator('#book-body tr', { hasText: 'T1-001' })).toContainText('Wasser');
+  await expect(page.locator('#book-body tr', { hasText: 'T1-001' })).not.toContainText('dringend');
+  // saving again (now based on the current version) keeps the handover
+  await page.locator('#btn-save').click();
+  const row = page.locator('#book-body tr', { hasText: 'T1-001' });
+  await expect(row).toContainText('Wasser dringend');
+  await expect(row).toContainText('übergeben');
+  await b.close();
+});
+
+test('two tabs: a second draft is not saved over the first one silently', async ({ page, context }) => {
+  await openNewOp(page, 'E2E Entwurf', 'e1');
+  const b = await context.newPage();
+  await b.goto(page.url());
+  await expect.poll(() => b.evaluate(() => globalThis.NOTFUNK_READY === true)).toBe(true);
+  await expect(b.locator('#book-title')).toHaveText('E2E Entwurf');
+  await page.locator('#m-from').fill('Tab A');
+  await expect(page.locator('#draft-status')).toContainText('Entwurf gesichert');
+  await b.locator('#m-from').fill('Tab B');
+  await expect(b.locator('#banner')).toContainText('ENTWURF NICHT GESICHERT');
+  await expect(b.locator('#m-from')).toHaveValue('Tab B');
+  // B takes the other draft; A's draft is still the stored one
+  await b.getByRole('button', { name: 'Den anderen Entwurf laden' }).click();
+  await expect(b.locator('#m-from')).toHaveValue('Tab A');
+  await b.close();
+});
+
+// #20: a typed Stichzeit survives a draft restore
+test('draft restore keeps a Stichzeit typed as 1405', async ({ page }) => {
+  await openNewOp(page, 'E2E Stichzeit', 's1');
+  await page.locator('#m-type').selectOption('lagemeldung');
+  await page.locator('#m-stichzeit').fill('1405'); // not left yet: the field still shows 1405
+  await expect(page.locator('#draft-status')).toContainText('Entwurf gesichert');
+  await page.reload();
+  await expect(page.locator('#view-book')).toBeVisible();
+  await expect(page.locator('#m-type')).toHaveValue('lagemeldung');
+  await expect(page.locator('#m-stichzeit')).toHaveValue('14:05');
+  // text that can't be read stays, with the warning at the field
+  await page.locator('#m-stichzeit').fill('mitta');
+  await page.waitForTimeout(1000); // the draft is saved 600 ms after the last keystroke
+  await page.reload();
+  await expect(page.locator('#m-stichzeit')).toHaveValue('mitta');
+});

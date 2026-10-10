@@ -3,15 +3,19 @@
 // sources and open questions: ../README.md; rules: ../AGENTS.md.
 //
 // Persistence rules: a message number is taken only by saveNumbered()
-// (numbering.js), in the same storage transaction as the message, so a
-// failed save consumes no number and two tabs never get the same one.
-// Every write goes to storage before the UI reports it; edits keep the
-// previous version as a revision; deletes are soft and keep the number;
-// the half-typed message is kept as a draft. Nothing here talks to the
-// network.
+// (numbering.js), in the same storage transaction as the message (and the
+// "answered" status of the message a reply answers, ops.js), so a failed
+// save consumes no number and two tabs never get the same one. Every write
+// goes to storage before the UI reports it; a change of a stored message
+// (edit, status, attempt, delete, restore) is a compare-and-set on its
+// `updated`: a message changed meanwhile in another tab is not overwritten
+// but reported (onConflict()). Edits keep the replaced version as a
+// revision; deletes are soft and keep the number; the half-typed message is
+// kept as a draft (never overwriting another tab's). Nothing here talks to
+// the network.
 
 import { openNotfunkStorage } from './db.js';
-import { requestPersistence } from '../../shared/js/storage.js';
+import { requestPersistence, ConflictError } from '../../shared/js/storage.js';
 import { openStorageWithNotices, offerFallbackMigration } from '../../shared/js/storageui.js';
 import { $, el, fill, focusNext, submitForm, isComposing, trackExpanded } from '../../shared/js/dom.js';
 import { prefGet, prefSet } from '../../shared/js/prefs.js';
@@ -26,12 +30,13 @@ import { loadLocationIndex, fillLocationSources } from '../../shared/js/location
 import { sourceItem, standDate, trackOnline, mapLinks, repoLink } from '../../shared/js/sources.js';
 import { initOffline, setChip } from '../../shared/js/offline.js';
 import {
-  DIRECTIONS, CHANNELS, MESSAGE_TYPES, PRIORITIES, REF_KINDS, STATUS_FLOW, statusLabel, statusEntry, timeLabel, readBackLabel,
-  newMessage, editMessage, softDelete, restoreDeleted, setStatus, addAttempt, currentStatus, filterMessages,
+  DIRECTIONS, CHANNELS, MESSAGE_TYPES, PRIORITIES, REF_KINDS, statusLabel, statusEntry, timeLabel, readBackLabel,
+  editMessage, softDelete, restoreDeleted, setStatus, addAttempt, currentStatus, filterMessages,
   repliesTo, fmtVienna, viennaTime, zoneHint, normFreq, fmtFreq,
 } from './model.js';
-import { saveNumbered, normalizePrefix, PREFIX_RE, nextSeq, formatNumber, counterKey } from './numbering.js';
-import { toGeschaeftsbuchCSV, toBackup, parseBackup, mergeBackup } from './export.js';
+import { normalizePrefix, PREFIX_RE, nextSeq, formatNumber, counterKey } from './numbering.js';
+import { toGeschaeftsbuchCSV, toBackup, parseBackup } from './export.js';
+import { saveNewMessage, updateMessage, applyBackup, patchOperation, writeDraft, clearDraft } from './ops.js';
 import {
   emptyForm, setDirection, formToFields, formIsBlank, messageToForm, replyForm, nextStep, statusSteps, bookSummary, partyText,
   readDateTime, readClock, readBound, normDate, normTime, dateText, clockText, needsZone, upgradeForm, normalizeRef,
@@ -60,6 +65,8 @@ const state = {
   showErrors: false, // field errors are shown after the first save attempt
   warned: '',        // the warnings already shown once (saving again = save anyway)
   saving: false,
+  saveKey: null,     // { sig, id }: the id a failed save used, kept while the form is unchanged (a retry can't number it twice)
+  draftSeen: undefined, // `updated` of the draft this tab last read or wrote (undefined: none); another one = another tab's
   channel: null,
   draftTimer: null,
 };
@@ -80,6 +87,22 @@ function showSaveError(err) {
     el('small', {}, `(${err && (err.message || err.name) || err})`),
     el('button', { type: 'button', onclick: () => { b.hidden = true; } }, 'ausblenden'));
   b.hidden = false;
+}
+
+// A notice that is no failure (a conflict with another tab, a warning after
+// a save that went through): in the banner, with what to do.
+function showNotice(...content) {
+  const b = $('#banner');
+  fill(b, ...content, el('button', { type: 'button', onclick: () => { b.hidden = true; } }, 'ausblenden'));
+  b.hidden = false;
+}
+
+// Another tab changed what this one wanted to write: nothing was written
+// (compare-and-set), the current data is loaded, the user's input stays.
+async function onConflict(what, keeps) {
+  try { await reloadMsgs(); } catch (e) { console.warn(e); }
+  showNotice(`NICHT GESPEICHERT – ${what} wurde inzwischen geändert (z. B. in einem anderen Tab oder Fenster). Die aktuelle Fassung ist geladen. `,
+    keeps ? 'Ihre Eingabe steht noch im Formular: bitte prüfen und erneut speichern. ' : 'Bitte die Angabe erneut eintragen. ');
 }
 
 // aria-live lines are read out on every write: only write real changes.
@@ -178,14 +201,14 @@ async function renderOps() {
 }
 
 async function updateOp(op, patch) {
-  const next = { ...op, ...patch, updated: nowIso() };
   try {
-    await state.store.tx([{ store: 'operations', put: next }]);
+    // the patch goes onto the operation as stored now (another tab's change to other fields stays)
+    const next = await patchOperation(state.store, op.id, patch, nowIso());
+    if (state.op?.id === op.id) state.op = next;
     broadcast({ type: 'ops' });
   } catch (e) {
     showSaveError(e);
   }
-  if (state.op?.id === op.id) state.op = next;
   renderOps();
 }
 
@@ -646,18 +669,51 @@ async function flushDraft() {
   if (!state.op || $('#view-book').hidden && $('#view-msg').hidden) return;
   const f = readForm();
   const empty = formIsEmpty(f) && !state.editing;
+  const opId = state.op.id;
   try {
-    if (empty) await state.store.tx([{ store: 'drafts', del: state.op.id }]);
-    else await state.store.tx([{ store: 'drafts', put: { eventId: state.op.id, form: f, editingId: state.editing?.id || null, saved: nowIso() } }]);
-    setText($('#draft-status'), empty ? '' : `✓ Entwurf gesichert ${viennaTime(nowIso())}`);
+    if (empty) {
+      // an empty form never removes a draft that another tab wrote
+      if (await clearDraft(state.store, opId, state.draftSeen)) state.draftSeen = undefined;
+      setText($('#draft-status'), '');
+    } else {
+      const draft = { form: f, editingId: state.editing?.id || null, saved: nowIso() };
+      try {
+        state.draftSeen = await writeDraft(state.store, opId, draft, state.draftSeen);
+      } catch (e) {
+        // the draft this tab knew is gone (another tab saved its message and removed it): ours is the only one
+        if (!(e instanceof ConflictError) || e.current !== undefined) throw e;
+        state.draftSeen = await writeDraft(state.store, opId, draft, undefined);
+      }
+      setText($('#draft-status'), `✓ Entwurf gesichert ${viennaTime(draft.saved)}`);
+    }
   } catch (e) {
+    if (e instanceof ConflictError) { draftConflict(e); return; }
     console.warn('Entwurf nicht gespeichert', e);
     setText($('#draft-status'), 'Entwurf nicht gesichert!');
   }
 }
 
+// Another tab saved a draft for this operation since this one read it:
+// neither is overwritten silently. The user chooses.
+function draftConflict(e) {
+  const other = e.current;
+  setText($('#draft-status'), 'Entwurf nicht gesichert: anderer Tab!');
+  showNotice('ENTWURF NICHT GESICHERT – In einem anderen Tab oder Fenster liegt ein anderer Entwurf für diesen Einsatz. ',
+    el('button', { type: 'button', onclick: () => { state.draftSeen = e.actual; $('#banner').hidden = true; flushDraft(); } }, 'Meinen Entwurf sichern (ersetzt den anderen)'),
+    ' ',
+    el('button', { type: 'button', onclick: () => {
+      state.draftSeen = e.actual;
+      state.editing = other.editingId ? state.msgs.find(m => m.id === other.editingId) || null : null;
+      writeForm(other.form || emptyForm(state.op));
+      $('#banner').hidden = true;
+      setText($('#draft-status'), '✓ Entwurf aus dem anderen Tab geladen');
+    } }, 'Den anderen Entwurf laden (ersetzt meine Eingabe)'),
+    ' ');
+}
+
 async function restoreDraft() {
   const d = await state.store.get('drafts', state.op.id);
+  state.draftSeen = d ? d.updated ?? null : undefined;
   state.editing = d?.editingId ? state.msgs.find(m => m.id === d.editingId) || null : null;
   writeForm(d?.form || emptyForm(state.op));
   setText($('#draft-status'), d ? `✓ Entwurf gesichert ${viennaTime(d.saved)}` : '');
@@ -669,6 +725,7 @@ function resetForm(keep = true) {
   // Direction, channel and frequency usually stay the same for the next message.
   if (keep) Object.assign(next, setDirection(next, prev.direction, state.op), { channel: prev.channel, freq: prev.freq, via: prev.via });
   state.editing = null;
+  state.saveKey = null;
   writeForm(next);
 }
 
@@ -714,37 +771,56 @@ async function saveMessageNow(anyway) {
   }
   const operator = state.op.operator || '';
   const op = state.op;
+  const wasEdit = !!state.editing;
+  // The id of a new message stays the same while the form is unchanged, so a
+  // retry after a save whose outcome was lost returns the committed message
+  // instead of numbering a second one.
+  const formSig = JSON.stringify(form);
+  if (state.saveKey?.sig !== formSig) state.saveKey = { sig: formSig, id: newId() };
   let saved;
   try {
-    if (state.editing) {
-      // The staff reference is kept with the message, not in the form.
+    if (wasEdit) {
+      // The staff reference is kept with the message, not in the form. The
+      // revision holds the record as it was stored when it was replaced.
       const { staffRef: _ref, ...changes } = fields;
-      const { next, revision } = editMessage(state.editing, changes, { revisionId: newId(), operator, now });
-      await state.store.tx([{ store: 'messages', put: next }, { store: 'revisions', put: revision }]);
-      saved = next;
+      saved = await updateMessage(state.store, state.editing, cur => editMessage(cur, changes, { revisionId: newId(), operator, now }));
     } else {
-      saved = await saveNumbered(state.store, { opId: op.id, prefix: op.prefix, recordStore: 'messages' },
-        numbered => newMessage(fields, numbered, { id: newId(), opId: op.id, operator, stationCall: op.call || '', now }));
-      // A reply marks the message it answers as answered.
-      const orig = saved.refKind === 'antwort' && saved.replyTo && state.msgs.find(m => m.id === saved.replyTo);
-      if (orig && STATUS_FLOW.indexOf(currentStatus(orig)) < STATUS_FLOW.indexOf('answered')) {
-        await state.store.tx([{ store: 'messages', put: setStatus(orig, 'answered', { operator, now, note: saved.number }) }]);
-      }
+      // number, message and the "answered" status of a replied-to message: one transaction
+      saved = await saveNewMessage(state.store, { op, fields, messageId: state.saveKey.id, meta: { operator, stationCall: op.call || '', now } });
     }
-    await rememberStations(fields);
   } catch (e) {
+    if (e instanceof ConflictError) {
+      // changed meanwhile: the edit continues on the current version, the input stays
+      if (e.current) state.editing = e.current;
+      await onConflict(state.editing?.number || 'Die Meldung', true);
+      return;
+    }
     showSaveError(e);
     return;
   }
-  const wasEdit = !!state.editing;
+  // From here the message is committed: nothing below may make it look
+  // unsaved or let a retry number it again. The form is cleared first.
+  resetForm();
   status.className = 'form-status';
   status.textContent = '';
-  await loadOp();
-  resetForm();
-  await flushDraft();
-  renderBook();
+  const notes = [];
+  try {
+    await rememberStations(fields);
+  } catch (e) {
+    console.warn('Funkstelle nicht für die Vervollständigung gemerkt', e);
+    notes.push('Die Funkstelle konnte nicht für die Vervollständigung gemerkt werden.');
+  }
+  try {
+    await loadOp();
+    await flushDraft();
+    renderBook();
+    renderBackupChip();
+  } catch (e) {
+    console.warn('Anzeige nach dem Speichern', e);
+    notes.push('Die Anzeige konnte nicht aktualisiert werden – bitte die Seite neu laden.');
+  }
   bookStatus(`${saved.number} ${wasEdit ? 'geändert (vorige Fassung gespeichert)' : 'gespeichert'}: ${saved.subject || saved.text.slice(0, 60)}`);
-  renderBackupChip();
+  if (notes.length) showNotice(`${saved.number} ist gespeichert. `, ...notes, ' ');
   broadcast({ type: 'msgs', opId: op.id });
   flashRow(saved.id);
   $('#m-from').focus();
@@ -977,11 +1053,14 @@ function prioPill(msg) {
 }
 
 // Stores a changed message (status step, attempt) and says so.
-async function storeMsg(next, text) {
+// change(cur) gets the message as stored (it is the one the user saw, or the
+// write is refused: ConflictError, shown as such) and returns the new record.
+async function storeMsg(msg, change, text) {
   try {
-    await state.store.tx([{ store: 'messages', put: next }]);
+    await updateMessage(state.store, msg, cur => ({ next: change(cur) }));
   } catch (e) {
-    showSaveError(e);
+    if (e instanceof ConflictError) await onConflict(msg.number, false);
+    else showSaveError(e);
     return false;
   }
   await reloadMsgs();
@@ -993,13 +1072,13 @@ async function storeMsg(next, text) {
 // A status step: now, by the operator, with optional details (to whom,
 // confirmed by whom, at what time).
 async function advance(msg, state_, details = {}) {
-  let next;
+  const step = { operator: state.op.operator || '', now: nowIso(), ...details };
   try {
-    next = setStatus(msg, state_, { operator: state.op.operator || '', now: nowIso(), ...details });
+    setStatus(msg, state_, step); // refused here: already recorded, or a step back
   } catch (e) {
     return e.message;
   }
-  await storeMsg(next, `${msg.number}: ${statusLabel(state_, msg.direction)}`);
+  await storeMsg(msg, cur => setStatus(cur, state_, step), `${msg.number}: ${statusLabel(state_, msg.direction)}`);
   return '';
 }
 
@@ -1066,27 +1145,13 @@ function flashRow(id) {
 async function deleteMsg(m) {
   if (!confirm(`${m.number} löschen? Die Nummer bleibt vergeben, die Meldung kommt in „Gelöschte Meldungen“ und kann wiederhergestellt werden.`)) return;
   const operator = state.op.operator || '';
-  try {
-    await state.store.tx([{ store: 'messages', put: softDelete(m, { operator, now: nowIso() }) }]);
-  } catch (e) {
-    showSaveError(e);
-    return;
-  }
-  await reloadMsgs();
-  bookStatus(`${m.number} gelöscht (Nummer bleibt vergeben)`);
-  broadcast({ type: 'msgs', opId: state.op.id });
+  const now = nowIso();
+  await storeMsg(m, cur => softDelete(cur, { operator, now }), `${m.number} gelöscht (Nummer bleibt vergeben)`);
 }
 
 async function restoreMsg(m) {
-  try {
-    await state.store.tx([{ store: 'messages', put: restoreDeleted(m, { now: nowIso() }) }]);
-  } catch (e) {
-    showSaveError(e);
-    return;
-  }
-  await reloadMsgs();
-  bookStatus(`${m.number} wiederhergestellt`);
-  broadcast({ type: 'msgs', opId: state.op.id });
+  const now = nowIso();
+  await storeMsg(m, cur => restoreDeleted(cur, { now }), `${m.number} wiederhergestellt`);
 }
 
 /* ---------------------------------------------------------------- one message */
@@ -1186,7 +1251,8 @@ function flowCard(m) {
         'Eintragen', async v => {
           const t = stepTime(v.at);
           if (t.error) return t.error;
-          await storeMsg(addAttempt(m, { operator: state.op.operator || '', now: nowIso(), at: t.at, note: v.note }), `${m.number}: Fehlversuch / Rückfrage vermerkt`);
+          const attempt = { operator: state.op.operator || '', now: nowIso(), at: t.at, note: v.note };
+          await storeMsg(m, cur => addAttempt(cur, attempt), `${m.number}: Fehlversuch / Rückfrage vermerkt`);
           return '';
         })) : null,
     el('p', { class: 'hint' }, out
@@ -1202,11 +1268,12 @@ function staffRefCard(m) {
     m.deleted ? el('p', {}, m.staffRef || '–') : inlineForm([{ key: 'ref', label: 'Referenz / Geschäftsbuch-Nr.', value: m.staffRef || '', mono: true }],
       m.staffRef ? 'Referenz ändern' : 'Referenz eintragen', async v => {
         if (v.ref === (m.staffRef || '')) return '';
-        const { next, revision } = editMessage(m, { staffRef: v.ref }, { revisionId: newId(), operator: state.op.operator || '', now: nowIso() });
+        const meta = { revisionId: newId(), operator: state.op.operator || '', now: nowIso() };
         try {
-          await state.store.tx([{ store: 'messages', put: next }, { store: 'revisions', put: revision }]);
+          await updateMessage(state.store, m, cur => editMessage(cur, { staffRef: v.ref }, meta));
         } catch (e) {
-          showSaveError(e);
+          if (e instanceof ConflictError) await onConflict(m.number, false);
+          else showSaveError(e);
           return 'nicht gespeichert';
         }
         await reloadMsgs();
@@ -1330,10 +1397,26 @@ function printBook() {
 }
 
 async function exportBackup() {
-  const [counters] = await Promise.all([state.store.getByEvent('counters', state.op.id)]);
+  // What is committed in the storage, not this tab's memory (after a failed
+  // save or a change in another tab it may be stale); the memory only when
+  // the storage can't be read.
+  const id = state.op.id;
+  let data;
+  let fromMemory = false;
+  try {
+    const [operation, messages, revisions, counters] = await Promise.all([
+      state.store.get('operations', id), state.store.getByEvent('messages', id),
+      state.store.getByEvent('revisions', id), state.store.getByEvent('counters', id),
+    ]);
+    data = { operation: operation || state.op, messages, revisions, counters };
+  } catch (e) {
+    console.warn('Sicherung aus dem Speicher des Tabs', e);
+    fromMemory = true;
+    data = { operation: state.op, messages: state.msgs, revisions: state.revisions, counters: state.counter ? [state.counter] : [] };
+  }
   const now = nowIso();
-  download(toBackup({ operation: state.op, messages: state.msgs, revisions: state.revisions, counters }, now), `${fileStem()}-sicherung.json`, 'application/json');
-  bookStatus('Sicherung (JSON) heruntergeladen');
+  download(toBackup(data, now), `${fileStem()}-sicherung.json`, 'application/json');
+  bookStatus(fromMemory ? 'Sicherung (JSON) heruntergeladen – der Speicher war nicht lesbar, sie enthält den Stand dieses Tabs' : 'Sicherung (JSON) heruntergeladen');
   await updateOp(state.op, { backupAt: now });
   renderBackupChip();
 }
@@ -1367,24 +1450,19 @@ async function importBackup(file) {
     showImportMsg('err', el('strong', {}, 'Nicht importiert: '), `„${file.name}“: ${e.message}.`);
     return;
   }
-  const opId = backup.operation.id;
-  const existing = {
-    operation: await state.store.get('operations', opId),
-    messages: await state.store.getByEvent('messages', opId),
-    revisions: await state.store.getByEvent('revisions', opId),
-    counters: await state.store.getByEvent('counters', opId),
-  };
-  const r = mergeBackup(backup, existing);
+  let r;
   try {
-    await state.store.tx(r.ops);
+    // the merge decision and its writes in one transaction, on what is stored now
+    r = await applyBackup(state.store, backup);
   } catch (e) {
     showSaveError(e);
     return;
   }
   broadcast({ type: 'ops' });
+  broadcast({ type: 'msgs', opId: backup.operation.id });
   showImportMsg(r.conflicts.length ? 'warn' : 'ok',
     `„${backup.operation.name}“: ${r.added} Meldungen neu, ${r.updated} aktualisiert. `,
-    r.conflicts.length ? el('strong', {}, `Nicht übernommen (Nummer schon mit anderer Meldung belegt): ${r.conflicts.join(', ')}. `) : null);
+    r.conflicts.length ? el('strong', {}, `Nicht übernommen (Nummer oder ID schon mit anderer Meldung belegt): ${r.conflicts.join(', ')}. `) : null);
   renderOps();
 }
 

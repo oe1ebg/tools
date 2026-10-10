@@ -12,6 +12,20 @@ provisional until the Notfunkreferat Wien confirms it.
   number anywhere else; `editMessage()` keeps prefix/seq/number. Restores
   go through `mergeBackup()` (counters never go down). The tests in
   `tests/notfunk-numbering.test.mjs` must keep passing.
+- **Writes go through `js/ops.js`:** a new message is `saveNewMessage()`
+  (number, message and the reply's "answered" status in one `atomic()`; the
+  message id doubles as idempotency key, so a retry returns the committed
+  message); every change of a stored message (edit, status, attempt, delete,
+  restore, staff reference) is `updateMessage()`, a compare-and-set on
+  `updated` that throws `ConflictError` instead of overwriting another
+  tab's change, with the replaced record as the revision; a restore is
+  `applyBackup()` (decision + writes in one `atomic()`, ids are global).
+  After the number is committed nothing may make the message look unsaved
+  (station completion and the redraw only warn). Backups are read from the
+  storage, not from the tab's memory. Drafts carry `updated` and are
+  compare-and-set per operation (another tab's draft is never overwritten
+  silently). `parseBackup()` validates the whole file; keep it as strict as
+  the model.
 - **Never lose data:** soft deletes only, edits store a revision, the full
   text is kept verbatim (ÖVSV Notfunk-Konzept § 6.7).
 - **Offline only, shared code first:** same rules as the confirmation log
