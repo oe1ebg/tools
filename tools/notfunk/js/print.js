@@ -4,7 +4,7 @@
 //
 // 1. formSheet(): the Meldeaufnahmeformular for one message on one A4 page,
 //    with the fields of the ÖBFV E-31 form (SKKM Richtlinie 4.10.1): Ein/Aus,
-//    Datum/Uhrzeit with the time zone, Übermittlung, Von, An, Betreff,
+//    Datum/Uhrzeit (Austrian local time), Übermittlung, Von, An, Betreff,
 //    Inhalt, Name/Unterschrift, Anmerkungen; a block "Nur von der
 //    Meldesammelstelle / dem Stab auszufüllen" (Referenz, federführend,
 //    mitwirkend, zur Kenntnis; only the reference is filled in, once it was
@@ -16,23 +16,12 @@
 
 import {
   DIRECTIONS, CHANNELS, MESSAGE_TYPES, PRIORITIES, REF_KINDS, statusLabel, statusEntry, timeLabel, readBackLabel,
-  currentStatus, liveMessages, fmtVienna, fmtUtc,
+  currentStatus, liveMessages, fmtVienna, viennaDate, viennaTime,
 } from './model.js';
 import { partyText } from './form.js';
 
 // The channels as printed (one line, short words).
 const PAPER_CHANNELS = [['funk', 'Funk'], ['telefon', 'Telefon'], ['muendlich', 'mündlich'], ['melder', 'Melder'], ['email', 'E-Mail'], ['anders', 'anders']];
-
-// "05.10.2026", "14:07", "MESZ"
-function viennaParts(iso) {
-  const [date = '', time = '', zone = ''] = fmtVienna(iso).split(' ');
-  return { date, time, zone };
-}
-
-function viennaHhmm(iso) {
-  const p = viennaParts(iso);
-  return p.time ? `${p.time} ${p.zone}` : '';
-}
 
 function locationLine(loc) {
   if (!loc) return '';
@@ -52,16 +41,15 @@ const HANDOVER_HEADS = {
 // revisions: how many earlier versions are stored (the printout says
 // "Fassung n+1", so a paper copy can be matched to the edit history).
 export function formSheet(msg, op, { now, revisions = 0, byId = new Map() }) {
-  const t = viennaParts(msg.ts);
   const channel = PAPER_CHANNELS.some(([k]) => k === msg.channel) ? msg.channel : 'anders';
   const fwd = statusEntry(msg, 'forwarded');
   const ack = statusEntry(msg, 'acknowledged');
   const attempts = msg.attempts || [];
   const ref = msg.replyTo ? byId.get(msg.replyTo)?.number || msg.refNumber : msg.refNumber;
   const handover = msg.direction === 'out'
-    ? [fwd?.to || '', fwd ? viennaHhmm(fwd.at) : '', ack ? [ack.who, viennaHhmm(ack.at)].filter(Boolean).join(', ') : '',
-      attempts.map(a => [viennaHhmm(a.at), a.note].filter(Boolean).join(' ')).join('; ')]
-    : [fwd?.to || '', fwd ? viennaHhmm(fwd.at) : '', ack?.who || '', ack ? viennaHhmm(ack.at) : ''];
+    ? [fwd?.to || '', fwd ? viennaTime(fwd.at) : '', ack ? [ack.who, viennaTime(ack.at)].filter(Boolean).join(', ') : '',
+      attempts.map(a => [viennaTime(a.at), a.note].filter(Boolean).join(' ')).join('; ')]
+    : [fwd?.to || '', fwd ? viennaTime(fwd.at) : '', ack?.who || '', ack ? viennaTime(ack.at) : ''];
   return {
     title: op?.name || '',
     station: [op?.prefix, op?.station].filter(Boolean).join(' '),
@@ -71,14 +59,13 @@ export function formSheet(msg, op, { now, revisions = 0, byId = new Map() }) {
     directions: Object.entries(DIRECTIONS).map(([key, label]) => ({ key, label, checked: key === msg.direction })),
     staffRef: msg.staffRef || '',
     timeLabel: timeLabel(msg.direction),
-    date: t.date, time: t.time, zone: t.zone,
-    utc: fmtUtc(msg.ts).split(' ').slice(1).join(' '),
-    created: viennaHhmm(msg.created),
+    date: viennaDate(msg.ts), time: viennaTime(msg.ts),
+    created: viennaTime(msg.created),
     channels: paperOptions(PAPER_CHANNELS, channel),
     channelOther: channel === 'anders' && msg.channel !== 'anders' ? CHANNELS[msg.channel] || msg.channel : '',
     priorities: paperOptions(Object.entries(PRIORITIES), msg.priority),
     alarm: !!msg.alarm,
-    alarmDone: msg.alarmDone ? viennaHhmm(msg.alarmDone.at) : '',
+    alarmDone: msg.alarmDone ? viennaTime(msg.alarmDone.at) : '',
     type: MESSAGE_TYPES[msg.type] || msg.type,
     types: Object.values(MESSAGE_TYPES),
     from: partyText(msg.from),
@@ -92,7 +79,7 @@ export function formSheet(msg, op, { now, revisions = 0, byId = new Map() }) {
     readBack: !!msg.readBack,
     readBackLabel: readBackLabel(msg.direction),
     extra: [
-      msg.stichzeit ? `Stichzeit ${viennaHhmm(msg.stichzeit)}` : '',
+      msg.stichzeit ? `Stichzeit ${viennaTime(msg.stichzeit)}` : '',
       msg.origin?.station || msg.origin?.place || msg.origin?.filed
         ? `Ursprung: ${[msg.origin.station, msg.origin.place, msg.origin.filed ? `aufgegeben ${fmtVienna(msg.origin.filed)}` : ''].filter(Boolean).join(' · ')}` : '',
     ].filter(Boolean).join(' · '),
@@ -117,7 +104,7 @@ export function blankFormSheet(op, { now }) {
     directions: Object.entries(DIRECTIONS).map(([key, label]) => ({ key, label, checked: false })),
     staffRef: '',
     timeLabel: 'Empfangen / gesendet am',
-    date: '', time: '', zone: '', utc: '', created: '',
+    date: '', time: '', created: '',
     channels: paperOptions(PAPER_CHANNELS, null), channelOther: '',
     priorities: paperOptions(Object.entries(PRIORITIES), null),
     alarm: false, alarmDone: '',
@@ -135,9 +122,8 @@ export function bookSheet(msgs, op, { now, fromIso = null, toIso = null }) {
   const rows = liveMessages(msgs)
     .filter(m => (!fromIso || m.ts >= fromIso) && (!toIso || m.ts <= toIso))
     .map(m => {
-      const { date } = viennaParts(m.ts);
       return {
-        number: m.number, staffRef: m.staffRef || '', date, time: viennaHhmm(m.ts),
+        number: m.number, staffRef: m.staffRef || '', date: viennaDate(m.ts), time: viennaTime(m.ts),
         direction: m.direction === 'in' ? 'Ein' : 'Aus',
         party: partyText(m.direction === 'in' ? m.from : m.to),
         subject: m.subject, text: m.text,

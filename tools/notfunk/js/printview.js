@@ -73,12 +73,11 @@ function staffBlock(s) {
 function whenCell(s) {
   if (s.blank) {
     return el('div', { class: 'pf-cell pf-inline' }, cap(s.timeLabel),
-      el('span', { class: 'pf-val pf-full' }, 'Datum ____________ Uhrzeit ________'),
-      box(false, 'MEZ'), box(false, 'MESZ'), box(false, 'UTC'));
+      el('span', { class: 'pf-val pf-full' }, 'Datum ____________ Uhrzeit ________'));
   }
   return el('div', { class: 'pf-cell pf-inline' }, cap(s.timeLabel),
-    el('span', { class: 'pf-val pf-strong' }, `${s.date} · ${s.time} ${s.zone}`),
-    el('span', { class: 'pf-small' }, `${s.utc} · erfasst ${s.created}`));
+    el('span', { class: 'pf-val pf-strong' }, `${s.date} · ${s.time}`),
+    el('span', { class: 'pf-small' }, `erfasst ${s.created}`));
 }
 
 function priorityCell(s) {

@@ -5,12 +5,14 @@
 // (Richtlinie für das Führen im Katastropheneinsatz, 4.10.1; ÖBFV E-31
 // annex): direction, running number, time, channel, sender/recipient,
 // subject, verbatim text, operator, further handling. Field choices and
-// open questions: ../README.md. Times are stored as ISO 8601 UTC; the
-// displayed zone is a view setting (fmtVienna / fmtUtc).
+// open questions: ../README.md. Times are stored as ISO 8601 UTC and shown
+// in Austrian local time (ZONE, fmtVienna).
 //
 // Message numbers come from numbering.js and are immutable: editMessage()
 // never touches prefix/seq/number. Edits keep the previous version as a
 // revision; deletes are soft (`deleted` timestamp).
+
+import { wallClock, isRepeatedWall, isoInZone } from '../../shared/js/time.js';
 
 export const DIRECTIONS = { in: 'Eingang', out: 'Ausgang' };
 export const CHANNELS = {
@@ -249,23 +251,40 @@ export function filterMessages(msgs, flt = {}) {
     && (!q || [m.number, m.staffRef, m.peer, m.subject, m.text, m.from.name, m.from.call, m.to.name, m.to.call].join(' ').toLowerCase().includes(q)));
 }
 
-const VIENNA_FMT = new Intl.DateTimeFormat('de-AT', {
-  timeZone: 'Europe/Vienna', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZoneName: 'short',
-});
+// All times are Austrian local time (Europe/Vienna), on any device: typed,
+// shown, printed and exported. Stored as ISO 8601 UTC, so the DST change
+// is no problem; only the hour that repeats when the clocks go back gets
+// its zone (MESZ, then MEZ) where a time is shown.
+export const ZONE = 'Europe/Vienna';
 
-// "05.10.2026 14:07 MESZ"-style local Vienna time, as on the Austrian staff
-// forms (TT.MM.JJJJ hh:mm), with the zone so it can't be mistaken for UTC.
-export function fmtVienna(iso) {
-  const d = new Date(iso);
-  if (isNaN(d)) return '';
-  const p = Object.fromEntries(VIENNA_FMT.formatToParts(d).map(x => [x.type, x.value]));
-  return `${p.day}.${p.month}.${p.year} ${p.hour}:${p.minute} ${p.timeZoneName}`;
+const ZONE_NAME_FMT = new Intl.DateTimeFormat('de-AT', { timeZone: ZONE, timeZoneName: 'short' });
+
+// "MESZ" / "MEZ" in the repeated hour, '' otherwise.
+export function zoneHint(iso) {
+  if (!isRepeatedWall(iso, ZONE)) return '';
+  return ZONE_NAME_FMT.formatToParts(new Date(iso)).find(p => p.type === 'timeZoneName')?.value || '';
 }
 
-// "05.10.2026 12:07 UTC"
-export function fmtUtc(iso) {
-  const d = new Date(iso);
-  if (isNaN(d)) return '';
-  const s = d.toISOString();
-  return `${s.slice(8, 10)}.${s.slice(5, 7)}.${s.slice(0, 4)} ${s.slice(11, 16)} UTC`;
+// "05.10.2026" and "14:07" (in the repeated hour "02:30 MESZ").
+export function viennaDate(iso) {
+  const { date } = wallClock(iso, ZONE);
+  return date ? `${date.slice(8, 10)}.${date.slice(5, 7)}.${date.slice(0, 4)}` : '';
+}
+
+export function viennaTime(iso) {
+  const { time } = wallClock(iso, ZONE);
+  if (!time) return '';
+  const hint = zoneHint(iso);
+  return `${time.slice(0, 5)}${hint ? ` ${hint}` : ''}`;
+}
+
+// "05.10.2026 14:07", as on the Austrian staff forms (TT.MM.JJJJ hh:mm).
+export function fmtVienna(iso) {
+  const d = viennaDate(iso);
+  return d ? `${d} ${viennaTime(iso)}` : '';
+}
+
+// "2026-10-05T14:07:00+02:00": ISO 8601 with the offset, for the CSV.
+export function isoVienna(iso) {
+  return isoInZone(iso, ZONE);
 }

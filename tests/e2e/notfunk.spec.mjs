@@ -96,7 +96,8 @@ test('keyboard: Shift+Enter saves, warnings ask once, Esc asks before discarding
   await openNewOp(page, 'E2E Tastatur', 'k1');
   await page.locator('#m-from').fill('LI 9');
   // the time is prefilled at the first keystroke, with the date
-  await expect(page.locator('#m-time')).toHaveValue(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
+  await expect(page.locator('#m-date')).toHaveValue(/^\d{4}-\d{2}-\d{2}$/);
+  await expect(page.locator('#m-time')).toHaveValue(/^\d{2}:\d{2}$/);
   await page.locator('#m-subject').fill('Probe');
   // missing text: an error at the field, nothing saved
   await page.locator('#m-subject').press('Shift+Enter');
@@ -127,6 +128,28 @@ test('keyboard: Shift+Enter saves, warnings ask once, Esc asks before discarding
   await expect(page.locator('#m-subject')).toHaveValue('');
   await page.getByRole('button', { name: 'Rückgängig' }).click();
   await expect(page.locator('#m-subject')).toHaveValue('halb');
+});
+
+test('time: Austrian local time; in the repeated hour the form asks MESZ or MEZ', async ({ page }) => {
+  // 02:10 MEZ on 25 Oct 2026: the second 02:10 of that night
+  await page.clock.setFixedTime(new Date('2026-10-25T01:10:00Z'));
+  await openNewOp(page, 'E2E Zeitumstellung', 'z1');
+  await expect(page.locator('#clock-local')).toHaveText('02:10 MEZ');
+  await page.locator('#m-from').fill('LI 9');
+  await expect(page.locator('#m-date')).toHaveValue('2026-10-25');
+  await expect(page.locator('#m-time')).toHaveValue('02:10');
+  await expect(page.locator('#m-zone')).toBeVisible();
+  await expect(page.locator('#m-zone')).toHaveValue('MEZ');
+  await page.locator('#m-time').fill('03:10');
+  await expect(page.locator('#m-zone')).toBeHidden();
+  await page.locator('#m-time').fill('02:30');
+  await page.locator('#m-zone').selectOption('MESZ');
+  await page.locator('#m-peer').fill('OE1ABC');
+  await page.locator('#m-subject').fill('Zeitumstellung');
+  await page.locator('#m-text').fill('Probe in der doppelten Stunde.');
+  await page.locator('#m-readback').check();
+  await page.locator('#btn-save').click();
+  await expect(page.locator('#book-body')).toContainText('02:30 MESZ');
 });
 
 test('help: F1 opens it, Esc closes it, the form and the focus stay', async ({ page }) => {

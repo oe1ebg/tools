@@ -1,7 +1,9 @@
 // Time and id helpers shared by the offline tools (confirm, notfunk): ids,
 // "now", and display/input of ISO 8601 UTC timestamps in UTC or local time.
 // Storage is ALWAYS an ISO 8601 UTC timestamp; the mode only changes what is
-// shown and how a typed correction is interpreted. Pure, node-tested.
+// shown and how a typed correction is interpreted. Local time is the
+// device's zone, or a named one (`tz`, e.g. 'Europe/Vienna') where a tool
+// passes it. Pure, node-tested.
 
 export function newId() {
   if (globalThis.crypto && typeof crypto.randomUUID === 'function') {
@@ -66,16 +68,13 @@ export function isoUtc(iso) {
 
 // ISO 8601 in local time with explicit offset: "2026-10-04T12:00:05+02:00".
 export function isoWithOffset(iso) {
-  const d = new Date(iso);
-  if (isNaN(d)) return '';
-  const { date, time } = splitTime(iso, 'local');
-  const off = -d.getTimezoneOffset();
-  const sign = off < 0 ? '-' : '+';
-  return `${date}T${time}${sign}${pad2(Math.trunc(Math.abs(off) / 60))}:${pad2(Math.abs(off) % 60)}`;
+  return isoInZone(iso);
 }
 
 // Typed time correction in the given mode: "HH:MM[:SS]" (date taken from
-// baseIso in that mode) or "YYYY-MM-DD HH:MM[:SS]". Returns ISO UTC or null.
+// baseIso in that mode) or "YYYY-MM-DD HH:MM[:SS]". Returns ISO UTC or null
+// (impossible date, local time skipped by DST). A local time in the hour
+// that repeats when the clocks go back is the occurrence nearest baseIso.
 export function parseTimeInput(text, mode, baseIso) {
   const t = String(text ?? '').trim();
   let m = t.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
@@ -89,9 +88,85 @@ export function parseTimeInput(text, mode, baseIso) {
     [y, mo, d, h, mi, sec] = [+m[1], +m[2], +m[3], +m[4], +m[5], +(m[6] || 0)];
   }
   if (h > 23 || mi > 59 || sec > 59) return null;
-  const dt = mode === 'local' ? new Date(y, mo - 1, d, h, mi, sec) : new Date(Date.UTC(y, mo - 1, d, h, mi, sec));
-  const back = splitTime(dt.toISOString(), mode);
-  // Reject impossible dates (Feb 30) and local times skipped by DST.
-  if (isNaN(dt) || back.date !== `${y}-${pad2(mo)}-${pad2(d)}` || back.time !== `${pad2(h)}:${pad2(mi)}:${pad2(sec)}`) return null;
-  return dt.toISOString();
+  const date = `${y}-${pad2(mo)}-${pad2(d)}`, time = `${pad2(h)}:${pad2(mi)}:${pad2(sec)}`;
+  if (mode === 'local') return closestTo(wallToInstants(date, time), baseIso);
+  const dt = new Date(Date.UTC(y, mo - 1, d, h, mi, sec));
+  // Reject impossible dates (Feb 30).
+  return isNaN(dt) || splitUtc(dt.toISOString()).date !== date ? null : dt.toISOString();
+}
+
+// Wall clock in a time zone (undefined = the device's) via Intl, so a
+// named zone works on any device. h23: no "24:00" (old Chrome).
+const WALL_FMTS = new Map();
+function wallFmt(tz) {
+  const key = tz || '';
+  if (!WALL_FMTS.has(key)) {
+    WALL_FMTS.set(key, new Intl.DateTimeFormat('en-US', {
+      timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+    }));
+  }
+  return WALL_FMTS.get(key);
+}
+
+// The wall clock of an instant: { date: 'YYYY-MM-DD', time: 'HH:MM:SS' }.
+export function wallClock(iso, tz) {
+  const d = new Date(iso);
+  if (isNaN(d)) return { date: '', time: '' };
+  const p = Object.fromEntries(wallFmt(tz).formatToParts(d).map(x => [x.type, x.value]));
+  return { date: `${p.year}-${p.month}-${p.day}`, time: `${p.hour}:${p.minute}:${p.second}` };
+}
+
+// UTC offset of the zone at that instant, in minutes (Vienna: 60 / 120).
+export function zoneOffset(iso, tz) {
+  const ms = Date.parse(iso);
+  const { date, time } = wallClock(iso, tz);
+  if (!date) return 0;
+  const [y, mo, d] = date.split('-').map(Number), [h, mi, s] = time.split(':').map(Number);
+  return Math.round((Date.UTC(y, mo - 1, d, h, mi, s) - Math.floor(ms / 1000) * 1000) / 60000);
+}
+
+// Every instant (ISO UTC, oldest first) whose wall clock in the zone is
+// date + time ('YYYY-MM-DD', 'HH:MM[:SS]'): none for an impossible date or
+// a time skipped when the clocks go forward, two in the hour that repeats
+// when they go back (Vienna, last Sunday of October: 02:00–02:59 MESZ,
+// then again MEZ).
+export function wallToInstants(date, time, tz) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date || '');
+  const t = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(time || '');
+  if (!m || !t || +t[1] > 23 || +t[2] > 59 || +(t[3] || 0) > 59) return [];
+  const want = { date, time: `${pad2(t[1])}:${t[2]}:${t[3] || '00'}` };
+  const asUtc = Date.UTC(+m[1], +m[2] - 1, +m[3], +t[1], +t[2], +(t[3] || 0));
+  if (isNaN(asUtc)) return [];
+  // the offsets in force half a day either side cover any DST change
+  const offsets = new Set([-12, 12].map(h => zoneOffset(new Date(asUtc + h * 3600e3).toISOString(), tz)));
+  const out = [];
+  for (const off of offsets) {
+    const iso = new Date(asUtc - off * 60e3).toISOString();
+    const w = wallClock(iso, tz);
+    if (w.date === want.date && w.time === want.time && !out.includes(iso)) out.push(iso);
+  }
+  return out.sort();
+}
+
+// Does the wall clock of this instant occur twice (the repeated hour)?
+export function isRepeatedWall(iso, tz) {
+  const { date, time } = wallClock(iso, tz);
+  return wallToInstants(date, time, tz).length > 1;
+}
+
+// Of the candidates, the one nearest to refIso (the first one without a
+// reference); null when there is none.
+export function closestTo(candidates, refIso) {
+  if (!candidates.length) return null;
+  const ref = Date.parse(refIso);
+  if (isNaN(ref)) return candidates[0];
+  return candidates.reduce((a, b) => (Math.abs(Date.parse(b) - ref) < Math.abs(Date.parse(a) - ref) ? b : a));
+}
+
+// ISO 8601 in a zone's local time with its offset: "2026-10-05T14:07:00+02:00".
+export function isoInZone(iso, tz) {
+  const { date, time } = wallClock(iso, tz);
+  if (!date) return '';
+  const off = zoneOffset(iso, tz);
+  return `${date}T${time}${off < 0 ? '-' : '+'}${pad2(Math.trunc(Math.abs(off) / 60))}:${pad2(Math.abs(off) % 60)}`;
 }
