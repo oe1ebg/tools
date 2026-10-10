@@ -8,10 +8,11 @@ import {
   normalizeAlert, computeDataBounds, filterAlertsByRange, capDefaultToDate, groupAlertsBySummit, alertSummitKey,
   matchesBandModeFilter, facetsPresent, BAND_SORT_ORDER, MODE_SORT_ORDER, parseOwnCallsigns, isOwnAlert,
 } from './alerts.js';
-import { formatAlertsBrief } from './format.js';
+import { formatAlertsBrief, timeDisplayPair } from './format.js';
 import { splitSummitKey, candidateFromSearchResult, candidateFromOsmElement, lookupFromRows } from './summits.js';
 import { createSummitResolver, lazy } from './lookup.js';
-import { shareSearch, parseShareSearch } from './share.js';
+import { shareSearch, parseShareSearch, MAX_SHARED_PINS, MAX_SHARED_LIVE_LOOKUPS } from './share.js';
+import { createLatest, createExclusive, isAbort } from './request.js';
 import * as store from './store.js';
 import { createWarnings } from './warnings.js';
 import { createMap, USER_LOCATION_ZOOM } from './map.js';
@@ -133,6 +134,11 @@ async function applySharedStateFromUrl(){
     store.saveModes(state.selectedModes);
   }
 
+  // ref and pins are validated, deduplicated and capped by parseShareSearch()
+  if (shared.dropped){
+    warnings.add(`${shared.dropped} pin${shared.dropped === 1 ? '' : 's'} from the shared link ${shared.dropped === 1 ? 'was' : 'were'} skipped (not a summit reference like OE/WI-001, repeated, or over the limit of ${MAX_SHARED_PINS} pins).`, 'shared-pins');
+  }
+  if (shared.badRef) warnings.add("the shared link's reference isn't a summit reference like OE/WI-001 and was skipped.", 'shared-ref');
   const refKey = shared.ref;
   const pinKeys = new Set(shared.pins);
   // The reference always needs its own marker to mean anything (distance/
@@ -143,17 +149,23 @@ async function applySharedStateFromUrl(){
   // Routed through resolveSummits() (static-lookup-first, live API as
   // fallback, concurrency-capped) rather than a raw per-key fetchSummit()
   // loop — a shared link with many pins shouldn't fire an unbounded
-  // Promise.all of live requests any more than loading alerts should.
+  // Promise.all of live requests any more than loading alerts should —
+  // and with its own cap on live requests (share.js), since a link is
+  // input from anyone.
   const toFetch = [...pinKeys].filter(k => !state.candidates.has(k)).map(key => ({ key, ...splitSummitKey(key) }));
-  const resolvedMap = await resolveSummits(toFetch, false);
+  const resolvedMap = await resolveSummits(toFetch, false, { maxLive: MAX_SHARED_LIVE_LOOKUPS });
+  const overBudget = new Set(resolvedMap.overBudget || []);
   let anyMissing = false;
   for (const e of toFetch){
     const summit = resolvedMap.get(e.key);
     if (summit) state.candidates.set(e.key, { key: e.key, assoc: e.assoc, code: e.code, ...summit });
-    else anyMissing = true;
+    else if (!overBudget.has(e.key)) anyMissing = true;
   }
   if (toFetch.length) saveCandidates();
   if (anyMissing) warnings.add("some summits from the shared link couldn't be found and were skipped.", 'shared-link');
+  if (overBudget.size){
+    warnings.add(`${overBudget.size} summit${overBudget.size === 1 ? '' : 's'} from the shared link ${overBudget.size === 1 ? 'was' : 'were'} skipped: not in the built-in summit list, and a shared link looks up at most ${MAX_SHARED_LIVE_LOOKUPS} summits from the SOTA API.`, 'shared-budget');
+  }
 
   if (refKey && state.candidates.has(refKey)) state.referenceKey = refKey;
   else if (refKey) warnings.add(`the shared link's reference summit (${refKey}) couldn't be found.`, 'shared-ref');
@@ -167,16 +179,40 @@ async function applySharedStateFromUrl(){
 
 /* ---------- loading ---------- */
 
+// The two refresh buttons and start-up share one guard: a refresh never
+// runs while another one does (otherwise the last one to finish would
+// win, whatever was asked last), the buttons are disabled meanwhile and
+// always enabled again afterwards, also after an error.
+const refreshing = createExclusive(busy => {
+  for (const id of ['btn-refresh-alerts', 'btn-refresh-summits']) $id(id).disabled = busy;
+});
+
+// When the alerts on screen were fetched; `stale` once a later refresh
+// failed and they are the last-known ones (shown in #alerts-age).
+const alertsStatus = { loadedAt: null, stale: false };
+const alertsTime = () => timeDisplayPair(alertsStatus.loadedAt.toISOString(), true, state.timeDisplay).primary;
+
+// Returns whether new alerts were loaded. A failed refresh keeps the alerts
+// already shown (marked as stale) rather than emptying the map.
 async function loadAlerts(){
+  let raw;
   try {
-    const raw = await fetchAlerts();
-    state.rawAlerts = raw.map(normalizeAlert);
-    warnings.drop('alerts');
+    raw = await fetchAlerts();
   } catch (err) {
-    state.rawAlerts = [];
-    warnings.add(`could not load SOTA alerts (${err.message}). If this persists it may be a CORS/network problem — check the browser console.`, 'alerts');
-    console.error(err);
+    // a warning, not an error: the page says so in #warnings
+    console.warn('could not load SOTA alerts:', err);
+    if (alertsStatus.loadedAt){
+      alertsStatus.stale = true;
+      warnings.add(`could not refresh SOTA alerts (${err.message}); still showing the alerts loaded at ${alertsTime()}. Try "refresh alerts" again later.`, 'alerts');
+    } else {
+      warnings.add(`could not load SOTA alerts (${err.message}). If this persists it may be a CORS/network problem — check the browser console, then try "refresh alerts".`, 'alerts');
+    }
+    return false;
   }
+  state.rawAlerts = raw.map(normalizeAlert);
+  alertsStatus.loadedAt = new Date();
+  alertsStatus.stale = false;
+  warnings.drop('alerts');
   state.bounds = computeDataBounds(state.rawAlerts);
   if (state.bounds){
     const fromEl = $id('range-from');
@@ -193,12 +229,29 @@ async function loadAlerts(){
     if (!fromEl.value) fromEl.value = state.bounds.min;
     if (!toEl.value) toEl.value = capDefaultToDate(state.bounds.min, state.bounds.max);
   }
+  return true;
 }
 
 async function loadSummits(force){
   const groups = groupAlertsBySummit(state.rawAlerts);
   const entries = [...groups.values()].map(g => ({ key: g.key, assoc: g.associationCode, code: g.summitCode }));
-  state.summitMap = await resolveSummits(entries, force);
+  const resolved = await resolveSummits(entries, force);
+  // A lookup that failed this time (timeout, API down — mostly on a forced
+  // refresh) keeps the coordinates already known rather than dropping the
+  // summit off the map.
+  for (const e of entries){
+    if (!resolved.has(e.key) && state.summitMap.has(e.key)) resolved.set(e.key, state.summitMap.get(e.key));
+  }
+  state.summitMap = resolved;
+}
+
+function renderAlertsAge(){
+  const age = $id('alerts-age');
+  if (!alertsStatus.loadedAt){ age.textContent = ''; return; }
+  age.classList.toggle('stale', alertsStatus.stale);
+  age.textContent = alertsStatus.stale
+    ? `⚠ alerts as of ${alertsTime()} (refresh failed)`
+    : `alerts as of ${alertsTime()}`;
 }
 
 /* ---------- rendering ---------- */
@@ -246,6 +299,7 @@ function updateStats(visible, groups, ownSet){
     onMap: [...groups.values()].filter(g => state.summitMap.has(g.key)).length,
     mine: visible.filter(a => isOwnAlert(a, ownSet)).length,
   });
+  renderAlertsAge();
   const ref = state.referenceKey ? state.summitMap.get(state.referenceKey) : null;
   renderRefIndicator($id('ref-indicator'),
     state.referenceKey ? { name: ref ? ref.name : state.referenceKey, key: state.referenceKey } : null,
@@ -296,8 +350,17 @@ function renderAllParts(fitView){
 // backspacing to a term already searched (common while narrowing a query)
 // shouldn't re-hit the API for the exact same string.
 const summitSearchCache = new Map();
-let summitSearchAbortController = null; // cancels a still-in-flight search when a newer one supersedes it, so a slow response to an earlier keystroke can't overwrite a later one's results
+// "Latest wins" for the search panel: every name search, area search and
+// clearing of the box supersedes (and aborts) the one before, so a slow
+// response to an earlier keystroke can't overwrite a later one's results
+// or reopen a panel that was cleared meanwhile.
+const summitSearch = createLatest();
 let summitSearchDebounceTimer = null; // debounce for auto-search-as-you-type in the "pin a summit" box
+
+function cancelSummitSearch(){
+  clearTimeout(summitSearchDebounceTimer);
+  summitSearch.cancel();
+}
 
 const searchPanel = () => $id('search-panel');
 const searchStatus = () => $id('search-status');
@@ -322,6 +385,9 @@ function showCandidates(cands, emptyMsg){
 }
 
 async function doSummitSearch(term){
+  // Supersede the previous search first, before any of the early returns
+  // below (empty term, cache hit) — they show something newer, too.
+  const run = summitSearch.begin();
   const trimmed = term.trim();
   if (!trimmed){ clearSearchPanel(); return; }
 
@@ -332,26 +398,24 @@ async function doSummitSearch(term){
     return;
   }
 
-  if (summitSearchAbortController) summitSearchAbortController.abort();
-  const controller = new AbortController();
-  summitSearchAbortController = controller;
-
   hint('searching…');
   searchPanel().classList.add('show');
   let results;
-  try { results = await searchSummits(trimmed, controller.signal); }
+  try { results = await searchSummits(trimmed, run.signal); }
   catch (err) {
-    if (err.name === 'AbortError') return; // superseded by a newer search
+    if (isAbort(err) || !run.isCurrent()) return; // superseded by a newer search
     hint(`search failed (${err.message}).`);
     return;
   }
   summitSearchCache.set(cacheKey, results);
+  if (!run.isCurrent()) return;
   showCandidates(results.map(candidateFromSearchResult).filter(c => c.lat != null), 'no summits found.');
 }
 
 async function doAreaSearch(){
   const btn = $id('btn-area-search');
   if (btn.disabled) return;
+  const run = summitSearch.begin(); // the same panel: supersedes a running name search
   const bounds = mapView.map.getBounds();
   if (bounds.getNorth() - bounds.getSouth() > AREA_SEARCH_MAX_SPAN_DEG || bounds.getEast() - bounds.getWest() > AREA_SEARCH_MAX_SPAN_DEG){
     hint('zoom in further before searching this area (keeps the query small and fast).');
@@ -363,8 +427,9 @@ async function doAreaSearch(){
   let elements;
   btn.disabled = true;
   try { elements = await searchOsmSummitsInView(bounds); }
-  catch (err) { hint(`OSM search failed (${err.message}).`); return; }
+  catch (err) { if (run.isCurrent()) hint(`OSM search failed (${err.message}).`); return; }
   finally { btn.disabled = false; }
+  if (!run.isCurrent()) return;
   const cands = elements.map(candidateFromOsmElement).filter(c => c && c.lat != null);
   showCandidates(cands, 'no OSM-tagged SOTA summits found in this view (coverage is partial — most summits aren\'t tagged in OSM yet).');
 }
@@ -554,15 +619,15 @@ function wireEvents(){
     if (loc){ state.userLocation = loc; mapView.map.setView([loc.lat, loc.lon], USER_LOCATION_ZOOM); warnings.drop('locate'); }
     else warnings.add('could not determine your location (denied, unavailable, or timed out).', 'locate');
   });
-  $id('btn-refresh-alerts').addEventListener('click', async () => {
-    await loadAlerts();
-    await loadSummits(false);
-    renderAll(true); // whole alert set just changed, re-frame to it
-  });
-  $id('btn-refresh-summits').addEventListener('click', async () => {
+  $id('btn-refresh-alerts').addEventListener('click', () => refreshing.run(async () => {
+    const loaded = await loadAlerts();
+    if (loaded) await loadSummits(false);
+    renderAll(loaded); // whole alert set just changed, re-frame to it (a failed refresh keeps the view)
+  }));
+  $id('btn-refresh-summits').addEventListener('click', () => refreshing.run(async () => {
     await loadSummits(true);
     renderAll();
-  });
+  }));
   $id('btn-toggle-toolbar').addEventListener('click', () => {
     const btn = $id('btn-toggle-toolbar');
     const shown = $id('toolbar-controls').classList.toggle('show');
@@ -607,6 +672,7 @@ function wireEvents(){
     clearTimeout(summitSearchDebounceTimer);
     const term = e.target.value.trim();
     if (term.length < 3){
+      cancelSummitSearch(); // a search still running must not reopen the panel
       clearSearchPanel();
       return;
     }
@@ -655,12 +721,15 @@ async function init(){
       mapView.map.setView([loc.lat, loc.lon], USER_LOCATION_ZOOM);
     }
   });
-  appliedSharedState = await applySharedStateFromUrl();
-  await loadAlerts();
-  await loadSummits(false);
-  // first-ever visit or a shared link: frame to whatever's there;
-  // otherwise (returning visitor, no shared link) keep their restored view
-  renderAll(appliedSharedState || !hasSavedView);
+  // under the refresh guard: the refresh buttons wait until start-up is done
+  await refreshing.run(async () => {
+    appliedSharedState = await applySharedStateFromUrl();
+    await loadAlerts();
+    await loadSummits(false);
+    // first-ever visit or a shared link: frame to whatever's there;
+    // otherwise (returning visitor, no shared link) keep their restored view
+    renderAll(appliedSharedState || !hasSavedView);
+  });
 }
 
 init();
