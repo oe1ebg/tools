@@ -97,8 +97,9 @@ function adifHeaderFields(text, resync = false, bad = []) {
 // export that keeps it: defs.userdefs = [{ name, type, spec }] from the
 // header's USERDEFn fields (name upper-cased, type the indicator letter or
 // '', spec the declaration as written: NAME, NAME,{A,B} or NAME,{min:max});
-// defs.types = { NAME: 'N' }, the first data type indicator of each field
-// in the records.
+// defs.types = { NAME: 'N' }, the data type indicator of each field in the
+// records: for APP_ fields that of the first occurrence ('' when it has
+// none, which ADIF reads as MultilineString), else the first one given.
 export function parseADIF(text, warnings, sourceLabel, headerInfo, stats, defs) {
   const tagRe = /<([A-Za-z0-9_]+)(?::(\d+)(?::([A-Za-z]+))?)?>/g;
   let bodyStart = 0;
@@ -171,7 +172,13 @@ export function parseADIF(text, warnings, sourceLabel, headerInfo, stats, defs) 
       if ((next !== '' && next !== '<' && !/\s/.test(next)) || /[\s<]$/.test(value)) stats.unclean++;
     }
     current[name] = value;
-    if (defs && m[3] && !(name in defs.types)) defs.types[name] = m[3].toUpperCase();
+    if (defs && !(name in defs.types)) {
+      // An application-defined field's first occurrence determines its type
+      // (ADIF 3.1.7 IV.A.4), '' = no indicator = MultilineString; other
+      // fields: the first indicator given.
+      if (name.startsWith('APP_')) defs.types[name] = m[3] ? m[3].toUpperCase() : '';
+      else if (m[3]) defs.types[name] = m[3].toUpperCase();
+    }
     any = true;
     tagRe.lastIndex = tagEnd + len;
   }

@@ -84,7 +84,9 @@ many values that changed.
 doesn't define is kept through load → edit → export. `parseADIF(…, defs)`
 (`../shared/js/adif.js`) collects the header's `USERDEFn` declarations as
 written (type letter, enumeration `{A,B}` or range `{min:max}`) and the
-first data type indicator of each field in the records; `js/export.js`
+data type of each application-defined field from its first occurrence
+(its indicator, or none = MultilineString, ADIF 3.1.7 IV.A.4; for other
+fields the first indicator given); `js/export.js`
 merges them per loaded file (`mergeFieldDefs`) and `serializeADIF(…,
 defs)` writes them back: `<USERDEFn:len:T>` in the header (renumbered
 1…n in load order), the indicator on application-defined fields
@@ -98,8 +100,10 @@ the same as before. Combining files whose declarations differ:
   export declares the union of the values / the wider range (or no
   restriction when one file has none), so the values of both files stay
   valid; the warnings box says so;
-- same name, another type (USERDEF, or the indicator of an `APP_` field):
-  the first loaded file's declaration stays. The warnings box names the
+- same name, another type (USERDEF, or the type of an `APP_` field, where
+  no indicator counts as M, so `<APP_X_Y:13>a\r\nb` in one file and
+  `<APP_X_Y:1:N>1` in the other conflict): the first loaded file's
+  declaration stays. The warnings box names the
   conflict at load, and the validation panel switches right away to the
   check of the log *as it would be exported*, so every value that no
   longer fits its declaration is in the issue list (and flagged in the
@@ -143,16 +147,22 @@ recordIndex (0-based into records), field, value, offset, line, column }`.
 Input never makes it throw: when no field structure can be found the result
 holds one `UNRECOVERABLE_PARSE_ERROR`.
 
-**How it works.** A tolerant scanner reads tags. The declared length
-counts (ADIF 3.1.7 IV.A.1): when tag-shaped text lies inside it
-(`<EOR>`, `<EOH>`, `<CALL:4>`) and the value ends cleanly (a blank or
-line break, a tag, or the end of the file follows), that text is part of
-the value, with a `TAG_IN_VALUE` warning (`RECORD_END_IN_VALUE` when it
-is an `<EOR>`, which a too-long length swallowing a QSO end looks like). When a declared length runs into
-the next tag and does *not* end cleanly, it is too long: the value is cut
-at that tag and the scan resyncs, so one wrong length doesn't swallow the
-following fields; a broken QSO is reported and the next ones are still
-read. Field and value checks are driven by
+**How it works.** A tolerant scanner reads tags. When the declared
+length fits in the file, it counts (ADIF 3.1.7 IV.A.1): the value is the
+declared number of characters, never split at tag-shaped text inside it,
+and characters after it outside a field or `<EOR>` are ignored (IV.A.6,
+so `<NOTES:20>literal <EOR> insideignored annotation<EOR>` is valid).
+Suspicious boundaries are warnings that don't change how the file is
+read: tag-shaped text inside a value (`TAG_IN_VALUE`; `RECORD_END_IN_VALUE`
+for an `<EOR>`, which a too-long length swallowing a QSO end looks like),
+and text right after a value (`FIELD_LENGTH_MISMATCH` as a warning; with a
+hint when the value is non-ASCII, i.e. the length was probably counted in
+UTF-8 bytes). Only a length running past the end of the file is cut: at
+the tag inside it, and the scan resyncs there (`FIELD_LENGTH_MISMATCH`,
+error), or `TRUNCATED_FIELD`; a broken QSO is reported and the next ones
+are still read. Within a file, the first occurrence of an `APP_` field
+determines its type (IV.A.4): later values are checked against it, a
+different type is `APP_FIELD_TYPE_INCONSISTENT`. Field and value checks are driven by
 `../shared/js/adif-spec-data.js`, generated from the official ADIF 3.1.7
 resources archive (`https://adif.org.uk/317/resources`, `exports/csv/`:
 data types, fields, enumerations) by `scripts/build_adif_spec.py`
@@ -166,7 +176,7 @@ new ADIF version). Only the cross-field checks and heuristics are code.
 | `UNRECOVERABLE_PARSE_ERROR` | error | empty input or no field tag at all |
 | `MALFORMED_FIELD` | error | `<` without `>`, tag without length, bad length/type syntax |
 | `TRUNCATED_FIELD` | error | declared length runs past the end of the file |
-| `FIELD_LENGTH_MISMATCH` | error | value continues after the declared length, runs into the next tag without ending cleanly, or the length counted the line break |
+| `FIELD_LENGTH_MISMATCH` | error / warning | error: a length past the end of the file runs over a tag (cut there), or the length counted the line break of a one-line field; warning: text follows the value directly (read as declared, the text is ignored, IV.A.6; non-ASCII values: probably counted in bytes) |
 | `MISSING_EOH` / `DUPLICATE_EOH` | error | header text without `<EOH>`; a second `<EOH>` |
 | `MISSING_EOR` | error | fields after the last `<EOR>` (still read as a QSO) |
 | `MALFORMED_RECORD` | error | `<EOR>` inside the header |
@@ -190,7 +200,7 @@ new ADIF version). Only the cross-field checks and heuristics are code.
 | `UNKNOWN_FIELD` | warning | not an ADIF 3.1.7 field, not `APP_`, not USERDEF (once per field name) |
 | `FIELD_NOT_IN_HEADER` / `HEADER_FIELD_IN_RECORD` | warning | QSO field in the header, or the other way round |
 | `TYPE_INDICATOR_MISMATCH` | warning | type letter differs from the field's type |
-| `APP_FIELD_TYPE_INCONSISTENT` | warning | an `APP_` field with different type letters |
+| `APP_FIELD_TYPE_INCONSISTENT` | warning | an `APP_` field with another type than at its first occurrence in the file (no indicator = M), which determines its type (IV.A.4) |
 | `IMPORT_ONLY_VALUE` | warning | e.g. `MODE=C4FM` (use `MODE=DIGITALVOICE SUBMODE=C4FM`), Award values |
 | `NONSTANDARD_ENUM_VALUE` | warning | `CONTEST_ID`/`SUBMODE` outside the recommended enumeration |
 | `BAND_FREQUENCY_MISMATCH` | warning | `FREQ` outside `BAND` (and `FREQ_RX`/`BAND_RX`) |
@@ -243,7 +253,8 @@ far:
 
 | Input | Us | Tool | Spec |
 | --- | --- | --- | --- |
-| `<CALL:5>OE1ABC` | `FIELD_LENGTH_MISMATCH` | adifmt: ok (reads `OE1AB`) | IV.A.1; adif-checker agrees with us |
+| `<CALL:5>OE1ABC` | ok, `FIELD_LENGTH_MISMATCH` warning (reads `OE1AB`) | adif-checker: error (stray byte); adifmt agrees with us | IV.A.1, IV.A.6: characters outside fields are ignored |
+| `<NOTES:20>literal <EOR> insideignored annotation<EOR>` | ok, `RECORD_END_IN_VALUE` warning | adif-checker: error (stray bytes); adifmt agrees with us | IV.A.1, IV.A.6 |
 | `GRIDSQUARE=SZ88` | `INVALID_GRIDSQUARE` | adifmt: ok | III.A.1: the first pair is A–R |
 | `NAME_INTL` in .adi | `INTL_FIELD_IN_ADI` | adifmt: ok | IV.A.1: no Intl types in ADI |
 | `CREDIT_SUBMITTED=DXCC:CARD&FAX` | `INVALID_ENUM` | adifmt: ok | III.A CreditList: QSL_Medium values only |

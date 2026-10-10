@@ -96,9 +96,10 @@ test('cross-check tools', { skip: REQUIRED ? false : skip }, t => {
 
 const FIXTURE_DIFFERS = {
   'invalid-length.adi': {
-    // <CALL:5>OE1ABC: adifmt reads the declared 5 characters and drops the
-    // rest silently; we (and adif-checker) report the stray "C".
-    adifmt: { errors: false, why: 'adifmt ignores data after the declared length (README, "Compared with adifmt")' },
+    // <CALL:5>OE1ABC: read as the declared 5 characters; the "C" after it is
+    // outside any field and ignored (ADIF 3.1.7 IV.A.6). adifmt agrees; we
+    // add a warning. adif-checker rejects the stray byte.
+    'adif-checker': { errors: true, why: 'adif-checker rejects characters between fields; IV.A.6 says they are ignored' },
   },
 };
 for (const name of readdirSync(FIXTURES).filter(n => n.endsWith('.adi')).sort()) {
@@ -142,6 +143,15 @@ for (const name of ['userdef-typed.adi', 'tag-in-value.adi']) {
     crossCheck(`editor export of ${name}`, roundTrip(readFileSync(join(FIXTURES, name), 'utf8')).adi);
   });
 }
+
+// Annotation text after a value, outside any field: ignored (IV.A.6), so the
+// declared length holds even with "<EOR>" inside the value.
+test('cross-check annotation text after a value with <EOR> inside it', { skip }, () => {
+  crossCheck('annotated value',
+    'x\r\n<ADIF_VER:5>3.1.7\r\n<EOH>\r\n<CALL:5>OE1AB<QSO_DATE:8>20261004<TIME_ON:4>1200<BAND:3>20m<MODE:3>SSB' +
+    '<NOTES:20>literal <EOR> insideignored annotation<EOR>\r\n',
+    { 'adif-checker': { errors: true, why: 'adif-checker rejects characters between fields; IV.A.6 says they are ignored' } });
+});
 
 test('cross-check confirmation-log exports (every template)', { skip }, () => {
   const header = {

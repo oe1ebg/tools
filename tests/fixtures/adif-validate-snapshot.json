@@ -66,9 +66,9 @@
   "fixtures/adif/invalid-length.adi": {
     "records": 1,
     "counts": {
-      "error FIELD_LENGTH_MISMATCH": 1
+      "warning FIELD_LENGTH_MISMATCH": 1
     },
-    "issues": "02b01fd1dab6feb4686e2590817d1b6391d0f79f232ad92dc70f5830aebe21df"
+    "issues": "41e0f9c7b0266031154b24c936e0a404351f7f688687e64bfdd7844d76914b66"
   },
   "fixtures/adif/invalid-mode.adi": {
     "records": 1,
@@ -87,11 +87,12 @@
   "fixtures/adif/malformed-record.adi": {
     "records": 3,
     "counts": {
-      "error FIELD_LENGTH_MISMATCH": 1,
+      "error INVALID_CHARACTER": 1,
       "error MALFORMED_FIELD": 2,
+      "warning FIELD_LENGTH_MISMATCH": 1,
       "warning MISSING_QSO_FIELD": 1
     },
-    "issues": "440c5797ab23a1213717b535e3a8ba8effdf431477913fbe116dbf05b9240253"
+    "issues": "5389a08204349f0d5f122925ac084810daa269eae8ca8f052b761eee808e7dc4"
   },
   "fixtures/adif/mode-submode-mismatch.adi": {
     "records": 2,

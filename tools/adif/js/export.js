@@ -77,11 +77,14 @@ export function mergeFieldDefs(target, defs, file){
       have.spec = wide;
     }
   }
+  // '' = an APP_ field without indicator: MultilineString (IV.A.4)
+  const effective = t => t || 'M';
+  const label = t => t || 'M (no indicator)';
   for (const [name, t] of Object.entries(defs?.types || {})){
     if (!(name in target.types)){ target.types[name] = t; target.typeFiles[name] = file; }
-    else if (target.types[name] !== t && !ADIF_SPEC_FIELDS[name] && !target.userdefs.some(u => u.name === name)){
-      msgs.push(`${file}: ${name} has data type ${t} here, but ${target.types[name]} in ${target.typeFiles[name]}; ` +
-        `the export writes ${target.types[name]}, so values that don't fit it show up as issues.`);
+    else if (effective(target.types[name]) !== effective(t) && !ADIF_SPEC_FIELDS[name] && !target.userdefs.some(u => u.name === name)){
+      msgs.push(`${file}: ${name} has data type ${label(t)} here, but ${label(target.types[name])} in ${target.typeFiles[name]}; ` +
+        `the export writes ${label(target.types[name])}, so values that don't fit it show up as issues.`);
     }
   }
   return msgs;

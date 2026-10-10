@@ -75,7 +75,7 @@ test('parseADIF: defs collect USERDEF declarations and type indicators', () => {
     { name: 'ELEVATION', type: 'N', spec: 'ELEVATION,{0:90}' },
     { name: 'MY_AMP', type: 'S', spec: 'MY_AMP' },
   ]);
-  assert.deepEqual(defs.types, { APP_OE1EBG_RATING: 'N', APP_OE1EBG_WX: 'M', APP_OE1EBG_TAG: 'S' });
+  assert.deepEqual(defs.types, { APP_OE1EBG_RATING: 'N', APP_OE1EBG_WX: 'M', APP_OE1EBG_MEMO: '', APP_OE1EBG_TAG: 'S' }, 'APP_ without indicator: empty (MultilineString, IV.A.4)');
   const auto = {};
   parseADIFAuto(TYPED, [], 'typed.adi', undefined, auto);
   assert.deepEqual(auto, defs, 'parseADIFAuto passes them on');
@@ -159,4 +159,40 @@ test('mergeFieldDefs: conflicting declarations from two files', () => {
   const recs = [{ CALL: 'OE1A', ANTENNA: 'YAGI', ELEVATION: '80', SWR: '1.5' }, { CALL: 'OE1B', ANTENNA: 'LOOP', ELEVATION: '-5', SWR: 'low' }];
   const r = validateAdif(serializeADIF(recs, ['CALL', 'ANTENNA', 'ELEVATION', 'SWR'], STAMP, target), { today: '20991231' });
   assert.deepEqual(r.issues.filter(i => i.severity === 'error').map(i => `${i.code} ${i.field} ${i.recordIndex}`), ['INVALID_NUMBER SWR 1']);
+});
+
+// IV.A.4: an application-defined field without indicator is MultilineString,
+// and its first occurrence in a file determines its type.
+test('implicit APP_ types: conflicts across files in both orders, first occurrence within a file', () => {
+  const A = 'a\n<EOH>\n<CALL:5>OE1AB<APP_DEMO_DATA:13>first\r\nsecond<EOR>\n';
+  const B = 'b\n<EOH>\n<CALL:5>OE1AB<APP_DEMO_DATA:1:N>1<EOR>\n';
+  const load = files => {
+    const target = emptyFieldDefs(), recs = [], msgs = [];
+    for (const [name, text] of files) {
+      const defs = {};
+      recs.push(...parseADIF(text, [], name, undefined, undefined, defs));
+      msgs.push(...mergeFieldDefs(target, defs, name));
+    }
+    const out = serializeADIF(recs, ['CALL', 'APP_DEMO_DATA'], STAMP, target);
+    return { msgs, out, r: validateAdif(out, { today: '20991231' }) };
+  };
+  // A first: M (no indicator) wins, both values fit; still a warning
+  const ab = load([['a.adi', A], ['b.adi', B]]);
+  assert.equal(ab.msgs.length, 1);
+  assert.match(ab.msgs[0], /APP_DEMO_DATA has data type N here, but M \(no indicator\) in a\.adi/);
+  assert.ok(ab.out.includes('<APP_DEMO_DATA:13>first\r\nsecond '), 'line break kept, no indicator');
+  assert.equal(ab.r.errors, 0, JSON.stringify(ab.r.issues));
+  // B first: N wins; A's multiline text is the visible loss in the export check
+  const ba = load([['b.adi', B], ['a.adi', A]]);
+  assert.equal(ba.msgs.length, 1);
+  assert.match(ba.msgs[0], /APP_DEMO_DATA has data type M \(no indicator\) here, but N in b\.adi; the export writes N/);
+  assert.ok(ba.out.includes('<APP_DEMO_DATA:12:N>first second '));
+  assert.deepEqual(ba.r.issues.filter(i => i.severity === 'error').map(i => `${i.code} ${i.field} ${i.recordIndex}`), ['INVALID_NUMBER APP_DEMO_DATA 1']);
+  // an explicit :M and none are the same type: no conflict
+  assert.deepEqual(load([['a.adi', A], ['m.adi', 'm\n<EOH>\n<CALL:5>OE1AB<APP_DEMO_DATA:1:M>x<EOR>\n']]).msgs, []);
+  // within one file the first occurrence decides (validator)
+  const one = validateAdif('h\n<EOH>\n<CALL:5>OE1AB<APP_DEMO_DATA:3>a b<EOR>\n<CALL:5>OE1AC<APP_DEMO_DATA:3:N>abc<EOR>\n', { today: '20991231' });
+  const codes = one.issues.map(i => `${i.severity} ${i.code} ${i.recordIndex ?? ''}`);
+  assert.ok(codes.includes('warning APP_FIELD_TYPE_INCONSISTENT 1'), codes.join());
+  assert.ok(!codes.some(c => c.includes('INVALID_NUMBER')), 'checked as M, the type of the first occurrence');
 });
