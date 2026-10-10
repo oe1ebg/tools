@@ -164,6 +164,8 @@ jobs:
           }
           for f in "${files[@]}"; do
             new=$(asset_id "$f.next")
+            # never delete the old asset unless the new one is really there
+            if [ -z "$new" ]; then echo "::error::uploaded $f.next not listed on data-latest"; exit 1; fi
             old=$(asset_id "$f")
             if [ -n "$old" ]; then gh api -X DELETE "repos/$REPO/releases/assets/$old"; fi
             gh api -X PATCH "repos/$REPO/releases/assets/$new" -f name="$f" >/dev/null

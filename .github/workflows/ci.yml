@@ -62,8 +62,9 @@ jobs:
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         with:
           # this workflow and the Node version affect everything; the release
-          # workflows require the ADIF cross-checks, the real-data checks and
-          # validate-dist.yml's browser tests, so their changes run those here
+          # workflows require the ADIF cross-checks and the real-data checks,
+          # so their changes run those here (validate-dist.yml itself only
+          # runs in the release and data workflows, not in PRs)
           filters: |
             adif:
               - '.github/workflows/ci.yml'
@@ -92,6 +93,7 @@ jobs:
               # node tests and helpers: `bundle` reruns them with the data
               # (DATA_TESTS=require)
               - 'tests/*.mjs'
+              - 'tests/location-goldset.txt'
               - 'tools/**'
               - 'docs/**'
               - 'tests/e2e/**'
