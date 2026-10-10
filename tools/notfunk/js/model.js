@@ -256,10 +256,9 @@ export function zoneHint(iso) {
   return ZONE_NAME_FMT.formatToParts(new Date(iso)).find(p => p.type === 'timeZoneName')?.value || '';
 }
 
-// "05.10.2026" and "14:07" (in the repeated hour "02:30 MESZ").
+// "2026-10-05" (ISO 8601) and "14:07" (in the repeated hour "02:30 MESZ").
 export function viennaDate(iso) {
-  const { date } = wallClock(iso, ZONE);
-  return date ? `${date.slice(8, 10)}.${date.slice(5, 7)}.${date.slice(0, 4)}` : '';
+  return wallClock(iso, ZONE).date;
 }
 
 export function viennaTime(iso) {
@@ -269,7 +268,7 @@ export function viennaTime(iso) {
   return `${time.slice(0, 5)}${hint ? ` ${hint}` : ''}`;
 }
 
-// "05.10.2026 14:07", as on the Austrian staff forms (TT.MM.JJJJ hh:mm).
+// "2026-10-05 14:07": ISO date, 24-hour time.
 export function fmtVienna(iso) {
   const d = viennaDate(iso);
   return d ? `${d} ${viennaTime(iso)}` : '';

@@ -57,9 +57,9 @@ export function partyText(p) {
   return p.name || p.call || '';
 }
 
-// Times in the form are Austrian local time (ZONE) in the inputs' own
-// formats: date 'YYYY-MM-DD' (<input type="date">), time 'HH:MM'
-// (<input type="time">). The hour that repeats when the clocks go back
+// Times in the form are Austrian local time (ZONE), typed as text in a
+// fixed format, never the browser's locale: date 'YYYY-MM-DD' (ISO 8601),
+// time 'HH:MM' (24 hours; "1405" and "14.05" are read too). The hour that repeats when the clocks go back
 // (last Sunday of October, 02:00–02:59) needs a choice: zone 'MESZ' (the
 // first time) or 'MEZ' (the second); without one, the occurrence nearest
 // `ref` is taken.
@@ -73,9 +73,26 @@ export function clockText(iso) {
   return iso ? wallClock(iso, ZONE).time.slice(0, 5) : '';
 }
 
+// A typed time as 'HH:MM' ("9:05", "14.05", "1405"), a typed date as
+// 'YYYY-MM-DD' (also "20261008"); '' when blank, null when unreadable.
+export function normTime(text) {
+  const t = String(text ?? '').trim();
+  if (!t) return '';
+  const m = /^(\d{1,2})[:.]?(\d{2})$/.exec(t);
+  return m && +m[1] < 24 && +m[2] < 60 ? `${m[1].padStart(2, '0')}:${m[2]}` : null;
+}
+
+export function normDate(text) {
+  const t = String(text ?? '').trim();
+  if (!t) return '';
+  const m = /^(\d{4})-?(\d{2})-?(\d{2})$/.exec(t);
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
+}
+
 // Is date + time in the repeated hour (so the form asks MESZ or MEZ)?
 export function needsZone(date, time) {
-  return wallToInstants(date, time, ZONE).length > 1;
+  const d = normDate(date), t = normTime(time);
+  return !!(d && t) && wallToInstants(d, t, ZONE).length > 1;
 }
 
 function pickZone(candidates, zone, ref) {
@@ -87,9 +104,9 @@ function pickZone(candidates, zone, ref) {
 // today. null when it can't be read (no time, impossible date, a time
 // skipped when the clocks go forward).
 export function readDateTime(date, time, now, zone = '') {
-  const d = String(date ?? '').trim(), t = String(time ?? '').trim();
-  if (!d && !t) return now;
-  if (!t) return null;
+  const d = normDate(date), t = normTime(time);
+  if (d === '' && t === '') return now;
+  if (!t || d === null) return null;
   return pickZone(wallToInstants(d || dateText(now), t, ZONE), zone, now);
 }
 
@@ -98,7 +115,7 @@ export function readDateTime(date, time, now, zone = '') {
 // the day before. For the Stichzeit, the Aufgabezeit and the handover
 // steps; null when empty or unreadable.
 export function readClock(time, ref) {
-  const t = String(time ?? '').trim();
+  const t = normTime(time);
   if (!t || !ref) return null;
   const limit = Date.parse(ref) + 5 * 60e3;
   const today = dateText(ref);
@@ -111,8 +128,8 @@ export function readClock(time, ref) {
 // A bound of the printed range: date and/or time; a date alone is the
 // start (or with end, the last minute) of that day, a time alone today.
 export function readBound(date, time, now, end = false) {
-  const d = String(date ?? '').trim(), t = String(time ?? '').trim();
-  if (!d && !t) return null;
+  const d = normDate(date), t = normTime(time);
+  if (d === null || t === null || (!d && !t)) return null;
   const at = wallToInstants(d || dateText(now), t || (end ? '23:59:59' : '00:00'), ZONE);
   return at.length ? at[end ? at.length - 1 : 0] : null;
 }
@@ -153,7 +170,12 @@ export function formToFields(form, { now, byNumber = new Map(), editing = false 
   const keptTs = form.ts && form.date === dateText(form.ts) && form.time === clockText(form.ts) && (form.zone || '') === zoneHint(form.ts) ? form.ts : null;
   const keep = (stored, time) => (stored && time === clockText(stored) ? stored : null);
   const ts = keptTs || readDateTime(form.date, form.time, now, form.zone);
-  if (!ts) fieldErrors.time = isBlankText(form.time) ? 'Uhrzeit fehlt' : 'Diese Uhrzeit gibt es an dem Tag nicht (Datum ungültig oder Zeitumstellung)';
+  if (!ts) {
+    fieldErrors.time = normDate(form.date) === null ? 'Datum als JJJJ-MM-TT, z. B. 2026-10-08'
+      : isBlankText(form.time) ? 'Uhrzeit fehlt'
+        : normTime(form.time) === null ? 'Uhrzeit als HH:MM, z. B. 14:05'
+          : 'Diese Uhrzeit gibt es an dem Tag nicht (Datum ungültig oder Zeitumstellung)';
+  }
   if (isBlankText(form.from)) fieldErrors.from = 'Absender fehlt: wer gibt die Meldung auf?';
   if (isBlankText(form.to)) fieldErrors.to = 'Adressat fehlt: für wen ist die Meldung?';
   if (isBlankText(form.subject)) fieldErrors.subject = 'Betreff fehlt';

@@ -111,11 +111,12 @@ details.hdr .hint{ margin:.6em 0 0; }
 /* first row of the form: Richtung, Zeit right next to it, Übermittlung */
 .row-flow{ display:flex; flex-wrap:wrap; gap:.6em 1.6em; align-items:flex-start; }
 .row-flow .time-field{ width:auto; }
-/* date and time side by side (native pickers; the zone choice only in the
+/* date and time side by side (text in a fixed format, never the browser's
+   locale; the zone choice only in the
    hour that repeats when the clocks go back) */
 .dt-pair{ display:flex; flex-wrap:wrap; gap:.3em; align-items:center; }
-.dt-pair input[type=date]{ width:9.5em; }
-.dt-pair input[type=time]{ width:6.5em; }
+.dt-pair input.dt-date{ width:7.6em; }
+.dt-pair input.dt-time{ width:4.4em; }
 .row-flow .channel-field{ flex:1 1 20em; min-width:0; }
 
 /* the priority buttons: equal width and height */
