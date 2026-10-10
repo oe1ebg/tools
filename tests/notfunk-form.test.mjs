@@ -304,3 +304,17 @@ test('Meldebuch printout: range, deleted left out, oldest first', () => {
   assert.deepEqual(part.rows.map(r => r.number), ['W1-002']);
   assert.match(part.range, /^2026-10-07 13:30 bis jetzt$/);
 });
+
+test('date picker: months from Monday, ISO dates; month steps across the year', async () => {
+  const { pickerMonth, shiftMonth } = await import('../tools/notfunk/js/picker.js');
+  const oct = pickerMonth('2026-10');
+  assert.equal(oct.title, 'Oktober 2026');
+  // 1 Oct 2026 is a Thursday: three empty cells, then the 1st
+  assert.deepEqual(oct.weeks[0], [null, null, null, '2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04']);
+  assert.equal(oct.weeks.flat().filter(Boolean).length, 31);
+  assert.ok(oct.weeks.every(w => w.length === 7));
+  assert.equal(pickerMonth('2028-02').weeks.flat().filter(Boolean).length, 29, 'leap year');
+  assert.equal(pickerMonth('2026-01').title, 'Jänner 2026');
+  assert.equal(shiftMonth('2026-12', 1), '2027-01');
+  assert.equal(shiftMonth('2026-01', -1), '2025-12');
+});

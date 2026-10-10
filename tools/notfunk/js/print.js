@@ -6,7 +6,7 @@
 //    with the fields of the ÖBFV E-31 form (SKKM Richtlinie 4.10.1): Ein/Aus,
 //    Datum/Uhrzeit (Austrian local time), Übermittlung, Von, An, Betreff,
 //    Inhalt, Name/Unterschrift, Anmerkungen; a block "Nur von der
-//    Meldesammelstelle / dem Stab auszufüllen" (Referenz, federführend,
+//    Meldesammelstelle auszufüllen" (Referenz, federführend,
 //    mitwirkend, zur Kenntnis; only the reference is filled in, once it was
 //    reported back) and the handover (Eingang) or transmission (Ausgang).
 //    blankFormSheet(): the same form empty, to print a stack of them for

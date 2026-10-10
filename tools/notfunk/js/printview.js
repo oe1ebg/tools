@@ -64,8 +64,8 @@ function directionTiles(s) {
 
 function staffBlock(s) {
   const field = (label, value = '') => el('div', {}, cap(label), el('span', { class: 'pf-line' }, value));
-  return el('section', { class: 'pf-staff', 'aria-label': 'Nur von der Meldesammelstelle / dem Stab auszufüllen' },
-    el('div', { class: 'pf-staff-head' }, 'Nur von der Meldesammelstelle / dem Stab auszufüllen'),
+  return el('section', { class: 'pf-staff', 'aria-label': 'Nur von der Meldesammelstelle auszufüllen' },
+    el('div', { class: 'pf-staff-head' }, 'Nur von der Meldesammelstelle auszufüllen'),
     el('div', { class: 'pf-staff-grid' },
       field('Referenz / Geschäftsbuch-Nr.', s.staffRef), field('Federführend'), field('Mitwirkend'), field('Zur Kenntnis')));
 }
