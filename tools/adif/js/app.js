@@ -7,7 +7,7 @@
 
 import { ADIF_FIELDS, ADIF_FIELD_MAP } from './fields.js';
 import { parseADIFAuto } from '../../shared/js/adif.js';
-import { serializeADIF, serializeCSV, serializeSotaCsv, adifChangedValues, ADI_MIME } from './export.js';
+import { serializeADIF, serializeCSV, serializeSotaCsv, adifChangedValues, ADI_MIME, emptyFieldDefs, mergeFieldDefs, forgetFieldDefs } from './export.js';
 import { el, fill, isComposing, trackExpanded } from '../../shared/js/dom.js';
 import { validateAdif } from '../../shared/js/adif-validate.js';
 import { ADIF_SPEC_VERSION } from '../../shared/js/adif-spec-data.js';
@@ -36,6 +36,9 @@ function populateFieldDatalist(){
 let columns = [];   // ordered field names
 let colIndex = new Map(); // field name -> position in columns
 let fileMeta = [];  // [{name, adifVer, programId, programVersion}], one per loaded file
+// USERDEF declarations and type indicators of the loaded files, merged
+// (export.js, mergeFieldDefs): the ADI export writes them back.
+const fieldDefs = emptyFieldDefs();
 let dirty = false;  // edits since the last export (asked about before leaving the page)
 
 function markDirty(){ dirty = true; scheduleRevalidate(); }
@@ -142,7 +145,7 @@ function revalidate(){
   // rows without any value (e.g. just added) are not checked
   const filled = records.filter(hasAnyValue);
   let result;
-  try { result = validateAdif(serializeADIF(filled, columns)); }
+  try { result = validateAdif(serializeADIF(filled, columns, undefined, fieldDefs)); }
   catch (e){ console.error(e); setChecking(false); return; }
   validationView = { scope: 'current log, as it would be exported', results: [{ label: 'current log', result, recs: filled }] };
   indexValidation();
@@ -468,13 +471,16 @@ function render(){
   const htr = el('tr', { 'aria-rowindex': '1' }, el('th', { class: 'rownum-col', scope: 'col' }, '#'));
   for (const col of columns){
     const fieldDef = ADIF_FIELD_MAP.get(col);
+    const userdef = fieldDef ? null : fieldDefs.userdefs.find(u => u.name === col);
+    const indicator = fieldDef ? '' : fieldDefs.types[col];
     htr.appendChild(el('th', { scope: 'col', 'data-col': col, 'aria-sort': sortLabel(col) },
       el('span', { class: 'colhead' },
         el('button', {
           type: 'button', class: 'sortcol',
           title: 'click to sort' + (fieldDef
             ? ` — ${fieldDef.type}: ${fieldDef.desc}`
-            : ' — no ADIF definition (custom/application field)'),
+            : userdef ? ` — user-defined field (USERDEF ${userdef.spec}, type ${userdef.type || 'none'})`
+            : ` — no ADIF definition (custom/application field${indicator ? `, type ${indicator}` : ''})`),
         }, col),
         el('button', { type: 'button', class: 'rmcol', title: 'remove column', 'aria-label': `remove column ${col}` }, '×'))));
   }
@@ -688,6 +694,7 @@ function addColumn(name){
 
 function removeColumn(name){
   columns = columns.filter(c => c !== name);
+  forgetFieldDefs(fieldDefs, name);
   markDirty();
   for (const rec of records) delete rec[name];
   invalidateAllRecords();
@@ -827,20 +834,28 @@ function loadFiles(fileList){
   const files = Array.from(fileList);
   let pending = files.length;
   if (!pending) return;
+  let defConflicts = false;
   const done = () => {
     if (--pending > 0) return;
     rebuildColumns();
     showFileValidations();
     replaceView(filterView()); // an active filter applies to the new records too
     render();
+    // Declarations that didn't fit together: show the log as the export
+    // would write it, so the values that no longer fit are in the issue list.
+    if (defConflicts) scheduleRevalidate();
   };
   files.forEach(file => {
     const reader = new FileReader();
     reader.onload = () => {
       const warnings = [];
       const headerInfo = {};
+      const defs = {};
       const text = decodeLog(reader.result, file.name, warnings);
-      const parsed = parseADIFAuto(text, warnings, file.name, headerInfo);
+      const parsed = parseADIFAuto(text, warnings, file.name, headerInfo, defs);
+      const conflicts = mergeFieldDefs(fieldDefs, defs, file.name);
+      if (conflicts.length) defConflicts = true;
+      warnings.push(...conflicts);
       fileValidations.push(validateFile(file.name, text, parsed));
       for (const rec of parsed){ records.push(rec); recordFile.push(file.name); }
       fileMeta.push({
@@ -912,23 +927,27 @@ document.getElementById('btn-export').addEventListener('click', () => {
   commitFocusedCell();
   const name = document.getElementById('filename-input').value.trim() || 'export.adi';
   // .adi is ASCII: say which values had to be transliterated
-  const changed = adifChangedValues(records, columns);
-  if (changed) addWarning(`${changed} value(s) contained non-ASCII characters; transliterated in the export (ä → ae, é → e, other → ?).`);
-  downloadText(serializeADIF(records, columns), ADI_MIME, name);
+  const changed = adifChangedValues(records, columns, fieldDefs);
+  if (changed) addWarning(`${changed} value(s) contained non-ASCII characters or line breaks their field can't hold; changed in the export (ä → ae, é → e, other → ?, line break → blank).`);
+  downloadText(serializeADIF(records, columns, undefined, fieldDefs), ADI_MIME, name);
   dirty = false;
 });
 
 document.getElementById('btn-export-csv').addEventListener('click', () => {
   commitFocusedCell();
   const name = swapExt(document.getElementById('filename-input').value, 'csv');
-  downloadText(serializeCSV(records, columns), 'text/csv', name);
+  const stats = { guarded: 0 };
+  downloadText(serializeCSV(records, columns, stats), 'text/csv', name);
+  if (stats.guarded) addWarning(`CSV: ${stats.guarded} value(s) start with =, +, -, @ or a control character; written with a leading ' so spreadsheets don't run them as formulas (numbers like -10 stay as they are; the .adi export is unchanged).`);
   dirty = false;
 });
 
 document.getElementById('btn-export-sota').addEventListener('click', () => {
   commitFocusedCell();
   const mode = document.getElementById('sota-mode').value;
-  downloadText(serializeSotaCsv(records, mode), 'text/csv', `sota-${mode}.csv`);
+  const stats = { flattened: 0 };
+  downloadText(serializeSotaCsv(records, mode, stats), 'text/csv', `sota-${mode}.csv`);
+  if (stats.flattened) addWarning(`SOTA CSV: ${stats.flattened} value(s) changed for SOTA's importer, which has no quoting: comma → ";", line break → blank (one QSO per line).`);
 });
 
 document.getElementById('btn-toggle-tools').addEventListener('click', e => {

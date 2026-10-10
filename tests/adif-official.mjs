@@ -7,7 +7,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateAdif } from '../tools/shared/js/adif-validate.js';
 import { parseADIF } from '../tools/shared/js/adif.js';
-import { serializeADIF } from '../tools/adif/js/export.js';
+import { serializeADIF, emptyFieldDefs, mergeFieldDefs } from '../tools/adif/js/export.js';
 
 export const SOURCE = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'adif-spec', 'test-qsos.adi'), 'utf8');
 // The QSOs are dated around the archive's release; no DATE_IN_FUTURE.
@@ -46,11 +46,15 @@ const recordText = i => SOURCE.slice(whole.records[i].offset, whole.records[i + 
 export const groups = new Map([...GROUPS.map(([name]) => name), 'other fields'].map(name => [name, []]));
 whole.records.forEach((r, i) => groups.get(groupOf(r.fields)).push(i));
 
-// The ADIF editor's round trip: load, export every column, as the editor does.
+// The ADIF editor's round trip: load, export every column, as the editor does
+// (with the file's USERDEF declarations and type indicators, js/app.js).
 export function roundTrip(text) {
-  const records = parseADIF(text, [], 'test-qsos.adi');
+  const defs = {};
+  const records = parseADIF(text, [], 'test-qsos.adi', undefined, undefined, defs);
+  const fieldDefs = emptyFieldDefs();
+  mergeFieldDefs(fieldDefs, defs, 'test-qsos.adi');
   const columns = [...new Set(records.flatMap(r => Object.keys(r)))];
-  return { records, adi: serializeADIF(records, columns, '2026-10-08T00:00:00Z') };
+  return { records, adi: serializeADIF(records, columns, '2026-10-08T00:00:00Z', fieldDefs) };
 }
 
 // A group as its own ADI file: the header plus the group's QSOs.

@@ -123,6 +123,17 @@ function avLineIndex(source) {
 
 /* ---------- scanner ---------- */
 
+// Does a value ending at `end` end cleanly: at the end of the file, before
+// a blank/line break, or right before a plausible tag?
+function avCleanEnd(source, end) {
+  if (end >= source.length) return true;
+  const c = source.charCodeAt(end);
+  if (c === 32 || c === 9 || c === 10 || c === 13) return true;
+  if (c !== 60) return false; // '<'
+  AV_NEXT_TAG_RE.lastIndex = end;
+  return AV_NEXT_TAG_RE.test(source);
+}
+
 // Tokens of an .adi text: { kind: 'tag'|'eoh'|'eor', name, type, value,
 // offset (of '<'), valueOffset }. Recoverable syntax problems are reported
 // through issue(); the scan never stops early.
@@ -167,14 +178,29 @@ function avScan(source, issue) {
     const type = parts.length === 3 ? parts[2].toUpperCase() : '';
     const end = tagEnd + len;
     const available = source.slice(tagEnd, Math.min(end, source.length));
-    // A declared length that runs into the next tag: cut the value there
-    // and continue with that tag (resync), so one wrong length doesn't
-    // swallow the following fields.
+    // Tag-shaped text inside the declared length (<EOR>, <EOH>, <CALL:4>).
     let cut = -1;
     for (let i = available.indexOf('<'); i >= 0; i = available.indexOf('<', i + 1)) {
       AV_NEXT_TAG_RE.lastIndex = tagEnd + i;
       if (AV_NEXT_TAG_RE.test(source)) { cut = i; break; }
     }
+    // The length is what counts (ADIF 3.1.7 IV.A.1: the value is the
+    // declared number of characters after the tag; any character but the
+    // field's type limits may be in it): when the value ends where a
+    // separator, the next tag or the end of the file follows, the
+    // tag-shaped text is part of the value. A warning, since a too long
+    // length can also end like that and naive readers split there.
+    if (cut >= 0 && end <= source.length && avCleanEnd(source, end)) {
+      issue('warning', 'TAG_IN_VALUE',
+        `<${upper}:${len}>: the value "${avShort(available)}" contains text that looks like an ADIF tag; read as part of the value, as the declared length says. If that is not intended, the length is wrong (programs that split on tags will misread it too).`,
+        { offset: lt, field: upper, value: available });
+      tokens.push({ kind: 'tag', name: upper, type, value: available, offset: lt, valueOffset: tagEnd });
+      pos = end;
+      continue;
+    }
+    // A declared length that runs into the next tag and doesn't end
+    // cleanly: cut the value there and continue with that tag (resync),
+    // so one wrong length doesn't swallow the following fields.
     if (cut >= 0) {
       const value = available.slice(0, cut).replace(/\s+$/, '');
       issue('error', 'FIELD_LENGTH_MISMATCH',

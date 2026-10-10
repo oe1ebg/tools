@@ -107,6 +107,13 @@
     },
     "issues": "3b38a75c34deb4cfe5ed7fe2fc075cc06accc2a4403ec944409e4812b55de7af"
   },
+  "fixtures/adif/tag-in-value.adi": {
+    "records": 2,
+    "counts": {
+      "warning TAG_IN_VALUE": 3
+    },
+    "issues": "d71867d242e40f7384408c92ead00ce1d5fdf8b25d0a6c3b99dbdef391c49c12"
+  },
   "fixtures/adif/truncated.adi": {
     "records": 2,
     "counts": {
@@ -115,6 +122,13 @@
       "warning MISSING_QSO_FIELD": 1
     },
     "issues": "262a7135e0e0faf39cbe44fe37b2696f8d741a1aeb48b0e083606757db2f3dc0"
+  },
+  "fixtures/adif/userdef-typed.adi": {
+    "records": 1,
+    "counts": {
+      "info APP_FIELD_WITHOUT_TYPE": 1
+    },
+    "issues": "b2b0c864dbabb552afb7253419bf9e4450c26adb62d6ce7f4e6f7948b361539e"
   },
   "fixtures/adif/userdef.adi": {
     "records": 2,

@@ -7,18 +7,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ADIF_SPEC_VERSION } from '../tools/shared/js/adif-spec-data.js';
-import { SOURCE, check, whole, USERDEFS, groups, groupText, roundTrip } from './adif-official.mjs';
+import { SOURCE, check, whole, groups, groupText, roundTrip } from './adif-official.mjs';
 
 const summary = r => JSON.stringify(r.issues.slice(0, 10).map(i => `${i.severity} ${i.code} QSO ${i.recordIndex} ${i.field}=${i.value}`));
 
-// Known gaps of the editor (README, "Known gaps"): it writes no USERDEF
-// header, so user-defined fields come back unknown and are exported as
-// String (their line breaks become blanks), and it drops the data type
-// indicator of application-defined fields. Anything else fails.
-const KNOWN_EXPORT_GAPS = new Set(['warning UNKNOWN_FIELD', 'info APP_FIELD_WITHOUT_TYPE']);
-const typeLost = name => USERDEFS.has(name);
-const asExported = fields => Object.fromEntries(Object.entries(fields)
-  .map(([k, v]) => [k, typeLost(k) ? v.replace(/[\r\n\t]+/g, ' ').trim() : v]));
+// The USERDEFn fields of a validated file's header.
+const userdefHeader = r => Object.fromEntries(Object.entries(r.header?.fields || {}).filter(([k]) => /^USERDEF\d+$/.test(k)));
 
 function assertValidAndRoundTrips(text, count, label) {
   const r = check(text);
@@ -29,10 +23,12 @@ function assertValidAndRoundTrips(text, count, label) {
   assert.equal(records.length, count, `${label}: QSOs read by the editor`);
   const back = check(adi);
   assert.equal(back.records.length, count, `${label}: QSOs exported`);
-  const unexpected = back.issues.filter(i => !KNOWN_EXPORT_GAPS.has(`${i.severity} ${i.code}`));
-  assert.equal(unexpected.length, 0, `${label}: export ${summary({ issues: unexpected })}`);
+  // USERDEF declarations and type indicators are kept (README, "Known
+  // gaps" before issue #12): no issue at all, every value unchanged.
+  assert.equal(back.issues.length, 0, `${label}: export ${summary(back)}`);
+  assert.deepEqual(back.header.fields, { ...back.header.fields, ...userdefHeader(r) }, `${label}: USERDEF declarations kept`);
   back.records.forEach((b, i) => {
-    assert.deepEqual(b.fields, asExported(r.records[i].fields), `${label}: export changed QSO ${i} (line ${r.records[i].line})`);
+    assert.deepEqual(b.fields, r.records[i].fields, `${label}: export changed QSO ${i} (line ${r.records[i].line})`);
   });
 }
 
