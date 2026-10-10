@@ -7,8 +7,32 @@
 // node tests run them on the real storage layer.
 
 import { saveNumbered } from './numbering.js';
-import { newMessage, setStatus, currentStatus, STATUS_FLOW } from './model.js';
+import { newMessage, setStatus, currentStatus, messageFields, STATUS_FLOW } from './model.js';
 import { mergeBackup } from './export.js';
+
+// The compare-and-set token of a record is its `updated`. A wall clock is not
+// unique (two writes in one millisecond, a clock set back), so every write
+// of an existing record stores a strictly greater value: the clock, or the
+// previous one + 1 ms. Same format as before; a stale writer's token never
+// matches again.
+export function bumpUpdated(prev, now) {
+  const p = Date.parse(prev || '');
+  return Number.isNaN(p) || Date.parse(now) > p ? now : new Date(p + 1).toISOString();
+}
+
+// What an edit is based on (state of the form page, also kept in the draft):
+// base = { id, updated, fields }: the message as it was opened (its token and
+// field values). Restoring a draft rebuilds the message from storage, but the
+// token and the fields stay those of the opened version, so a change made
+// meanwhile (another tab) is a conflict, not silently reverted.
+export function editBaseOf(msg, saved = null) {
+  return saved && saved.id === msg.id ? saved : { id: msg.id, updated: msg.updated ?? null, fields: messageFields(msg) };
+}
+
+// The message to hand updateMessage() for an edit: current content, token of the opened version.
+export function editTarget(current, base) {
+  return { ...current, updated: base.updated };
+}
 
 // A new message: number, message and (for a reply) the "answered" status of
 // the message it answers in ONE transaction. messageId is kept for as long
@@ -21,7 +45,8 @@ export function saveNewMessage(store, { op, fields, messageId, meta }) {
       if (saved.refKind !== 'antwort' || !saved.replyTo) return;
       const orig = await get('messages', saved.replyTo);
       if (!orig || orig.eventId !== op.id || STATUS_FLOW.indexOf(currentStatus(orig)) >= STATUS_FLOW.indexOf('answered')) return;
-      put('messages', setStatus(orig, 'answered', { operator: meta.operator, now: meta.now, note: saved.number }));
+      const next = setStatus(orig, 'answered', { operator: meta.operator, now: meta.now, note: saved.number });
+      put('messages', { ...next, updated: bumpUpdated(orig.updated, next.updated) });
     });
 }
 
@@ -33,9 +58,10 @@ export function saveNewMessage(store, { op, fields, messageId, meta }) {
 export function updateMessage(store, msg, change) {
   return store.atomic(['messages', 'revisions'], async ({ getUnchanged, put }) => {
     const cur = await getUnchanged('messages', msg.id, msg.updated ?? null);
-    const { next, revision } = change(cur);
+    const made = change(cur);
+    const next = { ...made.next, updated: bumpUpdated(cur.updated, made.next.updated) };
     put('messages', next);
-    if (revision) put('revisions', revision);
+    if (made.revision) put('revisions', made.revision);
     return next;
   });
 }
@@ -85,9 +111,10 @@ export function patchOperation(store, opId, patch, now) {
 // overwritten (ConflictError, e.current = the other draft).
 export function writeDraft(store, opId, draft, seen) {
   return store.atomic(['drafts'], async ({ getUnchanged, put }) => {
-    await getUnchanged('drafts', opId, seen);
-    put('drafts', { ...draft, eventId: opId, updated: draft.saved });
-    return draft.saved;
+    const cur = await getUnchanged('drafts', opId, seen);
+    const updated = bumpUpdated(cur?.updated, draft.saved);
+    put('drafts', { ...draft, eventId: opId, updated });
+    return updated;
   });
 }
 

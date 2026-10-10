@@ -31,12 +31,12 @@ import { sourceItem, standDate, trackOnline, mapLinks, repoLink } from '../../sh
 import { initOffline, setChip } from '../../shared/js/offline.js';
 import {
   DIRECTIONS, CHANNELS, MESSAGE_TYPES, PRIORITIES, REF_KINDS, statusLabel, statusEntry, timeLabel, readBackLabel,
-  editMessage, messageFields, softDelete, restoreDeleted, setStatus, addAttempt, currentStatus, filterMessages,
+  editMessage, softDelete, restoreDeleted, setStatus, addAttempt, currentStatus, filterMessages,
   repliesTo, fmtVienna, viennaTime, zoneHint, normFreq, fmtFreq,
 } from './model.js';
 import { normalizePrefix, PREFIX_RE, nextSeq, formatNumber, counterKey } from './numbering.js';
 import { toGeschaeftsbuchCSV, toBackup, parseBackup } from './export.js';
-import { saveNewMessage, updateMessage, changedFields, applyBackup, patchOperation, writeDraft, clearDraft } from './ops.js';
+import { saveNewMessage, updateMessage, changedFields, editBaseOf, editTarget, applyBackup, patchOperation, writeDraft, clearDraft } from './ops.js';
 import {
   emptyForm, setDirection, formToFields, formIsBlank, messageToForm, replyForm, nextStep, statusSteps, bookSummary, partyText,
   readDateTime, readClock, readBound, normDate, normTime, dateText, clockText, needsZone, upgradeForm, normalizeRef,
@@ -425,7 +425,7 @@ async function leaveOp() {
   await flushDraft();
   state.op = null;
   state.msgs = [];
-  state.editing = null;
+  setEditing(null);
   document.title = 'Notfunk-Meldebuch';
 }
 
@@ -669,6 +669,12 @@ function formIsEmpty(f) {
 // (draftSeen) when its turn comes: a debounce that fires during a save, or
 // the clear after it, can't work with a stale token and leave the saved
 // message's draft behind (it would come back on the next load).
+// The message an edit is on, with the version it was opened on (editBase).
+function setEditing(msg, savedBase = null) {
+  state.editing = msg;
+  state.editBase = msg ? editBaseOf(msg, savedBase) : null;
+}
+
 let draftChain = Promise.resolve();
 function flushDraft() {
   clearTimeout(state.draftTimer);
@@ -687,7 +693,7 @@ async function flushDraftNow() {
       if (await clearDraft(state.store, opId, state.draftSeen)) state.draftSeen = undefined;
       setText($('#draft-status'), '');
     } else {
-      const draft = { form: f, editingId: state.editing?.id || null, saved: nowIso() };
+      const draft = { form: f, editingId: state.editing?.id || null, base: state.editing ? state.editBase : null, saved: nowIso() };
       try {
         state.draftSeen = await writeDraft(state.store, opId, draft, state.draftSeen);
       } catch (e) {
@@ -714,7 +720,7 @@ function draftConflict(e) {
     ' ',
     el('button', { type: 'button', onclick: () => {
       state.draftSeen = e.actual;
-      state.editing = other.editingId ? state.msgs.find(m => m.id === other.editingId) || null : null;
+      setEditing(other.editingId ? state.msgs.find(m => m.id === other.editingId) || null : null, other.base);
       writeForm(other.form || emptyForm(state.op));
       $('#banner').hidden = true;
       setText($('#draft-status'), '✓ Entwurf aus dem anderen Tab geladen');
@@ -725,7 +731,8 @@ function draftConflict(e) {
 async function restoreDraft() {
   const d = await state.store.get('drafts', state.op.id);
   state.draftSeen = d ? d.updated ?? null : undefined;
-  state.editing = d?.editingId ? state.msgs.find(m => m.id === d.editingId) || null : null;
+  // the draft keeps the version the edit was opened on (token and field values)
+  setEditing(d?.editingId ? state.msgs.find(m => m.id === d.editingId) || null : null, d?.base);
   writeForm(d?.form || emptyForm(state.op));
   setText($('#draft-status'), d ? `✓ Entwurf gesichert ${viennaTime(d.saved)}` : '');
 }
@@ -735,8 +742,7 @@ function resetForm(keep = true) {
   const next = emptyForm(state.op);
   // Direction, channel and frequency usually stay the same for the next message.
   if (keep) Object.assign(next, setDirection(next, prev.direction, state.op), { channel: prev.channel, freq: prev.freq, via: prev.via });
-  state.editing = null;
-  state.editBase = null;
+  setEditing(null);
   state.saveKey = null;
   writeForm(next);
 }
@@ -794,12 +800,13 @@ async function saveMessageNow(anyway) {
     if (wasEdit) {
       // The staff reference is kept with the message, not in the form. The
       // revision holds the record as it was stored when it was replaced.
-      // Only what the user changed against the version they opened is sent,
-      // so a change another tab made to other fields is not overwritten.
-      const base = state.editBase?.id === state.editing.id ? state.editBase.fields : messageFields(state.editing);
+      // The write is checked against the version the edit was opened on
+      // (also after a draft restore), and only what the user changed against
+      // it is sent, so a change another tab made is a conflict, never undone.
+      const base = state.editBase;
       const { staffRef: _ref, ...all } = fields;
-      const changes = changedFields(all, base);
-      saved = await updateMessage(state.store, state.editing, cur => editMessage(cur, changes, { revisionId: newId(), operator, now }));
+      const changes = changedFields(all, base.fields);
+      saved = await updateMessage(state.store, editTarget(state.editing, base), cur => editMessage(cur, changes, { revisionId: newId(), operator, now }));
     } else {
       // number, message and the "answered" status of a replied-to message: one transaction
       saved = await saveNewMessage(state.store, { op, fields, messageId: state.saveKey.id, meta: { operator, stationCall: op.call || '', now } });
@@ -807,10 +814,10 @@ async function saveMessageNow(anyway) {
   } catch (e) {
     if (e instanceof ConflictError) {
       // changed meanwhile: the edit continues on the current version, the input stays
-      // (what the user opened stays the baseline of "what did I change")
+      // (the field values the user opened stay the baseline of "what did I change"; the token moves on)
       if (e.current) {
-        if (state.editBase?.id !== state.editing.id) state.editBase = { id: state.editing.id, fields: messageFields(state.editing) };
         state.editing = e.current;
+        state.editBase = { ...state.editBase, updated: e.current.updated ?? null };
       }
       await onConflict(state.editing?.number || 'Die Meldung', true);
       return;
@@ -882,6 +889,7 @@ function keepEditing() {
 function discardForm() {
   const before = readForm();
   const editing = state.editing;
+  const editBase = state.editBase;
   $('#discard-bar').hidden = true;
   if (formIsEmpty(before) && !editing) return;
   resetForm();
@@ -891,20 +899,20 @@ function discardForm() {
   fill(status, editing ? 'Bearbeitung abgebrochen. ' : 'Eingabe verworfen. ',
     el('button', {
       type: 'button', class: 'link',
-      onclick: () => { state.editing = editing; writeForm(before); fill(status); onFormChange(); $('#m-from').focus(); },
+      onclick: () => { setEditing(editing, editBase); writeForm(before); fill(status); onFormChange(); $('#m-from').focus(); },
     }, 'Rückgängig'));
   $('#m-from').focus();
 }
 
 function startEdit(msg) {
-  state.editing = msg;
+  setEditing(msg);
   writeForm(messageToForm(msg));
   location.hash = `#/e/${state.op.id}`;
   setTimeout(() => $('#m-subject').focus(), 0);
 }
 
 function startReply(msg) {
-  state.editing = null;
+  setEditing(null);
   writeForm(replyForm(msg, state.op));
   location.hash = `#/e/${state.op.id}`;
   setTimeout(() => $('#m-text').focus(), 0);
@@ -1483,7 +1491,7 @@ async function importBackup(file) {
   showImportMsg(r.conflicts.length || r.unlinked.length || left.length ? 'warn' : 'ok',
     `„${backup.operation.name}“: ${r.added} Meldungen neu, ${r.updated} aktualisiert. `,
     r.conflicts.length ? el('strong', {}, `Nicht übernommen (Nummer oder ID schon mit anderer Meldung belegt): ${r.conflicts.join(', ')}. `) : null,
-    r.unlinked.length ? el('strong', {}, `Nicht übernommen (Antwort auf eine nicht übernommene Meldung): ${r.unlinked.join(', ')}. `) : null,
+    r.unlinked.length ? el('strong', {}, `Nicht übernommen (Bezug auf eine Meldung, die fehlt oder nicht übernommen wurde): ${r.unlinked.join(', ')}. `) : null,
     left.length ? el('strong', {}, `Aus der Datei ausgelassen (${left.length}): ${left.map(x => `${x.what} (${x.why})`).join('; ')}. `) : null);
   renderOps();
 }
