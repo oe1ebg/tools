@@ -43,6 +43,13 @@ export function normalizeSummitRef(v){
   return SUMMIT_REF_RE.test(ref) ? ref : null;
 }
 
+// parseShareSearch() result -> the summit keys to resolve, the reference
+// first (it needs its own marker, and must never be the one cut by the
+// live-lookup cap), then the pins, each once.
+export function sharedLinkKeys({ ref, pins }){
+  return [...new Set(ref ? [ref, ...pins] : pins)];
+}
+
 // location.search -> what a shared link asks for, or null without a query.
 // bands/modes are null when the link doesn't set them (keep the stored
 // filter), an array when it does. `ref` and `pins` are validated (see

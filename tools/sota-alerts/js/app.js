@@ -10,8 +10,8 @@ import {
 } from './alerts.js';
 import { formatAlertsBrief, timeDisplayPair } from './format.js';
 import { splitSummitKey, candidateFromSearchResult, candidateFromOsmElement, lookupFromRows } from './summits.js';
-import { createSummitResolver, lazy } from './lookup.js';
-import { shareSearch, parseShareSearch, MAX_SHARED_PINS, MAX_SHARED_LIVE_LOOKUPS } from './share.js';
+import { createSummitResolver, lazy, lazyRetryOnDemand, FALLBACK_LIVE_BUDGET } from './lookup.js';
+import { shareSearch, parseShareSearch, sharedLinkKeys, MAX_SHARED_PINS, MAX_SHARED_LIVE_LOOKUPS } from './share.js';
 import { createLatest, createExclusive, isAbort } from './request.js';
 import * as store from './store.js';
 import { createWarnings } from './warnings.js';
@@ -49,10 +49,10 @@ const saveCandidates = () => warnUnless(store.saveCandidates(state.candidates), 
 
 /* ---------- summit lookup (lookup.js; the order is in AGENTS.md) ---------- */
 
-const loadSummitLookup = lazy(async () => lookupFromRows(await fetchJson(SUMMIT_LOOKUP_URL)), err => {
-  console.error('summit lookup data failed to load, falling back to the live API for every summit:', err);
-  return new Map(); // empty, not null — don't retry the failing fetch on every resolveSummits() call
-});
+// A failed load is not retried on every resolveSummits() call (it's ~10MB),
+// only once more per "refresh alerts" click; meanwhile the resolver caps
+// the live lookups (FALLBACK_LIVE_BUDGET) and noteLookupStatus() says so.
+const loadSummitLookup = lazyRetryOnDemand(async () => lookupFromRows(await fetchJson(SUMMIT_LOOKUP_URL)));
 const loadAllSummits = lazy(() => fetchJson(ALL_SUMMITS_URL));
 
 const resolveSummits = createSummitResolver({
@@ -62,6 +62,16 @@ const resolveSummits = createSummitResolver({
   loadLookup: loadSummitLookup,
   fetchSummit,
 });
+
+// After a resolveSummits() call: warn while the built-in summit list is
+// unavailable, drop the warning once it loaded.
+function noteLookupStatus(resolved){
+  if (resolved.lookupError){
+    warnings.add(`the built-in summit list could not be loaded (${resolved.lookupError.message}), so summits are looked up from the SOTA API instead — at most ${FALLBACK_LIVE_BUDGET} per visit, the rest can't be placed on the map. "refresh alerts" tries loading the list again.`, 'summit-lookup');
+  } else if (loadSummitLookup.loaded()){
+    warnings.drop('summit-lookup');
+  }
+}
 
 /* ---------- actions ---------- */
 
@@ -140,11 +150,11 @@ async function applySharedStateFromUrl(){
   }
   if (shared.badRef) warnings.add("the shared link's reference isn't a summit reference like OE/WI-001 and was skipped.", 'shared-ref');
   const refKey = shared.ref;
-  const pinKeys = new Set(shared.pins);
   // The reference always needs its own marker to mean anything (distance/
-  // elevation math needs its coordinates), so make sure it gets resolved
-  // as a pin too, same as clicking "set as reference" in a search result.
-  if (refKey) pinKeys.add(refKey);
+  // elevation math needs its coordinates), so it gets resolved as a pin
+  // too, same as clicking "set as reference" in a search result — and
+  // first, so the live-lookup cap below never cuts it.
+  const pinKeys = sharedLinkKeys(shared);
 
   // Routed through resolveSummits() (static-lookup-first, live API as
   // fallback, concurrency-capped) rather than a raw per-key fetchSummit()
@@ -152,8 +162,9 @@ async function applySharedStateFromUrl(){
   // Promise.all of live requests any more than loading alerts should —
   // and with its own cap on live requests (share.js), since a link is
   // input from anyone.
-  const toFetch = [...pinKeys].filter(k => !state.candidates.has(k)).map(key => ({ key, ...splitSummitKey(key) }));
+  const toFetch = pinKeys.filter(k => !state.candidates.has(k)).map(key => ({ key, ...splitSummitKey(key) }));
   const resolvedMap = await resolveSummits(toFetch, false, { maxLive: MAX_SHARED_LIVE_LOOKUPS });
+  noteLookupStatus(resolvedMap);
   const overBudget = new Set(resolvedMap.overBudget || []);
   let anyMissing = false;
   for (const e of toFetch){
@@ -164,7 +175,10 @@ async function applySharedStateFromUrl(){
   if (toFetch.length) saveCandidates();
   if (anyMissing) warnings.add("some summits from the shared link couldn't be found and were skipped.", 'shared-link');
   if (overBudget.size){
-    warnings.add(`${overBudget.size} summit${overBudget.size === 1 ? '' : 's'} from the shared link ${overBudget.size === 1 ? 'was' : 'were'} skipped: not in the built-in summit list, and a shared link looks up at most ${MAX_SHARED_LIVE_LOOKUPS} summits from the SOTA API.`, 'shared-budget');
+    const n = `${overBudget.size} summit${overBudget.size === 1 ? '' : 's'} from the shared link ${overBudget.size === 1 ? 'was' : 'were'} skipped`;
+    warnings.add(resolvedMap.lookupError
+      ? `${n}: the built-in summit list isn't available, and live SOTA API lookups are limited meanwhile.`
+      : `${n}: not in the built-in summit list, and a shared link looks up at most ${MAX_SHARED_LIVE_LOOKUPS} summits from the SOTA API.`, 'shared-budget');
   }
 
   if (refKey && state.candidates.has(refKey)) state.referenceKey = refKey;
@@ -236,6 +250,7 @@ async function loadSummits(force){
   const groups = groupAlertsBySummit(state.rawAlerts);
   const entries = [...groups.values()].map(g => ({ key: g.key, assoc: g.associationCode, code: g.summitCode }));
   const resolved = await resolveSummits(entries, force);
+  if (!force) noteLookupStatus(resolved);
   // A lookup that failed this time (timeout, API down — mostly on a forced
   // refresh) keeps the coordinates already known rather than dropping the
   // summit off the map.
@@ -621,6 +636,7 @@ function wireEvents(){
   });
   $id('btn-refresh-alerts').addEventListener('click', () => refreshing.run(async () => {
     const loaded = await loadAlerts();
+    loadSummitLookup.retry(); // one more attempt if the built-in summit list failed before
     if (loaded) await loadSummits(false);
     renderAll(loaded); // whole alert set just changed, re-frame to it (a failed refresh keeps the view)
   }));
