@@ -22,7 +22,7 @@ function save(form, seq, now = NOW) {
 
 const filled = {
   ...emptyForm(OP), from: 'Lichtinsel 12 Floridsdorf', subject: 'Aggregat ausgefallen',
-  text: 'Aggregat seit 14:45 aus.\n40 Personen vor Ort.', priority: 'emergency', alarm: true, type: 'anforderung',
+  text: 'Aggregat seit 14:45 aus.\n40 Personen vor Ort.', priority: 'emergency', type: 'anforderung',
 };
 
 test('empty form: operation defaults, own post receives', () => {
@@ -120,14 +120,15 @@ test('blank form: operation defaults and the time do not count', () => {
   assert.equal(formIsBlank({ ...emptyForm(OP), peer: 'OE1ABC' }, OP), false);
 });
 
-test('warnings ask, they do not block: radio station, time far off, read-back', () => {
+test('warnings ask, they do not block: Funkstelle, time far off', () => {
   const ok = formToFields({ ...filled, peer: 'oe1abc', readBack: true }, { now: NOW });
   assert.deepEqual(ok.warnings, []);
   assert.equal(ok.fields.peer, 'OE1ABC');
   const w = formToFields({ ...filled, date: '2026-10-07', time: '11:00' }, { now: NOW });
   assert.deepEqual(w.errors, []);
-  assert.deepEqual(w.warnings, ['Gegenstelle fehlt', 'Zeit liegt 4 h zurück (Nachtrag?)', 'Rücklesen nicht bestätigt']);
+  assert.deepEqual(w.warnings, ['Funkstelle fehlt', 'Zeit liegt 4 h zurück (Nachtrag?)']);
   assert.deepEqual(formToFields({ ...filled, peer: 'X', readBack: true, time: '15:30' }, { now: NOW }).warnings, ['Zeit liegt in der Zukunft']);
+  assert.deepEqual(formToFields({ ...filled, peer: 'X', readBack: false }, { now: NOW }).warnings, [], 'read-back is optional, never asked');
   // an edit keeps its old time without asking; no radio station by phone
   assert.deepEqual(formToFields({ ...filled, channel: 'telefon', readBack: true, date: '2026-10-07', time: '11:00' }, { now: NOW, editing: true }).warnings, []);
   // outgoing: read back at the transmission, not asked here
@@ -175,7 +176,7 @@ test('form errors at the fields: sender, addressee, subject, text', () => {
 test('message -> form -> message round trip', () => {
   const m = save({ ...filled, distribution: 'S3, S4', remarks: 'Rückruf zugesagt', origStation: 'oe3xyz', origFiled: '14:40' }, 1);
   const again = formToFields(messageToForm(m), { now: '2026-10-08T00:00:00.000Z' }).fields;
-  for (const k of ['direction', 'channel', 'type', 'priority', 'alarm', 'subject', 'text', 'remarks', 'readBack']) assert.deepEqual(again[k], m[k], k);
+  for (const k of ['direction', 'channel', 'type', 'priority', 'subject', 'text', 'remarks', 'readBack']) assert.deepEqual(again[k], m[k], k);
   assert.equal(again.ts, '2026-10-07T12:53:00.000Z');
   assert.deepEqual(again.distribution, ['S3', 'S4']);
   assert.deepEqual(again.from, m.from);
@@ -226,7 +227,7 @@ test('next step and status steps', () => {
 
 test('summary: open emergencies, unacknowledged, range, gaps', () => {
   const a = save(filled, 1);
-  const b = setStatus(save({ ...filled, priority: 'routine', alarm: false }, 2), 'acknowledged', { operator: 'x', now: NOW });
+  const b = setStatus(save({ ...filled, priority: 'routine' }, 2), 'acknowledged', { operator: 'x', now: NOW });
   const c = softDelete(save(filled, 3), { operator: 'x', now: NOW });
   const s = bookSummary([a, b, c]);
   assert.equal(s.total, 2);
@@ -248,7 +249,7 @@ test('Meldeaufnahmeformular: fields, date + time, staff block, handover', () => 
   assert.deepEqual(s.directions.map(d => [d.label, d.checked]), [['Eingang', true], ['Ausgang', false]]);
   assert.deepEqual(s.channels.filter(c => c.checked).map(c => c.label), ['Funk']);
   assert.deepEqual(s.priorities.filter(p => p.checked).map(p => p.label), ['Notfall']);
-  assert.equal(s.alarm, true);
+  assert.deepEqual(s.types.filter(t => t.checked).map(t => t.label), ['Anforderung']);
   assert.deepEqual([s.from, s.to, s.peer, s.distribution], ['Lichtinsel 12 Floridsdorf', 'Stab', 'OE1ABC', 'S3']);
   assert.equal(s.readBackLabel, 'Rücklesen erfolgt und vom Absender als richtig bestätigt');
   assert.deepEqual(s.handoverHeads, ['Übergeben an', 'Übergabezeitpunkt', 'Übernommen durch', 'Übernahme bestätigt']);
@@ -276,14 +277,14 @@ test('blank form: nothing ticked, nothing filled in', () => {
   assert.equal(s.number, '');
   assert.ok([...s.directions, ...s.channels, ...s.priorities].every(x => !x.checked));
   assert.deepEqual(s.priorities.map(p => p.label), ['Routine', 'Dringend', 'Notfall']);
-  assert.deepEqual(s.types, ['Meldung', 'Auftrag', 'Frage', 'Anforderung', 'Lagemeldung']);
+  assert.deepEqual(s.types.map(t => [t.label, t.checked]), [['Meldung', false], ['Auftrag', false], ['Frage', false], ['Anforderung', false], ['Lagemeldung', false]]);
   assert.equal(s.timeLabel, 'Empfangen / gesendet am');
   assert.equal(blankFormSheet(null, { now: NOW }).title, '');
 });
 
 test('Meldebuch printout: range, deleted left out, oldest first', () => {
   const a = save(filled, 1, '2026-10-07T11:00:00.000Z');
-  const b = save({ ...filled, direction: 'out', from: 'Stab', to: 'LI 3', priority: 'routine', alarm: false }, 2, '2026-10-07T12:00:00.000Z');
+  const b = save({ ...filled, direction: 'out', from: 'Stab', to: 'LI 3', priority: 'routine' }, 2, '2026-10-07T12:00:00.000Z');
   const c = softDelete(save(filled, 3, '2026-10-07T12:30:00.000Z'), { operator: 'x', now: NOW });
   const all = bookSheet([c, b, a], OP, { now: NOW });
   assert.deepEqual(all.rows.map(r => r.number), ['W1-001', 'W1-002']);
