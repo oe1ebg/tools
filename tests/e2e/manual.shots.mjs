@@ -97,7 +97,7 @@ test('Notfunk-Meldebuch', async ({ page }) => {
   await page.getByRole('button', { name: 'Übergabe eintragen' }).click();
   await expect(page.locator('#msg-detail')).toContainText('an Meldesammelstelle');
   await page.getByLabel('Übernommen durch').fill('S6 Huber');
-  await page.getByLabel('Zeitpunkt', { exact: true }).fill('14:12');
+  await page.getByLabel('Zeitpunkt (leer = jetzt)', { exact: true }).fill('14:12');
   await page.getByRole('button', { name: 'Übernahme eintragen' }).click();
   await expect(page.locator('#msg-detail')).toContainText('durch S6 Huber');
   await page.getByLabel('Referenz / Geschäftsbuch-Nr.').fill('GZ 0412');

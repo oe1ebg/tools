@@ -35,7 +35,7 @@ button.link{ background:none; border:none; padding:0; color:var(--accent-text); 
 /* one size for every field in the forms (15px, easy to read while
    logging); a tool may set a bigger one where it matters (confirm's
    callsign field) */
-input[type=text], input[type=search], input:not([type]), select, textarea{
+input[type=text], input[type=search], input:not([type]), input[type=date], input[type=time], select, textarea{
   font:inherit; font-size:15px; color:var(--text); background:var(--bg);
   border:1px solid var(--line-strong); border-radius:4px; padding:.35em .5em;
 }

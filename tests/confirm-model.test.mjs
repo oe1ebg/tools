@@ -6,7 +6,9 @@ import {
   adifModeText, MODES, SIGNALLING,
 } from '../tools/confirm/js/model.js';
 import { normalizeCall, isPlausibleCall } from '../tools/shared/js/callbook.js';
-import { parseUtcInput, splitUtc, splitTime, zoneLabel, isoUtc, isoWithOffset, parseTimeInput } from '../tools/shared/js/time.js';
+import {
+  parseUtcInput, splitUtc, splitTime, zoneLabel, isoUtc, isoWithOffset, parseTimeInput, wallToInstants, wallClock, isRepeatedWall, isoInZone, zoneOffset, closestTo,
+} from '../tools/shared/js/time.js';
 
 test('normalizeCall uppercases and strips junk', () => {
   assert.equal(normalizeCall(' oe1ebg '), 'OE1EBG');
@@ -96,6 +98,28 @@ test('typed corrections are interpreted in the display mode', () => {
   assert.equal(parseTimeInput('2026-02-30 10:00', 'utc', base), null);
   assert.equal(parseTimeInput('25:00', 'utc', base), null);
   assert.equal(parseTimeInput('gestern', 'local', base), null);
+});
+
+test('local time across the DST change: repeated hour, skipped hour, named zone', () => {
+  // 25 Oct 2026: 02:00–02:59 comes twice in Vienna (MESZ, then MEZ)
+  const first = '2026-10-25T00:30:00.000Z', second = '2026-10-25T01:30:00.000Z';
+  assert.deepEqual(wallToInstants('2026-10-25', '02:30', 'Europe/Vienna'), [first, second]);
+  assert.deepEqual(wallToInstants('2026-03-29', '02:30', 'Europe/Vienna'), [], 'skipped');
+  assert.deepEqual(wallToInstants('2026-10-05', '14:07', 'Europe/Vienna'), ['2026-10-05T12:07:00.000Z']);
+  assert.deepEqual(wallToInstants('2026-10-05', '14:07', 'UTC'), ['2026-10-05T14:07:00.000Z']);
+  assert.deepEqual(wallToInstants('2026-02-30', '10:00', 'Europe/Vienna'), []);
+  assert.deepEqual(wallToInstants('2026-10-05', '24:00', 'Europe/Vienna'), []);
+  // a correction in the repeated hour: the occurrence nearest the line's time
+  assert.equal(parseTimeInput('02:40', 'local', '2026-10-25T00:35:00.000Z'), '2026-10-25T00:40:00.000Z');
+  assert.equal(parseTimeInput('02:40', 'local', '2026-10-25T01:35:00.000Z'), '2026-10-25T01:40:00.000Z');
+  assert.ok(isRepeatedWall(first, 'Europe/Vienna') && isRepeatedWall(second, 'Europe/Vienna'));
+  assert.ok(!isRepeatedWall('2026-10-25T02:30:00.000Z', 'Europe/Vienna'));
+  assert.deepEqual(wallClock(second, 'Europe/Vienna'), { date: '2026-10-25', time: '02:30:00' });
+  assert.equal(isoInZone(first, 'Europe/Vienna'), '2026-10-25T02:30:00+02:00');
+  assert.equal(isoInZone(second, 'Europe/Vienna'), '2026-10-25T02:30:00+01:00');
+  assert.equal(zoneOffset(second, 'Europe/Vienna'), 60);
+  assert.equal(closestTo([first, second], '2026-10-25T03:00:00.000Z'), second);
+  assert.equal(closestTo([], first), null);
 });
 
 test('templates: transitive visibility and platform-dependent version options', async () => {

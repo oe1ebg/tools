@@ -9,19 +9,19 @@
 // (`op.home`, e.g. "Stab") is the default recipient of incoming and the
 // default sender of outgoing messages.
 
-import { STATUS_FLOW, statusLabel, currentStatus, nextHandover, messageFields, validateMessage, liveMessages, normFreq } from './model.js';
+import { STATUS_FLOW, statusLabel, currentStatus, nextHandover, messageFields, validateMessage, liveMessages, normFreq, ZONE, zoneHint } from './model.js';
 import { numberGaps, parseNumber, formatNumber } from './numbering.js';
 import { normalizeCall, isPlausibleCall } from '../../shared/js/callbook.js';
-import { parseTimeInput, splitTime } from '../../shared/js/time.js';
+import { wallClock, wallToInstants, closestTo } from '../../shared/js/time.js';
 
 export const FORM_DEFAULTS = {
-  direction: 'in', time: '', channel: 'funk', freq: '', via: '', type: 'meldung', priority: 'routine', alarm: false,
+  direction: 'in', date: '', time: '', zone: '', channel: 'funk', freq: '', via: '', type: 'meldung', priority: 'routine', alarm: false,
   from: '', to: '', peer: '', subject: '', text: '', readBack: false, stichzeit: '', distribution: '', remarks: '',
   origStation: '', origPlace: '', origPlaceLoc: null, origFiled: '', replyTo: null, refKind: 'antwort', ref: '',
   location: null, locationText: '',
-  // the stored time of an edited message: kept as it is (seconds included)
-  // as long as the time field still shows it
-  ts: null,
+  // the stored times of an edited message: kept as they are (seconds
+  // included) as long as the fields still show them
+  ts: null, stichzeitTs: null, origFiledTs: null,
 };
 
 // A fresh form for an operation: its default frequency/relay and own post.
@@ -57,10 +57,64 @@ export function partyText(p) {
   return p.name || p.call || '';
 }
 
-// A typed time in the form ("14:05", "2026-10-07 14:05", empty = now) as
-// ISO UTC, or null when it can't be read. mode: 'local' or 'utc'.
-export function readTime(text, mode, nowIso) {
-  return String(text ?? '').trim() ? parseTimeInput(text, mode, nowIso) : nowIso;
+// Times in the form are Austrian local time (ZONE) in the inputs' own
+// formats: date 'YYYY-MM-DD' (<input type="date">), time 'HH:MM'
+// (<input type="time">). The hour that repeats when the clocks go back
+// (last Sunday of October, 02:00–02:59) needs a choice: zone 'MESZ' (the
+// first time) or 'MEZ' (the second); without one, the occurrence nearest
+// `ref` is taken.
+
+// 'YYYY-MM-DD' / 'HH:MM' of an instant in Austrian local time.
+export function dateText(iso) {
+  return iso ? wallClock(iso, ZONE).date : '';
+}
+
+export function clockText(iso) {
+  return iso ? wallClock(iso, ZONE).time.slice(0, 5) : '';
+}
+
+// Is date + time in the repeated hour (so the form asks MESZ or MEZ)?
+export function needsZone(date, time) {
+  return wallToInstants(date, time, ZONE).length > 1;
+}
+
+function pickZone(candidates, zone, ref) {
+  if (candidates.length > 1 && (zone === 'MESZ' || zone === 'MEZ')) return candidates[zone === 'MESZ' ? 0 : 1];
+  return closestTo(candidates, ref);
+}
+
+// The message time: date + time as ISO UTC; both empty = now; no date =
+// today. null when it can't be read (no time, impossible date, a time
+// skipped when the clocks go forward).
+export function readDateTime(date, time, now, zone = '') {
+  const d = String(date ?? '').trim(), t = String(time ?? '').trim();
+  if (!d && !t) return now;
+  if (!t) return null;
+  return pickZone(wallToInstants(d || dateText(now), t, ZONE), zone, now);
+}
+
+// A time of day ('HH:MM') before ref: the latest such time at most five
+// minutes after ref (clock drift), so "23:50" for a message at 00:10 is
+// the day before. For the Stichzeit, the Aufgabezeit and the handover
+// steps; null when empty or unreadable.
+export function readClock(time, ref) {
+  const t = String(time ?? '').trim();
+  if (!t || !ref) return null;
+  const limit = Date.parse(ref) + 5 * 60e3;
+  const today = dateText(ref);
+  const [y, m, d] = today.split('-').map(Number);
+  const yesterday = new Date(Date.UTC(y, m - 1, d - 1)).toISOString().slice(0, 10);
+  const all = [...wallToInstants(yesterday, t, ZONE), ...wallToInstants(today, t, ZONE)].filter(iso => Date.parse(iso) <= limit);
+  return all.length ? all[all.length - 1] : null;
+}
+
+// A bound of the printed range: date and/or time; a date alone is the
+// start (or with end, the last minute) of that day, a time alone today.
+export function readBound(date, time, now, end = false) {
+  const d = String(date ?? '').trim(), t = String(time ?? '').trim();
+  if (!d && !t) return null;
+  const at = wallToInstants(d || dateText(now), t || (end ? '23:59:59' : '00:00'), ZONE);
+  return at.length ? at[end ? at.length - 1 : 0] : null;
 }
 
 // A typed message number ("w1-7") as stored ("W1-007"); anything else as typed.
@@ -70,16 +124,19 @@ export function normalizeRef(text) {
   return n ? formatNumber(n.prefix, n.seq) : t.toUpperCase();
 }
 
-// "2026-10-07 14:05" in the given mode, for putting a stored time back into
-// the form (seconds dropped). Also the prefill of the time field when a
-// message is begun: with the date, so a message finished after midnight
-// or typed in later from paper keeps the right day.
-export function timeText(iso, mode) {
-  const { date, time } = splitTime(iso, mode);
-  return date ? `${date} ${time.slice(0, 5)}` : '';
+// Drafts from before date and time were split hold "2026-10-07 14:05" in
+// `time`; Stichzeit and Aufgabezeit may hold a date too.
+export function upgradeForm(f) {
+  const out = { ...FORM_DEFAULTS, ...f };
+  const m = /^(\d{4}-\d{2}-\d{2})[ T](\d{1,2}:\d{2})/.exec(out.time || '');
+  if (m && !out.date) Object.assign(out, { date: m[1], time: m[2].padStart(5, '0') });
+  for (const k of ['stichzeit', 'origFiled']) {
+    const t = /(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(out[k] || '');
+    out[k] = t ? `${t[1].padStart(2, '0')}:${t[2]}` : '';
+  }
+  return out;
 }
 
-const TIME_HINT = 'HH:MM oder JJJJ-MM-TT HH:MM';
 const isBlankText = v => !String(v ?? '').trim();
 
 // Form -> { fields, errors, fieldErrors, warnings }: fields for
@@ -89,23 +146,26 @@ const isBlankText = v => !String(v ?? '').trim();
 // before saving (missing radio station, a time far off, no read-back).
 // byNumber: the operation's messages by number, to link the Bezug.
 // editing: an edit of a stored message (no time warnings).
-export function formToFields(form, { mode = 'local', now, byNumber = new Map(), editing = false }) {
+export function formToFields(form, { now, byNumber = new Map(), editing = false }) {
   const fieldErrors = {};
-  const ts = form.ts && form.time === timeText(form.ts, mode) ? form.ts : readTime(form.time, mode, now);
-  if (!ts) fieldErrors.time = `Datum und Uhrzeit als ${TIME_HINT}`;
+  // an edited message keeps its stored times while the fields still show them
+  const keptTs = form.ts && form.date === dateText(form.ts) && form.time === clockText(form.ts) && (form.zone || '') === zoneHint(form.ts) ? form.ts : null;
+  const keep = (stored, time) => (stored && time === clockText(stored) ? stored : null);
+  const ts = keptTs || readDateTime(form.date, form.time, now, form.zone);
+  if (!ts) fieldErrors.time = isBlankText(form.time) ? 'Uhrzeit fehlt' : 'Diese Uhrzeit gibt es an dem Tag nicht (Datum ungültig oder Zeitumstellung)';
   if (isBlankText(form.from)) fieldErrors.from = 'Absender fehlt: wer gibt die Meldung auf?';
   if (isBlankText(form.to)) fieldErrors.to = 'Adressat fehlt: für wen ist die Meldung?';
   if (isBlankText(form.subject)) fieldErrors.subject = 'Betreff fehlt';
   if (isBlankText(form.text)) fieldErrors.text = 'Inhalt fehlt';
   let stichzeit = null;
   if (form.type === 'lagemeldung' && !isBlankText(form.stichzeit)) {
-    stichzeit = readTime(form.stichzeit, mode, ts || now);
-    if (!stichzeit) fieldErrors.stichzeit = `Stichzeit als ${TIME_HINT}`;
+    stichzeit = keep(form.stichzeitTs, form.stichzeit) || readClock(form.stichzeit, ts || now);
+    if (!stichzeit) fieldErrors.stichzeit = 'Stichzeit als Uhrzeit (HH:MM)';
   }
   let filed = null;
   if (!isBlankText(form.origFiled)) {
-    filed = readTime(form.origFiled, mode, ts || now);
-    if (!filed) fieldErrors.origFiled = `Aufgabezeit als ${TIME_HINT}`;
+    filed = keep(form.origFiledTs, form.origFiled) || readClock(form.origFiled, ts || now);
+    if (!filed) fieldErrors.origFiled = 'Aufgabezeit als Uhrzeit (HH:MM)';
   }
   // Bezug: a number of this operation links the message, anything else is
   // kept as typed (e.g. a number of another station).
@@ -158,16 +218,16 @@ export function formIsBlank(f, op) {
 }
 
 // A stored message back into the form (editing).
-export function messageToForm(msg, mode = 'local') {
+export function messageToForm(msg) {
   return {
     ...FORM_DEFAULTS,
-    direction: msg.direction, time: timeText(msg.ts, mode), ts: msg.ts, channel: msg.channel,
+    direction: msg.direction, date: dateText(msg.ts), time: clockText(msg.ts), zone: zoneHint(msg.ts), ts: msg.ts, channel: msg.channel,
     freq: msg.radio?.freq || '', via: msg.radio?.via || '', type: msg.type, priority: msg.priority, alarm: !!msg.alarm,
     from: partyText(msg.from), to: partyText(msg.to), peer: msg.peer || '', subject: msg.subject, text: msg.text, readBack: !!msg.readBack,
-    stichzeit: msg.stichzeit ? timeText(msg.stichzeit, mode) : '', distribution: (msg.distribution || []).join(', '),
+    stichzeit: clockText(msg.stichzeit), stichzeitTs: msg.stichzeit || null, distribution: (msg.distribution || []).join(', '),
     remarks: msg.remarks || '', origStation: msg.origin?.station || '', origPlace: msg.origin?.place || '',
     origPlaceLoc: msg.origin?.placeLoc || null,
-    origFiled: msg.origin?.filed ? timeText(msg.origin.filed, mode) : '', replyTo: msg.replyTo || null,
+    origFiled: clockText(msg.origin?.filed), origFiledTs: msg.origin?.filed || null, replyTo: msg.replyTo || null,
     refKind: msg.refKind || 'antwort', ref: msg.refNumber || '',
     location: msg.location || null, locationText: msg.location?.input || msg.location?.label || '',
   };

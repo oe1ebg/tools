@@ -27,20 +27,19 @@ import { initOffline, setChip } from '../../shared/js/offline.js';
 import {
   DIRECTIONS, CHANNELS, MESSAGE_TYPES, PRIORITIES, REF_KINDS, STATUS_FLOW, statusLabel, statusEntry, timeLabel, readBackLabel,
   newMessage, editMessage, softDelete, restoreDeleted, setStatus, addAttempt, announceAlarm, currentStatus, filterMessages,
-  repliesTo, fmtVienna, fmtUtc, normFreq, fmtFreq,
+  repliesTo, fmtVienna, viennaTime, zoneHint, normFreq, fmtFreq,
 } from './model.js';
 import { saveNumbered, normalizePrefix, PREFIX_RE, nextSeq, formatNumber, counterKey } from './numbering.js';
 import { toGeschaeftsbuchCSV, toBackup, parseBackup, mergeBackup } from './export.js';
 import {
   emptyForm, setDirection, formToFields, formIsBlank, messageToForm, replyForm, nextStep, statusSteps, bookSummary, partyText,
-  readTime, timeText, normalizeRef,
+  readDateTime, readClock, readBound, dateText, clockText, needsZone, upgradeForm, normalizeRef,
 } from './form.js';
 import { formSheet, blankFormSheet, bookSheet } from './print.js';
 import { renderFormSheet, fittedFormSheet, renderBookSheet, printSheet } from './printview.js';
 
 const LAST_OP_KEY = 'oe1ebg-notfunk-last-op';
 const PRINT_HINT_KEY = 'oe1ebg-notfunk-print-hint-off';
-const MODE = 'local'; // times are typed and shown in the device's local time (Vienna)
 
 const state = {
   store: null,
@@ -92,18 +91,9 @@ function bookStatus(...content) {
 
 /* ---------------------------------------------------------------- clock */
 
-// "14:53" and "MESZ" (the zone as on the staff forms) plus UTC.
-function viennaClock(iso) {
-  const [, time = '', zone = ''] = fmtVienna(iso).split(' ');
-  return { time, zone };
-}
-
+// Austrian local time ("14:53"; in the repeated hour "02:30 MESZ").
 function tick() {
-  const now = nowIso();
-  const v = viennaClock(now);
-  setText($('#clock-local'), v.time);
-  setText($('#clock-zone'), v.zone);
-  setText($('#clock-utc'), fmtUtc(now).split(' ').slice(1).join(' '));
+  setText($('#clock-local'), viennaTime(nowIso()));
 }
 
 /* ---------------------------------------------------------------- downloads */
@@ -425,24 +415,34 @@ function setRadio(name, value) {
 function readForm() {
   const v = id => $(id).value;
   return {
-    direction: radioValue('m-dir'), time: v('#m-time'), channel: radioValue('m-channel'),
+    direction: radioValue('m-dir'), date: v('#m-date'), time: v('#m-time'), zone: $('#m-zone').hidden ? '' : v('#m-zone'), channel: radioValue('m-channel'),
     freq: v('#m-freq'), via: v('#m-via'), type: v('#m-type'), priority: radioValue('m-prio'), alarm: $('#m-alarm').checked,
     from: v('#m-from'), to: v('#m-to'), peer: v('#m-peer'), subject: v('#m-subject'), text: v('#m-text'), readBack: $('#m-readback').checked,
     stichzeit: v('#m-stichzeit'), distribution: v('#m-distribution'), remarks: v('#m-remarks'),
     origStation: v('#m-orig-station'), origPlace: v('#m-orig-place'), origPlaceLoc: state.origLocField?.get() || null, origFiled: v('#m-orig-filed'),
     refKind: v('#m-ref-kind') || 'antwort', ref: v('#m-ref'),
     replyTo: $('#msg-form').dataset.replyTo || null,
-    ts: $('#msg-form').dataset.ts || null,
+    ...keptTimes(),
     location: state.locField?.get() || null, locationText: v('#m-loc'),
   };
 }
 
-function writeForm(f) {
+// The stored times of an edited message (form.js keeps them while the
+// fields still show them), on the form element.
+const KEPT_TIMES = ['ts', 'stichzeitTs', 'origFiledTs'];
+
+function keptTimes() {
+  const ds = $('#msg-form').dataset;
+  return Object.fromEntries(KEPT_TIMES.map(k => [k, ds[k] || null]));
+}
+
+function writeForm(form) {
+  const f = upgradeForm(form);
   setRadio('m-dir', f.direction);
   setRadio('m-channel', f.channel);
   setRadio('m-prio', f.priority);
   const set = (id, val) => { $(id).value = val ?? ''; };
-  set('#m-time', f.time); set('#m-freq', fmtFreq(f.freq)); set('#m-via', f.via); set('#m-type', f.type);
+  set('#m-date', f.date); set('#m-time', f.time); set('#m-freq', fmtFreq(f.freq)); set('#m-via', f.via); set('#m-type', f.type);
   set('#m-from', f.from); set('#m-to', f.to); set('#m-peer', f.peer); set('#m-subject', f.subject); set('#m-text', f.text);
   set('#m-stichzeit', f.stichzeit); set('#m-distribution', f.distribution); set('#m-remarks', f.remarks);
   set('#m-orig-station', f.origStation); set('#m-orig-filed', f.origFiled);
@@ -451,8 +451,11 @@ function writeForm(f) {
   $('#m-readback').checked = !!f.readBack;
   if (f.replyTo) $('#msg-form').dataset.replyTo = f.replyTo;
   else delete $('#msg-form').dataset.replyTo;
-  if (f.ts) $('#msg-form').dataset.ts = f.ts;
-  else delete $('#msg-form').dataset.ts;
+  for (const k of KEPT_TIMES) {
+    if (f[k]) $('#msg-form').dataset[k] = f[k];
+    else delete $('#msg-form').dataset[k];
+  }
+  showZone(f.zone);
   if (state.locField) {
     // A stored resolution is restored as it was (edit, draft), not resolved again.
     $('#m-loc').value = f.locationText || '';
@@ -502,7 +505,7 @@ function renderFormState() {
   setText($('#m-time-label'), timeLabel(f.direction));
   setText($('#m-readback-label'), readBackLabel(f.direction));
   $('#m-peer').title = f.direction === 'out' ? 'Empfangende Funkstation' : 'Übermittelnde Funkstation';
-  setText($('#m-time-zone'), viennaClock(nowIso()).zone);
+  showZone();
   renderPartyInfo('#m-from', '#m-from-info');
   renderPartyInfo('#m-to', '#m-to-info');
   renderPartyInfo('#m-peer', '#m-peer-info');
@@ -512,7 +515,7 @@ function renderFormState() {
 
 // The form checked as it would be saved.
 function check(f = readForm()) {
-  return formToFields(f, { mode: MODE, now: nowIso(), byNumber: new Map(state.msgs.filter(m => !m.deleted).map(m => [m.number, m])), editing: !!state.editing });
+  return formToFields(f, { now: nowIso(), byNumber: new Map(state.msgs.filter(m => !m.deleted).map(m => [m.number, m])), editing: !!state.editing });
 }
 
 // Errors at the fields (German), aria-invalid on the inputs.
@@ -522,9 +525,22 @@ function showFieldErrors(errs) {
   for (const [k, sel] of Object.entries(ERROR_INPUTS)) {
     const msg = errs[k] || '';
     setText(document.querySelector(`#msg-form .ferr[data-field="${k}"]`), msg);
-    if (msg) $(sel).setAttribute('aria-invalid', 'true');
-    else $(sel).removeAttribute('aria-invalid');
+    for (const node of k === 'time' ? [$('#m-date'), $(sel)] : [$(sel)]) {
+      if (msg) node.setAttribute('aria-invalid', 'true');
+      else node.removeAttribute('aria-invalid');
+    }
   }
+}
+
+// The MESZ/MEZ choice, only while date + time fall in the hour that
+// repeats when the clocks go back; preset to `zone` (an edited message's)
+// or the occurrence nearest now.
+function showZone(zone) {
+  const sel = $('#m-zone');
+  const date = $('#m-date').value, time = $('#m-time').value;
+  const need = needsZone(date || dateText(nowIso()), time);
+  if (need && (sel.hidden || zone)) sel.value = zone || zoneHint(readDateTime(date, time, nowIso()));
+  sel.hidden = !need;
 }
 
 // The message text grows with what is typed.
@@ -557,9 +573,11 @@ function previewNumber() {
 function onFormChange(ev) {
   // The time is prefilled when a new message is begun (the first keystroke
   // in any other field), with the date, and can be corrected.
-  const t = $('#m-time');
-  if (!state.editing && !t.value.trim() && ev?.target && ev.target !== t && !formIsBlank(readForm(), state.op)) {
-    t.value = timeText(nowIso(), MODE);
+  const d = $('#m-date'), t = $('#m-time');
+  if (!state.editing && !d.value && !t.value && ev?.target && ev.target !== t && ev.target !== d && !formIsBlank(readForm(), state.op)) {
+    const now = nowIso();
+    d.value = dateText(now);
+    t.value = clockText(now);
   }
   if (ev?.target?.id === 'm-text') growText();
   if (!$('#warn-bar').hidden) { $('#warn-bar').hidden = true; state.warned = ''; }
@@ -580,7 +598,7 @@ async function flushDraft() {
   try {
     if (empty) await state.store.tx([{ store: 'drafts', del: state.op.id }]);
     else await state.store.tx([{ store: 'drafts', put: { eventId: state.op.id, form: f, editingId: state.editing?.id || null, saved: nowIso() } }]);
-    setText($('#draft-status'), empty ? '' : `✓ Entwurf gesichert ${viennaClock(nowIso()).time}`);
+    setText($('#draft-status'), empty ? '' : `✓ Entwurf gesichert ${viennaTime(nowIso())}`);
   } catch (e) {
     console.warn('Entwurf nicht gespeichert', e);
     setText($('#draft-status'), 'Entwurf nicht gesichert!');
@@ -591,7 +609,7 @@ async function restoreDraft() {
   const d = await state.store.get('drafts', state.op.id);
   state.editing = d?.editingId ? state.msgs.find(m => m.id === d.editingId) || null : null;
   writeForm(d?.form || emptyForm(state.op));
-  setText($('#draft-status'), d ? `✓ Entwurf gesichert ${viennaClock(d.saved).time}` : '');
+  setText($('#draft-status'), d ? `✓ Entwurf gesichert ${viennaTime(d.saved)}` : '');
 }
 
 function resetForm(keep = true) {
@@ -734,7 +752,7 @@ function discardForm() {
 
 function startEdit(msg) {
   state.editing = msg;
-  writeForm(messageToForm(msg, MODE));
+  writeForm(messageToForm(msg));
   location.hash = `#/e/${state.op.id}`;
   setTimeout(() => $('#m-subject').focus(), 0);
 }
@@ -859,10 +877,6 @@ function initHelp() {
 const FILTERS = {
   all: {}, open: { open: true }, in: { direction: 'in' }, out: { direction: 'out' }, urgent: { urgent: true },
 };
-
-function viennaTime(iso) {
-  return viennaClock(iso).time;
-}
 
 function pill(cls, text) {
   return el('span', { class: `pill ${cls}` }, text);
@@ -997,7 +1011,8 @@ async function restoreMsg(m) {
 
 // A small inline form in the detail view (a status step, the staff
 // reference, an announcement): labelled inputs, a button, an error line.
-// fields: [{ key, label, value, placeholder, mono, check }]; onSubmit(values)
+// fields: [{ key, label, value, placeholder, mono, check, time }] (time: a
+// time-of-day input, empty = now); onSubmit(values)
 // returns an error text or ''.
 let inlineSeq = 0;
 function inlineForm(fields, button, onSubmit) {
@@ -1009,8 +1024,8 @@ function inlineForm(fields, button, onSubmit) {
       inputs[f.key] = el('input', { type: 'checkbox', id });
       return el('label', { class: 'check', for: id }, inputs[f.key], ` ${f.label}`);
     }
-    inputs[f.key] = el('input', { id, class: f.mono ? 'mono' : null, placeholder: f.placeholder || null, value: f.value || '', autocomplete: 'off' });
-    return el('label', { class: 'field', for: id }, el('span', {}, f.label), inputs[f.key]);
+    inputs[f.key] = el('input', { id, type: f.time ? 'time' : null, class: f.mono ? 'mono' : null, placeholder: f.placeholder || null, value: f.value || '', autocomplete: 'off' });
+    return el('label', { class: 'field', for: id }, el('span', {}, f.label, f.time ? el('span', { class: 'dim' }, ' (leer = jetzt)') : null), inputs[f.key]);
   });
   const form = el('form', { class: 'inline-form', autocomplete: 'off', novalidate: '' },
     el('div', { class: 'inline-fields' }, ...rows.filter(r => r.classList.contains('field'))),
@@ -1024,11 +1039,12 @@ function inlineForm(fields, button, onSubmit) {
   return form;
 }
 
-// A typed time (HH:MM, JJJJ-MM-TT HH:MM; empty = now) or an error.
+// A time of day (the last one before now, so after midnight the day
+// before; empty = now) or an error.
 function stepTime(text) {
   if (!text) return { at: null };
-  const at = readTime(text, MODE, nowIso());
-  return at ? { at } : { error: 'Zeitpunkt: HH:MM oder JJJJ-MM-TT HH:MM' };
+  const at = readClock(text, nowIso());
+  return at ? { at } : { error: 'Zeitpunkt als Uhrzeit (HH:MM)' };
 }
 
 // The handling of a message as steps: taken down, read back, saved, then
@@ -1061,10 +1077,10 @@ function flowCard(m) {
     if (!editable || nextStep(m)?.state !== state_) return null;
     const fields = state_ === 'forwarded'
       ? [{ key: 'to', label: out ? 'Übertragen an' : 'Übergeben an', value: out ? m.peer : '', placeholder: out ? 'Funkstation' : 'Meldesammelstelle' },
-        { key: 'at', label: out ? 'Übertragungszeitpunkt' : 'Übergabezeitpunkt', placeholder: 'jetzt', mono: true },
+        { key: 'at', label: out ? 'Übertragungszeitpunkt' : 'Übergabezeitpunkt', time: true },
         ...(out ? [{ key: 'readBack', label: readBackLabel('out'), check: true }] : [])]
       : [{ key: 'who', label: out ? 'Empfang bestätigt durch' : 'Übernommen durch', value: out ? m.peer : '', placeholder: out ? 'Funkstation' : 'Name / Funktion' },
-        { key: 'at', label: 'Zeitpunkt', placeholder: 'jetzt', mono: true }];
+        { key: 'at', label: 'Zeitpunkt', time: true }];
     const button = state_ === 'forwarded' ? (out ? 'Übertragung eintragen' : 'Übergabe eintragen') : (out ? 'Empfang eintragen' : 'Übernahme eintragen');
     return inlineForm(fields, button, async v => {
       const t = stepTime(v.at);
@@ -1081,7 +1097,7 @@ function flowCard(m) {
     el('h3', { class: 'cap' }, out ? 'Ablauf (Ausgang)' : 'Ablauf (Eingang)'),
     el('ol', { class: 'steps' }, items),
     out && editable && !ack ? el('details', { class: 'attempt-add' }, el('summary', {}, 'Fehlversuch / Rückfrage eintragen'),
-      inlineForm([{ key: 'note', label: 'Was war', placeholder: 'z. B. keine Antwort, Rückfrage zu …' }, { key: 'at', label: 'Zeitpunkt', placeholder: 'jetzt', mono: true }],
+      inlineForm([{ key: 'note', label: 'Was war', placeholder: 'z. B. keine Antwort, Rückfrage zu …' }, { key: 'at', label: 'Zeitpunkt', time: true }],
         'Eintragen', async v => {
           const t = stepTime(v.at);
           if (t.error) return t.error;
@@ -1123,7 +1139,7 @@ function alarmCard(m) {
     el('h3', { class: 'cap' }, '„Stab herhören!“'),
     d ? el('p', {}, pill('st-answered', 'angesagt'), ' ', el('span', { class: 'mono' }, [fmtVienna(d.at), d.by, d.note].filter(Boolean).join(' · ')))
       : el('p', {}, pill('st-logged', 'angefordert'), ' Ansage noch nicht eingetragen.'),
-    !d && !m.deleted ? inlineForm([{ key: 'at', label: 'Angesagt um', placeholder: 'jetzt', mono: true }, { key: 'note', label: 'durch / an', placeholder: 'z. B. LdS, Lautsprecher' }],
+    !d && !m.deleted ? inlineForm([{ key: 'at', label: 'Angesagt um', time: true }, { key: 'note', label: 'durch / an', placeholder: 'z. B. LdS, Lautsprecher' }],
       'Ansage eintragen', async v => {
         const t = stepTime(v.at);
         if (t.error) return t.error;
@@ -1163,7 +1179,7 @@ function renderDetail(id) {
         el('p', {}, m.text || '–'),
         el('div', { class: m.readBack ? 'sub ok' : 'sub' }, m.readBack ? `✓ ${readBackLabel(m.direction)}` : 'Rücklesen nicht vermerkt')),
       el('dl', { class: 'kv' },
-        ...kv(timeLabel(m.direction), el('span', { class: 'mono' }, fmtVienna(m.ts)), el('span', { class: 'dim mono' }, ` · ${fmtUtc(m.ts)}`)),
+        ...kv(timeLabel(m.direction), el('span', { class: 'mono' }, fmtVienna(m.ts))),
         ...kv('Erfasst am', el('span', { class: 'mono' }, `${fmtVienna(m.created)} · ${m.operator || '–'}`)),
         ...kv('Von (Absender)', partyText(m.from)),
         ...kv('An (Adressat)', partyText(m.to)),
@@ -1235,11 +1251,11 @@ function printBlankForm() {
 function printBook() {
   const status = $('#pr-status');
   const now = nowIso();
-  const from = $('#pr-from').value.trim(), to = $('#pr-to').value.trim();
-  const fromIso = from ? readTime(from, MODE, now) : null;
-  const toIso = to ? readTime(to, MODE, now) : null;
-  if ((from && !fromIso) || (to && !toIso)) {
-    status.textContent = 'Zeit als HH:MM oder JJJJ-MM-TT HH:MM.';
+  const v = id => $(id).value;
+  const fromIso = readBound(v('#pr-from-date'), v('#pr-from-time'), now);
+  const toIso = readBound(v('#pr-to-date'), v('#pr-to-time'), now, true);
+  if ((!fromIso && (v('#pr-from-date') || v('#pr-from-time'))) || (!toIso && (v('#pr-to-date') || v('#pr-to-time')))) {
+    status.textContent = 'Diese Zeit gibt es nicht (Zeitumstellung?).';
     return;
   }
   status.textContent = '';
@@ -1265,7 +1281,7 @@ function renderBackupChip() {
   chip.hidden = !at && !since;
   chip.className = `chip chip-btn ${since ? 'warn' : 'ok'}`;
   setText(chip, at
-    ? `Letzte Sicherung ${viennaClock(at).time}${since ? ` · ${since} ${since === 1 ? 'Meldung' : 'Meldungen'} ungesichert` : ' ✓'}`
+    ? `Letzte Sicherung ${viennaTime(at)}${since ? ` · ${since} ${since === 1 ? 'Meldung' : 'Meldungen'} ungesichert` : ' ✓'}`
     : `Noch keine Sicherung · ${since} ${since === 1 ? 'Meldung' : 'Meldungen'}`);
 }
 
@@ -1393,7 +1409,7 @@ function wire() {
   $('#btn-backup').addEventListener('click', exportBackup);
   $('#st-backup').addEventListener('click', exportBackup);
   trackExpanded($('#btn-print-book'), $('#print-range'));
-  $('#btn-print-book').addEventListener('click', () => { $('#print-range').hidden = !$('#print-range').hidden; if (!$('#print-range').hidden) $('#pr-from').focus(); });
+  $('#btn-print-book').addEventListener('click', () => { $('#print-range').hidden = !$('#print-range').hidden; if (!$('#print-range').hidden) $('#pr-from-date').focus(); });
   $('#btn-print-cancel').addEventListener('click', () => { $('#print-range').hidden = true; });
   $('#print-range').addEventListener('submit', ev => { ev.preventDefault(); printBook(); });
   $('#btn-blank-form').addEventListener('click', printBlankForm);

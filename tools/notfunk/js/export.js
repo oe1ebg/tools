@@ -7,12 +7,14 @@
 //   number; the Meldesammelstelle's own number (Geschäftszahl) is the
 //   separate column "Referenz Meldesammelstelle". Semicolon-separated
 //   with a BOM, so Excel in a German locale opens it directly.
+//   Datum/Uhrzeit are Austrian local time; "Zeitstempel (ISO 8601)" has
+//   the offset (2026-10-05T14:07:00+02:00), unambiguous for programs.
 // - toBackup() / parseBackup() / mergeBackup(): the full JSON backup of an
 //   operation (messages incl. deleted ones, revisions, counters). A restore
 //   only adds or updates records and never lowers a counter, so no message
 //   number is ever handed out twice (numbering.counterAfterImport()).
 
-import { DIRECTIONS, CHANNELS, MESSAGE_TYPES, PRIORITIES, REF_KINDS, statusLabel, statusEntry, currentStatus, liveMessages, fmtVienna, fmtUtc, fmtFreq } from './model.js';
+import { DIRECTIONS, CHANNELS, MESSAGE_TYPES, PRIORITIES, REF_KINDS, statusLabel, statusEntry, currentStatus, liveMessages, fmtVienna, viennaDate, viennaTime, isoVienna, fmtFreq } from './model.js';
 import { counterAfterImport } from './numbering.js';
 
 export const BACKUP_FORMAT = 'oe1ebg-notfunk-backup';
@@ -27,40 +29,28 @@ function partyLabel(p) {
   return [p.name, p.call && p.call !== p.name ? p.call : ''].filter(Boolean).join(' / ');
 }
 
-// Datum/Uhrzeit in Vienna local time as on the staff forms; utc column too.
-function splitVienna(iso) {
-  const s = fmtVienna(iso); // "05.10.2026 14:07 MESZ"
-  const [date, time, zone] = s.split(' ');
-  return { date, time: `${time} ${zone}` };
-}
-
 export const GB_COLUMNS = [
-  'Notfunk-Nr.', 'Referenz Meldesammelstelle', 'Datum', 'Uhrzeit', 'UTC', 'Ein/Aus', 'eingegangen von / weitergeleitet an', 'Betreff', 'Inhalt',
+  'Notfunk-Nr.', 'Referenz Meldesammelstelle', 'Datum', 'Uhrzeit', 'Zeitstempel (ISO 8601)', 'Ein/Aus', 'eingegangen von / weitergeleitet an', 'Betreff', 'Inhalt',
   'Art', 'Dringlichkeit', 'Stab herhören!', 'Übermittlung', 'Gegenstelle', 'Frequenz/Relais', 'Absender', 'Adressat', 'Verteiler',
   'Rücklesen bestätigt', 'Status', 'Übergeben / übertragen an', 'Übergeben / übertragen um', 'Übernommen / Empfang bestätigt durch',
   'Bezug', 'Ort / Einsatzstelle', 'Aufgenommen von', 'Erfasst', 'Anmerkungen',
 ];
 
-function timeOnly(iso) {
-  return iso ? splitVienna(iso).time : '';
-}
-
 export function toGeschaeftsbuchCSV(msgs, sep = ';') {
   const byId = new Map(msgs.map(m => [m.id, m]));
   const rows = [GB_COLUMNS];
   for (const m of liveMessages(msgs)) {
-    const { date, time } = splitVienna(m.ts);
     const fwd = statusEntry(m, 'forwarded');
     const ack = statusEntry(m, 'acknowledged');
     const ref = m.replyTo ? byId.get(m.replyTo)?.number || m.refNumber || '' : m.refNumber || '';
     rows.push([
-      m.number, m.staffRef || '', date, time, fmtUtc(m.ts), DIRECTIONS[m.direction],
+      m.number, m.staffRef || '', viennaDate(m.ts), viennaTime(m.ts), isoVienna(m.ts), DIRECTIONS[m.direction],
       partyLabel(m.direction === 'in' ? m.from : m.to), m.subject, m.text,
       MESSAGE_TYPES[m.type], PRIORITIES[m.priority],
-      m.alarm ? (m.alarmDone ? `angesagt ${timeOnly(m.alarmDone.at)}` : 'angefordert') : '', CHANNELS[m.channel],
+      m.alarm ? (m.alarmDone ? `angesagt ${viennaTime(m.alarmDone.at)}` : 'angefordert') : '', CHANNELS[m.channel],
       m.peer || '', [fmtFreq(m.radio.freq), m.radio.via].filter(Boolean).join(' via '), partyLabel(m.from), partyLabel(m.to), m.distribution.join(', '),
       m.readBack ? 'ja' : '', statusLabel(currentStatus(m), m.direction),
-      fwd?.to || '', fwd ? timeOnly(fwd.at) : '', ack ? [ack.who, timeOnly(ack.at)].filter(Boolean).join(' ') : '',
+      fwd?.to || '', fwd ? viennaTime(fwd.at) : '', ack ? [ack.who, viennaTime(ack.at)].filter(Boolean).join(' ') : '',
       ref ? `${REF_KINDS[m.refKind] || REF_KINDS.antwort} ${ref}` : '',
       m.location ? m.location.label || `${m.location.lat}, ${m.location.lon}` : '', m.operator, fmtVienna(m.created), m.remarks,
     ]);

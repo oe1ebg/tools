@@ -1,11 +1,11 @@
 // Emergency traffic log: entry form <-> message fields, and the printouts
 // (tools/notfunk/js/form.js, print.js).
-process.env.TZ = 'Europe/Vienna'; // local-time input is read as Vienna time
+process.env.TZ = 'America/New_York'; // Austrian time must not depend on the device's zone
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   emptyForm, setDirection, parseParty, partyText, formToFields, messageToForm, replyForm,
-  nextStep, statusSteps, bookSummary, readTime, timeText, formIsBlank, normalizeRef,
+  nextStep, statusSteps, bookSummary, readDateTime, readClock, readBound, dateText, clockText, needsZone, upgradeForm, formIsBlank, normalizeRef,
 } from '../tools/notfunk/js/form.js';
 import { formSheet, blankFormSheet, bookSheet } from '../tools/notfunk/js/print.js';
 import { newMessage, setStatus, softDelete, addAttempt, normFreq, fmtFreq } from '../tools/notfunk/js/model.js';
@@ -15,7 +15,7 @@ const NOW = '2026-10-07T12:53:00.000Z'; // 14:53 MESZ
 const OP = { id: 'op1', name: 'Übung Blackout Wien', prefix: 'W1', station: 'Einsatzleitstelle', home: 'Stab', freq: '145.500', via: '' };
 
 function save(form, seq, now = NOW) {
-  const { fields, errors } = formToFields(form, { mode: 'local', now });
+  const { fields, errors } = formToFields(form, { now });
   assert.deepEqual(errors, []);
   return newMessage(fields, { prefix: 'W1', seq, number: formatNumber('W1', seq) }, { id: `m${seq}`, opId: 'op1', operator: 'oe1ebg', now });
 }
@@ -53,42 +53,85 @@ test('parties: callsign, name / call, plain name', () => {
   assert.equal(partyText({ name: '', call: 'OE1ABC' }), 'OE1ABC');
 });
 
-test('time: empty = now, HH:MM local on the day of now, full date', () => {
-  assert.equal(readTime('', 'local', NOW), NOW);
-  assert.equal(readTime('14:05', 'local', NOW), '2026-10-07T12:05:00.000Z');
-  assert.equal(readTime('2026-10-06 23:30', 'local', NOW), '2026-10-06T21:30:00.000Z');
-  assert.equal(readTime('25:00', 'local', NOW), null);
-  const { errors, fieldErrors } = formToFields({ ...filled, time: '14.05' }, { mode: 'local', now: NOW });
-  assert.deepEqual(errors, ['Datum und Uhrzeit als HH:MM oder JJJJ-MM-TT HH:MM']);
+test('time: date and time in Austrian local time; empty = now, no date = today', () => {
+  assert.equal(readDateTime('', '', NOW), NOW);
+  assert.equal(readDateTime('', '14:05', NOW), '2026-10-07T12:05:00.000Z');
+  assert.equal(readDateTime('2026-10-06', '23:30', NOW), '2026-10-06T21:30:00.000Z');
+  assert.equal(readDateTime('2026-01-06', '23:30', NOW), '2026-01-06T22:30:00.000Z', 'winter time');
+  assert.equal(readDateTime('2026-10-06', '', NOW), null, 'date without time');
+  assert.equal(readDateTime('2026-03-29', '02:30', NOW), null, 'skipped when the clocks go forward');
+  assert.equal(readDateTime('', '25:00', NOW), null);
+  const { errors, fieldErrors } = formToFields({ ...filled, date: '2026-10-07', time: '' }, { now: NOW });
+  assert.deepEqual(errors, ['Uhrzeit fehlt']);
   assert.deepEqual(Object.keys(fieldErrors), ['time']);
+  assert.deepEqual(formToFields({ ...filled, date: '2026-03-29', time: '02:30' }, { now: NOW }).fieldErrors,
+    { time: 'Diese Uhrzeit gibt es an dem Tag nicht (Datum ungültig oder Zeitumstellung)' });
+});
+
+test('time: the hour that repeats when the clocks go back needs MESZ or MEZ', () => {
+  const night = '2026-10-25T02:10:00.000Z'; // 03:10 MEZ, after the change
+  assert.ok(needsZone('2026-10-25', '02:30'));
+  assert.ok(!needsZone('2026-10-25', '03:30'));
+  assert.equal(readDateTime('2026-10-25', '02:30', night, 'MESZ'), '2026-10-25T00:30:00.000Z');
+  assert.equal(readDateTime('2026-10-25', '02:30', night, 'MEZ'), '2026-10-25T01:30:00.000Z');
+  assert.equal(readDateTime('2026-10-25', '02:30', night), '2026-10-25T01:30:00.000Z', 'nearest now without a choice');
+  const m = save({ ...filled, date: '2026-10-25', time: '02:30', zone: 'MESZ' }, 1, night);
+  assert.equal(m.ts, '2026-10-25T00:30:00.000Z');
+  const f = messageToForm(m);
+  assert.deepEqual([f.date, f.time, f.zone], ['2026-10-25', '02:30', 'MESZ']);
+  assert.equal(formToFields({ ...f, zone: 'MEZ' }, { now: night }).fields.ts, '2026-10-25T01:30:00.000Z', 'choice changed on edit');
+  const s = formSheet(m, OP, { now: night });
+  assert.deepEqual([s.date, s.time], ['25.10.2026', '02:30 MESZ']);
+});
+
+test('time of day (Stichzeit, Aufgabezeit, handover): the last one before, also the day before', () => {
+  assert.equal(readClock('14:40', NOW), '2026-10-07T12:40:00.000Z');
+  assert.equal(readClock('14:56', NOW), '2026-10-07T12:56:00.000Z', 'a few minutes ahead (clock drift)');
+  assert.equal(readClock('15:30', NOW), '2026-10-06T13:30:00.000Z', 'later today = yesterday');
+  assert.equal(readClock('23:50', '2026-10-07T22:10:00.000Z'), '2026-10-07T21:50:00.000Z', '00:10 → 23:50 the day before');
+  assert.equal(readClock('', NOW), null);
+  assert.equal(readClock('x', NOW), null);
+});
+
+test('printed range: date alone = whole day, time alone = today', () => {
+  assert.equal(readBound('', '', NOW), null);
+  assert.equal(readBound('2026-10-06', '', NOW), '2026-10-05T22:00:00.000Z');
+  assert.equal(readBound('2026-10-06', '', NOW, true), '2026-10-06T21:59:59.000Z');
+  assert.equal(readBound('', '13:30', NOW), '2026-10-07T11:30:00.000Z');
+});
+
+test('drafts from before the split date/time fields are upgraded', () => {
+  const f = upgradeForm({ ...filled, time: '2026-10-07 9:05', stichzeit: '2026-10-07 08:30', origFiled: '7:15' });
+  assert.deepEqual([f.date, f.time, f.stichzeit, f.origFiled], ['2026-10-07', '09:05', '08:30', '07:15']);
+  assert.equal(upgradeForm({ ...filled, date: '2026-10-07', time: '14:05' }).time, '14:05');
 });
 
 test('time prefill: with the date, so midnight and paper entries stay right', () => {
-  assert.equal(timeText(NOW, 'local'), '2026-10-07 14:53');
+  assert.deepEqual([dateText(NOW), clockText(NOW)], ['2026-10-07', '14:53']);
   // begun 23:58, saved after midnight: the prefilled day is kept
-  const begun = timeText('2026-10-07T21:58:00.000Z', 'local');
-  const { fields } = formToFields({ ...filled, time: begun }, { mode: 'local', now: '2026-10-07T22:03:00.000Z' });
+  const begun = '2026-10-07T21:58:00.000Z';
+  const { fields } = formToFields({ ...filled, date: dateText(begun), time: clockText(begun) }, { now: '2026-10-07T22:03:00.000Z' });
   assert.equal(fields.ts, '2026-10-07T21:58:00.000Z');
 });
 
 test('blank form: operation defaults and the time do not count', () => {
   assert.equal(formIsBlank(emptyForm(OP), OP), true);
-  assert.equal(formIsBlank({ ...emptyForm(OP), time: '2026-10-07 14:53' }, OP), true);
+  assert.equal(formIsBlank({ ...emptyForm(OP), date: '2026-10-07', time: '14:53' }, OP), true);
   assert.equal(formIsBlank({ ...emptyForm(OP), peer: 'OE1ABC' }, OP), false);
 });
 
 test('warnings ask, they do not block: radio station, time far off, read-back', () => {
-  const ok = formToFields({ ...filled, peer: 'oe1abc', readBack: true }, { mode: 'local', now: NOW });
+  const ok = formToFields({ ...filled, peer: 'oe1abc', readBack: true }, { now: NOW });
   assert.deepEqual(ok.warnings, []);
   assert.equal(ok.fields.peer, 'OE1ABC');
-  const w = formToFields({ ...filled, time: '2026-10-07 11:00' }, { mode: 'local', now: NOW });
+  const w = formToFields({ ...filled, date: '2026-10-07', time: '11:00' }, { now: NOW });
   assert.deepEqual(w.errors, []);
   assert.deepEqual(w.warnings, ['Gegenstelle fehlt', 'Zeit liegt 4 h zurück (Nachtrag?)', 'Rücklesen nicht bestätigt']);
-  assert.deepEqual(formToFields({ ...filled, peer: 'X', readBack: true, time: '15:30' }, { mode: 'local', now: NOW }).warnings, ['Zeit liegt in der Zukunft']);
+  assert.deepEqual(formToFields({ ...filled, peer: 'X', readBack: true, time: '15:30' }, { now: NOW }).warnings, ['Zeit liegt in der Zukunft']);
   // an edit keeps its old time without asking; no radio station by phone
-  assert.deepEqual(formToFields({ ...filled, channel: 'telefon', readBack: true, time: '2026-10-07 11:00' }, { mode: 'local', now: NOW, editing: true }).warnings, []);
+  assert.deepEqual(formToFields({ ...filled, channel: 'telefon', readBack: true, date: '2026-10-07', time: '11:00' }, { now: NOW, editing: true }).warnings, []);
   // outgoing: read back at the transmission, not asked here
-  assert.deepEqual(formToFields({ ...filled, direction: 'out', peer: 'X' }, { mode: 'local', now: NOW }).warnings, []);
+  assert.deepEqual(formToFields({ ...filled, direction: 'out', peer: 'X' }, { now: NOW }).warnings, []);
 });
 
 test('frequency: comma or point, one way to show it', () => {
@@ -104,11 +147,11 @@ test('Bezug: a number of this operation links, anything else stays text', () => 
   const a = save(filled, 3);
   const byNumber = new Map([[a.number, a]]);
   assert.equal(normalizeRef('w1-3'), 'W1-003');
-  const linked = formToFields({ ...filled, ref: 'w1-3', refKind: 'korrektur' }, { mode: 'local', now: NOW, byNumber }).fields;
+  const linked = formToFields({ ...filled, ref: 'w1-3', refKind: 'korrektur' }, { now: NOW, byNumber }).fields;
   assert.deepEqual([linked.replyTo, linked.refNumber, linked.refKind], ['m3', 'W1-003', 'korrektur']);
-  const other = formToFields({ ...filled, ref: 'K2-010' }, { mode: 'local', now: NOW, byNumber }).fields;
+  const other = formToFields({ ...filled, ref: 'K2-010' }, { now: NOW, byNumber }).fields;
   assert.deepEqual([other.replyTo, other.refNumber, other.refKind], [null, 'K2-010', 'antwort']);
-  assert.equal(formToFields(filled, { mode: 'local', now: NOW, byNumber }).fields.refKind, null);
+  assert.equal(formToFields(filled, { now: NOW, byNumber }).fields.refKind, null);
 });
 
 test('form -> message: verbatim text, Stichzeit only for Lagemeldung', () => {
@@ -123,7 +166,7 @@ test('form -> message: verbatim text, Stichzeit only for Lagemeldung', () => {
 });
 
 test('form errors at the fields: sender, addressee, subject, text', () => {
-  const { errors, fieldErrors } = formToFields(emptyForm({ ...OP, home: '' }), { mode: 'local', now: NOW });
+  const { errors, fieldErrors } = formToFields(emptyForm({ ...OP, home: '' }), { now: NOW });
   assert.deepEqual(Object.keys(fieldErrors), ['from', 'to', 'subject', 'text']);
   assert.equal(fieldErrors.from, 'Absender fehlt: wer gibt die Meldung auf?');
   assert.equal(errors.length, 4);
@@ -131,7 +174,7 @@ test('form errors at the fields: sender, addressee, subject, text', () => {
 
 test('message -> form -> message round trip', () => {
   const m = save({ ...filled, distribution: 'S3, S4', remarks: 'Rückruf zugesagt', origStation: 'oe3xyz', origFiled: '14:40' }, 1);
-  const again = formToFields(messageToForm(m), { mode: 'local', now: '2026-10-08T00:00:00.000Z' }).fields;
+  const again = formToFields(messageToForm(m), { now: '2026-10-08T00:00:00.000Z' }).fields;
   for (const k of ['direction', 'channel', 'type', 'priority', 'alarm', 'subject', 'text', 'remarks', 'readBack']) assert.deepEqual(again[k], m[k], k);
   assert.equal(again.ts, '2026-10-07T12:53:00.000Z');
   assert.deepEqual(again.distribution, ['S3', 'S4']);
@@ -145,8 +188,8 @@ test('message -> form -> message round trip', () => {
 test('edit keeps the stored time to the second unless the time is changed', () => {
   const m = save(filled, 1, '2026-10-07T12:53:41.250Z');
   const f = messageToForm(m);
-  assert.equal(formToFields(f, { mode: 'local', now: NOW }).fields.ts, '2026-10-07T12:53:41.250Z');
-  assert.equal(formToFields({ ...f, time: '2026-10-07 14:50' }, { mode: 'local', now: NOW }).fields.ts, '2026-10-07T12:50:00.000Z');
+  assert.equal(formToFields(f, { now: NOW }).fields.ts, '2026-10-07T12:53:41.250Z');
+  assert.equal(formToFields({ ...f, time: '14:50' }, { now: NOW }).fields.ts, '2026-10-07T12:50:00.000Z');
 });
 
 test('reply: other direction, parties swapped, linked', () => {
@@ -194,14 +237,14 @@ test('summary: open emergencies, unacknowledged, range, gaps', () => {
   assert.deepEqual(bookSummary([a, save(filled, 3)]).gaps, ['W1-002']);
 });
 
-test('Meldeaufnahmeformular: fields, date + time + zone, staff block, handover', () => {
+test('Meldeaufnahmeformular: fields, date + time, staff block, handover', () => {
   let m = save({ ...filled, distribution: 'S3', peer: 'oe1abc', readBack: true }, 7);
   m = { ...m, staffRef: 'GZ 0412' };
   m = setStatus(m, 'forwarded', { operator: 'oe1ebg', now: NOW, to: 'Meldesammelstelle', at: '2026-10-07T13:00:00.000Z' });
   const s = formSheet(m, OP, { now: NOW, revisions: 1 });
   assert.equal(s.number, 'W1-007');
   assert.equal(s.staffRef, 'GZ 0412');
-  assert.deepEqual([s.timeLabel, s.date, s.time, s.zone, s.utc], ['Empfangen am', '07.10.2026', '14:53', 'MESZ', '12:53 UTC']);
+  assert.deepEqual([s.timeLabel, s.date, s.time], ['Empfangen am', '07.10.2026', '14:53'], 'local time, no zone');
   assert.deepEqual(s.directions.map(d => [d.label, d.checked]), [['Eingang', true], ['Ausgang', false]]);
   assert.deepEqual(s.channels.filter(c => c.checked).map(c => c.label), ['Funk']);
   assert.deepEqual(s.priorities.filter(p => p.checked).map(p => p.label), ['Notfall']);
@@ -209,7 +252,7 @@ test('Meldeaufnahmeformular: fields, date + time + zone, staff block, handover',
   assert.deepEqual([s.from, s.to, s.peer, s.distribution], ['Lichtinsel 12 Floridsdorf', 'Stab', 'OE1ABC', 'S3']);
   assert.equal(s.readBackLabel, 'Rücklesen erfolgt und vom Absender als richtig bestätigt');
   assert.deepEqual(s.handoverHeads, ['Übergeben an', 'Übergabezeitpunkt', 'Übernommen durch', 'Übernahme bestätigt']);
-  assert.deepEqual(s.handover, ['Meldesammelstelle', '15:00 MESZ', '', '']);
+  assert.deepEqual(s.handover, ['Meldesammelstelle', '15:00', '', '']);
   assert.equal(s.status, 'übergeben');
   assert.equal(s.version, 2);
   assert.equal(s.operator, 'OE1EBG');
@@ -223,7 +266,7 @@ test('Meldeaufnahmeformular: fields, date + time + zone, staff block, handover',
   assert.equal(o.timeLabel, 'Gesendet am');
   assert.equal(o.status, 'zur Übertragung');
   assert.deepEqual(o.handoverHeads, ['Übertragen an', 'Übertragungszeitpunkt', 'Empfang bestätigt durch', 'Fehlversuche / Rückfrage']);
-  assert.equal(o.handover[3], '14:53 MESZ keine Antwort');
+  assert.equal(o.handover[3], '14:53 keine Antwort');
 });
 
 test('blank form: nothing ticked, nothing filled in', () => {
@@ -248,5 +291,5 @@ test('Meldebuch printout: range, deleted left out, oldest first', () => {
   assert.deepEqual([all.rows[1].direction, all.rows[1].party, all.rows[1].priority], ['Aus', 'LI 3', '']);
   const part = bookSheet([a, b], OP, { now: NOW, fromIso: '2026-10-07T11:30:00.000Z' });
   assert.deepEqual(part.rows.map(r => r.number), ['W1-002']);
-  assert.match(part.range, /^07\.10\.2026 13:30 MESZ bis jetzt$/);
+  assert.match(part.range, /^07\.10\.2026 13:30 bis jetzt$/);
 });

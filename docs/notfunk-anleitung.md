@@ -94,7 +94,7 @@ Das Formular steht im Meldebuch ganz oben. Die nächste Nummer wird angezeigt
 | Feld | Bedeutung | Beispiel |
 | --- | --- | --- |
 | Richtung | Eingang (↓) oder Ausgang (↑) | |
-| Empfangen am / Gesendet am | wann die Meldung übermittelt wurde, Ortszeit (MEZ/MESZ). Wird beim ersten Tastendruck mit Datum und Uhrzeit vorbelegt und kann korrigiert werden. | 14:05 oder 2026-10-08 14:05 |
+| Empfangen am / Gesendet am | wann die Meldung übermittelt wurde: Datum und Uhrzeit in zwei Feldern, Ortszeit. Wird beim ersten Tastendruck mit jetzt vorbelegt und kann korrigiert werden. | 08.10.2026 · 14:05 |
 | Übermittlung | Funk, Telefon, mündlich, Melder, E-Mail, Fax, anders | Funk |
 | Gegenstelle | die Funkstation, von der die Meldung gehört wurde (Eingang) bzw. an die sie gesendet wird (Ausgang); nur bei Funk | OE1ABC |
 | Frequenz MHz, Relais | Vorgabe aus dem Einsatz; Komma oder Punkt | 145,500 · OE1XUU |
@@ -120,8 +120,8 @@ Unter **„Weitere Felder“**:
 | Verteiler | wer die Meldung noch bekommt | S3, S4 |
 | Ursprungsstation | Station, bei der die Meldung ursprünglich aufgegeben wurde (bei Weitergaben) | OE3XYZ |
 | Ursprungsort | Ort der ursprünglichen Aufgabe | Wolkersdorf |
-| Aufgabezeit | wann die Meldung dort aufgegeben wurde | 13:50 |
-| Stichzeit | nur bei Lagemeldungen: auf welchen Zeitpunkt sich die Lage bezieht | 14:00 |
+| Aufgabezeit | wann die Meldung dort aufgegeben wurde (nur Uhrzeit) | 13:50 |
+| Stichzeit | nur bei Lagemeldungen: auf welche Uhrzeit sich die Lage bezieht | 14:00 |
 | Anmerkungen / weitere Veranlassung | eigene Notizen | |
 
 ### Wer ist wer
@@ -152,11 +152,22 @@ passt, und der **Inhalt der Meldung wird nie verändert**.
 - **Aufgabezeit:** wann sie bei der Ursprungsstation aufgegeben wurde.
 - **Stichzeit:** worauf sich eine Lagemeldung bezieht.
 
-**Nachtrag vom Papier:** das tatsächliche Datum und die Uhrzeit eintragen
-(`2026-10-08 13:20`). Liegt die Zeit mehr als eine Stunde zurück, fragt das
-Formular beim Speichern nach. Weil die Zeit mit Datum vorbelegt wird, bleibt
-auch eine Meldung richtig, die vor Mitternacht begonnen und danach
-gespeichert wird.
+Alle Zeiten sind **Ortszeit** (Sommer- und Winterzeit wie die Uhr an der
+Wand), auf dem Bildschirm, im Ausdruck und im CSV. Aufgabezeit, Stichzeit
+und die Zeitpunkte im Ablauf sind nur Uhrzeiten: gemeint ist die letzte
+solche Uhrzeit vor der Meldung, nach Mitternacht also auch eine vom Vortag.
+
+**Nachtrag vom Papier:** das tatsächliche Datum und die Uhrzeit eintragen.
+Liegt die Zeit mehr als eine Stunde zurück, fragt das Formular beim
+Speichern nach. Weil die Zeit mit Datum vorbelegt wird, bleibt auch eine
+Meldung richtig, die vor Mitternacht begonnen und danach gespeichert wird.
+
+**Zeitumstellung:** In der Nacht, in der im Oktober die Uhren zurückgestellt
+werden, gibt es 02:00–02:59 zweimal. Fällt die Uhrzeit in diese Stunde,
+erscheint neben ihr eine Auswahl „1. Mal (MESZ)“ / „2. Mal (MEZ)“,
+vorbelegt mit dem, was jetzt näher liegt. Nur in dieser Stunde stehen MESZ
+oder MEZ auch im Meldebuch und im Ausdruck. Im März gibt es 02:00–02:59
+nicht; so eine Uhrzeit nimmt das Formular nicht an.
 
 ### Speichern, Hinweise, Verwerfen
 
@@ -220,7 +231,7 @@ rechts der **Ablauf**.
 - **Ausgang:** „Übertragen an“ (die Gegenstelle) mit Zeitpunkt und ob sie
   zurückgelesen hat, dann „Empfang bestätigt durch“. Klappt eine Übertragung
   nicht oder gibt es eine Rückfrage: „Fehlversuch / Rückfrage eintragen“.
-- Zeitpunkt leer = jetzt; sonst `14:10` oder `2026-10-08 14:10`.
+- Zeitpunkt leer = jetzt; sonst die Uhrzeit, z. B. `14:10`.
 
 **Referenz der Meldesammelstelle:** die Nummer, unter der die
 Meldesammelstelle die Meldung führt (Geschäftsbuch). Sie wird hier
@@ -246,8 +257,8 @@ Linien, keine schwarzen Flächen, auch aus der dunklen Ansicht.
 - Darunter der Block **„Nur von der Meldesammelstelle / dem Stab
   auszufüllen“**: Referenz / Geschäftsbuch-Nr. (vorbelegt, wenn schon
   bekannt), Federführend, Mitwirkend, Zur Kenntnis.
-- Datum, Uhrzeit und Zeitbasis in einem Feld: „08.10.2026 · 14:05 MESZ“, dazu
-  UTC und die Erfassungszeit.
+- Datum und Uhrzeit (Ortszeit) in einem Feld: „08.10.2026 · 14:05“, dazu
+  die Erfassungszeit.
 - Unten die Übergabe (Eingang) bzw. Übertragung (Ausgang).
 
 ![Druckhinweis](img/notfunk-druckhinweis.png)
@@ -267,13 +278,15 @@ PDF“ auf der Startseite (bzw. „Leeres Formular“ im Meldebuch), die Anzahl 
 Druckdialog wählen. Das leere Formular hat dieselben Felder und Begriffe.
 
 **Das Meldebuch drucken:** „Drucken / PDF…“ im Meldebuch, optional mit
-Zeitraum.
+Zeitraum (Von/Bis je Datum und Uhrzeit; nur ein Datum = der ganze Tag).
 
 ## Exporte und Sicherung
 
 - **Geschäftsbuch (CSV):** eine Zeile pro Meldung, für Excel. Spalten u. a.
-  Notfunk-Nr., Referenz Meldesammelstelle, Datum, Uhrzeit, Ein/Aus, Betreff,
-  Inhalt, Dringlichkeit, Gegenstelle, Status, Übergabe, Bezug.
+  Notfunk-Nr., Referenz Meldesammelstelle, Datum, Uhrzeit (Ortszeit),
+  Zeitstempel (ISO 8601 mit Zeitzone, z. B. `2026-10-08T14:05:00+02:00`, für
+  Programme), Ein/Aus, Betreff, Inhalt, Dringlichkeit, Gegenstelle, Status,
+  Übergabe, Bezug.
 - **Sicherung (JSON):** der ganze Einsatz mit gelöschten Meldungen und allen
   Fassungen. Auf der Startseite mit „Sicherung importieren…“ wieder
   einspielen, auch auf einem anderen Gerät. Bücher mehrerer Geräte lassen
