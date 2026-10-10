@@ -191,9 +191,18 @@ function avScan(source, issue) {
     // tag-shaped text is part of the value. A warning, since a too long
     // length can also end like that and naive readers split there.
     if (cut >= 0 && end <= source.length && avCleanEnd(source, end)) {
-      issue('warning', 'TAG_IN_VALUE',
-        `<${upper}:${len}>: the value "${avShort(available)}" contains text that looks like an ADIF tag; read as part of the value, as the declared length says. If that is not intended, the length is wrong (programs that split on tags will misread it too).`,
-        { offset: lt, field: upper, value: available });
+      // An <EOR> inside the value is the typical sign of a too long length
+      // that swallowed the end of the QSO (and maybe the next one's
+      // fields): valid per spec, but its own, clearer warning.
+      if (/<eor>/i.test(available)) {
+        issue('warning', 'RECORD_END_IN_VALUE',
+          `<${upper}:${len}>: the value "${avShort(available)}" contains <EOR>; read as part of the value, as the declared length says, so no QSO ends there. If the length is too long, this value swallows the end of the QSO and the fields after it (two QSOs read as one): check the length.`,
+          { offset: lt, field: upper, value: available });
+      } else {
+        issue('warning', 'TAG_IN_VALUE',
+          `<${upper}:${len}>: the value "${avShort(available)}" contains text that looks like an ADIF tag; read as part of the value, as the declared length says. If that is not intended, the length is wrong (programs that split on tags will misread it too).`,
+          { offset: lt, field: upper, value: available });
+      }
       tokens.push({ kind: 'tag', name: upper, type, value: available, offset: lt, valueOffset: tagEnd });
       pos = end;
       continue;

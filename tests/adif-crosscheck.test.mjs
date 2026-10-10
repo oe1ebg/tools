@@ -211,7 +211,7 @@ const VALUES = [
   [{ NOTES: 'a\r\nb' }, null],
   [{ APP_OE1EBG_WX: 'a\r\nb' }, null],
   // tag-shaped text inside a value, the declared length is right (IV.A.1);
-  // we add a TAG_IN_VALUE warning, no error
+  // we add a TAG_IN_VALUE or RECORD_END_IN_VALUE warning, no error
   [{ NOTES: 'a <EOR> b <EOH>' }, null],
   [{ COMMENT: 'copied <CALL:4>OE1A' }, null],
   [{ GRIDSQUARE: 'jn88ef12' }, null],

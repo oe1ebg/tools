@@ -43,7 +43,11 @@ export function adifAsciiField(name, value, opts, type = '') {
 // The fields of an ADI header, read by their lengths (so "<EOH>" inside a
 // value doesn't end it), up to <EOH>: { end (after <EOH>), fields:
 // [[NAME, value, type]] }, or null when there is no <EOH> that way.
-function adifHeaderFields(text) {
+// limit (the offset of the first "<EOH>" text, for a header whose lengths
+// don't lead to it): a value running past it is cut at the next tag in it
+// (or at the limit) and its name goes to `bad`, so the fields before and
+// after a wrong length are still read.
+function adifHeaderFields(text, limit = Infinity, bad = []) {
   const re = /<([A-Za-z0-9_]+)(?::(\d+)(?::([A-Za-z]+))?)?>/g;
   const fields = [];
   let m;
@@ -51,9 +55,17 @@ function adifHeaderFields(text) {
     const name = m[1].toUpperCase();
     if (name === 'EOH' && m[2] === undefined) return { end: re.lastIndex, fields };
     if (m[2] === undefined) continue;
-    const len = parseInt(m[2], 10);
-    fields.push([name, text.slice(re.lastIndex, re.lastIndex + len), m[3] ? m[3].toUpperCase() : '']);
-    re.lastIndex += len;
+    const start = re.lastIndex;
+    let end = start + parseInt(m[2], 10);
+    if (end > limit) {
+      const next = /<(?:eoh|eor|[A-Za-z][A-Za-z0-9_]*:\d+(?::[A-Za-z])?)>/i.exec(text.slice(start, limit));
+      end = next ? start + next.index : limit;
+      bad.push(name);
+      fields.push([name, text.slice(start, end).trimEnd(), m[3] ? m[3].toUpperCase() : '']);
+    } else {
+      fields.push([name, text.slice(start, end), m[3] ? m[3].toUpperCase() : '']);
+    }
+    re.lastIndex = end;
   }
   return null;
 }
@@ -86,7 +98,11 @@ export function parseADIF(text, warnings, sourceLabel, headerInfo, stats, defs) 
       const eoh = /<eoh>/i.exec(text);
       if (eoh) {
         bodyStart = eoh.index + eoh[0].length;
-        header = adifHeaderFields(text.slice(0, eoh.index) + '<EOH>')?.fields || [];
+        const bad = [];
+        header = adifHeaderFields(text.slice(0, eoh.index) + '<EOH>', eoh.index, bad)?.fields || [];
+        for (const name of bad) {
+          warnings.push(`${sourceLabel}: header field ${name} declares a length that runs past <EOH>; read up to the next tag, the other header fields are kept.`);
+        }
       } else if (firstNonWs && firstNonWs[0] !== '<') {
         warnings.push(`${sourceLabel}: no <EOH> tag found; parsing entire file as records.`);
       }

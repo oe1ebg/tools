@@ -110,9 +110,10 @@
   "fixtures/adif/tag-in-value.adi": {
     "records": 2,
     "counts": {
-      "warning TAG_IN_VALUE": 3
+      "warning RECORD_END_IN_VALUE": 1,
+      "warning TAG_IN_VALUE": 2
     },
-    "issues": "d71867d242e40f7384408c92ead00ce1d5fdf8b25d0a6c3b99dbdef391c49c12"
+    "issues": "bace496aab32bb8905aad91026b0f3d6bc9b673a91cb94b772e897644659d6ec"
   },
   "fixtures/adif/truncated.adi": {
     "records": 2,

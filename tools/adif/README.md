@@ -54,6 +54,8 @@ actually earns its keep (the propagation-dashboard notebook work).
 - Export always regenerates a minimal `<EOH>`-terminated header; it does not
   attempt to preserve arbitrary free-text header content from the input file,
   only the USERDEF declarations (see *Field definitions*).
+  A header field whose length runs past `<EOH>` is read up to the next tag
+  (with a warning); the header fields and USERDEFs around it are kept.
 
 **Verified before handoff** (Node, outside the browser, since this is pure
 string logic with no DOM dependency):
@@ -145,7 +147,8 @@ holds one `UNRECOVERABLE_PARSE_ERROR`.
 counts (ADIF 3.1.7 IV.A.1): when tag-shaped text lies inside it
 (`<EOR>`, `<EOH>`, `<CALL:4>`) and the value ends cleanly (a blank or
 line break, a tag, or the end of the file follows), that text is part of
-the value, with a `TAG_IN_VALUE` warning. When a declared length runs into
+the value, with a `TAG_IN_VALUE` warning (`RECORD_END_IN_VALUE` when it
+is an `<EOR>`, which a too-long length swallowing a QSO end looks like). When a declared length runs into
 the next tag and does *not* end cleanly, it is too long: the value is cut
 at that tag and the scan resyncs, so one wrong length doesn't swallow the
 following fields; a broken QSO is reported and the next ones are still
@@ -183,6 +186,7 @@ new ADIF version). Only the cross-field checks and heuristics are code.
 | `UNSUPPORTED_ADIF_VERSION` | warning | file declares a newer ADIF than 3.1.7 |
 | `HEADER_STARTS_WITH_TAG` | warning | file starts with `<` but has an `<EOH>` |
 | `TAG_IN_VALUE` | warning | tag-shaped text inside a value whose declared length ends cleanly: read as part of the value (IV.A.1); a too-long length can look the same, and naive readers split there |
+| `RECORD_END_IN_VALUE` | warning | the same with `<EOR>` inside the value: the typical sign of a too-long length that swallowed the end of the QSO (two QSOs read as one); valid per spec, so a warning |
 | `UNKNOWN_FIELD` | warning | not an ADIF 3.1.7 field, not `APP_`, not USERDEF (once per field name) |
 | `FIELD_NOT_IN_HEADER` / `HEADER_FIELD_IN_RECORD` | warning | QSO field in the header, or the other way round |
 | `TYPE_INDICATOR_MISMATCH` | warning | type letter differs from the field's type |
