@@ -44,7 +44,23 @@ test('parseADIF: a header length running past <EOH> keeps the other header field
   assert.ok(validateAdif(text, { today: '20991231' }).issues.some(i => i.code === 'FIELD_LENGTH_MISMATCH' && i.field === 'PROGRAMID'));
 });
 
-const TYPED ='hdr\r\n<ADIF_VER:5>3.1.7\r\n<USERDEF1:14:M>QSO_TRANSCRIPT\r\n<USERDEF2:21:E>ANTENNA,{DIPOLE,YAGI}\r\n' +
+test('parseADIF: an "<EOH>" inside a correct header value is not taken for the end when a later length is wrong', () => {
+  const text = 'hdr <PROGRAMID:9>has <EOH> <USERDEF1:6:N>MYNUMB <ADIF_VER:50>3.1.7 <EOH>\n<CALL:4>OE1A <MYNUMB:1>5 <EOR>\n';
+  const warnings = [], header = {}, defs = {};
+  const recs = parseADIF(text, warnings, 'f', header, undefined, defs);
+  assert.deepEqual(recs, [{ CALL: 'OE1A', MYNUMB: '5' }]);
+  assert.deepEqual(header, { PROGRAMID: 'has <EOH>', ADIF_VER: '3.1.7' });
+  assert.deepEqual(defs.userdefs.map(u => u.spec), ['MYNUMB']);
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /^f: header field ADIF_VER .*past <EOH>/, 'the field that is really wrong');
+  // a length ending inside the <EOH> tag itself
+  const mid = [], midHeader = {};
+  assert.deepEqual(parseADIF('x <ADIF_VER:7>3.1.7 <EOH>\n<CALL:4>OE1A <EOR>\n', mid, 'g', midHeader), [{ CALL: 'OE1A' }]);
+  assert.deepEqual(midHeader, { ADIF_VER: '3.1.7' });
+  assert.match(mid[0], /ADIF_VER/);
+});
+
+const TYPED = 'hdr\r\n<ADIF_VER:5>3.1.7\r\n<USERDEF1:14:M>QSO_TRANSCRIPT\r\n<USERDEF2:21:E>ANTENNA,{DIPOLE,YAGI}\r\n' +
   '<USERDEF3:16:N>ELEVATION,{0:90}\r\n<USERDEF4:6:S>MY_AMP\r\n<EOH>\r\n' +
   '<CALL:6>OE1ABC <QSO_DATE:8>20261004 <TIME_ON:4>1902 <BAND:2>2m <MODE:2>FM <QSO_TRANSCRIPT:16>NAME FRED\r\n73 GL ' +
   '<ANTENNA:4>YAGI <ELEVATION:2>45 <MY_AMP:4>1 KW <APP_OE1EBG_RATING:1:N>5 <APP_OE1EBG_WX:18:M>Cloudy\r\nLight rain ' +

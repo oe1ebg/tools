@@ -43,11 +43,23 @@ export function adifAsciiField(name, value, opts, type = '') {
 // The fields of an ADI header, read by their lengths (so "<EOH>" inside a
 // value doesn't end it), up to <EOH>: { end (after <EOH>), fields:
 // [[NAME, value, type]] }, or null when there is no <EOH> that way.
-// limit (the offset of the first "<EOH>" text, for a header whose lengths
-// don't lead to it): a value running past it is cut at the next tag in it
-// (or at the limit) and its name goes to `bad`, so the fields before and
-// after a wrong length are still read.
-function adifHeaderFields(text, limit = Infinity, bad = []) {
+// resync (for a header whose lengths don't lead to an <EOH>): like the
+// validator, a value with tag-shaped text in it that doesn't end cleanly
+// (a separator, the next tag or the end of the text after it) is cut at
+// that text and its name goes to `bad`, so the fields before and after a
+// wrong length are still read and an <EOH> inside a correct value doesn't
+// end the header.
+const ADIF_TAG_TEXT = /<(?:eoh|eor|[A-Za-z][A-Za-z0-9_]*:\d+(?::[A-Za-z])?)>/i;
+const ADIF_TAG_AT = new RegExp(ADIF_TAG_TEXT.source, 'iy');
+function adifCleanEnd(text, end) {
+  if (end >= text.length) return true;
+  const c = text[end];
+  if (c === ' ' || c === '\t' || c === '\n' || c === '\r') return true;
+  if (c !== '<') return false;
+  ADIF_TAG_AT.lastIndex = end;
+  return ADIF_TAG_AT.test(text);
+}
+function adifHeaderFields(text, resync = false, bad = []) {
   const re = /<([A-Za-z0-9_]+)(?::(\d+)(?::([A-Za-z]+))?)?>/g;
   const fields = [];
   let m;
@@ -56,15 +68,20 @@ function adifHeaderFields(text, limit = Infinity, bad = []) {
     if (name === 'EOH' && m[2] === undefined) return { end: re.lastIndex, fields };
     if (m[2] === undefined) continue;
     const start = re.lastIndex;
+    const type = m[3] ? m[3].toUpperCase() : '';
     let end = start + parseInt(m[2], 10);
-    if (end > limit) {
-      const next = /<(?:eoh|eor|[A-Za-z][A-Za-z0-9_]*:\d+(?::[A-Za-z])?)>/i.exec(text.slice(start, limit));
-      end = next ? start + next.index : limit;
-      bad.push(name);
-      fields.push([name, text.slice(start, end).trimEnd(), m[3] ? m[3].toUpperCase() : '']);
-    } else {
-      fields.push([name, text.slice(start, end), m[3] ? m[3].toUpperCase() : '']);
+    if (resync) {
+      // a tag starting inside the value, also one the length ends in
+      const next = ADIF_TAG_TEXT.exec(text.slice(start, Math.min(end, text.length) + 80));
+      if (next && next.index < end - start && !(end <= text.length && adifCleanEnd(text, end))) {
+        end = start + next.index;
+        bad.push(name);
+        fields.push([name, text.slice(start, end).trimEnd(), type]);
+        re.lastIndex = end;
+        continue;
+      }
     }
+    fields.push([name, text.slice(start, end), type]);
     re.lastIndex = end;
   }
   return null;
@@ -89,20 +106,24 @@ export function parseADIF(text, warnings, sourceLabel, headerInfo, stats, defs) 
   const firstNonWs = text.match(/\S/);
   if (!firstNonWs || firstNonWs[0] !== '<' || !/^\s*<[A-Za-z]+:\d/.test(text)) {
     // Likely has a free-text header: read its fields up to <EOH>; if the
-    // lengths don't lead there (a wrong length), the first "<EOH>" text.
+    // lengths don't lead there (a wrong length), resync at tags like the
+    // validator; without any header that way, the first "<EOH>" text.
     const h = adifHeaderFields(text);
     if (h) {
       bodyStart = h.end;
       header = h.fields;
     } else {
+      const bad = [];
+      const r = adifHeaderFields(text, true, bad);
       const eoh = /<eoh>/i.exec(text);
-      if (eoh) {
-        bodyStart = eoh.index + eoh[0].length;
-        const bad = [];
-        header = adifHeaderFields(text.slice(0, eoh.index) + '<EOH>', eoh.index, bad)?.fields || [];
+      if (r) {
+        bodyStart = r.end;
+        header = r.fields;
         for (const name of bad) {
           warnings.push(`${sourceLabel}: header field ${name} declares a length that runs past <EOH>; read up to the next tag, the other header fields are kept.`);
         }
+      } else if (eoh) {
+        bodyStart = eoh.index + eoh[0].length;
       } else if (firstNonWs && firstNonWs[0] !== '<') {
         warnings.push(`${sourceLabel}: no <EOH> tag found; parsing entire file as records.`);
       }
