@@ -1,7 +1,7 @@
 # Example nginx server for the oe1ebg tools bundle. Untar the release
 # tarball into the docroot (here: /srv/www/tools/, served at /tools/);
 # any other directory or prefix works the same, all links are relative.
-# README.md ("Deployment") has the atomic way to install and switch
+# README.md ("Updating a deployment") has the atomic way to install and switch
 # releases. Used as-is by CI (tests run against it), so keep it working.
 #
 # The two `map` blocks belong in the http context, like the server block:
