@@ -223,3 +223,12 @@ vnu:
 [doc("Remove generated files and the bundle (keeps .cache/)")]
 clean:
     rm -rf site dist tools/sota-alerts/data tools/shared/data tools/confirm/precache.js tools/confirm/confirm-offline.html tools/confirm/build-info.js tools/notfunk/precache.js tools/notfunk/notfunk-offline.html tools/notfunk/build-info.js tools/adif/adif-editor.html tools/adif/build-info.js tests/e2e/report tests/e2e/test-results tests/e2e/test-results.json
+
+# Without a build the tools have no precache.js, and their service worker
+# (rightly) fails to install. For serving tools/ directly during development
+# write the explicit development stub: no offline caching, the page shows
+# "Entwicklungsmodus (nicht offline)". `just build` overwrites it.
+[doc("Write development-mode precache.js stubs (service workers without offline caching)")]
+dev-precache:
+    printf 'self.CONFIRM_PRECACHE = { dev: true };\n' > tools/confirm/precache.js
+    printf 'self.NOTFUNK_PRECACHE = { dev: true };\n' > tools/notfunk/precache.js

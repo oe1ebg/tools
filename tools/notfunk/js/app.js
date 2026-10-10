@@ -65,6 +65,7 @@ const state = {
   showErrors: false, // field errors are shown after the first save attempt
   warned: '',        // the warnings already shown once (saving again = save anyway)
   saving: false,
+  heldForm: null,    // the form as the held-back draft shows it (readForm() as JSON)
   editStale: false,  // an older edit draft not reviewed yet: nothing is saved or overwritten
   editBase: null,    // { id, fields }: the fields of the version an edit was opened on, kept after a conflict
   saveKey: null,    // { sig, id }: the id a failed save used, kept while the form is unchanged (a retry can't number it twice)
@@ -666,6 +667,11 @@ function formIsEmpty(f) {
   return formIsBlank(f, state.op);
 }
 
+// flushDraft() resolves true when the draft is safe (saved, or nothing to
+// save) and false when it is not (storage error, conflict with another tab's
+// draft): a string says why (shown by the update flow, shared/js/offline.js).
+// An older draft held back for review is stored already: true while the form
+// is unchanged since, else a message.
 // Draft writes run one after the other, each reading the form and the token
 // (draftSeen) when its turn comes: a debounce that fires during a save, or
 // the clear after it, can't work with a stale token and leave the saved
@@ -686,8 +692,14 @@ function flushDraft() {
 
 async function flushDraftNow() {
   // an older draft waiting for the user's review is left as it is (a new write would look current)
-  if (state.editStale) return;
-  if (!state.op || $('#view-book').hidden && $('#view-msg').hidden) return;
+  if (state.editStale) {
+    // the held-back draft is what is stored and what the form shows: nothing
+    // is at risk until the user types something else
+    return JSON.stringify(readForm()) === state.heldForm
+      ? true
+      : 'Ein älterer Entwurf wartet auf Ihre Prüfung; was Sie seither geändert haben, ist nicht gesichert.';
+  }
+  if (!state.op || $('#view-book').hidden && $('#view-msg').hidden) return true;
   const f = readForm();
   const empty = formIsEmpty(f) && !state.editing;
   const opId = state.op.id;
@@ -707,10 +719,12 @@ async function flushDraftNow() {
       }
       setText($('#draft-status'), `✓ Entwurf gesichert ${viennaTime(draft.saved)}`);
     }
+    return true;
   } catch (e) {
-    if (e instanceof ConflictError) { draftConflict(e); return; }
+    if (e instanceof ConflictError) { draftConflict(e); return 'In einem anderen Tab liegt ein anderer Entwurf für diesen Einsatz; Ihre Eingabe ist nicht gesichert (Meldung oben).'; }
     console.warn('Entwurf nicht gespeichert', e);
     setText($('#draft-status'), 'Entwurf nicht gesichert!');
+    return false;
   }
 }
 
@@ -742,6 +756,7 @@ function applyDraft(d) {
   writeForm(d?.form || emptyForm(state.op));
   // an older draft's version is unknown: reviewed unless it holds nothing the message doesn't
   state.editStale = st.stale && draftDiff().length > 0;
+  state.heldForm = state.editStale ? JSON.stringify(readForm()) : null;
   if (state.editStale) reviewDraft();
   else if (st.gone) showNotice('ENTWURF – Die Meldung, die dieser Entwurf bearbeitet, gibt es in diesem Einsatz nicht mehr. Der Entwurf steht im Formular und würde als neue Meldung gespeichert. ');
 }

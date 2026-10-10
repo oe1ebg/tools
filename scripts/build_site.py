@@ -140,7 +140,21 @@ def git_sha() -> str:
         return "dev"
 
 
+DEV_STUB_RE = re.compile(r"\bdev\s*:\s*true\b")
+
+
+def dev_stubs(tools_dir: Path = TOOLS_DIR) -> list[Path]:
+    """precache.js files that are the development stub (`just dev-precache`),
+    not a build's manifest: they must never be staged or released (the tool
+    would never work offline)."""
+    return [p for p in sorted(tools_dir.glob("*/precache.js")) if DEV_STUB_RE.search(p.read_text(encoding="utf-8"))]
+
+
 def main() -> None:
+    stubs = dev_stubs()
+    if stubs:
+        names = ", ".join(str(p.relative_to(ROOT_DIR)) for p in stubs)
+        raise SystemExit(f"error: development stub {names} (just dev-precache); run `just build` first, it writes the real precache.js")
     if OUT_DIR.exists():
         shutil.rmtree(OUT_DIR)
     OUT_DIR.mkdir(parents=True)

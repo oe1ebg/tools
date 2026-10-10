@@ -35,7 +35,12 @@ Die Kurzfassung steht im Werkzeug selbst: **„? Hilfe“** oben im Formular ode
 
 **Offline verwenden.** Beim ersten Öffnen mit Internet lädt das Meldebuch
 alles, was es braucht (Rufzeichenliste, Relaisliste, Wiener Adressen). Danach
-funktioniert es ohne Verbindung. „offline bereit ✓“ oben rechts zeigt das an.
+funktioniert es ohne Verbindung. „offline bereit ✓“ oben rechts zeigt das an. Steht dort „offline nicht bereit“
+oder „Offline-Einrichtung fehlgeschlagen“, ist noch nichts gespeichert:
+mit Internet neu laden. Bei „Update verfügbar“ wird vor dem Update der
+Entwurf gesichert; gelingt das nicht, bleibt alles unverändert und eine
+Meldung bietet „Erneut versuchen“ oder „Trotzdem aktualisieren“ (mit
+Rückfrage).
 Am Handy oder Tablet über „Zum Startbildschirm hinzufügen“ als App ablegen.
 Für Laptops ohne Internet gibt es die **Offline-Datei** (eine HTML-Datei,
 etwa 6 MB, unten auf der Startseite des Werkzeugs), etwa für einen
