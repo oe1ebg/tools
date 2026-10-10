@@ -22,7 +22,9 @@ export const BACKUP_VERSIONS = [1];
 const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const isId = v => typeof v === 'string' && v.length > 0 && v.length <= 200;
 const isTime = v => typeof v === 'string' && v.length <= 40 && Number.isFinite(Date.parse(v));
-const isSeq = v => Number.isInteger(v) && v > 0;
+// Line numbers and the counter: bounded safe integers, so n + 1 never equals n.
+export const SEQ_LIMIT = 1e9;
+const isSeq = v => Number.isInteger(v) && v > 0 && v < SEQ_LIMIT;
 // Optional timestamp: absent or null is fine, anything else must parse.
 const timeOk = v => v === undefined || v === null || isTime(v);
 
@@ -49,7 +51,7 @@ export function validateBackup(data, limit = 20) {
     const w = `Log „${typeof ev.title === 'string' ? ev.title : ev.id}“`;
     if (ev.title !== undefined && typeof ev.title !== 'string') warn(`${w}: Titel ist kein Text (wird „Log“)`);
     if (ev.header !== undefined && ev.header !== null && !isObj(ev.header)) bad(`${w}: Kopfdaten ungültig`);
-    if (ev.nextSeq !== undefined && ev.nextSeq !== null && !isSeq(ev.nextSeq)) warn(`${w}: nächste Nummer ungültig (wird neu berechnet)`);
+    if (ev.nextSeq !== undefined && ev.nextSeq !== null && !isSeq(ev.nextSeq)) warn(`${w}: nächste Nummer ungültig (${String(ev.nextSeq).slice(0, 30)}; wird neu berechnet)`);
     for (const k of ['created', 'updated', 'deleted']) if (!timeOk(ev[k])) warn(`${w}: Zeitstempel „${k}“ ungültig`);
     for (const k of ['entries', 'revisions']) {
       if (item[k] !== undefined && !Array.isArray(item[k])) bad(`${w}: „${k}“ ist keine Liste`);

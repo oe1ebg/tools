@@ -151,3 +151,18 @@ test('import: copies keep soft deletes, comments and a nextSeq above every line'
   assert.equal(out[2].seq, 5);
   assert.equal(out[3].kind, 'comment');
 });
+
+test('a counter beyond the safe range is repaired with a warning, not rejected', () => {
+  for (const bad of [9007199254740992, 1e15, 2e9, 1.5, -3]) {
+    const data = backup(item('e1', [entry('a', 'e1', 1), entry('b', 'e1', 4)], [], { nextSeq: bad }));
+    const r = validateBackup(data);
+    assert.equal(r.ok, true, String(bad));
+    assert.ok(r.warnings.some(m => /nächste Nummer ungültig/.test(m) && m.includes(String(bad).slice(0, 30))), String(bad));
+    const plan = planBackupImport(data, fakeStore(), fresh);
+    assert.equal(plan.puts[0].value.nextSeq, 5, 'highest line + 1');
+  }
+  // a line number beyond the range is flagged too and never raises the counter
+  const huge = backup(item('e1', [entry('a', 'e1', 9007199254740992)], [], { nextSeq: 3 }));
+  assert.ok(validateBackup(huge).warnings.some(m => /Nummer/.test(m)));
+  assert.equal(planBackupImport(huge, fakeStore(), fresh).puts[0].value.nextSeq, 3);
+});

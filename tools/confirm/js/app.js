@@ -32,7 +32,7 @@ import { sourceItem, trackOnline, repoLink } from '../../shared/js/sources.js';
 import { initOffline, setChip } from '../../shared/js/offline.js';
 import { createLineRepeater } from './linerepeater.js';
 import { formatShift, formatMHz } from '../../shared/js/repeaters.js';
-import { BACKUP_FORMAT, validateBackup, planBackupImport } from './backup.js';
+import { BACKUP_FORMAT, SEQ_LIMIT, validateBackup, planBackupImport } from './backup.js';
 
 const TIME_MODE_KEY = 'oe1ebg-confirm-time-mode';
 const CSV_SEP_KEY = 'oe1ebg-confirm-csv-sep';
@@ -501,10 +501,30 @@ async function renderEventList() {
   }
 }
 
+// Every writer of an existing event patches it against the stored record
+// inside one transaction: only its own fields are written, never a whole
+// (possibly stale) copy and never nextSeq (only the save path raises it).
+// Returns the stored record as written.
+async function patchEvent(id, makePatch) {
+  return state.store.atomic(['events'], async ({ get, put }) => {
+    const stored = await get('events', id);
+    if (!stored) throw new Error('Log nicht gefunden');
+    const next = { ...stored, ...makePatch(stored), nextSeq: stored.nextSeq, updated: nowIso() };
+    put('events', next);
+    return next;
+  });
+}
+
+// state.event after a write: what is stored, except a header/title edit
+// that the debounce hasn't committed yet stays as typed.
+function adoptStored(stored) {
+  const pending = state.headerTimer && state.event && state.event.id === stored.id;
+  state.event = pending ? { ...stored, header: state.event.header, title: state.event.title } : stored;
+}
+
 async function updateEvent(ev, patch) {
-  const next = { ...ev, ...patch, updated: nowIso() };
   try {
-    await state.store.tx([{ store: 'events', put: next }]);
+    await patchEvent(ev.id, () => patch);
     broadcast({ type: 'events' });
   } catch (e) {
     showSaveError(e);
@@ -745,10 +765,10 @@ async function flushHeader() {
   if (!state.headerTimer || !state.event) return;
   clearTimeout(state.headerTimer);
   state.headerTimer = null;
-  const ev = { ...state.event, updated: nowIso() };
+  const { id, header, title } = state.event;
   try {
-    await state.store.tx([{ store: 'events', put: ev }]);
-    cachedLastHeader = ev.header;
+    await patchEvent(id, () => ({ header, title }));
+    cachedLastHeader = header;
     broadcast({ type: 'events' });
   } catch (e) {
     showSaveError(e);
@@ -1340,12 +1360,16 @@ async function saveEntryLocked() {
   $('#btn-save').disabled = true;
   clearTimeout(state.draftTimer);
   try {
-    await state.store.atomic(['events', 'entries', 'revisions', 'drafts', 'stations'], async ({ get, put, del }) => {
+    await state.store.atomic(['events', 'entries', 'revisions', 'drafts', 'stations'], async ({ get, getByEvent, put, del }) => {
       if (!editing) {
         const stored = (await get('events', ev.id)) || ev;
         // Never below what is stored: another tab (or a migration) may have
-        // numbered lines this tab doesn't know about.
-        entry.seq = Math.max(stored.nextSeq || 1, 1);
+        // numbered lines this tab doesn't know about; and never below the
+        // highest stored line (a lowered counter must not reuse numbers).
+        let top = 0;
+        for (const l of await getByEvent('entries', ev.id)) if (Number.isInteger(l.seq) && l.seq > top) top = l.seq;
+        entry.seq = Math.max(stored.nextSeq || 1, top + 1, 1);
+        if (entry.seq >= SEQ_LIMIT) throw new Error('Nummernkreis erschöpft');
         nextEvent = { ...stored, nextSeq: entry.seq + 1, updated: nowIso() };
         put('events', nextEvent);
       }
@@ -1362,7 +1386,7 @@ async function saveEntryLocked() {
     return;
   }
   $('#btn-save').disabled = false;
-  state.event = nextEvent;
+  adoptStored(nextEvent);
   if (stationRec) state.stations.set(stationRec.call, stationRec);
   const i = state.entries.findIndex(e => e.id === entry.id);
   if (i >= 0) state.entries[i] = entry; else state.entries.push(entry);
@@ -1817,10 +1841,9 @@ async function copyText(text) {
 }
 
 async function markExported() {
-  const ev = { ...state.event, exportedTotal: stats(state.entries).total, lastExport: nowIso() };
+  const patch = { exportedTotal: stats(state.entries).total, lastExport: nowIso() };
   try {
-    await state.store.tx([{ store: 'events', put: ev }]);
-    state.event = ev;
+    adoptStored(await patchEvent(state.event.id, () => patch));
   } catch (e) {
     console.warn(e);
   }

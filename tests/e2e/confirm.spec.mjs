@@ -17,6 +17,31 @@ async function openNewLog(page, title) {
   await expect(page.locator('#log-title')).toHaveValue(title);
 }
 
+// The stored event of the open log, read or patched behind the app's back
+// (another tab's write).
+const storedEvent = page => page.evaluate(() => new Promise((resolve, reject) => {
+  const open = indexedDB.open('oe1ebg-confirm');
+  open.onerror = () => reject(open.error);
+  open.onsuccess = () => {
+    const db = open.result;
+    const all = db.transaction('events').objectStore('events').getAll();
+    all.onsuccess = () => { db.close(); resolve(all.result[0]); };
+  };
+}));
+const patchStoredEvent = (page, patch) => page.evaluate(p => new Promise((resolve, reject) => {
+  const open = indexedDB.open('oe1ebg-confirm');
+  open.onerror = () => reject(open.error);
+  open.onsuccess = () => {
+    const db = open.result;
+    const t = db.transaction('events', 'readwrite');
+    const os = t.objectStore('events');
+    const all = os.getAll();
+    all.onsuccess = () => { os.put({ ...all.result[0], ...p }); };
+    t.oncomplete = () => { db.close(); resolve(); };
+    t.onerror = () => reject(t.error);
+  };
+}), patch);
+
 async function logCall(page, call) {
   await page.locator('#f-call').fill(call);
   await page.locator('#btn-save').click();
@@ -150,6 +175,36 @@ test('a malformed backup is rejected as a whole and changes nothing', async ({ p
   // not even the valid first log was added
   await expect(page.locator('#event-list')).not.toContainText('E2E Gültig');
   await expect(page.locator('#event-list')).toContainText('E2E Unberührt');
+});
+
+test('a title edit pending in the debounce survives an immediate save', async ({ page }) => {
+  await openNewLog(page, 'E2E Alt');
+  await page.locator('#log-title').fill('E2E Neu');
+  await page.locator('#f-call').fill('OE1ABC');
+  await page.locator('#btn-save').click();
+  await expect(page.locator('#log-body')).toContainText('OE1ABC');
+  await expect(page.locator('#log-title')).toHaveValue('E2E Neu');
+  await expect.poll(() => storedEvent(page).then(e => e.title)).toBe('E2E Neu');
+  expect((await storedEvent(page)).nextSeq).toBe(2);
+});
+
+test('a header write from a tab with a stale counter never lowers nextSeq', async ({ page }) => {
+  await openNewLog(page, 'E2E Zähler');
+  await logCall(page, 'OE1ABC');
+  // another tab issued numbers up to 8
+  await patchStoredEvent(page, { nextSeq: 9 });
+  await page.locator('#log-title').fill('E2E Zähler 2');
+  await expect.poll(() => storedEvent(page).then(e => e.title)).toBe('E2E Zähler 2');
+  expect((await storedEvent(page)).nextSeq).toBe(9);
+  await logCall(page, 'OE3XYZ');
+  const backup = JSON.parse(await downloadText(await exportAs(page, 'json')));
+  expect(backup.events[0].entries.map(e => e.seq).sort()).toEqual([1, 9]);
+  expect(backup.events[0].event.nextSeq).toBe(10);
+  // an export mark doesn't touch the counter either
+  await patchStoredEvent(page, { nextSeq: 20 });
+  await exportAs(page, 'csv');
+  await expect.poll(() => storedEvent(page).then(e => e.lastExport !== undefined)).toBe(true);
+  expect((await storedEvent(page)).nextSeq).toBe(20);
 });
 
 test('service worker installs the offline copy', async ({ page, browserName }) => {
