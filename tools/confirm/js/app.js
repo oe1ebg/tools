@@ -51,6 +51,7 @@ const state = {
   releaseLock: null,
   draftTimer: null,
   headerTimer: null,
+  headerFlushing: 0, // header/title writes in flight (their values are still only in state.event)
   channel: null,
   callbook: null,     // Austrian callsign list (data/callsigns-oe.json), null until loaded
   stations: new Map(), // call -> { call, loc, at, eventTitle }: last known location per station
@@ -518,7 +519,7 @@ async function patchEvent(id, makePatch) {
 // state.event after a write: what is stored, except a header/title edit
 // that the debounce hasn't committed yet stays as typed.
 function adoptStored(stored) {
-  const pending = state.headerTimer && state.event && state.event.id === stored.id;
+  const pending = (state.headerTimer || state.headerFlushing > 0) && state.event && state.event.id === stored.id;
   state.event = pending ? { ...stored, header: state.event.header, title: state.event.title } : stored;
 }
 
@@ -766,12 +767,15 @@ async function flushHeader() {
   clearTimeout(state.headerTimer);
   state.headerTimer = null;
   const { id, header, title } = state.event;
+  state.headerFlushing++;
   try {
     await patchEvent(id, () => ({ header, title }));
     cachedLastHeader = header;
     broadcast({ type: 'events' });
   } catch (e) {
     showSaveError(e);
+  } finally {
+    state.headerFlushing--;
   }
 }
 
@@ -1368,7 +1372,9 @@ async function saveEntryLocked() {
         // highest stored line (a lowered counter must not reuse numbers).
         let top = 0;
         for (const l of await getByEvent('entries', ev.id)) if (Number.isInteger(l.seq) && l.seq > top) top = l.seq;
-        entry.seq = Math.max(stored.nextSeq || 1, top + 1, 1);
+        // An out-of-range counter (from an old import) counts as absent.
+        const counter = Number.isInteger(stored.nextSeq) && stored.nextSeq > 0 && stored.nextSeq < SEQ_LIMIT ? stored.nextSeq : 1;
+        entry.seq = Math.max(counter, top + 1);
         if (entry.seq >= SEQ_LIMIT) throw new Error('Nummernkreis erschöpft');
         nextEvent = { ...stored, nextSeq: entry.seq + 1, updated: nowIso() };
         put('events', nextEvent);
