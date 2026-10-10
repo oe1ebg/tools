@@ -171,7 +171,7 @@ async function renderOps() {
     el('div', { class: 'info' },
       el('div', { class: 't' }, op.name),
       el('div', { class: 'meta' }, `${fmtVienna(op.created).split(' ')[0]} · Station ${op.prefix}${op.station ? ` ${op.station}` : ''} · ${counts.get(op.id) || 0} Meldungen`),
-      el('div', { class: 'meta' }, [op.operator && `Op ${op.operator}`, op.home && `Eigene Stelle ${op.home}`, op.freq && `${fmtFreq(op.freq)} MHz`, op.via && `via ${op.via}`].filter(Boolean).join(' · '))),
+      el('div', { class: 'meta' }, [op.operator && `Op ${op.operator}`, op.home && `für ${op.home}`, op.freq && `${fmtFreq(op.freq)} MHz`, op.via && `via ${op.via}`].filter(Boolean).join(' · '))),
     el('div', { class: 'actions' }, actions));
   }));
 }
@@ -247,7 +247,7 @@ function renderOpPanel() {
   setText($('#op-sum'), [
     `${op.prefix}${op.station ? ` ${op.station}` : ''}`,
     op.operator ? `Op ${op.operator}` : 'Operator fehlt',
-    op.home && `Eigene Stelle ${op.home}`,
+    op.home && `für ${op.home}`,
     op.freq && `${fmtFreq(op.freq)} MHz`,
     op.via && `via ${op.via}`,
   ].filter(Boolean).join(' · '));
@@ -292,7 +292,7 @@ async function saveOpPanel() {
   bookStatus(`Einsatz geändert: ${Object.keys(patch).filter(k => (op[k] || '') !== patch[k]).map(k => OP_LABELS[k]).join(', ')}`);
 }
 
-const OP_LABELS = { name: 'Name', prefix: 'Stationskürzel', station: 'Station', operator: 'Operator', home: 'Eigene Stelle', freq: 'Frequenz', via: 'Relais' };
+const OP_LABELS = { name: 'Name', prefix: 'Stationskürzel', station: 'Standort der Station', operator: 'Operator', home: 'Für Stelle', freq: 'Frequenz', via: 'Relais' };
 
 // Completion on the operator and relay fields of an operation (the
 // "+ Neuer Einsatz" form and the Einsatz panel), as in the confirmation

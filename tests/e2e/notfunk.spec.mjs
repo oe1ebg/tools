@@ -211,6 +211,9 @@ test('help: F1 opens it, Esc closes it, the form and the focus stay', async ({ p
   await page.locator('#m-to').press('F1');
   await expect(page.locator('#help-dlg')).toBeVisible();
   await expect(page.locator('#help-dlg')).toContainText('Funkstelle');
+  // the same words as the Einsatz fields
+  await expect(page.locator('#help-dlg')).toContainText('Für Stelle');
+  await expect(page.locator('#help-dlg')).toContainText('Standort der Station');
   await page.keyboard.press('Escape');
   await expect(page.locator('#help-dlg')).toBeHidden();
   await expect(page.locator('#m-to')).toBeFocused();
