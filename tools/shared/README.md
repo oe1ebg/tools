@@ -134,6 +134,13 @@ service workers are missing on plain `http://` and `file://`.
   the tokens: one light set, one `[data-theme="dark"]` override (theme.js
   always sets the attribute). The single-file bundles inline these files
   through the tool's `…-VENDOR` block.
+- **Content-Security-Policy:** `deploy/nginx.conf.example` and
+  `htaccess.example` allow scripts and styles of the bundle only, inline
+  scripts by sha256 (today the load-failure banner of confirm and notfunk)
+  and 'unsafe-inline' only for the single-file bundles. Editing an inline
+  script, adding one, or a new network host for the SOTA Alerts Map needs
+  the policies changed in both files; `tests/deploy-headers.test.mjs` fails
+  and prints the hash until they are.
 - **No HTML from data:** build DOM with `el()` / `fill()` (`dom.js`), never
   `innerHTML` with values from files, APIs, storage or user input. Leaflet
   `bindPopup`/`bindTooltip` get a DOM node or a function, never a string.

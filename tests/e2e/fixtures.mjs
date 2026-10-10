@@ -1,7 +1,8 @@
 // Shared test fixture for the tool smoke tests: every test fails on
 //   - an uncaught exception in the page (`pageerror`),
 //   - a console error (allowlist below, empty unless a message is
-//     unavoidable and harmless; give every entry a reason),
+//     unavoidable and harmless; give every entry a reason), including a
+//     Content-Security-Policy violation,
 //   - a same-origin response >= 400 (broken asset paths, missing files),
 //   - a request to another host that the test didn't stub. The tools must
 //     work offline (confirm, adif); sota-alerts stubs its live APIs with
@@ -15,6 +16,13 @@ export const test = base.extend({
   problems: [async ({ page, baseURL }, use) => {
     const origin = new URL(baseURL).origin;
     const problems = [];
+    // Content-Security-Policy violations (deploy/nginx.conf.example) as
+    // console errors in every engine, whatever the browser logs itself.
+    await page.addInitScript(() => {
+      document.addEventListener('securitypolicyviolation', e => {
+        console.error(`CSP violation: ${e.violatedDirective} blocked ${e.blockedURI || 'inline'} at ${e.sourceFile || e.documentURI}:${e.lineNumber}`);
+      });
+    });
     page.on('pageerror', err => problems.push(`pageerror: ${err.stack || err.message}`));
     page.on('console', msg => {
       if (msg.type() !== 'error') return;
