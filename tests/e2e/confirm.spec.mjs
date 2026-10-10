@@ -135,7 +135,7 @@ test('a malformed backup is rejected as a whole and changes nothing', async ({ p
   const backup = JSON.parse(await downloadText(await exportAs(page, 'json')));
   const bad = JSON.parse(JSON.stringify(backup.events[0]));
   bad.event.id = 'kaputt';
-  bad.entries = [{ id: 'x', eventId: 'kaputt', seq: 'eins', call: 'OE1X', ts: 'gestern' }];
+  bad.entries = [{ id: 'x', eventId: 'anderes-log', seq: 1, call: 'OE1X', ts: '2026-10-04T16:00:00.000Z' }];
   const valid = JSON.parse(JSON.stringify(backup.events[0]));
   valid.event.id = 'gueltig';
   valid.event.title = 'E2E Gültig';
