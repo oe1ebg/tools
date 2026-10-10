@@ -10,7 +10,7 @@ import { NOTFUNK_STORES } from '../tools/notfunk/js/db.js';
 import { newMessage, editMessage, setStatus, currentStatus, softDelete, messageFields } from '../tools/notfunk/js/model.js';
 import { toBackup, parseBackup, mergeBackup, MAX_SEQ } from '../tools/notfunk/js/export.js';
 import { formatNumber, counterKey, numberGaps } from '../tools/notfunk/js/numbering.js';
-import { saveNewMessage, updateMessage, applyBackup, changedFields, editBaseOf, editTarget, patchOperation, writeDraft, clearDraft } from '../tools/notfunk/js/ops.js';
+import { saveNewMessage, updateMessage, applyBackup, changedFields, editBaseOf, editTarget, draftEditState, patchOperation, writeDraft, clearDraft } from '../tools/notfunk/js/ops.js';
 
 class MemoryStorage {
   #m = new Map();
@@ -399,4 +399,28 @@ test('an edit draft keeps the version it was opened on: a change made meanwhile 
   assert.equal(editBaseOf(b, null).updated, b.updated);
   // a base of another message is not used
   assert.equal(editBaseOf(b, { ...base, id: 'other' }).id, b.id);
+});
+
+test('draftEditState: drafts without a base are checked against the message', async () => {
+  const a = await create();
+  const draft = (saved, extra = {}) => ({ eventId: 'op1', form: {}, editingId: a.id, saved, ...extra });
+  // message not changed since the draft was saved: the current version is the base
+  const fresh = draftEditState(a, draft('2026-10-05T13:00:00.000Z'));
+  assert.deepEqual([fresh.stale, fresh.gone, fresh.base.updated], [false, false, a.updated]);
+  assert.equal(fresh.base.fields.text, a.text);
+  // changed after the draft: stale, nothing may be applied silently
+  assert.equal(draftEditState({ ...a, updated: '2026-10-05T14:00:00.000Z' }, draft('2026-10-05T13:00:00.000Z')).stale, true);
+  // times that can't be compared
+  assert.equal(draftEditState(a, draft('gestern')).stale, true);
+  assert.equal(draftEditState(a, draft(undefined)).stale, true);
+  assert.equal(draftEditState({ ...a, updated: undefined }, draft('2026-10-05T13:00:00.000Z')).stale, true);
+  // the message is gone
+  const gone = draftEditState(undefined, draft('2026-10-05T13:00:00.000Z'));
+  assert.deepEqual([gone.editing, gone.gone, gone.stale], [null, true, false]);
+  // a draft with its base is not "stale" (a change since is a conflict at save); a base of another message isn't used
+  const base = editBaseOf(a);
+  assert.equal(draftEditState({ ...a, updated: '2026-10-05T14:00:00.000Z' }, draft('2026-10-05T13:00:00.000Z', { base })).base, base);
+  assert.equal(draftEditState({ ...a, updated: '2026-10-05T14:00:00.000Z' }, draft('2026-10-05T13:00:00.000Z', { base: { ...base, id: 'x' } })).stale, true);
+  // not an edit draft
+  assert.deepEqual(draftEditState(a, { form: {}, saved: T0 }), { editing: null, base: null, stale: false, gone: false });
 });
