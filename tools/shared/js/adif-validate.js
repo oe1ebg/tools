@@ -17,6 +17,7 @@
 
 import { ADIF_SPEC_VERSION, ADIF_SPEC_DATATYPES, ADIF_SPEC_FIELDS, ADIF_SPEC_ENUMS } from './adif-spec-data.js';
 import { isValidLocator } from './maidenhead.js';
+import { adifCountsBytes, adifUtf8Bytes, adifFromUtf8Bytes } from './adif.js';
 
 const AV_HEADER_FIELDS = new Set(Object.keys(ADIF_SPEC_FIELDS).filter(n => ADIF_SPEC_FIELDS[n].header));
 const AV_INDICATOR_TYPES = Object.fromEntries(Object.entries(ADIF_SPEC_DATATYPES)
@@ -123,10 +124,25 @@ function avLineIndex(source) {
 
 /* ---------- scanner ---------- */
 
+// Byte offset (into the UTF-8 bytes of text) -> character offset.
+function avByteToChar(text) {
+  const map = [];
+  for (let i = 0; i < text.length;) {
+    const cp = text.codePointAt(i);
+    const n = cp < 0x80 ? 1 : cp < 0x800 ? 2 : cp < 0x10000 ? 3 : 4;
+    for (let k = 0; k < n; k++) map.push(i);
+    i += cp > 0xffff ? 2 : 1;
+  }
+  map.push(text.length);
+  return offset => map[Math.min(offset, map.length - 1)];
+}
+
 // Tokens of an .adi text: { kind: 'tag'|'eoh'|'eor', name, type, value,
 // offset (of '<'), valueOffset }. Recoverable syntax problems are reported
 // through issue(); the scan never stops early.
-function avScan(source, issue) {
+// dec: the value as text (byte mode: adifFromUtf8Bytes, the source being
+// the file's UTF-8 bytes, one char per byte); byteMode: lengths count bytes.
+function avScan(source, issue, dec = v => v, byteMode = false) {
   const tokens = [];
   let pos = 0;
   while (pos < source.length) {
@@ -167,30 +183,31 @@ function avScan(source, issue) {
     const type = parts.length === 3 ? parts[2].toUpperCase() : '';
     const end = tagEnd + len;
     const available = source.slice(tagEnd, Math.min(end, source.length));
+    const shown = dec(available); // the value as text (byte mode: decoded)
     // Tag-shaped text inside the declared length (<EOR>, <EOH>, <CALL:4>):
-    // the first one (cut), whether one is an <EOR>, and whether one starts
-    // inside the value but ends after it (the length ends inside a tag).
-    let cut = -1, eorInside = false, straddle = false;
+    // the first one (cut), whether a whole <EOR> lies inside, and whether
+    // one starts inside the value but ends after it (the length ends
+    // inside a tag: still the value as declared, IV.A.1/IV.A.6, but
+    // suspicious).
+    let cut = -1, inside = false, eorInside = false, straddle = false;
     for (let i = available.indexOf('<'); i >= 0; i = available.indexOf('<', i + 1)) {
       AV_NEXT_TAG_RE.lastIndex = tagEnd + i;
       if (!AV_NEXT_TAG_RE.test(source)) continue;
       if (cut < 0) cut = i;
-      if (AV_NEXT_TAG_RE.lastIndex > end) straddle = true;
-      else if (/^<eor>$/i.test(source.slice(tagEnd + i, AV_NEXT_TAG_RE.lastIndex))) eorInside = true;
+      if (AV_NEXT_TAG_RE.lastIndex > end) { straddle = true; continue; }
+      inside = true;
+      if (/^<eor>$/i.test(source.slice(tagEnd + i, AV_NEXT_TAG_RE.lastIndex))) eorInside = true;
     }
-    const bytes = /[^\x00-\x7f]/.test(available) ? ' The value has non-ASCII characters: the length was probably counted in UTF-8 bytes, not characters.' : '';
-    // A length that ends inside a tag, or runs past the end of the file,
-    // is too long; no reading of the file makes it valid. With a tag
-    // inside, cut the value at the first one and continue with that tag
-    // (resync), so one wrong length doesn't swallow the following fields
-    // (or the end of the QSO). The ADIF editor's parser reads it the same
-    // way (parseADIF in adif.js).
-    if (cut >= 0 && (straddle || end > source.length)) {
-      const value = available.slice(0, cut).replace(/\s+$/, '');
-      const why = end > source.length ? `the file ends after ${available.length}` : 'it ends inside a tag';
+    const bytes = !byteMode && /[^\x00-\x7f]/.test(available) ? ' The value has non-ASCII characters: the length was probably counted in UTF-8 bytes, not characters.' : '';
+    // Only a length past the end of the file is cut: at the first tag
+    // inside it, continuing with that tag (resync), so one wrong length
+    // doesn't swallow the following fields. The ADIF editor's parser reads
+    // it the same way (parseADIF in adif.js).
+    if (cut >= 0 && end > source.length) {
+      const value = dec(available.slice(0, cut).replace(/\s+$/, ''));
       const eor = /^<eor>/i.test(available.slice(cut)) ? ' It runs over <EOR>, the end of the QSO: the QSO ends there.' : '';
       issue('error', 'FIELD_LENGTH_MISMATCH',
-        `<${upper}:${len}> declares ${len} characters, but ${why}; the value "${avShort(value)}" has ${value.length} before the next tag.${eor}${bytes}`,
+        `<${upper}:${len}> declares ${len} characters, but the file ends after ${available.length}; the value "${avShort(value)}" ends at the next tag.${eor}${bytes}`,
         { offset: lt, field: upper, value });
       tokens.push({ kind: 'tag', name: upper, type, value, offset: lt, valueOffset: tagEnd, unsure: true });
       pos = tagEnd + cut;
@@ -198,26 +215,27 @@ function avScan(source, issue) {
     }
     if (end > source.length) {
       issue('error', 'TRUNCATED_FIELD', `<${upper}:${len}> declares ${len} characters, but the file ends after ${available.length}.`,
-        { offset: lt, field: upper, value: available });
-      tokens.push({ kind: 'tag', name: upper, type, value: available, offset: lt, valueOffset: tagEnd, unsure: true });
+        { offset: lt, field: upper, value: shown });
+      tokens.push({ kind: 'tag', name: upper, type, value: shown, offset: lt, valueOffset: tagEnd, unsure: true });
       break;
     }
-    // The declared length fits and ends outside any tag: it is what
-    // counts. The value is the declared number of characters (ADIF 3.1.7
-    // IV.A.1), never split at tags lying wholly inside it, and characters
-    // after it outside a field or <EOR> are ignored (IV.A.6). Suspicious
-    // boundaries are warnings only; they don't change how the file is read.
-    const at = { offset: lt, field: upper, value: available };
+    // The declared length fits: it is what counts. The value is the
+    // declared number of characters (ADIF 3.1.7 IV.A.1), never split at
+    // tag-shaped text inside it, and characters after it outside a field
+    // or <EOR> are ignored (IV.A.6), also the rest of a tag the length
+    // ends in. Suspicious boundaries are warnings only; they never change
+    // how the file is read.
+    const at = { offset: lt, field: upper, value: shown };
     if (eorInside) {
       // An <EOR> inside the value is the typical sign of a too long length
       // that swallowed the end of the QSO (and maybe the next one's
       // fields): valid per spec, but its own, clearer warning.
       issue('warning', 'RECORD_END_IN_VALUE',
-        `<${upper}:${len}>: the value "${avShort(available)}" contains <EOR>; read as part of the value, as the declared length says, so no QSO ends there. If the length is too long, this value swallowed the end of the QSO and the fields after it (two QSOs read as one): check the length.`,
+        `<${upper}:${len}>: the value "${avShort(shown)}" contains <EOR>; read as part of the value, as the declared length says, so no QSO ends there. If the length is too long, this value swallowed the end of the QSO and the fields after it (two QSOs read as one): check the length.`,
         at);
-    } else if (cut >= 0) {
+    } else if (inside) {
       issue('warning', 'TAG_IN_VALUE',
-        `<${upper}:${len}>: the value "${avShort(available)}" contains text that looks like an ADIF tag; read as part of the value, as the declared length says. If that is not intended, the length is wrong (programs that split on tags will misread it too).`,
+        `<${upper}:${len}>: the value "${avShort(shown)}" contains text that looks like an ADIF tag; read as part of the value, as the declared length says. If that is not intended, the length is wrong (programs that split on tags will misread it too).`,
         at);
     }
     // Text after the value before the next tag: right after it (no
@@ -227,10 +245,10 @@ function avScan(source, issue) {
     if (after && after[2]) {
       const what = after[1] ? 'followed, after a blank, by' : 'followed directly by';
       issue('warning', 'FIELD_LENGTH_MISMATCH',
-        `<${upper}:${len}>: the value "${avShort(available)}" (${len} characters as declared) is ${what} "${avShort(after[2])}". ADIF ignores text outside fields (IV.A.6), so it is read as declared, but the declared length probably does not match the value${cut >= 0 ? ' (too long: it runs over a tag)' : after[1] ? ' (too short?)' : ''}.${bytes}`,
+        `<${upper}:${len}>: the value "${avShort(shown)}" (${len} ${byteMode ? 'bytes' : 'characters'} as declared) is ${what} "${avShort(dec(after[2]))}". ADIF ignores text outside fields (IV.A.6), so it is read as declared, but the declared length probably does not match the value${straddle ? ' (too long: it ends inside a tag)' : cut >= 0 ? ' (too long: it runs over a tag)' : after[1] ? ' (too short?)' : ''}.${bytes}`,
         at);
     }
-    tokens.push({ kind: 'tag', name: upper, type, value: available, offset: lt, valueOffset: tagEnd });
+    tokens.push({ kind: 'tag', name: upper, type, value: shown, offset: lt, valueOffset: tagEnd });
     pos = end;
   }
   return tokens;
@@ -446,7 +464,19 @@ export function validateAdif(source, options = {}) {
     return result();
   }
   const scanIssues = [];
-  const tokens = avScan(text, (severity, code, message, extra) => scanIssues.push([severity, code, message, extra]));
+  // Lengths counted in UTF-8 bytes (many loggers): read the file as the
+  // ADIF editor does (adifCountsBytes, shared with parseADIFAuto), by its
+  // bytes; positions are mapped back to characters.
+  const byteMode = adifCountsBytes(text);
+  const toChar = byteMode ? avByteToChar(text) : null;
+  const tokens = avScan(byteMode ? adifUtf8Bytes(text) : text,
+    (severity, code, message, extra) => scanIssues.push([severity, code, message,
+      toChar && extra?.offset !== undefined ? { ...extra, offset: toChar(extra.offset) } : extra]),
+    byteMode ? adifFromUtf8Bytes : undefined, byteMode);
+  if (toChar) for (const t of tokens) { t.offset = toChar(t.offset); if (t.valueOffset !== undefined) t.valueOffset = toChar(t.valueOffset); }
+  if (byteMode) {
+    issue('warning', 'LENGTHS_IN_BYTES', 'The field lengths in this file count UTF-8 bytes, not characters as ADIF says (IV.A.1); read that way, as the ADIF editor does. Values with non-ASCII characters are not ASCII either (ADI is ASCII).');
+  }
   if (!tokens.some(t => t.kind === 'tag')) {
     issue('error', 'UNRECOVERABLE_PARSE_ERROR', 'Unable to recover ADIF record structure: no field tags (<NAME:LENGTH>value) found.');
     return result();

@@ -178,11 +178,19 @@ test('validator and parseADIFAuto agree on field and record boundaries', () => {
     H + f('CALL', 'OE1ABC', 5) + ' <EOR>\n',
     H + f('NAME', 'Max', 3) + ' Mustermann<EOR>\n',
     H + f('CALL', 'OE1ABC') + f('NOTES', 'abc', 50) + '<EOR>' + f('CALL', 'OE3XYZ') + '<EOR>',
+    H + f('CALL', 'OE1ABC') + f('NOTES', 'abc', 50),
+    // a length ending inside a tag-shaped sequence: legal, the rest is ignored (IV.A.6)
+    H + '<CALL:5>OE1AB<QSO_DATE:8>20261010<TIME_ON:4>1200<BAND:2>2m<MODE:2>FM<NOTES:7><CALL:5> annotation<EOR>',
+    H + '<CALL:5>OE1AB<NOTES:4><EOR> annotation<EOR>',
+    H + f('CALL', 'OE1ABC', 12) + '\n<QSO_DATE:8>20261004 <EOR>\n',
     // byte-counted UTF-8 lengths (many loggers)
     H + f('NAME', 'Jürgen', B('Jürgen')) + f('QSO_DATE', '20261004') + '<EOR>\n',
     H + f('NAME', 'Jürgen', B('Jürgen')) + '<EOR>' + f('NAME', 'Max') + '<EOR>\n',
     H + f('QTH', 'Großenzersdorf Müllerstraße', B('Großenzersdorf Müllerstraße')) + ' ' + f('CALL', 'OE3ABC') + ' <EOR>\n' +
       f('NAME', 'Jörg', B('Jörg')) + f('CALL', 'OE3XYZ') + '<EOR>\n',
+    H + f('NAME', 'Jürgen', B('Jürgen')) + f('NOTES', 'Grüße <EOR> aus Wien', B('Grüße <EOR> aus Wien')) + '<EOR>\n',
+    // char-counted non-ASCII (wrong for ADI, but the lengths are right)
+    H + f('NAME', 'Jürgen') + f('QTH', 'Döbling') + '<EOR>\n' + f('NAME', 'Max') + '<EOR>\n',
   ];
   for (const text of inputs) {
     const v = validateAdif(text, { today: '20991231' });
@@ -190,9 +198,25 @@ test('validator and parseADIFAuto agree on field and record boundaries', () => {
     assert.equal(v.records.length, p.length, `records: ${JSON.stringify(text)}`);
     v.records.forEach((r, i) => {
       assert.deepEqual(Object.keys(r.fields).sort(), Object.keys(p[i]).sort(), `fields of QSO ${i}: ${JSON.stringify(text)}`);
-      if (!/[^\x00-\x7f]/.test(text)) assert.deepEqual(r.fields, p[i], `values of QSO ${i}: ${JSON.stringify(text)}`);
+      assert.deepEqual(r.fields, p[i], `values of QSO ${i}: ${JSON.stringify(text)}`);
     });
   }
+});
+
+test('parseADIFAuto: a length ending inside a tag-shaped sequence holds (IV.A.1, IV.A.6)', () => {
+  const w = [];
+  assert.deepEqual(parseADIFAuto('<CALL:5>OE1AB<QSO_DATE:8>20261010<TIME_ON:4>1200<BAND:2>2m<MODE:2>FM<NOTES:7><CALL:5> annotation<EOR>', w, 'r'),
+    [{ CALL: 'OE1AB', QSO_DATE: '20261010', TIME_ON: '1200', BAND: '2m', MODE: 'FM', NOTES: '<CALL:5' }]);
+  assert.deepEqual(parseADIFAuto('<CALL:5>OE1AB<NOTES:4><EOR> annotation<EOR>', w, 'r'), [{ CALL: 'OE1AB', NOTES: '<EOR' }]);
+  assert.deepEqual(w, []);
+  // only a length past the end of the file is cut, at the next tag
+  const t = [];
+  assert.deepEqual(parseADIFAuto('<CALL:6>OE1ABC <NOTES:50>abc <EOR><CALL:6>OE3XYZ <EOR>', t, 'e'), [{ CALL: 'OE1ABC', NOTES: 'abc' }, { CALL: 'OE3XYZ' }]);
+  assert.match(t[0], /past the end of the file/);
+  // byte-counted lengths: read by bytes
+  const b = [];
+  assert.deepEqual(parseADIFAuto('<NAME:7>Jürgen<EOR><NAME:3>Max<EOR>', b, 'b'), [{ NAME: 'Jürgen' }, { NAME: 'Max' }]);
+  assert.match(b.at(-1), /UTF-8 bytes/);
 });
 
 test('APP_ type from the first occurrence, also an empty one: validator and export agree', () => {
