@@ -93,11 +93,16 @@ test('numbers, status, reply, edit, delete and CSV', async ({ page }) => {
 });
 
 test('keyboard: Shift+Enter saves, warnings ask once, Esc asks before discarding', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-10-08T10:00:00Z')); // 12:00
   await openNewOp(page, 'E2E Tastatur', 'k1');
+  // date and time show "now" from the start, running with the clock
+  await expect(page.locator('#m-date')).toHaveValue('2026-10-08');
+  await expect(page.locator('#m-time')).toHaveValue('12:00');
+  await expect(page.locator('#m-time')).toHaveClass(/\blive\b/);
   await page.locator('#m-from').fill('LI 9');
-  // the time is prefilled at the first keystroke, with the date
-  await expect(page.locator('#m-date')).toHaveValue(/^\d{4}-\d{2}-\d{2}$/);
-  await expect(page.locator('#m-time')).toHaveValue(/^\d{2}:\d{2}$/);
+  // the first keystroke of the message keeps that moment
+  await expect(page.locator('#m-time')).not.toHaveClass(/\blive\b/);
+  await expect(page.locator('#m-time')).toHaveValue('12:00');
   await page.locator('#m-subject').fill('Probe');
   // missing text: an error at the field, nothing saved
   await page.locator('#m-subject').press('Shift+Enter');
@@ -108,10 +113,24 @@ test('keyboard: Shift+Enter saves, warnings ask once, Esc asks before discarding
   await page.locator('#m-text').press('Enter');
   await page.locator('#m-text').type('Zeile 2');
   await expect(page.locator('#m-text')).toHaveValue('Zeile 1\nZeile 2');
-  // warnings (no radio station, no read-back): asked once, then saved
+  // warnings (no Funkstelle): asked once, marked at the field, then saved
   await page.locator('#m-text').press('Control+Enter');
   await expect(page.locator('#warn-bar')).toBeVisible();
   await expect(page.locator('#warn-list')).toContainText('Funkstelle fehlt');
+  await expect(page.locator('#m-peer-warn')).toHaveText('Funkstelle fehlt');
+  await expect(page.locator('#m-peer')).toHaveAttribute('data-warned', 'true');
+  // a time in the future: marked at date and time too
+  await page.locator('#m-time').fill('23:59');
+  await page.locator('#m-text').press('Control+Enter');
+  await expect(page.locator('#m-time-warn')).toHaveText('Zeit liegt in der Zukunft');
+  await expect(page.locator('#m-time')).toHaveAttribute('data-warned', 'true');
+  await expect(page.locator('#m-date')).toHaveAttribute('data-warned', 'true');
+  await page.locator('#btn-warn-back').click();
+  await expect(page.locator('#m-time-warn')).toBeEmpty();
+  await expect(page.locator('#m-time')).not.toHaveAttribute('data-warned', 'true');
+  await page.locator('#m-time').fill('12:00');
+  await page.locator('#m-text').press('Control+Enter');
+  await expect(page.locator('#warn-bar')).toBeVisible();
   await page.locator('#m-text').press('Shift+Enter');
   await expect(page.locator('#book-body')).toContainText('K1-001');
   // Esc on a filled form asks; Esc again keeps it

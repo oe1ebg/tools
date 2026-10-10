@@ -94,7 +94,7 @@ Das Formular steht im Meldebuch ganz oben. Die nächste Nummer wird angezeigt
 | Feld | Bedeutung | Beispiel |
 | --- | --- | --- |
 | Richtung | Eingang (↓) oder Ausgang (↑) | |
-| Empfangen am / Gesendet am | wann die Meldung übermittelt wurde: Datum (JJJJ-MM-TT) und Uhrzeit (HH:MM, 24 Stunden) in zwei Feldern, Ortszeit. Wird beim ersten Tastendruck mit jetzt vorbelegt und kann korrigiert werden. `20261008` und `1405` gehen auch. 📅 öffnet einen Kalender, 🕒 eine Uhrzeit-Auswahl (Stunde, dann Minute), beide mit „Heute“ bzw. „Jetzt“. | 2026-10-08 · 14:05 |
+| Empfangen am / Gesendet am | wann die Meldung übermittelt wurde: Datum (JJJJ-MM-TT) und Uhrzeit (HH:MM, 24 Stunden) in zwei Feldern, Ortszeit. Zeigt von Anfang an jetzt und läuft mit der Uhr mit (grau), bis die Meldung begonnen wird; dann bleibt die Zeit stehen und kann korrigiert werden. `20261008` und `1405` gehen auch. Ein Klick ins Feld (oder 📅 / 🕒) öffnet einen Kalender bzw. eine Uhrzeit-Auswahl (Stunde, dann Minute), beide mit „Heute“ bzw. „Jetzt“. | 2026-10-08 · 14:05 |
 | Übermittlung | Funk, Telefon, mündlich, Melder, E-Mail, Fax, anders | Funk |
 | Funkstelle | die Funkstation, von der die Meldung gehört wurde (Eingang) bzw. an die sie gesendet wird (Ausgang); nur bei Funk | OE1ABC |
 | Frequenz MHz, Relais | Vorgabe aus dem Einsatz; Komma oder Punkt | 145,500 · OE1XUU |
@@ -103,7 +103,7 @@ Das Formular steht im Meldebuch ganz oben. Die nächste Nummer wird angezeigt
 | Meldungsart | Meldung, Auftrag, Frage, Anforderung, Lagemeldung | |
 | Dringlichkeit | Routine, Dringend, Notfall (siehe unten) | |
 | Betreff | kurzer Betreff | Stromausfall Pflegeheim |
-| Ort / Einsatzstelle | wo das gemeldete Ereignis ist; Adresse, Ort, Locator oder UTMREF | Brünner Straße 68 |
+| Ort | wo das gemeldete Ereignis ist; Adresse, Ort, Locator oder UTMREF | Brünner Straße 68 |
 | Inhalt – wörtlich | der Wortlaut; <kbd>Enter</kbd> macht eine neue Zeile | |
 | Rücklesen | „Rücklesen erfolgt und vom Absender als richtig bestätigt“ | |
 
@@ -134,7 +134,7 @@ Unter **„Weitere Felder“**:
 
 ### Orte
 
-- **Ort / Einsatzstelle:** wo das Ereignis ist.
+- **Ort:** wo das Ereignis ist.
 - **Ursprungsort:** wo die Meldung aufgegeben wurde.
 - **Stationsstandort:** wo die eigene Station steht; gehört zum Einsatz, nicht
   zur Meldung.
@@ -175,7 +175,8 @@ nicht; so eine Uhrzeit nimmt das Formular nicht an.
 - <kbd>⇧</kbd>+<kbd>Enter</kbd> oder <kbd>Strg</kbd>+<kbd>Enter</kbd> (am Mac auch <kbd>⌘</kbd>+<kbd>Enter</kbd>) speichert,
   aus jedem Feld.
 - Fehlt nur etwas, das nicht zwingend ist (die Funkstelle), oder liegt
-  die Zeit weit zurück, erscheint **„Vor dem Speichern prüfen“**. Noch einmal
+  die Zeit weit zurück oder in der Zukunft, erscheint **„Vor dem Speichern
+  prüfen“**, und das betroffene Feld ist orange markiert. Noch einmal
   <kbd>⇧</kbd>+<kbd>Enter</kbd> oder „Trotzdem speichern“ speichert.
 - <kbd>Esc</kbd> schließt zuerst offene Vorschläge. Bei ausgefülltem Formular fragt
   es dann **„Eingabe verwerfen?“**; ein zweites <kbd>Esc</kbd> heißt „weiter

@@ -137,6 +137,7 @@ test('warnings ask, they do not block: Funkstelle, time far off', () => {
   const w = formToFields({ ...filled, date: '2026-10-07', time: '11:00' }, { now: NOW });
   assert.deepEqual(w.errors, []);
   assert.deepEqual(w.warnings, ['Funkstelle fehlt', 'Zeit liegt 4 h zurück (Nachtrag?)']);
+  assert.deepEqual(w.fieldWarnings, { peer: 'Funkstelle fehlt', time: 'Zeit liegt 4 h zurück (Nachtrag?)' }, 'each warning names its field');
   assert.deepEqual(formToFields({ ...filled, peer: 'X', readBack: true, time: '15:30' }, { now: NOW }).warnings, ['Zeit liegt in der Zukunft']);
   assert.deepEqual(formToFields({ ...filled, peer: 'X', readBack: false }, { now: NOW }).warnings, [], 'read-back is optional, never asked');
   // an edit keeps its old time without asking; no radio station by phone

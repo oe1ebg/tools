@@ -156,7 +156,7 @@ export function upgradeForm(f) {
 
 const isBlankText = v => !String(v ?? '').trim();
 
-// Form -> { fields, errors, fieldErrors, warnings }: fields for
+// Form -> { fields, errors, fieldErrors, warnings, fieldWarnings }: fields for
 // model.newMessage()/editMessage(); fieldErrors (German, by form field:
 // time, from, to, subject, text, stichzeit, origFiled) block saving and are
 // shown at the field, errors is the same as a list; warnings only ask
@@ -220,14 +220,15 @@ export function formToFields(form, { now, byNumber = new Map(), editing = false 
   // for more than the model, so the model adds only what is left.
   const errors = Object.values(fieldErrors);
   if (!errors.length) errors.push(...validateMessage(fields));
-  const warnings = [];
-  if (fields.channel === 'funk' && !fields.peer) warnings.push('Funkstelle fehlt');
+  // warnings by field too, so the form marks where they come from
+  const fieldWarnings = {};
+  if (fields.channel === 'funk' && !fields.peer) fieldWarnings.peer = 'Funkstelle fehlt';
   if (ts && !editing) {
     const min = Math.round((Date.parse(now) - Date.parse(ts)) / 60000);
-    if (min < -5) warnings.push('Zeit liegt in der Zukunft');
-    else if (min > 60) warnings.push(`Zeit liegt ${min < 120 ? `${min} min` : `${Math.round(min / 60)} h`} zurück (Nachtrag?)`);
+    if (min < -5) fieldWarnings.time = 'Zeit liegt in der Zukunft';
+    else if (min > 60) fieldWarnings.time = `Zeit liegt ${min < 120 ? `${min} min` : `${Math.round(min / 60)} h`} zurück (Nachtrag?)`;
   }
-  return { fields, errors, fieldErrors, warnings };
+  return { fields, errors, fieldErrors, warnings: Object.values(fieldWarnings), fieldWarnings };
 }
 
 // Has anything of the message been typed yet? (The time is prefilled at

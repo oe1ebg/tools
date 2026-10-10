@@ -110,7 +110,7 @@ export function renderFormSheet(s) {
       cell('An (Adressat)', val(s.to), peerLine('to'), el('div', { class: 'pf-small' }, `Verteiler: ${s.distribution}`))),
     el('div', { class: 'pf-row pf-3' },
       cell('Betreff', val(s.subject, 'pf-val pf-strong')),
-      cell('Ort / Einsatzstelle', val(s.location)),
+      cell('Ort', val(s.location)),
       cell('Bezug', val(s.ref))),
     el('div', { class: 'pf-text' },
       cap('Inhalt – wörtlich, wie übermittelt'),
