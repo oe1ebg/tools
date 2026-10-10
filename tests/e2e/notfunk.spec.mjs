@@ -152,6 +152,39 @@ test('time: Austrian local time; in the repeated hour the form asks MESZ or MEZ'
   await expect(page.locator('#book-body')).toContainText('02:30 MESZ');
 });
 
+test('pickers: calendar and time grid write YYYY-MM-DD and 24-hour HH:MM', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-10-08T12:05:00Z')); // 14:05
+  await openNewOp(page, 'E2E Auswahl', 'p1');
+  const form = page.locator('#msg-form');
+  await form.getByRole('button', { name: 'Kalender' }).first().click();
+  const cal = form.getByRole('dialog', { name: 'Kalender' }).first();
+  await expect(cal).toContainText('Oktober 2026');
+  await cal.getByRole('button', { name: 'Voriger Monat' }).click();
+  await expect(cal).toContainText('September 2026');
+  await cal.getByRole('button', { name: '30. September 2026' }).click();
+  await expect(page.locator('#m-date')).toHaveValue('2026-09-30');
+  await expect(cal).toBeHidden();
+  await form.getByRole('button', { name: 'Uhrzeit wählen' }).first().click();
+  const grid = form.getByRole('dialog', { name: 'Uhrzeit wählen' }).first();
+  await grid.getByRole('button', { name: '21 Uhr' }).click();
+  await grid.getByRole('button', { name: '21:45' }).click();
+  await expect(page.locator('#m-time')).toHaveValue('21:45');
+  // empty field: opens on now; Jetzt / Heute fill it
+  await page.locator('#m-date').fill('');
+  await form.getByRole('button', { name: 'Kalender' }).first().click();
+  await expect(cal).toContainText('Oktober 2026');
+  await cal.getByRole('button', { name: 'Heute' }).click();
+  await expect(page.locator('#m-date')).toHaveValue('2026-10-08');
+  await form.getByRole('button', { name: 'Uhrzeit wählen' }).first().click();
+  await grid.getByRole('button', { name: 'Jetzt' }).click();
+  await expect(page.locator('#m-time')).toHaveValue('14:05');
+  // Esc closes without a change
+  await form.getByRole('button', { name: 'Kalender' }).first().click();
+  await page.keyboard.press('Escape');
+  await expect(cal).toBeHidden();
+  await expect(page.locator('#m-date')).toHaveValue('2026-10-08');
+});
+
 test('help: F1 opens it, Esc closes it, the form and the focus stay', async ({ page }) => {
   await openNewOp(page, 'E2E Hilfe', 'q1');
   await page.locator('#m-to').fill('Stab S4');
@@ -200,7 +233,7 @@ test('print: one A4 page, white, the staff block on top', async ({ page, browser
   await page.emulateMedia({ media: 'print' });
   await expect(page.locator('#print-sheet .pf-num')).toHaveText('P1-001');
   await expect(page.locator('#print-sheet .pf-dir.on')).toContainText('EINGANG');
-  await expect(page.locator('#print-sheet .pf-staff')).toContainText('Nur von der Meldesammelstelle / dem Stab auszufüllen');
+  await expect(page.locator('#print-sheet .pf-staff')).toContainText('Nur von der Meldesammelstelle auszufüllen');
   await expect(page.locator('#view-book')).toBeHidden();
   await expect(page.locator('#site-header')).toBeHidden();
   // one page in Safari too: no page margin while the form prints, and the

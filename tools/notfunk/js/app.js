@@ -37,6 +37,7 @@ import {
 } from './form.js';
 import { formSheet, blankFormSheet, bookSheet } from './print.js';
 import { renderFormSheet, fittedFormSheet, renderBookSheet, printSheet } from './printview.js';
+import { attachDatePicker, attachTimePicker } from './picker.js';
 
 const LAST_OP_KEY = 'oe1ebg-notfunk-last-op';
 const PRINT_HINT_KEY = 'oe1ebg-notfunk-print-hint-off';
@@ -812,6 +813,13 @@ function initForm() {
     if (norm && norm !== t.value) { t.value = norm; t.dispatchEvent(new Event('input', { bubbles: true })); }
   });
 
+  // Calendar and time grid next to the date and time fields.
+  attachDatePicker($('#m-date'), $('#m-time'));
+  attachTimePicker($('#m-stichzeit'));
+  attachTimePicker($('#m-orig-filed'));
+  attachDatePicker($('#pr-from-date'), $('#pr-from-time'));
+  attachDatePicker($('#pr-to-date'), $('#pr-to-time'));
+
   // Completion: stations heard in this operation first, then the callbook.
   let recent = [];
   const refreshRecent = async () => { recent = (await recentStations()).filter(s => s.call).map(s => ({ call: s.call, title: s.text })); };
@@ -1023,7 +1031,9 @@ function inlineForm(fields, button, onSubmit) {
       return el('label', { class: 'check', for: id }, inputs[f.key], ` ${f.label}`);
     }
     inputs[f.key] = el('input', { id, class: f.time ? 'mono dt-time' : f.mono ? 'mono' : null, inputmode: f.time ? 'numeric' : null, maxlength: f.time ? '5' : null, placeholder: f.time ? 'HH:MM' : f.placeholder || null, value: f.value || '', autocomplete: 'off' });
-    return el('label', { class: 'field', for: id }, el('span', {}, f.label, f.time ? el('span', { class: 'dim' }, ' (leer = jetzt)') : null), inputs[f.key]);
+    const row = el('label', { class: 'field', for: id }, el('span', {}, f.label, f.time ? el('span', { class: 'dim' }, ' (leer = jetzt)') : null), inputs[f.key]);
+    if (f.time) attachTimePicker(inputs[f.key]);
+    return row;
   });
   const form = el('form', { class: 'inline-form', autocomplete: 'off', novalidate: '' },
     el('div', { class: 'inline-fields' }, ...rows.filter(r => r.classList.contains('field'))),

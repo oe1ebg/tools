@@ -114,9 +114,38 @@ details.hdr .hint{ margin:.6em 0 0; }
 /* date and time side by side (text in a fixed format, never the browser's
    locale; the zone choice only in the
    hour that repeats when the clocks go back) */
-.dt-pair{ display:flex; flex-wrap:wrap; gap:.3em; align-items:center; }
-.dt-pair input.dt-date{ width:7.6em; }
-.dt-pair input.dt-time{ width:4.4em; }
+.dt-pair{ display:flex; flex-wrap:wrap; gap:.3em .5em; align-items:center; }
+/* field + picker button + dropdown (js/picker.js); the dropdown keeps its
+   own text style inside the uppercase field labels */
+label.field > span.dt-wrap, .dt-wrap{ position:relative; display:inline-flex; align-items:center; gap:.15em; text-transform:none; letter-spacing:0; font-weight:normal; color:var(--text); }
+.dt-wrap > input.dt-date.mono{ width:7.6em; flex:none; box-sizing:border-box; }
+.dt-wrap > input.dt-time.mono{ width:4.4em; flex:none; box-sizing:border-box; }
+.dt-btn{ padding:.2em .35em; line-height:1.2; font-size:15px; background:none; border-color:transparent; }
+.dt-btn:hover{ border-color:var(--line-strong); }
+.dt-pop{
+  position:absolute; top:calc(100% + 2px); left:0; z-index:30; width:max-content;
+  padding:.45em; background:var(--bg); border:1px solid var(--accent); border-radius:6px; box-shadow:0 6px 18px #0003;
+  font-size:14px;
+}
+.dt-pop[hidden]{ display:none !important; }
+.dt-head{ display:flex; align-items:center; justify-content:space-between; gap:.5em; margin-bottom:.3em; }
+.dt-nav{ padding:.1em .6em; font-size:16px; }
+.dt-grid{ display:grid; gap:2px; }
+.dt-days{ grid-template-columns:repeat(7, 2.3em); }
+.dt-hours{ grid-template-columns:repeat(6, 2.6em); }
+.dt-mins{ grid-template-columns:repeat(6, 2.6em); }
+.dt-wd{ text-align:center; font-size:12.5px; color:var(--text-dim); padding:.15em 0; }
+.dt-day, .dt-cell{ padding:.3em 0; font-family:var(--font-mono); font-size:14px; border-color:transparent; background:none; }
+.dt-day:hover, .dt-cell:hover, .dt-day:focus, .dt-cell:focus{ background:var(--accent-soft); outline:none; }
+.dt-day.today, .dt-cell.today{ border-color:var(--line-strong); }
+.dt-day.on, .dt-cell.on{ border-color:var(--accent); color:var(--accent-text); font-weight:700; background:var(--accent-soft); }
+.dt-cap{ font-size:12.5px; color:var(--text-dim); margin:.3em 0 .15em; }
+.dt-foot{ display:flex; justify-content:flex-end; margin-top:.4em; }
+@media (pointer: coarse){
+  .dt-btn{ min-width:44px; }
+  .dt-days{ grid-template-columns:repeat(7, 2.8em); }
+  .dt-hours, .dt-mins{ grid-template-columns:repeat(6, 3em); }
+}
 .row-flow .channel-field{ flex:1 1 20em; min-width:0; }
 
 /* the priority buttons: equal width and height */
