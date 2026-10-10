@@ -302,7 +302,7 @@ also shows in print).
   callsign; the description (HTML in Google Earth) and `<ExtendedData>`
   (columns in My Maps) list the check-in times in UTC, repeater(s),
   location text and typed input, locator (plus covered squares for an
-  area), confidence, gewählt/automatisch, the source (Herkunft), the name
+  area), confidence, the source (Quelle), the name
   it was found by ("Gefunden als": „Lainzer Krankenhaus“ (früherer Name)),
   its kind ("Art": Kreuzung / Bereich / außerhalb Wiens), the UTMREF and the
   coordinates. The
@@ -705,7 +705,7 @@ Vienna PLZ and district results carry the same locator coverage.
   `originAt` = its time). Unresolved text counts as `text`. `loc.input`
   only holds what was typed for this line ('' for the callsign list and
   earlier check-ins). Lines from before this have no origin (shown as
-  unknown). The log shows the source in its own column "Herk." right
+  unknown). The log shows the source in its own column "Quelle" right
   before the location column, so labels never shift the text; the labels
   are in `LOC_ORIGINS` (`js/model.js`), and a source with an empty label
   leaves the cell empty. The whole `loc` object is in the JSON backup.
@@ -751,8 +751,8 @@ Vienna PLZ and district results carry the same locator coverage.
     dropdown (↓, Enter).
 - **Export.** The CSV gains the columns `standort_aufgeloest`, `lat`, `lon`,
   `locator`, `utm`, `utm_zone`, `utm_easting`, `utm_northing` (see
-  [UTMREF](#utmref-utm-grid-reference-issue-55)), `standort_konfidenz`, `standort_quelle` (gewählt/automatisch),
-  `standort_eingabe` (typed text), `standort_herkunft` (source),
+  [UTMREF](#utmref-utm-grid-reference-issue-55)), `standort_konfidenz`, `standort_quelle` (source:
+  Suche / Rufzeichenliste / früheres Log / Freitext), `standort_eingabe` (typed text),
   `standort_namenstyp` (Name / anderer Name / umgangssprachlich / früherer
   Name / Kurzform / Kreuzung / Bereich; empty for coordinates, locators and
   unresolved text) and `standort_gefunden_als` (the other name it was found

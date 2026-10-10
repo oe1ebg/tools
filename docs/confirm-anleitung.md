@@ -127,7 +127,7 @@ wird daraus ein Kommentar statt eines Check-ins: „!Netz pausiert“,
 Neueste Zeile oben. Oben stehen die Zahlen: Stationen und Check-ins.
 „Bearb.“ bearbeitet eine Zeile (die vorige Fassung bleibt gespeichert), ✕
 löscht sie (wiederherstellbar unter „Gelöschte Zeilen und automatische
-Sicherungen“). Die Spalte **Herk.** sagt, woher der Standort kommt: *Suche*
+Sicherungen“). Die Spalte **Quelle** sagt, woher der Standort kommt: *Suche*
 (Ortssuche), *früher* (aus einem früheren Check-in), *Call* (Lizenzadresse
 aus der Rufzeichenliste), *Text* (keinem Ort zugeordnet).
 

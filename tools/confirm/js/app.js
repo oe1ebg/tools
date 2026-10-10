@@ -1535,7 +1535,7 @@ function renderLog(highlightCall) {
   fill($('#log-head'), el('tr', {},
     th(timeMode() === 'local' ? `Zeit (${zoneLabel(nowIso(), 'local')})` : 'Zeit UTC'), th('Nr'), th('Rufzeichen Gegenstation'),
     tpl.fields.flatMap(f => [f.type === 'location'
-      ? el('th', { scope: 'col', class: 'origin', title: 'Herkunft des Standorts' }, el('abbr', { title: 'Herkunft des Standorts' }, 'Herk.'))
+      ? el('th', { scope: 'col', class: 'origin', title: 'Quelle des Standorts' }, 'Quelle')
       : null, th(f.label)]),
     th('Relais'), th('Notiz'), th('Op'), el('th', { scope: 'col', class: 'act' }, el('span', { class: 'sr-only' }, 'Aktionen'))));
 
@@ -1597,7 +1597,7 @@ function renderLog(highlightCall) {
   }
 }
 
-// "Herk." cell before a location column: where the location came from
+// "Quelle" cell before a location column: where the location came from
 // (LOC_ORIGINS; a source without a label leaves the cell empty).
 function originCell(loc, text) {
   const k = locOrigin(loc, text);

@@ -36,7 +36,7 @@ export const ADIF_MIME = 'application/octet-stream';
 const LOC_CONF_DE = { exact: 'exakt', high: 'hoch', likely: 'wahrscheinlich', ambiguous: 'mehrdeutig', low: 'unsicher' };
 const LOC_COLS = ['standort_aufgeloest', 'lat', 'lon', 'locator', 'utm', 'utm_zone', 'utm_easting', 'utm_northing',
   'standort_konfidenz', 'standort_quelle',
-  'standort_eingabe', 'standort_herkunft', 'standort_namenstyp', 'standort_gefunden_als'];
+  'standort_eingabe', 'standort_namenstyp', 'standort_gefunden_als'];
 
 // The template's location field (at most one).
 function locationField(tpl) {
@@ -45,9 +45,9 @@ function locationField(tpl) {
 
 // `text` is the location field's value (origin "Freitext" when unresolved).
 function locColumns(loc, text) {
-  const origin = { standort_eingabe: loc?.input || '', standort_herkunft: locOriginText(loc, text) };
+  const origin = { standort_eingabe: loc?.input || '', standort_quelle: locOriginText(loc, text) };
   if (!loc) {
-    return { standort_aufgeloest: '', lat: '', lon: '', locator: '', standort_konfidenz: '', standort_quelle: '',
+    return { standort_aufgeloest: '', lat: '', lon: '', locator: '', standort_konfidenz: '',
       standort_namenstyp: '', standort_gefunden_als: '', ...utmColumns(null, ''), ...origin };
   }
   return {
@@ -60,7 +60,6 @@ function locColumns(loc, text) {
     lon: loc.lon.toFixed(5),
     locator: loc.maidenhead,
     standort_konfidenz: LOC_CONF_DE[loc.confidence] || loc.confidence || '',
-    standort_quelle: loc.manual ? 'gewählt' : 'automatisch',
   };
 }
 
@@ -403,8 +402,7 @@ function kmlStationFields(s) {
     ['Locator', [loc.maidenhead, ...(loc.areaLocators || []).filter(l => l !== loc.maidenhead)].filter(Boolean).join(' ')],
     ['UTMREF', utmFields(loc)?.text || ''],
     ['Konfidenz', LOC_CONF_DE[loc.confidence] || loc.confidence || ''],
-    ['Zuordnung', loc.manual ? 'gewählt' : 'automatisch'],
-    ['Herkunft', locOriginText(loc)],
+    ['Quelle', locOriginText(loc)],
     ['Koordinaten', `${loc.lat.toFixed(5)}, ${loc.lon.toFixed(5)}`],
   ].filter(([, v]) => v !== '' && v !== undefined && v !== null);
 }

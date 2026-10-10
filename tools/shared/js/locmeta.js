@@ -2,7 +2,7 @@
 // (shared/js/locfield.js) and the exports of the tools using it. Pure.
 
 // Where a line's location came from (`loc.origin`, set by the location
-// field, js/locfield.js): label = the short label in the log's "Herk."
+// field, js/locfield.js): label = the short label in the log's "Quelle"
 // column ('' = no label for that source), text = CSV/ADIF/KML wording.
 // Lines from before this existed have no origin: no label (unknown).
 export const LOC_ORIGINS = {

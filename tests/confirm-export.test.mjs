@@ -142,7 +142,7 @@ test('location field: resolved location in CSV columns and ADIF GRIDSQUARE/LAT/L
   assert.equal(adifLatLon(-33.8688, true), 'S033 52.128');
   assert.equal(adifLatLon(-0.9999999, false), 'W001 00.000'); // 59.999994' rounds up -> carry into degrees
   const loc = { type: 'address', label: 'Währinger Straße 40-42', postcode: '1090', district: 9, lat: 48.221, lon: 16.35663,
-    maidenhead: 'JN88ef', source: 'vienna-ogd', confidence: 'exact', manual: false, input: 'Waehringerstr 42' };
+    maidenhead: 'JN88ef', source: 'vienna-ogd', confidence: 'exact', manual: false, input: 'Waehringerstr 42', origin: 'search' };
   const es = [{ ...entries[0], loc, fields: { ...entries[0].fields, address: 'Waehringerstr 42', plz: '1090' } }, entries[1]];
   const csv = toCSV(event, es, ';').slice(1).trim().split('\r\n');
   const cols = csv[0].split(';');
@@ -153,7 +153,8 @@ test('location field: resolved location in CSV columns and ADIF GRIDSQUARE/LAT/L
   assert.equal(row.locator, 'JN88ef');
   assert.equal(row.lat, '48.22100');
   assert.equal(row.standort_konfidenz, 'exakt');
-  assert.equal(row.standort_quelle, 'automatisch');
+  assert.equal(row.standort_quelle, 'Suche');
+  assert.ok(!cols.includes('standort_herkunft'));
   const row2 = Object.fromEntries(cols.map((c, j) => [c, csv[2].split(';')[j]]));
   assert.equal(row2.locator, '', 'unresolved line has empty location columns');
   const [a, b] = parseADIF(toADIF(event, es));
@@ -161,7 +162,7 @@ test('location field: resolved location in CSV columns and ADIF GRIDSQUARE/LAT/L
   assert.equal(a.LAT, 'N048 13.260');
   assert.equal(a.LON, 'E016 21.398');
   assert.equal(a.APP_OE1EBG_LOCATION, 'Waehringer Strasse 40-42');
-  assert.match(a.COMMENT, /Standort: Waehringer Strasse 40-42 \(exakt\)/);
+  assert.match(a.COMMENT, /Standort: Waehringer Strasse 40-42 \(exakt, Suche\)/);
   assert.equal(b.GRIDSQUARE, undefined);
 });
 
@@ -262,7 +263,8 @@ test('KML: same stations as the map, escaped, lon,lat, metadata on <Document>', 
   assert.match(kml, /<Data name="Standort"><value>Café &lt;Ü&gt; &amp; Co, 1090<\/value><\/Data>/);
   assert.match(kml, /<Data name="Zeit \(UTC\)"><value>2026-10-04 10:00:05 UTC, 2026-10-04 10:05:00 UTC<\/value>/);
   assert.match(kml, /<Data name="Relais"><value>OE1XUU, direkt<\/value>/);
-  assert.match(kml, /<Data name="Konfidenz"><value>wahrscheinlich<\/value><\/Data>\n.*<Data name="Zuordnung"><value>gewählt<\/value>/);
+  assert.match(kml, /<Data name="Konfidenz"><value>wahrscheinlich<\/value><\/Data>/);
+  assert.ok(!kml.includes('name="Zuordnung"'));
   assert.match(kml, /<Data name="Locator"><value>JN88dg<\/value>/);
   // description: HTML escaped as XML text (values escaped twice)
   assert.match(kml, /<description>&lt;b&gt;Rufzeichen:&lt;\/b&gt; OE1AAA&lt;br&gt;/);
@@ -320,17 +322,17 @@ test('location origin and typed text go into CSV, ADIF and KML', () => {
   const cols = lines[0].replace('\ufeff', '').split(';');
   const cell = (i, c) => lines[i].split(';')[cols.indexOf(c)];
   assert.equal(cell(1, 'standort_eingabe'), 'beim Heurigen Grinzing');
-  assert.equal(cell(1, 'standort_herkunft'), 'Suche');
+  assert.equal(cell(1, 'standort_quelle'), 'Suche');
   assert.equal(cell(2, 'standort_eingabe'), '');
-  assert.equal(cell(2, 'standort_herkunft'), 'Rufzeichenliste, Lizenzadresse');
-  assert.equal(cell(3, 'standort_herkunft'), 'Freitext');
+  assert.equal(cell(2, 'standort_quelle'), 'Rufzeichenliste, Lizenzadresse');
+  assert.equal(cell(3, 'standort_quelle'), 'Freitext');
   const [a, b, c] = parseADIF(toADIF(ev, es));
   assert.equal(a.APP_OE1EBG_LOC_SOURCE, 'search');
   assert.equal(a.APP_OE1EBG_LOC_INPUT, 'beim Heurigen Grinzing');
   assert.equal(b.APP_OE1EBG_LOC_SOURCE, 'callbook');
   assert.match(b.COMMENT, /Rufzeichenliste, Lizenzadresse/);
   assert.equal(c.APP_OE1EBG_LOC_SOURCE, 'text');
-  assert.match(toKML(ev, es), /<Data name="Herkunft"><value>Rufzeichenliste, Lizenzadresse<\/value>/);
+  assert.match(toKML(ev, es), /<Data name="Quelle"><value>Rufzeichenliste, Lizenzadresse<\/value>/);
 });
 
 test('how a location was named goes into CSV, ADIF and KML', () => {
