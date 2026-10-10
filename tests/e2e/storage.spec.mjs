@@ -176,6 +176,45 @@ test('fallback records are found and moved into IndexedDB without overwriting an
   expect(r.dismissed.conflictsSeen).toBe(true);
 });
 
+// Notfunk's rules: a fallback message with another id but a number that is
+// taken stays in localStorage (and its revision with it); nothing is
+// renumbered, the counter never ends below a migrated number.
+test('Notfunk migration: a taken message number is kept, never duplicated', async ({ page }) => {
+  const r = await page.evaluate(async () => {
+    const { openNotfunkStorage } = await import(new URL('../notfunk/js/db.js', location.href).href);
+    const s = await openNotfunkStorage();
+    const msg = (id, seq) => ({ id, eventId: 'op1', prefix: 'W1', seq, number: `W1-00${seq}` });
+    await s.tx([
+      { store: 'operations', put: { id: 'op1', name: 'Einsatz' } },
+      { store: 'messages', put: msg('A', 1) },
+      { store: 'counters', put: { id: 'op1:W1', eventId: 'op1', prefix: 'W1', last: 1 } },
+    ]);
+    const p = 'oe1ebg-notfunk:v1:';
+    const put = (store, rec) => localStorage.setItem(`${p}${store}:${rec.id}`, JSON.stringify(rec));
+    put('messages', msg('B', 1)); // other id, same operational number
+    put('revisions', { id: 'rB', eventId: 'op1', messageId: 'B' });
+    put('messages', msg('C', 2));
+    const res = await s.migrateFallback();
+    return {
+      res,
+      numbers: (await s.getByEvent('messages', 'op1')).map(m => `${m.id}:${m.number}`).sort(),
+      counter: (await s.get('counters', 'op1:W1')).last,
+      revisions: (await s.getAll('revisions')).length,
+      left: Object.keys(localStorage).filter(k => k.startsWith(p)).sort(),
+      found: await s.fallbackData(),
+    };
+  });
+  expect(r.res).toEqual({
+    copied: 1, merged: 0, identical: 0,
+    kept: [{ store: 'messages', key: 'B', reason: 'duplicate' }, { store: 'revisions', key: 'rB', reason: 'parent' }],
+  });
+  expect(r.numbers).toEqual(['A:W1-001', 'C:W1-002']);
+  expect(r.counter).toBe(2);
+  expect(r.revisions).toBe(0);
+  expect(r.left).toEqual(['oe1ebg-notfunk:v1:messages:B', 'oe1ebg-notfunk:v1:revisions:rB']);
+  expect(r.found).toMatchObject({ total: 2, pending: 0, conflicts: 2 });
+});
+
 // In the app: the notices use their own box, the page's error banner keeps
 // its classes (red, not printed); an offer that was taken doesn't come back,
 // kept records are shown apart until dismissed.

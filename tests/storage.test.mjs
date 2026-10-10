@@ -7,7 +7,7 @@
 // is covered in the browser by tests/e2e/storage.spec.mjs.
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { openToolStorage, assertUnchanged, ConflictError, StorageBusyError } from '../tools/shared/js/storage.js';
+import { openToolStorage, assertUnchanged, ConflictError, StorageBusyError, planFallbackMigration } from '../tools/shared/js/storage.js';
 import { saveNumbered, numberGaps } from '../tools/notfunk/js/numbering.js';
 
 // localStorage stand-in. failOn(n): the n-th setItem from now throws a
@@ -266,4 +266,51 @@ test('the fallback has no fallback data to move', async () => {
   assert.equal(s.kind, 'localstorage');
   assert.equal(await s.fallbackData(), null);
   assert.ok(s.fallbackReason instanceof Error);
+});
+
+// Moving fallback records into IndexedDB (the run itself: tests/e2e/storage.spec.mjs).
+const idbFake = data => ({
+  current: async (store, key) => (data[store] || []).find(r => (r.id ?? r.eventId) === key),
+  all: async store => data[store] || [],
+});
+
+test('migration plan: a taken number stays in the fallback, never renumbered; so does what belongs to it', async () => {
+  const { NOTFUNK_STORES, NOTFUNK_MIGRATION } = await import('../tools/notfunk/js/db.js');
+  const schema = { lsPrefix: 'oe1ebg-notfunk:v1:', stores: NOTFUNK_STORES, migration: NOTFUNK_MIGRATION };
+  const msg = (id, eventId, prefix, seq, number = `${prefix}-${String(seq).padStart(3, '0')}`) => ({ id, eventId, prefix, seq, number });
+  const put = (store, rec) => ls.setItem(`oe1ebg-notfunk:v1:${store}:${rec.id}`, JSON.stringify(rec));
+  put('messages', msg('B', 'op1', 'W1', 1)); // other id, same number as A
+  put('revisions', { id: 'rB', eventId: 'op1', messageId: 'B' });
+  put('messages', msg('C', 'op1', 'W1', 2));
+  put('revisions', { id: 'rC', eventId: 'op1', messageId: 'C' });
+  put('messages', msg('D', 'op9', 'W1', 1)); // its operation is nowhere
+  put('messages', msg('E', 'op1', 'W2', 1, 'W1-002')); // number text taken by C
+  const db = idbFake({ operations: [{ id: 'op1' }], messages: [msg('A', 'op1', 'W1', 1)] });
+  const plan = await planFallbackMigration(schema, ls, db.current, db.all);
+  const by = Object.fromEntries(plan.map(p => [p.key, p.reason || p.action]));
+  assert.deepEqual(by, { B: 'duplicate', C: 'copy', D: 'parent', E: 'duplicate', rB: 'parent', rC: 'copy' });
+
+  // counters end at least at the highest migrated number
+  const stored = new Map([['op1:W1', { id: 'op1:W1', eventId: 'op1', prefix: 'W1', last: 1 }]]);
+  const api = { get: async (s, k) => stored.get(k), put: (s, v) => stored.set(v.id, v) };
+  await NOTFUNK_MIGRATION.fixup(api, [{ store: 'messages', value: msg('C', 'op1', 'W1', 2) }, { store: 'messages', value: msg('F', 'op1', 'W3', 4) }]);
+  assert.equal(stored.get('op1:W1').last, 2);
+  assert.deepEqual(stored.get('op1:W3'), { id: 'op1:W3', eventId: 'op1', prefix: 'W3', last: 4 });
+  await NOTFUNK_MIGRATION.fixup(api, [{ store: 'messages', value: msg('G', 'op1', 'W1', 1) }]);
+  assert.equal(stored.get('op1:W1').last, 2, 'never lowered');
+});
+
+test('migration plan (confirm): a line number taken in its event stays in the fallback', async () => {
+  const { STORES, CONFIRM_MIGRATION } = await import('../tools/confirm/js/db.js');
+  const schema = { lsPrefix: 'oe1ebg-confirm:v1:', stores: STORES, migration: CONFIRM_MIGRATION };
+  const put = (store, rec) => ls.setItem(`oe1ebg-confirm:v1:${store}:${rec.id}`, JSON.stringify(rec));
+  put('entries', { id: 'x', eventId: 'ev1', seq: 3 });
+  put('entries', { id: 'y', eventId: 'ev1', seq: 4 });
+  put('entries', { id: 'c', eventId: 'ev1', kind: 'comment' }); // comments have no number
+  const db = idbFake({ events: [{ id: 'ev1', nextSeq: 4 }], entries: [{ id: 'a', eventId: 'ev1', seq: 3 }, { id: 'k', eventId: 'ev1', kind: 'comment' }] });
+  const plan = await planFallbackMigration(schema, ls, db.current, db.all);
+  assert.deepEqual(Object.fromEntries(plan.map(p => [p.key, p.reason || p.action])), { x: 'duplicate', y: 'copy', c: 'copy' });
+  const events = new Map([['ev1', { id: 'ev1', nextSeq: 4, updated: 'old' }]]);
+  await CONFIRM_MIGRATION.fixup({ get: async (s, k) => events.get(k), put: (s, v) => events.set(v.id, v) }, [{ store: 'entries', value: { id: 'y', eventId: 'ev1', seq: 4 } }]);
+  assert.equal(events.get('ev1').nextSeq, 5);
 });

@@ -4,11 +4,11 @@
 //
 //   getAll(store) / getByEvent(store, eventId) / get(store, key)
 //   tx([{ store, put: value } | { store, del: key }, ...])  — one atomic write
-//   atomic(stores, async ({ get, getByEvent, getUnchanged, put }) => result)
+//   atomic(stores, async ({ get, getAll, getByEvent, getUnchanged, put }) => result)
 //       — read-modify-write in ONE transaction (e.g. take the next message
 //         number and store the message): nothing is written unless all of
 //         it is, and no other writer can interleave. Inside fn only await
-//         the get/getByEvent/getUnchanged it is given (any other await lets
+//         the get/getAll/getByEvent/getUnchanged it is given (any other await lets
 //         IndexedDB auto-commit; the next put then fails and the whole call
 //         rejects).
 //   getUnchanged(store, key, expectedUpdated) — compare-and-set: the record
@@ -243,6 +243,7 @@ function idbBackend(db, schema, hooks) {
         t.onabort = () => reject(failed || t.error || new Error('Transaktion abgebrochen'));
         const api = storageApiWithCas({
           get: (store, key) => reqPromise(t.objectStore(store).get(key)),
+          getAll: store => reqPromise(t.objectStore(store).getAll()),
           getByEvent: (store, eventId) => reqPromise(t.objectStore(store).index('eventId').getAll(eventId)),
           put: (store, value) => {
             try {
@@ -280,7 +281,7 @@ function idbBackend(db, schema, hooks) {
       const core = lsCore(schema, ls, hooks);
       const sum = core.summary();
       if (!sum) return null;
-      const plan = await planFallback(schema, core, (store, key) => backend.get(store, key));
+      const plan = await planFallback(schema, core, (store, key) => backend.get(store, key), store => backend.getAll(store));
       const count = (...actions) => plan.filter(p => actions.includes(p.action)).length;
       const kept = count('conflict', 'unreadable');
       return {
@@ -313,7 +314,7 @@ function idbBackend(db, schema, hooks) {
       const ls = storageLocal();
       if (!ls) return;
       const core = lsCore(schema, ls, hooks);
-      core.setConflictsSeen(conflictSignature(await planFallback(schema, core, (store, key) => backend.get(store, key)), ls));
+      core.setConflictsSeen(conflictSignature(await planFallback(schema, core, (store, key) => backend.get(store, key), store => backend.getAll(store)), ls));
     },
     // Those records of one store (e.g. to export them before deciding).
     async readFallback(store) {
@@ -350,16 +351,20 @@ function sameRecord(a, b) {
 }
 
 // What migrateFallbackRecords() does with each fallback record, given
-// current(store, key) from IndexedDB: [{ store, lsKey, key, value, action }],
-// action 'copy' | 'identical' | 'merge' (with `merged`) | 'conflict' |
-// 'unreadable'.
-async function planFallback(schema, core, current) {
+// current(store, key) and all(store) from IndexedDB:
+// [{ store, lsKey, key, value, action, reason }], action 'copy' |
+// 'identical' | 'merge' (with `merged`) | 'conflict' | 'unreadable'.
+// reason of a conflict: 'conflict' (differs from IndexedDB's record with
+// that key, no merge), 'duplicate' (a unique value of schema.migration
+// .unique is taken by another record) or 'parent' (the record it belongs
+// to, schema.migration.parents, is neither in IndexedDB nor migrated).
+async function planFallback(schema, core, current, all) {
   const plan = [];
   for (const store of Object.keys(schema.stores)) {
     for (const { lsKey, value, error } of core.entries(store)) {
       const key = error ? undefined : value?.[schema.stores[store].keyPath];
       if (key === undefined || key === null) {
-        plan.push({ store, lsKey, key: lsKey, action: 'unreadable' });
+        plan.push({ store, lsKey, key: lsKey, action: 'unreadable', reason: 'unreadable' });
         continue;
       }
       const cur = await current(store, key);
@@ -367,12 +372,55 @@ async function planFallback(schema, core, current) {
       else if (sameRecord(cur, value)) plan.push({ store, lsKey, key, value, action: 'identical' });
       else {
         const merged = schema.merge ? schema.merge(store, cur, value) : undefined;
-        if (merged === undefined) plan.push({ store, lsKey, key, value, action: 'conflict' });
+        if (merged === undefined) plan.push({ store, lsKey, key, value, action: 'conflict', reason: 'conflict' });
         else plan.push({ store, lsKey, key, value, merged, action: 'merge' });
       }
     }
   }
+  const rules = schema.migration || {};
+  const writes = p => p.action === 'copy' || p.action === 'merge';
+  const keep = (p, reason) => { p.action = 'conflict'; p.reason = reason; };
+  // Unique values (e.g. a message number per operation): IndexedDB's
+  // records first, then the fallback's in order; a taken one is kept.
+  for (const [store, uniq] of Object.entries(rules.unique || {})) {
+    const keyPath = schema.stores[store].keyPath;
+    const taken = new Map();
+    const valuesOf = rec => [].concat(uniq(rec) ?? []).filter(v => v !== null && v !== undefined).map(String);
+    for (const rec of await all(store)) for (const v of valuesOf(rec)) taken.set(v, rec[keyPath]);
+    for (const p of plan) {
+      if (p.store !== store || !writes(p)) continue;
+      const vals = valuesOf(p.action === 'merge' ? p.merged : p.value);
+      if (vals.some(v => taken.has(v) && taken.get(v) !== p.key)) { keep(p, 'duplicate'); continue; }
+      for (const v of vals) taken.set(v, p.key);
+    }
+  }
+  // Parents (a revision's message, a message's operation): must be in
+  // IndexedDB or migrated now; keeping one keeps its children too.
+  const parents = rules.parents || {};
+  for (let changed = true; changed;) {
+    changed = false;
+    for (const p of plan) {
+      if (!writes(p)) continue;
+      for (const { store, key } of parents[p.store] || []) {
+        const pk = key(p.action === 'merge' ? p.merged : p.value);
+        if (pk === undefined || pk === null) continue;
+        const migrated = plan.some(q => q.store === store && q.key === pk && writes(q));
+        if (migrated || (await current(store, pk)) !== undefined) continue;
+        keep(p, 'parent');
+        changed = true;
+        break;
+      }
+    }
+  }
   return plan;
+}
+
+// The plan of a migration without running it (tests, diagnostics): the
+// fallback records in ls under schema.lsPrefix against IndexedDB given as
+// current(store, key) / all(store). [{ store, key, action, reason }]
+export async function planFallbackMigration(schema, ls, current, all) {
+  const plan = await planFallback(schema, lsCore(schema, ls, { locks: null }), current, all);
+  return plan.map(({ store, key, action, reason }) => ({ store, key, action, ...(reason ? { reason } : {}) }));
 }
 
 // A short hash of the kept records (conflicting or unreadable, FNV-1a), so
@@ -386,29 +434,38 @@ function conflictSignature(plan, ls) {
 }
 
 // Fallback -> IndexedDB, under the fallback's write lock (no tab on the
-// fallback writes meanwhile) and in one IndexedDB transaction:
-// - an unfinished fallback batch is rolled back first (or, without Web
-//   Locks and while it may still be another tab's, the call is refused);
-// - a record IndexedDB doesn't have is copied;
+// fallback writes meanwhile) and in one IndexedDB transaction over all
+// stores:
+// - an unfinished fallback batch is rolled back first (or, while another
+//   tab keeps writing without Web Locks, the call is refused);
+// - a record IndexedDB doesn't have is copied, unless one of its unique
+//   values is taken or its parent is missing (planFallback());
 // - one it has with the same content (structurally) counts as identical;
 // - a different one goes to schema.merge(store, current, incoming) if the
-//   schema has it (its result is stored; undefined: no merge), otherwise
-//   it is KEPT: IndexedDB is not overwritten, the record stays in
-//   localStorage and is reported in `kept` ({ store, key, reason }).
+//   schema has it (its result is stored; undefined: no merge);
+// - everything else is KEPT: IndexedDB is not overwritten, nothing is
+//   renumbered, the record stays in localStorage and is reported in
+//   `kept` ({ store, key, reason });
+// - then schema.migration.fixup(api, migrated) may adjust IndexedDB in the
+//   same transaction (e.g. counters never below a migrated number).
 // Only after IndexedDB committed are the copied, merged and identical
 // records removed from localStorage; kept or unreadable ones stay.
 async function migrateFallbackRecords(backend, schema, core) {
   return core.exclusive(async () => {
     await core.settleJournalAsync();
-    const stores = Object.keys(schema.stores).filter(st => core.entries(st).length);
+    const stores = Object.keys(schema.stores);
     let plan = [];
-    if (stores.length) {
-      await backend.atomic(stores, async ({ get, put }) => {
-        plan = await planFallback(schema, core, get);
+    if (stores.some(st => core.entries(st).length)) {
+      await backend.atomic(stores, async api => {
+        plan = await planFallback(schema, core, api.get, api.getAll);
+        const migrated = [];
         for (const p of plan) {
-          if (p.action === 'copy') put(p.store, p.value);
-          else if (p.action === 'merge') put(p.store, p.merged);
+          if (p.action === 'copy') api.put(p.store, p.value);
+          else if (p.action === 'merge') api.put(p.store, p.merged);
+          else continue;
+          migrated.push({ store: p.store, value: p.action === 'merge' ? p.merged : p.value });
         }
+        if (migrated.length && schema.migration?.fixup) await schema.migration.fixup(api, migrated);
       });
     }
     const n = action => plan.filter(p => p.action === action).length;
@@ -418,7 +475,7 @@ async function migrateFallbackRecords(backend, schema, core) {
       merged: n('merge'),
       identical: n('identical'),
       kept: plan.filter(p => p.action === 'conflict' || p.action === 'unreadable')
-        .map(p => ({ store: p.store, key: p.key, reason: p.action })),
+        .map(p => ({ store: p.store, key: p.key, reason: p.reason })),
     };
   });
 }
@@ -606,6 +663,7 @@ function lsBackend(schema, ls, opts) {
         const writes = [];
         const api = storageApiWithCas({
           get: async (store, k) => core.get(store, k),
+          getAll: async store => core.all(store),
           getByEvent: async (store, eventId) => core.all(store).filter(r => r.eventId === eventId),
           put: (store, value) => { writes.push({ store, put: value }); },
         });
@@ -639,6 +697,15 @@ function lsBackend(schema, ls, opts) {
 //   upgrade(oldVersion, create)   called on IndexedDB upgrades; create(name)
 //                                 creates a store from `stores`
 //   merge(store, current, incoming)   optional, for migrateFallback()
+//   migration: {           optional, for migrateFallback()
+//     unique: { store: record => value | [values] }   values no two records
+//                          of the store may share (null: none)
+//     parents: { store: [{ store, key: record => parent key }] }   the
+//                          record belongs to that one (null key: none)
+//     fixup(api, migrated) async, in the migration transaction after the
+//                          copies; api: get/getAll/put; migrated:
+//                          [{ store, value }]
+//   }
 // }
 // hooks (all optional):
 //   onBlocked({ oldVersion, newVersion })  the open waits for another tab
