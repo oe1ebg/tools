@@ -48,8 +48,9 @@ const EXPECTED = {
   'invalid-mode.adi': { valid: false, errors: ['INVALID_ENUM'], warnings: [] },
   'band-frequency-mismatch.adi': { valid: true, errors: [], warnings: ['BAND_FREQUENCY_MISMATCH'] },
   'application-fields.adi': { valid: true, errors: [], warnings: [], infos: ['APP_FIELD_WITHOUT_TYPE'] },
-  // <CALL:12> ends inside the <QSO_DATE:8> tag: too long, cut there (error)
-  'malformed-record.adi': { valid: false, errors: ['FIELD_LENGTH_MISMATCH', 'MALFORMED_FIELD', 'MALFORMED_FIELD'], warnings: ['MISSING_QSO_FIELD'] },
+  // <CALL:12> fits in the file, so it is read as declared ("OE1XYZ\n<QSO_", a line break in a String: error);
+  // the rest of the tag it ends in is ignored text (IV.A.6)
+  'malformed-record.adi': { valid: false, errors: ['INVALID_CHARACTER', 'MALFORMED_FIELD', 'MALFORMED_FIELD'], warnings: ['FIELD_LENGTH_MISMATCH', 'MISSING_QSO_FIELD'] },
   'future-version.adi': { valid: true, errors: [], warnings: ['UNSUPPORTED_ADIF_VERSION'] },
   'suspicious-city.adi': { valid: true, errors: [], warnings: ['SUSPICIOUS_CITY_VALUE'] },
   'mode-submode-mismatch.adi': { valid: true, errors: [], warnings: ['MODE_SUBMODE_MISMATCH'] },
@@ -94,11 +95,12 @@ test('validation continues after a malformed record: QSO 1 and 3 survive', () =>
   assert.equal(r.records[0].fields.CALL, 'OE1ABC');
   assert.equal(r.records[2].fields.CALL, 'OE3DEF');
   assert.ok(r.issues.filter(i => i.severity === 'error').every(i => i.recordIndex === 1), 'errors belong to QSO 2');
-  // the too-long CALL ends inside the next tag: no reading makes that
-  // valid, so it is cut at the tag and the scan resyncs there
-  assert.equal(r.records[1].fields.CALL, 'OE1XYZ');
-  assert.equal(r.records[1].fields.QSO_DATE, '20261004');
-  assert.equal(r.issues.find(i => i.code === 'FIELD_LENGTH_MISMATCH').severity, 'error');
+  // the too-long CALL fits in the file: read as declared (IV.A.1), the
+  // rest of the tag it ends in is ignored (IV.A.6), as the editor reads it;
+  // the length gets a warning, the line break in CALL an error
+  assert.equal(r.records[1].fields.CALL, 'OE1XYZ\n<QSO_');
+  assert.equal(r.records[1].fields.QSO_DATE, undefined);
+  assert.equal(r.issues.find(i => i.code === 'FIELD_LENGTH_MISMATCH').severity, 'warning');
 });
 
 test('tag-shaped text inside a value: the declared length counts (IV.A.1), a wrong length still does not', () => {
@@ -131,28 +133,36 @@ test('tag-shaped text inside a value: the declared length counts (IV.A.1), a wro
   const sev = (text, code) => check(text).issues.filter(i => i.code === code).map(i => i.severity);
   assert.deepEqual(sev('h\n<EOH><CALL:5>OE1ABC <EOR>', 'FIELD_LENGTH_MISMATCH'), ['warning'], 'too short');
   assert.deepEqual(sev('h\n<EOH><NAME:3>Max Mustermann<EOR>', 'FIELD_LENGTH_MISMATCH'), ['warning'], 'too short, a blank after');
-  // A length ending inside a tag is too long whatever the reading: cut at
-  // the first tag inside it, resync (error), the QSO end kept.
+  // A length ending inside a tag still holds (IV.A.1); the rest of the tag
+  // is ignored text (IV.A.6). Warnings only, the boundaries don't move.
+  const notes7 = check('h\n<EOH><CALL:5>OE1AB<QSO_DATE:8>20261010<TIME_ON:4>1200<BAND:2>2m<MODE:2>FM<NOTES:7><CALL:5> annotation<EOR>');
+  assert.equal(notes7.records.length, 1);
+  assert.deepEqual([notes7.records[0].fields.CALL, notes7.records[0].fields.NOTES], ['OE1AB', '<CALL:5']);
+  assert.equal(notes7.errors, 0, JSON.stringify(notes7.issues));
+  assert.match(notes7.issues.find(i => i.code === 'FIELD_LENGTH_MISMATCH').message, /ends inside a tag/);
+  const notes4 = check('h\n<EOH><CALL:5>OE1AB<NOTES:4><EOR> annotation<EOR>');
+  assert.equal(notes4.records.length, 1, 'no extra QSO');
+  assert.equal(notes4.records[0].fields.NOTES, '<EOR');
   const long = check('h\n<EOH><CALL:9>OE1ABC <EOR><CALL:6>OE3XYZ <EOR>');
-  assert.deepEqual(sev('h\n<EOH><CALL:9>OE1ABC <EOR><CALL:6>OE3XYZ <EOR>', 'FIELD_LENGTH_MISMATCH'), ['error']);
-  assert.equal(long.records.length, 2, 'resync at the next tag');
-  assert.equal(long.records[0].fields.CALL, 'OE1ABC');
-  const over = check('h\n<EOH><COMMENT:12>hi<EOR><CALL:6>OE3XYZ <EOR>');
-  assert.equal(over.records.length, 2);
-  assert.equal(over.records[0].fields.COMMENT, 'hi');
-  assert.match(over.issues.find(i => i.code === 'FIELD_LENGTH_MISMATCH').message, /runs over <EOR>/);
-  // a byte-counted UTF-8 length ending inside the next tag (issue #12 review)
+  assert.deepEqual(sev('h\n<EOH><CALL:9>OE1ABC <EOR><CALL:6>OE3XYZ <EOR>', 'FIELD_LENGTH_MISMATCH'), ['warning']);
+  assert.equal(long.records[0].fields.CALL, 'OE3XYZ', 'read as declared: the second CALL is in the same QSO');
+  // Byte-counted UTF-8 lengths: detected for the whole file (as
+  // parseADIFAuto does) and read by bytes, with one file-level warning.
   const utf = check('h\n<EOH><NAME:7>Jürgen<QSO_DATE:8>20261004<EOR>');
   assert.deepEqual([utf.records[0].fields.NAME, utf.records[0].fields.QSO_DATE], ['Jürgen', '20261004']);
-  assert.match(utf.issues.find(i => i.code === 'FIELD_LENGTH_MISMATCH').message, /UTF-8 bytes/);
-  assert.equal(check('h\n<EOH><NAME:7>Jürgen<EOR><NAME:3>Max<EOR>').records.length, 2, 'no QSOs merged');
+  assert.deepEqual(utf.issues.filter(i => i.code === 'LENGTHS_IN_BYTES').map(i => [i.severity, i.recordType]), [['warning', 'file']]);
+  assert.ok(!codes(utf).includes('FIELD_LENGTH_MISMATCH'), codes(utf).join());
+  const merged = check('h\n<EOH><NAME:7>Jürgen<EOR><NAME:3>Max<EOR>');
+  assert.equal(merged.records.length, 2, 'no QSOs merged');
+  const name = merged.issues.find(i => i.code === 'INVALID_CHARACTER');
+  assert.deepEqual([name.value, name.line, name.column], ['Jürgen', 2, 6], 'values decoded, positions in characters');
   // too long, ends after a whole <EOR> and runs into text: both warnings
   const both = codes(check('h\n<EOH><CALL:6>OE1ABC <NOTES:9>abc <EOR>x <EOR>'));
   assert.ok(both.includes('RECORD_END_IN_VALUE') && both.includes('FIELD_LENGTH_MISMATCH'), both.join());
   assert.match(check('h\n<EOH><NAME:7>Jürgen,x <EOR>').issues.find(i => i.code === 'FIELD_LENGTH_MISMATCH')?.message || '', /UTF-8 bytes/,
     'non-ASCII value: probably counted in bytes');
   // Errors stay errors: a length past the end of the file (cut at the tag
-  // inside it and resynced) ...
+  // inside it and resynced, as the editor's parser does) ...
   const past = check('h\n<EOH><CALL:6>OE1ABC <NOTES:50>abc <EOR><CALL:6>OE3XYZ <EOR>');
   assert.deepEqual(sev('h\n<EOH><CALL:6>OE1ABC <NOTES:50>abc <EOR><CALL:6>OE3XYZ <EOR>', 'FIELD_LENGTH_MISMATCH'), ['error']);
   assert.equal(past.records.length, 2, 'resync at the next tag');

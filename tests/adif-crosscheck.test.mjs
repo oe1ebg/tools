@@ -153,6 +153,15 @@ test('cross-check annotation text after a value with <EOR> inside it', { skip },
     { 'adif-checker': { errors: true, why: 'adif-checker rejects characters between fields; IV.A.6 says they are ignored' } });
 });
 
+// A length ending inside a tag-shaped sequence: legal, the rest of it is
+// ignored text (IV.A.1, IV.A.6).
+for (const [label, notes] of [['<NOTES:7><CALL:5> annotation', '<NOTES:7><CALL:5> annotation'], ['<NOTES:4><EOR> annotation', '<NOTES:4><EOR> annotation']]) {
+  test(`cross-check length ending inside a tag: ${label}`, { skip }, () => {
+    crossCheck(label, 'x\r\n<ADIF_VER:5>3.1.7\r\n<EOH>\r\n<CALL:5>OE1AB<QSO_DATE:8>20261010<TIME_ON:4>1200<BAND:3>20m<MODE:3>SSB' + notes + '<EOR>\r\n',
+      { 'adif-checker': { errors: true, why: 'adif-checker rejects characters between fields; IV.A.6 says they are ignored' } });
+  });
+}
+
 test('cross-check confirmation-log exports (every template)', { skip }, () => {
   const header = {
     operator: 'OE1EBG', station: 'OE1XKS', freq: '145,500', mode: 'FM', myGrid: 'jn88ef12ab', myQth: 'Wien Döbling',

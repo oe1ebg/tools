@@ -43,21 +43,18 @@ export function adifAsciiField(name, value, opts, type = '') {
 // A plausible tag: <EOR>, <EOH> or a name with a length.
 const ADIF_PLAUSIBLE_TAG_RE = /<(?:eor|eoh|[A-Za-z][A-Za-z0-9_]*:\d+(?::[A-Za-z])?)>/iy;
 
-// Where a value declared as text[start, end) must be cut because its
-// length is too long whatever the reading (ADIF 3.1.7 IV.A.1, IV.A.6): at
-// the first tag inside it when a tag starts inside and ends after it, or
-// when the text ends before `end`; -1 when the length holds (tags lying
-// wholly inside the value are part of it).
+// Where a value declared as text[start, end) must be cut: only when the
+// text ends before `end` (a length past the end of the file), at the first
+// tag inside it; -1 otherwise. A length that fits always holds (ADIF 3.1.7
+// IV.A.1), whatever tag-shaped text lies inside or after it: characters
+// outside fields are ignored (IV.A.6). adif-validate.js reads it the same.
 function adifCutAt(text, start, end) {
-  let first = -1;
-  const stop = Math.min(end, text.length);
-  for (let i = text.indexOf('<', start); i >= 0 && i < stop; i = text.indexOf('<', i + 1)) {
+  if (end <= text.length) return -1;
+  for (let i = text.indexOf('<', start); i >= 0; i = text.indexOf('<', i + 1)) {
     ADIF_PLAUSIBLE_TAG_RE.lastIndex = i;
-    if (!ADIF_PLAUSIBLE_TAG_RE.test(text)) continue;
-    if (first < 0) first = i;
-    if (ADIF_PLAUSIBLE_TAG_RE.lastIndex > end) return first;
+    if (ADIF_PLAUSIBLE_TAG_RE.test(text)) return i;
   }
-  return end > text.length ? first : -1;
+  return -1;
 }
 
 // The fields of an ADI header, read by their lengths (so "<EOH>" inside a
@@ -186,12 +183,12 @@ export function parseADIF(text, warnings, sourceLabel, headerInfo, stats, defs) 
       continue;
     }
     const len = parseInt(lenStr, 10);
-    // A length ending inside a tag or past the end of the text is too
-    // long: cut at the first tag inside it (as adif-validate.js does).
+    // A length past the end of the text: cut at the first tag inside it
+    // (as adif-validate.js does); a length that fits always holds.
     const cutAt = adifCutAt(body, tagEnd, tagEnd + len);
     const valueEnd = cutAt >= 0 ? cutAt : tagEnd + len;
     const value = cutAt >= 0 ? body.slice(tagEnd, cutAt).replace(/\s+$/, '') : body.slice(tagEnd, valueEnd);
-    if (cutAt >= 0) warnings.push(`${sourceLabel}: <${name}:${len}> runs into the next tag; the value was cut there.`);
+    if (cutAt >= 0) warnings.push(`${sourceLabel}: <${name}:${len}> runs past the end of the file; the value was cut at the next tag.`);
     if (stats) {
       const next = body.charAt(tagEnd + len);
       if (cutAt >= 0 || (next !== '' && next !== '<' && !/\s/.test(next)) || /[\s<]$/.test(value)) stats.unclean++;
@@ -215,14 +212,14 @@ export function parseADIF(text, warnings, sourceLabel, headerInfo, stats, defs) 
 }
 
 // The text's UTF-8 bytes as a string of one char per byte, and back.
-function utf8ByteString(text) {
+export function adifUtf8Bytes(text) {
   const bytes = new TextEncoder().encode(text);
   let out = '';
   for (let i = 0; i < bytes.length; i += 8192) out += String.fromCharCode(...bytes.subarray(i, i + 8192));
   return out;
 }
 
-function fromUtf8ByteString(s) {
+export function adifFromUtf8Bytes(s) {
   return new TextDecoder().decode(Uint8Array.from(s, c => c.charCodeAt(0)));
 }
 
@@ -232,23 +229,27 @@ function fromUtf8ByteString(s) {
 // non-ASCII file both readings are tried, and the byte reading wins when its
 // values line up with the separators and tags better (stats.unclean).
 export function parseADIFAuto(text, warnings, sourceLabel, headerInfo, defs) {
-  if (!/[^\x00-\x7f]/.test(text)) return parseADIF(text, warnings, sourceLabel, headerInfo, undefined, defs);
-  const charStats = { unclean: 0 }, byteStats = { unclean: 0 };
-  const charWarnings = [], byteWarnings = [];
-  const charHeader = {}, byteHeader = {};
-  const charDefs = {}, byteDefs = {};
-  const asChars = parseADIF(text, charWarnings, sourceLabel, charHeader, charStats, charDefs);
-  const asBytes = parseADIF(utf8ByteString(text), byteWarnings, sourceLabel, byteHeader, byteStats, byteDefs);
-  const useBytes = byteStats.unclean < charStats.unclean;
-  warnings.push(...(useBytes ? byteWarnings : charWarnings));
-  if (useBytes) warnings.push(`${sourceLabel}: field lengths count UTF-8 bytes, not characters (as the file's program writes them); read that way.`);
-  const header = useBytes ? byteHeader : charHeader;
-  if (headerInfo) for (const [k, v] of Object.entries(header)) headerInfo[k] = useBytes ? fromUtf8ByteString(v) : v;
+  if (!adifCountsBytes(text)) return parseADIF(text, warnings, sourceLabel, headerInfo, undefined, defs);
+  const byteHeader = {}, byteDefs = {};
+  const asBytes = parseADIF(adifUtf8Bytes(text), warnings, sourceLabel, byteHeader, undefined, byteDefs);
+  warnings.push(`${sourceLabel}: field lengths count UTF-8 bytes, not characters (as the file's program writes them); read that way.`);
+  if (headerInfo) for (const [k, v] of Object.entries(byteHeader)) headerInfo[k] = adifFromUtf8Bytes(v);
   if (defs) {
-    const d = useBytes ? byteDefs : charDefs;
-    defs.userdefs = (defs.userdefs || []).concat(d.userdefs.map(u => (useBytes ? { ...u, spec: fromUtf8ByteString(u.spec) } : u)));
-    defs.types = Object.assign(defs.types || {}, d.types);
+    defs.userdefs = (defs.userdefs || []).concat(byteDefs.userdefs.map(u => ({ ...u, spec: adifFromUtf8Bytes(u.spec) })));
+    defs.types = Object.assign(defs.types || {}, byteDefs.types);
   }
-  if (!useBytes) return asChars;
-  return asBytes.map(rec => Object.fromEntries(Object.entries(rec).map(([k, v]) => [k, fromUtf8ByteString(v)])));
+  return asBytes.map(rec => Object.fromEntries(Object.entries(rec).map(([k, v]) => [k, adifFromUtf8Bytes(v)])));
+}
+
+// Do the field lengths of this text count UTF-8 bytes rather than
+// characters? Only for non-ASCII text: both readings are tried, and the
+// byte reading wins when its values line up with the separators and tags
+// better (stats.unclean). Shared by parseADIFAuto() and the validator
+// (adif-validate.js), so both read a file the same way.
+export function adifCountsBytes(text) {
+  if (!/[^\x00-\x7f]/.test(text)) return false;
+  const charStats = { unclean: 0 }, byteStats = { unclean: 0 };
+  parseADIF(text, [], '', undefined, charStats);
+  parseADIF(adifUtf8Bytes(text), [], '', undefined, byteStats);
+  return byteStats.unclean < charStats.unclean;
 }

@@ -148,24 +148,26 @@ Input never makes it throw: when no field structure can be found the result
 holds one `UNRECOVERABLE_PARSE_ERROR`.
 
 **How it works.** A tolerant scanner reads tags. A declared length that
-ends inside a tag (a tag starts inside the value and ends after it, e.g.
-a UTF-8 byte count: `<NAME:7>Jürgen<EOR>`) or runs past the end of the
-file is too long whatever the reading: the value is cut at the first tag
-inside it and the scan resyncs there (`FIELD_LENGTH_MISMATCH`, error,
-saying when it ran over `<EOR>`); `parseADIF` cuts the same way, so the
-editor and the validator agree on fields and QSOs. Otherwise the declared
-length counts (ADIF 3.1.7 IV.A.1): the value is the declared number of
-characters, never split at tags lying wholly inside it,
-and characters after it outside a field or `<EOR>` are ignored (IV.A.6,
-so `<NOTES:20>literal <EOR> insideignored annotation<EOR>` is valid).
-Suspicious boundaries are warnings that don't change how the file is
-read: tag-shaped text inside a value (`TAG_IN_VALUE`; `RECORD_END_IN_VALUE`
-for an `<EOR>`, which a too-long length swallowing a QSO end looks like),
-and text after a value before the next tag, directly or after a blank
-(`FIELD_LENGTH_MISMATCH` as a warning, also next to `RECORD_END_IN_VALUE`;
-with a hint when the value is non-ASCII, i.e. the length was probably
-counted in UTF-8 bytes). A length past the end of the file without a tag
-inside is `TRUNCATED_FIELD`; a broken QSO is reported and the next ones
+fits in the file always counts (ADIF 3.1.7 IV.A.1): the value is the
+declared number of characters, never split at tag-shaped text inside it,
+and characters after it outside a field or `<EOR>` are ignored (IV.A.6),
+also the rest of a tag-shaped sequence the length ends in. So
+`<NOTES:20>literal <EOR> insideignored annotation<EOR>` is valid, and
+`<NOTES:7><CALL:5> annotation<EOR>` gives NOTES = `<CALL:5`. Suspicious
+boundaries are warnings that never move a boundary: tag-shaped text inside
+a value (`TAG_IN_VALUE`; `RECORD_END_IN_VALUE` for an `<EOR>`, which a
+too-long length swallowing a QSO end looks like), and text after a value
+before the next tag, directly or after a blank, or a length ending inside
+a tag (`FIELD_LENGTH_MISMATCH` as a warning, also next to
+`RECORD_END_IN_VALUE`). Only a length past the end of the file is cut: at
+the first tag inside it, resyncing there (`FIELD_LENGTH_MISMATCH`, error),
+else `TRUNCATED_FIELD`. `parseADIF` reads every one of these the same way,
+so the editor and the validator agree on fields and QSOs
+(`tests/adif-userdef.test.mjs`). Lengths counted in UTF-8 bytes (many
+loggers): `adifCountsBytes()` (`../shared/js/adif.js`, also used by
+`parseADIFAuto`) decides for the whole file; then the validator reads it by
+bytes, reports values and positions in characters, and says so once
+(`LENGTHS_IN_BYTES`). A broken QSO is reported and the next ones
 are still read. Within a file, the first occurrence of an `APP_` field
 determines its type (IV.A.4), also an empty one: later values are checked against it, a
 different type is `APP_FIELD_TYPE_INCONSISTENT`. Field and value checks are driven by
@@ -182,7 +184,7 @@ new ADIF version). Only the cross-field checks and heuristics are code.
 | `UNRECOVERABLE_PARSE_ERROR` | error | empty input or no field tag at all |
 | `MALFORMED_FIELD` | error | `<` without `>`, tag without length, bad length/type syntax |
 | `TRUNCATED_FIELD` | error | declared length runs past the end of the file |
-| `FIELD_LENGTH_MISMATCH` | error / warning | error: the length ends inside a tag or past the end of the file over a tag (cut there), or it counted the line break of a one-line field; warning: text follows the value before the next tag, directly or after a blank (read as declared, the text is ignored, IV.A.6; non-ASCII values: probably counted in bytes) |
+| `FIELD_LENGTH_MISMATCH` | error / warning | error: the length runs past the end of the file over a tag (cut there), or it counted the line break of a one-line field; warning: text follows the value before the next tag, directly or after a blank, or the length ends inside a tag (read as declared, the rest is ignored, IV.A.6; non-ASCII values: probably counted in bytes) |
 | `MISSING_EOH` / `DUPLICATE_EOH` | error | header text without `<EOH>`; a second `<EOH>` |
 | `MISSING_EOR` | error | fields after the last `<EOR>` (still read as a QSO) |
 | `MALFORMED_RECORD` | error | `<EOR>` inside the header |
@@ -200,6 +202,7 @@ new ADIF version). Only the cross-field checks and heuristics are code.
 | `INVALID_GRIDSQUARE` | error | not a 2/4/6/8-character locator (10/12 characters belong into `*_EXT`) |
 | `INVALID_LOCATION` | error | not `XDDD MM.MMM`, wrong direction letter, out of range |
 | `UNSUPPORTED_ADIF_VERSION` | warning | file declares a newer ADIF than 3.1.7 |
+| `LENGTHS_IN_BYTES` | warning | the field lengths count UTF-8 bytes, not characters (IV.A.1); read by bytes, as the editor does (once per file) |
 | `HEADER_STARTS_WITH_TAG` | warning | file starts with `<` but has an `<EOH>` |
 | `TAG_IN_VALUE` | warning | tag-shaped text inside a value whose declared length ends cleanly: read as part of the value (IV.A.1); a too-long length can look the same, and naive readers split there |
 | `RECORD_END_IN_VALUE` | warning | the same with `<EOR>` inside the value: the typical sign of a too-long length that swallowed the end of the QSO (two QSOs read as one); valid per spec, so a warning |
@@ -261,6 +264,7 @@ far:
 | --- | --- | --- | --- |
 | `<CALL:5>OE1ABC` | ok, `FIELD_LENGTH_MISMATCH` warning (reads `OE1AB`) | adif-checker: error (stray byte); adifmt agrees with us | IV.A.1, IV.A.6: characters outside fields are ignored |
 | `<NOTES:20>literal <EOR> insideignored annotation<EOR>` | ok, `RECORD_END_IN_VALUE` warning | adif-checker: error (stray bytes); adifmt agrees with us | IV.A.1, IV.A.6 |
+| `<NOTES:7><CALL:5> annotation<EOR>`, `<NOTES:4><EOR> annotation<EOR>` | ok (NOTES `<CALL:5` / `<EOR`), `FIELD_LENGTH_MISMATCH` warning | adif-checker: error (stray bytes); adifmt agrees with us | IV.A.1, IV.A.6 |
 | `GRIDSQUARE=SZ88` | `INVALID_GRIDSQUARE` | adifmt: ok | III.A.1: the first pair is A–R |
 | `NAME_INTL` in .adi | `INTL_FIELD_IN_ADI` | adifmt: ok | IV.A.1: no Intl types in ADI |
 | `CREDIT_SUBMITTED=DXCC:CARD&FAX` | `INVALID_ENUM` | adifmt: ok | III.A CreditList: QSL_Medium values only |
