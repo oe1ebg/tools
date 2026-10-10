@@ -425,6 +425,43 @@ test('save while the draft debounce is pending: no draft of the saved message co
   expect(await numbers(page)).toEqual(['D1-001']);
 });
 
+test('edit draft restore: a change made meanwhile is a conflict, the old text is not written back', async ({ page }) => {
+  await openNewOp(page, 'E2E Entwurf Bearbeiten', 'b1');
+  await addMessage(page, 'Lichtinsel 2', 'Wasser', 'old text');
+  await page.locator('#book-body a', { hasText: 'B1-001' }).click();
+  await page.getByRole('button', { name: 'Bearbeiten' }).click();
+  await page.locator('#m-subject').fill('Wasser dringend');
+  await page.waitForTimeout(1000); // the edit draft is saved (with the version it was opened on)
+  // another tab changes the stored text meanwhile
+  await page.evaluate(() => new Promise((resolve, reject) => {
+    const open = indexedDB.open('oe1ebg-notfunk');
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const db = open.result;
+      const tx = db.transaction('messages', 'readwrite');
+      const os = tx.objectStore('messages');
+      const all = os.getAll();
+      all.onsuccess = () => {
+        const m = all.result[0];
+        m.text = 'new text from tab B';
+        m.updated = new Date(Date.parse(m.updated) + 60000).toISOString();
+        os.put(m);
+      };
+      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.onerror = () => reject(tx.error);
+    };
+  }));
+  await page.reload();
+  await expect(page.locator('#m-subject')).toHaveValue('Wasser dringend');
+  await page.locator('#btn-save').click();
+  await expect(page.locator('#banner')).toContainText('NICHT GESPEICHERT');
+  await page.locator('#btn-save').click();
+  await expect(page.locator('#book-body tr', { hasText: 'B1-001' })).toContainText('Wasser dringend');
+  await page.locator('#book-body a', { hasText: 'B1-001' }).click();
+  await expect(page.locator('#msg-detail .verbatim')).toContainText('new text from tab B');
+  await expect(page.locator('#msg-detail .verbatim')).not.toContainText('old text');
+});
+
 // #20: a typed Stichzeit survives a draft restore
 test('draft restore keeps a Stichzeit typed as 1405', async ({ page }) => {
   await openNewOp(page, 'E2E Stichzeit', 's1');

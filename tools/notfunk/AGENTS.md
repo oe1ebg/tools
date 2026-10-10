@@ -24,7 +24,13 @@ provisional until the Notfunkreferat Wien confirms it.
   (station completion and the redraw only warn). Backups are read from the
   storage, not from the tab's memory. Drafts carry `updated` and are
   compare-and-set per operation (another tab's draft is never overwritten
-  silently). `parseBackup()` validates the whole file; keep it as strict as
+  silently). The compare-and-set token is `updated`, made strictly
+  increasing per record (`bumpUpdated()`: clock, or previous + 1 ms), so two
+  writes never share a token; the message format is unchanged. An edit
+  draft stores its base (`editBaseOf()`: token and field values of the
+  version it was opened on) and a restore checks against that, so a change
+  made meanwhile is a conflict and only fields the user changed are sent.
+  `parseBackup()` validates the whole file; keep it as strict as
   the model.
 - **Never lose data:** soft deletes only, edits store a revision, the full
   text is kept verbatim (ÖVSV Notfunk-Konzept § 6.7).

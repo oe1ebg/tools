@@ -212,6 +212,7 @@ export function mergeBackup(backup, existing) {
   const seen = new Set();
   const added_ = [];
   let added = 0, updated = 0;
+  const upd = [];
   const conflicts = [];
   if (!existing.operation) ops.push({ store: 'operations', put: backup.operation });
   for (const m of backup.messages) {
@@ -227,7 +228,9 @@ export function mergeBackup(backup, existing) {
       have.set(m.id, m);
       added++;
     } else if ((m.updated || '') > (old.updated || '')) {
-      ops.push({ store: 'messages', put: { ...m, prefix: old.prefix, seq: old.seq, number: old.number } });
+      const op = { store: 'messages', put: { ...m, prefix: old.prefix, seq: old.seq, number: old.number } };
+      ops.push(op);
+      upd.push(op);
       updated++;
     }
   }
@@ -248,6 +251,16 @@ export function mergeBackup(backup, existing) {
       added--;
       again = true;
     }
+  }
+  // a newer version of a stored message is checked against the final graph
+  // too: its Bezug must be a message of this operation that is there; else
+  // the stored record stays as it is and the update is reported
+  for (const op of upd) {
+    const to = op.put.replyTo;
+    if (!to || have.has(to)) continue;
+    ops.splice(ops.indexOf(op), 1);
+    updated--;
+    unlinked.push(op.put.number);
   }
   const revOwner = new Map((existing.allRevisions || existing.revisions).map(r => [r.id, r.eventId]));
   for (const r of backup.revisions) {

@@ -10,7 +10,7 @@ import { NOTFUNK_STORES } from '../tools/notfunk/js/db.js';
 import { newMessage, editMessage, setStatus, currentStatus, softDelete, messageFields } from '../tools/notfunk/js/model.js';
 import { toBackup, parseBackup, mergeBackup, MAX_SEQ } from '../tools/notfunk/js/export.js';
 import { formatNumber, counterKey, numberGaps } from '../tools/notfunk/js/numbering.js';
-import { saveNewMessage, updateMessage, applyBackup, changedFields, patchOperation, writeDraft, clearDraft } from '../tools/notfunk/js/ops.js';
+import { saveNewMessage, updateMessage, applyBackup, changedFields, editBaseOf, editTarget, patchOperation, writeDraft, clearDraft } from '../tools/notfunk/js/ops.js';
 
 class MemoryStorage {
   #m = new Map();
@@ -322,4 +322,81 @@ test('drafts: one written before drafts carried `updated` is matched by null', a
   await assert.rejects(writeDraft(store, 'op1', { form: {}, saved: T1 }, undefined), ConflictError);
   await writeDraft(store, 'op1', { form: { text: 'neu' }, saved: T1 }, null);
   assert.equal((await store.get('drafts', 'op1')).form.text, 'neu');
+});
+
+// ---------------------------------------------------------------- review follow-up
+
+test('mergeBackup: a newer version with a missing, foreign or dropped reply target is not written', () => {
+  const stored = mk(1), target = mk(2);
+  const later = '2026-10-06T00:00:00.000Z';
+  const existing = { operation: OP, messages: [stored, target], revisions: [], counters: [], allMessages: [stored, target, { ...mk(3), id: 'foreign', eventId: 'op2' }] };
+  for (const replyTo of ['missing', 'foreign']) {
+    const r = mergeBackup(backupOf([{ ...stored, subject: 'neu', updated: later, replyTo }]), existing);
+    assert.deepEqual([r.updated, r.unlinked], [0, ['W1-001']], replyTo);
+    assert.ok(!r.ops.some(o => o.store === 'messages'), 'the stored record stays');
+  }
+  // a target that is in the store is fine
+  assert.equal(mergeBackup(backupOf([{ ...stored, subject: 'neu', updated: later, replyTo: 'b2' }]), existing).updated, 1);
+  // a target that is rejected in this very import
+  const clash = { ...mk(5), id: 'other-5', seq: 5, number: 'W1-005' };
+  const r = mergeBackup(backupOf([{ ...mk(5), replyTo: 'b1' }, { ...stored, updated: later, replyTo: 'b5' }]), { ...existing, messages: [stored, target, clash], allMessages: [stored, target, clash] });
+  assert.deepEqual([r.updated, r.unlinked.sort()], [0, ['W1-001']]);
+});
+
+test('every write of a record changes its token, also with an identical clock', async () => {
+  const a = await create(); // updated = T0
+  // two edits from the same version in the same millisecond: the second is stale
+  const mk2 = subject => cur => editMessage(cur, { subject }, { revisionId: `r-${subject}`, operator: 'X', now: a.updated });
+  const first = await updateMessage(store, a, mk2('eins'));
+  assert.notEqual(first.updated, a.updated);
+  await assert.rejects(updateMessage(store, a, mk2('zwei')), ConflictError);
+  assert.equal((await store.get('messages', a.id)).subject, 'eins');
+  // status steps with the same clock too
+  const s1 = await updateMessage(store, first, cur => ({ next: setStatus(cur, 'forwarded', { operator: 'X', now: a.updated }) }));
+  assert.ok(s1.updated > first.updated);
+  await assert.rejects(updateMessage(store, first, cur => ({ next: softDelete(cur, { operator: 'X', now: a.updated }) })), ConflictError);
+  // a clock set back
+  const s2 = await updateMessage(store, s1, cur => ({ next: setStatus(cur, 'acknowledged', { operator: 'X', now: '2020-01-01T00:00:00.000Z' }) }));
+  assert.ok(s2.updated > s1.updated);
+});
+
+test('drafts: tokens differ for writes in the same millisecond', async () => {
+  const saved = T0;
+  const t1 = await writeDraft(store, 'op1', { form: { text: 'A' }, saved }, undefined);
+  await assert.rejects(writeDraft(store, 'op1', { form: { text: 'B' }, saved }, undefined), ConflictError);
+  const t2 = await writeDraft(store, 'op1', { form: { text: 'A2' }, saved }, t1);
+  assert.notEqual(t1, t2);
+  await assert.rejects(writeDraft(store, 'op1', { form: { text: 'stale' }, saved }, t1), ConflictError, 'a writer with the old token is refused');
+});
+
+test('an edit draft keeps the version it was opened on: a change made meanwhile is a conflict, not reverted', async () => {
+  const a = await create(OP, { text: 'old text' });
+  // tab A opens the edit and changes the subject; its draft carries the base
+  const base = editBaseOf(a);
+  const formFields = { ...messageFields(a), subject: 'Neuer Betreff' };
+  const token = await writeDraft(store, 'op1', { form: {}, editingId: a.id, base, saved: T1 }, undefined);
+  // another tab changes the stored text
+  const b = await updateMessage(store, a, cur => editMessage(cur, { text: 'new text from tab B' }, { revisionId: 'rb', operator: 'B', now: T1 }));
+  // reload / draft transfer: the draft is read back, the message comes from the storage now
+  const draft = await store.get('drafts', 'op1');
+  assert.equal(draft.updated, token);
+  const restored = editBaseOf(b, draft.base);
+  assert.equal(restored.fields.text, 'old text');
+  assert.equal(restored.updated, a.updated);
+  const changes = changedFields(formFields, restored.fields);
+  assert.deepEqual(Object.keys(changes), ['subject'], 'the form\'s old text is not an edit');
+  let n2 = 0;
+  const edit = (target, ch) => updateMessage(store, target, cur => editMessage(cur, ch, { revisionId: `rx${++n2}`, operator: 'A', now: '2026-10-05T14:00:00.000Z' }));
+  const err = await edit(editTarget(b, restored), changes).catch(e => e);
+  assert.ok(err instanceof ConflictError, 'stale baseline: refused');
+  assert.equal((await store.get('messages', a.id)).subject, 'Wasser');
+  // after the notice the token moves on, the baseline fields stay: only the subject goes in
+  const rebased = { ...restored, updated: err.current.updated };
+  const saved = await edit(editTarget(err.current, rebased), changes);
+  assert.equal(saved.subject, 'Neuer Betreff');
+  assert.equal(saved.text, 'new text from tab B');
+  // without a saved base (older draft) the base is the message as stored
+  assert.equal(editBaseOf(b, null).updated, b.updated);
+  // a base of another message is not used
+  assert.equal(editBaseOf(b, { ...base, id: 'other' }).id, b.id);
 });
