@@ -401,28 +401,28 @@ test('an edit draft keeps the version it was opened on: a change made meanwhile 
   assert.equal(editBaseOf(b, { ...base, id: 'other' }).id, b.id);
 });
 
-test('draftEditState: drafts without a base are checked against the message', async () => {
+test('draftEditState: a draft without a base is never trusted, whatever the timestamps say', async () => {
   const a = await create();
   const draft = (saved, extra = {}) => ({ eventId: 'op1', form: {}, editingId: a.id, saved, ...extra });
-  // message not changed since the draft was saved: the current version is the base
-  const fresh = draftEditState(a, draft('2026-10-05T13:00:00.000Z'));
-  assert.deepEqual([fresh.stale, fresh.gone, fresh.base.updated], [false, false, a.updated]);
-  assert.equal(fresh.base.fields.text, a.text);
-  // changed after the draft: stale, nothing may be applied silently
-  assert.equal(draftEditState({ ...a, updated: '2026-10-05T14:00:00.000Z' }, draft('2026-10-05T13:00:00.000Z')).stale, true);
-  // times that can't be compared
-  assert.equal(draftEditState(a, draft('gestern')).stale, true);
-  assert.equal(draftEditState(a, draft(undefined)).stale, true);
-  assert.equal(draftEditState({ ...a, updated: undefined }, draft('2026-10-05T13:00:00.000Z')).stale, true);
+  // opened 12:00, changed by another tab 12:01, the stale form autosaved 12:02: the message is OLDER than the draft
+  const b = await updateMessage(store, a, cur => editMessage(cur, { text: 'von B' }, { revisionId: 'rb', operator: 'B', now: '2026-10-05T12:01:00.000Z' }));
+  for (const saved of ['2026-10-05T12:02:00.000Z', b.updated, '2026-10-05T11:00:00.000Z', 'gestern', undefined]) {
+    const st = draftEditState(b, draft(saved));
+    assert.deepEqual([st.stale, st.gone, st.base.updated], [true, false, b.updated], String(saved));
+  }
   // the message is gone
   const gone = draftEditState(undefined, draft('2026-10-05T13:00:00.000Z'));
   assert.deepEqual([gone.editing, gone.gone, gone.stale], [null, true, false]);
   // a draft with its base is not "stale" (a change since is a conflict at save); a base of another message isn't used
   const base = editBaseOf(a);
-  assert.equal(draftEditState({ ...a, updated: '2026-10-05T14:00:00.000Z' }, draft('2026-10-05T13:00:00.000Z', { base })).base, base);
-  assert.equal(draftEditState({ ...a, updated: '2026-10-05T14:00:00.000Z' }, draft('2026-10-05T13:00:00.000Z', { base: { ...base, id: 'x' } })).stale, true);
+  assert.equal(draftEditState(b, draft('2026-10-05T13:00:00.000Z', { base })).base, base);
+  assert.equal(draftEditState(b, draft('2026-10-05T13:00:00.000Z', { base })).stale, false);
+  assert.equal(draftEditState(b, draft('2026-10-05T13:00:00.000Z', { base: { ...base, id: 'x' } })).stale, true);
   // not an edit draft
   assert.deepEqual(draftEditState(a, { form: {}, saved: T0 }), { editing: null, base: null, stale: false, gone: false });
+  // the stale form (old text, new subject) differs from the current message in both fields: shown before anything is applied
+  const mine = { ...messageFields(a), subject: 'Wasser dringend' };
+  assert.deepEqual(Object.keys(changedFields(mine, messageFields(b))).sort(), ['subject', 'text']);
 });
 
 test('clearDraft: a newer draft written at the same time as the clear survives', async () => {
