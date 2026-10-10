@@ -43,10 +43,72 @@ nicht von selbst. Steht dort „nicht dauerhaft“, regelmäßig eine Sicherung
 
 **Neue Version.** Erscheint „Update verfügbar“, ist eine neue Version
 geladen. Sie wird erst nach einem Klick darauf aktiv, nie mitten in einer
-Runde; Logs und die halb getippte Zeile bleiben erhalten.
+Runde. Gespeicherte Zeilen und Logs bleiben unverändert. Vor dem Neuladen
+sichert das Werkzeug die halb getippte Zeile und die Kopfdaten als Entwurf
+und holt sie danach zurück; ein Entwurf ist aber keine gespeicherte Zeile
+(siehe [Gespeichert, Entwurf und Sicherung](#gespeichert-entwurf-und-sicherung)).
+Wer auf Nummer sicher gehen will, speichert eine laufende Zeile
+(<kbd>⇧</kbd>+<kbd>Enter</kbd>) vor dem Update. Das Update gilt für alle offenen
+Tabs und Fenster des Werkzeugs gleichzeitig.
+
+<!-- TODO(#13): Zusage zum Update (Entwurf, Kopfdaten, mehrere Tabs) nach dem
+     Umbau der Update- und Entwurfslogik prüfen und hier wie im Werkzeug
+     formulieren. -->
 
 **Mehrere Tabs.** Ein Log sollte nur in einem Tab offen sein; sonst warnt
 das Werkzeug („nur ein Tab pro Log!“).
+
+## Gespeichert, Entwurf und Sicherung
+
+**Gespeichert** heißt: die Zeile ist im Speicher des Browsers abgeschlossen
+(„gespeichert“ erscheint erst danach). Schlägt das Speichern fehl, erscheint
+ein rotes Banner und die Eingabe bleibt im Formular.
+
+**Entwurf** ist die halb getippte Zeile. Sie wird laufend zwischengesichert
+und nach einem Neuladen oder Absturz zurückgeholt, kann aber verloren gehen
+(zum Beispiel wenn der Browser die Website-Daten löscht oder der Speicher
+voll ist). Was zählt, ist die gespeicherte Zeile.
+
+**Sicherung (JSON).** „Download gestartet“ ist nicht „Sicherung
+aufbewahrt“: Der Browser meldet dem Werkzeug nur, dass er die Datei
+bekommen hat, nicht ob und wo sie liegt. Eine Sicherung ist erst eine
+Sicherung, wenn die Datei an einem Ort liegt, den Sie kontrollieren (anderer
+Datenträger, USB-Stick, anderer Rechner). Probieren Sie den Import
+gelegentlich aus. Die Sicherung ist eine Momentaufnahme dieses Logs mit
+allen Zeilen, auch den gelöschten, und enthält die Daten **unverschlüsselt**.
+
+**Sicherung importieren.** „Sicherung importieren…“ auf der Startseite:
+
+- Die Datei wird zuerst geprüft. Ist sie keine gültige Sicherung des
+  Bestätigungsverkehrs, wird nichts importiert und nichts verändert.
+- Alle Logs der Datei werden **ganz oder gar nicht** übernommen.
+- Importiert wird als Kopie: Es wird nie etwas Vorhandenes überschrieben.
+  Gibt es ein Log schon, kommt es als „(Import)“ dazu.
+- Ältere Sicherungen lassen sich importieren; fehlt etwas oder weicht etwas
+  ab, steht es als Hinweis unter „Hinweise zur Sicherung“, übernommen wird
+  alles wie gespeichert.
+
+**Ersatzspeicher.** Steht oben „localStorage (Ersatzspeicher)“, war
+IndexedDB nicht verfügbar. Der Ersatzspeicher ist klein (rund 5 MB) und hat
+bei einer Adresse mit `http://` (statt HTTPS oder `localhost`) keine
+Sperre zwischen Tabs: zwei Tabs könnten dann gleichzeitig schreiben. Nur
+einen Tab pro Log verwenden und häufig sichern. Läuft das Werkzeug später
+wieder mit IndexedDB, bietet es an, die Datensätze aus dem Ersatzspeicher zu
+übernehmen („In IndexedDB übernehmen“). Das Angebot überschreibt nichts, was
+in IndexedDB steht; Datensätze, die sich nicht übernehmen lassen (zum
+Beispiel weil sie von den gespeicherten abweichen), bleiben im Ersatzspeicher
+und werden mit Grund aufgelistet; „Als JSON sichern“ lädt sie herunter.
+
+**Daten schützen.** Die Daten liegen im Browser dieses Geräts und, als
+Sicherung, in Dateien, jeweils unverschlüsselt. Gerät und Benutzerkonto
+schützen (Festplattenverschlüsselung, Sperrbildschirm) und auf einem
+gemeinsam genutzten Rechner ein eigenes Browserprofil verwenden. Der Browser
+trennt die Daten nach Adresse (Rechnername und Port), nicht nach
+Verzeichnis: Andere Seiten derselben Adresse können sie lesen. Betreibt eine
+Organisation das Werkzeug selbst, sollte sie es auf einer eigenen Adresse
+bereitstellen. Die Offline-Datei und die Seite im Netz haben getrennte
+Speicher; zum Umziehen die Sicherung verwenden. Der Verlauf der Änderungen
+(frühere Fassungen) schützt vor Versehen, nicht vor Manipulation.
 
 ## Ein Log anlegen
 

@@ -4,6 +4,12 @@
 # README.md ("Updating a deployment") has the atomic way to install and switch
 # releases. Used as-is by CI (tests run against it), so keep it working.
 #
+# Origin note: browser storage (IndexedDB, localStorage) is per origin, not per
+# directory, so other pages on the same host can read the tools' data. Use a
+# dedicated host name where that matters (README.md, "Trust, storage and
+# backups"). This file is an example; it says nothing about oe1ebg.at's
+# live configuration.
+#
 # The `map` blocks belong in the http context, like the server block:
 # a file in /etc/nginx/conf.d/ (where CI mounts this one) is included there.
 # Their names start with oe1ebg_ so they don't clash with other sites.

@@ -75,6 +75,16 @@ on both: `getAll`, `getByEvent`, `get`, `tx(ops)`, `atomic(stores, fn)`.
 | tab dies mid-write | nothing committed | the journal is rolled back on the next open and before the next write |
 | capacity | large, can be made persistent (`requestPersistence()`) | ~5 MB per origin; the journal needs room for the old values of a batch |
 
+**What the storage can and cannot promise.** "Saved" = the batch is
+committed (IndexedDB: transaction complete; fallback: the last `setItem`
+done). Neither backend protects against other code of the same origin
+(storage is per origin, not per directory), against someone with access to
+the device or profile, or against tampering with a backup: the data is
+plaintext and the revisions are not signed or chained. Without Web Locks
+(plain `http://`) the fallback cannot serialise two tabs (`crossTabLock:
+false`); two tabs can take the same number. Documented for users in the
+root `README.md` ("Trust, storage and backups") and the manuals.
+
 **Undo journal** (fallback): a batch first stores the old value of every key
 it touches in `<lsPrefix>#journal` (one `setItem`), then writes, then
 removes the journal. A batch that fails is rolled back at once; a journal

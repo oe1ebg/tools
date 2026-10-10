@@ -45,7 +45,23 @@ USB-Stick.
 nicht von selbst. Steht dort „nicht dauerhaft“, ist eine regelmäßige
 Sicherung umso wichtiger. Der Sicherungsstand steht oben rechts
 („Letzte Sicherung 14:40 · 3 Meldungen ungesichert“); ein Klick darauf lädt
-eine neue Sicherung (JSON) herunter.
+eine neue Sicherung (JSON) herunter. Die Zeit ist der Moment, in dem das
+Meldebuch den Download **gestartet** hat. Ob die Datei vollständig
+angekommen ist und noch irgendwo liegt, kann es nicht wissen; siehe
+[Gespeichert, Entwurf und Sicherung](#gespeichert-entwurf-und-sicherung).
+
+**Neue Version.** Erscheint „Update verfügbar“, ist eine neue Version
+geladen. Sie wird erst nach einem Klick darauf aktiv, nie von selbst mitten
+im Betrieb. Gespeicherte Meldungen und die vergebenen Nummern bleiben
+unverändert. Vor dem Neuladen wird der halb ausgefüllte Entwurf gesichert und
+danach zurückgeholt; ein Entwurf ist aber keine gespeicherte Meldung. Vor
+dem Update eine laufende Meldung speichern, wenn sie fertig ist, und im
+Einsatz lieber erst nach einer ruhigen Phase aktualisieren. Das Update gilt
+für alle offenen Tabs und Fenster gleichzeitig.
+
+<!-- TODO(#13): Zusage zum Update (Entwurf, mehrere Tabs, Zeitpunkt) nach dem
+     Umbau der Update- und Entwurfslogik prüfen und wie im Werkzeug
+     formulieren. -->
 
 ## Einen Einsatz anlegen
 
@@ -188,8 +204,47 @@ nicht; so eine Uhrzeit nimmt das Formular nicht an.
 - <kbd>Esc</kbd> schließt zuerst offene Vorschläge. Bei ausgefülltem Formular fragt
   es dann **„Eingabe verwerfen?“**; ein zweites <kbd>Esc</kbd> heißt „weiter
   erfassen“. Nach dem Verwerfen holt „Rückgängig“ alles zurück.
-- Der halb ausgefüllte **Entwurf** wird laufend gesichert („✓ Entwurf
-  gesichert“) und ist auch nach einem Neuladen noch da.
+- Der halb ausgefüllte **Entwurf** wird laufend zwischengesichert („✓ Entwurf
+  gesichert“) und ist auch nach einem Neuladen noch da. Er ist **keine
+  gespeicherte Meldung**: Eine Nummer gibt es erst beim Speichern, und ein
+  Entwurf kann verloren gehen (siehe unten). Steht dort „Entwurf nicht
+  gesichert!“, ist er gerade nicht im Speicher.
+- **Gespeichert** heißt: Meldung und Nummer sind in einem Schritt im Speicher
+  abgeschlossen. Erst dann erscheint die Meldung im Meldebuch. Schlägt das
+  Speichern fehl („SPEICHERN FEHLGESCHLAGEN“), ist nichts vergeben, die Eingabe
+  steht noch im Formular, und es sollte sofort eine Sicherung (JSON)
+  heruntergeladen werden.
+
+### Wenn ein anderer Tab etwas geändert hat
+
+Ein Einsatz sollte nur in einem Tab oder Fenster bearbeitet werden. Passiert
+es doch, überschreibt das Meldebuch nichts stillschweigend:
+
+- **„NICHT GESPEICHERT – … wurde inzwischen geändert (z. B. in einem anderen
+  Tab oder Fenster)“:** Die Meldung (oder der Einsatz) wurde zwischen dem
+  Öffnen und dem Speichern woanders geändert. Es wurde **nichts**
+  geschrieben, die aktuelle Fassung ist geladen, Ihre Eingabe steht noch im
+  Formular. Prüfen und erneut speichern; übernommen werden dann nur die
+  Felder, die Sie selbst geändert haben.
+- **„ENTWURF NICHT GESICHERT – In einem anderen Tab oder Fenster liegt ein
+  anderer Entwurf für diesen Einsatz“:** Zwei Tabs haben je einen Entwurf.
+  Wählen Sie „Meinen Entwurf sichern (ersetzt den anderen)“ oder „Den
+  anderen Entwurf laden (ersetzt meine Eingabe)“. Es gibt immer nur einen
+  Entwurf je Einsatz.
+- **„ENTWURF PRÜFEN – Dieser Entwurf stammt aus einer älteren Version des
+  Werkzeugs …“:** Ein Entwurf, der eine gespeicherte Meldung bearbeitet, wurde
+  vor einem Update angelegt; es ist nicht bekannt, auf welcher Fassung er
+  beruht. Das Hinweisfeld nennt die abweichenden Felder. Mit „Entwurf auf die
+  aktuelle Fassung anwenden“ bleibt Ihre Eingabe im Formular, mit „Entwurf
+  verwerfen (gespeicherte Fassung laden)“ gilt die gespeicherte Fassung.
+  Bis zur Wahl wird nichts gespeichert.
+- **„ENTWURF – Die Meldung, die dieser Entwurf bearbeitet, gibt es in diesem
+  Einsatz nicht mehr“:** Der Entwurf steht im Formular und würde als **neue**
+  Meldung gespeichert, mit einer neuen Nummer.
+
+<!-- TODO(Screenshots): neue Aufnahmen für „NICHT GESPEICHERT“, „ENTWURF NICHT
+     GESICHERT“ und „ENTWURF PRÜFEN“ fehlen. Siehe die Liste am Ende der
+     Anleitung. -->
 
 ### Dringlichkeit
 
@@ -244,8 +299,8 @@ Geschäftsbuchnummer.
 
 Weiter bei der Meldung: **Antwort erfassen** (Richtung, Absender und Adressat
 vertauscht, Bezug gesetzt), **Bearbeiten** (die vorige Fassung bleibt
-gespeichert), **Ausdruck / PDF**, **Löschen** (die Nummer bleibt vergeben,
-wiederherstellbar unter „Gelöschte Meldungen“).
+gespeichert), **Ausdruck / PDF**, **Löschen** (die Nummer bleibt vergeben und wird **nie
+wieder verwendet**; wiederherstellbar unter „Gelöschte Meldungen“).
 
 ## Ausdruck und PDF
 
@@ -292,10 +347,54 @@ Zeitraum (Von/Bis je Datum und Uhrzeit; nur ein Datum = der ganze Tag).
   ein `'` vorangestellt, damit Excel sie nicht als Formel ausführt (Zahlen
   wie `-10` bleiben unverändert); die Meldung nach dem Herunterladen sagt,
   wie viele. Die Sicherung (JSON) enthält die Werte unverändert.
-- **Sicherung (JSON):** der ganze Einsatz mit gelöschten Meldungen und allen
-  Fassungen. Auf der Startseite mit „Sicherung importieren…“ wieder
-  einspielen, auch auf einem anderen Gerät. Bücher mehrerer Geräte lassen
-  sich so zusammenführen, wenn jedes Gerät ein eigenes Stationskürzel hat.
+- **Sicherung (JSON):** der ganze Einsatz mit gelöschten Meldungen, allen
+  Fassungen und den Nummernzählern, **unverschlüsselt**. Sie wird aus dem
+  gespeicherten Stand gelesen, also aus dem, was abgeschlossen ist (nicht
+  aus dem Entwurf). Kann der Speicher nicht gelesen werden, steht beim
+  Download „der Speicher war nicht lesbar, sie enthält den Stand dieses
+  Tabs“. Auf der Startseite mit „Sicherung importieren…“ wieder einspielen,
+  auch auf einem anderen Gerät. Bücher mehrerer Geräte lassen sich so
+  zusammenführen, wenn jedes Gerät ein eigenes Stationskürzel hat.
+
+### Gespeichert, Entwurf und Sicherung
+
+- **Gespeichert** (im Speicher abgeschlossen) und **Entwurf** (kann verloren
+  gehen): siehe [Speichern, Hinweise, Verwerfen](#speichern-hinweise-verwerfen).
+- **Download gestartet ist nicht Sicherung aufbewahrt.** „Sicherung (JSON)
+  heruntergeladen“ und die Zeit im Sicherungsstand heißen: Der Browser hat
+  die Datei bekommen. Ob sie vollständig ist und wo sie liegt, weiß das
+  Meldebuch nicht. Legen Sie die Datei an einen Ort, den Sie kontrollieren
+  (anderer Datenträger, USB-Stick, anderer Rechner), und probieren Sie den
+  Import aus.
+- **Import:** Die Datei wird vollständig geprüft, bevor etwas geschrieben
+  wird; ist sie als Ganzes unbrauchbar („Nicht importiert“), ändert sich
+  nichts. Einzelne fehlerhafte Datensätze werden **ausgelassen** und mit
+  Grund aufgelistet („Aus der Datei ausgelassen“); die übrigen werden
+  übernommen. Meldungen, deren Nummer oder ID schon mit einer anderen Meldung
+  belegt ist, und Antworten auf eine fehlende Meldung werden nicht
+  übernommen und mit ihrer Nummer genannt. Nummernzähler gehen nie zurück,
+  eine neuere Fassung gewinnt.
+- **Ersatzspeicher.** Steht in der Fußzeile „localStorage (Ersatzspeicher)“,
+  war IndexedDB nicht verfügbar. Der Ersatzspeicher ist klein (rund 5 MB) und
+  hat bei einer Adresse mit `http://` (statt HTTPS oder `localhost`) keine
+  Sperre zwischen Tabs: **zwei Tabs könnten dieselbe Nummer vergeben.** Das
+  ist eine bekannte Einschränkung; in diesem Fall nur einen Tab verwenden und
+  häufig sichern. Mit IndexedDB wird eine Nummer nie doppelt vergeben. Läuft
+  das Meldebuch später wieder mit IndexedDB, bietet es an, Datensätze aus
+  dem Ersatzspeicher zu übernehmen („In IndexedDB übernehmen“); dabei wird
+  nichts Vorhandenes überschrieben, Nummernzähler behalten den höheren Wert,
+  und was sich nicht übernehmen lässt (zum Beispiel „Nummer bereits
+  vergeben“), bleibt im Ersatzspeicher, wird mit Grund genannt und lässt
+  sich mit „Als JSON sichern“ herunterladen.
+- **Daten schützen.** Der Browser speichert die Daten und die Sicherungen
+  unverschlüsselt; der Verlauf der Fassungen schützt vor Versehen, nicht vor
+  Manipulation (es gibt keine Signatur). Festplattenverschlüsselung,
+  Sperrbildschirm und kein gemeinsames Benutzerkonto auf geteilten Geräten
+  sind Sache des Geräts. Der Browser trennt die Daten nach Adresse
+  (Rechnername und Port), nicht nach Verzeichnis: Andere Seiten derselben
+  Adresse können sie lesen. Für echte Einsätze das Meldebuch auf einer
+  eigenen Adresse bereitstellen. Die Offline-Datei und die Seite im Netz
+  haben getrennte Speicher; zum Umziehen die Sicherung verwenden.
 
 ## Tastatur
 
@@ -317,6 +416,18 @@ Zeitraum (Von/Bis je Datum und Uhrzeit; nur ein Datum = der ganze Tag).
 „? Hilfe“ oder <kbd>F1</kbd> öffnet die Kurzhilfe über dem Formular. Die Eingabe
 bleibt, wie sie ist; nach dem Schließen ist der Cursor wieder im vorigen
 Feld.
+
+## Hinweise zu dieser Anleitung
+
+<!-- TODO(Screenshots) nach der Textangleichung zu #13 neu aufnehmen
+     (`just screenshots`): notfunk-hinweis.png (Hinweise und Banner),
+     notfunk-meldung.png (Formular mit Entwurfsstatus), notfunk-meldebuch.png
+     (Sicherungsstand oben rechts), notfunk-meldung-detail.png (falls sich die
+     Bearbeiten-Hinweise ändern), notfunk-hilfe.png (Hilfetext). Neu
+     aufzunehmen: NICHT GESPEICHERT, ENTWURF NICHT GESICHERT, ENTWURF PRÜFEN. -->
+
+Die Hinweise bei Konflikten und Entwürfen stehen so im Werkzeug; ändert sich
+ihr Wortlaut, ändert sich diese Anleitung mit.
 
 ## Offene Abstimmungen
 
