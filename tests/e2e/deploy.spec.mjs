@@ -2,7 +2,7 @@
 // with it; serve.py reads them from it for `just e2e`). Caching: pages,
 // scripts, styles, data and the web manifests are revalidated, so a browser
 // never mixes files of two releases. File names are not hashed (README,
-// "Deployment").
+// "Using a release").
 import { test, expect } from './fixtures.mjs';
 
 const NO_CACHE = [

@@ -41,6 +41,17 @@ mv oe1ebg-tools-vX.Y.Z /srv/www/tools        # any directory / URL prefix
   late. File names are not hashed; the PWAs keep each release in their own
   versioned cache. See `deploy/nginx.conf.example` and
   `deploy/htaccess.example`.
+- **Security headers.** The examples send a Content-Security-Policy per
+  location (bundle files only; the two inline load-failure scripts by
+  sha256; the SOTA Alerts Map's API and tile hosts; `'unsafe-inline'` only
+  for the three single-file versions), `frame-ancestors 'none'` and
+  `X-Frame-Options: DENY` (framing can only be refused by a header),
+  `X-Content-Type-Options: nosniff` and
+  `Referrer-Policy: strict-origin-when-cross-origin`, also on error
+  responses. In nginx, a `location` with an `add_header` of its own drops
+  all inherited ones, so the example sets them once at server level. When
+  you adapt the policy, keep the hashes in step with the release
+  (`tests/deploy-headers.test.mjs` checks the examples).
 - **The data is frozen at build time.** Callsigns, repeaters, locations and
   summits are as of the build date. A weekly CI job rebuilds the current
   release with fresh data (see *Data refresh* below). To refresh an offline
@@ -48,6 +59,38 @@ mv oe1ebg-tools-vX.Y.Z /srv/www/tools        # any directory / URL prefix
 - **Single-file versions for `file://` use** (USB stick, no webserver) are
   in the bundle: `confirm/confirm-offline.html`,
   `notfunk/notfunk-offline.html` and `adif/adif-editor.html`.
+
+### Updating a deployment (atomically)
+
+Install each release into its own directory and switch a symlink, instead
+of copying a new release over the old one:
+
+```sh
+cd /srv/www                                   # the docroot, any prefix below it
+sha256sum -c oe1ebg-tools-vX.Y.Z.tar.gz.sha256
+mkdir -p releases && tar -C releases -xzf oe1ebg-tools-vX.Y.Z.tar.gz
+ln -sfn releases/oe1ebg-tools-vX.Y.Z tools.new
+mv -T tools.new tools                         # rename(2): the switch is atomic
+```
+
+`mv -T` is GNU coreutils (Linux); the first time, move a `tools` that is
+still a real directory out of the way. Rolling back is the same switch to
+the previous directory; delete old
+release directories once nobody needs them. The webserver must follow
+symlinks (nginx and Apache's `FollowSymLinks` do by default). Without
+symlinks, unpack next to the live directory and swap the two with `mv`.
+The release CI installs every tarball this way under `/a/b/tools/` before
+it is published (`validate-dist.yml`).
+
+Why it matters: an upload over the live directory is not atomic, and for a
+while the server has files of both releases. The service worker's precache
+version is a hash over the files at build time; it names the cache, but the
+browser does not check the bytes it downloads against it. A PWA that
+installs during a partial upload can therefore keep a mix of two releases
+in a cache with the new version's name until the next release. The same
+can happen to the pages without a service worker in a browser that loads
+them in that moment. This is a deployment hazard, not something observed
+on oe1ebg.at.
 
 ### Embedding in a site
 
@@ -100,15 +143,22 @@ just dist      # dist/oe1ebg-tools-<version>.tar.gz + .sha256
 ## Releases and data refresh
 
 - **`ci.yml`** runs on every push and PR: unit tests, the ADIF cross-checks,
-  the bundle build, the HTML check and the browser tests against the bundle
-  served by `deploy/nginx.conf.example`.
+  the bundle build with the real-data checks (`DATA_TESTS=require`), the HTML
+  check and the browser tests against the bundle served by
+  `deploy/nginx.conf.example`.
 - **`release.yml`** runs on a `vX.Y.Z` tag. It builds the bundle with fresh
-  data, runs the tests with the ADIF cross-checks required (a failure stops
-  the release) and attaches the tarball and checksums to the GitHub release.
-  The ADIF editor's compliance panel links the run that built it.
+  data, runs the tests with the ADIF cross-checks and the real-data checks
+  required, validates the exact tarball (`validate-dist.yml`: unpacked into
+  a release directory behind a symlink, served by nginx with the example
+  config, HTML check and browser tests in all five Playwright projects) and
+  only then attaches that tarball and its checksums to the GitHub release.
+  Any failure stops the release. The ADIF editor's compliance panel links
+  the run that built it.
 - **`data.yml`** runs weekly. It rebuilds the latest release tag with fresh
-  data and uploads the result to the rolling release `data-latest`, under the
-  same asset name and with its own `SHA256SUMS`. The data is built into the
+  data, validates the tarball the same way and uploads it to the rolling
+  release `data-latest`, under the same asset name and with its own
+  `SHA256SUMS` (new files first, stale ones of an older version removed
+  afterwards). The data is built into the
   offline bundles and the service-worker precache hash, so it cannot be
   swapped in separately; a data refresh always means a rebuild of the whole
   bundle at a fixed code version.

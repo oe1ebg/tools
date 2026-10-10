@@ -2,7 +2,7 @@ name: Validate the release tarball
 
 # Called by release.yml and data.yml before they publish: the exact
 # tarball (the `dist` artifact of the calling run, checked against its
-# .sha256) is unpacked and installed the way README.md ("Deployment")
+# .sha256) is unpacked and installed the way README.md ("Updating a deployment")
 # describes an atomic deployment: into its own release directory, made live
 # by a symlink, here under a deeper URL prefix than oe1ebg.at's (/a/b/tools/)
 # to show that nothing depends on /tools/. nginx serves it with
@@ -43,7 +43,7 @@ jobs:
           path: ${{ runner.temp }}/dist
 
       # releases/<name>/ is the unpacked tarball; a/b/tools is the symlink a
-      # deployment switches (ln -sfn + mv -T, README.md "Deployment").
+      # deployment switches (ln -sfn + mv -T, README.md "Updating a deployment").
       - name: Install the tarball (release directory + symlink)
         run: |
           cd "$RUNNER_TEMP/dist"
