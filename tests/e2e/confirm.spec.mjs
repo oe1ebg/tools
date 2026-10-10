@@ -207,6 +207,30 @@ test('a header write from a tab with a stale counter never lowers nextSeq', asyn
   expect((await storedEvent(page)).nextSeq).toBe(20);
 });
 
+test('an out-of-range stored counter is repaired by the next save', async ({ page }) => {
+  await openNewLog(page, 'E2E Zähler kaputt');
+  await logCall(page, 'OE1ABC');
+  await patchStoredEvent(page, { nextSeq: 1e15 });
+  await logCall(page, 'OE3XYZ');
+  const e = await storedEvent(page);
+  expect(e.nextSeq).toBe(3);
+  const backup = JSON.parse(await downloadText(await exportAs(page, 'json')));
+  expect(backup.events[0].entries.map(l => l.seq).sort()).toEqual([1, 2]);
+});
+
+test('a save while the header write is in flight keeps the typed title', async ({ page }) => {
+  await openNewLog(page, 'E2E Flug');
+  // slow the title write down: hold the events transaction open a moment
+  await page.locator('#log-title').fill('E2E Flug neu');
+  await page.waitForTimeout(450); // debounce fired, write in flight or done
+  await page.locator('#f-call').fill('OE1ABC');
+  await page.locator('#btn-save').click();
+  await expect(page.locator('#log-body')).toContainText('OE1ABC');
+  await expect(page.locator('#log-title')).toHaveValue('E2E Flug neu');
+  await page.locator('#log-title').fill('E2E Flug neu 2');
+  await expect.poll(() => storedEvent(page).then(e => e.title)).toBe('E2E Flug neu 2');
+});
+
 test('service worker installs the offline copy', async ({ page, browserName }) => {
   // Playwright drives service workers reliably only in Chromium.
   test.skip(browserName !== 'chromium', 'service workers: Chromium only');
