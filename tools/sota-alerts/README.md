@@ -276,6 +276,13 @@ entirely instead of needing a proxy.
   (`data/summit-lookup.json`) can't be loaded, the page warns, looks up at
   most 20 summits per visit live (`FALLBACK_LIVE_BUDGET`) instead of every
   one, and tries the list again on the next "refresh alerts".
+- Responses are checked before they replace anything (`parseAlerts()` in
+  `alerts.js`, the summit shapes in `summits.js`). The alerts feed must be
+  a list; single malformed alerts (no association/summit code or no
+  parseable date) are skipped with a warning, and a response that isn't a
+  list, or has no valid alert at all, counts as a failed refresh (last-
+  known alerts kept, marked). Summit, search, OSM and summit-list items
+  without valid coordinates are left out, never thrown on.
 - Times default to UTC (the ham-radio/ADIF convention), with a UTC/local
   toggle in the header (persisted in `localStorage`, same pattern as the
   light/dark/auto theme switch) controlling every alert-time display in the

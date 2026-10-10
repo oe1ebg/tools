@@ -4,19 +4,42 @@
 
 export const DEFAULT_RANGE_DAYS = 14; // default window width; see capDefaultToDate()
 
+const str = v => (typeof v === 'string' ? v : v == null ? '' : String(v));
+
 export function normalizeAlert(raw){
   return {
     id: raw.id,
-    dateActivated: raw.dateActivated || '',
-    associationCode: raw.associationCode || '',
-    summitCode: raw.summitCode || '',
-    summitDetails: raw.summitDetails || '',
-    frequency: raw.frequency || '',
-    comments: raw.comments || '',
-    activatingCallsign: raw.activatingCallsign || '',
-    activatorName: raw.activatorName || '',
-    posterCallsign: raw.posterCallsign || '',
+    dateActivated: str(raw.dateActivated),
+    associationCode: str(raw.associationCode),
+    summitCode: str(raw.summitCode),
+    summitDetails: str(raw.summitDetails),
+    frequency: str(raw.frequency),
+    comments: str(raw.comments),
+    activatingCallsign: str(raw.activatingCallsign),
+    activatorName: str(raw.activatorName),
+    posterCallsign: str(raw.posterCallsign),
   };
+}
+
+// An item of the feed that can be shown: an object with a summit
+// (association and summit code, non-empty strings) and a parseable date.
+export function isValidAlert(raw){
+  return !!raw && typeof raw === 'object' && !Array.isArray(raw)
+    && typeof raw.associationCode === 'string' && raw.associationCode !== ''
+    && typeof raw.summitCode === 'string' && raw.summitCode !== ''
+    && typeof raw.dateActivated === 'string' && Number.isFinite(Date.parse(raw.dateActivated));
+}
+
+// The alerts feed as received -> { alerts (normalized), skipped }.
+// Policy: the response must be an array (else it throws: a failed load);
+// single malformed items are skipped and counted (one bad alert shouldn't
+// hide the others), but if every item is malformed the response is
+// treated as broken and throws too. An empty array is a valid, empty feed.
+export function parseAlerts(data){
+  if (!Array.isArray(data)) throw new Error('unexpected response (not a list of alerts)');
+  const alerts = data.filter(isValidAlert).map(normalizeAlert);
+  if (data.length && !alerts.length) throw new Error('unexpected response (no valid alerts)');
+  return { alerts, skipped: data.length - alerts.length };
 }
 
 // "ASSOC/CODE", the key used for summits everywhere (map, pins, links).

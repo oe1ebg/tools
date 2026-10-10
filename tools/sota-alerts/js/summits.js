@@ -14,9 +14,15 @@ export function splitSummitKey(key){
   return { assoc, code: parts.join('/') };
 }
 
-// GET /api/summits/{assoc}/{code} -> summit record, or null without coordinates.
+// Coordinates as numbers within range, from any of the sources.
+export const isLatLon = (lat, lon) => typeof lat === 'number' && typeof lon === 'number'
+  && Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180;
+const isObject = v => !!v && typeof v === 'object' && !Array.isArray(v);
+
+// GET /api/summits/{assoc}/{code} -> summit record, or null without valid
+// coordinates (or for anything that isn't a summit object).
 export function summitFromApi(data, assoc, code, now = Date.now()){
-  if (data.latitude == null || data.longitude == null) return null;
+  if (!isObject(data) || !isLatLon(data.latitude, data.longitude)) return null;
   return {
     name: data.name || `${assoc}/${code}`,
     altM: data.altM,
@@ -29,14 +35,18 @@ export function summitFromApi(data, assoc, code, now = Date.now()){
 }
 
 // GET /api/summits/search/{term} result -> pin candidate.
+// null for a malformed item or one without valid coordinates.
 export function candidateFromSearchResult(r){
+  if (!isObject(r) || typeof r.summitCode !== 'string' || !r.summitCode.includes('/') || !isLatLon(r.latitude, r.longitude)) return null;
   return { key: r.summitCode, ...splitSummitKey(r.summitCode), name: r.name, altM: r.altM, points: r.points, lat: r.latitude, lon: r.longitude, locator: r.locator || null };
 }
 
 // An Overpass node tagged communication:amateur_radio:sota -> pin candidate.
+// null for a malformed element, one without a reference or coordinates.
 export function candidateFromOsmElement(el){
-  const key = el.tags && el.tags['communication:amateur_radio:sota'];
-  if (!key) return null;
+  if (!isObject(el) || !isObject(el.tags) || !isLatLon(el.lat, el.lon)) return null;
+  const key = el.tags['communication:amateur_radio:sota'];
+  if (typeof key !== 'string' || !key.includes('/')) return null;
   const pointsRaw = el.tags['communication:amateur_radio:sota:points'];
   return {
     key, ...splitSummitKey(key),
@@ -51,7 +61,10 @@ export function candidateFromOsmElement(el){
 // bonusPoints], oe1ebg/scripts/fetch_summits.py) -> Map<key, record>.
 export function lookupFromRows(rows){
   const map = new Map();
-  for (const [key, lat, lon, name, altM, points, bonusPoints] of rows){
+  for (const row of rows){
+    if (!Array.isArray(row)) continue;
+    const [key, lat, lon, name, altM, points, bonusPoints] = row;
+    if (typeof key !== 'string' || !isLatLon(lat, lon)) continue;
     const rec = { name, lat, lon, locator: null };
     if (altM != null) rec.altM = altM;
     if (points != null) rec.points = points;

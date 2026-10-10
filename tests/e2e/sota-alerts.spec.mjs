@@ -332,3 +332,42 @@ test('the built-in summit list fails: live lookups capped, a warning, retried on
   expect(lookupLoads).toBe(2);
   expect(live).toHaveLength(25); // the first 20 come from the local cache now
 });
+
+test('malformed alert responses are failed refreshes; the next valid one recovers', async ({ page }) => {
+  await page.route(TILE_HOSTS, route => route.fulfill({ contentType: 'image/png', body: TILE }));
+  const answers = [
+    route => route.fulfill({ json: alertsIn(3) }),
+    route => route.fulfill({ json: [null] }),
+    route => route.fulfill({ json: {} }),
+    route => route.fulfill({ contentType: 'text/html', body: '<html>busy</html>' }),
+    route => route.fulfill({ json: [...alertsIn(3), null, { id: 9 }] }), // two malformed items among valid ones
+  ];
+  let calls = 0;
+  await stubSota(page, {
+    '/api/alerts': route => answers[calls++](route),
+    '/api/summits/ZZ/TE-001': route => route.fulfill({ json: summitJson }),
+  });
+  await page.goto('tools/sota-alerts/');
+  const stats = page.locator('#stats');
+  const age = page.locator('#alerts-age');
+  const warnings = page.locator('#warnings');
+  await expect(stats).toHaveText('2 alerts · 2 summits on map · 0 yours');
+  await showToolbar(page);
+  const refresh = page.locator('#btn-refresh-alerts');
+
+  for (const reason of ['unexpected response (no valid alerts)', 'unexpected response (not a list of alerts)', 'alerts request failed: not a JSON response']) {
+    const before = calls;
+    await refresh.click();
+    await expect.poll(() => calls).toBe(before + 1);
+    await expect(warnings).toContainText(`could not refresh SOTA alerts (${reason}); still showing the alerts loaded at`);
+    await expect(stats).toHaveText('2 alerts · 2 summits on map · 0 yours');
+    await expect(age).toHaveClass(/stale/);
+    await expect(refresh).toBeEnabled();
+  }
+
+  await refresh.click();
+  await expect(age).not.toHaveClass(/stale/);
+  await expect(age).toHaveText(AGE);
+  await expect(stats).toHaveText('2 alerts · 2 summits on map · 0 yours');
+  await expect(warnings).toHaveText("⚠ 2 alerts in SOTA's feed were malformed and skipped.");
+});

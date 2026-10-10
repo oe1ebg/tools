@@ -5,7 +5,7 @@
 import { copyToClipboard } from '../../shared/js/dom.js';
 import { fetchAlerts, fetchSummit, searchSummits, searchOsmSummitsInView, fetchJson, SUMMIT_LOOKUP_URL, ALL_SUMMITS_URL } from './api.js';
 import {
-  normalizeAlert, computeDataBounds, filterAlertsByRange, capDefaultToDate, groupAlertsBySummit, alertSummitKey,
+  parseAlerts, computeDataBounds, filterAlertsByRange, capDefaultToDate, groupAlertsBySummit, alertSummitKey,
   matchesBandModeFilter, facetsPresent, BAND_SORT_ORDER, MODE_SORT_ORDER, parseOwnCallsigns, isOwnAlert,
 } from './alerts.js';
 import { formatAlertsBrief, timeDisplayPair } from './format.js';
@@ -209,9 +209,13 @@ const alertsTime = () => timeDisplayPair(alertsStatus.loadedAt.toISOString(), tr
 // Returns whether new alerts were loaded. A failed refresh keeps the alerts
 // already shown (marked as stale) rather than emptying the map.
 async function loadAlerts(){
-  let raw;
+  // Fetch, validate and derive everything first; only then replace the
+  // alerts on screen: a malformed response is a failed refresh like a
+  // network error and must not leave half-updated state behind.
+  let parsed, bounds;
   try {
-    raw = await fetchAlerts();
+    parsed = parseAlerts(await fetchAlerts());
+    bounds = computeDataBounds(parsed.alerts);
   } catch (err) {
     // a warning, not an error: the page says so in #warnings
     console.warn('could not load SOTA alerts:', err);
@@ -223,11 +227,16 @@ async function loadAlerts(){
     }
     return false;
   }
-  state.rawAlerts = raw.map(normalizeAlert);
+  state.rawAlerts = parsed.alerts;
+  state.bounds = bounds;
   alertsStatus.loadedAt = new Date();
   alertsStatus.stale = false;
   warnings.drop('alerts');
-  state.bounds = computeDataBounds(state.rawAlerts);
+  if (parsed.skipped){
+    warnings.add(`${parsed.skipped} alert${parsed.skipped === 1 ? '' : 's'} in SOTA's feed ${parsed.skipped === 1 ? 'was' : 'were'} malformed and skipped.`, 'alerts-skipped');
+  } else {
+    warnings.drop('alerts-skipped');
+  }
   if (state.bounds){
     const fromEl = $id('range-from');
     const toEl = $id('range-to');
@@ -409,7 +418,7 @@ async function doSummitSearch(term){
   const cacheKey = trimmed.toLowerCase();
   const cached = summitSearchCache.get(cacheKey);
   if (cached){
-    showCandidates(cached.map(candidateFromSearchResult).filter(c => c.lat != null), 'no summits found.');
+    showCandidates(cached.map(candidateFromSearchResult).filter(Boolean), 'no summits found.');
     return;
   }
 
@@ -424,7 +433,7 @@ async function doSummitSearch(term){
   }
   summitSearchCache.set(cacheKey, results);
   if (!run.isCurrent()) return;
-  showCandidates(results.map(candidateFromSearchResult).filter(c => c.lat != null), 'no summits found.');
+  showCandidates(results.map(candidateFromSearchResult).filter(Boolean), 'no summits found.');
 }
 
 async function doAreaSearch(){
@@ -445,7 +454,7 @@ async function doAreaSearch(){
   catch (err) { if (run.isCurrent()) hint(`OSM search failed (${err.message}).`); return; }
   finally { btn.disabled = false; }
   if (!run.isCurrent()) return;
-  const cands = elements.map(candidateFromOsmElement).filter(c => c && c.lat != null);
+  const cands = elements.map(candidateFromOsmElement).filter(Boolean);
   showCandidates(cands, 'no OSM-tagged SOTA summits found in this view (coverage is partial — most summits aren\'t tagged in OSM yet).');
 }
 
