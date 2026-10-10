@@ -56,7 +56,7 @@ const EXPECTED = {
   'truncated.adi': { valid: false, errors: ['MISSING_EOR', 'TRUNCATED_FIELD'], warnings: ['MISSING_QSO_FIELD'] },
   'headerless.adi': { valid: true, errors: [], warnings: [], infos: ['NO_HEADER'] },
   // literal <EOR>, <EOH>, <CALL:4> inside values whose declared length is right (issue #12)
-  'tag-in-value.adi': { valid: true, errors: [], warnings: ['TAG_IN_VALUE', 'TAG_IN_VALUE', 'TAG_IN_VALUE'] },
+  'tag-in-value.adi': { valid: true, errors: [], warnings: ['TAG_IN_VALUE', 'RECORD_END_IN_VALUE', 'TAG_IN_VALUE'] },
   'userdef-typed.adi': { valid: true, errors: [], warnings: [], infos: ['APP_FIELD_WITHOUT_TYPE'] },
 };
 
@@ -109,9 +109,14 @@ test('tag-shaped text inside a value: the declared length counts (IV.A.1), a wro
   for (const [text, label] of [[q('a <EOR> b') + ' <EOR>', 'blank after'], [q('a <EOR> b') + '<EOR>', 'tag after'], [q('<EOR>'), 'end of file']]) {
     const x = check(text);
     assert.ok(!codes(x).includes('FIELD_LENGTH_MISMATCH'), `${label}: ${codes(x)}`);
-    assert.ok(codes(x).includes('TAG_IN_VALUE'), label);
+    assert.ok(codes(x).includes('RECORD_END_IN_VALUE') && !codes(x).includes('TAG_IN_VALUE'), label);
     assert.equal(x.records[0].fields.NOTES, text.includes('a <EOR> b') ? 'a <EOR> b' : '<EOR>', label);
   }
+  // A too long length that swallows exactly "<EOR>" + separator merges two
+  // QSOs; valid per spec, but it gets the clearer RECORD_END_IN_VALUE warning.
+  const swallowed = check('h\n<EOH><CALL:6>OE1ABC <NOTES:10>abc <EOR>\n<CALL:6>OE3XYZ <EOR>');
+  assert.equal(swallowed.records.length, 1);
+  assert.deepEqual(swallowed.issues.filter(i => i.severity !== 'info').map(i => i.code).filter(c => c !== 'MISSING_QSO_FIELD'), ['RECORD_END_IN_VALUE', 'DUPLICATE_FIELD']);
   // Malformed lengths keep their errors: too long into the next tag ...
   const long = check('h\n<EOH><CALL:9>OE1ABC <EOR><CALL:6>OE3XYZ <EOR>');
   assert.ok(codes(long).includes('FIELD_LENGTH_MISMATCH'));

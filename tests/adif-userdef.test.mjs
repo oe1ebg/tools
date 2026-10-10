@@ -26,7 +26,25 @@ test('parseADIF: tag-shaped text inside values, also "<EOH>" in a header value, 
   assert.equal(r.records[0].fields.NOTES, 'a <EOR> b <CALL:4>OE1A');
 });
 
-const TYPED = 'hdr\r\n<ADIF_VER:5>3.1.7\r\n<USERDEF1:14:M>QSO_TRANSCRIPT\r\n<USERDEF2:21:E>ANTENNA,{DIPOLE,YAGI}\r\n' +
+test('parseADIF: a header length running past <EOH> keeps the other header fields and USERDEFs', () => {
+  const text = 'hdr <ADIF_VER:5>3.1.7 <USERDEF1:6:N>MYNUMB <PROGRAMID:30>X <USERDEF2:5:S>OTHER <EOH>\n<CALL:4>OE1A <MYNUMB:1>5 <EOR>\n';
+  const warnings = [], header = {}, defs = {};
+  const recs = parseADIF(text, warnings, 'f', header, undefined, defs);
+  assert.deepEqual(recs, [{ CALL: 'OE1A', MYNUMB: '5' }]);
+  assert.deepEqual(header, { ADIF_VER: '3.1.7', PROGRAMID: 'X' });
+  assert.deepEqual(defs.userdefs.map(u => u.spec), ['MYNUMB', 'OTHER'], 'before and after the bad field');
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /^f: header field PROGRAMID .*past <EOH>/);
+  // the export keeps the declaration; the validator reports the bad length of the source
+  const fieldDefs = emptyFieldDefs();
+  mergeFieldDefs(fieldDefs, defs, 'f');
+  const out = serializeADIF(recs, ['CALL', 'MYNUMB'], STAMP, fieldDefs);
+  assert.ok(out.includes('<USERDEF1:6:N>MYNUMB'));
+  assert.ok(!validateAdif(out, { today: '20991231' }).issues.some(i => i.code === 'UNKNOWN_FIELD'));
+  assert.ok(validateAdif(text, { today: '20991231' }).issues.some(i => i.code === 'FIELD_LENGTH_MISMATCH' && i.field === 'PROGRAMID'));
+});
+
+const TYPED ='hdr\r\n<ADIF_VER:5>3.1.7\r\n<USERDEF1:14:M>QSO_TRANSCRIPT\r\n<USERDEF2:21:E>ANTENNA,{DIPOLE,YAGI}\r\n' +
   '<USERDEF3:16:N>ELEVATION,{0:90}\r\n<USERDEF4:6:S>MY_AMP\r\n<EOH>\r\n' +
   '<CALL:6>OE1ABC <QSO_DATE:8>20261004 <TIME_ON:4>1902 <BAND:2>2m <MODE:2>FM <QSO_TRANSCRIPT:16>NAME FRED\r\n73 GL ' +
   '<ANTENNA:4>YAGI <ELEVATION:2>45 <MY_AMP:4>1 KW <APP_OE1EBG_RATING:1:N>5 <APP_OE1EBG_WX:18:M>Cloudy\r\nLight rain ' +
