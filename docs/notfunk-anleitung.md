@@ -55,10 +55,17 @@ eine neue Sicherung (JSON) herunter.
 | --- | --- | --- |
 | Einsatz / Übung | Name des Einsatzes | Übung Blackout Wien |
 | Stationskürzel | steht vor jeder Nummer; jedes Gerät bzw. jede Station eines Einsatzes bekommt ein eigenes | W1 |
-| Standort der Station | wo das eigene Funkgerät steht; steht oben im Ausdruck | Lichtinsel 12 Floridsdorf |
-| Operator | wer am Gerät aufnimmt | OE1EBG |
+| **Eigene Station:** | | |
+| Stationsrufzeichen | Rufzeichen der eigenen Funkstation, z. B. die Klubstation; kann vom Rufzeichen des Operators abweichen | OE1XKS |
+| Standort der Station (Adresse) | wo das eigene Funkgerät steht; steht oben im Ausdruck | Lichtinsel 12 Floridsdorf |
 | Für Stelle | für wen die Station arbeitet: Adressat eingehender und Absender ausgehender Meldungen, solange nichts anderes eingetragen ist | Stab |
 | Frequenz, Relais | Vorgabe für neue Meldungen | 145,500 · OE1XUU |
+| **Am Gerät:** | | |
+| Operator | wer am Gerät aufnimmt; beim Schichtwechsel ändern | OE1EBG |
+
+Stationsrufzeichen und Operator werden bei jeder Meldung mitgespeichert: Im
+Ausdruck steht „Aufgenommen von OE1EBG, an Station OE1XKS“, im Geschäftsbuch
+(CSV) gibt es eine Spalte „Stationsrufzeichen“.
 
 Alles außer dem Stationskürzel lässt sich später im aufklappbaren Feld
 **„Einsatz“** über dem Formular ändern; Änderungen gelten für neue Meldungen.
@@ -136,7 +143,7 @@ Unter **„Weitere Felder“**:
 
 - **Ort:** wo das Ereignis ist.
 - **Ursprungsort:** wo die Meldung aufgegeben wurde.
-- **Standort der Station:** wo das eigene Funkgerät steht; wird im Einsatz
+- **Standort der Station (Adresse):** wo das eigene Funkgerät steht; wird im Einsatz
   eingetragen, nicht bei der Meldung.
 
 Die Ortssuche schlägt Wiener Adressen, Orte, Plätze und Haltestellen vor und

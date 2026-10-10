@@ -135,7 +135,9 @@ export function readBackLabel(direction) {
 }
 
 // A new message record. numbered: { prefix, seq, number } from
-// numbering.saveNumbered(); meta: { id, opId, operator, now }.
+// numbering.saveNumbered(); meta: { id, opId, operator, stationCall, now }
+// (the own station's callsign and the operator as they were when it was
+// taken down: a later change of the operation leaves them as they are).
 export function newMessage(fields, numbered, meta) {
   const f = messageFields(fields);
   const errs = validateMessage(f);
@@ -145,6 +147,7 @@ export function newMessage(fields, numbered, meta) {
     prefix: numbered.prefix, seq: numbered.seq, number: numbered.number,
     ...f,
     operator: trimmed(meta.operator).toUpperCase(),
+    stationCall: trimmed(meta.stationCall).toUpperCase(),
     status: [{ state: 'logged', at: meta.now, by: trimmed(meta.operator).toUpperCase(), note: '' }],
     attempts: [],
     created: meta.now, updated: meta.now, deleted: null,

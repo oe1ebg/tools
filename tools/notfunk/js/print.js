@@ -52,7 +52,7 @@ export function formSheet(msg, op, { now, revisions = 0, byId = new Map() }) {
     : [fwd?.to || '', fwd ? viennaTime(fwd.at) : '', ack?.who || '', ack ? viennaTime(ack.at) : ''];
   return {
     title: op?.name || '',
-    station: [op?.prefix, op?.station].filter(Boolean).join(' '),
+    station: [op?.prefix, msg.stationCall || op?.call, op?.station].filter(Boolean).join(' · '),
     number: msg.number,
     deleted: !!msg.deleted,
     direction: msg.direction,
@@ -82,6 +82,7 @@ export function formSheet(msg, op, { now, revisions = 0, byId = new Map() }) {
         ? `Ursprung: ${[msg.origin.station, msg.origin.place, msg.origin.filed ? `aufgegeben ${fmtVienna(msg.origin.filed)}` : ''].filter(Boolean).join(' · ')}` : '',
     ].filter(Boolean).join(' · '),
     operator: msg.operator,
+    stationCall: msg.stationCall || '',
     remarks: msg.remarks || '',
     handoverHeads: HANDOVER_HEADS[msg.direction] || HANDOVER_HEADS.in,
     handover,
@@ -108,7 +109,7 @@ export function blankFormSheet(op, { now }) {
     type: '', types: paperOptions(Object.entries(MESSAGE_TYPES), null),
     from: '', to: '', peer: '', distribution: '', subject: '', location: '', ref: '', text: '',
     readBack: false, readBackLabel: 'Rücklesen erfolgt und als richtig bestätigt',
-    extra: '', operator: '', remarks: '',
+    extra: '', operator: '', stationCall: '', remarks: '',
     handoverHeads: HANDOVER_HEADS.blank, handover: ['', '', '', ''], handoverDone: false,
     status: '', printed: fmtVienna(now), version: null,
   };
@@ -132,7 +133,7 @@ export function bookSheet(msgs, op, { now, fromIso = null, toIso = null }) {
     });
   return {
     title: op?.name || '',
-    station: [op?.prefix, op?.station].filter(Boolean).join(' '),
+    station: [op?.prefix, op?.call, op?.station].filter(Boolean).join(' · '),
     range: fromIso || toIso ? `${fromIso ? fmtVienna(fromIso) : 'Beginn'} bis ${toIso ? fmtVienna(toIso) : 'jetzt'}` : 'gesamter Einsatz',
     printed: fmtVienna(now),
     rows,

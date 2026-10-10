@@ -33,7 +33,7 @@ export const GB_COLUMNS = [
   'Notfunk-Nr.', 'Referenz Meldesammelstelle', 'Datum', 'Uhrzeit', 'Zeitstempel (ISO 8601)', 'Ein/Aus', 'eingegangen von / weitergeleitet an', 'Betreff', 'Inhalt',
   'Art', 'Dringlichkeit', 'Übermittlung', 'Funkstelle', 'Frequenz/Relais', 'Absender', 'Adressat', 'Verteiler',
   'Rücklesen bestätigt', 'Status', 'Übergeben / übertragen an', 'Übergeben / übertragen um', 'Übernommen / Empfang bestätigt durch',
-  'Bezug', 'Ort', 'Aufgenommen von', 'Erfasst', 'Anmerkungen',
+  'Bezug', 'Ort', 'Aufgenommen von', 'Stationsrufzeichen', 'Erfasst', 'Anmerkungen',
 ];
 
 export function toGeschaeftsbuchCSV(msgs, sep = ';') {
@@ -52,7 +52,7 @@ export function toGeschaeftsbuchCSV(msgs, sep = ';') {
       m.readBack ? 'ja' : '', statusLabel(currentStatus(m), m.direction),
       fwd?.to || '', fwd ? viennaTime(fwd.at) : '', ack ? [ack.who, viennaTime(ack.at)].filter(Boolean).join(' ') : '',
       ref ? `${REF_KINDS[m.refKind] || REF_KINDS.antwort} ${ref}` : '',
-      m.location ? m.location.label || `${m.location.lat}, ${m.location.lon}` : '', m.operator, fmtVienna(m.created), m.remarks,
+      m.location ? m.location.label || `${m.location.lat}, ${m.location.lon}` : '', m.operator, m.stationCall || '', fmtVienna(m.created), m.remarks,
     ]);
   }
   return '\ufeff' + rows.map(r => r.map(v => csvField(v, sep)).join(sep)).join('\r\n') + '\r\n';

@@ -16,7 +16,7 @@ const base = {
 };
 let k = 0;
 function msg(fields = {}, seq = ++k, operator = 'oe1xyz') {
-  return newMessage({ ...base, ...fields }, { prefix: 'W1', seq, number: formatNumber('W1', seq) }, { id: `m${seq}`, opId: 'op1', operator, now: T0 });
+  return newMessage({ ...base, ...fields }, { prefix: 'W1', seq, number: formatNumber('W1', seq) }, { id: `m${seq}`, opId: 'op1', operator, stationCall: 'oe1xks', now: T0 });
 }
 
 test('newMessage: normalised, verbatim text, initial status', () => {
@@ -27,6 +27,7 @@ test('newMessage: normalised, verbatim text, initial status', () => {
   assert.equal(m.radio.via, 'OE1XUU');
   assert.equal(m.text, 'Seit 13:50 Uhr kein Strom\nim Bereich Am Spitz.  Bitte um Info.');
   assert.equal(m.operator, 'OE1XYZ');
+  assert.equal(m.stationCall, 'OE1XKS', 'the own station callsign, kept with the message');
   assert.equal(currentStatus(m), 'logged');
   assert.equal(m.priority, 'routine');
   assert.equal(m.deleted, null);
@@ -127,7 +128,7 @@ test('Geschäftsbuch CSV', () => {
   assert.equal(lines[0].split(';').length, GB_COLUMNS.length);
   assert.match(lines[1], /^W1-020;;2026-10-05;14:07;2026-10-05T14:07:00\+02:00;Eingang;Lichtinsel Floridsdorf \/ OE1ABC;Stromausfall;"Seit 13:50 Uhr kein Strom\nim Bereich Am Spitz\.  Bitte um Info\.";Meldung;Dringend;Funk;;145,500 via OE1XUU;/);
   assert.match(lines.slice(2).join('\n'), /^W1-021;;.*;Ausgang;LI Floridsdorf \/ OE1ABC;"Re; Strom";/m);
-  assert.match(lines.slice(2).join('\n'), /;zur Übertragung;;;;Antwort auf W1-020;;OE1XYZ;2026-10-05 14:07;$/m);
+  assert.match(lines.slice(2).join('\n'), /;zur Übertragung;;;;Antwort auf W1-020;;OE1XYZ;OE1XKS;2026-10-05 14:07;$/m);
   assert.ok(!csv.includes('W1-022'), 'deleted messages are not in the Geschäftsbuch');
 });
 
