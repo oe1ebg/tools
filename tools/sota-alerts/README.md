@@ -278,11 +278,15 @@ entirely instead of needing a proxy.
   one, and tries the list again on the next "refresh alerts".
 - Responses are checked before they replace anything (`parseAlerts()` in
   `alerts.js`, the summit shapes in `summits.js`). The alerts feed must be
-  a list; single malformed alerts (no association/summit code or no
-  parseable date) are skipped with a warning, and a response that isn't a
-  list, or has no valid alert at all, counts as a failed refresh (last-
-  known alerts kept, marked). Summit, search, OSM and summit-list items
-  without valid coordinates are left out, never thrown on.
+  a list; single malformed alerts (no association/summit code, or a date
+  not starting `YYYY-MM-DDT`) are skipped with a warning, and a response
+  that isn't a list, or has no valid alert at all, counts as a failed
+  refresh (last-known alerts kept, marked). Summit, search and OSM items
+  without valid coordinates are left out, never thrown on. The build-time
+  data files must be non-empty arrays with at least 90% valid rows
+  (`checkedRows()`); otherwise the load fails — for the summit list that
+  means the capped live fallback and a warning, never an empty list that
+  would send every summit to the live API.
 - Times default to UTC (the ham-radio/ADIF convention), with a UTC/local
   toggle in the header (persisted in `localStorage`, same pattern as the
   light/dark/auto theme switch) controlling every alert-time display in the

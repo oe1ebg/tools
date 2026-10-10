@@ -304,7 +304,9 @@ test('the built-in summit list fails: live lookups capped, a warning, retried on
   await page.route(TILE_HOSTS, route => route.fulfill({ contentType: 'image/png', body: TILE }));
   let lookupLoads = 0;
   await page.route('**/data/summit-lookup.json', route => (++lookupLoads === 1
-    ? route.fulfill({ contentType: 'application/json', body: '{"truncated' }) // broken the first time
+    // the first time valid JSON in the wrong format (a changed file): a
+    // failed load, not an empty list that sends every summit to the API
+    ? route.fulfill({ json: { summits: [] } })
     : route.continue()));
   const at = new Date(Date.now() + 3 * 3600_000).toISOString().slice(0, 19);
   // 25 alerted summits that are in no lookup

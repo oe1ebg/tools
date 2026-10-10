@@ -10,7 +10,7 @@ import {
 } from '../tools/sota-alerts/js/alerts.js';
 import { timeDisplayPair, formatAlertsBrief } from '../tools/sota-alerts/js/format.js';
 import {
-  splitSummitKey, isLatLon, summitFromApi, candidateFromSearchResult, candidateFromOsmElement, lookupFromRows,
+  splitSummitKey, isLatLon, summitsFromRecords, summitFromApi, candidateFromSearchResult, candidateFromOsmElement, lookupFromRows,
   summitMetaLine, referenceDiff, referenceDiffText, sotlasPointsColor, summitLinks, sotlasMapUrl,
 } from '../tools/sota-alerts/js/summits.js';
 import { shareSearch, parseShareSearch, normalizeSummitRef, sharedLinkKeys, MAX_SHARED_PINS, MAX_SHARED_LIVE_LOOKUPS } from '../tools/sota-alerts/js/share.js';
@@ -458,6 +458,11 @@ test('parseAlerts: the feed must be a list; malformed items skipped, all malform
   assert.equal(alerts[0].frequency, '7.032'); // every field a string
   assert.equal(isValidAlert(ok), true);
   assert.equal(isValidAlert({ ...ok, dateActivated: null }), false);
+  // only YYYY-MM-DDT…, what the date window reads; not whatever Date.parse accepts
+  for (const d of ['2026-10-7T08:00:00', '2026-10-07', '10/07/2026 08:00', '2026-13-45T08:00:00', 'Oct 7 2026']) {
+    assert.equal(isValidAlert({ ...ok, dateActivated: d }), false, d);
+  }
+  assert.equal(isValidAlert({ ...ok, dateActivated: '2026-10-07T08:00:00Z' }), true);
 });
 
 test('summit shapes: malformed API, search and OSM data gives null, never a throw', () => {
@@ -471,6 +476,19 @@ test('summit shapes: malformed API, search and OSM data gives null, never a thro
     { lat: 1, lon: 1, tags: { 'communication:amateur_radio:sota': 5 } }]) {
     assert.equal(candidateFromOsmElement(bad), null, JSON.stringify(bad));
   }
-  const lookup = lookupFromRows([null, ['A/B-001'], ['A/B-002', 1, 2, 'ok'], 'x', [5, 1, 2]]);
-  assert.deepEqual([...lookup.keys()], ['A/B-002']);
+  // a broken or changed file throws (-> a failed load, capped live lookups), never an empty map
+  for (const bad of [null, {}, 'x', [], [null, ['A/B-001'], ['A/B-002', 1, 2, 'ok'], 'x', [5, 1, 2]]]) {
+    assert.throws(() => lookupFromRows(bad), /summit list/, JSON.stringify(bad));
+  }
+  // a few bad rows among many good ones are skipped
+  const rows = Array.from({ length: 19 }, (_, i) => [`A/B-${100 + i}`, 1, 2, 'ok']);
+  const lookup = lookupFromRows([...rows, ['A/B-999', 'x', 2, 'bad']]);
+  assert.equal(lookup.size, 19);
+  assert.ok(!lookup.has('A/B-999'));
+  // the same for the all-summits overlay data
+  const recs = Array.from({ length: 10 }, (_, i) => ({ key: `A/B-${100 + i}`, lat: 1, lon: 2, name: 'x' }));
+  assert.equal(summitsFromRecords(recs).length, 10);
+  for (const bad of [null, [], { key: 'A/B-001' }, [...recs.slice(0, 5), null, null, 1, {}, { key: 'A/B-001' }]]) {
+    assert.throws(() => summitsFromRecords(bad), /all-summits data/, JSON.stringify(bad));
+  }
 });
