@@ -1470,8 +1470,12 @@ function wire() {
     searchTimer = setTimeout(() => { state.query = $('#book-search').value; renderBook(); }, 150);
   });
   $('#btn-csv').addEventListener('click', () => {
-    download(toGeschaeftsbuchCSV(state.msgs), `${fileStem()}.csv`, 'text/csv');
-    bookStatus('Geschäftsbuch (CSV) heruntergeladen');
+    const csvStats = { guarded: 0 };
+    download(toGeschaeftsbuchCSV(state.msgs, ';', csvStats), `${fileStem()}.csv`, 'text/csv');
+    // Cells that started like a formula got a leading ' (../shared/js/csv.js).
+    bookStatus('Geschäftsbuch (CSV) heruntergeladen', csvStats.guarded
+      ? ` · ${csvStats.guarded} ${csvStats.guarded === 1 ? 'Wert' : 'Werte'} mit vorangestelltem ' (Anfang =, +, -, @ oder Steuerzeichen: Schutz vor Formeln im Tabellenprogramm; die JSON-Sicherung bleibt unverändert)`
+      : '');
   });
   $('#btn-backup').addEventListener('click', exportBackup);
   $('#st-backup').addEventListener('click', exportBackup);

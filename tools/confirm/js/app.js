@@ -1823,6 +1823,17 @@ function showEmptyAdif(entries) {
   ok.focus();
 }
 
+// The CSV is written, but some cells started like a spreadsheet formula
+// (= + - @): they got a leading ' (../shared/js/csv.js). Say so.
+function showCsvGuarded(n) {
+  const box = $('#export-msg');
+  const ok = el('button', { type: 'button', onclick: () => { box.hidden = true; } }, 'OK');
+  fill(box, el('strong', {}, `CSV: ${n} ${n === 1 ? 'Wert' : 'Werte'} mit vorangestelltem ' `),
+    "Sie beginnen mit =, +, -, @ oder einem Steuerzeichen; Tabellenprogramme würden sie sonst als Formel ausführen. Zahlen wie -10 bleiben unverändert; ADIF und JSON-Sicherung enthalten die Werte ohne '.",
+    ok);
+  box.hidden = false;
+}
+
 // Lines a logbook program would reject or misfile (no frequency, no mode,
 // header values that aren't a callsign/locator): say so before exporting.
 function showAdifIssues(issues) {
@@ -1872,8 +1883,10 @@ async function doExport(kind, force = false) {
   const qth = ['csv', 'adif', 'kml', 'summary'].includes(kind) ? await qthResolver(ev, entries) : null;
   if (kind === 'csv') {
     const sep = prefGet(CSV_SEP_KEY, ';');
-    download(toCSV(ev, entries, sep, { comments: $('#csv-comments').checked, qth }), fileBase(ev) + '.csv', 'text/csv');
+    const csvStats = { guarded: 0 };
+    download(toCSV(ev, entries, sep, { comments: $('#csv-comments').checked, qth, stats: csvStats }), fileBase(ev) + '.csv', 'text/csv');
     markExported();
+    if (csvStats.guarded) showCsvGuarded(csvStats.guarded);
   } else if (kind === 'adif') {
     // ADIF only holds QSOs: an empty file (header only) looks like a
     // broken export in a logbook program, so say why there is none.

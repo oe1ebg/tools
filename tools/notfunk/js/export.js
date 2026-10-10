@@ -16,14 +16,10 @@
 
 import { DIRECTIONS, CHANNELS, MESSAGE_TYPES, PRIORITIES, REF_KINDS, statusLabel, statusEntry, currentStatus, liveMessages, fmtVienna, viennaDate, viennaTime, isoVienna, fmtFreq } from './model.js';
 import { counterAfterImport } from './numbering.js';
+import { csvSafeRows } from '../../shared/js/csv.js';
 
 export const BACKUP_FORMAT = 'oe1ebg-notfunk-backup';
 export const BACKUP_VERSION = 1;
-
-function csvField(v, sep) {
-  const s = String(v ?? '');
-  return s.includes(sep) || /["\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
 
 function partyLabel(p) {
   return [p.name, p.call && p.call !== p.name ? p.call : ''].filter(Boolean).join(' / ');
@@ -36,7 +32,9 @@ export const GB_COLUMNS = [
   'Bezug', 'Ort', 'Aufgenommen von', 'Stationsrufzeichen', 'Erfasst', 'Anmerkungen',
 ];
 
-export function toGeschaeftsbuchCSV(msgs, sep = ';') {
+// stats (optional object): .guarded = number of cells that got a leading '
+// because they started like a spreadsheet formula (../../shared/js/csv.js).
+export function toGeschaeftsbuchCSV(msgs, sep = ';', stats) {
   const byId = new Map(msgs.map(m => [m.id, m]));
   const rows = [GB_COLUMNS];
   for (const m of liveMessages(msgs)) {
@@ -55,7 +53,7 @@ export function toGeschaeftsbuchCSV(msgs, sep = ';') {
       m.location ? m.location.label || `${m.location.lat}, ${m.location.lon}` : '', m.operator, m.stationCall || '', fmtVienna(m.created), m.remarks,
     ]);
   }
-  return '\ufeff' + rows.map(r => r.map(v => csvField(v, sep)).join(sep)).join('\r\n') + '\r\n';
+  return '\ufeff' + csvSafeRows(rows, sep, stats) + '\r\n';
 }
 
 export function toBackup({ operation, messages, revisions, counters }, now) {

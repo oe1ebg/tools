@@ -269,6 +269,12 @@ also shows in print).
   The location columns (resolved location, locator, UTMREF) are listed
   further down, under the location lookup's "Export" and
   [UTMREF](#utmref-utm-grid-reference-issue-55).
+  Spreadsheet-safe (`../shared/js/csv.js`, policy in `../shared/README.md`,
+  "CSV exports"): a value starting with `=`, `+`, `-`, `@` or a control
+  character (a note like `- Akku leer`) gets a leading `'`, so Excel doesn't
+  run it as a formula; plain numbers like `-10` stay as they are. The
+  export bar (`#export-msg`) says how many values got one. ADIF and the JSON
+  backup keep the values without it.
 - **ADIF 3.1.7 (`.adi`).** The output is ASCII only, with German characters
   transliterated (ä → ae, ß → ss).
   - Standard fields: `CALL`, `QSO_DATE`, `TIME_ON`, `OPERATOR`,

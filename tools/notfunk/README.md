@@ -197,7 +197,9 @@ name, and a distribution list ("Verteiler").
 - `js/model.js`: the message record (fields, validation, edit with revision,
   soft delete, status steps per direction, attempts, the announcement,
   filters, time and frequency formatting).
-- `js/export.js`: Geschäftsbuch CSV, JSON backup, restore merge (by id,
+- `js/export.js`: Geschäftsbuch CSV (spreadsheet-safe cells via
+  `../shared/js/csv.js`, see `../shared/README.md`, "CSV exports"; the
+  book's status line says how many got a leading `'`), JSON backup, restore merge (by id,
   newer `updated` wins, number clashes reported, counters never lowered).
 - From `tools/shared/` (shared with the confirmation log): `storage.js`
   (IndexedDB, `atomic()` for the numbering), `offline.js` and `sw-core.js`
