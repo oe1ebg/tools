@@ -162,7 +162,7 @@ test('fallback records are found and moved into IndexedDB without overwriting an
     };
   });
   expect(r.found).toEqual({
-    total: 4, pending: 3, conflicts: 1, unreadable: 0, conflictsSeen: false, stores: { messages: 3, counters: 1 }, journal: false,
+    total: 4, pending: 3, conflicts: 1, unreadable: 0, reasons: { conflict: 1 }, conflictsSeen: false, stores: { messages: 3, counters: 1 }, journal: false,
   });
   expect(r.lsBoth).toBe('ls');
   expect(r.res).toEqual({ copied: 1, merged: 1, identical: 1, kept: [{ store: 'messages', key: 'both', reason: 'conflict' }] });
@@ -171,7 +171,7 @@ test('fallback records are found and moved into IndexedDB without overwriting an
   expect(r.left).toEqual(['st-move:v1:messages:both', 'st-move:v1:probe']);
   // what stays is not offered again as pending, and can be dismissed
   expect(r.again).toEqual({
-    total: 1, pending: 0, conflicts: 1, unreadable: 0, conflictsSeen: false, stores: { messages: 1 }, journal: false,
+    total: 1, pending: 0, conflicts: 1, unreadable: 0, reasons: { conflict: 1 }, conflictsSeen: false, stores: { messages: 1 }, journal: false,
   });
   expect(r.dismissed.conflictsSeen).toBe(true);
 });
@@ -212,7 +212,7 @@ test('Notfunk migration: a taken message number is kept, never duplicated', asyn
   expect(r.counter).toBe(2);
   expect(r.revisions).toBe(0);
   expect(r.left).toEqual(['oe1ebg-notfunk:v1:messages:B', 'oe1ebg-notfunk:v1:revisions:rB']);
-  expect(r.found).toMatchObject({ total: 2, pending: 0, conflicts: 2 });
+  expect(r.found).toMatchObject({ total: 2, pending: 0, conflicts: 2, reasons: { duplicate: 1, parent: 1 } });
 });
 
 // In the app: the notices use their own box, the page's error banner keeps
@@ -250,7 +250,7 @@ test('Notfunk: fallback notices leave the error banner alone and resolve', async
     localStorage.setItem('oe1ebg-notfunk:v1:operations:op-ls', JSON.stringify({ id: 'op-ls', name: 'anders', updated: '2026-10-02T10:00:00Z' }));
   });
   await reload();
-  await expect(note).toContainText('weichen von den gespeicherten ab');
+  await expect(note).toContainText('1 × weicht vom gespeicherten ab');
   await expect(note.getByRole('button', { name: 'In IndexedDB übernehmen' })).toHaveCount(0);
   await note.getByRole('button', { name: 'Ausblenden' }).click();
   await expect(note).toBeHidden();
@@ -263,7 +263,7 @@ test('Notfunk: fallback notices leave the error banner alone and resolve', async
     localStorage.setItem('oe1ebg-notfunk:v1:messages:broken', '{not json');
   });
   await reload();
-  await expect(note).toContainText('1 Einträge im Ersatzspeicher sind nicht lesbar');
+  await expect(note).toContainText('1 × nicht lesbar');
   const download = page.waitForEvent('download');
   await note.getByRole('button', { name: 'Als JSON sichern' }).click();
   const saved = JSON.parse(await downloadText(await download));

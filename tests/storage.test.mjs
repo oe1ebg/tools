@@ -314,3 +314,28 @@ test('migration plan (confirm): a line number taken in its event stays in the fa
   await CONFIRM_MIGRATION.fixup({ get: async (s, k) => events.get(k), put: (s, v) => events.set(v.id, v) }, [{ store: 'entries', value: { id: 'y', eventId: 'ev1', seq: 4 } }]);
   assert.equal(events.get('ev1').nextSeq, 5);
 });
+
+test('migration plan: a record kept for its parent frees its number; replies and drafts need their message', async () => {
+  const { NOTFUNK_STORES, NOTFUNK_MIGRATION } = await import('../tools/notfunk/js/db.js');
+  const schema = { lsPrefix: 'oe1ebg-notfunk:v1:', stores: NOTFUNK_STORES, migration: NOTFUNK_MIGRATION };
+  const msg = (id, seq, extra = {}) => ({ id, eventId: 'op1', prefix: 'W1', seq, number: `W1-00${seq}`, ...extra });
+  const put = (store, rec) => ls.setItem(`oe1ebg-notfunk:v1:${store}:${rec.id ?? rec.eventId}`, JSON.stringify(rec));
+  put('messages', msg('X', 5, { replyTo: 'gone' })); // first in order, but its Bezug is nowhere
+  put('messages', msg('Y', 5)); // same number: valid once X is out
+  put('messages', msg('B', 1)); // number taken by A
+  put('messages', msg('R', 6, { replyTo: 'B' })); // reply to a kept message
+  put('messages', msg('S', 7, { replyTo: 'A' })); // reply to one in IndexedDB
+  put('drafts', { eventId: 'op1', editingId: 'B', form: {} }); // editing a kept message
+  put('drafts', { eventId: 'op2', editingId: 'Y', form: { replyTo: 'S' } });
+  const db = idbFake({ operations: [{ id: 'op1' }, { id: 'op2' }], messages: [msg('A', 1)] });
+  const plan = await planFallbackMigration(schema, ls, db.current, db.all);
+  assert.deepEqual(Object.fromEntries(plan.map(p => [p.key, p.reason || p.action])), {
+    X: 'parent', Y: 'copy', B: 'duplicate', R: 'parent', S: 'copy', op1: 'parent', op2: 'copy',
+  });
+
+  const { STORES, CONFIRM_MIGRATION } = await import('../tools/confirm/js/db.js');
+  ls.setItem('oe1ebg-confirm:v1:drafts:ev1', JSON.stringify({ eventId: 'ev1', editingId: 'nowhere', form: {} }));
+  const cplan = await planFallbackMigration({ lsPrefix: 'oe1ebg-confirm:v1:', stores: STORES, migration: CONFIRM_MIGRATION },
+    ls, idbFake({ events: [{ id: 'ev1' }] }).current, async () => []);
+  assert.deepEqual(cplan.map(p => [p.key, p.reason]), [['ev1', 'parent']]);
+});

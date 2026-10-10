@@ -65,12 +65,24 @@ async function downloadFallback(store) {
 
 const storageErrorText = e => String(e && (e.message || e.name) || e);
 
+// Why a fallback record was not taken over (migrateFallback() reasons).
+const KEPT_REASONS = {
+  duplicate: 'Nummer bereits vergeben',
+  parent: 'zugehöriger Datensatz fehlt',
+  conflict: 'weicht vom gespeicherten ab',
+  unreadable: 'nicht lesbar',
+};
+
+// "2 × Nummer bereits vergeben, 1 × nicht lesbar"
+function keptReasonsText(reasons) {
+  return Object.keys(KEPT_REASONS).filter(r => reasons[r]).map(r => `${reasons[r]} × ${KEPT_REASONS[r]}`).join(', ');
+}
+
 function keptNotice(store, anchor, found) {
+  const reasons = found.reasons || {};
+  const n = Object.keys(KEPT_REASONS).reduce((sum, r) => sum + (reasons[r] || 0), 0);
   showStorageNote(anchor, 'warn',
-    found.conflicts ? `${found.conflicts} Datensätze im Ersatzspeicher (localStorage) weichen von den gespeicherten ab` : '',
-    found.conflicts && found.unreadable ? ', ' : '',
-    found.unreadable ? `${found.unreadable} Einträge im Ersatzspeicher sind nicht lesbar` : '',
-    '; sie wurden nicht übernommen und bleiben dort erhalten.',
+    `${n} Einträge im Ersatzspeicher (localStorage) wurden nicht übernommen und bleiben dort erhalten (${keptReasonsText(reasons)}). `,
     el('button', { type: 'button', onclick: () => downloadFallback(store).catch(e => console.error(e)) }, 'Als JSON sichern'),
     el('button', {
       type: 'button',
@@ -109,7 +121,8 @@ export async function offerFallbackMigration(store, anchor) {
       showStorageNote(anchor, r.kept.length ? 'warn' : 'ok',
         `${moved} Datensätze aus dem Ersatzspeicher übernommen`,
         r.identical ? `, ${r.identical} waren schon vorhanden` : '',
-        r.kept.length ? `; ${r.kept.length} weichen ab oder sind nicht lesbar und bleiben im Ersatzspeicher (localStorage).` : '.',
+        r.kept.length ? `; ${r.kept.length} bleiben im Ersatzspeicher (localStorage): ${
+          keptReasonsText(r.kept.reduce((acc, k) => ({ ...acc, [k.reason]: (acc[k.reason] || 0) + 1 }), {}))}.` : '.',
         ' Zum Anzeigen bitte neu laden.', reloadButton());
     } catch (e) {
       console.error(e);

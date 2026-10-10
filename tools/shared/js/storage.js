@@ -289,6 +289,8 @@ function idbBackend(db, schema, hooks) {
         pending: count('copy', 'merge', 'identical'),
         conflicts: count('conflict'),
         unreadable: count('unreadable'),
+        // kept records by reason: { conflict, duplicate, parent, unreadable }
+        reasons: plan.reduce((acc, p) => (p.reason ? { ...acc, [p.reason]: (acc[p.reason] || 0) + 1 } : acc), {}),
         conflictsSeen: kept > 0 && core.conflictsSeen() === conflictSignature(plan, core.ls),
       };
     },
@@ -378,41 +380,91 @@ async function planFallback(schema, core, current, all) {
     }
   }
   const rules = schema.migration || {};
-  const writes = p => p.action === 'copy' || p.action === 'merge';
-  const keep = (p, reason) => { p.action = 'conflict'; p.reason = reason; };
-  // Unique values (e.g. a message number per operation): IndexedDB's
-  // records first, then the fallback's in order; a taken one is kept.
-  for (const [store, uniq] of Object.entries(rules.unique || {})) {
+  const uniques = Object.entries(rules.unique || {});
+  const parents = rules.parents || {};
+  const candidates = plan.filter(p => p.action === 'copy' || p.action === 'merge');
+  if (!candidates.length || (!uniques.length && !Object.keys(parents).length)) return plan;
+  const recOf = p => (p.action === 'merge' ? p.merged : p.value);
+  // IndexedDB's unique values and parent lookups, read once.
+  const stored = new Map();
+  for (const [store, uniq] of uniques) {
     const keyPath = schema.stores[store].keyPath;
     const taken = new Map();
-    const valuesOf = rec => [].concat(uniq(rec) ?? []).filter(v => v !== null && v !== undefined).map(String);
-    for (const rec of await all(store)) for (const v of valuesOf(rec)) taken.set(v, rec[keyPath]);
-    for (const p of plan) {
-      if (p.store !== store || !writes(p)) continue;
-      const vals = valuesOf(p.action === 'merge' ? p.merged : p.value);
-      if (vals.some(v => taken.has(v) && taken.get(v) !== p.key)) { keep(p, 'duplicate'); continue; }
-      for (const v of vals) taken.set(v, p.key);
-    }
+    for (const rec of await all(store)) for (const v of migrationUniqueValues(uniq, rec)) taken.set(v, rec[keyPath]);
+    stored.set(store, taken);
   }
-  // Parents (a revision's message, a message's operation): must be in
-  // IndexedDB or migrated now; keeping one keeps its children too.
-  const parents = rules.parents || {};
-  for (let changed = true; changed;) {
-    changed = false;
-    for (const p of plan) {
-      if (!writes(p)) continue;
-      for (const { store, key } of parents[p.store] || []) {
-        const pk = key(p.action === 'merge' ? p.merged : p.value);
-        if (pk === undefined || pk === null) continue;
-        const migrated = plan.some(q => q.store === store && q.key === pk && writes(q));
-        if (migrated || (await current(store, pk)) !== undefined) continue;
-        keep(p, 'parent');
-        changed = true;
-        break;
+  const inDb = new Map();
+  const existsInDb = async (store, key) => {
+    const k = `${store}\u0000${key}`;
+    if (!inDb.has(k)) inDb.set(k, (await current(store, key)) !== undefined);
+    return inDb.get(k);
+  };
+  // Records of `set` whose unique value is already taken (IndexedDB first,
+  // then the set in plan order).
+  const duplicates = set => {
+    const out = new Set();
+    for (const [store, uniq] of uniques) {
+      const taken = new Map(stored.get(store));
+      for (const p of set) {
+        if (p.store !== store) continue;
+        const vals = migrationUniqueValues(uniq, recOf(p));
+        if (vals.some(v => taken.has(v) && taken.get(v) !== p.key)) { out.add(p); continue; }
+        for (const v of vals) taken.set(v, p.key);
       }
     }
+    return out;
+  };
+  // Records of `set` whose parent is neither in IndexedDB nor in the set
+  // (cascading: a dropped parent drops its children).
+  const orphans = async set => {
+    const out = new Set();
+    for (let changed = true; changed;) {
+      changed = false;
+      for (const p of set) {
+        if (out.has(p)) continue;
+        for (const { store, key } of parents[p.store] || []) {
+          const pk = key(recOf(p));
+          if (pk === undefined || pk === null) continue;
+          if (set.some(q => q.store === store && q.key === pk && !out.has(q))) continue;
+          if (await existsInDb(store, pk)) continue;
+          out.add(p);
+          changed = true;
+          break;
+        }
+      }
+    }
+    return out;
+  };
+  // Unique and parent checks depend on each other (a record dropped for
+  // its parent frees its number for another one): iterate to a fixpoint,
+  // then one final pass over what is left, so the result always holds.
+  let parentKept = new Set();
+  let dup = new Set();
+  for (let i = 0; i < 20; i++) {
+    dup = duplicates(candidates.filter(p => !parentKept.has(p)));
+    const next = await orphans(candidates.filter(p => !dup.has(p)));
+    const same = next.size === parentKept.size && [...next].every(p => parentKept.has(p));
+    parentKept = next;
+    if (same) break;
+  }
+  let writes = candidates.filter(p => !dup.has(p) && !parentKept.has(p));
+  const lateDup = duplicates(writes);
+  writes = writes.filter(p => !lateDup.has(p));
+  const lateOrphans = await orphans(writes);
+  for (const p of candidates) {
+    if (dup.has(p) || lateDup.has(p)) keepFallbackRecord(p, 'duplicate');
+    else if (parentKept.has(p) || lateOrphans.has(p)) keepFallbackRecord(p, 'parent');
   }
   return plan;
+}
+
+function migrationUniqueValues(uniq, rec) {
+  return [].concat(uniq(rec) ?? []).filter(v => v !== null && v !== undefined).map(String);
+}
+
+function keepFallbackRecord(p, reason) {
+  p.action = 'conflict';
+  p.reason = reason;
 }
 
 // The plan of a migration without running it (tests, diagnostics): the
