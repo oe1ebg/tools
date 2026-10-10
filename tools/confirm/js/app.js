@@ -32,6 +32,7 @@ import { sourceItem, trackOnline, repoLink } from '../../shared/js/sources.js';
 import { initOffline, setChip } from '../../shared/js/offline.js';
 import { createLineRepeater } from './linerepeater.js';
 import { formatShift, formatMHz } from '../../shared/js/repeaters.js';
+import { BACKUP_FORMAT, validateBackup, planBackupImport } from './backup.js';
 
 const TIME_MODE_KEY = 'oe1ebg-confirm-time-mode';
 const CSV_SEP_KEY = 'oe1ebg-confirm-csv-sep';
@@ -39,7 +40,6 @@ const CSV_COMMENTS_KEY = 'oe1ebg-confirm-csv-comments';
 const SNAPSHOT_EVERY = 10;   // full JSON snapshot of an event every N saved lines
 const SNAPSHOT_KEEP = 5;     // ... keeping the newest N per event
 const EXPORT_NUDGE_AFTER = 25;
-const BACKUP_FORMAT = 'oe1ebg-confirm-backup';
 
 const state = {
   store: null,
@@ -1278,8 +1278,22 @@ async function saveComment(f) {
   $('#f-call').focus();
 }
 
+// One submit at a time: taken synchronously (before the first await) and
+// released in `finally`, so a second Enter/click while the first is still
+// being saved is ignored instead of writing a second line.
+let saving = false;
+
 async function saveEntry() {
-  if (state.readOnly) return;
+  if (state.readOnly || saving) return;
+  saving = true;
+  try {
+    await saveEntryLocked();
+  } finally {
+    saving = false;
+  }
+}
+
+async function saveEntryLocked() {
   // A finished header change gets its marker before the next line.
   await flushMarkers({ openForEdit: false });
   const f = readForm();
@@ -1309,13 +1323,13 @@ async function saveEntry() {
       snap: lineSnapshot(editing.snap, f.rptOverride, ev.header) };
     ops.push({ store: 'revisions', put: { id: newId(), eventId: ev.id, entryId: editing.id, savedAt: nowIso(), reason: 'edit', data: editing } });
   } else {
+    // The number is taken inside the write transaction from the stored
+    // event (below), not from this tab's copy of it.
     entry = {
-      id: newId(), eventId: ev.id, seq: ev.nextSeq || 1, ts: t.iso,
+      id: newId(), eventId: ev.id, seq: 0, ts: t.iso,
       call: f.call, fields: f.fields, loc: f.loc, viaRepeater: f.viaRepeater, note: f.note,
       snap: lineSnapshot(headerSnapshot(ev.header), f.rptOverride, ev.header), created: nowIso(), updated: nowIso(), deleted: null,
     };
-    nextEvent = { ...ev, nextSeq: entry.seq + 1, updated: nowIso() };
-    ops.push({ store: 'events', put: nextEvent });
   }
   ops.push({ store: 'entries', put: entry });
   ops.push({ store: 'drafts', del: ev.id });
@@ -1326,7 +1340,20 @@ async function saveEntry() {
   $('#btn-save').disabled = true;
   clearTimeout(state.draftTimer);
   try {
-    await state.store.tx(ops);
+    await state.store.atomic(['events', 'entries', 'revisions', 'drafts', 'stations'], async ({ get, put, del }) => {
+      if (!editing) {
+        const stored = (await get('events', ev.id)) || ev;
+        // Never below what is stored: another tab (or a migration) may have
+        // numbered lines this tab doesn't know about.
+        entry.seq = Math.max(stored.nextSeq || 1, 1);
+        nextEvent = { ...ev, nextSeq: entry.seq + 1, updated: nowIso() };
+        put('events', nextEvent);
+      }
+      for (const op of ops) {
+        if (op.put) put(op.store, op.put);
+        else await del(op.store, op.del);
+      }
+    });
   } catch (e) {
     $('#btn-save').disabled = false;
     status.className = 'err';
@@ -1668,35 +1695,31 @@ async function importBackup(file) {
     showImportMsg('err', el('strong', {}, 'Nicht importiert: '), `„${file.name}“ ist keine gültige JSON-Datei.`);
     return;
   }
-  if (data?.format !== BACKUP_FORMAT || !Array.isArray(data.events)) {
+  const check = validateBackup(data);
+  if (check.notBackup) {
     showImportMsg('err', el('strong', {}, 'Nicht importiert: '), `„${file.name}“ ist keine Sicherung des Bestätigungsverkehrs (Datei „Sicherung (JSON)“ / „Alle sichern (JSON)“).`);
     return;
   }
-  const existing = new Set((await state.store.getAll('events')).map(e => e.id));
-  let imported = 0, copies = 0;
-  for (const item of data.events) {
-    // Never overwrite: an event that already exists is imported as a copy
-    // with fresh ids.
-    const clash = existing.has(item.event.id);
-    const evId = clash ? newId() : item.event.id;
-    const idMap = new Map();
-    const remap = id => {
-      if (!clash) return id;
-      if (!idMap.has(id)) idMap.set(id, newId());
-      return idMap.get(id);
-    };
-    const ops = [{ store: 'events', put: { ...item.event, id: evId, title: clash ? `${item.event.title} (Import)` : item.event.title } }];
-    for (const e of item.entries || []) ops.push({ store: 'entries', put: { ...e, id: remap(e.id), eventId: evId } });
-    for (const r of item.revisions || []) ops.push({ store: 'revisions', put: { ...r, id: remap(r.id), entryId: remap(r.entryId), eventId: evId } });
-    try {
-      await state.store.tx(ops);
-      imported++;
-      if (clash) copies++;
-    } catch (e) {
-      showSaveError(e);
-      return;
-    }
+  if (!check.ok) {
+    showImportMsg('err', el('strong', {}, 'Nicht importiert: '), `„${file.name}“ ist keine gültige Sicherung – es wurde nichts geändert.`,
+      el('ul', {}, check.errors.map(m => el('li', {}, m))));
+    return;
   }
+  // Collision check and writes in ONE transaction: all logs of the file or
+  // none, and nothing stored can change between the check and the write.
+  let result;
+  try {
+    result = await state.store.atomic(['events', 'entries', 'revisions'], async ({ get, put }) => {
+      const plan = await planBackupImport(data, async (store, id) => (await get(store, id)) != null, newId);
+      for (const p of plan.puts) put(p.store, p.value);
+      return plan;
+    });
+  } catch (e) {
+    showSaveError(e);
+    showImportMsg('err', el('strong', {}, 'Nicht importiert: '), 'Beim Speichern ist ein Fehler aufgetreten – es wurde nichts importiert und nichts verändert.');
+    return;
+  }
+  const imported = result.imported, copies = result.copies;
   broadcast({ type: 'events' });
   showImportMsg('warn', el('strong', {}, `${imported} ${imported === 1 ? 'Log' : 'Logs'} importiert.`),
     copies ? ` ${copies} davon als Kopie („(Import)“), weil ${copies === 1 ? 'es' : 'sie'} schon vorhanden ${copies === 1 ? 'war' : 'waren'}; nichts wurde überschrieben.` : '');

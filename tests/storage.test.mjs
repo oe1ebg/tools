@@ -339,3 +339,13 @@ test('migration plan: a record kept for its parent frees its number; replies and
     ls, idbFake({ events: [{ id: 'ev1' }] }).current, async () => []);
   assert.deepEqual(cplan.map(p => [p.key, p.reason]), [['ev1', 'parent']]);
 });
+
+test('atomic() del removes a record together with the puts', async () => {
+  const s = await open();
+  await s.tx([{ store: 'messages', put: { id: 'x', eventId: 'e' } }]);
+  await s.atomic(['messages'], async ({ put, del }) => {
+    put('messages', { id: 'y', eventId: 'e' });
+    del('messages', 'x');
+  });
+  assert.deepEqual((await s.getAll('messages')).map(r => r.id), ['y']);
+});
