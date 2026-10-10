@@ -4,7 +4,7 @@
 //
 //   getAll(store) / getByEvent(store, eventId) / get(store, key)
 //   tx([{ store, put: value } | { store, del: key }, ...])  — one atomic write
-//   atomic(stores, async ({ get, getAll, getByEvent, getUnchanged, put }) => result)
+//   atomic(stores, async ({ get, getAll, getByEvent, getUnchanged, put, del }) => result)
 //       — read-modify-write in ONE transaction (e.g. take the next message
 //         number and store the message): nothing is written unless all of
 //         it is, and no other writer can interleave. Inside fn only await
@@ -248,6 +248,14 @@ function idbBackend(db, schema, hooks) {
           put: (store, value) => {
             try {
               t.objectStore(store).put(value);
+            } catch (e) {
+              fail(e);
+              throw e;
+            }
+          },
+          del: (store, key) => {
+            try {
+              t.objectStore(store).delete(key);
             } catch (e) {
               fail(e);
               throw e;
@@ -718,6 +726,7 @@ function lsBackend(schema, ls, opts) {
           getAll: async store => core.all(store),
           getByEvent: async (store, eventId) => core.all(store).filter(r => r.eventId === eventId),
           put: (store, value) => { writes.push({ store, put: value }); },
+          del: (store, key) => { writes.push({ store, del: key }); },
         });
         const result = await fn(api);
         core.apply(writes);

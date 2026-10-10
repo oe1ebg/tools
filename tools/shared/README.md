@@ -70,7 +70,7 @@ on both: `getAll`, `getByEvent`, `get`, `tx(ops)`, `atomic(stores, fn)`.
 | `tx()` batch | one `readwrite` transaction, `durability: 'strict'`; resolves after commit | all-or-nothing via an undo journal (below); resolves after the last `setItem` |
 | a failing write (record without its key, quota, …) | transaction aborted, **no change**, rejects with the original error (e.g. `DataError`, not `AbortError`) | checked before writing / old values restored, **no change**, rejects with the original error (`DataError`, `QuotaExceededError`) |
 | writers in several tabs | serialised by IndexedDB | serialised by Web Locks (lock `<lsPrefix>write`, e.g. `oe1ebg-notfunk:v1:write`); **without Web Locks only within one page** (`crossTabLock: false`) |
-| `atomic()` | one transaction; only await the `get`/`getByEvent`/`getUnchanged` it hands in | runs under the write lock; puts are buffered and written as one batch if `fn` succeeds |
+| `atomic()` | one transaction; fn gets `get`, `getAll`, `getByEvent`, `getUnchanged`, `put`, `del`; only await the reads it hands in | runs under the write lock; puts are buffered and written as one batch if `fn` succeeds |
 | readers | isolated (snapshot per transaction) | not isolated: a reader in another tab can see a batch half-applied |
 | tab dies mid-write | nothing committed | the journal is rolled back on the next open and before the next write |
 | capacity | large, can be made persistent (`requestPersistence()`) | ~5 MB per origin; the journal needs room for the old values of a batch |

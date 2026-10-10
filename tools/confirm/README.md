@@ -172,8 +172,16 @@ now redirected; see "Move to /tools/" in `../shared/README.md`), and the source 
   (a flaky connection, before anything is cached), a banner asks the user
   to reload instead of leaving a dead page.
 - **Backups.** JSON backups can be made per event or for all events, and
-  imported again. On import, an event whose id already exists is imported
-  as a copy with fresh ids; nothing is overwritten.
+  imported again (`js/backup.js`, pure and node-tested). The whole file is
+  validated first (format, version, shapes, ids, timestamps, a line's or
+  revision's log and references, unique line numbers); a file with any
+  problem imports nothing and lists the problems. Then, in ONE storage
+  transaction (all logs of the file or none), a log whose id, any line id
+  or any revision id already exists (in the store or earlier in the same
+  file) is imported as a copy: fresh ids for log, lines and revisions with
+  every reference remapped, title “… (Import)”; nothing is overwritten.
+  Saving a line or comment is guarded against double submission, and the
+  line number is taken from the stored log inside the write transaction.
 
 ## Operator comments and log markers (issue #32)
 
