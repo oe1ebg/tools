@@ -48,12 +48,12 @@ export class StorageClosedError extends Error {
 }
 
 // The localStorage fallback can't write now: without Web Locks another tab
-// may be in the middle of a batch (its undo journal is still there). Try
-// again shortly; after a minute the journal counts as orphaned.
+// keeps writing (its undo journal changed while we waited, see lsCore()).
 export class StorageBusyError extends Error {
-  constructor() {
-    super('Ersatzspeicher: eine andere Speicherung ist noch nicht abgeschlossen – bitte gleich noch einmal versuchen');
+  constructor(journal) {
+    super('Speicher wird gerade von einem anderen Tab benutzt – bitte gleich noch einmal versuchen');
     this.name = 'StorageBusyError';
+    Object.defineProperty(this, 'journal', { value: journal });
   }
 }
 
@@ -271,43 +271,60 @@ function idbBackend(db, schema, hooks) {
     //   { total, pending, conflicts, unreadable, conflictsSeen, stores, journal }
     // pending: what migrateFallback() would resolve (copy, merge, or drop
     // as already identical); conflicts: records that differ from IndexedDB
-    // and have no merge (migrateFallback() keeps them); conflictsSeen: the
-    // app called dismissConflicts() for exactly these.
+    // and have no merge, unreadable: not JSON or without their key (both
+    // kept by migrateFallback()); conflictsSeen: the app called
+    // dismissConflicts() for exactly these kept records.
     async fallbackData() {
       const ls = storageLocal();
       if (!ls) return null;
-      const core = lsCore(schema, ls, hooks.locks);
+      const core = lsCore(schema, ls, hooks);
       const sum = core.summary();
       if (!sum) return null;
       const plan = await planFallback(schema, core, (store, key) => backend.get(store, key));
       const count = (...actions) => plan.filter(p => actions.includes(p.action)).length;
-      const conflicts = count('conflict');
+      const kept = count('conflict', 'unreadable');
       return {
         ...sum,
         pending: count('copy', 'merge', 'identical'),
-        conflicts,
+        conflicts: count('conflict'),
         unreadable: count('unreadable'),
-        conflictsSeen: conflicts > 0 && core.conflictsSeen() === conflictSignature(plan),
+        conflictsSeen: kept > 0 && core.conflictsSeen() === conflictSignature(plan, core.ls),
       };
     },
-    // Remembers that the user has seen the current conflicting records
-    // (they stay in localStorage; nothing is deleted).
+    // Everything in the fallback, for a download: { stores: { name:
+    // [records] }, unreadable: [{ key, raw }] } (raw: the stored string of
+    // entries that aren't JSON).
+    async exportFallback() {
+      const ls = storageLocal();
+      const out = { stores: {}, unreadable: [] };
+      if (!ls) return out;
+      const core = lsCore(schema, ls, hooks);
+      for (const store of Object.keys(schema.stores)) {
+        for (const e of core.entries(store)) {
+          if (e.error) out.unreadable.push({ key: e.lsKey, raw: ls.getItem(e.lsKey) });
+          else (out.stores[store] ||= []).push(e.value);
+        }
+      }
+      return out;
+    },
+    // Remembers that the user has seen the current kept records (they
+    // stay in localStorage; nothing is deleted).
     async dismissConflicts() {
       const ls = storageLocal();
       if (!ls) return;
-      const core = lsCore(schema, ls, hooks.locks);
-      core.setConflictsSeen(conflictSignature(await planFallback(schema, core, (store, key) => backend.get(store, key))));
+      const core = lsCore(schema, ls, hooks);
+      core.setConflictsSeen(conflictSignature(await planFallback(schema, core, (store, key) => backend.get(store, key)), ls));
     },
     // Those records of one store (e.g. to export them before deciding).
     async readFallback(store) {
       const ls = storageLocal();
-      return ls ? lsCore(schema, ls, hooks.locks).all(store) : [];
+      return ls ? lsCore(schema, ls, hooks).all(store) : [];
     },
     // Copies the fallback records into IndexedDB, see migrateFallback().
     migrateFallback() {
       const ls = storageLocal();
       if (!ls) return Promise.resolve({ copied: 0, merged: 0, identical: 0, kept: [] });
-      return migrateFallbackRecords(backend, schema, lsCore(schema, ls, hooks.locks));
+      return migrateFallbackRecords(backend, schema, lsCore(schema, ls, hooks));
     },
   };
   return backend;
@@ -358,10 +375,11 @@ async function planFallback(schema, core, current) {
   return plan;
 }
 
-// A short hash of the conflicting records (FNV-1a), so a dismissal holds
-// only for exactly those.
-function conflictSignature(plan) {
-  const text = plan.filter(p => p.action === 'conflict').map(p => `${p.lsKey}=${JSON.stringify(p.value)}`).sort().join('|');
+// A short hash of the kept records (conflicting or unreadable, FNV-1a), so
+// a dismissal holds only for exactly those.
+function conflictSignature(plan, ls) {
+  const text = plan.filter(p => p.action === 'conflict' || p.action === 'unreadable')
+    .map(p => `${p.lsKey}=${ls.getItem(p.lsKey)}`).sort().join('|');
   let h = 0x811c9dc5;
   for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193) >>> 0;
   return `${text.length}:${h.toString(16)}`;
@@ -381,7 +399,7 @@ function conflictSignature(plan) {
 // records removed from localStorage; kept or unreadable ones stay.
 async function migrateFallbackRecords(backend, schema, core) {
   return core.exclusive(async () => {
-    core.settleJournal();
+    await core.settleJournalAsync();
     const stores = Object.keys(schema.stores).filter(st => core.entries(st).length);
     let plan = [];
     if (stores.length) {
@@ -419,10 +437,17 @@ async function migrateFallbackRecords(backend, schema, core) {
 // (QuotaExceededError mid-way) restores the old values and rejects; a
 // journal found later (the tab died mid-batch, or a rollback failed) is
 // rolled back the same way, before the next write and when the storage is
-// opened. A journal is never overwritten: without Web Locks one that may
-// still be another tab's (younger than a minute) refuses the write with a
-// StorageBusyError instead.
-function lsCore(schema, ls, locks) {
+// opened. A journal is never overwritten. Without Web Locks a journal of
+// another tab may be live; another tab's batch is synchronous, so its
+// journal lives for milliseconds: one that is still there, unchanged,
+// after journalSettleMs (default 1.5 s) or is older than a minute is
+// orphaned and rolled back (also after a crash and an immediate reload).
+// Only a journal that keeps changing refuses the write (StorageBusyError).
+const JOURNAL_SETTLE_MS = 1500;
+
+function lsCore(schema, ls, opts = {}) {
+  const locks = opts.locks;
+  const settleMs = opts.journalSettleMs ?? JOURNAL_SETTLE_MS;
   const prefix = schema.lsPrefix;
   const journalKey = `${prefix}#journal`;
   const seenKey = `${prefix}#conflicts-seen`;
@@ -478,22 +503,35 @@ function lsCore(schema, ls, locks) {
     // A journal of this page is never live (apply() is synchronous), so it
     // is a rollback that failed: roll it back now. Returns null (none),
     // { rolledBack } or { pending: true } (left alone: may be live).
-    recover(owned) {
+    // stale: the journal as seen a while ago; still the same now: orphaned.
+    recover(owned, stale) {
       const raw = ls.getItem(journalKey);
       if (raw === null) return null;
       let j = null;
       try { j = JSON.parse(raw); } catch { /* unreadable: nothing to undo */ }
-      if (j && lockless && !owned && j.page !== STORAGE_PAGE_ID && Date.now() - (j.at || 0) < 60000) return { pending: true };
+      if (j && lockless && !owned && raw !== stale && j.page !== STORAGE_PAGE_ID
+        && Date.now() - (j.at || 0) < 60000) return { pending: true, raw };
       const changes = j && Array.isArray(j.changes) ? j.changes.filter(c => typeof c.k === 'string' && c.k.startsWith(prefix)) : [];
       core.restore(changes);
       ls.removeItem(journalKey);
       return { rolledBack: changes.length };
     },
     // Before a write: no journal may be left, it would be overwritten and
-    // its batch could never be undone. One that may still be another tab's
-    // (no Web Locks, younger than a minute) refuses the write.
-    settleJournal() {
-      if (core.recover(!lockless)?.pending) throw new StorageBusyError();
+    // its batch could never be undone. Returns what recover() did.
+    settleJournal(stale) {
+      const r = core.recover(!lockless, stale);
+      if (r?.pending) throw new StorageBusyError(r.raw);
+      return r;
+    },
+    // The same, waiting once for a journal that may be another tab's.
+    async settleJournalAsync() {
+      try {
+        return core.settleJournal();
+      } catch (e) {
+        if (!(e instanceof StorageBusyError)) throw e;
+        await new Promise(res => setTimeout(res, settleMs));
+        return core.settleJournal(e.journal);
+      }
     },
     conflictsSeen() {
       return ls.getItem(seenKey);
@@ -544,8 +582,8 @@ function lsCore(schema, ls, locks) {
   return core;
 }
 
-function lsBackend(schema, ls, locks) {
-  const core = lsCore(schema, ls, locks);
+function lsBackend(schema, ls, opts) {
+  const core = lsCore(schema, ls, opts);
   return {
     kind: 'localstorage',
     // false: the write lock is per instance only (no Web Locks), so other
@@ -555,12 +593,16 @@ function lsBackend(schema, ls, locks) {
     async getByEvent(store, eventId) { return core.all(store).filter(r => r.eventId === eventId); },
     async get(store, k) { return core.get(store, k); },
     tx(ops) {
-      return core.exclusive(async () => core.apply(ops));
+      return core.exclusive(async () => {
+        await core.settleJournalAsync();
+        core.apply(ops);
+      });
     },
     // Under the write lock: fn reads the current records, its puts are
     // buffered and written as one batch only if fn succeeds.
     atomic(names, fn) {
       return core.exclusive(async () => {
+        await core.settleJournalAsync();
         const writes = [];
         const api = storageApiWithCas({
           get: async (store, k) => core.get(store, k),
@@ -573,11 +615,19 @@ function lsBackend(schema, ls, locks) {
       });
     },
     recover() {
-      return core.exclusive(async () => core.recover(!core.lockless));
+      return core.exclusive(async () => {
+        try {
+          return await core.settleJournalAsync();
+        } catch (e) {
+          if (e instanceof StorageBusyError) return { pending: true };
+          throw e;
+        }
+      });
     },
     async fallbackData() { return null; },
     async dismissConflicts() {},
     async readFallback() { return []; },
+    async exportFallback() { return { stores: {}, unreadable: [] }; },
     async migrateFallback() { return { copied: 0, merged: 0, identical: 0, kept: [] }; },
   };
 }
@@ -601,11 +651,14 @@ function lsBackend(schema, ls, locks) {
 //                          unavailable (default 10 s; 0: wait forever)
 //   locks                  a LockManager instead of navigator.locks (tests;
 //                          null: none)
+//   journalSettleMs        fallback without Web Locks: how long a foreign
+//                          undo journal must stay unchanged to count as
+//                          orphaned (default 1.5 s; tests)
 // Resolves to the backend, or null when neither IndexedDB nor localStorage
 // is usable. A localStorage backend carries `fallbackReason` (why
 // IndexedDB was not used) and `recovery` (an unfinished batch rolled back
-// on open: { rolledBack }; { pending: true }: a journal that may still be
-// another tab's was left alone; or null).
+// on open: { rolledBack }; { pending: true }: another tab kept writing
+// meanwhile, its journal was left alone; or null).
 export async function openToolStorage(schema, hooks = {}) {
   const opts = { ...hooks, locks: 'locks' in hooks ? hooks.locks : globalThis.navigator?.locks };
   let reason = new Error('IndexedDB wird nicht unterstützt');
@@ -623,7 +676,7 @@ export async function openToolStorage(schema, hooks = {}) {
     const ls = globalThis.localStorage;
     ls.setItem(schema.lsPrefix + 'probe', '1');
     ls.removeItem(schema.lsPrefix + 'probe');
-    backend = lsBackend(schema, ls, opts.locks);
+    backend = lsBackend(schema, ls, opts);
   } catch {
     return null;
   }
