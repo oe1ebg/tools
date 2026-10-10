@@ -1346,7 +1346,7 @@ async function saveEntryLocked() {
         // Never below what is stored: another tab (or a migration) may have
         // numbered lines this tab doesn't know about.
         entry.seq = Math.max(stored.nextSeq || 1, 1);
-        nextEvent = { ...ev, nextSeq: entry.seq + 1, updated: nowIso() };
+        nextEvent = { ...stored, nextSeq: entry.seq + 1, updated: nowIso() };
         put('events', nextEvent);
       }
       for (const op of ops) {
@@ -1709,8 +1709,11 @@ async function importBackup(file) {
   // none, and nothing stored can change between the check and the write.
   let result;
   try {
-    result = await state.store.atomic(['events', 'entries', 'revisions'], async ({ get, put }) => {
-      const plan = await planBackupImport(data, async (store, id) => (await get(store, id)) != null, newId);
+    result = await state.store.atomic(['events', 'entries', 'revisions'], async ({ getAll, put }) => {
+      // The stored ids, read once inside the transaction.
+      const existing = {};
+      for (const st of ['events', 'entries', 'revisions']) existing[st] = new Set((await getAll(st)).map(r => r.id));
+      const plan = planBackupImport(data, existing, newId);
       for (const p of plan.puts) put(p.store, p.value);
       return plan;
     });
@@ -1720,9 +1723,11 @@ async function importBackup(file) {
     return;
   }
   const imported = result.imported, copies = result.copies;
+  const warnings = [...check.warnings, ...result.warnings];
   broadcast({ type: 'events' });
   showImportMsg('warn', el('strong', {}, `${imported} ${imported === 1 ? 'Log' : 'Logs'} importiert.`),
-    copies ? ` ${copies} davon als Kopie („(Import)“), weil ${copies === 1 ? 'es' : 'sie'} schon vorhanden ${copies === 1 ? 'war' : 'waren'}; nichts wurde überschrieben.` : '');
+    copies ? ` ${copies} davon als Kopie („(Import)“), weil ${copies === 1 ? 'es' : 'sie'} schon vorhanden ${copies === 1 ? 'war' : 'waren'}; nichts wurde überschrieben.` : '',
+    warnings.length ? el('ul', {}, ['Hinweise zur Sicherung (alles wurde übernommen wie gespeichert):', ...warnings].map((m, i) => el('li', {}, i ? m : el('b', {}, m)))) : '');
   renderEventList();
 }
 
