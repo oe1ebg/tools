@@ -218,7 +218,7 @@ wird.
 
 ![Meldung im Detail](img/notfunk-meldung-detail.png)
 
-Ein Klick auf die Nummer öffnet die Meldung: Wortlaut, alle Angaben und
+Ein Klick auf die Zeile (oder die Nummer) öffnet die Meldung: Wortlaut, alle Angaben und
 rechts der **Ablauf**.
 
 - **Eingang:** „Übergeben an“ (z. B. Meldesammelstelle) mit Zeitpunkt, dann

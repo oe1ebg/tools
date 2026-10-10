@@ -62,8 +62,9 @@ test('numbers, status, reply, edit, delete and CSV', async ({ page }) => {
   await expect.poll(() => numbers(page)).toEqual(['W1-003', 'W1-001']);
   await expect(page.locator('#form-number')).toHaveText('→ W1-004');
 
-  // reply to W1-001: the reply gets W1-004, the original is answered
-  await page.locator('#book-body a', { hasText: 'W1-001' }).click();
+  // reply to W1-001 (opened by a click on its row, not the number): the
+  // reply gets W1-004, the original is answered
+  await page.locator('#book-body tr', { has: page.locator('td.num', { hasText: 'W1-001' }) }).locator('td.content').click();
   await page.getByRole('button', { name: 'Antwort erfassen' }).click();
   await expect(page.locator('#form-reply')).toContainText('Antwort auf W1-001');
   await expect(page.locator('#m-to')).toHaveValue('Lichtinsel 3');

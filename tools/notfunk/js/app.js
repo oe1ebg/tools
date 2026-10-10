@@ -867,6 +867,17 @@ function initForm() {
     if (norm && norm !== t.value) { t.value = norm; t.dispatchEvent(new Event('input', { bubbles: true })); }
   });
 
+  // A click anywhere in a row of the book opens the message (the link on
+  // its number is the keyboard way); not on the row's buttons, and not
+  // when text was selected.
+  $('#book-body').addEventListener('click', ev => {
+    const row = ev.target.closest('tr[data-id]');
+    if (!row || ev.target.closest('a, button, input, select, textarea')) return;
+    if (String(globalThis.getSelection?.() || '')) return;
+    const link = row.querySelector('td.num a');
+    if (link) location.hash = link.getAttribute('href');
+  });
+
   // Calendar and time grid next to the date and time fields.
   attachDatePicker($('#m-date'), $('#m-time'));
   attachTimePicker($('#m-stichzeit'));
