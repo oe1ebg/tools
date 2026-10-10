@@ -31,12 +31,12 @@ import { sourceItem, standDate, trackOnline, mapLinks, repoLink } from '../../sh
 import { initOffline, setChip } from '../../shared/js/offline.js';
 import {
   DIRECTIONS, CHANNELS, MESSAGE_TYPES, PRIORITIES, REF_KINDS, statusLabel, statusEntry, timeLabel, readBackLabel,
-  editMessage, softDelete, restoreDeleted, setStatus, addAttempt, currentStatus, filterMessages,
+  editMessage, messageFields, softDelete, restoreDeleted, setStatus, addAttempt, currentStatus, filterMessages,
   repliesTo, fmtVienna, viennaTime, zoneHint, normFreq, fmtFreq,
 } from './model.js';
 import { normalizePrefix, PREFIX_RE, nextSeq, formatNumber, counterKey } from './numbering.js';
 import { toGeschaeftsbuchCSV, toBackup, parseBackup } from './export.js';
-import { saveNewMessage, updateMessage, changedFields, editBaseOf, editTarget, applyBackup, patchOperation, writeDraft, clearDraft } from './ops.js';
+import { saveNewMessage, updateMessage, changedFields, editBaseOf, editTarget, draftEditState, applyBackup, patchOperation, writeDraft, clearDraft } from './ops.js';
 import {
   emptyForm, setDirection, formToFields, formIsBlank, messageToForm, replyForm, nextStep, statusSteps, bookSummary, partyText,
   readDateTime, readClock, readBound, normDate, normTime, dateText, clockText, needsZone, upgradeForm, normalizeRef,
@@ -65,6 +65,7 @@ const state = {
   showErrors: false, // field errors are shown after the first save attempt
   warned: '',        // the warnings already shown once (saving again = save anyway)
   saving: false,
+  editStale: false,  // an older edit draft not reviewed yet: nothing is saved or overwritten
   editBase: null,    // { id, fields }: the fields of the version an edit was opened on, kept after a conflict
   saveKey: null,    // { sig, id }: the id a failed save used, kept while the form is unchanged (a retry can't number it twice)
   draftSeen: undefined, // `updated` of the draft this tab last read or wrote (undefined: none); another one = another tab's
@@ -671,6 +672,7 @@ function formIsEmpty(f) {
 // message's draft behind (it would come back on the next load).
 // The message an edit is on, with the version it was opened on (editBase).
 function setEditing(msg, savedBase = null) {
+  state.editStale = false;
   state.editing = msg;
   state.editBase = msg ? editBaseOf(msg, savedBase) : null;
 }
@@ -683,6 +685,8 @@ function flushDraft() {
 }
 
 async function flushDraftNow() {
+  // an older draft waiting for the user's review is left as it is (a new write would look current)
+  if (state.editStale) return;
   if (!state.op || $('#view-book').hidden && $('#view-msg').hidden) return;
   const f = readForm();
   const empty = formIsEmpty(f) && !state.editing;
@@ -720,20 +724,50 @@ function draftConflict(e) {
     ' ',
     el('button', { type: 'button', onclick: () => {
       state.draftSeen = e.actual;
-      setEditing(other.editingId ? state.msgs.find(m => m.id === other.editingId) || null : null, other.base);
-      writeForm(other.form || emptyForm(state.op));
       $('#banner').hidden = true;
+      applyDraft(other);
       setText($('#draft-status'), '✓ Entwurf aus dem anderen Tab geladen');
     } }, 'Den anderen Entwurf laden (ersetzt meine Eingabe)'),
+    ' ');
+}
+
+// A stored draft into the form. An edit draft keeps the version the edit was
+// opened on; one without it (older drafts) is checked against the message:
+// changed since it was saved, it is only shown, saving is held back until
+// the user has reviewed it (reviewDraft()). A message that is gone: the
+// draft is shown as a new message, and the user is told.
+function applyDraft(d) {
+  const st = draftEditState(d?.editingId ? state.msgs.find(m => m.id === d.editingId) : undefined, d);
+  setEditing(st.editing, st.base);
+  state.editStale = st.stale;
+  writeForm(d?.form || emptyForm(state.op));
+  if (st.stale) reviewDraft();
+  else if (st.gone) showNotice('ENTWURF – Die Meldung, die dieser Entwurf bearbeitet, gibt es in diesem Einsatz nicht mehr. Der Entwurf steht im Formular und würde als neue Meldung gespeichert. ');
+}
+
+const FIELD_LABELS = {
+  direction: 'Richtung', ts: 'Zeit', channel: 'Übermittlung', radio: 'Frequenz/Relais', peer: 'Funkstelle', type: 'Art', priority: 'Dringlichkeit',
+  from: 'Absender', to: 'Adressat', distribution: 'Verteiler', subject: 'Betreff', text: 'Inhalt', stichzeit: 'Stichzeit', origin: 'Ursprung',
+  readBack: 'Rücklesen', location: 'Ort', replyTo: 'Bezug', refKind: 'Bezug', refNumber: 'Bezug', remarks: 'Anmerkungen',
+};
+
+// The message changed after this (older) edit draft was saved: say which
+// fields differ and let the user choose; nothing is saved before.
+function reviewDraft() {
+  const cur = state.editing;
+  const { staffRef: _ref, ...mine } = check().fields;
+  const diff = [...new Set(Object.keys(changedFields(mine, messageFields(cur))).map(k => FIELD_LABELS[k] || k))];
+  showNotice(`ENTWURF PRÜFEN – ${cur.number} wurde geändert, nachdem dieser Entwurf gesichert wurde (z. B. in einem anderen Tab). Der Entwurf steht im Formular, es wird nichts gespeichert, bevor Sie gewählt haben. Abweichend von der gespeicherten Fassung: ${diff.join(', ') || 'nichts'}. `,
+    el('button', { type: 'button', onclick: () => { state.editStale = false; state.editBase = editBaseOf(state.editing); $('#banner').hidden = true; } }, 'Entwurf auf die aktuelle Fassung anwenden'),
+    ' ',
+    el('button', { type: 'button', onclick: () => { const m = state.editing; $('#banner').hidden = true; startEdit(m); flushDraft(); } }, 'Entwurf verwerfen (gespeicherte Fassung laden)'),
     ' ');
 }
 
 async function restoreDraft() {
   const d = await state.store.get('drafts', state.op.id);
   state.draftSeen = d ? d.updated ?? null : undefined;
-  // the draft keeps the version the edit was opened on (token and field values)
-  setEditing(d?.editingId ? state.msgs.find(m => m.id === d.editingId) || null : null, d?.base);
-  writeForm(d?.form || emptyForm(state.op));
+  applyDraft(d);
   setText($('#draft-status'), d ? `✓ Entwurf gesichert ${viennaTime(d.saved)}` : '');
 }
 
@@ -787,6 +821,7 @@ async function saveMessageNow(anyway) {
     status.textContent = '';
     return;
   }
+  if (state.editing && state.editStale) { reviewDraft(); return; }
   const operator = state.op.operator || '';
   const op = state.op;
   const wasEdit = !!state.editing;

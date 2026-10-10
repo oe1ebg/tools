@@ -29,6 +29,24 @@ export function editBaseOf(msg, saved = null) {
   return saved && saved.id === msg.id ? saved : { id: msg.id, updated: msg.updated ?? null, fields: messageFields(msg) };
 }
 
+// What a stored edit draft is an edit of, given the message it names (as
+// stored now, or undefined): { editing, base, stale, gone }.
+// - the draft has its base: that (a change made since is a conflict at save)
+// - older draft without one (before bases were kept): the version it was
+//   written on is unknown. Message not changed since the draft was saved:
+//   the current one is the base. Changed since (or the times can't be
+//   compared): stale, the draft text must not be applied without a review.
+// - the message is gone: editing null, gone true (the draft is not an edit).
+export function draftEditState(msg, draft) {
+  if (!draft?.editingId) return { editing: null, base: null, stale: false, gone: false };
+  if (!msg) return { editing: null, base: null, stale: false, gone: true };
+  if (draft.base && draft.base.id === msg.id) return { editing: msg, base: draft.base, stale: false, gone: false };
+  const at = Date.parse(draft.saved || '');
+  const changed = Date.parse(msg.updated || '');
+  const stale = Number.isNaN(at) || Number.isNaN(changed) || changed > at;
+  return { editing: msg, base: editBaseOf(msg), stale, gone: false };
+}
+
 // The message to hand updateMessage() for an edit: current content, token of the opened version.
 export function editTarget(current, base) {
   return { ...current, updated: base.updated };

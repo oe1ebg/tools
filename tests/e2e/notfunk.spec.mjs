@@ -462,6 +462,52 @@ test('edit draft restore: a change made meanwhile is a conflict, the old text is
   await expect(page.locator('#msg-detail .verbatim')).not.toContainText('old text');
 });
 
+test('legacy edit draft (no base) against a changed message: shown, held back until reviewed', async ({ page }) => {
+  await openNewOp(page, 'E2E Alter Entwurf', 'l1');
+  await addMessage(page, 'Lichtinsel 2', 'Wasser', 'old text');
+  await page.locator('#book-body a', { hasText: 'L1-001' }).click();
+  await page.getByRole('button', { name: 'Bearbeiten' }).click();
+  await page.locator('#m-subject').fill('Wasser dringend');
+  await page.waitForTimeout(1000);
+  // the draft as it was written before bases were kept (no base, no updated), and the message changed after it
+  await page.evaluate(() => new Promise((resolve, reject) => {
+    const open = indexedDB.open('oe1ebg-notfunk');
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const db = open.result;
+      const tx = db.transaction(['drafts', 'messages'], 'readwrite');
+      const drafts = tx.objectStore('drafts');
+      const msgs = tx.objectStore('messages');
+      drafts.getAll().onsuccess = ev => {
+        const d = ev.target.result[0];
+        delete d.base;
+        delete d.updated;
+        drafts.put(d);
+        msgs.getAll().onsuccess = ev2 => {
+          const m = ev2.target.result[0];
+          m.text = 'new text from tab B';
+          m.updated = new Date(Date.parse(d.saved) + 60000).toISOString();
+          msgs.put(m);
+        };
+      };
+      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.onerror = () => reject(tx.error);
+    };
+  }));
+  await page.reload();
+  await expect(page.locator('#m-subject')).toHaveValue('Wasser dringend');
+  await expect(page.locator('#banner')).toContainText('ENTWURF PRÜFEN');
+  await expect(page.locator('#banner')).toContainText('Betreff');
+  // saving is held back
+  await page.locator('#btn-save').click();
+  await expect(page.locator('#banner')).toContainText('ENTWURF PRÜFEN');
+  await expect(page.locator('#book-body tr', { hasText: 'L1-001' })).not.toContainText('dringend');
+  // applying the draft is an explicit choice
+  await page.getByRole('button', { name: 'Entwurf auf die aktuelle Fassung anwenden' }).click();
+  await page.locator('#btn-save').click();
+  await expect(page.locator('#book-body tr', { hasText: 'L1-001' })).toContainText('Wasser dringend');
+});
+
 // #20: a typed Stichzeit survives a draft restore
 test('draft restore keeps a Stichzeit typed as 1405', async ({ page }) => {
   await openNewOp(page, 'E2E Stichzeit', 's1');
