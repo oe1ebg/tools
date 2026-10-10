@@ -133,12 +133,15 @@ jobs:
       - name: Check the checksums
         run: cd dist && sha256sum -c SHA256SUMS
 
-      # This week's assets first (--clobber replaces each of last week's
-      # files of the same version), the stale ones of other versions only
-      # afterwards: the prerelease never lacks a tarball or its checksums.
-      # Each file is replaced on its own, so a download in that moment can
-      # pair last week's tarball with this week's checksum; the check then
-      # fails, it never passes a wrong file.
+      # The asset names stay the same every week (sites download them by
+      # name), and GitHub can't replace an asset in place: `upload --clobber`
+      # deletes the old one first and leaves the name missing for the whole
+      # upload. So each file is uploaded under a temporary name (.next)
+      # first, and only then is the old asset deleted and the new one
+      # renamed, two API calls per file. The name is still missing for that
+      # moment (not zero), and a download in it can pair last week's tarball
+      # with this week's checksum, which then fails the check rather than
+      # passing a wrong file. Assets of an older version go last.
       - name: Upload to data-latest
         env:
           GH_TOKEN: ${{ github.token }}
@@ -146,14 +149,27 @@ jobs:
           TAG: ${{ needs.rebuild.outputs.tag }}
           SHA: ${{ needs.rebuild.outputs.sha }}
         run: |
+          set -euo pipefail
           if ! gh release view data-latest --repo "$REPO" >/dev/null 2>&1; then
             gh release create data-latest --repo "$REPO" --prerelease --latest=false \
               --target "$SHA" --title "Data rebuild of the newest release" \
               --notes "Weekly rebuild (data.yml) of the newest release with fresh data. Replaced every week."
           fi
-          gh release upload data-latest --repo "$REPO" --clobber dist/*.tar.gz dist/*.sha256 dist/SHA256SUMS
+          files=("oe1ebg-tools-$TAG.tar.gz" "oe1ebg-tools-$TAG.tar.gz.sha256" SHA256SUMS)
+          mkdir -p next
+          for f in "${files[@]}"; do cp "dist/$f" "next/$f.next"; done
+          gh release upload data-latest --repo "$REPO" --clobber next/*.next
+          asset_id() {
+            gh api "repos/$REPO/releases/tags/data-latest" --jq ".assets[] | select(.name == \"$1\") | .id"
+          }
+          for f in "${files[@]}"; do
+            new=$(asset_id "$f.next")
+            old=$(asset_id "$f")
+            if [ -n "$old" ]; then gh api -X DELETE "repos/$REPO/releases/assets/$old"; fi
+            gh api -X PATCH "repos/$REPO/releases/assets/$new" -f name="$f" >/dev/null
+          done
           # Last week's assets of other versions are stale now: keep only this one.
           gh release view data-latest --repo "$REPO" --json assets --jq '.assets[].name' |
-            grep -v -x -F -e "oe1ebg-tools-$TAG.tar.gz" -e "oe1ebg-tools-$TAG.tar.gz.sha256" -e SHA256SUMS |
+            { grep -v -x -F -e "${files[0]}" -e "${files[1]}" -e "${files[2]}" || true; } |
             while read -r a; do gh release delete-asset data-latest "$a" --repo "$REPO" --yes; done
           echo "data-latest: oe1ebg-tools-$TAG.tar.gz rebuilt $(date -u +%FT%TZ)" >> "$GITHUB_STEP_SUMMARY"
