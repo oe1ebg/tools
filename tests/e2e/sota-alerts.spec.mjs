@@ -277,3 +277,58 @@ test('a shared link: malformed and repeated pins skipped, live lookups capped', 
   await expect(page.locator('#candidates-items .list-item')).toHaveCount(10);
   expect(live).toHaveLength(10);
 });
+
+test('a shared link: the reference comes first, the live-lookup cap never cuts it', async ({ page }) => {
+  await page.route(TILE_HOSTS, route => route.fulfill({ contentType: 'image/png', body: TILE }));
+  const live = [];
+  await page.route('https://api2.sota.org.uk/**', route => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === '/api/alerts') return route.fulfill({ json: [] });
+    const m = path.match(/^\/api\/summits\/ZZ\/(TE-\d{3})$/);
+    if (m) {
+      live.push(m[1]);
+      return route.fulfill({ json: { ...summitJson, name: `Peak ${m[1]}` } });
+    }
+    return route.fulfill({ status: 404, json: {} });
+  });
+  // 12 summits in no lookup, the reference written last
+  const pins = Array.from({ length: 12 }, (_, i) => `ZZ/TE-1${String(i).padStart(2, '0')}`);
+  await page.goto(`tools/sota-alerts/?pins=${pins.join(',')}&ref=ZZ/TE-200`);
+  await expect(page.locator('#ref-indicator')).toContainText('reference: Peak TE-200 (ZZ/TE-200)');
+  await expect(page.locator('#warnings')).toContainText('3 summits from the shared link were skipped');
+  expect(live).toHaveLength(10);
+  expect(live[0]).toBe('TE-200');
+});
+
+test('the built-in summit list fails: live lookups capped, a warning, retried on refresh', async ({ page }) => {
+  await page.route(TILE_HOSTS, route => route.fulfill({ contentType: 'image/png', body: TILE }));
+  let lookupLoads = 0;
+  await page.route('**/data/summit-lookup.json', route => (++lookupLoads === 1
+    ? route.fulfill({ contentType: 'application/json', body: '{"truncated' }) // broken the first time
+    : route.continue()));
+  const at = new Date(Date.now() + 3 * 3600_000).toISOString().slice(0, 19);
+  // 25 alerted summits that are in no lookup
+  const alerts = Array.from({ length: 25 }, (_, i) => ({
+    id: i, dateActivated: at, associationCode: 'ZZ', summitCode: `TE-3${String(i).padStart(2, '0')}`, summitDetails: 'x',
+    frequency: '7.032-cw', comments: '', activatingCallsign: 'OE3XYZ', activatorName: '', posterCallsign: 'OE3XYZ',
+  }));
+  const live = [];
+  await stubSota(page, { '/api/alerts': route => route.fulfill({ json: alerts }) });
+  await page.route(/^https:\/\/api2\.sota\.org\.uk\/api\/summits\/ZZ\/TE-3\d\d$/, route => {
+    live.push(new URL(route.request().url()).pathname);
+    return route.fulfill({ json: summitJson });
+  });
+  await page.goto('tools/sota-alerts/');
+  const warnings = page.locator('#warnings');
+  await expect(warnings).toContainText('the built-in summit list could not be loaded');
+  await expect(warnings).toContainText('at most 20 per visit');
+  await expect(page.locator('#stats')).toHaveText('25 alerts · 20 summits on map · 0 yours');
+  expect(live).toHaveLength(20);
+
+  await showToolbar(page);
+  await page.locator('#btn-refresh-alerts').click();
+  await expect(page.locator('#stats')).toHaveText('25 alerts · 25 summits on map · 0 yours');
+  await expect(warnings).not.toContainText('built-in summit list');
+  expect(lookupLoads).toBe(2);
+  expect(live).toHaveLength(25); // the first 20 come from the local cache now
+});

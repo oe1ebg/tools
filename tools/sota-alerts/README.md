@@ -263,14 +263,19 @@ entirely instead of needing a proxy.
   by caching summit lookups client-side and never polling beyond a manual
   "refresh alerts" click.
 - Every request has a deadline (`request.js`: alerts 20 s, per-summit
-  lookup and search 15 s, the same-origin data files 120 s, Overpass 35 s),
+  lookup and search 15 s, Overpass 35 s; the large same-origin data files
+  get no total deadline, only a 30 s stall timeout, so a slow link still
+  loads them),
   so a hung server can't stall start-up or a refresh. The two refresh
   buttons and start-up run one at a time (`createExclusive()`; the buttons
   are disabled meanwhile and enabled again afterwards, also after an
   error). A failed "refresh alerts" keeps the alerts already shown: the
   status bar marks them "⚠ alerts as of … (refresh failed)" and a warning
   says why; a forced summit refresh keeps the coordinates of summits whose
-  lookup failed this time.
+  lookup failed this time. If the built-in summit list
+  (`data/summit-lookup.json`) can't be loaded, the page warns, looks up at
+  most 20 summits per visit live (`FALLBACK_LIVE_BUDGET`) instead of every
+  one, and tries the list again on the next "refresh alerts".
 - Times default to UTC (the ham-radio/ADIF convention), with a UTC/local
   toggle in the header (persisted in `localStorage`, same pattern as the
   light/dark/auto theme switch) controlling every alert-time display in the
@@ -526,7 +531,8 @@ resolved surfaces as a warning rather than failing silently. A link is
 input from anyone, so `parseShareSearch()` keeps only well-formed summit
 references (`ASSOC/RR-NNN`, upper-cased), counts a repeated pin once and
 takes at most 50 pins (`MAX_SHARED_PINS`); of those, at most 10 are looked
-up live (`MAX_SHARED_LIVE_LOOKUPS`, the resolver's `maxLive`) — the rest
+up live (`MAX_SHARED_LIVE_LOOKUPS`, the resolver's `maxLive`; the
+reference is resolved first, so the cap never cuts it) — the rest
 of the unknown ones are skipped with a warning. A link made by "share"
 has well-formed keys, and its summits are nearly always in the static
 lookup, so neither limit gets in the way of a real link. The reference is implicitly added to the pin set too, for

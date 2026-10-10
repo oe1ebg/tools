@@ -2,7 +2,7 @@
 // before adding one: SOTA's API is volunteer-run, be gentle on it.
 
 import { summitFromApi } from './summits.js';
-import { withDeadline, isAbort, ALERTS_TIMEOUT_MS, SUMMIT_TIMEOUT_MS, SEARCH_TIMEOUT_MS, DATA_TIMEOUT_MS } from './request.js';
+import { withDeadline, isAbort, ALERTS_TIMEOUT_MS, SUMMIT_TIMEOUT_MS, SEARCH_TIMEOUT_MS, DATA_STALL_MS, readJson } from './request.js';
 
 export const ALERTS_URL = 'https://api2.sota.org.uk/api/alerts';
 export const summitUrl = (assoc, code) => `https://api2.sota.org.uk/api/summits/${encodeURIComponent(assoc)}/${encodeURIComponent(code)}`;
@@ -61,13 +61,15 @@ export function searchSummits(term, signal){
   });
 }
 
-// A same-origin data file (data/…).
+// A same-origin data file (data/…): no total deadline (it is large and
+// may take long on a slow link), only a stall timeout.
 export function fetchJson(url, signal){
-  return withDeadline(DATA_TIMEOUT_MS, signal, async s => {
+  return withDeadline(DATA_STALL_MS, signal, async (s, touch) => {
     const res = await fetch(url, { signal: s });
+    touch();
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
-  });
+    return readJson(res, touch);
+  }, { stall: true });
 }
 
 // bounds: Leaflet LatLngBounds (getSouth/getWest/getNorth/getEast).

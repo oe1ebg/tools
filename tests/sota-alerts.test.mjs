@@ -13,9 +13,9 @@ import {
   splitSummitKey, summitFromApi, candidateFromSearchResult, candidateFromOsmElement, lookupFromRows,
   summitMetaLine, referenceDiff, referenceDiffText, sotlasPointsColor, summitLinks, sotlasMapUrl,
 } from '../tools/sota-alerts/js/summits.js';
-import { shareSearch, parseShareSearch, normalizeSummitRef, MAX_SHARED_PINS } from '../tools/sota-alerts/js/share.js';
-import { createSummitResolver, lazy } from '../tools/sota-alerts/js/lookup.js';
-import { withDeadline, createLatest, createExclusive, TimeoutError, isAbort } from '../tools/sota-alerts/js/request.js';
+import { shareSearch, parseShareSearch, normalizeSummitRef, sharedLinkKeys, MAX_SHARED_PINS, MAX_SHARED_LIVE_LOOKUPS } from '../tools/sota-alerts/js/share.js';
+import { createSummitResolver, lazy, lazyRetryOnDemand } from '../tools/sota-alerts/js/lookup.js';
+import { withDeadline, readJson, createLatest, createExclusive, TimeoutError, isAbort } from '../tools/sota-alerts/js/request.js';
 
 const alert = (date, extra = {}) => normalizeAlert({ id: 1, dateActivated: date, associationCode: 'OE', summitCode: 'WI-001', ...extra });
 
@@ -363,4 +363,83 @@ test('createExclusive: no overlapping runs, released after an error', async () =
   assert.equal(ex.busy(), false);
   assert.equal(await ex.run(async () => 'again'), 'again');
   assert.deepEqual(busy, [true, false, true, false, true, false]);
+});
+
+test('withDeadline: touch() turns it into a stall timeout', async () => {
+  const clock = fakeTimers();
+  let touch, finish;
+  const p = withDeadline(30_000, null, (s, t) => { touch = t; return new Promise(r => { finish = r; }); }, { ...clock, stall: true });
+  // progress keeps restarting the timer: never more than one pending
+  for (let i = 0; i < 5; i++) { touch(); assert.equal(clock.pending(), 1); }
+  finish('done');
+  assert.equal(await p, 'done');
+  assert.equal(clock.pending(), 0);
+  touch(); // after settling: no new timer
+  assert.equal(clock.pending(), 0);
+
+  const stalled = withDeadline(30_000, null, () => new Promise(() => {}), { ...clock, stall: true });
+  clock.tick();
+  await assert.rejects(stalled, err => err instanceof TimeoutError && err.message === 'no data for 30 s');
+});
+
+test('readJson: reads the body chunk by chunk, touching on each', async () => {
+  const bytes = new TextEncoder().encode(JSON.stringify([['OE/WI-001', 48.27, 16.29, 'Hermannskögel']]));
+  const chunks = [bytes.slice(0, 7), bytes.slice(7, 37), bytes.slice(37)]; // the "ö" spans two chunks
+  const body = new ReadableStream({ start(c){ chunks.forEach(x => c.enqueue(x)); c.close(); } });
+  let touched = 0;
+  const data = await readJson(new Response(body), () => touched++);
+  assert.deepEqual(data, [['OE/WI-001', 48.27, 16.29, 'Hermannskögel']]);
+  assert.equal(touched, 3);
+  await assert.rejects(readJson(new Response('<html>')), SyntaxError);
+});
+
+test('lazyRetryOnDemand: a failure is kept until retry()', async () => {
+  let tries = 0, fail = true;
+  const get = lazyRetryOnDemand(async () => { tries++; if (fail) throw new Error('stalled'); return new Map([['A/1', {}]]); });
+  await assert.rejects(get(), /stalled/);
+  await assert.rejects(get(), /stalled/);
+  assert.equal(tries, 1); // not reloaded on every use
+  fail = false;
+  get.retry();
+  assert.equal((await get()).size, 1);
+  assert.equal(tries, 2);
+  assert.ok(get.loaded());
+});
+
+test('summit lookup: without the static list, live lookups are capped for the session', async () => {
+  const live = [];
+  const resolve = createSummitResolver({
+    loadCache: () => ({}), saveCache: () => {},
+    loadLookup: async () => { throw new Error('no data for 30 s'); },
+    fetchSummit: async (assoc, code) => { live.push(`${assoc}/${code}`); return { lat: 0, lon: 0 }; },
+    fallbackBudget: 5,
+  });
+  const warn = console.warn;
+  console.warn = () => {};
+  try {
+    const first = await resolve(Array.from({ length: 4 }, (_, i) => entry(`Z/${i}`)), false);
+    assert.equal(first.lookupError.message, 'no data for 30 s');
+    assert.equal(first.size, 4);
+    const second = await resolve(Array.from({ length: 10 }, (_, i) => entry(`Y/${i}`)), false);
+    assert.equal(live.length, 5); // 4 + the 1 left of the session's budget
+    assert.equal(second.overBudget.length, 9);
+    // force (the explicit "refresh summit data") is not affected: it never loads the list
+    const forced = await resolve([entry('X/1'), entry('X/2')], true);
+    assert.equal(forced.lookupError, undefined);
+    assert.equal(live.length, 7);
+  } finally { console.warn = warn; }
+});
+
+test('shared link: the reference is resolved first, so the live cap never cuts it', async () => {
+  const pins = Array.from({ length: 12 }, (_, i) => `ZZ/TE-1${String(i).padStart(2, '0')}`);
+  const shared = parseShareSearch(`?pins=${pins.join(',')}&ref=ZZ/TE-200`);
+  const keys = sharedLinkKeys(shared);
+  assert.equal(keys[0], 'ZZ/TE-200');
+  assert.equal(keys.length, 13);
+  assert.deepEqual(sharedLinkKeys(parseShareSearch('?ref=ZZ/TE-100&pins=ZZ/TE-101,ZZ/TE-100')), ['ZZ/TE-100', 'ZZ/TE-101']);
+  const { resolve, calls } = resolver({ live: Object.fromEntries([...pins, 'ZZ/TE-200'].map(k => [k, { lat: 1, lon: 1 }])) });
+  const out = await resolve(keys.map(entry), false, { maxLive: MAX_SHARED_LIVE_LOOKUPS });
+  assert.ok(out.has('ZZ/TE-200'));
+  assert.equal(calls.live.length, MAX_SHARED_LIVE_LOOKUPS);
+  assert.equal(out.overBudget.length, 3);
 });
