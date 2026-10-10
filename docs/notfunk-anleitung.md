@@ -55,9 +55,9 @@ eine neue Sicherung (JSON) herunter.
 | --- | --- | --- |
 | Einsatz / Übung | Name des Einsatzes | Übung Blackout Wien |
 | Stationskürzel | steht vor jeder Nummer; jedes Gerät bzw. jede Station eines Einsatzes bekommt ein eigenes | W1 |
-| Station | Name der eigenen Station | Lichtinsel 12 Floridsdorf |
+| Standort der Station | wo das eigene Funkgerät steht; steht oben im Ausdruck | Lichtinsel 12 Floridsdorf |
 | Operator | wer am Gerät aufnimmt | OE1EBG |
-| Eigene Stelle | Adressat eingehender und Absender ausgehender Meldungen, solange nichts anderes eingetragen ist | Stab |
+| Für Stelle | für wen die Station arbeitet: Adressat eingehender und Absender ausgehender Meldungen, solange nichts anderes eingetragen ist | Stab |
 | Frequenz, Relais | Vorgabe für neue Meldungen | 145,500 · OE1XUU |
 
 Alles außer dem Stationskürzel lässt sich später im aufklappbaren Feld
@@ -136,8 +136,8 @@ Unter **„Weitere Felder“**:
 
 - **Ort:** wo das Ereignis ist.
 - **Ursprungsort:** wo die Meldung aufgegeben wurde.
-- **Stationsstandort:** wo die eigene Station steht; gehört zum Einsatz, nicht
-  zur Meldung.
+- **Standort der Station:** wo das eigene Funkgerät steht; wird im Einsatz
+  eingetragen, nicht bei der Meldung.
 
 Die Ortssuche schlägt Wiener Adressen, Orte, Plätze und Haltestellen vor und
 für ganz Österreich Postleitzahlen, Gemeinden und Bezirke. Ein Vorschlag

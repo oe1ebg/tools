@@ -135,8 +135,9 @@ name, and a distribution list ("Verteiler").
 ## Using it
 
 - **Einsätze:** an operation has a name, a **station code** (the number
-  prefix, e.g. `W1`; one per device or station), the station's name, the
-  operator, the **own post** ("Eigene Stelle", e.g. "Stab": recipient of
+  prefix, e.g. `W1`; one per device or station), where the station is
+  ("Standort der Station", `station`), the operator, the **own post** ("Für
+  Stelle", `home`, e.g. "Stab": recipient of
   incoming and sender of outgoing messages unless typed otherwise), and a
   default frequency/relay.
 - **Einsatz panel** above the form (like the confirmation log's Header):
