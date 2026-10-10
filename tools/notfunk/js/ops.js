@@ -136,14 +136,15 @@ export function writeDraft(store, opId, draft, seen) {
   });
 }
 
-// Removes the draft if it is still the one this tab saw; true when there is
-// none now. (atomic() has no delete: the check and the delete are two steps,
-// and the window is the time between them.)
-export async function clearDraft(store, opId, seen) {
-  const cur = await store.get('drafts', opId);
-  if (!cur) return true;
-  if ((cur.updated ?? null) !== seen) return false;
-  await store.tx([{ store: 'drafts', del: opId }]);
-  return true;
+// Removes the draft if it is still the one this tab saw (check and delete in
+// one transaction: a newer draft of another tab survives); true when there
+// is none now, false when it is another one.
+export function clearDraft(store, opId, seen) {
+  return store.atomic(['drafts'], async ({ get, del }) => {
+    const cur = await get('drafts', opId);
+    if (!cur) return true;
+    if ((cur.updated ?? null) !== seen) return false;
+    del('drafts', opId);
+    return true;
+  });
 }
-// TODO(#22): with atomic() del(), make this one getUnchanged + del.

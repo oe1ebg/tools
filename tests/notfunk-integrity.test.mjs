@@ -424,3 +424,20 @@ test('draftEditState: drafts without a base are checked against the message', as
   // not an edit draft
   assert.deepEqual(draftEditState(a, { form: {}, saved: T0 }), { editing: null, base: null, stale: false, gone: false });
 });
+
+test('clearDraft: a newer draft written at the same time as the clear survives', async () => {
+  const t1 = await writeDraft(store, 'op1', { form: { text: 'A' }, saved: T0 }, undefined);
+  // both start with A's token; the writer goes first, the clear (check + delete in one transaction) sees the newer draft
+  const [t2, cleared] = await Promise.all([
+    writeDraft(store, 'op1', { form: { text: 'A2' }, saved: T0 }, t1),
+    clearDraft(store, 'op1', t1),
+  ]);
+  assert.equal(cleared, false);
+  assert.equal((await store.get('drafts', 'op1')).updated, t2);
+  // the clear first: the draft is gone, the writer with the old token is refused, never recreating it silently
+  const t3 = t2;
+  const [c, w] = await Promise.all([clearDraft(store, 'op1', t3), writeDraft(store, 'op1', { form: { text: 'late' }, saved: T0 }, t3).catch(e => e)]);
+  assert.equal(c, true);
+  assert.ok(w instanceof ConflictError);
+  assert.equal(await store.get('drafts', 'op1'), undefined);
+});
