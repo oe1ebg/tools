@@ -666,6 +666,10 @@ function formIsEmpty(f) {
   return formIsBlank(f, state.op);
 }
 
+// flushDraft() resolves true when the draft is safe (saved, or nothing to
+// save) and false when it is not (storage error, conflict with another tab's
+// draft, an older draft held back for review): the update flow
+// (shared/js/offline.js) relies on it.
 // Draft writes run one after the other, each reading the form and the token
 // (draftSeen) when its turn comes: a debounce that fires during a save, or
 // the clear after it, can't work with a stale token and leave the saved
@@ -686,8 +690,8 @@ function flushDraft() {
 
 async function flushDraftNow() {
   // an older draft waiting for the user's review is left as it is (a new write would look current)
-  if (state.editStale) return;
-  if (!state.op || $('#view-book').hidden && $('#view-msg').hidden) return;
+  if (state.editStale) return false;
+  if (!state.op || $('#view-book').hidden && $('#view-msg').hidden) return true;
   const f = readForm();
   const empty = formIsEmpty(f) && !state.editing;
   const opId = state.op.id;
@@ -707,10 +711,12 @@ async function flushDraftNow() {
       }
       setText($('#draft-status'), `✓ Entwurf gesichert ${viennaTime(draft.saved)}`);
     }
+    return true;
   } catch (e) {
-    if (e instanceof ConflictError) { draftConflict(e); return; }
+    if (e instanceof ConflictError) { draftConflict(e); return false; }
     console.warn('Entwurf nicht gespeichert', e);
     setText($('#draft-status'), 'Entwurf nicht gesichert!');
+    return false;
   }
 }
 

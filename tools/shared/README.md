@@ -199,6 +199,33 @@ and `checkOldInstall()`. The redirects stay.
   some other way must be added there by hand. `sw-core.js` is the
   exception: it is part of the service worker, which the browser keeps
   and update-checks itself.
+- **Service worker modes** (`js/sw-core.js`). `precache.js` must be a valid
+  manifest (`version` string, non-empty `files`); anything else (404, syntax
+  error, wrong shape) makes the worker's **install fail**, so a working
+  installation and its cache are never replaced and a first install is
+  reported as failed. Development without a build is explicit: `just
+  dev-precache` writes the stub `{ dev: true }`. The worker answers the
+  page's `version` message with `{ version, mode: 'production' | 'dev' |
+  'broken', ready }` (`ready`: every precached file is in the cache). Chip
+  (`js/offline.js`, `offlineStatus()`): `offline: wird eingerichtet…`,
+  `offline bereit ✓` (only with a complete cache), `offline nicht bereit`,
+  `Entwicklungsmodus (nicht offline)`, `Offline-Einrichtung fehlgeschlagen`;
+  next to the update button `Update verfügbar`, `Update fehlgeschlagen`
+  (new version could not install) and `Update-Prüfung fehlgeschlagen`.
+- **Save hook** (`initOffline({ beforeReload })`). Before an update or reload
+  the page calls the tool's hook, which must resolve exactly `true` when
+  everything typed is safe in storage (or nothing needed saving). `false`,
+  any other value (also `undefined`) or a rejection means failure. The
+  hook must not swallow a failure and return normally (show its own error
+  too, but return `false`), and must still report an unsaved draft on a
+  second call (the debounce timer is gone after the first failure). On
+  failure `offline.js` does **not** send `skipWaiting` or reload (also for an
+  update activated in another tab and for a resumed page): the old worker,
+  its cache, the page and the input stay, and the banner `#update-problem`
+  offers "Erneut versuchen" and, after a confirm dialog, "Trotzdem
+  aktualisieren" (the explicit way out so that a permanently failing storage
+  cannot block updates forever). Hooks are pure additions: they return their
+  result, their other save semantics are unchanged.
 - **Storage schemas belong to the tools.** `storage.js` is only the
   mechanism; a tool's database name, stores and migrations stay in the tool
   (e.g. `../confirm/js/db.js`). Never change one tool's schema from here.

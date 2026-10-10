@@ -41,9 +41,22 @@ etwa für einen USB-Stick.
 nicht von selbst. Steht dort „nicht dauerhaft“, regelmäßig eine Sicherung
 (JSON) exportieren.
 
+**Offline-Status.** „offline bereit ✓“ oben rechts heißt: alles ist
+im Browser gespeichert. „offline: wird eingerichtet…“ dauert beim ersten
+Öffnen kurz. „offline nicht bereit“ oder „Offline-Einrichtung
+fehlgeschlagen“ heißt: offline läuft es noch nicht, Seite mit Internet neu
+laden. „Entwicklungsmodus (nicht offline)“ gibt es nur auf
+Entwicklungsservern.
+
 **Neue Version.** Erscheint „Update verfügbar“, ist eine neue Version
 geladen. Sie wird erst nach einem Klick darauf aktiv, nie mitten in einer
-Runde; Logs und die halb getippte Zeile bleiben erhalten.
+Runde. Vorher wird die halb getippte Zeile gesichert; Logs bleiben
+erhalten. Gelingt das Sichern nicht, passiert **nichts**: die Eingabe bleibt
+stehen und eine rote Meldung bietet „Erneut versuchen“ oder, mit
+Rückfrage, „Trotzdem aktualisieren“ (nicht gesicherte Eingaben gehen dann
+verloren). Schlägt das Laden einer neuen Version oder die Suche danach fehl,
+steht „Update fehlgeschlagen“ bzw. „Update-Prüfung fehlgeschlagen“ daneben;
+die installierte Version läuft weiter.
 
 **Mehrere Tabs.** Ein Log sollte nur in einem Tab offen sein; sonst warnt
 das Werkzeug („nur ein Tab pro Log!“).
