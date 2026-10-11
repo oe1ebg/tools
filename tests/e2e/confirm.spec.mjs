@@ -332,3 +332,45 @@ test('service worker installs the offline copy', async ({ page, browserName }) =
   await page.goto('tools/confirm/');
   await expect(page.locator('#st-offline')).toHaveText(/offline bereit/, { timeout: 45_000 });
 });
+
+// Issue #15 review: a backup beyond the import limits is exported in parts and
+// imported together. The test hook CONFIRM_PART_LIMITS lowers the limits, so
+// a small log is split (nothing heavy).
+test('a split export is imported from all its parts together, one part alone is refused', async ({ page, browser, baseURL }, testInfo) => {
+  await page.addInitScript(() => { globalThis.CONFIRM_PART_LIMITS = { maxRecords: 2 }; });
+  await openNewLog(page, 'E2E Teile');
+  for (const c of ['OE1AAA', 'OE1BBB', 'OE1CCC', 'OE1DDD', 'OE1EEE']) await logCall(page, c);
+  const downloads = [];
+  page.on('download', d => downloads.push(d));
+  const first = page.waitForEvent('download');
+  await page.locator('#btn-export-menu').click();
+  await page.locator('#export-list [data-export="json"]').click();
+  const count = Number((await first).suggestedFilename().match(/_teil-\d+-von-(\d+)\.json$/)[1]);
+  expect(count).toBeGreaterThanOrEqual(3);
+  await expect.poll(() => downloads.length).toBe(count);
+  await expect(page.locator('#log-status')).toContainText(`Download von ${count} Dateien gestartet`);
+  const paths = [];
+  for (const d of downloads) {
+    const p = testInfo.outputPath(d.suggestedFilename());
+    await d.saveAs(p);
+    paths.push(p);
+  }
+  const ctx = await browser.newContext({ baseURL, locale: 'de-AT', timezoneId: 'Europe/Vienna' });
+  try {
+    const b = await ctx.newPage();
+    await b.goto('tools/confirm/');
+    await expect.poll(() => b.evaluate(() => globalThis.CONFIRM_READY === true)).toBe(true);
+    await b.locator('#import-file').setInputFiles(paths.slice(0, 1));
+    await expect(b.locator('#import-msg')).toContainText('es fehlen die Teile');
+    await expect(b.locator('#import-msg')).toContainText('nichts importiert');
+    await expect(b.locator('#event-list')).not.toContainText('E2E Teile');
+    await b.locator('#import-file').setInputFiles(paths);
+    await expect(b.locator('#import-msg')).toContainText('1 Log importiert');
+    await expect(b.locator('#import-msg')).not.toContainText('Kopie');
+    await b.getByText('E2E Teile').first().click();
+    await expect(b.locator('#log-body tr[data-id]')).toHaveCount(5);
+    for (const c of ['OE1AAA', 'OE1EEE']) await expect(b.locator('#log-body')).toContainText(c);
+  } finally {
+    await ctx.close();
+  }
+});

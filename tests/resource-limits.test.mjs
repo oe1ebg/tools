@@ -90,3 +90,17 @@ test('a changed record always gets a later `updated` stamp', async () => {
   assert.ok(stamps[2] > e.updated && stamps[3] > e.updated);
   assert.ok(restoreDeleted(d, meta).updated > d.updated && d.updated > e.updated);
 });
+
+// Review: a stored text that is not normalised (imports keep it as written)
+// still counts as unchanged.
+test('notfunk: an unnormalised stored long Inhalt stays editable', async () => {
+  const { formToFields, messageToForm } = await import('../tools/notfunk/js/form.js');
+  const meta = { revisionId: 'r1', operator: 'OE1EBG', now: '2026-10-04T17:00:00.000Z' };
+  for (const text of ['x'.repeat(MESSAGE_TEXT_MAX + 1) + '\n', ' ' + 'x'.repeat(MESSAGE_TEXT_MAX + 1), 'x'.repeat(MESSAGE_TEXT_MAX) + '\r\ny\r\n']) {
+    const long = msg(1, 'kurz');
+    long.text = text; // as a lenient import keeps it
+    assert.equal(editMessage(long, { staffRef: 'A' }, meta).next.staffRef, 'A');
+    const form = messageToForm(long);
+    assert.deepEqual(formToFields({ ...form, staffRef: 'A' }, { now: T, editing: true, keepText: long.text }).errors, []);
+  }
+});

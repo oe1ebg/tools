@@ -138,3 +138,19 @@ test('confirm: notes beyond the file size limit are split; a small backup stays 
   // a part of another format is refused
   assert.ok(combineBackupParts([{ format: 'x', events: [] }, { format: 'x', events: [] }]).errors);
 });
+
+// Review: a set of parts is bounded as a whole.
+test('a set of parts is refused beyond the total limits (nothing combined)', async () => {
+  const { partsTooLarge, partsTooManyRecords, PARTS_MAX_TOTAL_BYTES, PARTS_MAX_COUNT } = await import('../tools/shared/js/backup-parts.js');
+  assert.equal(partsTooLarge(PARTS_MAX_TOTAL_BYTES), '');
+  assert.match(partsTooLarge(PARTS_MAX_TOTAL_BYTES + 1), /nicht gemeinsam importiert.*nichts importiert/);
+  assert.match(partsTooManyRecords(1000001), /nichts importiert/);
+  assert.equal(partsTooManyRecords(1000000), '');
+  // `of` is bounded
+  assert.equal(groupParts([{ name: 'a', data: { part: { set: 's', n: 1, of: PARTS_MAX_COUNT + 1 } } }]).errors.length, 1);
+  // six parts of 200000 records each (valid per file) are beyond 1000000 in total
+  const six = Array.from({ length: 6 }, (_, i) => ({ format: BACKUP_FORMAT, version: 1, part: { set: 's', n: i + 1, of: 6 }, events: [{ event: ev, entries: new Array(BACKUP_MAX_RECORDS).fill(null), revisions: [] }] }));
+  assert.match(combineBackupParts(six).errors[0], /nichts importiert/);
+  const nf = Array.from({ length: 6 }, () => ({ format: 'oe1ebg-notfunk-backup', version: 1, operation: OP, messages: [], revisions: new Array(NF_RECORDS).fill(null), counters: [] }));
+  assert.throws(() => nfCombine(nf), /nichts importiert/);
+});

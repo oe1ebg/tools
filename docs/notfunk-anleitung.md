@@ -392,6 +392,13 @@ Zeitraum (Von/Bis je Datum und Uhrzeit; nur ein Datum = der ganze Tag).
   **alle Teile gemeinsam auswählen** (mehrere Dateien markieren): sie werden
   wie eine einzige Sicherung, ganz oder gar nicht, übernommen. Fehlt ein Teil,
   wird nichts importiert und die Meldung nennt den fehlenden Teil.
+  Der Browser fragt dabei eventuell, ob mehrere Downloads erlaubt sind; die
+  Meldung sagt nur, dass N Dateien gestartet wurden – **prüfen Sie, dass alle
+  N angekommen sind** („Letzte Sicherung“ wird dann nicht gesetzt). Die Teile
+  lassen sich nur im Notfunk-Meldebuch importieren, und nur mit einer
+  aktuellen Version: eine ältere Version könnte einen einzelnen Teil als
+  unvollständige Sicherung einspielen. Alle Teile zusammen dürfen höchstens
+  12 Dateien und 480 MB umfassen.
 
 ### Gespeichert, Entwurf und Sicherung
 

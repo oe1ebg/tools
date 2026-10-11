@@ -14,6 +14,28 @@
 export const PART_MAX_BYTES = 40 * 1024 * 1024;
 export const PART_MAX_RECORDS = 150000;
 
+// A set of parts is restored in one piece in memory, so the set is bounded too:
+// at most 12 parts, 480 MB and 1000000 records in total (all parts together).
+// Beyond that the import refuses the set (nothing is written); such a backup
+// can only be split by hand (e.g. one log or operation at a time).
+export const PARTS_MAX_COUNT = 12;
+export const PARTS_MAX_TOTAL_BYTES = 480 * 1024 * 1024;
+export const PARTS_MAX_TOTAL_RECORDS = 1000000;
+
+// German refusal for a selection of files totalling `bytes`, or ''.
+export function partsTooLarge(bytes) {
+  return bytes > PARTS_MAX_TOTAL_BYTES
+    ? `Die gewählten Dateien sind zusammen ${Math.round(bytes / 1048576)} MB groß; mehr als ${PARTS_MAX_TOTAL_BYTES / 1048576} MB werden nicht gemeinsam importiert (zu groß für diesen Browser) – es wurde nichts importiert.`
+    : '';
+}
+
+// German refusal for a set with `records` records in total, or ''.
+export function partsTooManyRecords(records) {
+  return records > PARTS_MAX_TOTAL_RECORDS
+    ? `Die Teile enthalten zusammen ${records} Datensätze; mehr als ${PARTS_MAX_TOTAL_RECORDS} werden nicht gemeinsam importiert (zu groß für diesen Browser) – es wurde nichts importiert.`
+    : '';
+}
+
 const utf8 = new TextEncoder();
 export const utf8Length = s => utf8.encode(s).length;
 
@@ -42,7 +64,7 @@ export function partOf(data) {
   const p = data?.part;
   if (p === undefined || p === null) return null;
   const ok = p && typeof p === 'object' && typeof p.set === 'string' && p.set.length > 0 && p.set.length <= 100
-    && Number.isInteger(p.n) && Number.isInteger(p.of) && p.of >= 2 && p.of <= 10000 && p.n >= 1 && p.n <= p.of;
+    && Number.isInteger(p.n) && Number.isInteger(p.of) && p.of >= 2 && p.of <= PARTS_MAX_COUNT && p.n >= 1 && p.n <= p.of;
   return ok ? { set: p.set, n: p.n, of: p.of } : false;
 }
 

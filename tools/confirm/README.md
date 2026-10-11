@@ -238,7 +238,7 @@ now redirected; see "Move to /tools/" in `../shared/README.md`), and the source 
   over 50 MB (`BACKUP_MAX_BYTES`, ~10x a 5000-line log with all versions),
   more than 200000 lines and versions together (`BACKUP_MAX_RECORDS`).
   Texts of a line (note, comment) have no limit of their own, so a backup
-  the tool itself writes must always be restorable: an export beyond these
+  the tool itself writes should be restorable: an export beyond these
   limits is written in **parts** (`backupTexts()`, `tools/shared/js/backup-parts.js`;
   each part below 40 MB / 150000 records, named `..._teil-N-von-M.json`, a
   valid backup file with an extra `part: { set, n, of }`; the log's own record
@@ -249,7 +249,7 @@ now redirected; see "Move to /tools/" in `../shared/README.md`), and the source 
   result goes through the usual `validateBackup(..., { combined: true })` and
   ONE atomic `planBackupImport()` write, ids, revisions and counters as
   exported. The limits apply per file; a backup within them is one file as
-  before. The import transaction stays atomic as before. Test:
+  before. The import transaction stays atomic as before. Limits: the set is bounded too (12 parts, 480 MB, 1000000 records in total; refused with a German message, nothing written); a single record larger than the per-file limit is not split and can still not be restored (Confirm has no text limit); an older app version may import a lone part as a partial backup; parts import only into the same tool; a blocked automatic multi-download is reported as "N files started, check that all arrived" and no export / backup time is recorded for parts. Test:
   `tests/backup-parts.test.mjs`.
 
 ## Operator comments and log markers (issue #32)

@@ -17,7 +17,7 @@
 import { DIRECTIONS, CHANNELS, MESSAGE_TYPES, PRIORITIES, REF_KINDS, STATUS_FLOW, validateMessage, messageFields, statusLabel, statusEntry, currentStatus, liveMessages, fmtVienna, viennaDate, viennaTime, isoVienna, fmtFreq } from './model.js';
 import { counterAfterImport, counterKey, PREFIX_RE, formatNumber } from './numbering.js';
 import { csvSafeRows } from '../../shared/js/csv.js';
-import { splitToFit } from '../../shared/js/backup-parts.js';
+import { splitToFit, partsTooManyRecords } from '../../shared/js/backup-parts.js';
 
 export const BACKUP_FORMAT = 'oe1ebg-notfunk-backup';
 export const BACKUP_VERSION = 1;
@@ -315,6 +315,8 @@ export function mergeBackup(backup, existing) {
 export function combineBackupParts(parts) {
   const ops = parts.map(d => checkFile(d));
   if (ops.some(o => o.id !== ops[0].id)) throw new Error('Die Teile gehören zu verschiedenen Einsätzen');
+  const big = partsTooManyRecords(parts.reduce((n, d) => n + d.messages.length + d.revisions.length, 0));
+  if (big) throw new Error(big.replace(/\.$/, ''));
   const last = new Map();
   for (const d of parts) for (const c of d.counters) if (isObj(c) && typeof c.id === 'string' && !(last.get(c.id)?.last >= c.last)) last.set(c.id, c);
   const { part, ...rest } = parts[0];

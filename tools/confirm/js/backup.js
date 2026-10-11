@@ -16,7 +16,7 @@
 // in the file, a line without a readable time) is imported as written and
 // reported as a warning.
 
-import { splitToFit } from '../../shared/js/backup-parts.js';
+import { splitToFit, partsTooManyRecords } from '../../shared/js/backup-parts.js';
 
 export const BACKUP_FORMAT = 'oe1ebg-confirm-backup';
 export const BACKUP_VERSIONS = [1];
@@ -214,6 +214,10 @@ export function combineBackupParts(parts) {
     const c = validateBackup(d, 1, { fileOnly: true });
     if (!c.ok) return { errors: c.errors };
   }
+  let total = 0;
+  for (const d of parts) for (const item of d.events) if (isObj(item)) total += (Array.isArray(item.entries) ? item.entries.length : 0) + (Array.isArray(item.revisions) ? item.revisions.length : 0);
+  const big = partsTooManyRecords(total);
+  if (big) return { errors: [big] };
   const byId = new Map();
   const events = [];
   for (const d of parts) {

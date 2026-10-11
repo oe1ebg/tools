@@ -36,7 +36,7 @@ import {
 } from './model.js';
 import { normalizePrefix, PREFIX_RE, nextSeq, formatNumber, counterKey } from './numbering.js';
 import { toGeschaeftsbuchCSV, toBackupTexts, checkBackup, combineBackupParts, BACKUP_MAX_BYTES } from './export.js';
-import { groupParts, partFileName } from '../../shared/js/backup-parts.js';
+import { groupParts, partFileName, partsTooLarge } from '../../shared/js/backup-parts.js';
 import { saveNewMessage, updateMessage, changedFields, editBaseOf, editTarget, draftEditState, applyBackup, patchOperation, writeDraft, clearDraft } from './ops.js';
 import {
   emptyForm, setDirection, formToFields, formIsBlank, messageToForm, replyForm, nextStep, statusSteps, bookSummary, partyText,
@@ -1562,14 +1562,17 @@ async function exportBackup() {
   const now = nowIso();
   // one file, or - beyond what an import accepts (50 MB, 200000 records) -
   // several parts, imported together; nothing is left out
-  const texts = toBackupTexts(data, now, newId());
+  const texts = toBackupTexts(data, now, newId(), globalThis.NOTFUNK_PART_LIMITS); // (test hook)
   for (const [i, text] of texts.entries()) {
     if (i) await new Promise(r => setTimeout(r, 400)); // browsers ask before many downloads at once
     download(text, texts.length === 1 ? `${fileStem()}-sicherung.json` : partFileName(`${fileStem()}-sicherung`, i + 1, texts.length), 'application/json');
   }
-  const parts = texts.length > 1 ? ` – wegen der Größe in ${texts.length} Dateien geteilt: beim Import alle Teile gemeinsam auswählen` : '';
-  bookStatus(fromMemory ? `Download der Sicherung (JSON) gestartet${parts} – der Speicher war nicht lesbar, sie enthält den Stand dieses Tabs` : `Download der Sicherung (JSON) gestartet${parts}`);
-  await updateOp(state.op, { backupAt: now });
+  const lead = texts.length > 1
+    ? `Sicherung (JSON): Download von ${texts.length} Dateien gestartet (große Sicherung, geteilt). Prüfen Sie, dass alle ${texts.length} angekommen sind – der Browser fragt eventuell, ob mehrere Downloads erlaubt sind. Beim Import alle Teile gemeinsam auswählen`
+    : 'Download der Sicherung (JSON) gestartet';
+  bookStatus(fromMemory ? `${lead} – der Speicher war nicht lesbar, sie enthält den Stand dieses Tabs` : lead);
+  // in parts: not known to have all arrived, so no "letzte Sicherung" time
+  if (texts.length === 1) await updateOp(state.op, { backupAt: now });
   renderBackupChip();
 }
 
@@ -1602,6 +1605,8 @@ async function importFiles(files) {
   const loaded = [];
   const results = [];
   const bad = (...msg) => results.push({ cls: 'err', content: [el('strong', {}, 'Nicht importiert: '), ...msg] });
+  const tooBig = partsTooLarge(files.reduce((n, f) => n + f.size, 0));
+  if (tooBig) { showImportMsg('err', el('strong', {}, 'Nicht importiert: '), tooBig); return; }
   for (const file of files) {
     if (file.size > BACKUP_MAX_BYTES) {
       bad(`„${file.name}“ ist ${Math.round(file.size / 1048576)} MB groß; mehr als ${BACKUP_MAX_BYTES / 1048576} MB werden nicht importiert (zu groß für diesen Browser) – es wurde nichts geändert.`);

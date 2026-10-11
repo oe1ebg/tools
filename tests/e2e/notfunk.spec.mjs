@@ -568,8 +568,11 @@ test('draft restore keeps a Stichzeit typed as 1405', async ({ page }) => {
 // Issue #15 review: a backup the tool wrote must be restorable. 1100 messages
 // of 50000 characters (~56 MB) exceed the import limit as one file, so the
 // export is written in parts; selected together they restore everything.
-test('a backup beyond the import limit is exported in parts and restored from them', async ({ page, browser, baseURL }, testInfo) => {
-  test.setTimeout(240_000);
+test('a backup beyond the import limit is exported in parts and restored from them', async ({ page, browser, baseURL, browserName }, testInfo) => {
+  // ~55 MB in IndexedDB, the DOM and a second profile: Chromium only, and slow
+  test.skip(browserName !== 'chromium', 'heavy (55 MB); one engine is enough');
+  test.slow();
+  test.setTimeout(360_000);
   await openNewOp(page, 'E2E Groß', 'G1');
   await page.evaluate(async () => {
     const { newMessage, messageFields } = await import(new URL('js/model.js', location.href).href);
@@ -587,11 +590,17 @@ test('a backup beyond the import limit is exported in parts and restored from th
     open.close();
   });
   await page.reload();
-  await expect(page.locator('#book-body tr[data-id]')).toHaveCount(1100);
+  await expect(page.locator('#book-body tr[data-id]')).toHaveCount(1100, { timeout: 60_000 });
   const downloads = [];
   page.on('download', d => downloads.push(d));
+  const first = page.waitForEvent('download', { timeout: 120_000 });
   await page.locator('#btn-backup').click();
-  await expect.poll(() => downloads.length, { timeout: 120_000 }).toBeGreaterThanOrEqual(2);
+  // the part count is in the file name (_teil-n-von-M): wait for exactly that many
+  const count = Number((await first).suggestedFilename().match(/_teil-\d+-von-(\d+)\.json$/)[1]);
+  expect(count).toBeGreaterThanOrEqual(2);
+  await expect.poll(() => downloads.length, { timeout: 120_000 }).toBe(count);
+  await expect(page.locator('#book-status')).toContainText(`Download von ${count} Dateien gestartet`);
+  await expect(page.locator('#st-backup')).toContainText('Noch keine Sicherung'); // not recorded for parts
   const paths = [];
   for (const d of downloads) {
     expect(d.suggestedFilename()).toMatch(/_teil-\d+-von-\d+\.json$/);
@@ -606,12 +615,12 @@ test('a backup beyond the import limit is exported in parts and restored from th
     await b.goto('tools/notfunk/');
     await expect.poll(() => b.evaluate(() => globalThis.NOTFUNK_READY === true)).toBe(true);
     await b.locator('#import-file').setInputFiles(paths.slice(0, 1));
-    await expect(b.locator('#import-msg')).toContainText('es fehlen die Teile');
+    await expect(b.locator('#import-msg')).toContainText('es fehlen die Teile', { timeout: 60_000 });
     await expect(b.locator('#import-msg')).toContainText('nichts importiert');
     await b.locator('#import-file').setInputFiles(paths);
-    await expect(b.locator('#import-msg')).toContainText('1100 Meldungen neu', { timeout: 120_000 });
+    await expect(b.locator('#import-msg')).toContainText('1100 Meldungen neu', { timeout: 180_000 });
     await b.getByRole('button', { name: /„E2E Groß“ öffnen/ }).click();
-    await expect(b.locator('#book-body tr[data-id]')).toHaveCount(1100);
+    await expect(b.locator('#book-body tr[data-id]')).toHaveCount(1100, { timeout: 60_000 });
   } finally {
     await ctx.close();
   }

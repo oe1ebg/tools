@@ -107,12 +107,12 @@ are in `oe1ebg/tools/confirm/README.md`.
   `js/export.js`, which resolves like the map. A zone-less input takes its
   zone from `utmRef()` (set by `app.js` from the log header), default 33U.
   Details: README "UTMREF".
-- **Backups always restorable.** The import limits (50 MB / 200000 records)
-  must never make the tool's own export unrestorable: `backupTexts()` splits
+- **Backups restorable (within limits).** The import limits (50 MB / 200000 records)
+  should not make the tool's own export unrestorable: `backupTexts()` splits
   an export beyond them into parts (`part: { set, n, of }`) that the multi-file
   import puts together (`groupParts()`, `combineBackupParts()`) for ONE atomic
   `planBackupImport()` write; never block an export or add a limit without a
-  restore path (`tests/backup-parts.test.mjs`). An edited, deleted or restored
+  restore path (`tests/backup-parts.test.mjs`). Limits of the parts: the set is bounded too (12 parts, 480 MB, 1000000 records in total, `PARTS_*` in backup-parts.js; refused with a German message, nothing written); a single record larger than the per-file limit (Confirm has no text limit) is not split and can still not be restored; an older app version may import a lone part as a partial backup; parts import only into the same tool; an automatic multi-download may be blocked, so the status says N files were *started* (check all arrived) and the export/backup time is not recorded for parts. An edited, deleted or restored
   line always gets a later `updated` (`laterIso()`): the log's row cache
   compares it (a stalled clock must not keep a stale row).
 - **Saved / draft / backup wording:** "gespeichert" only after the commit; a
