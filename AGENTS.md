@@ -67,6 +67,15 @@ Browser fixtures fail on page/console errors, CSP violations, same-origin HTTP e
 
 **ADIF cross-checks:** a failing cross-check is **not automatically our bug**. Before changing validation or exports, consult ADIF 3.1.7 (https://adif.org.uk/317/ADIF_317.htm and its resources page). Either fix our behaviour or record the other tool's deviation in the test case's `differs`, citing the spec section, and in `tools/adif/README.md`, “Cross-checks with other tools”. Never flip an expectation merely to pass.
 
+## Git and pull requests
+
+- Use an isolated Git worktree and a dedicated branch for each PR. Preserve unrelated work and check the working tree and remote branch before updating history.
+- Prefer **rebase and merge** with linear history. Update PR branches by rebasing onto their current base; resolve conflicts on the branch rather than merging the base into it. When reporting merge readiness, check that rebase merging is possible as well as checking CI and ordinary mergeability.
+- When related work spans multiple active PRs, prefer **stacked PRs** where practical: the first targets `main`, each dependent PR targets the preceding branch, and each diff contains only its own change. Keep independent work based on `main` when stacking would create an artificial dependency.
+- State dependencies and merge order in each stacked PR description, and link the other PRs. Review and merge from the bottom of the stack upward.
+- After a parent is rebased or merged, restack its descendants onto the updated parent or `main` and update PR bases. GitHub rebase merging changes commit IDs; replay only each descendant's own commits, preserving its diff and avoiding duplicate parent commits. Recheck affected tests and CI scope after restacking.
+- Push rewritten PR branches with `--force-with-lease`, checking the expected remote head so newer collaborator changes are not overwritten. Merge only when the user has authorized merging.
+
 ## Reviews and CI
 
 Review the current PR head against its stated scope and issue acceptance criteria. Support findings with a reproduction or specific code path and explain the impact. Separate defects from suggestions and unverified concerns. Green CI establishes coverage of the checks that ran; verify their scope and skips. Distinguish completion of a PR from completion of its parent issue.
