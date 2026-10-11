@@ -1696,8 +1696,7 @@ function renderLog(highlightCall) {
     const list = rowsByCall.get(e.call);
     if (list) list.push(node); else rowsByCall.set(e.call, [node]);
   }
-  matched = [];
-  highlightMatches(call);
+  highlightMatches(call); // also clears `match` on reused rows of the previous call
   markEditing();
 }
 
@@ -1710,9 +1709,10 @@ let matched = [];
 // Marks the rows of one callsign (the one typed in the form, or picked on the
 // map) by toggling a class on the existing rows: no rebuild per keystroke.
 function highlightMatches(call) {
-  for (const tr of matched) tr.classList.remove('match');
-  matched = (call && rowsByCall.get(call)) || [];
-  for (const tr of matched) tr.classList.add('match');
+  const next = (call && rowsByCall.get(call)) || [];
+  for (const tr of matched) if (!next.includes(tr)) tr.classList.remove('match');
+  for (const tr of next) tr.classList.add('match');
+  matched = next;
 }
 
 // The line being edited gets the class `editing` (one row at a time).

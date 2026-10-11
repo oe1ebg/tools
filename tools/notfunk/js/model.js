@@ -109,7 +109,8 @@ export function messageFields(f) {
 // Longest Inhalt (characters): a radio message is a few hundred, this only stops pasted files.
 export const MESSAGE_TEXT_MAX = 50000;
 
-export function validateMessage(f) {
+// lenient: an imported or already stored message (the limit applies to what is typed now)
+export function validateMessage(f, { lenient = false } = {}) {
   const errs = [];
   if (!(f.direction in DIRECTIONS)) errs.push('Eingang oder Ausgang wählen');
   if (!ISO_RE.test(f.ts || '')) errs.push('Zeit fehlt oder ist ungültig');
@@ -120,7 +121,7 @@ export function validateMessage(f) {
   if (!f.to.name && !f.to.call) errs.push('Adressat fehlt');
   // (the form asks for both; older records may have only one of them)
   if (!f.text && !f.subject) errs.push('Betreff oder Inhalt fehlt');
-  if (f.text.length > MESSAGE_TEXT_MAX) errs.push(`Inhalt ist zu lang (höchstens ${MESSAGE_TEXT_MAX} Zeichen, jetzt ${f.text.length})`);
+  if (!lenient && f.text.length > MESSAGE_TEXT_MAX) errs.push(`Inhalt ist zu lang (höchstens ${MESSAGE_TEXT_MAX} Zeichen, jetzt ${f.text.length})`);
   for (const k of ['stichzeit']) if (f[k] && !ISO_RE.test(f[k])) errs.push('Stichzeit ist ungültig');
   if (f.origin.filed && !ISO_RE.test(f.origin.filed)) errs.push('Aufgabezeit ist ungültig');
   return errs;

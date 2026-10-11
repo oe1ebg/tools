@@ -285,6 +285,20 @@ test('editing a line and deleting one keep the other rows', async ({ page }) => 
   await expect(page.locator('#st-total')).toHaveText('1');
 });
 
+test('a re-render after a highlight set from outside the field leaves no stale match', async ({ page }) => {
+  await openNewLog(page, 'E2E Match');
+  await logCall(page, 'OE1ABC');
+  await logCall(page, 'OE3XYZ');
+  await page.locator('#f-call').fill('OE1ABC');
+  await expect(page.locator('#log-body tr.match')).toHaveCount(1);
+  // the field is emptied without an input event (like a map pick leaves it),
+  // then a data change re-renders the log
+  await page.evaluate(() => { document.querySelector('#f-call').value = ''; });
+  await page.getByRole('button', { name: /Nr\. 2 OE3XYZ löschen/ }).click();
+  await expect(page.locator('#log-body tr[data-id]')).toHaveCount(1);
+  await expect(page.locator('#log-body tr.match')).toHaveCount(0);
+});
+
 test('service worker installs the offline copy', async ({ page, browserName }) => {
   // Playwright drives service workers reliably only in Chromium.
   test.skip(browserName !== 'chromium', 'service workers: Chromium only');

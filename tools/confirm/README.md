@@ -236,9 +236,10 @@ now redirected; see "Move to /tools/" in `../shared/README.md`), and the source 
 - **Resource limits (issue #15).** An import is refused as a whole, before
   anything is read into the page or written, with a German message: a file
   over 50 MB (`BACKUP_MAX_BYTES`, ~10x a 5000-line log with all versions),
-  more than 200000 lines and versions together (`BACKUP_MAX_RECORDS`), a
-  note or comment text of a line over 100000 characters
-  (`BACKUP_MAX_TEXT`). The import transaction stays atomic as before.
+  more than 200000 lines and versions together (`BACKUP_MAX_RECORDS`).
+  Texts of a line (note, comment) have no limit of their own: what the tool
+  stored and exported must import again. The import transaction stays atomic
+  as before.
 
 ## Operator comments and log markers (issue #32)
 

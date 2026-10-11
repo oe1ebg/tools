@@ -368,11 +368,17 @@ async function benchNotfunk(page, cdp, size, m) {
       for (const q of terms) {
         // the book changed (rows added/removed), or - with rows kept between
         // renders, a search that leaves the same rows - 400 ms passed
+        const idsBefore = [...body.querySelectorAll('tr[data-id]')].map(tr => tr.dataset.id).join();
         const done = new Promise(res => { const mo = new MutationObserver(() => { mo.disconnect(); res(true); }); mo.observe(body, { childList: true }); setTimeout(() => { mo.disconnect(); res(false); }, 400); });
         input.value = q;
         const t = performance.now();
         input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: q.slice(-1) }));
         const changed = await done;
+        if (!changed) {
+          // no DOM change is fine only if the book still shows the same, non-empty rows
+          const idsNow = [...body.querySelectorAll('tr[data-id]')].map(tr => tr.dataset.id).join();
+          if (!body.children.length || idsNow !== idsBefore) throw new Error(`search "${q}": no result shown within 400 ms`);
+        }
         const built = changed ? performance.now() - t - 150 : 0; // after the debounce
         await window.__frame();
         out.push({ built, frame: changed ? performance.now() - t - 150 : performance.now() - t - 400 });

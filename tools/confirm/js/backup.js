@@ -22,11 +22,11 @@ export const BACKUP_VERSIONS = [1];
 // Resource limits (issue #15): a file or log beyond these is refused as a
 // whole, with a message, before anything is written. 50 MB is about 10x a
 // 5000-line log with all its revisions; 200000 records (lines + versions)
-// about 20x. A text of one line (note, comment) above 100000 characters is
-// not something typed at a radio.
+// about 20x. There is no limit on the text of a line: a note longer than
+// anything sensible may already be stored, and a backup the tool itself wrote
+// must always import again (the file size bounds it).
 export const BACKUP_MAX_BYTES = 50 * 1024 * 1024;
 export const BACKUP_MAX_RECORDS = 200000;
-export const BACKUP_MAX_TEXT = 100000;
 
 const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const isId = v => typeof v === 'string' && v.length > 0 && v.length <= 200;
@@ -83,7 +83,6 @@ export function validateBackup(data, limit = 20) {
       if (ids.has(e.id)) bad(`${ew}: Kennung kommt doppelt vor`);
       ids.add(e.id);
       if (e.eventId !== undefined && e.eventId !== ev.id) bad(`${ew}: gehört zu einem anderen Log`);
-      for (const k of ['note', 'text']) if (typeof e[k] === 'string' && e[k].length > BACKUP_MAX_TEXT) bad(`${ew}: „${k}“ ist länger als ${BACKUP_MAX_TEXT} Zeichen`);
       if (!isTime(e.ts)) warn(`${ew}: Zeit fehlt oder ist ungültig (Erstellungszeit wird verwendet)`);
       for (const k of ['created', 'updated', 'deleted']) if (!timeOk(e[k])) warn(`${ew}: Zeitstempel „${k}“ ungültig`);
       if (e.kind === 'comment') {
