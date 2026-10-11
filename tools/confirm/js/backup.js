@@ -251,9 +251,9 @@ export function combineBackupParts(parts) {
   }
   const allChunks = parts.flatMap(d => d.chunks || []);
   if (allChunks.length) {
-    const byKind = { entries: new Map(), revisions: new Map() };
-    for (const item of events) for (const k of ['entries', 'revisions']) for (const r of item[k]) if (isObj(r) && typeof r.id === 'string') byKind[k].set(r.id, r);
-    const why = applyChunks(allChunks, (kind, rid) => byKind[kind]?.get(rid));
+    const byKind = new Map([['entries', new Map()], ['revisions', new Map()]]); // Maps: a tampered kind like "__proto__" is simply unknown
+    for (const item of events) for (const k of ['entries', 'revisions']) for (const r of item[k]) if (isObj(r) && typeof r.id === 'string') byKind.get(k).set(r.id, r);
+    const why = applyChunks(allChunks, (kind, rid) => byKind.get(kind)?.get(rid));
     if (why) return { errors: [why] };
   }
   const { part, chunks, ...rest } = parts[0];

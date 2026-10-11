@@ -1,6 +1,7 @@
 // Confirmation log (/tools/confirm/): loads, a log can be created and a check-in
 // logged, the offline location search answers, CSV and ADIF export download
 // and the ADI file passes the strict ADIF 3.1.7 reader the unit tests use.
+import { readFileSync, writeFileSync } from 'node:fs';
 import { test, expect, downloadText } from './fixtures.mjs';
 import { readADI } from '../adif-spec.mjs';
 
@@ -420,6 +421,17 @@ test('a note beyond the per-file limit is chunked across the parts and restored 
     const b = await ctx.newPage();
     await b.goto('tools/confirm/');
     await expect.poll(() => b.evaluate(() => globalThis.CONFIRM_READY === true)).toBe(true);
+    // a tampered set (chunk kind "__proto__"): a clear refusal reaches the user, nothing is imported
+    const tampered = paths.map((fp, i) => {
+      const d = JSON.parse(readFileSync(fp, 'utf8'));
+      for (const c of d.chunks || []) c.kind = '__proto__';
+      const out = testInfo.outputPath(`tampered-${i}.json`);
+      writeFileSync(out, JSON.stringify(d));
+      return out;
+    });
+    await b.locator('#import-file').setInputFiles(tampered);
+    await expect(b.locator('#import-msg')).toContainText('nichts importiert');
+    await expect(b.locator('#event-list')).not.toContainText('E2E Notiz');
     await b.locator('#import-file').setInputFiles(paths);
     await expect(b.locator('#import-msg')).toContainText('1 Log importiert');
     await b.getByText('E2E Notiz').first().click();

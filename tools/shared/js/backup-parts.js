@@ -84,13 +84,20 @@ export function chunkRecord(rec, kind, rid, maxChars = CHUNK_CHARS) {
 //   chunks   every chunk of all parts, in any order
 //   lookup   (kind, rid) -> the record, or undefined
 // Every string must be complete: n = 1..of exactly once each, the same `of`,
-// a record that is there, a path that leads to the '' left in its place.
+// a record that is there, a path (own keys, no __proto__/constructor/prototype)
+// that leads to the '' left in its place. lookup must not fail for an unknown
+// kind (use a Map).
 // Returns a German error text, or '' when all strings are whole again.
+const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+const UNSAFE_KEYS = ['__proto__', 'constructor', 'prototype'];
+const pathOk = path => Array.isArray(path) && path.length > 0 && path.length <= 20
+  && path.every(k => (typeof k === 'string' && !UNSAFE_KEYS.includes(k)) || (Number.isSafeInteger(k) && k >= 0));
+
 export function applyChunks(chunks, lookup) {
   const groups = new Map();
   for (const c of chunks) {
-    const ok = c && typeof c === 'object' && typeof c.kind === 'string' && typeof c.rid === 'string' && Array.isArray(c.path) && c.path.length > 0
-      && Number.isInteger(c.n) && Number.isInteger(c.of) && c.of >= 1 && c.n >= 1 && c.n <= c.of && typeof c.data === 'string';
+    const ok = c && typeof c === 'object' && typeof c.kind === 'string' && typeof c.rid === 'string' && pathOk(c.path)
+      && Number.isSafeInteger(c.n) && Number.isSafeInteger(c.of) && c.of >= 1 && c.of <= 100000 && c.n >= 1 && c.n <= c.of && typeof c.data === 'string';
     if (!ok) return 'Textblock ungültig – die Teile sind beschädigt; es wurde nichts importiert.';
     const key = JSON.stringify([c.kind, c.rid, c.path]);
     if (!groups.has(key)) groups.set(key, []);
@@ -109,9 +116,10 @@ export function applyChunks(chunks, lookup) {
     const rec = lookup(kind, rid);
     if (!rec) return `Textblock von ${rid}: der Datensatz fehlt in den Teilen; es wurde nichts importiert.`;
     let holder = rec;
-    for (const k of path.slice(0, -1)) holder = holder && typeof holder === 'object' ? holder[k] : undefined;
+    for (const k of path.slice(0, -1)) holder = holder && typeof holder === 'object' && hasOwn(holder, k) ? holder[k] : undefined;
     const last = path[path.length - 1];
-    if (!holder || typeof holder !== 'object' || typeof holder[last] !== 'string') return `Textblock von ${rid}: die Stelle im Datensatz fehlt; es wurde nichts importiert.`;
+    // only the '' that the export left in place of the string may be filled
+    if (!holder || typeof holder !== 'object' || !hasOwn(holder, last) || holder[last] !== '') return `Textblock von ${rid}: die Stelle im Datensatz passt nicht (nicht leer oder nicht vorhanden); es wurde nichts importiert.`;
     todo.push({ holder, last, text: Array.from({ length: of }, (_, i) => byN.get(i + 1)).join('') });
   }
   for (const t of todo) t.holder[t.last] = t.text; // all checked: now write
