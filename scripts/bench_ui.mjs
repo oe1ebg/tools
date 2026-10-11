@@ -499,13 +499,18 @@ async function benchAdif(page, cdp, size, m, file) {
       }
       const rec = td.isConnected ? td.textContent : null;
       if (rec !== null && rec !== `bench ${i}`) throw new Error(`edited cell shows "${rec}", not "bench ${i}"`);
-      return { sync, frame, rechecked: performance.now() - t };
+      // the longest task while the re-check ran (Chromium: 0 = none, WebKit: not measured)
+      const rechecked = performance.now() - t;
+      await window.__frame(); // long-task entries are delivered a little late
+      const blocked = window.__ltOk ? Math.max(0, ...window.__ltSince(t)) : null;
+      return { sync, frame, rechecked, blocked };
     }, { i, noop: NOOP });
     edit.push(r);
   }
   add(m, 'edit commit handler ms', edit.map(e => e.sync));
   add(m, 'edit commit -> next frame ms', edit.map(e => e.frame));
   add(m, 'edit -> re-checked ms (incl. 150 ms debounce)', edit.map(e => e.rechecked));
+  if (edit[0].blocked !== null) add(m, 'edit -> re-checked: longest task ms (UI blocked)', edit.map(e => e.blocked));
   await heap(page, cdp, m, 'after use');
 }
 

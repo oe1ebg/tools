@@ -6,10 +6,11 @@
 // virtualized (table.js): only the rows around the visible part exist.
 
 import { ADIF_FIELDS, ADIF_FIELD_MAP } from './fields.js';
-import { parseADIFAuto } from '../../shared/js/adif.js';
-import { serializeADIF, serializeCSV, serializeSotaCsv, adifChangedValues, ADI_MIME, emptyFieldDefs, mergeFieldDefs, forgetFieldDefs } from './export.js';
+import { serializeADIF, serializeADIFSteps, serializeCSV, serializeSotaCsv, adifChangedValues, ADI_MIME, emptyFieldDefs, mergeFieldDefs, forgetFieldDefs } from './export.js';
 import { el, fill, isComposing, trackExpanded } from '../../shared/js/dom.js';
-import { validateAdif } from '../../shared/js/adif-validate.js';
+import { validateAdifSteps } from '../../shared/js/adif-validate.js';
+import { ChunkedSlot, chunkedIsAbort } from '../../shared/js/chunked.js';
+import { loadLogFiles, ADIF_LIMITS, adifFormatCount } from './load.js';
 import { ADIF_SPEC_VERSION } from '../../shared/js/adif-spec-data.js';
 import { renderCompliance } from './compliance.js';
 import { records, recordFile, issuesByIndex, view, setView, scrollToRecord, bindViewHooks, replaceView, viewLength, viewIndexAt } from './state.js';
@@ -80,7 +81,6 @@ function clearWarnings(){
 let validationView = null;
 let fileValidations = [];
 let revalidateTimer = 0;
-let revalidateIdle = 0;
 // record object -> { worst, issues, byField } of the current validation
 // view; issuesByIndex (state.js) is the same by current record index.
 let issuesByRec = new Map();
@@ -88,34 +88,14 @@ const SEVERITY_RANK = { error: 3, warning: 2, info: 1 };
 const SEVERITY_GLYPH = { error: '✕', warning: '⚠', info: 'ⓘ' };
 const MAX_LISTED_ISSUES = 500;
 
-function validateFile(name, text, parsed){
-  let result;
-  try { result = validateAdif(text); }
-  catch (e){ // a bug in the validator must not break loading the file
-    console.error(e);
-    return { label: name, result: null, recs: [] };
-  }
-  const recs = result.records.length === parsed.length ? parsed : result.records.map(() => null);
-  return { label: name, result, recs };
-}
-
 function showFileValidations(){
   const scope = fileValidations.length === 1 ? fileValidations[0].label : `${fileValidations.length} files`;
   validationView = { scope, results: fileValidations };
   indexValidation();
 }
 
-// Idle time where the browser has it (not Safari 15.4), else a timeout.
-function whenIdle(fn){
-  return typeof requestIdleCallback === 'function' ? requestIdleCallback(fn, { timeout: 1000 }) : setTimeout(fn, 0);
-}
-function cancelIdle(handle){
-  if (typeof cancelIdleCallback === 'function') cancelIdleCallback(handle);
-  else clearTimeout(handle);
-}
-
-// "checking…" while an edit waits for its re-check.
-function setChecking(on){
+// "checking…" (with its progress) while an edit waits for its re-check.
+function setChecking(on, pct){
   const box = document.getElementById('validation');
   let note = document.getElementById('validation-checking');
   if (!note){
@@ -123,6 +103,8 @@ function setChecking(on){
     document.getElementById('validation-summary').after(note);
   }
   note.hidden = !on;
+  const text = on && pct ? `checking… ${pct} %` : 'checking…';
+  if (note.textContent !== text) note.textContent = text;
   box.classList.toggle('is-checking', on);
   if (on) document.getElementById('validation-summary').setAttribute('aria-busy', 'true');
   else document.getElementById('validation-summary').removeAttribute('aria-busy');
@@ -130,23 +112,51 @@ function setChecking(on){
 
 // After an edit: check the log as the ADI export would write it (records
 // in table order, so result record i is the i-th record with a value).
-// Debounced, then run when the browser is idle.
+// Debounced, then run in slices (chunked.js) so typing and scrolling stay
+// responsive; a newer edit cancels a running check and starts over, so a
+// result is only ever applied if nothing changed while it ran.
+const recheckSlot = new ChunkedSlot();
+let recheckSeq = 0;
+
 function scheduleRevalidate(){
   clearTimeout(revalidateTimer);
-  if (revalidateIdle) cancelIdle(revalidateIdle);
-  revalidateIdle = 0;
+  recheckSlot.cancel();
+  recheckSeq++;
   if (records.length) setChecking(true);
-  revalidateTimer = setTimeout(() => { revalidateIdle = whenIdle(revalidate); }, 150);
+  revalidateTimer = setTimeout(revalidate, 150);
 }
 
-function revalidate(){
-  revalidateIdle = 0;
+// Serialize + validate, one generator for the slices.
+function* recheckSteps(filled, cols, defs){
+  const text = yield* serializeADIFSteps(filled, cols, undefined, defs);
+  return yield* validateAdifSteps(text, { lean: true, maxIssues: ADIF_LIMITS.maxIssues });
+}
+
+// Share of the check done (0-99): the export is about a third of the work.
+function recheckPct(p){
+  const part = p.total ? (p.pos ?? p.done ?? 0) / p.total : 0;
+  const frac = p.phase === 'export' ? 0.3 * part
+    : p.phase === 'scan' ? 0.3 + 0.2 * part
+    : p.phase === 'records' ? 0.5 + 0.05 * part
+    : p.phase === 'check' ? 0.55 + 0.45 * part : 0;
+  return Math.min(99, Math.floor(100 * frac));
+}
+
+async function revalidate(){
+  revalidateTimer = 0;
   if (!records.length){ validationView = null; indexValidation(); setChecking(false); renderValidation(); return; }
-  // rows without any value (e.g. just added) are not checked
+  // rows without any value (e.g. just added) are not checked; the copy is
+  // what the check reads, so a sort in between can't change what it sees
   const filled = records.filter(hasAnyValue);
+  const seq = recheckSeq;
   let result;
-  try { result = validateAdif(serializeADIF(filled, columns, undefined, fieldDefs)); }
-  catch (e){ console.error(e); setChecking(false); return; }
+  try {
+    result = await recheckSlot.start(recheckSteps(filled, columns.slice(), fieldDefs), { budget: 10, onProgress: p => setChecking(true, recheckPct(p)) });
+  } catch (e){
+    if (!chunkedIsAbort(e)){ console.error(e); if (seq === recheckSeq) setChecking(false); }
+    return; // cancelled: the edit that did it has scheduled the next check
+  }
+  if (seq !== recheckSeq) return;
   validationView = { scope: 'current log, as it would be exported', results: [{ label: 'current log', result, recs: filled }] };
   indexValidation();
   body?.forEachRow((tr, ri) => applyFlags(tr, ri));
@@ -345,6 +355,9 @@ let body = null;     // VirtualBody of the current table
 let protoRow = null; // an empty row of the current columns, cloned per row
 let colEls = [];     // <col> per field, widened when a longer value is typed
 let colChars = [];   // their width in characters
+let tableEl = null;  // the <table>, its width = the sum of the columns (table-layout: fixed)
+let rownumCss = '';  // width of the row number column
+let colsPx = 0;      // sum of the fields' column widths
 
 // Cells are one line high (the virtual table needs a fixed row height):
 // line breaks show as ¶ until the cell is edited.
@@ -374,7 +387,16 @@ function measureFont(){
   if (fs > 0) cellPadPx = 1.2 * fs + 1; // padding .6em on both sides + border
 }
 
-function colWidth(chars){ return `${Math.ceil(chars * charPx + cellPadPx)}px`; }
+function colPxOf(chars){ return Math.ceil(chars * charPx + cellPadPx); }
+function colWidth(chars){ return `${colPxOf(chars)}px`; }
+
+// The table is laid out with fixed column widths (table-layout: fixed, see
+// style.css): the browser needs no measuring of the cells' contents, which
+// for ~180 columns x 100 rendered rows was most of the cost of every
+// scroll. That needs a definite table width: the columns' sum.
+function setTableWidth(){
+  if (tableEl) tableEl.style.width = `calc(${rownumCss} + ${colsPx}px)`;
+}
 
 function buildColgroup(){
   const longest = new Map();
@@ -388,12 +410,15 @@ function buildColgroup(){
   colChars = [];
   // the row number column fits the largest number (+ the delete button)
   const numCol = el('col', { class: 'rownum-col' });
-  numCol.style.width = `calc(${String(records.length).length + 1}ch + 2.6em)`;
+  rownumCss = `${String(records.length).length + 1}ch + 2.6em`;
+  numCol.style.width = `calc(${rownumCss})`;
+  colsPx = 0;
   const group = el('colgroup', {}, numCol);
   for (const col of columns){
     const chars = Math.min(MAX_COL_CHARS, Math.max(4, longest.get(col) || 0));
     const c = document.createElement('col');
     c.style.width = colWidth(chars);
+    colsPx += colPxOf(chars);
     colEls.push(c);
     colChars.push(chars);
     group.appendChild(c);
@@ -405,7 +430,12 @@ function widenColumn(col, value){
   const ci = colIndex.get(col);
   if (ci === undefined) return;
   const chars = Math.min(MAX_COL_CHARS, displayWidth(String(value)));
-  if (chars > colChars[ci]){ colChars[ci] = chars; colEls[ci].style.width = colWidth(chars); }
+  if (chars > colChars[ci]){
+    colsPx += colPxOf(chars) - colPxOf(colChars[ci]);
+    colChars[ci] = chars;
+    colEls[ci].style.width = colWidth(chars);
+    setTableWidth();
+  }
 }
 
 function buildProtoRow(){
@@ -496,6 +526,8 @@ function render(){
   bindBodyEvents(tbody);
   measureFont();
   const table = el('table', {}, buildColgroup(), thead, tbody);
+  tableEl = table;
+  setTableWidth();
 
   fill(dropEl, table);
 
@@ -818,66 +850,138 @@ bindViewHooks(refreshBody, ri => { focusCell(posOf(ri)); });
 
 /* ---------- file loading ---------- */
 
-// .adi files are meant to be ASCII; in practice they're UTF-8 or, from
-// many Windows loggers, Windows-1252. Strict UTF-8 first, else 1252.
-function decodeLog(buffer, name, warnings){
-  try {
-    return new TextDecoder('utf-8', { fatal: true }).decode(buffer);
-  } catch {
-    warnings.push(`${name}: not UTF-8, read as Windows-1252.`);
-    return new TextDecoder('windows-1252').decode(buffer);
+// FileReader (abortable reads are not needed: a local file reads in
+// milliseconds, the work that takes time is chunked and cancellable).
+function readBuffer(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error || new Error('read error'));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+// An import in progress: { signal: { aborted } }, null when none runs.
+// Files are read, parsed and checked in slices (load.js) with progress and
+// a Cancel button; nothing of the log changes until every file is done
+// (applyLoaded), so a cancelled or failed import leaves the log as it was.
+let importing = null;
+let fieldTotal = 0; // field values loaded so far, counted against the limit (an upper bound: deleting does not lower it)
+
+function setImportProgress(p, announce){
+  const bar = document.getElementById('import-bar');
+  bar.value = p.pct;
+  const text = `${p.text} (${p.pct} %)`;
+  const line = document.getElementById('import-text');
+  if (line.textContent !== text) line.textContent = text;
+  // the live region speaks at most every 10 % and per file
+  const key = `${p.file}:${Math.floor(p.pct / 10)}`;
+  if (announce || key !== setImportProgress.lastKey){
+    setImportProgress.lastKey = key;
+    document.getElementById('import-live').textContent = `${p.text}, ${p.pct} percent`;
   }
 }
 
-function loadFiles(fileList){
-  clearWarnings();
+function showImportProgress(on){
+  const box = document.getElementById('import-progress');
+  box.hidden = !on;
+  document.getElementById('btn-open').disabled = on;
+  const cancel = document.getElementById('btn-cancel-import');
+  cancel.disabled = false;
+  cancel.textContent = 'Cancel';
+  if (on){
+    setImportProgress.lastKey = '';
+    setImportProgress({ pct: 0, text: 'Starting', file: 1, files: 1 }, true);
+    cancel.focus();
+  } else {
+    document.getElementById('import-live').textContent = '';
+    if (box.contains(document.activeElement) || document.activeElement === document.body) document.getElementById('btn-open').focus();
+  }
+}
+
+function cancelImport(){
+  if (!importing || importing.signal.aborted) return;
+  importing.signal.aborted = true;
+  const cancel = document.getElementById('btn-cancel-import');
+  cancel.disabled = true;
+  cancel.textContent = 'Cancelling…';
+}
+
+async function loadFiles(fileList){
   const files = Array.from(fileList);
-  let pending = files.length;
-  if (!pending) return;
+  if (!files.length) return;
+  if (importing){
+    addWarning('An import is already running: wait for it, or cancel it, before adding more files.');
+    return;
+  }
+  const signal = { aborted: false };
+  importing = { signal };
+  showImportProgress(true);
+  let outcome = null;
+  try {
+    outcome = await loadLogFiles(files, {
+      read: readBuffer,
+      signal,
+      limits: ADIF_LIMITS,
+      existing: { records: records.length, fields: fieldTotal, columns },
+      budget: 10,
+      onProgress: p => setImportProgress(p),
+    });
+  } catch (e){
+    if (chunkedIsAbort(e)) addWarning('Import cancelled; the log is unchanged.');
+    else { console.error(e); addWarning(`Import failed (${e && e.message ? e.message : e}); the log is unchanged.`); }
+  } finally {
+    importing = null;
+    showImportProgress(false);
+  }
+  if (outcome) applyLoaded(outcome.loaded, outcome.skipped, files);
+}
+
+// The whole import into the log, in one go: only called with files that
+// are complete. A file over a limit or unreadable is reported and left out.
+function applyLoaded(loaded, skipped, files){
+  clearWarnings();
+  skipped.forEach(s => addWarning(s.message));
+  if (!loaded.length) return;
+  // an edit's re-check (pending or running) belongs to the log as it was
+  const recheckWanted = revalidateTimer || recheckSlot.running;
+  clearTimeout(revalidateTimer);
+  recheckSlot.cancel();
+  recheckSeq++;
+  revalidateTimer = 0;
   let defConflicts = false;
-  const done = () => {
-    if (--pending > 0) return;
-    rebuildColumns();
-    showFileValidations();
-    replaceView(filterView()); // an active filter applies to the new records too
-    render();
-    // Declarations that didn't fit together: show the log as the export
-    // would write it, so the values that no longer fit are in the issue list.
-    if (defConflicts) scheduleRevalidate();
-  };
-  files.forEach(file => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const warnings = [];
-      const headerInfo = {};
-      const defs = {};
-      const text = decodeLog(reader.result, file.name, warnings);
-      const parsed = parseADIFAuto(text, warnings, file.name, headerInfo, defs);
-      const conflicts = mergeFieldDefs(fieldDefs, defs, file.name);
-      if (conflicts.length) defConflicts = true;
-      warnings.push(...conflicts);
-      fileValidations.push(validateFile(file.name, text, parsed));
-      for (const rec of parsed){ records.push(rec); recordFile.push(file.name); }
-      fileMeta.push({
-        name: file.name,
-        adifVer: headerInfo.ADIF_VER || null,
-        programId: headerInfo.PROGRAMID || null,
-        programVersion: headerInfo.PROGRAMVERSION || null,
-      });
-      warnings.forEach(addWarning);
-      done();
-    };
-    reader.onerror = () => {
-      addWarning(`${file.name}: could not be read.`);
-      done();
-    };
-    reader.readAsArrayBuffer(file);
-  });
-  const fnInput = document.getElementById('filename-input');
-  if (files.length === 1) fnInput.value = files[0].name.replace(/\.[^.]+$/, '') + '.adi';
+  for (const f of loaded){
+    const conflicts = mergeFieldDefs(fieldDefs, f.defs, f.name);
+    if (conflicts.length) defConflicts = true;
+    f.warnings.push(...conflicts);
+    // result record i belongs to parsed record i, unless the two parsers disagree on the count
+    const recs = !f.result ? [] : f.result.records.length === f.parsed.length ? f.parsed : f.result.records.map(() => null);
+    fileValidations.push({ label: f.name, result: f.result, recs });
+    for (const rec of f.parsed){ records.push(rec); recordFile.push(f.name); }
+    fieldTotal += f.fields;
+    fileMeta.push({
+      name: f.name,
+      adifVer: f.headerInfo.ADIF_VER || null,
+      programId: f.headerInfo.PROGRAMID || null,
+      programVersion: f.headerInfo.PROGRAMVERSION || null,
+    });
+    f.warnings.forEach(addWarning);
+    if (f.result?.issuesDropped) addWarning(`${f.name}: ${adifFormatCount(f.result.issuesDropped)} further issue(s) are counted in the summary but not listed or flagged (the first ${adifFormatCount(ADIF_LIMITS.maxIssues)} are kept).`);
+  }
+  if (files.length === 1) document.getElementById('filename-input').value = files[0].name.replace(/\.[^.]+$/, '') + '.adi';
+  rebuildColumns();
+  showFileValidations();
+  replaceView(filterView()); // an active filter applies to the new records too
+  render();
+  // Declarations that didn't fit together: show the log as the export
+  // would write it, so the values that no longer fit are in the issue list.
+  if (defConflicts || recheckWanted) scheduleRevalidate();
 }
 
 /* ---------- drag & drop / open / export wiring ---------- */
+
+document.getElementById('btn-cancel-import').addEventListener('click', cancelImport);
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && importing) cancelImport(); });
 
 let dragDepth = 0;
 ['dragover', 'drop'].forEach(evt => document.addEventListener(evt, e => e.preventDefault()));

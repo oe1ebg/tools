@@ -180,7 +180,9 @@ input[type=text]:focus, td[contenteditable]:focus{
 }
 
 table{
-  border-collapse:collapse;
+  border-collapse:separate;
+  border-spacing:0;
+  table-layout:fixed; /* the width is set from the columns (js/app.js, setTableWidth) */
   width:max-content;
   min-width:100%;
   font-family:var(--font-mono);
@@ -274,6 +276,21 @@ tbody tr.spacer:hover td{ background:none; }
 .add-row{ padding:.6em .8em; }
 .add-row input{ margin-left:.6em; width:14em; }
 .add-row .add-col{ margin-left:.4em; }
+
+/* A running import: progress bar, what it is doing, Cancel. */
+.import-progress{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:.4em 1em;
+  padding:.4em .8em;
+  border-bottom:1px solid var(--line);
+  background:var(--bg-raised);
+  font-size:12px;
+}
+.import-progress[hidden]{ display:none; }
+.import-progress progress{ width:16em; max-width:100%; accent-color:var(--accent); }
+#import-text{ color:var(--text-dim); font-variant-numeric:tabular-nums; }
 
 /* ADIF validation: summary line, issue list, flagged cells. */
 .validation{
