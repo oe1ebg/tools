@@ -56,6 +56,26 @@ const VIEWPORTS = list('viewport', 'desktop,mobile');
 const OUT = opt('out', join(ROOT, 'bench-ui.json'));
 const KEY_REPS = quick ? 3 : 6;
 const NOOP = process.env.BENCH_INJECT_NOOP === '1'; // selftest: saves and edits are disabled
+const INJECT_ERROR = process.env.BENCH_INJECT_ERROR === '1'; // selftest: an uncaught error shortly after load
+
+// Errors that are known artifacts of this benchmark, matched exactly (anything
+// else in the page's error log fails the run):
+//  - service workers are blocked (isolation from the precache), so the
+//    registration in tools/shared/js/offline.js yields no `reg`;
+//  - WebKit aborts the lazy location-data fetch when the seeding step reloads
+//    the page.
+const KNOWN_PAGE_ERRORS = [
+  /^Cannot read properties of undefined \(reading 'addEventListener'\)$/, // Chromium (checked against the stack below)
+  /^undefined is not an object \(evaluating 'reg\.addEventListener'\)$/, // WebKit
+  /^(Fetch API cannot load http:\s*)?\/*127\.0\.0\.1:\d+\/tools\/shared\/data\/(vienna-locations|austria-areas)\.json due to access control checks\.$/,
+];
+function unexpectedError(err) {
+  const msg = String(err?.message ?? err).replace(/\s+/g, ' ').trim().replace(/^Unhandled Promise Rejection: (\w*Error: )?/, '').replace(/^TypeError: /, '');
+  const known = KNOWN_PAGE_ERRORS.some(re => re.test(msg));
+  if (!known) return true;
+  // the Chromium variant only counts as known when it comes from offline.js
+  return /^Cannot read properties/.test(msg) && err?.stack && !/offline\.js/.test(err.stack);
+}
 
 if (args.includes('--selftest')) {
   const { spawnSync } = await import('node:child_process');
@@ -63,9 +83,15 @@ if (args.includes('--selftest')) {
     '--engine', 'chromium', '--throttle', '1', '--viewport', 'desktop', '--runs', '1', '--out', join(tmpdir(), 'bench-ui-selftest.json')],
   { env: { ...process.env, BENCH_INJECT_NOOP: '1' }, encoding: 'utf8' });
   const out = r.stdout + r.stderr;
-  const ok = r.status === 1 && /ERROR/.test(out) && /notfunk 200 ERROR/.test(out) && /adif 10000 ERROR/.test(out);
-  console.log(ok ? 'selftest ok: disabled save/edit were detected, exit code 1' : `selftest FAILED (exit ${r.status}):\n${out}`);
-  process.exit(ok ? 0 : 1);
+  const ok1 = r.status === 1 && /notfunk 200 ERROR/.test(out) && /adif 10000 ERROR/.test(out);
+  const r2 = spawnSync(process.execPath, [fileURLToPath(import.meta.url), '--tool', 'notfunk', '--size', '200', '--engine', 'chromium',
+    '--throttle', '1', '--viewport', 'desktop', '--runs', '1', '--out', join(tmpdir(), 'bench-ui-selftest.json')],
+  { env: { ...process.env, BENCH_INJECT_ERROR: '1' }, encoding: 'utf8' });
+  const out2 = r2.stdout + r2.stderr;
+  const ok2 = r2.status === 1 && /notfunk 200 ERROR/.test(out2) && /BENCH_SELFTEST_RUNTIME_ERROR/.test(out2);
+  console.log(ok1 && ok2 ? 'selftest ok: disabled save/edit and an injected page error were detected, exit code 1 each'
+    : `selftest FAILED (operations: ${ok1 ? 'ok' : `exit ${r.status}\n${out}`}; page error: ${ok2 ? 'ok' : `exit ${r2.status}\n${out2}`})`);
+  process.exit(ok1 && ok2 ? 0 : 1);
 }
 
 // ---- Playwright (installed by `just bench-ui` into tests/e2e/node_modules)
@@ -484,10 +510,13 @@ async function run(engine, throttle, vp, tool, size) {
           document.addEventListener(type, e => { if (e.target.closest?.('#btn-save, #btn-save-anyway, #msg-form, #entry-form')) { e.preventDefault(); e.stopImmediatePropagation(); } }, true);
         }
       });
+      if (INJECT_ERROR) await ctx.addInitScript(() => { setTimeout(() => { throw new Error('BENCH_SELFTEST_RUNTIME_ERROR'); }, 1500); });
       const page = await ctx.newPage();
-      const errors = [];
-      // (service workers are blocked on purpose: their registration then fails in the tools' start-up code, harmless)
-      page.on('pageerror', e => { if (!/addEventListener/.test(String(e))) errors.push(String(e)); });
+      const errors = []; // unexpected uncaught errors and console errors of this run
+      page.on('pageerror', e => { if (unexpectedError(e)) errors.push(`pageerror: ${String(e.message || e).split('\n')[0]}`); });
+      page.on('console', m => {
+        if (m.type() === 'error' && unexpectedError(m.text())) errors.push(`console.error: ${m.text().split('\n')[0]}`);
+      });
       let cdp = null;
       if (engine === 'chromium') {
         cdp = await ctx.newCDPSession(page);
@@ -506,8 +535,12 @@ async function run(engine, throttle, vp, tool, size) {
         failed++; failedThisRun = true;
         console.error(`  ${engine} ${throttle}x ${vp} ${tool} ${size} run ${r + 1}: ${e.message.split('\n')[0]}`);
       }
+      // unexpected page errors fail the run (once), whatever the timings look like
+      if (errors.length && !failedThisRun) {
+        failed++; failedThisRun = true;
+        console.error(`  ${engine} ${throttle}x ${vp} ${tool} ${size} run ${r + 1}: page errors: ${errors.slice(0, 2).join(' | ')}`);
+      }
       if (!failedThisRun) for (const [k, v] of Object.entries(runSamples)) add(samples, k, v);
-      if (errors.length) console.error(`  page errors: ${errors.slice(0, 2).join(' | ')}`);
       await ctx.close();
     }
   } finally {
