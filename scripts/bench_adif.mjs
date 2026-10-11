@@ -12,7 +12,8 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { performance } from 'node:perf_hooks';
 import { parseADIFAuto } from '../tools/shared/js/adif.js';
-import { validateAdif } from '../tools/shared/js/adif-validate.js';
+import { validateAdif, validateAdifSteps } from '../tools/shared/js/adif-validate.js';
+import { chunkedRun } from '../tools/shared/js/chunked.js';
 import { serializeADIF, adifChangedValues } from '../tools/adif/js/export.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -44,6 +45,7 @@ function bench(label, text) {
   const records = parse.out;
   const columns = columnsOf(records);
   const validate = median(() => validateAdif(text, { today: TODAY }));
+  const leanValidate = median(() => validateAdif(text, { today: TODAY, lean: true }));
   const serialize = median(() => serializeADIF(records, columns, STAMP));
   const changed = median(() => adifChangedValues(records, columns));
   const revalidate = median(() => validateAdif(serializeADIF(records, columns, STAMP), { today: TODAY }));
@@ -51,6 +53,7 @@ function bench(label, text) {
   console.log(`${label}: ${records.length} QSOs, ${columns.length} fields, ${(text.length / 1048576).toFixed(1)} MB`);
   row('parse (parseADIFAuto)', parse);
   row('validate (validateAdif)', validate);
+  row('validate, lean (the editor)', leanValidate);
   row('serialize (serializeADIF)', serialize);
   row('adifChangedValues', changed);
   row('edit loop (serialize + validate)', revalidate);
@@ -60,9 +63,14 @@ function bench(label, text) {
     gc(); const h0 = process.memoryUsage().heapUsed;
     const keep = parseADIFAuto(text, [], label, {});
     gc(); const h1 = process.memoryUsage().heapUsed;
-    const res = validateAdif(text, { today: TODAY });
+    let res = validateAdif(text, { today: TODAY });
     gc(); const h2 = process.memoryUsage().heapUsed;
-    console.log(`  heap: parsed records ${((h1 - h0) / 1048576).toFixed(0)} MB, + validation result ${((h2 - h1) / 1048576).toFixed(0)} MB (${keep.length} records, ${res.issues.length} issues), peak RSS so far ${(process.memoryUsage().rss / 1048576).toFixed(0)} MB`);
+    const nIssues = res.issues.length;
+    res = null; gc(); const h3 = process.memoryUsage().heapUsed;
+    // the editor's lean result (records keep no fields; options.lean)
+    const lean = validateAdif(text, { today: TODAY, lean: true });
+    gc(); const h4 = process.memoryUsage().heapUsed;
+    console.log(`  heap: parsed records ${((h1 - h0) / 1048576).toFixed(0)} MB, + validation result ${((h2 - h1) / 1048576).toFixed(0)} MB (${keep.length} records, ${nIssues} issues), lean result ${((h4 - h3) / 1048576).toFixed(0)} MB (${lean.records.length} records), peak RSS so far ${(process.memoryUsage().rss / 1048576).toFixed(0)} MB`);
   }
 }
 
