@@ -34,7 +34,7 @@ import { createLineRepeater } from './linerepeater.js';
 import { createRowCache, syncRows, resetRows } from '../../shared/js/rowcache.js';
 import { formatShift, formatMHz } from '../../shared/js/repeaters.js';
 import { BACKUP_FORMAT, BACKUP_MAX_BYTES, SEQ_LIMIT, validateBackup, planBackupImport, backupTexts, combineBackupParts } from './backup.js';
-import { groupParts, partFileName } from '../../shared/js/backup-parts.js';
+import { groupParts, partFileName, partsTooLarge } from '../../shared/js/backup-parts.js';
 
 const TIME_MODE_KEY = 'oe1ebg-confirm-time-mode';
 const CSV_SEP_KEY = 'oe1ebg-confirm-csv-sep';
@@ -1839,6 +1839,8 @@ async function importFiles(files) {
   const loaded = [];
   const results = [];
   const bad = (name, ...msg) => results.push({ kind: 'err', content: [el('strong', {}, 'Nicht importiert: '), `„${name}“ `, ...msg] });
+  const tooBig = partsTooLarge(files.reduce((n, f) => n + f.size, 0));
+  if (tooBig) { showImportMsg('err', el('strong', {}, 'Nicht importiert: '), tooBig); return; }
   for (const file of files) {
     if (file.size > BACKUP_MAX_BYTES) {
       bad(file.name, `ist ${Math.round(file.size / 1048576)} MB groß; mehr als ${BACKUP_MAX_BYTES / 1048576} MB werden nicht importiert (zu groß für diesen Browser) – es wurde nichts geändert.`);
@@ -2107,7 +2109,7 @@ async function doExport(kind, force = false) {
   } else if (kind === 'json') {
     const split = await downloadBackup([await eventBackup(ev)], fileBase(ev) + '_sicherung');
     if (split) logStatus(split);
-    markExported();
+    else markExported(); // parts: not known to have all arrived, so the export is not counted
   } else if (kind === 'summary') {
     showText('Zusammenfassung', toSummary(ev, entries, timeMode(), { qth }));
   } else if (kind === 'print') {
@@ -2127,13 +2129,14 @@ async function backupAll() {
 // accepts (50 MB, 200000 records) - several parts that are imported together
 // (selected together in the import dialog); nothing is left out.
 async function downloadBackup(items, base) {
-  const texts = backupTexts(items, nowIso(), newId());
+  // (CONFIRM_PART_LIMITS: test hook, lowers the limits so a browser test can split a small backup)
+  const texts = backupTexts(items, nowIso(), newId(), globalThis.CONFIRM_PART_LIMITS);
   if (texts.length === 1) { download(texts[0], base + '.json', 'application/json'); return ''; }
   for (const [i, text] of texts.entries()) {
     if (i) await new Promise(r => setTimeout(r, 400)); // browsers ask before many downloads at once
     download(text, partFileName(base, i + 1, texts.length), 'application/json');
   }
-  return `Die Sicherung ist groß und in ${texts.length} Dateien geteilt: beim Import alle Teile gemeinsam auswählen.`;
+  return `Download von ${texts.length} Dateien gestartet (die Sicherung ist groß und geteilt). Prüfen Sie, dass alle ${texts.length} angekommen sind – der Browser fragt eventuell, ob mehrere Downloads erlaubt sind. Beim Import alle Teile gemeinsam auswählen.`;
 }
 
 /* ---------------------------------------------------------------- cross-tab sync */

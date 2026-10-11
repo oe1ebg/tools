@@ -70,6 +70,9 @@ function party(p) {
   return { name: trimmed(p?.name), call: trimmed(p?.call).toUpperCase(), contact: trimmed(p?.contact) };
 }
 
+// An Inhalt as it is stored by a save: line breaks as LF, trimmed.
+const normText = t => String(t ?? '').replace(/\r\n?/g, '\n').trim();
+
 // The editable fields of a message, normalised. Unknown keys are dropped.
 export function messageFields(f) {
   return {
@@ -86,7 +89,7 @@ export function messageFields(f) {
     to: party(f.to),
     distribution: (f.distribution || []).map(trimmed).filter(Boolean),
     subject: trimmed(f.subject),
-    text: String(f.text ?? '').replace(/\r\n?/g, '\n').trim(), // verbatim: inner whitespace kept
+    text: normText(f.text), // verbatim: inner whitespace kept
     stichzeit: f.stichzeit || null,
     origin: {
       station: trimmed(f.origin?.station).toUpperCase(), place: trimmed(f.origin?.place), filed: f.origin?.filed || null,
@@ -123,7 +126,7 @@ export function validateMessage(f, { lenient = false, keepText = null } = {}) {
   if (!f.to.name && !f.to.call) errs.push('Adressat fehlt');
   // (the form asks for both; older records may have only one of them)
   if (!f.text && !f.subject) errs.push('Betreff oder Inhalt fehlt');
-  if (!lenient && f.text.length > MESSAGE_TEXT_MAX && f.text !== keepText) errs.push(`Inhalt ist zu lang (höchstens ${MESSAGE_TEXT_MAX} Zeichen, jetzt ${f.text.length})`);
+  if (!lenient && f.text.length > MESSAGE_TEXT_MAX && !(keepText != null && f.text === normText(keepText))) errs.push(`Inhalt ist zu lang (höchstens ${MESSAGE_TEXT_MAX} Zeichen, jetzt ${f.text.length})`);
   for (const k of ['stichzeit']) if (f[k] && !ISO_RE.test(f[k])) errs.push('Stichzeit ist ungültig');
   if (f.origin.filed && !ISO_RE.test(f.origin.filed)) errs.push('Aufgabezeit ist ungültig');
   return errs;

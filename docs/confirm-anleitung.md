@@ -111,6 +111,14 @@ allen Zeilen, auch den gelöschten, und enthält die Daten **unverschlüsselt**.
   auswählen** (in der Dateiauswahl mehrere Dateien markieren): sie werden
   wie eine einzige Sicherung, ganz oder gar nicht, übernommen. Fehlt ein Teil,
   wird nichts importiert und die Meldung nennt den fehlenden Teil.
+  Der Browser fragt dabei eventuell, ob mehrere Downloads erlaubt sind; die
+  Meldung sagt nur, dass N Dateien gestartet wurden – **prüfen Sie, dass alle
+  N angekommen sind** (die Sicherung gilt dann nicht automatisch als
+  gemacht). Die Teile lassen sich nur im Bestätigungsverkehr importieren, und
+  nur mit einer aktuellen Version des Werkzeugs: eine ältere Version könnte
+  einen einzelnen Teil als unvollständige Sicherung einspielen. Alle Teile
+  zusammen dürfen höchstens 12 Dateien und 480 MB umfassen, sonst bitte die
+  Logs einzeln sichern.
 - Es wird nie etwas Vorhandenes überschrieben. Ist die ID des Logs, einer
   seiner Zeilen oder einer früheren Fassung schon gespeichert, kommt das Log
   als Kopie mit neuen IDs und dem Zusatz „(Import)“ dazu. Andere Logs
