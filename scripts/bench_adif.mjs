@@ -4,7 +4,9 @@
 // synthetic log of 50 000 QSOs built from them. The numbers before and after
 // the performance work are in tools/adif/README.md ("Performance").
 //
-//   node scripts/bench_adif.mjs [runs]     (default: 5 runs, median shown)
+//   node scripts/bench_adif.mjs [runs] [sizes]   (default: 5 runs, median shown;
+//   sizes: comma list of synthetic log sizes, default 1000,10000,50000,100000;
+//   `node --expose-gc` also reports the heap kept by the parsed log)
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -53,16 +55,28 @@ function bench(label, text) {
   row('adifChangedValues', changed);
   row('edit loop (serialize + validate)', revalidate);
   console.log(`  issues: ${validate.out.issues.length}`);
+  if (globalThis.gc) {
+    // heap kept by the parsed records and by one validation result
+    gc(); const h0 = process.memoryUsage().heapUsed;
+    const keep = parseADIFAuto(text, [], label, {});
+    gc(); const h1 = process.memoryUsage().heapUsed;
+    const res = validateAdif(text, { today: TODAY });
+    gc(); const h2 = process.memoryUsage().heapUsed;
+    console.log(`  heap: parsed records ${((h1 - h0) / 1048576).toFixed(0)} MB, + validation result ${((h2 - h1) / 1048576).toFixed(0)} MB (${keep.length} records, ${res.issues.length} issues), peak RSS so far ${(process.memoryUsage().rss / 1048576).toFixed(0)} MB`);
+  }
 }
 
 bench('test-qsos.adi', SOURCE);
 
-// 50k QSOs: the official QSOs repeated (CALL varied so they differ).
+// Synthetic logs: the official QSOs repeated (CALL varied so they differ).
 const base = parseADIFAuto(SOURCE, [], 'test-qsos.adi', {});
-const big = [];
-for (let i = 0; big.length < 50000; i++) {
-  const r = { ...base[i % base.length] };
-  if (r.CALL) r.CALL = `${r.CALL}${i % 10}`.slice(0, 13);
-  big.push(r);
+const SIZES = (process.argv[3] || '1000,10000,50000,100000').split(',').map(Number);
+for (const n of SIZES) {
+  const big = [];
+  for (let i = 0; big.length < n; i++) {
+    const r = { ...base[i % base.length] };
+    if (r.CALL) r.CALL = `${r.CALL}${i % 10}`.slice(0, 13);
+    big.push(r);
+  }
+  bench(`synthetic ${n}`, serializeADIF(big, columnsOf(big), STAMP));
 }
-bench('synthetic 50k', serializeADIF(big, columnsOf(big), STAMP));

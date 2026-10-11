@@ -197,6 +197,18 @@ e2e *args:
     cd tests/e2e && npx playwright install chromium firefox webkit
     cd tests/e2e && npx playwright test {{args}}
 
+# Responsiveness benchmark with large logs (scripts/bench_ui.mjs, issue #15):
+# seeds confirm / notfunk / ADIF data, measures typing, search, import, scroll
+# and edit latency in Chromium (CPU throttled 1x/4x/6x) and WebKit, prints
+# Markdown tables and writes bench-ui.json. Not part of `just e2e` or CI;
+# needs `just build`. Args go to the script, e.g. `just bench-ui --quick
+# --tool confirm --engine chromium`.
+[doc("Browser performance benchmark with large logs (needs `just build`; not run in CI)")]
+bench-ui *args:
+    cd tests/e2e && npm install --no-save --no-package-lock --no-audit --no-fund @playwright/test@{{playwright_version}}
+    cd tests/e2e && npx playwright install chromium webkit
+    node scripts/bench_ui.mjs {{args}}
+
 # Screenshots for the manuals (docs/img/, committed), from site/ of `just
 # build`; re-run after visible changes to confirm or notfunk.
 screenshots *args:
