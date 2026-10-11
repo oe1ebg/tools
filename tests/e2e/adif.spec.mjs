@@ -311,3 +311,25 @@ test('an edit during a re-check supersedes it; the result is the check of the cu
   await expect(band0).not.toHaveClass(/cell-error/);
   await expect(page.locator('#validation-summary')).toContainText('current log');
 });
+
+test('column headers of short fields keep their sort and remove buttons visible and apart', { tag: '@adif' }, async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto('tools/adif/');
+  await page.locator('#file-input').setInputFiles(OFFICIAL);
+  await expect(page.locator('#stats')).toContainText('6197 QSOs', { timeout: 30_000 });
+  // every header: name button and x button inside the cell, not overlapping each other
+  const bad = await page.locator('#drop thead th[data-col]').evaluateAll(ths => ths.flatMap(th => {
+    const th0 = th.getBoundingClientRect(), s = th.querySelector('.sortcol').getBoundingClientRect(), r = th.querySelector('.rmcol').getBoundingClientRect();
+    const out = [];
+    if (s.right > r.left + 1) out.push(`${th.dataset.col}: name overlaps the remove button`);
+    if (r.right > th0.right + 1 || s.left < th0.left - 1) out.push(`${th.dataset.col}: buttons stick out of the header`);
+    if (r.width < 4 || s.width < 4) out.push(`${th.dataset.col}: a button has no width`);
+    return out;
+  }));
+  expect(bad).toEqual([]);
+  const th = page.locator('#drop thead th[data-col="MY_GRIDSQUARE"]');
+  await th.locator('.sortcol').click();
+  await expect(th).toHaveAttribute('aria-sort', 'ascending');
+  await th.locator('.rmcol').focus();
+  await expect(th.locator('.rmcol')).toBeFocused();
+});

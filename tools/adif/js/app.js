@@ -254,6 +254,7 @@ function renderValidation(){
   }
   const n = { errors: 0, warnings: 0, infos: 0 };
   for (const { result } of results) for (const k of Object.keys(n)) n[k] += result[k];
+  const dropped = results.reduce((sum, r) => sum + (r.result.issuesDropped || 0), 0);
   const state = n.errors ? 'invalid' : n.warnings ? 'warn' : 'valid';
   const [glyph, verdict] = { valid: ['✓', 'ADIF valid'], warn: ['⚠', 'ADIF valid with warnings'], invalid: ['✕', 'Invalid ADIF'] }[state];
   box.classList.remove('is-valid', 'is-warn', 'is-invalid');
@@ -267,7 +268,8 @@ function renderValidation(){
       el('span', { class: n.errors ? 'n-error' : null }, plural(n.errors, 'error')),
       el('span', { class: n.warnings ? 'n-warning' : null }, plural(n.warnings, 'warning')),
       el('span', { class: n.infos ? 'n-info' : null }, plural(n.infos, 'info'))),
-    el('span', { class: 'v-scope' }, `${validationView.scope}${perFile} · checked against ADIF ${ADIF_SPEC_VERSION}`));
+    el('span', { class: 'v-scope' }, `${validationView.scope}${perFile} · checked against ADIF ${ADIF_SPEC_VERSION}`),
+    dropped ? el('span', { class: 'v-scope' }, `${adifFormatCount(dropped)} issue(s) are counted but not listed or flagged (the first ${adifFormatCount(ADIF_LIMITS.maxIssues)} per file are kept)`) : null);
   // a status region: only rewritten when its text changes
   const status = document.getElementById('validation-summary');
   if (summary.textContent !== status.textContent) fill(status, [...summary.childNodes]);
@@ -415,7 +417,10 @@ function buildColgroup(){
   colsPx = 0;
   const group = el('colgroup', {}, numCol);
   for (const col of columns){
-    const chars = Math.min(MAX_COL_CHARS, Math.max(4, longest.get(col) || 0));
+    // wide enough for the values (up to MAX_COL_CHARS) and for the header:
+    // the name (a proportional bold font) and the sort/remove buttons
+    const headChars = Math.ceil(col.length * 1.15) + 4;
+    const chars = Math.max(headChars, Math.min(MAX_COL_CHARS, Math.max(4, longest.get(col) || 0)));
     const c = document.createElement('col');
     c.style.width = colWidth(chars);
     colsPx += colPxOf(chars);
@@ -866,7 +871,12 @@ function readBuffer(file){
 // a Cancel button; nothing of the log changes until every file is done
 // (applyLoaded), so a cancelled or failed import leaves the log as it was.
 let importing = null;
-let fieldTotal = 0; // field values loaded so far, counted against the limit (an upper bound: deleting does not lower it)
+// field values in the log now, counted against the limit
+function countFields(){
+  let n = 0;
+  for (const rec of records) for (const k in rec) n++;
+  return n;
+}
 
 function setImportProgress(p, announce){
   const bar = document.getElementById('import-bar');
@@ -923,7 +933,7 @@ async function loadFiles(fileList){
       read: readBuffer,
       signal,
       limits: ADIF_LIMITS,
-      existing: { records: records.length, fields: fieldTotal, columns },
+      existing: { records: records.length, fields: countFields(), columns },
       budget: 10,
       onProgress: p => setImportProgress(p),
     });
@@ -958,7 +968,6 @@ function applyLoaded(loaded, skipped, files){
     const recs = !f.result ? [] : f.result.records.length === f.parsed.length ? f.parsed : f.result.records.map(() => null);
     fileValidations.push({ label: f.name, result: f.result, recs });
     for (const rec of f.parsed){ records.push(rec); recordFile.push(f.name); }
-    fieldTotal += f.fields;
     fileMeta.push({
       name: f.name,
       adifVer: f.headerInfo.ADIF_VER || null,
@@ -981,7 +990,14 @@ function applyLoaded(loaded, skipped, files){
 /* ---------- drag & drop / open / export wiring ---------- */
 
 document.getElementById('btn-cancel-import').addEventListener('click', cancelImport);
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && importing) cancelImport(); });
+// Escape cancels only with the focus on the progress box (the Cancel button
+// has it from the start) or nowhere: elsewhere it belongs to what has the focus
+// (a cell edit, a dialog).
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape' || !importing) return;
+  const active = document.activeElement;
+  if (active === document.body || !active || document.getElementById('import-progress').contains(active)) cancelImport();
+});
 
 let dragDepth = 0;
 ['dragover', 'drop'].forEach(evt => document.addEventListener(evt, e => e.preventDefault()));

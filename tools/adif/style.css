@@ -200,14 +200,17 @@ thead th{
   color:var(--accent-text);
 }
 thead th .colhead{
-  display:flex; align-items:center; gap:.5em;
+  display:flex; align-items:center; gap:.5em; min-width:0;
 }
+thead th{ overflow:hidden; }
+thead th .sortcol{ min-width:0; overflow:hidden; text-overflow:ellipsis; }
 thead th .colhead button{
   background:none; border:none; border-radius:0; padding:0; margin:0;
   font:inherit; color:inherit; text-align:left;
 }
 thead th .colhead button:hover{ background:none; }
 thead th .rmcol{
+  flex:none;
   color:var(--text-dim);
   cursor:pointer;
   font-weight:400;
