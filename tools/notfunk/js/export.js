@@ -17,13 +17,16 @@
 import { DIRECTIONS, CHANNELS, MESSAGE_TYPES, PRIORITIES, REF_KINDS, STATUS_FLOW, validateMessage, messageFields, statusLabel, statusEntry, currentStatus, liveMessages, fmtVienna, viennaDate, viennaTime, isoVienna, fmtFreq } from './model.js';
 import { counterAfterImport, counterKey, PREFIX_RE, formatNumber } from './numbering.js';
 import { csvSafeRows } from '../../shared/js/csv.js';
+import { splitToFit } from '../../shared/js/backup-parts.js';
 
 export const BACKUP_FORMAT = 'oe1ebg-notfunk-backup';
 export const BACKUP_VERSION = 1;
 
 // Resource limits (issue #15): a file beyond these is refused as a whole
 // (message, nothing written). 50 MB is ~10x a 5000-message operation with its
-// revisions, 200000 records ~20x.
+// revisions, 200000 records ~20x. A backup the tool writes beyond them is
+// written in parts (toBackupTexts()) that are restored together
+// (combineBackupParts()); the limits apply per file.
 export const BACKUP_MAX_BYTES = 50 * 1024 * 1024;
 export const BACKUP_MAX_RECORDS = 200000;
 
@@ -62,11 +65,22 @@ export function toGeschaeftsbuchCSV(msgs, sep = ';', stats) {
   return '\ufeff' + csvSafeRows(rows, sep, stats) + '\r\n';
 }
 
-export function toBackup({ operation, messages, revisions, counters }, now) {
+export function toBackup({ operation, messages, revisions, counters }, now, part) {
   return JSON.stringify({
-    format: BACKUP_FORMAT, version: BACKUP_VERSION, exported: now,
+    format: BACKUP_FORMAT, version: BACKUP_VERSION, exported: now, ...(part ? { part } : {}),
     operation, messages, revisions, counters,
   }, null, 1);
+}
+
+// The texts of the files of a backup: one (as toBackup(), no `part`) when it
+// fits the import limits, else several parts with `part: { set, n, of }`, each
+// within them: messages first, then the revisions, every part with the
+// operation and the counters. The parts restore only together.
+export function toBackupTexts({ operation, messages, revisions, counters }, now, setId, limits) {
+  const items = [...messages.map(m => ({ m })), ...revisions.map(r => ({ r }))];
+  const build = (slice, part) => toBackup({ operation, messages: slice.filter(x => x.m).map(x => x.m), revisions: slice.filter(x => x.r).map(x => x.r), counters }, now, part);
+  const slices = splitToFit(items, build, () => 1, limits);
+  return slices.map((slice, i) => build(slice, slices.length > 1 ? { set: setId, n: i + 1, of: slices.length } : undefined));
 }
 
 const ID_RE = /^[A-Za-z0-9_-]{1,100}$/;
@@ -131,6 +145,12 @@ export function parseBackup(json) {
   } catch {
     throw new Error('Keine gültige JSON-Datei');
   }
+  return checkBackup(d);
+}
+
+// What is checked per FILE (format, version, lists, size limit); `opts.combined`
+// skips the record limit (parts put together, each checked on its own).
+function checkFile(d, opts = {}) {
   if (d?.format !== BACKUP_FORMAT) throw new Error('Keine Notfunk-Sicherung');
   if (!Number.isInteger(d.version) || d.version < 1) throw new Error('Sicherung unvollständig (version)');
   if (d.version > BACKUP_VERSION) throw new Error('Sicherung stammt von einer neueren Version des Werkzeugs');
@@ -140,7 +160,13 @@ export function parseBackup(json) {
   if (typeof op.name !== 'string' || !op.name.trim()) throw new Error('Sicherung unvollständig (Name des Einsatzes)');
   if (op.prefix != null && !PREFIX_RE.test(op.prefix)) throw new Error('Sicherung fehlerhaft: Stationskürzel des Einsatzes');
   const records = d.messages.length + d.revisions.length;
-  if (records > BACKUP_MAX_RECORDS) throw new Error(`Die Sicherung enthält ${records} Meldungen und Fassungen; mehr als ${BACKUP_MAX_RECORDS} werden nicht importiert (zu groß für diesen Browser)`);
+  if (records > BACKUP_MAX_RECORDS && !opts.combined) throw new Error(`Die Sicherung enthält ${records} Meldungen und Fassungen; mehr als ${BACKUP_MAX_RECORDS} werden in einer Datei nicht importiert (zu groß für diesen Browser)`);
+  return op;
+}
+
+// parseBackup() for an already parsed file.
+export function checkBackup(d, opts = {}) {
+  const op = checkFile(d, opts);
   const bad = (what, why) => new Error(`Sicherung fehlerhaft: ${what}: ${why}`);
   const dropped = [];
   const droppedSeqs = [];
@@ -282,4 +308,15 @@ export function mergeBackup(backup, existing) {
     ops.push({ store: 'counters', put: c });
   }
   return { ops, added, updated, conflicts, unlinked };
+}
+
+// The parts of one set (parsed JSON, in order) as one backup, checked like a
+// single file (the record limit applied per part). Throws a German Error.
+export function combineBackupParts(parts) {
+  const ops = parts.map(d => checkFile(d));
+  if (ops.some(o => o.id !== ops[0].id)) throw new Error('Die Teile gehören zu verschiedenen Einsätzen');
+  const last = new Map();
+  for (const d of parts) for (const c of d.counters) if (isObj(c) && typeof c.id === 'string' && !(last.get(c.id)?.last >= c.last)) last.set(c.id, c);
+  const { part, ...rest } = parts[0];
+  return checkBackup({ ...rest, messages: parts.flatMap(d => d.messages), revisions: parts.flatMap(d => d.revisions), counters: [...last.values()] }, { combined: true });
 }

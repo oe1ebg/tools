@@ -1,5 +1,5 @@
 // JSON backup of the confirmation log: validation and import planning.
-// Pure (no DOM, no storage, no imports): imported by app.js and the node
+// Pure (no DOM, no storage): imported by app.js and the node
 // tests, inlined into confirm-offline.html by scripts/build_confirm.py, so
 // every top-level name here must be unique across all js/ modules.
 //
@@ -16,6 +16,8 @@
 // in the file, a line without a readable time) is imported as written and
 // reported as a warning.
 
+import { splitToFit } from '../../shared/js/backup-parts.js';
+
 export const BACKUP_FORMAT = 'oe1ebg-confirm-backup';
 export const BACKUP_VERSIONS = [1];
 
@@ -23,8 +25,10 @@ export const BACKUP_VERSIONS = [1];
 // whole, with a message, before anything is written. 50 MB is about 10x a
 // 5000-line log with all its revisions; 200000 records (lines + versions)
 // about 20x. There is no limit on the text of a line: a note longer than
-// anything sensible may already be stored, and a backup the tool itself wrote
-// must always import again (the file size bounds it).
+// anything sensible may already be stored. A backup the tool itself writes
+// must always be restorable, so an export beyond these limits is written in
+// parts (backupTexts()) that the import takes together (combineBackupParts());
+// the limits apply per file.
 export const BACKUP_MAX_BYTES = 50 * 1024 * 1024;
 export const BACKUP_MAX_RECORDS = 200000;
 
@@ -40,7 +44,10 @@ const timeOk = v => v === undefined || v === null || isTime(v);
 // Checks a parsed backup file. Returns { ok, errors, warnings } (German
 // messages); nothing is written here. `errors` reject the file, `warnings`
 // are reported after the import. Stops listing at `limit` per kind.
-export function validateBackup(data, limit = 20) {
+// opts.fileOnly: only what is checked per FILE (format, version, size limit),
+// for the parts of a set; opts.combined: the parts put together, the record
+// limit was checked per part.
+export function validateBackup(data, limit = 20, opts = {}) {
   const errors = [];
   const warnings = [];
   const bad = msg => { if (errors.length < limit) errors.push(msg); };
@@ -56,9 +63,10 @@ export function validateBackup(data, limit = 20) {
   for (const item of data.events) {
     if (isObj(item)) records += (Array.isArray(item.entries) ? item.entries.length : 0) + (Array.isArray(item.revisions) ? item.revisions.length : 0);
   }
-  if (records > BACKUP_MAX_RECORDS) {
-    return { ok: false, errors: [`Die Datei enthält ${records} Zeilen und Versionen; mehr als ${BACKUP_MAX_RECORDS} werden nicht importiert (zu groß für diesen Browser). Bitte die Sicherung in kleinere Teile (einzelne Logs) aufteilen.`], warnings };
+  if (records > BACKUP_MAX_RECORDS && !opts.combined) {
+    return { ok: false, errors: [`Die Datei enthält ${records} Zeilen und Versionen; mehr als ${BACKUP_MAX_RECORDS} werden in einer Datei nicht importiert (zu groß für diesen Browser).`], warnings };
   }
+  if (opts.fileOnly) return { ok: true, errors, warnings };
   data.events.forEach((item, i) => {
     const where = `Log ${i + 1}`;
     if (!isObj(item) || !isObj(item.event)) return bad(`${where}: Log-Daten fehlen`);
@@ -171,4 +179,58 @@ export function planBackupImport(data, existing, newId) {
     if (clash) copies++;
   }
   return { puts, imported: data.events.length, copies, warnings };
+}
+
+// The texts of the files of a backup: one (as always, no `part`) when it fits
+// the import limits, else several parts of `part: { set, n, of }`, each within
+// them. events: [{ event, entries, revisions }]. setId names the set.
+export function backupTexts(events, exported, setId, limits) {
+  const items = [];
+  for (const item of events) {
+    items.push({ ev: item.event });
+    for (const e of item.entries || []) items.push({ ev: item.event, entry: e });
+    for (const r of item.revisions || []) items.push({ ev: item.event, rev: r });
+  }
+  const build = (slice, part) => {
+    const out = [];
+    for (const it of slice) {
+      let last = out[out.length - 1];
+      if (!last || last.event !== it.ev) out.push(last = { event: it.ev, entries: [], revisions: [] });
+      if (it.entry) last.entries.push(it.entry);
+      if (it.rev) last.revisions.push(it.rev);
+    }
+    return JSON.stringify({ format: BACKUP_FORMAT, version: 1, exported, ...(part ? { part } : {}), events: out }, null, 1);
+  };
+  const slices = splitToFit(items, build, it => (it.entry || it.rev ? 1 : 0), limits);
+  return slices.map((slice, i) => build(slice, slices.length > 1 ? { set: setId, n: i + 1, of: slices.length } : undefined));
+}
+
+// The parts of one set (parsed, in order) as one backup: the items of the same
+// log are put together. Every part must itself be a valid file (format,
+// version, limits per file); the result is checked with
+// validateBackup(data, limit, { combined: true }). Returns { data } or { errors }.
+export function combineBackupParts(parts) {
+  for (const d of parts) {
+    const c = validateBackup(d, 1, { fileOnly: true });
+    if (!c.ok) return { errors: c.errors };
+  }
+  const byId = new Map();
+  const events = [];
+  for (const d of parts) {
+    for (const item of d.events) {
+      const id = isObj(item) && isObj(item.event) ? item.event.id : undefined;
+      const have = id !== undefined && byId.get(id);
+      if (!have) {
+        const copy = { ...item, entries: [...(item.entries || [])], revisions: [...(item.revisions || [])] };
+        events.push(copy);
+        if (id !== undefined) byId.set(id, copy);
+      } else {
+        // the log's own record is repeated in every part: the first one counts
+        if (Array.isArray(item.entries)) have.entries.push(...item.entries);
+        if (Array.isArray(item.revisions)) have.revisions.push(...item.revisions);
+      }
+    }
+  }
+  const { part, ...rest } = parts[0];
+  return { data: { ...rest, events } };
 }

@@ -33,7 +33,8 @@ import { initOffline, setChip } from '../../shared/js/offline.js';
 import { createLineRepeater } from './linerepeater.js';
 import { createRowCache, syncRows, resetRows } from '../../shared/js/rowcache.js';
 import { formatShift, formatMHz } from '../../shared/js/repeaters.js';
-import { BACKUP_FORMAT, BACKUP_MAX_BYTES, SEQ_LIMIT, validateBackup, planBackupImport } from './backup.js';
+import { BACKUP_FORMAT, BACKUP_MAX_BYTES, SEQ_LIMIT, validateBackup, planBackupImport, backupTexts, combineBackupParts } from './backup.js';
+import { groupParts, partFileName } from '../../shared/js/backup-parts.js';
 
 const TIME_MODE_KEY = 'oe1ebg-confirm-time-mode';
 const CSV_SEP_KEY = 'oe1ebg-confirm-csv-sep';
@@ -1831,27 +1832,47 @@ function showImportMsg(kind, ...content) {
   ok.focus();
 }
 
-async function importBackup(file) {
-  if (file.size > BACKUP_MAX_BYTES) {
-    showImportMsg('err', el('strong', {}, 'Nicht importiert: '), `„${file.name}“ ist ${Math.round(file.size / 1048576)} MB groß; mehr als ${BACKUP_MAX_BYTES / 1048576} MB werden nicht importiert (zu groß für diesen Browser) – es wurde nichts geändert.`);
-    return;
+// One or more selected files: single backups as before, the parts of a
+// backup written in parts (see backup-parts.js) only all together, each set in
+// ONE atomic write. Nothing of a file or set with a problem is written.
+async function importFiles(files) {
+  const loaded = [];
+  const results = [];
+  const bad = (name, ...msg) => results.push({ kind: 'err', content: [el('strong', {}, 'Nicht importiert: '), `„${name}“ `, ...msg] });
+  for (const file of files) {
+    if (file.size > BACKUP_MAX_BYTES) {
+      bad(file.name, `ist ${Math.round(file.size / 1048576)} MB groß; mehr als ${BACKUP_MAX_BYTES / 1048576} MB werden nicht importiert (zu groß für diesen Browser) – es wurde nichts geändert.`);
+      continue;
+    }
+    try {
+      loaded.push({ name: file.name, data: JSON.parse(await file.text()) });
+    } catch {
+      bad(file.name, 'ist keine gültige JSON-Datei.');
+    }
   }
-  let data;
-  try {
-    data = JSON.parse(await file.text());
-  } catch {
-    showImportMsg('err', el('strong', {}, 'Nicht importiert: '), `„${file.name}“ ist keine gültige JSON-Datei.`);
-    return;
+  const { singles, sets, errors } = groupParts(loaded);
+  for (const m of errors) results.push({ kind: 'err', content: [el('strong', {}, 'Nicht importiert: '), m] });
+  for (const f of singles) results.push(await importData(f.name, f.data, validateBackup(f.data)));
+  for (const set of sets) {
+    const names = `${set.files.length} Teile (${set.files[0].name} …)`;
+    const combined = combineBackupParts(set.files.map(f => f.data));
+    if (combined.errors) {
+      results.push({ kind: 'err', content: [el('strong', {}, 'Nicht importiert: '), `${names}: `, combined.errors.join('; ')] });
+      continue;
+    }
+    results.push(await importData(names, combined.data, validateBackup(combined.data, 20, { combined: true })));
   }
-  const check = validateBackup(data);
+  if (results.length === 1) showImportMsg(results[0].kind, ...results[0].content);
+  else if (results.length) showImportMsg(results.some(r => r.kind === 'err') ? 'err' : 'warn', el('ul', {}, results.map(r => el('li', {}, ...r.content))));
+}
+
+async function importData(name, data, check) {
+  const fail = (...content) => ({ kind: 'err', content: [el('strong', {}, 'Nicht importiert: '), ...content] });
   if (check.notBackup) {
-    showImportMsg('err', el('strong', {}, 'Nicht importiert: '), `„${file.name}“ ist keine Sicherung des Bestätigungsverkehrs (Datei „Sicherung (JSON)“ / „Alle sichern (JSON)“).`);
-    return;
+    return fail(`„${name}“ ist keine Sicherung des Bestätigungsverkehrs (Datei „Sicherung (JSON)“ / „Alle sichern (JSON)“).`);
   }
   if (!check.ok) {
-    showImportMsg('err', el('strong', {}, 'Nicht importiert: '), `„${file.name}“ ist keine gültige Sicherung – es wurde nichts geändert.`,
-      el('ul', {}, check.errors.map(m => el('li', {}, m))));
-    return;
+    return fail(`„${name}“ ist keine gültige Sicherung – es wurde nichts geändert.`, el('ul', {}, check.errors.map(m => el('li', {}, m))));
   }
   // Collision check and writes in ONE transaction: all logs of the file or
   // none, and nothing stored can change between the check and the write.
@@ -1867,16 +1888,18 @@ async function importBackup(file) {
     });
   } catch (e) {
     showSaveError(e);
-    showImportMsg('err', el('strong', {}, 'Nicht importiert: '), 'Beim Speichern ist ein Fehler aufgetreten – es wurde nichts importiert und nichts verändert.');
-    return;
+    return fail('Beim Speichern ist ein Fehler aufgetreten – es wurde nichts importiert und nichts verändert.');
   }
   const imported = result.imported, copies = result.copies;
   const warnings = [...check.warnings, ...result.warnings];
   broadcast({ type: 'events' });
-  showImportMsg('warn', el('strong', {}, `${imported} ${imported === 1 ? 'Log' : 'Logs'} importiert.`),
-    copies ? ` ${copies} davon als Kopie („(Import)“), weil ${copies === 1 ? 'es' : 'sie'} schon vorhanden ${copies === 1 ? 'war' : 'waren'}; nichts wurde überschrieben.` : '',
-    warnings.length ? el('ul', {}, ['Hinweise zur Sicherung (alles wurde übernommen wie gespeichert):', ...warnings].map((m, i) => el('li', {}, i ? m : el('b', {}, m)))) : '');
   renderEventList();
+  return {
+    kind: 'warn',
+    content: [el('strong', {}, `${imported} ${imported === 1 ? 'Log' : 'Logs'} importiert.`),
+      copies ? ` ${copies} davon als Kopie („(Import)“), weil ${copies === 1 ? 'es' : 'sie'} schon vorhanden ${copies === 1 ? 'war' : 'waren'}; nichts wurde überschrieben.` : '',
+      warnings.length ? el('ul', {}, ['Hinweise zur Sicherung (alles wurde übernommen wie gespeichert):', ...warnings].map((m, i) => el('li', {}, i ? m : el('b', {}, m)))) : ''],
+  };
 }
 
 /* --- exports --- */
@@ -2082,8 +2105,8 @@ async function doExport(kind, force = false) {
     // Not a full backup (only stations with a location): no markExported().
     download(toKML(ev, entries, { qth }), fileBase(ev) + '.kml', KML_MIME);
   } else if (kind === 'json') {
-    const backup = { format: BACKUP_FORMAT, version: 1, exported: nowIso(), events: [await eventBackup(ev)] };
-    download(JSON.stringify(backup, null, 1), fileBase(ev) + '_sicherung.json', 'application/json');
+    const split = await downloadBackup([await eventBackup(ev)], fileBase(ev) + '_sicherung');
+    if (split) logStatus(split);
     markExported();
   } else if (kind === 'summary') {
     showText('Zusammenfassung', toSummary(ev, entries, timeMode(), { qth }));
@@ -2094,9 +2117,23 @@ async function doExport(kind, force = false) {
 
 async function backupAll() {
   const events = await state.store.getAll('events');
-  const backup = { format: BACKUP_FORMAT, version: 1, exported: nowIso(), events: [] };
-  for (const ev of events) backup.events.push(await eventBackup(ev));
-  download(JSON.stringify(backup, null, 1), `${splitUtc(nowIso()).date}_bestaetigungsverkehr_alle.json`, 'application/json');
+  const items = [];
+  for (const ev of events) items.push(await eventBackup(ev));
+  const split = await downloadBackup(items, `${splitUtc(nowIso()).date}_bestaetigungsverkehr_alle`);
+  if (split) showImportMsg('warn', split);
+}
+
+// The JSON backup of logs: one file, or - when it is beyond what an import
+// accepts (50 MB, 200000 records) - several parts that are imported together
+// (selected together in the import dialog); nothing is left out.
+async function downloadBackup(items, base) {
+  const texts = backupTexts(items, nowIso(), newId());
+  if (texts.length === 1) { download(texts[0], base + '.json', 'application/json'); return ''; }
+  for (const [i, text] of texts.entries()) {
+    if (i) await new Promise(r => setTimeout(r, 400)); // browsers ask before many downloads at once
+    download(text, partFileName(base, i + 1, texts.length), 'application/json');
+  }
+  return `Die Sicherung ist groß und in ${texts.length} Dateien geteilt: beim Import alle Teile gemeinsam auswählen.`;
 }
 
 /* ---------------------------------------------------------------- cross-tab sync */
@@ -2170,9 +2207,9 @@ function wire() {
   });
   $('#btn-import').addEventListener('click', () => $('#import-file').click());
   $('#import-file').addEventListener('change', ev => {
-    const f = ev.target.files[0];
+    const files = [...ev.target.files];
     ev.target.value = '';
-    if (f) importBackup(f);
+    if (files.length) importFiles(files);
   });
   $('#btn-backup-all').addEventListener('click', backupAll);
 

@@ -105,6 +105,12 @@ allen Zeilen, auch den gelöschten, und enthält die Daten **unverschlüsselt**.
 - Die Datei wird zuerst geprüft. Ist sie keine gültige Sicherung des
   Bestätigungsverkehrs, wird nichts importiert und nichts verändert.
 - Alle Logs der Datei werden **ganz oder gar nicht** übernommen.
+- Sehr große Sicherungen (über 50 MB oder 200000 Zeilen und Versionen) werden
+  beim Sichern automatisch in mehrere Dateien „…_teil-1-von-3.json“ usw.
+  geteilt, nichts geht verloren. Beim Importieren **alle Teile gemeinsam
+  auswählen** (in der Dateiauswahl mehrere Dateien markieren): sie werden
+  wie eine einzige Sicherung, ganz oder gar nicht, übernommen. Fehlt ein Teil,
+  wird nichts importiert und die Meldung nennt den fehlenden Teil.
 - Es wird nie etwas Vorhandenes überschrieben. Ist die ID des Logs, einer
   seiner Zeilen oder einer früheren Fassung schon gespeichert, kommt das Log
   als Kopie mit neuen IDs und dem Zusatz „(Import)“ dazu. Andere Logs

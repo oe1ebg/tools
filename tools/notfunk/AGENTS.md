@@ -12,6 +12,15 @@ provisional until the Notfunkreferat Wien confirms it.
   number anywhere else; `editMessage()` keeps prefix/seq/number. Restores
   go through `mergeBackup()` (counters never go down). The tests in
   `tests/notfunk-numbering.test.mjs` must keep passing.
+- **Backups always restorable.** The import limits (50 MB / 200000 records)
+  must never make the tool's own export unrestorable: `toBackupTexts()` splits
+  an export beyond them into parts (`part: { set, n, of }`) that
+  `groupParts()` / `combineBackupParts()` put together for ONE atomic
+  `applyBackup()`; never block an export or add a limit without a restore
+  path (`tests/backup-parts.test.mjs`). A changed message always gets a later
+  `updated` (`laterIso()`): the row cache's signature relies on it. The
+  Inhalt limit applies to changed text only (`keepText`), so a restored long
+  message stays editable.
 - **Writes go through `js/ops.js`:** a new message is `saveNewMessage()`
   (number, message and the reply's "answered" status in one `atomic()`; the
   message id doubles as idempotency key, so a retry returns the committed
