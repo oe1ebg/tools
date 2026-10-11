@@ -287,3 +287,90 @@ test('a record that cannot be split (many strings below the chunk size) is refus
   const rec = { id: 'a1', eventId: 'e1', seq: 1, a: 'x'.repeat(400000), b: 'y'.repeat(400000), c: 'z'.repeat(400000) };
   assert.throws(() => backupTexts([{ event: ev, entries: [rec, entry('a2', 2)], revisions: [] }], T, 's', { maxBytes: 1000000 }), e => e.tooLarge && /nichts heruntergeladen/.test(e.message));
 });
+
+// Review of the chunk reassembly: tampered chunks are refused cleanly ("nichts importiert"), never an uncaught error.
+const chunked = () => {
+  const note = 'abc'.repeat(2 * MiB);
+  const texts = backupTexts([{ event: ev, entries: [entry('a1', 1, { note })], revisions: [] }], T, 's', { maxBytes: 2000000 });
+  return { note, parts: () => texts.map(t => JSON.parse(t)) };
+};
+const firstChunk = ps => ps.find(p => p.chunks?.length).chunks[0];
+const allChunks = ps => ps.flatMap(p => p.chunks || []); // one group: a consistent tampering touches them all
+const refused = r => { assert.ok(r.errors?.length, 'refused'); assert.match(r.errors[0], /nichts importiert/); };
+
+test('chunks: a tampered kind, path or field is refused with a German message, in both tools', () => {
+  const { parts } = chunked();
+  for (const kind of ['__proto__', 'constructor', 'toString', 'hasOwnProperty', 'nope', 5]) {
+    const ps = parts();
+    for (const c of allChunks(ps)) c.kind = kind;
+    let r;
+    assert.doesNotThrow(() => { r = combineBackupParts(ps); }, `kind ${String(kind)}`);
+    refused(r);
+  }
+  for (const path of [['__proto__', 'note'], ['constructor', 'prototype'], ['note', '__proto__'], ['prototype'], [1.5], [-1], [null], [{}], [[]], [true], []]) {
+    const ps = parts();
+    for (const c of allChunks(ps)) c.path = path;
+    let r;
+    assert.doesNotThrow(() => { r = combineBackupParts(ps); }, JSON.stringify(path));
+    refused(r);
+  }
+  for (const patch of [{ path: 'note' }, { rid: 7 }, { n: '1' }, { n: 1.5 }, { of: 'x' }, { data: 5 }, { data: null }, { n: 0 }, { of: 1e9 }]) {
+    const ps = parts();
+    Object.assign(firstChunk(ps), patch);
+    let r;
+    assert.doesNotThrow(() => { r = combineBackupParts(ps); }, JSON.stringify(patch));
+    refused(r);
+  }
+  const bad = parts();
+  bad[0].chunks = [null];
+  refused(combineBackupParts(bad));
+  // the same for Notfunk (throws a plain German Error)
+  const m = msg(1, 'kurz');
+  m.text = 'y'.repeat(3 * MiB);
+  const texts = toBackupTexts({ operation: OP, messages: [m], revisions: [], counters: [] }, T, 'n', { maxBytes: 2000000 });
+  const nf = () => texts.map(t => JSON.parse(t));
+  for (const patch of [{ kind: '__proto__' }, { kind: 'constructor' }, { path: ['__proto__', 'text'] }, { path: ['text', 'constructor'] }, { path: [1.5] }, { rid: 3 }]) {
+    const ps = nf();
+    for (const c of allChunks(ps)) Object.assign(c, patch);
+    assert.throws(() => nfCombine(ps), e => e instanceof Error && /nichts importiert/.test(e.message), JSON.stringify(patch));
+  }
+});
+
+test('chunks: a chunk may only fill the empty placeholder of its record', () => {
+  const { parts } = chunked();
+  const ps = parts();
+  const c = firstChunk(ps);
+  const e = ps.flatMap(p => p.events).flatMap(x => x.entries).find(x => x.id === c.rid);
+  e[c.path[0]] = 'schon belegt'; // the placeholder is gone: the field holds text
+  refused(combineBackupParts(ps));
+  const ps2 = parts();
+  for (const c of allChunks(ps2)) c.path = ['seq']; // a non-string target
+  refused(combineBackupParts(ps2));
+  const ps3 = parts(); // the same chunk group twice
+  const holder = ps3.find(p => p.chunks?.length);
+  holder.chunks.push(...holder.chunks.map(x => ({ ...x })));
+  refused(combineBackupParts(ps3));
+});
+
+test('chunks: lone and split surrogates at a chunk boundary survive exactly', () => {
+  for (const at of [999, 1000, 1001, 1999, 2000]) {
+    const base = Array.from({ length: 3000 }, () => 'a');
+    base[at] = '\ud83d'; // a high surrogate right at / around a boundary
+    base[at + 1] = '\ude00'; // its low half: a pair split across chunks when at = 999 or 1999
+    const note = base.join('') + '\ud83d'; // and a lone one at the very end
+    const texts = backupTexts([{ event: ev, entries: [entry('a1', 1, { note })], revisions: [] }], T, 's', { maxBytes: 1700, chunkChars: 1000 });
+    assert.ok(texts.length >= 2);
+    const c = combineBackupParts(named(texts).map(f => f.data));
+    assert.ok(c.data.events[0].entries[0].note === note, `at ${at}`);
+  }
+  const lone = '\ude00' + 'b'.repeat(2999);
+  const texts = backupTexts([{ event: ev, entries: [entry('a1', 1, { note: lone })], revisions: [] }], T, 's', { maxBytes: 1700, chunkChars: 1000 });
+  assert.ok(combineBackupParts(named(texts).map(f => f.data)).data.events[0].entries[0].note === lone);
+});
+
+test('chunks: a part may hold only chunks', () => {
+  const { note, parts } = chunked();
+  const ps = parts();
+  assert.ok(ps.some(p => (p.chunks || []).length && p.events.every(e => !e.entries.length && !e.revisions.length)));
+  assert.ok(combineBackupParts(ps).data.events[0].entries[0].note === note);
+});

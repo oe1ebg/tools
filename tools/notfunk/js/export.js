@@ -334,9 +334,9 @@ export function combineBackupParts(parts) {
   const revisions = parts.flatMap(d => d.revisions);
   const allChunks = parts.flatMap(d => d.chunks || []);
   if (allChunks.length) {
-    const byKind = { messages: new Map(), revisions: new Map() };
-    for (const [k, list] of [['messages', messages], ['revisions', revisions]]) for (const r of list) if (isObj(r) && typeof r.id === 'string') byKind[k].set(r.id, r);
-    const why = applyChunks(allChunks, (kind, rid) => byKind[kind]?.get(rid));
+    const byKind = new Map([['messages', new Map()], ['revisions', new Map()]]); // Maps: a tampered kind like "__proto__" is simply unknown
+    for (const [k, list] of [['messages', messages], ['revisions', revisions]]) for (const r of list) if (isObj(r) && typeof r.id === 'string') byKind.get(k).set(r.id, r);
+    const why = applyChunks(allChunks, (kind, rid) => byKind.get(kind)?.get(rid));
     if (why) throw new Error(why.replace(/\.$/, ''));
   }
   return checkBackup({ ...rest, messages, revisions, counters: [...last.values()] }, { combined: true });
