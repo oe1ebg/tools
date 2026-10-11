@@ -22,6 +22,7 @@ browser loads.
 | `js/data.js` | `loadDataFile(name)`: `data/` files (fetched, or inlined in single-file bundles) | confirm, notfunk |
 | `js/storage.js` | IndexedDB storage with localStorage fallback; each tool passes its schema; `atomic()` read-modify-write in one transaction, compare-and-set; contract below | confirm, notfunk |
 | `js/storageui.js` | the storage notices in their own box after the page banner: blocked open, connection taken over, moving fallback records into IndexedDB (UI) | confirm, notfunk |
+| `js/rowcache.js` | keyed row reuse for big tables (`syncRows`): a re-render creates only rows whose signature changed (confirm log, notfunk book; issue #15) | confirm, notfunk |
 | `js/dom.js` | DOM helpers (`el`, `fill`, `popover`, …); the one module touching the DOM directly, besides the UI modules below | confirm, notfunk |
 | `js/time.js` | ids, "now", ISO UTC timestamps shown/typed in UTC or local time (the device's or a named zone via Intl, incl. the repeated/skipped hour at the DST change) | confirm, notfunk |
 | `js/locmeta.js` | where a resolved location came from and how it was named (`LOC_ORIGINS`, …) | confirm, notfunk |

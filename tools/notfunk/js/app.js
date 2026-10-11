@@ -35,7 +35,7 @@ import {
   repliesTo, fmtVienna, viennaTime, zoneHint, normFreq, fmtFreq,
 } from './model.js';
 import { normalizePrefix, PREFIX_RE, nextSeq, formatNumber, counterKey } from './numbering.js';
-import { toGeschaeftsbuchCSV, toBackup, parseBackup } from './export.js';
+import { toGeschaeftsbuchCSV, toBackup, parseBackup, BACKUP_MAX_BYTES } from './export.js';
 import { saveNewMessage, updateMessage, changedFields, editBaseOf, editTarget, draftEditState, applyBackup, patchOperation, writeDraft, clearDraft } from './ops.js';
 import {
   emptyForm, setDirection, formToFields, formIsBlank, messageToForm, replyForm, nextStep, statusSteps, bookSummary, partyText,
@@ -44,6 +44,7 @@ import {
 import { formSheet, blankFormSheet, bookSheet } from './print.js';
 import { renderFormSheet, fittedFormSheet, renderBookSheet, printSheet } from './printview.js';
 import { attachDatePicker, attachTimePicker } from './picker.js';
+import { createRowCache, syncRows, resetRows } from '../../shared/js/rowcache.js';
 
 const LAST_OP_KEY = 'oe1ebg-notfunk-last-op';
 const PRINT_HINT_KEY = 'oe1ebg-notfunk-print-hint-off';
@@ -1226,6 +1227,10 @@ function renderSummary() {
     s.gaps.length ? el('span', { class: 'sum sum-err' }, `Lücke: ${s.gaps.join(', ')}`) : null);
 }
 
+// The rows of the book (see renderBook).
+const bookRows = createRowCache();
+let bookOp = null;
+
 function renderBook() {
   if (!state.op) return;
   renderFormState();
@@ -1236,9 +1241,14 @@ function renderBook() {
   list.reverse(); // newest first
   const body = $('#book-body');
   if (!list.length) {
+    resetRows(bookRows);
     fill(body, el('tr', {}, el('td', { colspan: '8', class: 'empty' }, state.msgs.some(m => !m.deleted) ? 'Keine Meldung passt zum Filter.' : 'Noch keine Meldungen. Die erste oben eintragen.')));
   } else {
-    fill(body, list.map(m => {
+    // Rows are kept between renders (keyed by message id, signature = the
+    // message's `updated` token): a new or changed message builds one row,
+    // searching/filtering only moves, adds and removes rows.
+    if (bookOp !== state.op.id) { resetRows(bookRows); bookOp = state.op.id; }
+    syncRows(body, bookRows, list, { key: m => m.id, sig: m => `${m.updated}|${m.deleted || ''}|${m.status.length}`, build: m => {
       const step = nextStep(m);
       const last = m.status[m.status.length - 1];
       return el('tr', { 'data-id': m.id, class: m.priority === 'emergency' ? 'urgent' : null },
@@ -1257,7 +1267,7 @@ function renderBook() {
         el('td', { class: 'act' },
           step ? el('button', { type: 'button', class: 'mini', onclick: () => advance(m, step.state), 'aria-label': `${m.number} ${step.label}` }, step.label) : null,
           el('button', { type: 'button', class: 'mini', onclick: () => printForm(m), 'aria-label': `Ausdruck ${m.number} (Meldeaufnahmeformular)` }, 'Ausdruck')));
-    }));
+    } });
   }
   renderTrash();
 }
@@ -1578,6 +1588,10 @@ function showImportMsg(cls, ...content) {
 }
 
 async function importBackup(file) {
+  if (file.size > BACKUP_MAX_BYTES) {
+    showImportMsg('err', el('strong', {}, 'Nicht importiert: '), `„${file.name}“ ist ${Math.round(file.size / 1048576)} MB groß; mehr als ${BACKUP_MAX_BYTES / 1048576} MB werden nicht importiert (zu groß für diesen Browser) – es wurde nichts geändert.`);
+    return;
+  }
   let backup;
   try {
     backup = parseBackup(await file.text());

@@ -93,6 +93,46 @@ test('numbers, status, reply, edit, delete and CSV', async ({ page }) => {
   expect(text).not.toContain('W1-002');
 });
 
+// Issue #15: the book keeps its rows between renders (keyed by message and
+// its `updated` token); search and filter show exactly the matching rows.
+test('search, filter and a status step keep the rows of unchanged messages', async ({ page }) => {
+  await openNewOp(page, 'E2E Zeilen', 'w1');
+  await addMessage(page, 'Lichtinsel 3', 'Wasser');
+  await addMessage(page, 'Lichtinsel 4', 'Strom');
+  await addMessage(page, 'Lichtinsel 5', 'Diesel');
+  const rows = page.locator('#book-body tr[data-id]');
+  await expect(rows).toHaveCount(3);
+  await page.evaluate(() => document.querySelectorAll('#book-body tr[data-id]').forEach((tr, i) => { tr.probe = i; }));
+  const kept = () => page.evaluate(() => [...document.querySelectorAll('#book-body tr[data-id]')].map(tr => tr.probe ?? null));
+  expect(await numbers(page)).toEqual(['W1-003', 'W1-002', 'W1-001']);
+
+  // search: only the match, the same row node
+  await page.locator('#book-search').fill('strom');
+  await expect.poll(() => numbers(page)).toEqual(['W1-002']);
+  expect(await kept()).toEqual([1]);
+  await page.locator('#book-search').fill('gibtsnicht');
+  await expect(page.locator('#book-body td.empty')).toContainText('Keine Meldung passt zum Filter.');
+  await page.locator('#book-search').fill('');
+  await expect.poll(() => numbers(page)).toEqual(['W1-003', 'W1-002', 'W1-001']);
+
+  // filter: open messages, then incoming; all three are open and incoming
+  await page.locator('[data-filter="out"]').click();
+  await expect(page.locator('#book-body td.empty')).toBeVisible();
+  await page.locator('[data-filter="all"]').click();
+  await expect.poll(() => numbers(page)).toEqual(['W1-003', 'W1-002', 'W1-001']);
+  await page.evaluate(() => document.querySelectorAll('#book-body tr[data-id]').forEach((tr, i) => { tr.probe = i; }));
+
+  // a status step rebuilds that row only, and the order stays
+  await page.getByRole('button', { name: 'W1-002 übergeben' }).click();
+  await expect.poll(kept).toEqual([0, null, 2]);
+  await expect(page.locator('#book-body tr', { hasText: 'W1-002' }).locator('.pill')).toContainText('übergeben');
+  expect(await numbers(page)).toEqual(['W1-003', 'W1-002', 'W1-001']);
+
+  // a click on a row still opens the message
+  await page.locator('#book-body tr', { has: page.locator('td.num', { hasText: 'W1-001' }) }).locator('td.content').click();
+  await expect(page.locator('#msg-title')).toHaveText('W1-001');
+});
+
 test('keyboard: Shift+Enter saves, warnings ask once, Esc asks before discarding', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-10-08T10:00:00Z')); // 12:00
   await openNewOp(page, 'E2E Tastatur', 'k1');
