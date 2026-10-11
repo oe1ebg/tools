@@ -398,7 +398,12 @@ Zeitraum (Von/Bis je Datum und Uhrzeit; nur ein Datum = der ganze Tag).
   lassen sich nur im Notfunk-Meldebuch importieren, und nur mit einer
   aktuellen Version: eine ältere Version könnte einen einzelnen Teil als
   unvollständige Sicherung einspielen. Alle Teile zusammen dürfen höchstens
-  12 Dateien und 480 MB umfassen.
+  12 Dateien, 480 MB und 1000000 Meldungen und Fassungen umfassen. Ist
+  ein Einsatz dafür zu groß, meldet das Meldebuch „Zu groß für eine einzige
+  Sicherung“ **bevor** etwas heruntergeladen wird; dann das Geschäftsbuch
+  (CSV) exportieren und für weitere Meldungen einen neuen Einsatz anlegen.
+  Eine einzelne Datei darf höchstens 50 MB und 200000 Meldungen und
+  Fassungen enthalten.
 
 ### Gespeichert, Entwurf und Sicherung
 

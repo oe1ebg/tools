@@ -12,7 +12,7 @@
 // Per part: well below the import limits (50 MB / 200000 records), the rest
 // is room for the part header and the indentation of the final text.
 export const PART_MAX_BYTES = 40 * 1024 * 1024;
-export const PART_MAX_RECORDS = 150000;
+export const PART_MAX_RECORDS = 80000; // x PARTS_MAX_COUNT stays within PARTS_MAX_TOTAL_RECORDS
 
 // A set of parts is restored in one piece in memory, so the set is bounded too:
 // at most 12 parts, 480 MB and 1000000 records in total (all parts together).
@@ -36,6 +36,11 @@ export function partsTooManyRecords(records) {
     : '';
 }
 
+// The refusal of an export that cannot be restored as one set; advice: what to do instead.
+export function backupTooLargeMessage(advice) {
+  return `Zu groß für eine einzige Sicherung (mehr als ${PARTS_MAX_COUNT} Dateien, ${PARTS_MAX_TOTAL_BYTES / 1048576} MB oder ${PARTS_MAX_TOTAL_RECORDS} Datensätze): sie ließe sich nicht wieder einspielen. Es wurde nichts heruntergeladen. ${advice}`;
+}
+
 const utf8 = new TextEncoder();
 export const utf8Length = s => utf8.encode(s).length;
 
@@ -43,15 +48,46 @@ export const utf8Length = s => utf8.encode(s).length;
 //   build(slice, part)  slice -> the complete file text (part: the marker, or
 //                       undefined when everything fits in one file)
 //   weight(item)        how many records the item counts for the record limit
+//   limits.tooLarge     German text of the refusal (the tool names what to do)
 // Returns [slice, ...]; one slice when the whole thing fits. Slices are
-// halved until they fit, so the parts are about equal; a single item that is
-// alone beyond the limit stays one slice (nothing is ever dropped).
-export function splitToFit(items, build, weight, { maxBytes = PART_MAX_BYTES, maxRecords = PART_MAX_RECORDS } = {}) {
+// filled one after the other as far as they fit, so there are no more parts
+// than needed. A set that cannot be
+// restored (more than PARTS_MAX_COUNT parts, PARTS_MAX_TOTAL_BYTES or
+// PARTS_MAX_TOTAL_RECORDS in total) is refused here with an Error: the caller
+// must show it BEFORE anything is downloaded. Never a partial set, never data
+// left out. A single item that is alone beyond the file limit stays one slice.
+export function splitToFit(items, build, weight, limits = {}) {
+  const { maxBytes = PART_MAX_BYTES, maxRecords = PART_MAX_RECORDS, maxParts = PARTS_MAX_COUNT,
+    maxTotalBytes = PARTS_MAX_TOTAL_BYTES, maxTotalRecords = PARTS_MAX_TOTAL_RECORDS,
+    tooLarge = 'Die Sicherung ist zu groß für eine einzige Sicherung. Es wurde nichts heruntergeladen.' } = limits;
   const probe = { set: '0'.repeat(36), n: 9999, of: 9999 };
-  const fits = (slice, part) => slice.reduce((n, x) => n + weight(x), 0) <= maxRecords && utf8Length(build(slice, part)) <= maxBytes;
-  const cut = slice => (slice.length < 2 || fits(slice, probe) ? [slice] : [...cut(slice.slice(0, slice.length >> 1)), ...cut(slice.slice(slice.length >> 1))]);
+  const records = slice => slice.reduce((n, x) => n + weight(x), 0);
+  const fits = (slice, part) => records(slice) <= maxRecords && utf8Length(build(slice, part)) <= maxBytes;
   if (fits(items, undefined)) return [items];
-  return cut(items);
+  // greedy: each part takes as many items as fit (by records first, then by
+  // the exact size, halving the span), so there are no more parts than needed
+  const slices = [];
+  const tooMany = () => Object.assign(new Error(tooLarge), { tooLarge: true });
+  for (let i = 0; i < items.length;) {
+    let hi = i + 1, n = weight(items[i]);
+    while (hi < items.length && n + weight(items[hi]) <= maxRecords) n += weight(items[hi++]);
+    if (hi - i > 1 && !fits(items.slice(i, hi), probe)) {
+      let lo = i + 1; // lo fits (or is a single item), hi does not
+      while (lo + 1 < hi) {
+        const mid = (lo + hi) >> 1;
+        if (fits(items.slice(i, mid), probe)) lo = mid; else hi = mid;
+      }
+      hi = lo;
+    }
+    slices.push(items.slice(i, hi));
+    if (slices.length > maxParts) throw tooMany();
+    i = hi;
+  }
+  const total = records(items);
+  let bytes = 0;
+  for (const sl of slices) bytes += utf8Length(build(sl, probe));
+  if (total > maxTotalRecords || bytes > maxTotalBytes) throw tooMany();
+  return slices;
 }
 
 // The file name of part n of `of`: "<base>_teil-2-von-3.json".

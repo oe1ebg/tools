@@ -16,8 +16,8 @@ provisional until the Notfunkreferat Wien confirms it.
   should not make the tool's own export unrestorable: `toBackupTexts()` splits
   an export beyond them into parts (`part: { set, n, of }`) that
   `groupParts()` / `combineBackupParts()` put together for ONE atomic
-  `applyBackup()`; never block an export or add a limit without a restore
-  path (`tests/backup-parts.test.mjs`). Limits of the parts: the set is bounded too (12 parts, 480 MB, 1000000 records in total, `PARTS_*` in backup-parts.js; refused with a German message, nothing written); a single record larger than the per-file limit (Confirm has no text limit) is not split and can still not be restored; an older app version may import a lone part as a partial backup; parts import only into the same tool; an automatic multi-download may be blocked, so the status says N files were *started* (check all arrived) and the export/backup time is not recorded for parts. A changed message always gets a later
+  `applyBackup()`; do not add a limit without a restore
+  path (`tests/backup-parts.test.mjs`). Limits of the parts: the set is bounded too (12 parts, 480 MB, 1000000 records in total, `PARTS_*` in backup-parts.js, with per-part limits chosen so every split the export makes is within them; the import refuses a larger set, nothing written, and `splitToFit()` makes the EXPORT refuse a set that could not be restored BEFORE anything is downloaded - the UI shows it, never a partial set, never data left out); a single record larger than the per-file limit (Confirm has no text limit) is not split and can still not be restored; an older app version may import a lone part as a partial backup; parts import only into the same tool; an automatic multi-download may be blocked, so the status says N files were *started* (check all arrived) and the export/backup time is not recorded for parts. A changed message always gets a later
   `updated` (`laterIso()`): the row cache's signature relies on it. The
   Inhalt limit applies to changed text only (`keepText`), so a restored long
   message stays editable.

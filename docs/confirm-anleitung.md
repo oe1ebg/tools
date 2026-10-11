@@ -117,8 +117,11 @@ allen Zeilen, auch den gelöschten, und enthält die Daten **unverschlüsselt**.
   gemacht). Die Teile lassen sich nur im Bestätigungsverkehr importieren, und
   nur mit einer aktuellen Version des Werkzeugs: eine ältere Version könnte
   einen einzelnen Teil als unvollständige Sicherung einspielen. Alle Teile
-  zusammen dürfen höchstens 12 Dateien und 480 MB umfassen, sonst bitte die
-  Logs einzeln sichern.
+  zusammen dürfen höchstens 12 Dateien, 480 MB und 1000000 Zeilen und
+  Versionen umfassen. Ist ein Log dafür zu groß, meldet das Werkzeug „Zu groß
+  für eine einzige Sicherung“ **bevor** etwas heruntergeladen wird: dann die
+  Logs einzeln sichern. Eine einzelne Datei darf höchstens 50 MB und 200000
+  Zeilen und Versionen enthalten.
 - Es wird nie etwas Vorhandenes überschrieben. Ist die ID des Logs, einer
   seiner Zeilen oder einer früheren Fassung schon gespeichert, kommt das Log
   als Kopie mit neuen IDs und dem Zusatz „(Import)“ dazu. Andere Logs

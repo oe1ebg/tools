@@ -216,14 +216,14 @@ Imports stay atomic (`applyBackup`).
 A backup the tool exports should be restorable, so an export beyond
 these limits (e.g. 1100 messages of 50000 characters = 56 MB) is written in
 **parts** (`toBackupTexts()`, `tools/shared/js/backup-parts.js`): each part
-below 40 MB / 150000 records, named `..._teil-N-von-M.json`, a valid backup file
+below 40 MB / 80000 records, named `..._teil-N-von-M.json`, a valid backup file
 with an extra `part: { set, n, of }`, operation and counters in every part,
 messages first and then the revisions. The import (`<input multiple>`) takes
 the parts together: `groupParts()` checks the set is complete (a missing,
 doubled or lone part writes nothing), `combineBackupParts()` puts them
 together (counters: the highest), then the usual `checkBackup()` and ONE
 atomic `applyBackup()`; ids, revisions and counters as exported. The limits
-apply per file; a backup within them is one file as before. Limits: the set is bounded too (12 parts, 480 MB, 1000000 records in total; refused with a German message, nothing written); a single record larger than the per-file limit is not split and can still not be restored (Confirm has no text limit); an older app version may import a lone part as a partial backup; parts import only into the same tool; a blocked automatic multi-download is reported as "N files started, check that all arrived" and no export / backup time is recorded for parts. Test:
+apply per file; a backup within them is one file as before. Limits: the set is bounded too (12 parts, 480 MB, 1000000 records in total; the per-part limits are chosen so that every split the export makes is within the set limits: 12 x 80000 <= 1000000, 12 x 40 MB = 480 MB; the import refuses a larger set with a German message and nothing written, and the EXPORT refuses it before anything is downloaded, "zu groß für eine einzige Sicherung", pointing to the individual operation's Geschäftsbuch CSV; never a partial set); a single record larger than the per-file limit is not split and can still not be restored (Confirm has no text limit); an older app version may import a lone part as a partial backup; parts import only into the same tool; a blocked automatic multi-download is reported as "N files started, check that all arrived" and no export / backup time is recorded for parts. Test:
 `tests/backup-parts.test.mjs`.
 
 ## App identity

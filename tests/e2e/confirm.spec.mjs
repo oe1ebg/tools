@@ -374,3 +374,19 @@ test('a split export is imported from all its parts together, one part alone is 
     await ctx.close();
   }
 });
+
+// An export that could not be restored as one set is refused before anything is downloaded.
+test('a split export beyond the set limits is refused without any download', async ({ page }) => {
+  await page.addInitScript(() => { globalThis.CONFIRM_PART_LIMITS = { maxRecords: 2, maxParts: 2 }; });
+  await openNewLog(page, 'E2E Zu groß');
+  for (const c of ['OE1AAA', 'OE1BBB', 'OE1CCC', 'OE1DDD', 'OE1EEE']) await logCall(page, c);
+  let downloads = 0;
+  page.on('download', () => { downloads++; });
+  await page.locator('#btn-export-menu').click();
+  await page.locator('#export-list [data-export="json"]').click();
+  await expect(page.locator('#export-msg')).toContainText('Zu groß für eine einzige Sicherung');
+  await expect(page.locator('#export-msg')).toContainText('Es wurde nichts heruntergeladen');
+  await expect(page.locator('#export-msg')).toContainText('einzelnen Logs');
+  await page.waitForTimeout(1000);
+  expect(downloads).toBe(0);
+});

@@ -3,7 +3,7 @@
 // together, losslessly and in one atomic write.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { groupParts, partFileName, utf8Length } from '../tools/shared/js/backup-parts.js';
+import { splitToFit, PART_MAX_BYTES, PART_MAX_RECORDS, PARTS_MAX_COUNT, PARTS_MAX_TOTAL_BYTES, PARTS_MAX_TOTAL_RECORDS, groupParts, partFileName, utf8Length } from '../tools/shared/js/backup-parts.js';
 import { BACKUP_FORMAT, BACKUP_MAX_BYTES, BACKUP_MAX_RECORDS, validateBackup, planBackupImport, backupTexts, combineBackupParts } from '../tools/confirm/js/backup.js';
 import { toBackup, toBackupTexts, parseBackup, combineBackupParts as nfCombine, mergeBackup, BACKUP_MAX_BYTES as NF_BYTES, BACKUP_MAX_RECORDS as NF_RECORDS } from '../tools/notfunk/js/export.js';
 import { newMessage, editMessage, MESSAGE_TEXT_MAX, messageFields } from '../tools/notfunk/js/model.js';
@@ -153,4 +153,44 @@ test('a set of parts is refused beyond the total limits (nothing combined)', asy
   assert.match(combineBackupParts(six).errors[0], /nichts importiert/);
   const nf = Array.from({ length: 6 }, () => ({ format: 'oe1ebg-notfunk-backup', version: 1, operation: OP, messages: [], revisions: new Array(NF_RECORDS).fill(null), counters: [] }));
   assert.throws(() => nfCombine(nf), /nichts importiert/);
+});
+
+// Review: every split the exporter produces must be restorable; what cannot
+// be is refused BEFORE anything is written, never a partial set.
+test('the part limits are consistent: a full set of full parts is within the set limits', () => {
+  assert.ok(PART_MAX_RECORDS * PARTS_MAX_COUNT <= PARTS_MAX_TOTAL_RECORDS);
+  assert.ok(PART_MAX_BYTES * PARTS_MAX_COUNT <= PARTS_MAX_TOTAL_BYTES);
+});
+
+test('splitToFit: the largest supported set splits and restores, one more is refused', () => {
+  const lim = { maxRecords: 10, maxBytes: 1e9, maxParts: 4, maxTotalRecords: 40, tooLarge: 'zu groß' };
+  const build = (slice, part) => JSON.stringify({ part, items: slice });
+  const items = n => Array.from({ length: n }, (_, i) => i);
+  const parts = splitToFit(items(40), build, () => 1, lim);
+  assert.equal(parts.length, 4);
+  assert.deepEqual(parts.flat(), items(40)); // nothing left out, in order
+  assert.throws(() => splitToFit(items(41), build, () => 1, lim), /zu groß/);
+  // more bytes than the set allows: refused too
+  assert.throws(() => splitToFit(items(40), build, () => 1, { ...lim, maxTotalBytes: 100 }), /zu groß/);
+  // sets that fit in fewer parts do not use more (neighbouring slices are joined)
+  assert.equal(splitToFit(items(31), build, () => 1, lim).length, 4);
+  assert.equal(splitToFit(items(20), build, () => 1, lim).length, 2);
+});
+
+test('exports at the real largest size are split into restorable sets, beyond it they are refused in both tools', () => {
+  const MAX = PART_MAX_RECORDS * PARTS_MAX_COUNT;
+  const mk = n => Array.from({ length: n }, (_, i) => ({ id: `a${i}` }));
+  // Confirm
+  const ok = backupTexts([{ event: ev, entries: mk(MAX), revisions: [] }], T, 'big');
+  assert.equal(ok.length, PARTS_MAX_COUNT);
+  const c = combineBackupParts(named(ok).map(f => f.data));
+  assert.equal(c.errors, undefined);
+  assert.equal(c.data.events[0].entries.length, MAX);
+  assert.throws(() => backupTexts([{ event: ev, entries: mk(MAX + 1), revisions: [] }], T, 'big'), e => e.tooLarge && /nichts heruntergeladen/.test(e.message) && /einzelnen Logs/.test(e.message));
+  // Notfunk
+  const nfData = n => ({ operation: OP, messages: [], revisions: mk(n), counters: [] });
+  const nfOk = toBackupTexts(nfData(MAX), T, 'big');
+  assert.equal(nfOk.length, PARTS_MAX_COUNT);
+  assert.equal(nfOk.reduce((n, t) => n + JSON.parse(t).revisions.length, 0), MAX); // every record is in some part
+  assert.throws(() => toBackupTexts(nfData(MAX + 1), T, 'big'), e => e.tooLarge && /nichts heruntergeladen/.test(e.message) && /neuen Einsatz/.test(e.message));
 });
