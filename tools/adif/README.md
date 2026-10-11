@@ -495,12 +495,13 @@ limit and says the log is unchanged:
 | limit | value | checked |
 | --- | ---: | --- |
 | one file | 50 MB | before reading (`File.size`) |
-| QSOs in the log (all files together) | 500 000 | while parsing, at the QSO that crosses it |
+| QSOs in the log (all files together) | 500 000 | while parsing, at the QSO that crosses it (a final QSO without `<EOR>` too, also when the log is already at the ceiling) |
 | field values in the log (QSOs times fields) | 5 000 000 | while parsing |
-| one field value | 100 000 characters | at its tag, before the value is cut out |
+| one field value | 100 000 characters (decoded: a byte-counted `ä` is one) | at its tag, before the value is cut out |
 | fields in one QSO | 5 000 | while parsing |
 | different field names (table columns) | 1 000, counting those the log has | while parsing |
-| validation issues kept per file | 100 000 | the validator counts all; half the budget for structure issues, the rest for per-field ones |
+| validation issues kept per file | 100 000 | the validator counts all; half the budget for structure issues, the rest for per-field ones; scanner findings beyond that budget are only counted while scanning |
+| parser warnings kept per file | 200 | the rest is counted and one line says how many; the warnings box shows at most 50 per file and says how many more there are |
 
 They follow from what a load takes (node, one parse + check in a fresh
 process): about 20 MB of peak memory per MB of file, 244 MB for 50 000 QSOs
@@ -509,7 +510,7 @@ the most a desktop tab survives; phones have less room, so for them the
 limits are a ceiling, not a promise. Real logs are far below (a 10 000 QSO
 log has about 90 000 fields). Derived calculations (sorting, column widths,
 statistics, the comment template, exports) are linear in the log, which the
-limits bound; the table only ever builds its window. The field-value limit counts what is in the log now (recounted at each load, deleted rows free it) and the value limit the value as it is cut, not a declared length past the end of the file. A value over the limit
+limits bound; the table only ever builds its window. The field-value limit counts what is in the log now (recounted at each load, deleted rows free it) and the value limit the value as it is cut, not a declared length past the end of the file, in characters of the decoded value (a file whose lengths count UTF-8 bytes is read by its bytes, so the limit counts the decoded characters, and the message too). The check of how a non-ASCII file's lengths count reads it both ways without building records or values (it only needs the limits and the count of unclean ends), and the validator's scanner yields by scanned work, so a long malformed stretch neither piles up memory nor blocks the page. Adding a file re-checks the log as it is now whenever an edit has made the loaded files' results obsolete, also when that edit's check had already finished. A value over the limit
 refuses the file instead of cutting the value, because silently dropping data
 from a log is worse than refusing the file. The messages are in English, like
 the rest of the editor.

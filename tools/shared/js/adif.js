@@ -154,7 +154,20 @@ const ADIF_STEP_TAGS = 4096;
 // the memory is spent (a declared length is checked before the value is
 // cut out), nothing is returned. At the end limits.fieldsRead is the number
 // of fields read and limits.columnsRead the Set of the names.
-export function* parseADIFSteps(text, warnings, sourceLabel, headerInfo, stats, defs, limits) {
+export function* parseADIFSteps(text, warnings, sourceLabel, headerInfo, stats, defs, limits, internal = {}) {
+  // internal (for adifCountsBytesSteps/parseADIFAutoSteps): discard (read
+  // for stats and limits only: no records, values or warnings are kept),
+  // byteSource (the text is a UTF-8 byte string, one char per byte:
+  // maxValueChars is then checked on the decoded value).
+  const { discard = false, byteSource = false } = internal;
+  // at most limits.maxWarnings are kept, the rest is counted and said once
+  const maxWarn = limits && limits.maxWarnings > 0 ? limits.maxWarnings : Infinity;
+  let warnOmitted = 0;
+  const warn = msg => {
+    if (discard) return;
+    if (warnings.length >= maxWarn) warnOmitted++;
+    else warnings.push(msg);
+  };
   const tagRe = /<([A-Za-z0-9_]+)(?::(\d+)(?::([A-Za-z]+))?)?>/g;
   let bodyStart = 0;
   let header = [];
@@ -175,12 +188,12 @@ export function* parseADIFSteps(text, warnings, sourceLabel, headerInfo, stats, 
         bodyStart = r.end;
         header = r.fields;
         for (const name of bad) {
-          warnings.push(`${sourceLabel}: header field ${name} declares a length that runs past <EOH>; read up to the next tag, the other header fields are kept.`);
+          warn(`${sourceLabel}: header field ${name} declares a length that runs past <EOH>; read up to the next tag, the other header fields are kept.`);
         }
       } else if (eoh) {
         bodyStart = eoh.index + eoh[0].length;
       } else if (firstNonWs && firstNonWs[0] !== '<') {
-        warnings.push(`${sourceLabel}: no <EOH> tag found; parsing entire file as records.`);
+        warn(`${sourceLabel}: no <EOH> tag found; parsing entire file as records.`);
       }
     }
   }
@@ -200,47 +213,54 @@ export function* parseADIFSteps(text, warnings, sourceLabel, headerInfo, stats, 
   }
   const body = text.slice(bodyStart);
   const records = [];
+  let recordCount = 0;
   let current = {};
   let any = false;
   let fieldsInRecord = 0;
   let fieldsTotal = 0;
   const columnNames = limits && limits.maxColumns ? new Set(limits.columns || []) : null;
   let tags = 0;
+  // every record goes through here, so the ceiling holds for all of them
+  // (also a final one without <EOR>)
+  const appendRecord = () => {
+    if (!discard) records.push(current);
+    recordCount++;
+    current = {};
+    any = false;
+    fieldsInRecord = 0;
+    if (limits && limits.maxRecords && recordCount > limits.maxRecords) {
+      throw new AdifLimitError('RECORDS', `more than ${limits.maxRecords} QSOs`, { limit: limits.maxRecords, at: recordCount });
+    }
+  };
   tagRe.lastIndex = 0;
   let m;
   while ((m = tagRe.exec(body)) !== null) {
-    if (++tags % ADIF_STEP_TAGS === 0) yield { phase: 'parse', pos: tagRe.lastIndex, total: body.length, records: records.length };
+    if (++tags % ADIF_STEP_TAGS === 0) yield { phase: 'parse', pos: tagRe.lastIndex, total: body.length, records: recordCount };
     const name = m[1].toUpperCase();
     const lenStr = m[2];
     const tagEnd = tagRe.lastIndex;
     if (name === 'EOR') {
-      records.push(current);
-      current = {};
-      any = false;
-      fieldsInRecord = 0;
-      if (limits && limits.maxRecords && records.length > limits.maxRecords) {
-        throw new AdifLimitError('RECORDS', `more than ${limits.maxRecords} QSOs`, { limit: limits.maxRecords, at: records.length });
-      }
+      appendRecord();
       continue;
     }
     if (name === 'EOH') continue;
     if (lenStr === undefined) {
-      warnings.push(`${sourceLabel}: field <${name}> has no length, skipped.`);
+      warn(`${sourceLabel}: field <${name}> has no length, skipped.`);
       continue;
     }
     const len = parseInt(lenStr, 10);
     if (limits) {
       fieldsTotal++;
       if (limits.maxFields && fieldsTotal > limits.maxFields) {
-        throw new AdifLimitError('FIELDS_TOTAL', `more than ${limits.maxFields} fields in total`, { limit: limits.maxFields, at: records.length + 1 });
+        throw new AdifLimitError('FIELDS_TOTAL', `more than ${limits.maxFields} fields in total`, { limit: limits.maxFields, at: recordCount + 1 });
       }
       if (limits.maxFieldsPerRecord && ++fieldsInRecord > limits.maxFieldsPerRecord) {
-        throw new AdifLimitError('FIELDS', `a QSO with more than ${limits.maxFieldsPerRecord} fields`, { limit: limits.maxFieldsPerRecord, at: records.length + 1 });
+        throw new AdifLimitError('FIELDS', `a QSO with more than ${limits.maxFieldsPerRecord} fields`, { limit: limits.maxFieldsPerRecord, at: recordCount + 1 });
       }
       if (columnNames && !columnNames.has(name)) {
         columnNames.add(name);
         if (columnNames.size > limits.maxColumns) {
-          throw new AdifLimitError('COLUMNS', `more than ${limits.maxColumns} different field names`, { limit: limits.maxColumns, at: records.length + 1 });
+          throw new AdifLimitError('COLUMNS', `more than ${limits.maxColumns} different field names`, { limit: limits.maxColumns, at: recordCount + 1 });
         }
       }
     }
@@ -250,18 +270,27 @@ export function* parseADIFSteps(text, warnings, sourceLabel, headerInfo, stats, 
     const valueEnd = cutAt >= 0 ? cutAt : tagEnd + len;
     // the limit is on the value as it is cut (a length past the end of the
     // file doesn't count), before it is sliced out
-    if (limits && limits.maxValueChars) {
-      const actual = Math.min(valueEnd, body.length) - tagEnd;
+    const available = Math.min(valueEnd, body.length);
+    // (not in the detection: it reads both ways, only the one that wins is
+    // refused for a long value, which the real parse does)
+    if (limits && limits.maxValueChars && !discard) {
+      let actual = available - tagEnd;
+      // the limit is on characters: a byte source holds one char per byte
+      // (never fewer than the decoded value, so only a long one is counted)
+      if (byteSource && actual > limits.maxValueChars) actual = adifDecodedLength(body, tagEnd, available);
       if (actual > limits.maxValueChars) {
-        throw new AdifLimitError('VALUE', `<${name}:${len}> is longer than ${limits.maxValueChars} characters`, { limit: limits.maxValueChars, at: records.length + 1, field: name, length: actual });
+        throw new AdifLimitError('VALUE', `<${name}:${len}> is longer than ${limits.maxValueChars} characters`, { limit: limits.maxValueChars, at: recordCount + 1, field: name, length: actual });
       }
     }
-    const value = cutAt >= 0 ? body.slice(tagEnd, cutAt).replace(/\s+$/, '') : body.slice(tagEnd, valueEnd);
-    if (cutAt >= 0) warnings.push(`${sourceLabel}: <${name}:${len}> runs past the end of the file; the value was cut at the next tag.`);
+    if (cutAt >= 0) warn(`${sourceLabel}: <${name}:${len}> runs past the end of the file; the value was cut at the next tag.`);
     if (stats) {
       const next = body.charAt(tagEnd + len);
-      if (cutAt >= 0 || (next !== '' && next !== '<' && !/\s/.test(next)) || /[\s<]$/.test(value)) stats.unclean++;
+      // does the value end in a blank or '<'? (its last char, not sliced out)
+      const last = available > tagEnd ? body.charAt(available - 1) : '';
+      if (cutAt >= 0 || (next !== '' && next !== '<' && !/\s/.test(next)) || /[\s<]/.test(last)) stats.unclean++;
     }
+    if (discard) { any = true; tagRe.lastIndex = valueEnd; continue; }
+    const value = cutAt >= 0 ? body.slice(tagEnd, cutAt).replace(/\s+$/, '') : body.slice(tagEnd, valueEnd);
     current[name] = value;
     if (defs && !(name in defs.types)) {
       // An application-defined field's first occurrence determines its type
@@ -274,11 +303,25 @@ export function* parseADIFSteps(text, warnings, sourceLabel, headerInfo, stats, 
     tagRe.lastIndex = valueEnd;
   }
   if (any) {
-    warnings.push(`${sourceLabel}: trailing fields after last <EOR>, appended as final record.`);
-    records.push(current);
+    warn(`${sourceLabel}: trailing fields after last <EOR>, appended as final record.`);
+    appendRecord();
   }
+  if (warnOmitted) warnings.push(`${sourceLabel}: ${warnOmitted} further warning(s) about the file's structure are not shown.`);
   if (limits) { limits.fieldsRead = fieldsTotal; limits.columnsRead = columnNames; } // for the caller's totals
   return records;
+}
+
+// Length of the decoded text (UTF-16 units) of the UTF-8 bytes
+// bytes[from, to) of a byte string (one char per byte), without decoding.
+export function adifDecodedLength(bytes, from, to) {
+  let n = 0;
+  for (let i = from; i < to; i++) {
+    const c = bytes.charCodeAt(i);
+    if (c < 0x80) n++;
+    else if (c >= 0xf0) n += 2; // 4-byte sequence: a surrogate pair
+    else if (c >= 0xc0) n++;    // lead byte; continuation bytes (0x80-0xbf) add nothing
+  }
+  return n;
 }
 
 // The text's UTF-8 bytes as a string of one char per byte, and back.
@@ -310,7 +353,7 @@ export function* parseADIFAutoSteps(text, warnings, sourceLabel, headerInfo, def
   if (limits) limits.countsBytes = bytes; // for the validator: no second detection
   if (!bytes) return yield* parseADIFSteps(text, warnings, sourceLabel, headerInfo, undefined, defs, limits);
   const byteHeader = {}, byteDefs = {};
-  const asBytes = yield* parseADIFSteps(adifUtf8Bytes(text), warnings, sourceLabel, byteHeader, undefined, byteDefs, limits);
+  const asBytes = yield* parseADIFSteps(adifUtf8Bytes(text), warnings, sourceLabel, byteHeader, undefined, byteDefs, limits, { byteSource: true });
   warnings.push(`${sourceLabel}: field lengths count UTF-8 bytes, not characters (as the file's program writes them); read that way.`);
   if (headerInfo) for (const [k, v] of Object.entries(byteHeader)) headerInfo[k] = adifFromUtf8Bytes(v);
   if (defs) {
@@ -332,8 +375,8 @@ export function* parseADIFAutoSteps(text, warnings, sourceLabel, headerInfo, def
 // byte reading wins when its values line up with the separators and tags
 // better (stats.unclean). Shared by parseADIFAuto() and the validator
 // (adif-validate.js), so both read a file the same way.
-export function adifCountsBytes(text) {
-  return adifRunSteps(adifCountsBytesSteps(text));
+export function adifCountsBytes(text, limits) {
+  return adifRunSteps(adifCountsBytesSteps(text, limits));
 }
 
 // adifCountsBytes() as a generator (yields what the two readings yield,
@@ -341,8 +384,9 @@ export function adifCountsBytes(text) {
 export function* adifCountsBytesSteps(text, limits) {
   if (!/[^\x00-\x7f]/.test(text)) return false;
   const charStats = { unclean: 0 }, byteStats = { unclean: 0 };
-  for (const [src, stats] of [[text, charStats], [adifUtf8Bytes(text), byteStats]]) {
-    const gen = parseADIFSteps(src, [], '', undefined, stats, undefined, limits);
+  // read for the stats and the limits only: no records or values are built
+  for (const [src, stats, byteSource] of [[text, charStats, false], [adifUtf8Bytes(text), byteStats, true]]) {
+    const gen = parseADIFSteps(src, [], '', undefined, stats, undefined, limits, { discard: true, byteSource });
     for (let r = gen.next(); !r.done; r = gen.next()) yield { ...r.value, phase: 'detect' };
   }
   return byteStats.unclean < charStats.unclean;

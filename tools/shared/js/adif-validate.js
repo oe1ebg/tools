@@ -145,8 +145,10 @@ function avByteToChar(text) {
 function* avScan(source, issue, dec = v => v, byteMode = false) {
   const tokens = [];
   let pos = 0;
+  let work = 0;
   while (pos < source.length) {
-    if ((tokens.length & 4095) === 4095) yield { phase: 'scan', pos, total: source.length };
+    // by scanned work, not by tokens: a long run of malformed tags makes none
+    if ((++work & 4095) === 0) yield { phase: 'scan', pos, total: source.length };
     const lt = source.indexOf('<', pos);
     if (lt < 0) break;
     AV_TAG_RE.lastIndex = lt;
@@ -490,15 +492,21 @@ export function* validateAdifSteps(source, options = {}) {
     issue('error', 'UNRECOVERABLE_PARSE_ERROR', 'The file is empty: no ADIF data.');
     return result();
   }
+  // Scanner findings wait for their QSO. Only as many as the structure
+  // budget could keep are retained (the first ones, in the order found, as
+  // the cap would keep them); the others are only counted.
   const scanIssues = [];
+  const scanOmitted = { error: 0, warning: 0, info: 0 };
   // Lengths counted in UTF-8 bytes (many loggers): read the file as the
   // ADIF editor does (adifCountsBytes, shared with parseADIFAuto), by its
   // bytes; positions are mapped back to characters.
   const byteMode = options.bytesMode !== undefined ? options.bytesMode : yield* adifCountsBytesSteps(text);
   const toChar = byteMode ? avByteToChar(text) : null;
   const tokens = yield* avScan(byteMode ? adifUtf8Bytes(text) : text,
-    (severity, code, message, extra) => scanIssues.push([severity, code, message,
-      toChar && extra?.offset !== undefined ? { ...extra, offset: toChar(extra.offset) } : extra]),
+    (severity, code, message, extra) => {
+      if (scanIssues.length >= issueBudget) { scanOmitted[severity]++; return; }
+      scanIssues.push([severity, code, message, toChar && extra?.offset !== undefined ? { ...extra, offset: toChar(extra.offset) } : extra]);
+    },
     byteMode ? adifFromUtf8Bytes : undefined, byteMode);
   if (toChar) for (const t of tokens) { t.offset = toChar(t.offset); if (t.valueOffset !== undefined) t.valueOffset = toChar(t.valueOffset); }
   if (byteMode) {
@@ -611,6 +619,7 @@ export function* validateAdifSteps(source, options = {}) {
     }
     issue(severity, code, message, e);
   }
+  for (const severity of ['error', 'warning', 'info']) { counts[severity] += scanOmitted[severity]; dropped += scanOmitted[severity]; }
 
   /* fields */
   issueBudget = maxIssues;

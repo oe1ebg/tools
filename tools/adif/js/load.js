@@ -29,6 +29,7 @@ export const ADIF_LIMITS = {
   maxFieldsPerRecord: 5000,     // one QSO
   maxColumns: 1000,             // different field names (a table column each)
   maxIssues: 100000,            // validation issues kept per file (counted beyond)
+  maxWarnings: 200,             // parser warnings kept per file (the rest is counted and said once)
 };
 
 export function adifFormatCount(n) {

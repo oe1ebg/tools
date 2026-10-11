@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseADIFAuto, parseADIFAutoSteps, parseADIF, AdifLimitError } from '../tools/shared/js/adif.js';
+import { parseADIFAuto, parseADIFAutoSteps, parseADIF, adifCountsBytes, AdifLimitError } from '../tools/shared/js/adif.js';
 import { validateAdif, validateAdifSteps } from '../tools/shared/js/adif-validate.js';
 import { chunkedRun, ChunkedSlot, chunkedIsAbort } from '../tools/shared/js/chunked.js';
 import { serializeADIF, serializeADIFSteps } from '../tools/adif/js/export.js';
@@ -289,4 +289,68 @@ test('the limits message names the limit and says the log is unchanged', () => {
   const m = adifLimitMessage('f.adi', new AdifLimitError('RECORDS', 'x', { limit: ADIF_LIMITS.maxRecords, at: 500001 }));
   assert.match(m, /^f\.adi: not loaded, the log would have more than 500,000 QSOs \(at QSO 500,001\)/);
   assert.match(m, /The log is unchanged/);
+});
+
+/* ---------- review findings on PR #34 ---------- */
+
+test('limits: a final QSO without <EOR> counts against the record ceiling', async () => {
+  const text = '<CALL:3>ABC<EOR><CALL:3>DEF';
+  let r = await loadLogFiles([file('x.adi', text)], { ...quick, limits: { maxRecords: 1 } });
+  assert.equal(r.loaded.length, 0);
+  assert.match(r.skipped[0].message, /more than 1 QSOs \(at QSO 2\)/);
+  r = await loadLogFiles([file('x.adi', text)], { ...quick, limits: { maxRecords: 2 } });
+  assert.equal(r.loaded[0].parsed.length, 2, 'two fit');
+  // the log is at its ceiling: not even one unterminated record
+  r = await loadLogFiles([file('y.adi', '<CALL:3>ABC')], { ...quick, limits: { maxRecords: 5 }, existing: { records: 5, fields: 0 } });
+  assert.equal(r.loaded.length, 0);
+  assert.match(r.skipped[0].message, /more than 5 QSOs/);
+  r = await loadLogFiles([file('y.adi', '<CALL:3>ABC')], { ...quick, limits: { maxRecords: 5 }, existing: { records: 4, fields: 0 } });
+  assert.equal(r.loaded[0].parsed.length, 1);
+});
+
+test('limits: malformed input keeps few warnings and issues, says how many were left out, and hands back', async () => {
+  const text = '<BROKEN>'.repeat(10000) + '<CALL:3>ABC<EOR>';
+  const r = await loadLogFiles([file('m.adi', text)], { ...quick, limits: { maxIssues: 10, maxWarnings: 5 } });
+  const f = r.loaded[0];
+  assert.ok(f.warnings.length <= 6, `parser warnings capped (${f.warnings.length})`);
+  assert.match(f.warnings.at(-1), /9995 further warning\(s\)/);
+  assert.ok(f.result.issues.length <= 10);
+  assert.ok(f.result.errors >= 10000, 'all of them are still counted');
+  assert.ok(f.result.issuesDropped >= 9990);
+  assert.equal(f.parsed.length, 1);
+  assert.equal(f.result.errors, validateAdif(text, { today: TODAY }).errors, 'the same counts as without a cap');
+  // the scanner yields by scanned work: no tokens at all here
+  const gen = validateAdifSteps('<BROKEN>'.repeat(20000), { today: TODAY });
+  let scans = 0;
+  for (let q = gen.next(); !q.done; q = gen.next()) if (q.value.phase === 'scan') scans++;
+  assert.ok(scans >= 4, `scan yielded ${scans} times`);
+});
+
+test('non-ASCII length detection builds no records and enforces the limits', async () => {
+  const text = '<ADIF_VER:5>3.1.7\nä\n<EOH>\n' + '<CALL:5>OE1AB<NOTES:3>abc<EOR>\n'.repeat(2000);
+  let slices = 0;
+  const orig = String.prototype.slice;
+  String.prototype.slice = function (...a) { slices++; return orig.apply(this, a); };
+  try { assert.equal(adifCountsBytes(text), false); } finally { String.prototype.slice = orig; }
+  assert.ok(slices < 50, `detection sliced ${slices} values out`);
+  assert.throws(() => adifCountsBytes(text, { maxRecords: 1 }), e => e instanceof AdifLimitError && e.code === 'RECORDS');
+  const r = await loadLogFiles([file('n.adi', text)], { ...quick, limits: { maxRecords: 1 } });
+  assert.match(r.skipped[0].message, /more than 1 QSOs/);
+});
+
+test('limits: maxValueChars counts decoded characters, also for byte-counted lengths', async () => {
+  // NOTES:4 = 4 bytes = "ää" (2 characters)
+  let r = await loadLogFiles([file('b.adi', '<NOTES:4>ää<EOR>')], { ...quick, limits: { maxValueChars: 3 } });
+  assert.equal(r.skipped.length, 0, JSON.stringify(r.skipped));
+  assert.equal(r.loaded[0].parsed[0].NOTES, 'ää');
+  r = await loadLogFiles([file('b.adi', '<NOTES:4>ää<EOR>')], { ...quick, limits: { maxValueChars: 1 } });
+  assert.match(r.skipped[0].message, /NOTES in QSO 1 has 2 characters, the editor takes values up to 1/);
+  // production cap: 60 000 characters (120 000 bytes) are fine, 100 001 are not
+  r = await loadLogFiles([file('b.adi', `<CALL:3>ABC<NOTES:120000>${'ä'.repeat(60000)}<EOR>`)], { ...quick });
+  assert.equal(r.skipped.length, 0, JSON.stringify(r.skipped));
+  assert.equal(r.loaded[0].parsed[0].NOTES.length, 60000);
+  r = await loadLogFiles([file('b.adi', `<CALL:3>ABC<NOTES:200002>${'ä'.repeat(100001)}<EOR>`)], { ...quick });
+  assert.match(r.skipped[0].message, /has 100,001 characters/);
+  r = await loadLogFiles([file('b.adi', '<NOTES:2>ää<EOR>')], { ...quick, limits: { maxValueChars: 2 } });
+  assert.equal(r.loaded.length, 1, 'lengths counted as characters work as before');
 });
