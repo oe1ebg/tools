@@ -299,7 +299,7 @@ variable `PAGES_BASE_URL`, which only affects the link in the PR comment).
 | --- | --- | --- | --- |
 | `main/` | latest build of `main` | every push to `main` (or a manual run) | never |
 | `pr/<N>/` | pull request N (the PR merged into `main`, as `ci.yml` builds it) | opened, reopened, every push to the PR | PR closed or merged; the daily run also removes any that were missed |
-| `release/<tag>/` | the published release tarball `vX.Y.Z`, unpacked as it is (checksum verified, not rebuilt) | the release is published (`release.yml`), or the daily run | not among the newest 5 releases (repository variable `PAGES_MAX_RELEASES`), or the release was deleted |
+| `release/<tag>/` | the published release tarball `vX.Y.Z`, unpacked as it is (checksum verified, not rebuilt) | the release is published (`release.yml`), or the daily run | not among the newest 3 releases (repository variable `PAGES_MAX_RELEASES`), or the release was deleted |
 | `release/data-latest/` | the tarball of the rolling prerelease `data-latest` (weekly data rebuild) | after each `data.yml` run | never |
 
 Every entry is the `site/tools/` tree of the normal build, i.e. what the
@@ -319,6 +319,30 @@ organisation's own Pages site uses a custom domain, project sites are served
 below it (`<domain>/tools/`): check that this does not collide with a
 production site there.
 
+**First run.** After enabling Pages, start `pages.yml` once with "Run
+workflow" (`workflow_dispatch`) on `main`: that builds `main/` and fetches the
+releases. Release entries appear only after a daily run, a `Release` or
+`Weekly data rebuild` run, a release event or such a manual run, not after a
+push to `main`. The pull request that adds the workflow gets no preview: its
+run takes the scripts from `main`, where they do not exist yet. If a pull
+request's build fails, nothing is deployed for that push; the PR comment then
+says so and that the link, if it works at all, shows an earlier commit (the
+index names the commit of every entry).
+
+**Capacity.** The site is one branch served by GitHub Pages. GitHub documents
+soft limits (a published site of about 1 GB, a limited rate of builds); we
+have not verified them, and the workflow only enforces its own budget,
+`PAGES_MAX_TOTAL_MB`, default 900 MB. One entry is about 49 MB (the bundle
+carries its data), so `main`, 3 releases and `data-latest` take roughly 250 MB
+and about 13 open pull request previews fit. When the budget would be
+exceeded the deploy fails with a message that lists the entries and their
+sizes, and the pull request gets a comment that the site is full: close pull
+requests, or lower `PAGES_MAX_RELEASES` (default 3; raise it if there is
+room). A release that cannot be fetched (no or two `.sha256` assets, which is
+how `data-latest` looks for a moment during its weekly asset swap, a checksum
+mismatch, a failed download) is skipped with a `::warning::`, keeps its old
+entry and never blocks the other entries. It is never published unverified.
+
 **Branches without a pull request have no preview.** Previews exist for
 `main` and for the head branches of open pull requests of this repository.
 Pull requests from forks and from Dependabot get none (no write token); the
@@ -337,12 +361,25 @@ other's offline copy: only the entry whose worker activated last stays
 offline-ready, the others fall back to the network. Try one entry at a time
 in a profile. (The identifiers cannot be renamed, see *Stable identifiers*.)
 
+It goes further than a shared logbook. The origin `<owner>.github.io` is
+shared by *every* Pages site of the organisation (today there is no other),
+not only by this repository's entries. A pull request preview is arbitrary
+code on that origin: it can open and write into the other entries' caches
+(`caches.open`), and it can open the shared `oe1ebg-*` IndexedDB databases with
+a higher schema version (`tools/shared/js/storage.js`), after which `main` and
+the releases fail to open them with a `VersionError`. Test pull requests in a
+throwaway browser profile and delete it (or its site data) afterwards; do not
+open someone else's preview in the profile you keep logs in.
+
 **Previews are not a substitute for CI.** GitHub Pages cannot send the
 headers of `deploy/nginx.conf.example` (Content-Security-Policy, framing
 protection, `nosniff`, `Cache-Control: no-cache`; Pages sends its own
 caching). The `validate` job of `ci.yml` and `validate-dist.yml` check the
 bundle under those headers; a preview only shows how the tools look and
 behave.
+
+A possible later hardening, not done: verify the release tarballs' build
+provenance attestation before publishing them, in addition to the checksum.
 
 How it works (`.github/workflows/pages.yml`): the `build` job (read-only
 token, runs the PR's code) builds like `ci.yml`'s `bundle`; the `releases` job
@@ -351,7 +388,7 @@ token, runs the PR's code) builds like `ci.yml`'s `bundle`; the `releases` job
 for the comment) treats both as data (no symlinks or special files, size
 limits, names validated, PR titles only as escaped text) and runs only the
 scripts of the default branch: `pages_ops.py` (event to operations),
-`pages_publish.py` (the `gh-pages` tree and the push), `build_pages_index.py`.
+`pages_publish.py` (the `gh-pages` tree and the push), `pages_comment.py`, `build_pages_index.py`.
 Writes are serialized by git: the push is a compare-and-swap
 (`--force-with-lease` against the commit the change was based on), and a lost
 race applies the change again on the new state. A single `concurrency` group

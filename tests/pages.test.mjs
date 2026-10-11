@@ -53,7 +53,7 @@ test('index: groups, order, links, the shared-origin notice', { skip: SKIP }, ()
   for (const href of ['main/', 'pr/12/', 'pr/12/confirm/', 'pr/12/notfunk/', 'pr/12/adif/', 'pr/12/sota-alerts/', 'release/v1.2.0/', 'release/data-latest/adif/']) {
     assert.ok(html.includes(`href="${href}"`), href);
   }
-  assert.match(html, /branch <code>fix\/thing<\/code>/);
+  assert.match(html, /branch <code><bdi>fix\/thing<\/bdi><\/code>/);
   assert.match(html, /<time datetime="2026-10-11T10:00:00Z">/);
   assert.ok(![...html.matchAll(/href="([^"]*)"/g)].some(([, h]) => h.startsWith('/')), 'no absolute paths');
 });
@@ -335,4 +335,136 @@ except p.PagesError as e:
   const out = sh('python3', ['-c', `import sys; sys.path.insert(0, "scripts"); ${code}`, ctx.repo, join(ctx.base, 'incoming')], { env: ENV });
   assert.match(out, /gave up after 3 attempts/);
   assert.ok(!existsSync(join(ctx.repo, '.git', 'worktrees')) || sh('git', ['-C', ctx.repo, 'worktree', 'list'], { env: ENV }).trim().split('\n').length === 1, 'no worktree left behind');
+});
+
+// --- review follow-ups
+
+test('index: direction and zero-width characters are stripped, titles are isolated with <bdi>', { skip: SKIP }, () => {
+  const html = render({ entries: [{ kind: 'pr', name: '5', title: 'a\u200bb\u200ec\u200fd\u061ce\ufeff\u202efdp.exe', branch: 'x\u200d/y', sha: 'f'.repeat(40) }] });
+  for (const ch of ['\u200b', '\u200c', '\u200d', '\u200e', '\u200f', '\u061c', '\ufeff', '\u202e']) assert.ok(!html.includes(ch), `U+${ch.charCodeAt(0).toString(16)}`);
+  assert.match(html, /<bdi>abcde fdp\.exe<\/bdi>/);
+  assert.match(html, /<code><bdi>x\/y<\/bdi><\/code>/);
+});
+
+test('publish: errors that name artifact files are one line (no workflow command injection)', { skip: SKIP }, () => {
+  const ctx = setup();
+  const d = bundle(ctx.base, 'evil');
+  symlinkSync('/etc/passwd', join(d, 'x\n::error::pwned\n::set-output name=a::b'));
+  const r = publish(ctx, [put('pr', '3', 'evil')], { expectFail: true });
+  assert.ok(!/^::/m.test(r.stderr + r.stdout), r.stderr);
+  assert.match(r.stderr, /^error: .*pwned/m);
+});
+
+test('publish: a full site fails with a clear message listing the entries (exit 3, error file)', { skip: SKIP }, () => {
+  const ctx = setup();
+  const big = bundle(ctx.base, 'big');
+  writeFileSync(join(big, 'data.bin'), Buffer.alloc(700 * 1024));
+  publish(ctx, [put('main', 'main', 'big'), put('pr', '1', 'big')], { env: { PAGES_MAX_TOTAL_MB: '2' } });
+  const err = join(ctx.base, 'err.txt');
+  const f = join(ctx.base, 'ops-full.json');
+  writeFileSync(f, JSON.stringify([put('pr', '2', 'big'), put('pr', '3', 'big')]));
+  const r = spawnSync('python3', ['scripts/pages_publish.py', '--repo', ctx.repo, '--ops', f, '--incoming', join(ctx.base, 'incoming'), '--error-file', err],
+    { cwd: ROOT, encoding: 'utf8', env: { ...ENV, PAGES_MAX_TOTAL_MB: '2' } });
+  assert.equal(r.status, 3, r.stderr);
+  const msg = readFileSync(err, 'utf8');
+  assert.match(msg, /the Pages site is full/);
+  for (const n of ['main/main', 'pr/1', 'pr/2']) assert.ok(msg.includes(n), n);
+  assert.match(msg, /MB/);
+  assert.ok(!files(ctx.origin).includes('pr/2/index.html'), 'nothing was pushed');
+});
+
+test('publish: a stale clean-up snapshot does not drop what landed after it (lost-race retry)', { skip: SKIP }, () => {
+  const ctx = setup();
+  bundle(ctx.base, 'a');
+  publish(ctx, [put('pr', '1', 'a'), put('pr', '8', 'a')]); // published at NOW (10:00)
+  const intruder = join(ctx.base, 'intruder');
+  // the plan was taken at 11:00 (no PR open); at 12:00 another run published PR 7, just before our push
+  const code = `
+import json, pathlib, subprocess, sys
+import pages_publish as p
+repo, incoming, origin, intruder = sys.argv[1:5]
+subprocess.run(["git", "clone", "-q", "-b", "gh-pages", origin, intruder], check=True)
+real = p.git
+state = {"n": 0}
+def git(r, *args, **kw):
+    if args and args[0] == "push" and state["n"] == 0:
+        state["n"] += 1
+        root = pathlib.Path(intruder)
+        (root / "pr" / "7").mkdir(parents=True)
+        (root / "pr" / "7" / "index.html").write_text("x")
+        m = json.loads((root / "entries.json").read_text())
+        m["entries"].append({"kind": "pr", "name": "7", "title": "new", "published": "2026-10-11T12:00:00Z"})
+        (root / "entries.json").write_text(json.dumps(m))
+        for c in (["add", "-A"], ["commit", "-q", "-m", "other"], ["push", "-q", "origin", "gh-pages"]):
+            subprocess.run(["git", "-C", intruder, "-c", "user.name=t", "-c", "user.email=t@t", *c], check=True)
+    return real(r, *args, **kw)
+p.git = git
+ops = [{"op": "keep-prs", "as_of": "2026-10-11T11:00:00Z", "open": []}]
+print(p.publish(pathlib.Path(repo), ops, None, pathlib.Path(incoming), sleep=lambda s: None))
+print(state["n"])`;
+  const out = sh('python3', ['-c', `import sys; sys.path.insert(0, "scripts"); ${code}`, ctx.repo, join(ctx.base, 'incoming'), ctx.origin, intruder], { env: ENV });
+  assert.match(out, /pushed /);
+  const names = JSON.parse(show(ctx.origin, 'entries.json')).entries.map(e => e.name);
+  assert.deepEqual(names, ['7'], 'PR 1 and 8 (older than the snapshot, not open) are gone, PR 7 (newer) stays');
+  assert.ok(files(ctx.origin).includes('pr/7/index.html'));
+});
+
+test('releases: one bad release is skipped loudly, the others go on, nothing unverified is published', { skip: SKIP }, () => {
+  const d = tmp();
+  // a fake `gh`: `release list` and `release download` over a table of releases
+  const bin = join(d, 'bin');
+  mkdirSync(bin);
+  const code = `#!/usr/bin/env python3
+import hashlib, io, json, sys, tarfile, pathlib
+a = sys.argv[1:]
+def tarball(tag):
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:gz") as tf:
+        for n, data in ((f"oe1ebg-tools-{tag}/index.html", b"<title>x</title>"),
+                        (f"oe1ebg-tools-{tag}/manifest.json", json.dumps({"version": tag, "commit": "a" * 40, "built": "2026-10-01T00:00:00Z"}).encode())):
+            ti = tarfile.TarInfo(n); ti.size = len(data); tf.addfile(ti, io.BytesIO(data))
+    return buf.getvalue()
+if a[:2] == ["release", "list"]:
+    print(json.dumps([{"tagName": t, "isPrerelease": t == "data-latest", "isDraft": False} for t in ("v1.2.0", "v1.1.0", "v1.0.0", "data-latest")]))
+elif a[:2] == ["release", "download"]:
+    tag = a[2]; pat = a[a.index("--pattern") + 1]; out = pathlib.Path(a[a.index("--dir") + 1]); out.mkdir(parents=True, exist_ok=True)
+    name = f"oe1ebg-tools-{tag}.tar.gz"
+    data = tarball(tag)
+    digest = hashlib.sha256(data).hexdigest()
+    if tag == "v1.0.0" and pat.endswith(".sha256"):            # two checksum assets
+        (out / "oe1ebg-tools-a.tar.gz.sha256").write_text(f"{digest}  oe1ebg-tools-a.tar.gz\\n")
+        (out / "oe1ebg-tools-b.tar.gz.sha256").write_text(f"{digest}  oe1ebg-tools-b.tar.gz\\n")
+    elif tag == "data-latest" and pat.endswith(".sha256"):     # checksum that does not match the tarball
+        (out / (name + ".sha256")).write_text("0" * 64 + f"  {name}\\n")
+    elif pat.endswith(".sha256"):
+        (out / (name + ".sha256")).write_text(f"{digest}  {name}\\n")
+    elif tag == "v1.1.0":                                      # failed download
+        sys.exit("HTTP 502")
+    else:
+        (out / name).write_bytes(data)
+else:
+    sys.exit("unexpected " + " ".join(a))
+`;
+  writeFileSync(join(bin, 'gh'), code, { mode: 0o755 });
+  const out = join(d, 'out');
+  const r = spawnSync('python3', ['scripts/pages_releases.py', '--slug', 'oe1ebg/tools', '--out', out, '--max-releases', '3'],
+    { cwd: ROOT, encoding: 'utf8', env: { ...process.env, PATH: `${bin}:${process.env.PATH}` } });
+  assert.equal(r.status, 0, r.stderr + r.stdout);
+  for (const tag of ['v1.1.0', 'v1.0.0', 'data-latest']) assert.match(r.stdout, new RegExp(`::warning title=Pages: ${tag} skipped::`), tag);
+  const ops = JSON.parse(readFileSync(join(out, 'ops.json'), 'utf8'));
+  assert.deepEqual(ops.filter(o => o.op === 'put').map(o => o.name), ['v1.2.0'], 'only the good release is published');
+  const keep = ops.find(o => o.op === 'keep-releases');
+  assert.deepEqual(keep.tags, ['v1.2.0', 'v1.1.0', 'v1.0.0', 'data-latest'], 'skipped ones keep their old entry');
+  assert.match(keep.as_of, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/);
+  assert.ok(existsSync(join(out, 'release', 'v1.2.0', 'index.html')));
+  assert.ok(!existsSync(join(out, 'release', 'data-latest')) && !existsSync(join(out, 'release', 'v1.0.0')), 'the mismatching tarball is not published');
+});
+
+test('comment: bodies for every state, built from the number and sha only', { skip: SKIP }, () => {
+  const body = (state, extra = '') => py('import pages_comment as c; print(c.body(sys.argv[1], "12", "ab" * 20, "https://o.github.io/tools/", sys.argv[2]))', state, extra);
+  assert.match(body('published'), /^<!-- oe1ebg-pages-preview -->\nPreview of abababa: https:\/\/o\.github\.io\/tools\/pr\/12\//);
+  assert.match(body('build-failed'), /build of abababa failed.*EARLIER commit/s);
+  assert.match(body('full', 'the Pages site is full: main/main 49 MB'), /No preview of abababa: the Pages site is full\.\n\nthe Pages site is full: main\/main 49 MB/);
+  assert.match(body('removed'), /Preview removed/);
+  assert.match(body('error'), /could not be published/);
 });

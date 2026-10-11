@@ -6,7 +6,8 @@
 The deploy job of .github/workflows/pages.yml runs this from the default
 branch's checkout. The event is read from the environment (EVENT_NAME,
 EVENT_ACTION, PR_NUMBER, PR_TITLE, PR_BRANCH, PR_SHA, GITHUB_SHA,
-GITHUB_REF_NAME (the runner's own), DEFAULT_BRANCH); PR titles and branch names are untrusted
+GITHUB_REF_NAME (the runner's own), DEFAULT_BRANCH, AS_OF = when the PR list was
+taken: the clean-up must not remove what landed after it); PR titles and branch names are untrusted
 and only ever pass through here as JSON values.
 
   pull_request closed       remove pr/<N>
@@ -47,7 +48,7 @@ def plan(env: dict, open_prs: list[dict], pr_state: str = "", releases_ops: list
                         "meta": {"title": "main", "branch": env.get("GITHUB_REF_NAME", "main"), "sha": env.get("GITHUB_SHA", "")}})
     if event != "pull_request" and releases_ops:
         ops += releases_ops
-    ops.append({"op": "keep-prs", "open": [
+    ops.append({"op": "keep-prs", "as_of": env.get("AS_OF", ""), "open": [
         {"number": p.get("number"), "title": p.get("title", ""), "branch": p.get("headRefName", "")}
         for p in open_prs if not p.get("isCrossRepository")]})
     return ops
