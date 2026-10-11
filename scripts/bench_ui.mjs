@@ -56,6 +56,7 @@ const VIEWPORTS = list('viewport', 'desktop,mobile');
 const OUT = opt('out', join(ROOT, 'bench-ui.json'));
 const KEY_REPS = quick ? 3 : 6;
 const NOOP = process.env.BENCH_INJECT_NOOP === '1'; // selftest: saves and edits are disabled
+const NOSEARCH = process.env.BENCH_INJECT_NOSEARCH === '1'; // selftest: the notfunk search handler is disabled
 const INJECT_ERROR = process.env.BENCH_INJECT_ERROR === '1'; // selftest: an uncaught error shortly after load
 
 // Errors that are known artifacts of this benchmark, matched exactly (anything
@@ -89,9 +90,14 @@ if (args.includes('--selftest')) {
   { env: { ...process.env, BENCH_INJECT_ERROR: '1' }, encoding: 'utf8' });
   const out2 = r2.stdout + r2.stderr;
   const ok2 = r2.status === 1 && /notfunk 200 ERROR/.test(out2) && /BENCH_SELFTEST_RUNTIME_ERROR/.test(out2);
-  console.log(ok1 && ok2 ? 'selftest ok: disabled save/edit and an injected page error were detected, exit code 1 each'
-    : `selftest FAILED (operations: ${ok1 ? 'ok' : `exit ${r.status}\n${out}`}; page error: ${ok2 ? 'ok' : `exit ${r2.status}\n${out2}`})`);
-  process.exit(ok1 && ok2 ? 0 : 1);
+  const r3 = spawnSync(process.execPath, [fileURLToPath(import.meta.url), '--tool', 'notfunk', '--size', '200', '--engine', 'chromium',
+    '--throttle', '1', '--viewport', 'desktop', '--runs', '1', '--out', join(tmpdir(), 'bench-ui-selftest.json')],
+  { env: { ...process.env, BENCH_INJECT_NOSEARCH: '1' }, encoding: 'utf8' });
+  const out3 = r3.stdout + r3.stderr;
+  const ok3 = r3.status === 1 && /notfunk 200 ERROR/.test(out3) && /search "[^"]*": the book did not show/.test(out3);
+  console.log(ok1 && ok2 && ok3 ? 'selftest ok: disabled save/edit, a disabled search handler and an injected page error were detected, exit code 1 each'
+    : `selftest FAILED (operations: ${ok1 ? 'ok' : `exit ${r.status}\n${out}`}; page error: ${ok2 ? 'ok' : `exit ${r2.status}\n${out2}`}; search: ${ok3 ? 'ok' : `exit ${r3.status}\n${out3}`})`);
+  process.exit(ok1 && ok2 && ok3 ? 0 : 1);
 }
 
 // ---- Playwright (installed by `just bench-ui` into tests/e2e/node_modules)
@@ -152,7 +158,7 @@ function confirmSeed(n) {
   return { event, entries, eventId };
 }
 
-const { newMessage, setStatus } = await import(pathToFileURL(join(ROOT, 'tools', 'notfunk', 'js', 'model.js')).href);
+const { newMessage, setStatus, filterMessages } = await import(pathToFileURL(join(ROOT, 'tools', 'notfunk', 'js', 'model.js')).href);
 const { counterKey, formatNumber } = await import(pathToFileURL(join(ROOT, 'tools', 'notfunk', 'js', 'numbering.js')).href);
 const LOREM = ['Lage am Einsatzort unverändert, Zufahrt über die B3 gesperrt, Umleitung eingerichtet.', 'Stromausfall im Bereich Nord, Notstromaggregat im Einsatz, Treibstoff für sechs Stunden vorhanden.',
   'Anforderung: zwei Funkgeräte 2 m, ein Satz Akkus, Rückmeldung an den Stab bis 18:00.', 'Brücke Kilometer 12 gesperrt, Hochwasserstand steigt, Pegel 4,2 m, weitere Meldung in 30 Minuten.',
@@ -358,36 +364,49 @@ async function benchNotfunk(page, cdp, size, m) {
 
   // search typing: input event -> (150 ms debounce) -> book rebuilt -> frame.
   // The debounce is subtracted: the number is the cost of renderBook + paint.
-  const terms = ['s', 'st', 'sta', 'stab', 'Pegel', 'OE1', 'Funk'];
+  // Every step is checked against the expected result (the message ids
+  // model.filterMessages() gives for the query): the book must come to show
+  // exactly those rows (none for no match), within 5 s, else the run fails. A
+  // step that leaves the rows as they are is legitimate (e.g. "s" -> "st") and
+  // is only measured by a frame after the debounce; a disabled handler is
+  // caught by the first step whose result differs from what is shown.
+  const terms = ['Pegel', 'Pegelstand', 'OE1', 'Funk', 'Stromausfall', 'qqqq-no-match', 's'];
+  const expected = Object.fromEntries([...terms, ''].map(q => [q, filterMessages(messages, { query: q }).map(x => x.id).sort().join()]));
+  if (!terms.some(q => expected[q] !== expected[''])) throw new Error('benchmark data: no search term narrows the book');
   const since = await page.evaluate(() => performance.now());
-  const search = await page.evaluate(async ({ terms, reps }) => {
+  const search = await page.evaluate(async ({ terms, expected, reps }) => {
     const input = document.querySelector('#book-search');
     const body = document.querySelector('#book-body');
+    const shown = () => [...body.querySelectorAll('tr[data-id]')].map(tr => tr.dataset.id).sort().join();
     const out = [];
-    for (let r = 0; r < reps; r++) {
-      for (const q of terms) {
-        // the book changed (rows added/removed), or - with rows kept between
-        // renders, a search that leaves the same rows - 400 ms passed
-        const idsBefore = [...body.querySelectorAll('tr[data-id]')].map(tr => tr.dataset.id).join();
-        const done = new Promise(res => { const mo = new MutationObserver(() => { mo.disconnect(); res(true); }); mo.observe(body, { childList: true }); setTimeout(() => { mo.disconnect(); res(false); }, 400); });
-        input.value = q;
-        const t = performance.now();
-        input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: q.slice(-1) }));
-        const changed = await done;
-        if (!changed) {
-          // no DOM change is fine only if the book still shows the same, non-empty rows
-          const idsNow = [...body.querySelectorAll('tr[data-id]')].map(tr => tr.dataset.id).join();
-          if (!body.children.length || idsNow !== idsBefore) throw new Error(`search "${q}": no result shown within 400 ms`);
-        }
-        const built = changed ? performance.now() - t - 150 : 0; // after the debounce
+    const apply = async q => {
+      const want = expected[q];
+      const same = shown() === want;
+      input.value = q;
+      const t = performance.now();
+      input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: q.slice(-1) }));
+      if (same) {
+        // legitimately unchanged: nothing to observe, so wait past the debounce,
+        // then the frame (a long rebuild task would delay it) and verify
+        await new Promise(r => setTimeout(r, 250));
         await window.__frame();
-        out.push({ built, frame: changed ? performance.now() - t - 150 : performance.now() - t - 400 });
+        if (shown() !== want) throw new Error(`search "${q}": the book changed to a wrong result`);
+        return { built: 0, frame: Math.max(0, performance.now() - t - 250) };
       }
+      while (shown() !== want) {
+        if (performance.now() - t > 5000) throw new Error(`search "${q}": the book did not show the expected ${want ? want.split(',').length : 0} messages within 5 s`);
+        await new Promise(r => setTimeout(r, 0));
+      }
+      const built = performance.now() - t - 150; // after the debounce
+      await window.__frame();
+      return { built, frame: performance.now() - t - 150 };
+    };
+    for (let r = 0; r < reps; r++) {
+      for (const q of terms) out.push(await apply(q));
+      await apply(''); // back to the full book (checked too)
     }
-    input.value = ''; input.dispatchEvent(new InputEvent('input', { bubbles: true }));
-    await new Promise(r => setTimeout(r, 400));
     return out;
-  }, { terms, reps: Math.max(2, KEY_REPS >> 1) });
+  }, { terms, expected, reps: Math.max(2, KEY_REPS >> 1) });
   add(m, 'search: book rebuilt (after debounce) ms', search.map(x => x.built));
   add(m, 'search: -> next frame ms', search.map(x => x.frame));
   add(m, 'search: longest task ms', await longTasks(page, since));
@@ -517,6 +536,9 @@ async function run(engine, throttle, vp, tool, size) {
         for (const type of ['click', 'submit']) {
           document.addEventListener(type, e => { if (e.target.closest?.('#btn-save, #btn-save-anyway, #msg-form, #entry-form')) { e.preventDefault(); e.stopImmediatePropagation(); } }, true);
         }
+      });
+      if (NOSEARCH) await ctx.addInitScript(() => {
+        document.addEventListener('input', e => { if (e.target?.id === 'book-search') e.stopImmediatePropagation(); }, true);
       });
       if (INJECT_ERROR) await ctx.addInitScript(() => { setTimeout(() => { throw new Error('BENCH_SELFTEST_RUNTIME_ERROR'); }, 1500); });
       const page = await ctx.newPage();
