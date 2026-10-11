@@ -18,7 +18,7 @@ import { TEMPLATES, templateFor, fieldVisible, fieldDisplay, fieldOptions, curre
 import { toCSV, toADIF, adifIssues, ADIF_MIME, toKML, KML_MIME, toSummary } from './export.js';
 import { loadDataFile } from '../../shared/js/data.js';
 import { buildCallbook, lookupCall, suggestCalls, normalizeCall, isPlausibleCall } from '../../shared/js/callbook.js';
-import { $, el, fill, popover, focusNext, submitForm, isComposing, trackExpanded } from '../../shared/js/dom.js';
+import { $, el, fill, copyToClipboard, popover, focusNext, submitForm, isComposing, trackExpanded } from '../../shared/js/dom.js';
 import { prefGet, prefSet } from '../../shared/js/prefs.js';
 import { initLocationPanel, loadLocationIndex, setUtmReference, logUtmDigits } from '../../shared/js/locationui.js';
 import { locate } from '../../shared/js/location/index.js';
@@ -143,7 +143,30 @@ function initTimeMode() {
 function startOffline() {
   initOffline({
     build: globalThis.CONFIRM_BUILD,
-    beforeReload: async () => { await flushDraft(); await flushHeader(); },
+    // save hook contract (shared/README.md): true only when both are safe;
+    // otherwise say what is not saved and offer a way to keep the text
+    beforeReload: async () => {
+      const draft = await flushDraft();
+      const header = await flushHeader();
+      if (draft && header) return true;
+      const what = !draft && !header ? 'Die halb getippte Zeile und der Kopf des Logs' : draft ? 'Der Kopf des Logs' : 'Die halb getippte Zeile';
+      const lost = !draft && !header ? 'Die halb getippte Zeile und nicht gespeicherte Änderungen am Kopf gehen verloren.'
+        : draft ? 'Nicht gespeicherte Änderungen am Kopf (Titel, Angaben) gehen verloren.'
+          : 'Die halb getippte Zeile geht verloren.';
+      return {
+        message: `${what} konnte nicht im Browser gespeichert werden (Speicher voll oder gesperrt). Kopieren Sie den Text oder exportieren Sie das Log (CSV/JSON), solange die Seite offen ist. `,
+        actions: [{
+          label: 'Eingabe in die Zwischenablage kopieren',
+          run: async () => {
+            const text = JSON.stringify({ title: state.event?.title, header: state.event?.header, line: readForm() }, null, 1);
+            if (await copyToClipboard(text)) return true;
+            // never let the user believe it was copied: show the text to copy by hand
+            return { message: 'Kopieren nicht möglich. Bitte den Text unten markieren und von Hand kopieren. ', text };
+          },
+        }],
+        discards: lost,
+      };
+    },
     // Online-only parts; ../ is the folder the offline file sits in.
     fileHidden: ['#offline-file-link', '#offline-card', '#data-sources-link', '#home-link', '#manual-link', '#help-manual'],
   });
@@ -620,6 +643,8 @@ async function openEvent(id) {
     return;
   }
   state.event = ev;
+  draftUnsaved = false;
+  headerUnsaved = false;
   state.entries = await state.store.getByEvent('entries', id);
   state.editingId = null;
   state.markerBase = { ...(ev.header || emptyHeader()) };
@@ -658,6 +683,8 @@ async function leaveEvent() {
   if (state.releaseLock) state.releaseLock();
   state.releaseLock = null;
   state.event = null;
+  draftUnsaved = false;
+  headerUnsaved = false;
   state.entries = [];
   state.editingId = null;
 }
@@ -762,8 +789,20 @@ async function flushMarkers({ openForEdit = true } = {}) {
   }
 }
 
+// Resolves true when no header edit is waiting for storage (nothing pending,
+// or just saved), false when the save failed (the edit stays in the form and
+// is tried again by the next flush): the update flow relies on it.
+let headerUnsaved = false;
+let headerFlight = null; // the write in progress: a flush waits for it (reload mid-write)
 async function flushHeader() {
-  if (!state.headerTimer || !state.event) return;
+  const prev = headerFlight;
+  if (prev) await prev.catch(() => {}); // its outcome is in headerUnsaved: a failure is tried again below
+  const run = flushHeaderNow();
+  headerFlight = run;
+  try { return await run; } finally { if (headerFlight === run) headerFlight = null; }
+}
+async function flushHeaderNow() {
+  if ((!state.headerTimer && !headerUnsaved) || !state.event) return true;
   clearTimeout(state.headerTimer);
   state.headerTimer = null;
   const { id, header, title } = state.event;
@@ -771,9 +810,13 @@ async function flushHeader() {
   try {
     await patchEvent(id, () => ({ header, title }));
     cachedLastHeader = header;
+    headerUnsaved = false;
     broadcast({ type: 'events' });
+    return true;
   } catch (e) {
+    headerUnsaved = true;
     showSaveError(e);
+    return false;
   } finally {
     state.headerFlushing--;
   }
@@ -1487,8 +1530,19 @@ function scheduleDraft() {
   state.draftTimer = setTimeout(flushDraft, 300);
 }
 
+// Resolves true when the half-typed line is safe (nothing pending, or saved),
+// false when saving failed; the next flush then tries again (draftUnsaved).
+let draftUnsaved = false;
+let draftFlight = null; // the write in progress: a flush waits for it (reload mid-write)
 async function flushDraft() {
-  if (!state.draftTimer || !state.event || state.readOnly) return;
+  const prev = draftFlight;
+  if (prev) await prev.catch(() => {}); // its outcome is in draftUnsaved: a failure is tried again below
+  const run = flushDraftNow();
+  draftFlight = run;
+  try { return await run; } finally { if (draftFlight === run) draftFlight = null; }
+}
+async function flushDraftNow() {
+  if ((!state.draftTimer && !draftUnsaved) || !state.event || state.readOnly) return true;
   clearTimeout(state.draftTimer);
   state.draftTimer = null;
   const f = readForm();
@@ -1497,8 +1551,12 @@ async function flushDraft() {
     : { store: 'drafts', put: { eventId: state.event.id, form: f, editingId: state.editingId, savedAt: nowIso() } };
   try {
     await state.store.tx([op]);
+    draftUnsaved = false;
+    return true;
   } catch (e) {
+    draftUnsaved = true;
     showSaveError(e);
+    return false;
   }
 }
 

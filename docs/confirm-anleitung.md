@@ -41,19 +41,39 @@ etwa für einen USB-Stick.
 nicht von selbst. Steht dort „nicht dauerhaft“, regelmäßig eine Sicherung
 (JSON) exportieren.
 
+**Offline-Status.** „offline bereit ✓“ oben rechts heißt: alles ist
+im Browser gespeichert. „offline: wird eingerichtet…“ dauert beim ersten
+Öffnen kurz. „offline nicht bereit“ heißt: der Browser hat die
+Offline-Kopie gelöscht; mit Internet geöffnet, repariert sie sich selbst
+(„Offline-Kopie wird repariert…“). Gibt es auf dem Server inzwischen eine
+neue Version, steht „Neue Version auf dem Server – bitte aktualisieren“;
+dann über „Update verfügbar“ aktualisieren. Bei „Offline-Einrichtung
+fehlgeschlagen“ oder „Reparatur fehlgeschlagen“ die Seite mit Internet neu
+laden.
+„Entwicklungsmodus (nicht offline)“ gibt es nur auf
+Entwicklungsservern.
+
 **Neue Version.** Erscheint „Update verfügbar“, ist eine neue Version
 geladen. Sie wird erst nach einem Klick darauf aktiv, nicht von selbst. Der
-Klick lädt aber **alle** offenen Tabs und Fenster des Werkzeugs neu und kann
-dort laufende Eingaben unterbrechen; einen Aufschub je Tab gibt es nicht.
-Gespeicherte Zeilen und Logs bleiben unverändert. Beim Neuladen versucht das
-Werkzeug, die halb getippte Zeile und die Kopfdaten als Entwurf zu sichern
-und holt sie danach zurück. Das kann scheitern (zum Beispiel bei vollem
-Speicher), und das Neuladen läuft dann trotzdem weiter. **Deshalb vor jedem
-Update, in jedem offenen Tab:** fertige Zeilen speichern
-(<kbd>⇧</kbd>+<kbd>Enter</kbd>) und unfertige Eingaben außerhalb des
-Werkzeugs kopieren, auch wenn kein Fehler angezeigt wird. Ein Entwurf ist
-keine gespeicherte Zeile, und die Sicherung (JSON) enthält keine
-unfertigen Eingaben (siehe
+Klick lädt aber **alle** offenen Tabs und Fenster des Werkzeugs neu; einen
+Aufschub, den man je Tab wählen kann, gibt es nicht. Gespeicherte Zeilen und
+Logs bleiben unverändert. Vor dem Neuladen sichert jeder Tab die halb
+getippte Zeile und die Kopfdaten als Entwurf und holt sie danach zurück.
+Gelingt das Sichern in einem Tab nicht (zum Beispiel bei vollem Speicher),
+wird dieser Tab **nicht** neu geladen: die Eingabe bleibt stehen, der Knopf
+heißt „Update wartet: Eingabe klären“, und eine rote Meldung unter der
+Kopfzeile sagt, was nicht gesichert ist. Dort kann man den Text in die
+Zwischenablage kopieren (geht das nicht, erscheint er zum Markieren und
+Kopieren von Hand), „Erneut versuchen“ oder, mit Rückfrage, „Trotzdem
+aktualisieren“ (der genannte Text geht dann verloren). Hat ein anderer Tab
+das Update schon installiert, steht dieselbe Meldung dort („Neuladen nicht
+ausgeführt“), und die Seite läuft bis zum Neuladen mit der alten Version.
+Schlägt das Laden der neuen Version oder die Suche danach fehl, steht
+„Update fehlgeschlagen“ bzw. „Update-Prüfung fehlgeschlagen“ daneben; die
+installierte Version läuft weiter. **Trotzdem vor jedem Update:** fertige
+Zeilen speichern (<kbd>⇧</kbd>+<kbd>Enter</kbd>) und wichtige unfertige
+Eingaben außerhalb des Werkzeugs kopieren. Ein Entwurf ist keine gespeicherte
+Zeile, und die Sicherung (JSON) enthält keine unfertigen Eingaben (siehe
 [Gespeichert, Entwurf und Sicherung](#gespeichert-entwurf-und-sicherung)).
 
 **Mehrere Tabs.** Ein Log sollte nur in einem Tab offen sein; sonst warnt

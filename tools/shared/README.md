@@ -209,6 +209,68 @@ and `checkOldInstall()`. The redirects stay.
   some other way must be added there by hand. `sw-core.js` is the
   exception: it is part of the service worker, which the browser keeps
   and update-checks itself.
+- **Service worker modes** (`js/sw-core.js`). `precache.js` must be a valid
+  manifest (`version` string, non-empty `files`); anything else (404, syntax
+  error, wrong shape) makes the worker's **install fail**, so a working
+  installation and its cache are never replaced and a first install is
+  reported as failed. Development without a build is explicit: `just
+  dev-precache` writes the stub `{ dev: true }`. The worker answers the
+  page's `version` message with `{ version, mode: 'production' | 'dev' |
+  'broken', ready }` (`ready`: every precached file is in the cache). Chip
+  (`js/offline.js`, `offlineStatus()`): `offline: wird eingerichtet…`,
+  `offline bereit ✓` (only with a complete cache), `offline nicht bereit`,
+  `Entwicklungsmodus (nicht offline)`, `Offline-Einrichtung fehlgeschlagen`;
+  next to the update button `Update verfügbar`, `Update fehlgeschlagen`
+  (new version could not install) and `Update-Prüfung fehlgeschlagen`.
+- **Save hook** (`initOffline({ beforeReload })`). Before an update or reload
+  the page calls the tool's hook, which must resolve exactly `true` when
+  nothing typed is at risk: it is safe in storage, there was nothing to save,
+  or the unsaved part is already stored elsewhere and unchanged since (e.g.
+  notfunk's held-back older draft). Anything else is failure: `false`, any
+  other value (also `undefined`), a rejection, or, to say why and what the
+  user can do, a string, `{ message }` or `{ message, actions: [{ label,
+  run }], discards }` (German, plain language about the actual risk). The
+  banner shows the message, one button per action and, always, "Erneut
+  versuchen" and "Trotzdem aktualisieren"; `discards` is what that confirm
+  dialog names as lost (default: the generic sentence). After an action's
+  `run()` settles the check runs again and the update goes on by itself if it
+  now succeeds. An action reports failure by resolving `false`, a string or
+  `{ message, text }` (the text is shown in a box to copy by hand) or by
+  throwing; the banner then stays and says so. While a check or action runs
+  the buttons are `aria-disabled`; a request arriving meanwhile (a
+  controllerchange) is queued and handled right after. The banner is one
+  stable element updated in place (focus stays on the used button). The user never has to find a notice elsewhere on the page
+  (it may be scrolled away, replaced, or never seen when another tab started
+  the update). While the banner is up the update button reads "Update wartet:
+  Eingabe klären". The
+  hook must not swallow a failure and return normally (show its own error
+  too, but report it), must wait for a write already in flight and report
+  its outcome (confirm: `draftFlight`/`headerFlight`), and must still
+  report unsaved input on a second call (the debounce timer is gone after
+  the first failure). On failure `offline.js` does **not** send
+  `skipWaiting` or reload (also for an update activated in another tab, where
+  the banner adds that the page runs old code under the new worker and
+  should be reloaded once the input is safe, and for a resumed page): the
+  old worker, its cache, the page and the input stay, and the banner
+  `#update-problem` offers "Erneut versuchen" and, after a confirm dialog,
+  "Trotzdem aktualisieren" (the explicit way out so that a permanently
+  failing storage cannot block updates forever; it skips the hook for that
+  one update only: its own controllerchange reloads directly, no time window). The update button looks up the waiting worker when the
+  action runs and just reloads if another tab already activated it. Hooks
+  are pure additions: they return their result, their other save semantics
+  are unchanged.
+- **Cache repair** (`repair` message of `sw-core.js`). An emptied cache is
+  refilled only for the release the worker was installed with: the server's
+  `precache.js` (fetched with `cache: 'reload'`) must still have the worker's
+  version and file list, else the repair is refused ("Neue Version auf dem
+  Server – bitte aktualisieren", the normal update takes over, nothing is
+  written). Missing files go into a staging cache first, the manifest is
+  checked again, then they are copied; staging is deleted on every exit.
+  Residual risk: `precache.js` has no per-file digests, so a single file
+  replaced between the second check and the copy would not be noticed.
+- **Development stub.** `just dev-precache` writes `{ dev: true }`; a dev
+  worker never deletes caches. `scripts/build_site.py` (`just stage`, so
+  also `just dist`) refuses to run while a `precache.js` is that stub.
 - **Storage schemas belong to the tools.** `storage.js` is only the
   mechanism; a tool's database name, stores and migrations stay in the tool
   (e.g. `../confirm/js/db.js`). Never change one tool's schema from here.
