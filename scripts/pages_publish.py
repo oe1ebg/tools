@@ -17,8 +17,11 @@ Everything else in the branch (a CNAME file Pages wrote, say) is kept as it is.
        {"op": "put", "kind": "pr", "name": "12", "dir": "<built site/tools>",
         "meta": {"title": "...", "branch": "...", "sha": "<hex>", "updated": "<ISO>"}},
        {"op": "remove", "kind": "pr", "name": "12"},
-       {"op": "keep-prs", "open": [{"number": 12, "title": "...", "branch": "..."}]},
-       {"op": "keep-releases", "tags": ["v1.0.0", "data-latest"]}]
+       {"op": "keep-prs", "as_of": "<ISO UTC of the snapshot>", "open": [{"number": 12, "title": "...", "branch": "..."}]},
+       {"op": "keep-releases", "as_of": "<ISO UTC>", "tags": ["v1.0.0", "data-latest"]}]
+
+The clean-up ops are snapshots: an entry published after `as_of` is never removed
+by them (a retry after a lost race sees entries that landed after the snapshot).
 
 Everything under "dir" and every value in "meta" is data, never trusted: the
 directory must be a plain tree (no symlinks or special files, bounded size,
@@ -62,7 +65,15 @@ ROBOTS = "User-agent: *\nDisallow: /\n"
 
 
 class PagesError(Exception):
-    pass
+    """Messages can carry names from untrusted artifacts: one line, no control characters
+    (a log line starting with `::` would be a workflow command)."""
+
+    def __init__(self, message=""):
+        super().__init__(re.sub(r"[\x00-\x1f\x7f-\x9f  ]+", " ", str(message)))
+
+
+class SiteFull(PagesError):
+    """The site would exceed the size budget; the message lists only entry names and sizes."""
 
 
 def now_iso() -> str:
@@ -170,6 +181,13 @@ def apply_ops(root: Path, ops: list[dict], repo: str | None, incoming: Path | No
         shutil.rmtree(dest_of(kind, name), ignore_errors=True)
         entries.pop((kind, name), None)
 
+    def newer_than(entry, op) -> bool:
+        """A clean-up op is a snapshot taken at `as_of`; an entry published after that
+        (a competing run that landed first, seen again on a retry) is newer than the
+        snapshot and is left for the next one."""
+        as_of = str(op.get("as_of") or "")
+        return bool(idx.STAMP_RE.fullmatch(as_of)) and str(entry.get("published") or "") > as_of
+
     for op in ops:
         kind, name = str(op.get("kind", "")), str(op.get("name", ""))
         which = op.get("op")
@@ -187,7 +205,7 @@ def apply_ops(root: Path, ops: list[dict], repo: str | None, incoming: Path | No
             shutil.rmtree(dest, ignore_errors=True)
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copytree(src, dest, symlinks=True)
-            entries[(kind, name)] = {"kind": kind, "name": name, **sanitize_meta(kind, op.get("meta") or {}, built)}
+            entries[(kind, name)] = {"kind": kind, "name": name, **sanitize_meta(kind, op.get("meta") or {}, built), "published": now_iso()}
         elif which == "remove":
             drop(kind, name)
         elif which == "keep-prs":
@@ -200,7 +218,8 @@ def apply_ops(root: Path, ops: list[dict], repo: str | None, incoming: Path | No
                 if k != "pr":
                     continue
                 if n not in current:
-                    drop(k, n)
+                    if not newer_than(entries[(k, n)], op):
+                        drop(k, n)
                 else:  # titles and branches change without a new build
                     e = entries[(k, n)]
                     e["title"] = idx.clean(current[n].get("title"), idx.TITLE_MAX)
@@ -208,7 +227,7 @@ def apply_ops(root: Path, ops: list[dict], repo: str | None, incoming: Path | No
         elif which == "keep-releases":
             keep = {str(t) for t in op.get("tags", [])}
             for (k, n) in list(entries):
-                if k in ("release", "data") and n not in keep:
+                if k in ("release", "data") and n not in keep and not newer_than(entries[(k, n)], op):
                     drop(k, n)
         else:
             raise PagesError(f"unknown op {which!r}")
@@ -241,7 +260,10 @@ def apply_ops(root: Path, ops: list[dict], repo: str | None, incoming: Path | No
     (root / ".nojekyll").write_text("", encoding="utf-8")
     total = tree_bytes(root)
     if total > MAX_TOTAL_BYTES:
-        raise PagesError(f"the site would be {total // 2**20} MB (limit {MAX_TOTAL_BYTES // 2**20} MB): remove entries or lower PAGES_MAX_RELEASES")
+        sizes = sorted(((tree_bytes(root / idx.entry_dir(k, n)), f"{k}/{n}") for (k, n) in entries), reverse=True)
+        used = ", ".join(f"{n} {b // 2**20} MB" for b, n in sizes)
+        raise SiteFull(f"the Pages site is full: it would be {total // 2**20} MB, the limit is {MAX_TOTAL_BYTES // 2**20} MB. "
+                       f"Entries: {used}. Close pull requests or lower the repository variable PAGES_MAX_RELEASES.")
     return doc
 
 
@@ -325,6 +347,7 @@ def main(argv=None) -> int:
     ap.add_argument("--branch", default="gh-pages")
     ap.add_argument("--retries", type=int, default=6)
     ap.add_argument("--message", default=os.environ.get("PAGES_MESSAGE", "Update the Pages site"))
+    ap.add_argument("--error-file", type=Path, help="write the one-line error message here (exit code 3: the site is full)")
     ap.add_argument("--no-push", action="store_true", help="build the commit, do not push (refs/pages-publish/new-<branch>)")
     a = ap.parse_args(argv)
     ops = []
@@ -339,7 +362,9 @@ def main(argv=None) -> int:
         print(publish(a.repo, ops, slug, a.incoming, a.remote, a.branch, idx.clean(a.message, 200), a.retries, not a.no_push))
     except PagesError as e:
         print(f"error: {e}", file=sys.stderr)
-        return 1
+        if a.error_file:
+            a.error_file.write_text(str(e) + "\n", encoding="utf-8")
+        return 3 if isinstance(e, SiteFull) else 1
     return 0
 
 

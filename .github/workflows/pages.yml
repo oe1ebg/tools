@@ -120,7 +120,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           SLUG: ${{ github.repository }}
-          MAX_RELEASES: ${{ vars.PAGES_MAX_RELEASES || '5' }}
+          MAX_RELEASES: ${{ vars.PAGES_MAX_RELEASES || '3' }}
         run: |
           set -euo pipefail
           [ -f scripts/pages_releases.py ] || { echo "::notice::scripts/pages_releases.py is not on the default branch yet"; mkdir out; echo "[]" > out/ops.json; exit 0; }
@@ -196,6 +196,9 @@ jobs:
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           set -euo pipefail
+          # the clean-up in the plan is a snapshot of this moment (pages_publish.py)
+          AS_OF=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          export AS_OF
           gh pr list --repo "$SLUG" --state open --limit 1000 --json number,title,headRefName,isCrossRepository > "$RUNNER_TEMP/open-prs.json"
           state=""
           if [ "$EVENT_NAME" = pull_request ] && [ "$EVENT_ACTION" != closed ]; then
@@ -205,20 +208,26 @@ jobs:
             --pr-state "$state" --entry-dir "$RUNNER_TEMP/incoming/entry" \
             --releases-ops "$RUNNER_TEMP/incoming/releases/ops.json" | tee -a "$GITHUB_STEP_SUMMARY"
 
+      # Exit code 3: the site is full (the message, only entry names and
+      # sizes, goes to the PR comment); anything else is an error.
       - name: Publish to gh-pages
+        id: publish
         if: steps.scripts.outputs.ok == 'true'
         env:
           SLUG: ${{ github.repository }}
           PAGES_MESSAGE: "${{ format('Pages {0} {1} ({2}/{3}/actions/runs/{4})', github.event_name, github.event.action, github.server_url, github.repository, github.run_id) }}"
           PAGES_MAX_TOTAL_MB: ${{ vars.PAGES_MAX_TOTAL_MB || '900' }}
         run: |
+          rc=0
           python3 scripts/pages_publish.py --repo . --ops "$RUNNER_TEMP/ops.json" --incoming "$RUNNER_TEMP/incoming" \
-            --slug "$SLUG" --message "$PAGES_MESSAGE" | tee -a "$GITHUB_STEP_SUMMARY"
+            --slug "$SLUG" --message "$PAGES_MESSAGE" --error-file "$RUNNER_TEMP/publish-error.txt" > "$RUNNER_TEMP/publish.out" || rc=$?
+          tee -a "$GITHUB_STEP_SUMMARY" < "$RUNNER_TEMP/publish.out"
+          exit "$rc"
 
-      # One comment per PR, updated in place (marker in the body); the body
-      # holds the PR number only, no PR-controlled text.
+      # One comment per PR, updated in place; scripts/pages_comment.py builds
+      # the body from the PR number and sha only, no PR-controlled text.
       - name: Preview comment
-        if: steps.scripts.outputs.ok == 'true' && github.event_name == 'pull_request'
+        if: always() && steps.scripts.outputs.ok == 'true' && github.event_name == 'pull_request' && (steps.publish.outcome == 'success' || steps.publish.outcome == 'failure')
         env:
           GH_TOKEN: ${{ github.token }}
           SLUG: ${{ github.repository }}
@@ -227,21 +236,44 @@ jobs:
           EVENT_ACTION: ${{ github.event.action }}
           PR_SHA: ${{ github.event.pull_request.head.sha }}
           BASE_URL: ${{ vars.PAGES_BASE_URL }}
+          PUBLISH: ${{ steps.publish.outcome }}
         run: |
-          set -uo pipefail
-          marker='<!-- oe1ebg-pages-preview -->'
           name=${SLUG#*/}
           base=${BASE_URL:-https://${OWNER,,}.github.io/$name}
-          base=${base%/}
-          if [ "$EVENT_ACTION" = closed ]; then
-            body="$marker"$'\n'"Preview removed (pull request closed)."
-          else
-            body="$marker"$'\n'"Preview of ${PR_SHA:0:7}: $base/pr/$PR_NUMBER/"$'\n\n'"Shared browser origin with all other previews: use test data only. GitHub Pages must be enabled for the repository (Settings, Pages, branch gh-pages) for this link to work."
-          fi
-          id=$(gh api "repos/$SLUG/issues/$PR_NUMBER/comments" --paginate \
-            --jq "[.[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$marker\")))][0].id // empty" | head -n1)
-          if [ -n "$id" ]; then
-            gh api -X PATCH "repos/$SLUG/issues/comments/$id" -f body="$body" >/dev/null || echo "::warning::could not update the preview comment"
-          elif [ "$EVENT_ACTION" != closed ]; then
-            gh api -X POST "repos/$SLUG/issues/$PR_NUMBER/comments" -f body="$body" >/dev/null || echo "::warning::could not post the preview comment"
-          fi
+          if [ "$EVENT_ACTION" = closed ]; then state=removed
+          elif [ "$PUBLISH" = success ]; then state=published
+          elif grep -q 'site is full' "$RUNNER_TEMP/publish-error.txt" 2>/dev/null; then state=full
+          else state=error; fi
+          python3 scripts/pages_comment.py --slug "$SLUG" --pr "$PR_NUMBER" --state "$state" --sha "$PR_SHA" --base "$base" \
+            --detail-file "$RUNNER_TEMP/publish-error.txt"
+
+  # A failed build skips `deploy`: say so on the PR, otherwise the old preview
+  # (if any) looks current.
+  build-failed:
+    needs: build
+    if: >-
+      ${{ always() && needs.build.result == 'failure' && github.event_name == 'pull_request'
+        && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout the default branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SLUG: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_URL: ${{ vars.PAGES_BASE_URL }}
+        run: |
+          [ -f scripts/pages_comment.py ] || { echo "::notice::scripts/pages_comment.py is not on the default branch yet"; exit 0; }
+          name=${SLUG#*/}
+          base=${BASE_URL:-https://${OWNER,,}.github.io/$name}
+          python3 scripts/pages_comment.py --slug "$SLUG" --pr "$PR_NUMBER" --state build-failed --sha "$PR_SHA" --base "$base"

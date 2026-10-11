@@ -57,6 +57,7 @@ def clean(value, limit: int) -> str:
     """A display string: no control characters, bounded length."""
     s = "" if value is None else str(value)
     s = re.sub(r"[\x00-\x1f\x7f-\x9f  ‪-‮⁦-⁩]", " ", s)
+    s = re.sub("[​-‏؜﻿]", "", s)  # zero-width and direction marks
     s = " ".join(s.split())
     return s if len(s) <= limit else s[: limit - 1] + "…"
 
@@ -116,7 +117,7 @@ def render_entry(e: dict, repo: str | None) -> str:
             heading = f'<a href="https://github.com/{esc(repo)}/pull/{esc(name)}">#{esc(name)}</a>'
         else:
             heading = f"#{esc(name)}"
-        head = f'<span class="num">{heading}</span> {esc(title) if title else "(no title)"}'
+        head = f'<span class="num">{heading}</span> <bdi>{esc(title)}</bdi>' if title else f'<span class="num">{heading}</span> (no title)'
     elif kind == "main":
         head = "main"
     elif kind == "data":
@@ -128,7 +129,7 @@ def render_entry(e: dict, repo: str | None) -> str:
 
     meta = []
     if kind == "pr" and branch:
-        meta.append(f"<span>branch <code>{esc(branch)}</code></span>")
+        meta.append(f"<span>branch <code><bdi>{esc(branch)}</bdi></code></span>")
     if kind in ("release", "data") and version:
         meta.append(f"<span>version <code>{esc(version)}</code></span>")
     if sha:

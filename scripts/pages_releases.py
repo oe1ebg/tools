@@ -1,6 +1,6 @@
 """Fetch the published release tarballs for the Pages site.
 
-    python3 scripts/pages_releases.py --slug owner/name --out DIR [--current entries.json] [--max-releases 5]
+    python3 scripts/pages_releases.py --slug owner/name --out DIR [--current entries.json] [--max-releases 3]
 
 Read-only part of .github/workflows/pages.yml (job `releases`, `gh` with a
 read token): lists the releases, picks the newest --max-releases `vX.Y.Z`
@@ -32,6 +32,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -41,10 +42,15 @@ DATA_TAG = "data-latest"
 MAX_UNPACKED = 400 * 1024 * 1024
 
 
+def oneline(text) -> str:
+    """Messages carry asset and member names: one line, so a name cannot start a workflow command."""
+    return re.sub(r"[\x00-\x1f\x7f-\x9f\u2028\u2029]+", " ", str(text)).strip()
+
+
 def gh(*args: str) -> str:
     r = subprocess.run(["gh", *args], text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if r.returncode:
-        raise SystemExit(f"gh {' '.join(args)}: {r.stderr.strip()}")
+        raise SystemExit(oneline(f"gh {' '.join(args)}: {r.stderr.strip()}"))
     return r.stdout
 
 
@@ -82,9 +88,9 @@ def safe_extract(tarball: Path, dest: Path) -> Path:
         for m in members:
             p = Path(m.name)
             if p.is_absolute() or ".." in p.parts or not p.parts:
-                raise SystemExit(f"{tarball.name}: unsafe member {m.name!r}")
+                raise SystemExit(oneline(f"{tarball.name}: unsafe member {m.name!r}"))
             if not (m.isfile() or m.isdir()):
-                raise SystemExit(f"{tarball.name}: member {m.name!r} is not a regular file or directory")
+                raise SystemExit(oneline(f"{tarball.name}: member {m.name!r} is not a regular file or directory"))
             if top is None:
                 top = p.parts[0]
             elif p.parts[0] != top:
@@ -128,7 +134,7 @@ def main(argv=None) -> int:
     ap.add_argument("--slug", required=True)
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--current", type=Path, help="entries.json of the site as it is now")
-    ap.add_argument("--max-releases", type=int, default=5)
+    ap.add_argument("--max-releases", type=int, default=3)
     ap.add_argument("--dir-prefix", default="", help="prefix of the ops' `dir` (where the artifact lands below pages_publish's --incoming)")
     a = ap.parse_args(argv)
     if not idx.REPO_RE.fullmatch(a.slug):
@@ -142,6 +148,7 @@ def main(argv=None) -> int:
         except (ValueError, AttributeError):
             pass
 
+    as_of = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     releases = json.loads(gh("release", "list", "--repo", a.slug, "--limit", "200", "--json", "tagName,isPrerelease,isDraft"))
     chosen = select(releases, a.max_releases)
     a.out.mkdir(parents=True, exist_ok=True)
@@ -149,13 +156,23 @@ def main(argv=None) -> int:
     work = Path(tempfile.mkdtemp(prefix="pages-releases-"))
     try:
         for kind, tag in chosen:
-            got = fetch_one(a.slug, tag, work, have.get((kind, tag), ""))
+            # One bad release (no or two .sha256 assets, as data-latest is for a
+            # moment while data.yml swaps its assets, a checksum mismatch, a failed
+            # download) must not stop the others: it is skipped loudly and keeps
+            # its old entry, which stays on the keep list. Never published unverified.
+            try:
+                got = fetch_one(a.slug, tag, work, have.get((kind, tag), ""))
+            except SystemExit as e:
+                print(f"::warning title=Pages: {tag} skipped::{oneline(e)}")
+                shutil.rmtree(work / tag, ignore_errors=True)
+                continue
             if got is None:
                 print(f"{tag}: unchanged")
                 continue
             tree, digest = got
             if not (tree / "index.html").is_file():
-                raise SystemExit(f"{tag}: no index.html in the tarball")
+                print(f"::warning title=Pages: {tag} skipped::no index.html in the tarball")
+                continue
             target = a.out / "release" / tag
             shutil.rmtree(target, ignore_errors=True)
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -164,7 +181,7 @@ def main(argv=None) -> int:
             print(f"{tag}: fetched")
     finally:
         shutil.rmtree(work, ignore_errors=True)
-    ops.append({"op": "keep-releases", "tags": [t for _, t in chosen]})
+    ops.append({"op": "keep-releases", "as_of": as_of, "tags": [t for _, t in chosen]})
     (a.out / "ops.json").write_text(json.dumps(ops, indent=2) + "\n", encoding="utf-8")
     return 0
 
