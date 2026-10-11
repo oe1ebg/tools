@@ -388,6 +388,42 @@ thread (a Web Worker would need a Blob-URL worker in the single-file
 `file://` bundle, which `scripts/single_file.py` doesn't support). At
 50 000 QSOs one re-check takes about a third of a second of idle time.
 
+### Responsiveness baselines (issue #15)
+
+`just bench-ui` (`scripts/bench_ui.mjs`, not part of `just e2e`/CI, needs
+`just build`) seeds data into the built tools and measures them in Chromium
+(CDP CPU throttling 1x/4x/6x) and WebKit (unthrottled), desktop (1400x900)
+and phone viewports (Pixel 7 / iPhone 13), 3 runs, median / p95 over the
+samples. `--quick`, `--tool`, `--size`, `--adif-size`, `--engine`,
+`--throttle`, `--viewport`, `--out` narrow it; raw numbers go to
+`bench-ui.json` (ignored by version control). WebKit has no long-task
+observer and Playwright no heap readout there, so those cells are empty.
+`node --expose-gc scripts/bench_adif.mjs 5` adds heap figures to the node
+benchmark (sizes 1k/10k/50k/100k as 2nd argument); its timings are noisy when
+the machine is busy, so repeat on an idle one.
+
+Measured 2026-10-10, MacBook (Apple silicon), Chromium; ADIF editor, synthetic
+log from the official test QSOs (180 fields):
+
+| | 10k QSOs | 50k QSOs |
+| --- | ---: | ---: |
+| file chosen -> rows + validation shown, 1x | 224 / 227 ms | 606 / 616 ms |
+| ... 4x / 6x CPU | 839 / 1297 ms | 2350 / 3557 ms |
+| ... WebKit (desktop / iPhone 13) | 597 / 426 ms | 1008 / 834 ms |
+| longest task while loading (UI blocked), 1x / 4x / 6x | 168 / 633 / 976 ms | 549 / 2132 / 3207 ms |
+| edit commit (Enter) -> next frame, 1x / 4x / 6x | 11 / 37 / 57 ms | 13 / 39 / 60 ms |
+| edit -> re-checked (incl. 150 ms debounce), 1x / 4x / 6x | 275 / 617 / 865 ms | 679 / 2261 / 3374 ms |
+| JS heap loaded / after edits | 10 / 16 MB | 39 / 71 MB |
+| node: heap kept by parsed records + one validation result | 3 + 9 MB | 16 + 45 MB (100k: 33 + 89 MB, RSS up to ~1 GB) |
+
+Findings: parsing and validation run in one task (about as long as the whole
+load); at 4x CPU a 50k log blocks the page for 2 s on load and for about 1.5 s
+(`serializeADIF` + `validateAdif` in one idle task) after each edit batch.
+The edit commit itself stays below 60 ms. Scrolling the virtualized table is
+smooth unthrottled (0 frames > 50 ms) but at 4x/6x CPU almost every frame
+takes 50-150 ms, independent of log size: the cost is per-row rendering
+(180 columns), not the size of the log.
+
 ## ADIF version compliance
 
 The tool targets and declares **ADIF 3.1.7** (https://www.adif.org/317/ADIF_317.htm)

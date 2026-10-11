@@ -200,3 +200,25 @@ and `meta`. All coordinates are `[lat, lon]` (Leaflet order), rounded to
      disappear with DevTools → Offline;
    - DevTools → Network → Offline, then reload and log a line;
    - open `confirm-offline.html` via `file://`.
+
+## Performance baselines (issue #15)
+
+`just bench-ui --tool confirm` (`scripts/bench_ui.mjs`, details and the other
+tools in `tools/adif/README.md`, "Responsiveness baselines") seeds a log of
+200 / 1000 / 5000 lines. Chromium, desktop, median / p95 (the phone viewport
+is 10-40 % slower):
+
+| | 200 | 1000 | 5000 |
+| --- | ---: | ---: | ---: |
+| keystroke in `#f-call` -> next frame, 1x | 24 / 30 ms | 107 / 138 ms | 535 / 678 ms |
+| ... 4x CPU | 104 / 125 ms | 525 / 653 ms | 2474 / 3080 ms |
+| ... 6x CPU | 146 / 192 ms | 672 / 855 ms | 3594 / 4435 ms |
+| ... WebKit unthrottled | 52 ms | 245 ms | 1260 ms |
+| save line -> new row shown, 1x / 4x | 31 / 127 ms | 147 / 688 ms | 745 / 3131 ms |
+| open log -> all rows, 1x / 4x | 115 / 450 ms | 145 / 1338 ms | 574 / 2572 ms |
+| DOM nodes / heap | 8k / 31 MB | 35k / 31 MB | 170k / 34 MB |
+
+Each keystroke is one task of the same length (`updateCallFeedback` ->
+`renderLog` rebuilds every row); the cost is linear, ~0.1 ms per line
+unthrottled. Scrolling the page is fine up to 5000 lines unthrottled; at 4x on
+a phone viewport 5-7 frames are > 50 ms.

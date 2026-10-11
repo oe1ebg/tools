@@ -59,3 +59,24 @@ provisional until the Notfunkreferat Wien confirms it.
   confirmed; the "Entwurf" banner stays until then.
 - **Check changes** with `just test`, and in a browser with
   `just e2e` (or against the nginx image: `BASE_URL=…`).
+
+## Performance baselines (issue #15)
+
+`just bench-ui --tool notfunk` (see `tools/adif/README.md`, "Responsiveness
+baselines") seeds an Einsatz with 200 / 1000 / 5000 messages. Chromium,
+desktop, median / p95:
+
+| | 200 | 1000 | 5000 |
+| --- | ---: | ---: | ---: |
+| search: `renderBook` after the 150 ms debounce, 1x / 4x | 20 / 50 ms | 64 / 236 ms | 280 / 1222 ms |
+| search -> next frame, 1x | 43 / 57 ms | 156 / 201 ms | 752 / 874 ms |
+| ... 4x / 6x CPU | 125 / 217 ms | 601 / 992 ms | 3218 / 4806 ms |
+| filter button -> next frame, 1x / 4x | 18 / 80 ms | 86 / 386 ms | 475 / 1814 ms |
+| save message -> book updated, 1x / 4x | 45 / 176 ms | 199 / 819 ms | 1024 / 3983 ms |
+| open book -> rows, 1x / 4x | 62 / 263 ms | 196 / 787 ms | 872 / 3557 ms |
+| WebKit search -> frame, unthrottled | 69 ms | 264 ms | 1289 ms |
+
+`renderBook` rebuilds every row (about 35 DOM nodes per message, 170k at 5000)
+on each search, filter, save and status change; the layout and paint after the
+rebuild cost about as much as the rebuild itself. Linear: ~0.15 ms per
+message unthrottled.
