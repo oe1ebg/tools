@@ -16,6 +16,15 @@ export function nowIso() {
   return new Date().toISOString();
 }
 
+// The `updated` stamp of a changed record: now, but always after the
+// record's previous stamp (a clock that stands still, is coarse or was set
+// back would otherwise leave two versions with the same stamp, and the row
+// cache of the tables - signature = `updated` - would keep showing the old one).
+export function laterIso(prev, now = nowIso()) {
+  const p = Date.parse(prev);
+  return Number.isFinite(p) && Date.parse(now) <= p ? new Date(p + 1).toISOString() : now;
+}
+
 // "2026-10-04T19:42:07.123Z" -> { date: "2026-10-04", time: "19:42:07" }
 export function splitUtc(iso) {
   const d = new Date(iso);

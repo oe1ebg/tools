@@ -12,7 +12,7 @@ import {
   signallingText, REPEATER_KEYS, parseMHz, liveSorted, stats, isComment, COMMENT_CATEGORIES, newComment,
   headerChangeMarkers, headerFromRepeater,
 } from './model.js';
-import { newId, nowIso, splitUtc, splitTime, zoneLabel, parseTimeInput, isoUtc } from '../../shared/js/time.js';
+import { newId, nowIso, laterIso, splitUtc, splitTime, zoneLabel, parseTimeInput, isoUtc } from '../../shared/js/time.js';
 import { LOC_ORIGINS, locOrigin, locHints } from '../../shared/js/locmeta.js';
 import { TEMPLATES, templateFor, fieldVisible, fieldDisplay, fieldOptions, currentOptions, shortSummary, exampleValues } from './templates.js';
 import { toCSV, toADIF, adifIssues, ADIF_MIME, toKML, KML_MIME, toSummary } from './export.js';
@@ -1317,7 +1317,7 @@ async function saveComment(f) {
   let entry;
   if (editing) {
     // The header snapshot stays the one from when the comment was made.
-    entry = { ...editing, text: f.text, category: f.category, ts: t.iso, updated: nowIso() };
+    entry = { ...editing, text: f.text, category: f.category, ts: t.iso, updated: laterIso(editing.updated) };
     ops.push({ store: 'revisions', put: { id: newId(), eventId: ev.id, entryId: editing.id, savedAt: nowIso(), reason: 'edit', data: editing } });
   } else {
     entry = newComment({ eventId: ev.id, ts: t.iso, text: f.text, category: f.category, header: ev.header });
@@ -1388,7 +1388,7 @@ async function saveEntryLocked() {
   let entry;
   let nextEvent = ev;
   if (editing) {
-    entry = { ...editing, call: f.call, fields: f.fields, loc: f.loc, viaRepeater: f.viaRepeater, note: f.note, ts: t.iso, updated: nowIso(),
+    entry = { ...editing, call: f.call, fields: f.fields, loc: f.loc, viaRepeater: f.viaRepeater, note: f.note, ts: t.iso, updated: laterIso(editing.updated),
       snap: lineSnapshot(editing.snap, f.rptOverride, ev.header) };
     ops.push({ store: 'revisions', put: { id: newId(), eventId: ev.id, entryId: editing.id, savedAt: nowIso(), reason: 'edit', data: editing } });
   } else {
@@ -1502,7 +1502,7 @@ async function setDeleted(id, deleted) {
   if (state.readOnly) return;
   const e = state.entries.find(x => x.id === id);
   if (!e) return;
-  const next = { ...e, deleted: deleted ? nowIso() : null, updated: nowIso() };
+  const next = { ...e, deleted: deleted ? nowIso() : null, updated: laterIso(e.updated) };
   try {
     await state.store.tx([
       { store: 'revisions', put: { id: newId(), eventId: e.eventId, entryId: e.id, savedAt: nowIso(), reason: deleted ? 'delete' : 'restore', data: e } },

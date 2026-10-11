@@ -68,3 +68,25 @@ test('notfunk: a restored long Inhalt can still be edited (metadata), only chang
   assert.match(formToFields({ ...form, text: form.text + 'z' }, { ...opts, keepText: long.text }).errors.join(), /zu lang/);
   assert.match(formToFields(form, opts).errors.join(), /zu lang/);
 });
+
+// Issue #15 review: row caches compare `updated`; a stalled clock must still
+// give every change a new stamp.
+test('a changed record always gets a later `updated` stamp', async () => {
+  const { laterIso } = await import('../tools/shared/js/time.js');
+  assert.equal(laterIso(T, T), '2026-10-04T16:00:00.001Z');
+  assert.equal(laterIso(T, '2026-10-04T15:00:00.000Z'), '2026-10-04T16:00:00.001Z'); // clock set back
+  assert.equal(laterIso(T, '2026-10-04T16:00:05.000Z'), '2026-10-04T16:00:05.000Z');
+  assert.equal(laterIso(undefined, T), T);
+  const { setStatus, addAttempt, softDelete, restoreDeleted } = await import('../tools/notfunk/js/model.js');
+  const m = msg(1);
+  const meta = { operator: 'OE1EBG', now: T }; // the clock stands still
+  const e = editMessage(m, { staffRef: 'A' }, { ...meta, revisionId: 'r1' }).next;
+  const stamps = [m.updated, e.updated];
+  stamps.push(setStatus(e, 'forwarded', meta).updated);
+  stamps.push(addAttempt(e, meta).updated);
+  const d = softDelete(e, meta);
+  stamps.push(d.updated, restoreDeleted(d, meta).updated);
+  assert.ok(e.updated > m.updated);
+  assert.ok(stamps[2] > e.updated && stamps[3] > e.updated);
+  assert.ok(restoreDeleted(d, meta).updated > d.updated && d.updated > e.updated);
+});

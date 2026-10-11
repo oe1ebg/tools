@@ -285,6 +285,33 @@ test('editing a line and deleting one keep the other rows', async ({ page }) => 
   await expect(page.locator('#st-total')).toHaveText('1');
 });
 
+// Issue #15 review: a row is reused while its signature is equal. With a clock
+// that does not advance (or a coarse one) an edit gets the same `updated`
+// as the stored line; the changed note / comment must still be shown.
+test('an edit made at an unchanged clock time still replaces the row (note and comment)', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-10-04T16:00:00.000Z'));
+  await openNewLog(page, 'E2E Uhr');
+  await logCall(page, 'OE1ABC');
+  await page.locator('#f-call').fill('!');
+  await page.locator('#f-ctext').fill('Wechsel auf 145.500');
+  await page.locator('#btn-save').click();
+  await expect(page.locator('#log-body')).toContainText('Wechsel auf 145.500');
+  await page.getByRole('button', { name: /Nr\. 1 OE1ABC bearbeiten/ }).click();
+  await page.locator('#f-note').fill('erste Notiz');
+  await page.locator('#btn-save').click();
+  await expect(page.locator('#log-body')).toContainText('erste Notiz');
+  await page.getByRole('button', { name: /Nr\. 1 OE1ABC bearbeiten/ }).click();
+  await page.locator('#f-note').fill('zweite Notiz');
+  await page.locator('#btn-save').click();
+  await expect(page.locator('#log-body')).toContainText('zweite Notiz');
+  await expect(page.locator('#log-body')).not.toContainText('erste Notiz');
+  await page.getByRole('button', { name: /Kommentar.*bearbeiten/ }).click();
+  await page.locator('#f-ctext').fill('Wechsel auf 145.600');
+  await page.locator('#btn-save').click();
+  await expect(page.locator('#log-body')).toContainText('Wechsel auf 145.600');
+  await expect(page.locator('#log-body')).not.toContainText('145.500');
+});
+
 test('a re-render after a highlight set from outside the field leaves no stale match', async ({ page }) => {
   await openNewLog(page, 'E2E Match');
   await logCall(page, 'OE1ABC');
