@@ -17,7 +17,7 @@
 
 import { ADIF_SPEC_VERSION, ADIF_SPEC_DATATYPES, ADIF_SPEC_FIELDS, ADIF_SPEC_ENUMS } from './adif-spec-data.js';
 import { isValidLocator } from './maidenhead.js';
-import { adifCountsBytes, adifUtf8Bytes, adifFromUtf8Bytes } from './adif.js';
+import { adifCountsBytesSteps, adifRunSteps, adifUtf8Bytes, adifFromUtf8Bytes } from './adif.js';
 
 const AV_HEADER_FIELDS = new Set(Object.keys(ADIF_SPEC_FIELDS).filter(n => ADIF_SPEC_FIELDS[n].header));
 const AV_INDICATOR_TYPES = Object.fromEntries(Object.entries(ADIF_SPEC_DATATYPES)
@@ -142,10 +142,11 @@ function avByteToChar(text) {
 // through issue(); the scan never stops early.
 // dec: the value as text (byte mode: adifFromUtf8Bytes, the source being
 // the file's UTF-8 bytes, one char per byte); byteMode: lengths count bytes.
-function avScan(source, issue, dec = v => v, byteMode = false) {
+function* avScan(source, issue, dec = v => v, byteMode = false) {
   const tokens = [];
   let pos = 0;
   while (pos < source.length) {
+    if ((tokens.length & 4095) === 4095) yield { phase: 'scan', pos, total: source.length };
     const lt = source.indexOf('<', pos);
     if (lt < 0) break;
     AV_TAG_RE.lastIndex = lt;
@@ -438,23 +439,43 @@ function avParseUserdef(value, typeIndicator) {
 // recordIndex (0-based index into records, for 'qso'), field, value,
 // offset, line, column } (absent keys: not applicable); records:
 // [{ index, offset, line, fields: {NAME: value}, offsets: {NAME: offset} }].
+// More options, for big files: lean (true: records keep only index,
+// offset and line, their fields and offsets are dropped once checked,
+// which saves much of the memory a big result keeps); maxIssues (the
+// issues kept, in the order they were found, then sorted; the counts
+// errors/warnings/infos and `valid` still count all, issuesDropped says
+// how many were left out; findings per file, as UNKNOWN_FIELD, are always
+// kept).
 export function validateAdif(source, options = {}) {
+  return adifRunSteps(validateAdifSteps(source, options));
+}
+
+// validateAdif() as a generator for chunked checking: it yields progress
+// ({ phase: 'scan', pos, total } characters scanned; { phase: 'records',
+// done, total } tokens sorted into QSOs; { phase: 'check', done, total }
+// QSOs checked) every few thousand steps and returns what validateAdif()
+// returns, whatever the caller does in between.
+export function* validateAdifSteps(source, options = {}) {
   const text = typeof source === 'string' ? source : String(source ?? '');
   const today = options.today !== undefined ? options.today : new Date().toISOString().slice(0, 10).replace(/-/g, '');
   const ctx = { today };
   const issues = [];
+  const counts = { error: 0, warning: 0, info: 0 };
+  const maxIssues = options.maxIssues > 0 ? options.maxIssues : Infinity;
+  let dropped = 0;
   const where = avLineIndex(text);
   const issue = (severity, code, message, extra = {}) => {
+    counts[severity]++;
+    if (issues.length >= maxIssues && !extra.always) { dropped++; return; }
     const it = { severity, code, message, recordType: extra.recordType || 'file' };
     for (const k of ['recordIndex', 'field', 'value', 'offset']) if (extra[k] !== undefined) it[k] = extra[k];
     if (it.offset !== undefined) Object.assign(it, where(it.offset));
     issues.push(it);
   };
   const result = () => {
-    const errors = issues.filter(i => i.severity === 'error').length;
-    const warnings = issues.filter(i => i.severity === 'warning').length;
-    const infos = issues.filter(i => i.severity === 'info').length;
-    return { valid: errors === 0, errors, warnings, infos, issues, records, header, specVersion: ADIF_SPEC_VERSION };
+    const out = { valid: counts.error === 0, errors: counts.error, warnings: counts.warning, infos: counts.info, issues, records, header, specVersion: ADIF_SPEC_VERSION };
+    if (dropped) out.issuesDropped = dropped;
+    return out;
   };
   const records = [];
   let header = null;
@@ -467,9 +488,9 @@ export function validateAdif(source, options = {}) {
   // Lengths counted in UTF-8 bytes (many loggers): read the file as the
   // ADIF editor does (adifCountsBytes, shared with parseADIFAuto), by its
   // bytes; positions are mapped back to characters.
-  const byteMode = adifCountsBytes(text);
+  const byteMode = yield* adifCountsBytesSteps(text);
   const toChar = byteMode ? avByteToChar(text) : null;
-  const tokens = avScan(byteMode ? adifUtf8Bytes(text) : text,
+  const tokens = yield* avScan(byteMode ? adifUtf8Bytes(text) : text,
     (severity, code, message, extra) => scanIssues.push([severity, code, message,
       toChar && extra?.offset !== undefined ? { ...extra, offset: toChar(extra.offset) } : extra]),
     byteMode ? adifFromUtf8Bytes : undefined, byteMode);
@@ -546,7 +567,9 @@ export function validateAdif(source, options = {}) {
   /* records */
   let cur = null;
   const startRecord = t => ({ index: records.length, offset: t.offset, line: where(t.offset).line, fields: {}, offsets: {}, types: {}, unsure: new Set() });
+  let seen = 0;
   for (const t of tokens.slice(bodyStart)) {
+    if (++seen % 4096 === 0) yield { phase: 'records', done: seen, total: tokens.length - bodyStart };
     if (t.kind === 'eoh') continue;
     if (t.kind === 'eor') {
       if (!cur) {
@@ -592,6 +615,7 @@ export function validateAdif(source, options = {}) {
   };
   const appTypes = new Map();
   for (const rec of records) {
+    if ((rec.index & 255) === 255) yield { phase: 'check', done: rec.index + 1, total: records.length };
     for (const [name, value] of Object.entries(rec.fields)) {
       const offset = rec.offsets[name];
       const at = { recordType: 'qso', recordIndex: rec.index, field: name, value, offset };
@@ -661,14 +685,20 @@ export function validateAdif(source, options = {}) {
       avCheckType(v, typeName, def, name, report, ctx);
     }
     avCrossChecks(rec, issue);
+    if (options.lean) { rec.fields = null; rec.offsets = null; } // freed as we go
   }
   for (const it of once.values()) {
     const count = it.count > 1 ? ` (${it.count} QSOs)` : '';
-    issue(it.severity, it.code, it.message + count, { recordType: 'file', field: it.field, offset: it.offset });
+    issue(it.severity, it.code, it.message + count, { recordType: 'file', field: it.field, offset: it.offset, always: true });
   }
 
   issues.sort((a, b) => (a.offset ?? -1) - (b.offset ?? -1));
-  for (const r of records) { delete r.types; delete r.unsure; }
+  if (options.lean) {
+    // compact objects: the dropped fields are no longer referenced at all
+    for (let i = 0; i < records.length; i++) records[i] = { index: records[i].index, offset: records[i].offset, line: records[i].line };
+  } else {
+    for (const r of records) { delete r.types; delete r.unsure; }
+  }
   return result();
 }
 
