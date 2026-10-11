@@ -75,6 +75,7 @@ Browser fixtures fail on page/console errors, CSP violations, same-origin HTTP e
 - State dependencies and merge order in each stacked PR description, and link the other PRs. Review and merge from the bottom of the stack upward.
 - After a parent is rebased or merged, restack its descendants onto the updated parent or `main` and update PR bases. GitHub rebase merging changes commit IDs; replay only each descendant's own commits, preserving its diff and avoiding duplicate parent commits. Recheck affected tests and CI scope after restacking.
 - Push rewritten PR branches with `--force-with-lease`, checking the expected remote head so newer collaborator changes are not overwritten. Merge only when the user has authorized merging.
+- Before a version release, follow `releases/README.md` and prepare `releases/vX.Y.Z.md` in a reviewed PR before tagging. Summarize user-visible changes, update steps, and limitations; link technical details and included PRs below. Check the actual changes since the previous stable tag. The release workflow reads notes from the tagged commit and appends generated PR details; preserve its validation gates and never create or push a release tag without user authorization.
 
 ## Reviews and CI
 

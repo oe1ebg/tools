@@ -262,6 +262,12 @@ just dist      # dist/oe1ebg-tools-<version>.tar.gz + .sha256
 
 ## Releases and data refresh
 
+Release notes are reviewed with the source in [`releases/`](releases/README.md).
+Before tagging, commit a matching `releases/vX.Y.Z.md` with an end-user summary,
+update advice, and links to technical details. The release workflow requires
+that file and publishes it above GitHub's generated PR/contributor list.
+See the linked guide for the release checklist.
+
 - **`ci.yml`** runs on every push and PR: unit tests, the ADIF cross-checks,
   the bundle build with the real-data checks (`DATA_TESTS=require`), the HTML
   check and the browser tests against the bundle served by
