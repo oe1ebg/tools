@@ -98,8 +98,11 @@ now redirected; see "Move to /tools/" in `../shared/README.md`), and the source 
   (IndexedDB/localStorage) is keyed by origin, not by app identity. Checked
   once in a Chromium persistent profile: data created under the old manifest
   was still there after swapping the manifest and applying the service
-  worker update. If a duplicate or stale app shows up, remove the old one
-  and install again; the data stays in the browser's site storage.
+  worker update; that does not show that every uninstall keeps data. If a
+  duplicate or stale app shows up: first export and keep JSON backups of
+  **both** tools; when removing the old app, leave any "delete data / site
+  data" option (Chrome: "Also delete data from Chrome") unchecked. Data
+  stays only if the same browser profile and the origin's storage are kept.
 - **Version in the footer.** It reads `commit abc1234 · data 1a2b3c4d5e6f`.
   The commit is the git short SHA the build came from, linked to the commit
   on GitHub (no link for local `dev` builds). CI passes it as the Docker

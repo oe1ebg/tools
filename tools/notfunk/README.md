@@ -199,7 +199,7 @@ name, and a distribution list ("Verteiler").
 
 ## App identity
 
-The manifest has no `id` on purpose; see `../confirm/README.md`, "App identity" (#28).
+The manifest has no `id` on purpose; see `../confirm/README.md`, "App identity" (#28), including the advice to back up both tools and not to delete site data when removing an old install.
 
 ## Code
 
