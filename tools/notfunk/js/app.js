@@ -1563,9 +1563,10 @@ function renderBackupChip() {
   const at = state.op.backupAt;
   const since = state.msgs.filter(m => !at || m.updated > at).length;
   chip.hidden = !at && !since;
-  chip.className = `chip chip-btn ${since ? 'warn' : 'ok'}`;
+  // no green "ok": a started download is not a verified backup
+  chip.className = `chip chip-btn${since ? ' warn' : ''}`;
   setText(chip, at
-    ? `Sicherung gestartet ${viennaTime(at)}${since ? ` · ${since} ${since === 1 ? 'Meldung' : 'Meldungen'} ungesichert` : ' · seitdem nichts Neues'}`
+    ? `Sicherung gestartet ${viennaTime(at)}${since ? ` · ${since} ${since === 1 ? 'Meldung' : 'Meldungen'} ungesichert` : ' · nichts ungesichert'}`
     : `Noch keine Sicherung · ${since} ${since === 1 ? 'Meldung' : 'Meldungen'}`);
 }
 

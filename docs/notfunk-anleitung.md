@@ -50,10 +50,14 @@ USB-Stick.
 **Daten sichern.** „Speicher dauerhaft ✓“ heißt, der Browser löscht die Daten
 nicht von selbst. Steht dort „nicht dauerhaft“, ist eine regelmäßige
 Sicherung umso wichtiger. Der Sicherungsstand steht oben rechts
-(„Sicherung gestartet 14:40 · 3 Meldungen ungesichert“); ein Klick darauf lädt
-eine neue Sicherung (JSON) herunter. Die Zeit ist der Moment, in dem das
-Meldebuch den Download **gestartet** hat. Ob die Datei vollständig
-angekommen ist und noch irgendwo liegt, kann es nicht wissen; siehe
+(„Sicherung gestartet 14:40 · 3 Meldungen ungesichert“ oder „Sicherung
+gestartet 14:40 · nichts ungesichert“, vorher „Noch keine Sicherung“); ein
+Klick darauf lädt eine neue Sicherung (JSON) herunter. Die Zeit ist der
+Moment, in dem das Meldebuch den Download **gestartet** hat; „ungesichert“
+zählt die Meldungen, die seitdem neu oder geändert sind. Auch „nichts
+ungesichert“ heißt nur: seit dem Start des Downloads ist nichts dazugekommen.
+Ob die Datei vollständig angekommen ist und noch irgendwo liegt, kann das
+Meldebuch nicht wissen; siehe
 [Gespeichert, Entwurf und Sicherung](#gespeichert-entwurf-und-sicherung).
 
 **Neue Version.** Erscheint „Update verfügbar“, ist eine neue Version
@@ -240,21 +244,23 @@ nicht; so eine Uhrzeit nimmt das Formular nicht an.
 Ein Einsatz sollte nur in einem Tab oder Fenster bearbeitet werden. Passiert
 es doch, überschreibt das Meldebuch nichts stillschweigend:
 
-![Hinweis NICHT GESPEICHERT](img/notfunk-nicht-gespeichert.png)
-
 - **„NICHT GESPEICHERT – … wurde inzwischen geändert (z. B. in einem anderen
   Tab oder Fenster)“:** Die Meldung (oder der Einsatz) wurde zwischen dem
   Öffnen und dem Speichern woanders geändert. Es wurde **nichts**
   geschrieben, die aktuelle Fassung ist geladen, Ihre Eingabe steht noch im
   Formular. Prüfen und erneut speichern; übernommen werden dann nur die
   Felder, die Sie selbst geändert haben.
+
+    ![Hinweis NICHT GESPEICHERT](img/notfunk-nicht-gespeichert.png)
+
 - **„ENTWURF NICHT GESICHERT – In einem anderen Tab oder Fenster liegt ein
   anderer Entwurf für diesen Einsatz“:** Zwei Tabs haben je einen Entwurf.
   Wählen Sie „Meinen Entwurf sichern (ersetzt den anderen)“ oder „Den
   anderen Entwurf laden (ersetzt meine Eingabe)“. Es gibt immer nur einen
   Entwurf je Einsatz.
 
-![Hinweis ENTWURF NICHT GESICHERT](img/notfunk-entwurf-nicht-gesichert.png)
+    ![Hinweis ENTWURF NICHT GESICHERT](img/notfunk-entwurf-nicht-gesichert.png)
+
 
 - **„ENTWURF PRÜFEN – Dieser Entwurf stammt aus einer älteren Version des
   Werkzeugs …“:** Ein Entwurf, der eine gespeicherte Meldung bearbeitet, wurde
@@ -264,7 +270,8 @@ es doch, überschreibt das Meldebuch nichts stillschweigend:
   verwerfen (gespeicherte Fassung laden)“ gilt die gespeicherte Fassung.
   Bis zur Wahl wird nichts gespeichert.
 
-![Hinweis ENTWURF PRÜFEN](img/notfunk-entwurf-pruefen.png)
+    ![Hinweis ENTWURF PRÜFEN](img/notfunk-entwurf-pruefen.png)
+
 
 - **„ENTWURF – Die Meldung, die dieser Entwurf bearbeitet, gibt es in diesem
   Einsatz nicht mehr“:** Der Entwurf steht im Formular und würde als **neue**
@@ -386,8 +393,8 @@ Zeitraum (Von/Bis je Datum und Uhrzeit; nur ein Datum = der ganze Tag).
   gehen): siehe [Speichern, Hinweise, Verwerfen](#speichern-hinweise-verwerfen).
 - **Download gestartet ist nicht Sicherung aufbewahrt.** „Download der
   Sicherung (JSON) gestartet“ und die Zeit im Sicherungsstand heißen: Das
-  Meldebuch hat den Download angestoßen. Ob die Datei vollständig ist und wo sie liegt, weiß das
-  Meldebuch nicht. Legen Sie die Datei an einen Ort, den Sie kontrollieren
+  Meldebuch hat den Download angestoßen. Ob die Datei vollständig ist und
+  wo sie liegt, weiß das Meldebuch nicht. Legen Sie die Datei an einen Ort, den Sie kontrollieren
   (anderer Datenträger, USB-Stick, anderer Rechner), und probieren Sie den
   Import aus.
 - **Import:** Die Datei wird vollständig geprüft, bevor etwas geschrieben
