@@ -336,7 +336,8 @@ have not verified them, and the workflow only enforces its own budget,
 carries its data), so `main`, 3 releases and `data-latest` take roughly 250 MB
 and about 13 open pull request previews fit. When the budget would be
 exceeded the deploy fails with a message that lists the entries and their
-sizes, and the pull request gets a comment that the site is full: close pull
+sizes, and the pull request gets a comment that the site is full (the job
+stays red on purpose, so the PR check shows it): close pull
 requests, or lower `PAGES_MAX_RELEASES` (default 3; raise it if there is
 room). A release that cannot be fetched (no or two `.sha256` assets, which is
 how `data-latest` looks for a moment during its weekly asset swap, a checksum

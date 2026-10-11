@@ -32,6 +32,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import zlib
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -162,7 +163,7 @@ def main(argv=None) -> int:
             # its old entry, which stays on the keep list. Never published unverified.
             try:
                 got = fetch_one(a.slug, tag, work, have.get((kind, tag), ""))
-            except SystemExit as e:
+            except (SystemExit, tarfile.TarError, OSError, EOFError, zlib.error) as e:
                 print(f"::warning title=Pages: {tag} skipped::{oneline(e)}")
                 shutil.rmtree(work / tag, ignore_errors=True)
                 continue
