@@ -237,9 +237,20 @@ now redirected; see "Move to /tools/" in `../shared/README.md`), and the source 
   anything is read into the page or written, with a German message: a file
   over 50 MB (`BACKUP_MAX_BYTES`, ~10x a 5000-line log with all versions),
   more than 200000 lines and versions together (`BACKUP_MAX_RECORDS`).
-  Texts of a line (note, comment) have no limit of their own: what the tool
-  stored and exported must import again. The import transaction stays atomic
-  as before.
+  Texts of a line (note, comment) have no limit of their own, so a backup
+  the tool itself writes must always be restorable: an export beyond these
+  limits is written in **parts** (`backupTexts()`, `tools/shared/js/backup-parts.js`;
+  each part below 40 MB / 150000 records, named `..._teil-N-von-M.json`, a
+  valid backup file with an extra `part: { set, n, of }`; the log's own record
+  is repeated in every part, lines and versions are divided in order). The
+  import (`<input multiple>`) takes the parts together: `groupParts()` checks
+  the set is complete (a missing, doubled or lone part writes nothing),
+  `combineBackupParts()` puts the items of the same log together, and the
+  result goes through the usual `validateBackup(..., { combined: true })` and
+  ONE atomic `planBackupImport()` write, ids, revisions and counters as
+  exported. The limits apply per file; a backup within them is one file as
+  before. The import transaction stays atomic as before. Test:
+  `tests/backup-parts.test.mjs`.
 
 ## Operator comments and log markers (issue #32)
 

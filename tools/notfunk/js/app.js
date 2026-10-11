@@ -35,7 +35,8 @@ import {
   repliesTo, fmtVienna, viennaTime, zoneHint, normFreq, fmtFreq,
 } from './model.js';
 import { normalizePrefix, PREFIX_RE, nextSeq, formatNumber, counterKey } from './numbering.js';
-import { toGeschaeftsbuchCSV, toBackup, parseBackup, BACKUP_MAX_BYTES } from './export.js';
+import { toGeschaeftsbuchCSV, toBackupTexts, checkBackup, combineBackupParts, BACKUP_MAX_BYTES } from './export.js';
+import { groupParts, partFileName } from '../../shared/js/backup-parts.js';
 import { saveNewMessage, updateMessage, changedFields, editBaseOf, editTarget, draftEditState, applyBackup, patchOperation, writeDraft, clearDraft } from './ops.js';
 import {
   emptyForm, setDirection, formToFields, formIsBlank, messageToForm, replyForm, nextStep, statusSteps, bookSummary, partyText,
@@ -1559,8 +1560,15 @@ async function exportBackup() {
     data = { operation: state.op, messages: state.msgs, revisions: state.revisions, counters: state.counter ? [state.counter] : [] };
   }
   const now = nowIso();
-  download(toBackup(data, now), `${fileStem()}-sicherung.json`, 'application/json');
-  bookStatus(fromMemory ? 'Download der Sicherung (JSON) gestartet – der Speicher war nicht lesbar, sie enthält den Stand dieses Tabs' : 'Download der Sicherung (JSON) gestartet');
+  // one file, or - beyond what an import accepts (50 MB, 200000 records) -
+  // several parts, imported together; nothing is left out
+  const texts = toBackupTexts(data, now, newId());
+  for (const [i, text] of texts.entries()) {
+    if (i) await new Promise(r => setTimeout(r, 400)); // browsers ask before many downloads at once
+    download(text, texts.length === 1 ? `${fileStem()}-sicherung.json` : partFileName(`${fileStem()}-sicherung`, i + 1, texts.length), 'application/json');
+  }
+  const parts = texts.length > 1 ? ` – wegen der Größe in ${texts.length} Dateien geteilt: beim Import alle Teile gemeinsam auswählen` : '';
+  bookStatus(fromMemory ? `Download der Sicherung (JSON) gestartet${parts} – der Speicher war nicht lesbar, sie enthält den Stand dieses Tabs` : `Download der Sicherung (JSON) gestartet${parts}`);
   await updateOp(state.op, { backupAt: now });
   renderBackupChip();
 }
@@ -1587,35 +1595,70 @@ function showImportMsg(cls, ...content) {
   box.hidden = false;
 }
 
-async function importBackup(file) {
-  if (file.size > BACKUP_MAX_BYTES) {
-    showImportMsg('err', el('strong', {}, 'Nicht importiert: '), `„${file.name}“ ist ${Math.round(file.size / 1048576)} MB groß; mehr als ${BACKUP_MAX_BYTES / 1048576} MB werden nicht importiert (zu groß für diesen Browser) – es wurde nichts geändert.`);
-    return;
+// One or more selected files: single backups as before, the parts of a backup
+// written in parts only all together, each set in ONE atomic write (a file or
+// set with a problem writes nothing).
+async function importFiles(files) {
+  const loaded = [];
+  const results = [];
+  const bad = (...msg) => results.push({ cls: 'err', content: [el('strong', {}, 'Nicht importiert: '), ...msg] });
+  for (const file of files) {
+    if (file.size > BACKUP_MAX_BYTES) {
+      bad(`„${file.name}“ ist ${Math.round(file.size / 1048576)} MB groß; mehr als ${BACKUP_MAX_BYTES / 1048576} MB werden nicht importiert (zu groß für diesen Browser) – es wurde nichts geändert.`);
+      continue;
+    }
+    try {
+      loaded.push({ name: file.name, data: JSON.parse(await file.text()) });
+    } catch {
+      bad(`„${file.name}“: Keine gültige JSON-Datei.`);
+    }
   }
-  let backup;
-  try {
-    backup = parseBackup(await file.text());
-  } catch (e) {
-    showImportMsg('err', el('strong', {}, 'Nicht importiert: '), `„${file.name}“: ${e.message}.`);
-    return;
+  const { singles, sets, errors } = groupParts(loaded);
+  for (const m of errors) bad(m);
+  for (const f of singles) {
+    let backup;
+    try {
+      backup = checkBackup(f.data);
+    } catch (e) {
+      bad(`„${f.name}“: ${e.message}.`);
+      continue;
+    }
+    results.push(await restore(backup));
   }
+  for (const set of sets) {
+    let backup;
+    try {
+      backup = combineBackupParts(set.files.map(f => f.data));
+    } catch (e) {
+      bad(`${set.files.length} Teile (${set.files[0].name} …): ${e.message}.`);
+      continue;
+    }
+    results.push(await restore(backup));
+  }
+  if (results.length === 1) showImportMsg(results[0].cls, ...results[0].content);
+  else if (results.length) showImportMsg(results.some(r => r.cls === 'err') ? 'err' : results.some(r => r.cls === 'warn') ? 'warn' : 'ok', el('ul', {}, results.map(r => el('li', {}, ...r.content))));
+  renderOps();
+}
+
+async function restore(backup) {
   let r;
   try {
     // the merge decision and its writes in one transaction, on what is stored now
     r = await applyBackup(state.store, backup);
   } catch (e) {
     showSaveError(e);
-    return;
+    return { cls: 'err', content: [el('strong', {}, 'Nicht importiert: '), 'Beim Speichern ist ein Fehler aufgetreten – es wurde nichts verändert.'] };
   }
   broadcast({ type: 'ops' });
   broadcast({ type: 'msgs', opId: backup.operation.id });
   const left = backup.dropped || [];
-  showImportMsg(r.conflicts.length || r.unlinked.length || left.length ? 'warn' : 'ok',
-    `„${backup.operation.name}“: ${r.added} Meldungen neu, ${r.updated} aktualisiert. `,
-    r.conflicts.length ? el('strong', {}, `Nicht übernommen (Nummer oder ID schon mit anderer Meldung belegt): ${r.conflicts.join(', ')}. `) : null,
-    r.unlinked.length ? el('strong', {}, `Nicht übernommen (Bezug auf eine Meldung, die fehlt oder nicht übernommen wurde): ${r.unlinked.join(', ')}. `) : null,
-    left.length ? el('strong', {}, `Aus der Datei ausgelassen (${left.length}): ${left.map(x => `${x.what} (${x.why})`).join('; ')}. `) : null);
-  renderOps();
+  return {
+    cls: r.conflicts.length || r.unlinked.length || left.length ? 'warn' : 'ok',
+    content: [`„${backup.operation.name}“: ${r.added} Meldungen neu, ${r.updated} aktualisiert. `,
+      r.conflicts.length ? el('strong', {}, `Nicht übernommen (Nummer oder ID schon mit anderer Meldung belegt): ${r.conflicts.join(', ')}. `) : null,
+      r.unlinked.length ? el('strong', {}, `Nicht übernommen (Bezug auf eine Meldung, die fehlt oder nicht übernommen wurde): ${r.unlinked.join(', ')}. `) : null,
+      left.length ? el('strong', {}, `Aus der Datei ausgelassen (${left.length}): ${left.map(x => `${x.what} (${x.why})`).join('; ')}. `) : null],
+  };
 }
 
 /* ---------------------------------------------------------------- tabs, data, footer */
@@ -1680,9 +1723,9 @@ function wire() {
   }
   $('#btn-import').addEventListener('click', () => $('#import-file').click());
   $('#import-file').addEventListener('change', ev => {
-    const f = ev.target.files[0];
+    const files = [...ev.target.files];
     ev.target.value = '';
-    if (f) importBackup(f);
+    if (files.length) importFiles(files);
   });
   $('#btn-back').addEventListener('click', () => { location.hash = '#/'; });
   $('#btn-msg-back').addEventListener('click', () => { location.hash = `#/e/${state.op.id}`; });

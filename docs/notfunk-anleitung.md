@@ -386,6 +386,12 @@ Zeitraum (Von/Bis je Datum und Uhrzeit; nur ein Datum = der ganze Tag).
   Tabs“. Auf der Startseite mit „Sicherung importieren…“ wieder einspielen,
   auch auf einem anderen Gerät. Bücher mehrerer Geräte lassen sich so
   zusammenführen, wenn jedes Gerät ein eigenes Stationskürzel hat.
+  Ist die Sicherung sehr groß (über 50 MB oder 200000 Meldungen und
+  Fassungen), wird sie beim Herunterladen automatisch in mehrere Dateien
+  „…_teil-1-von-3.json“ usw. geteilt, nichts geht verloren. Beim Importieren
+  **alle Teile gemeinsam auswählen** (mehrere Dateien markieren): sie werden
+  wie eine einzige Sicherung, ganz oder gar nicht, übernommen. Fehlt ein Teil,
+  wird nichts importiert und die Meldung nennt den fehlenden Teil.
 
 ### Gespeichert, Entwurf und Sicherung
 

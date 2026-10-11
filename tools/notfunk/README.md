@@ -208,7 +208,23 @@ than 200000 messages and revisions together (`BACKUP_MAX_RECORDS`), a message
 included, must import again). `MESSAGE_TEXT_MAX` (50000 characters of Inhalt)
 stops a message being saved in the form ("Inhalt ist zu
 lang ..."); a radio message is a few hundred characters, the limit only stops
-pasted files. Imports stay atomic (`applyBackup`).
+pasted files. It applies to the text typed now: an existing (restored or
+imported) longer Inhalt stays editable as long as the Inhalt itself is not
+changed (`validateMessage(f, { keepText })`, `formToFields(..., { keepText })`).
+Imports stay atomic (`applyBackup`).
+
+A backup the tool exports must always be restorable, so an export beyond
+these limits (e.g. 1100 messages of 50000 characters = 56 MB) is written in
+**parts** (`toBackupTexts()`, `tools/shared/js/backup-parts.js`): each part
+below 40 MB / 150000 records, named `..._teil-N-von-M.json`, a valid backup file
+with an extra `part: { set, n, of }`, operation and counters in every part,
+messages first and then the revisions. The import (`<input multiple>`) takes
+the parts together: `groupParts()` checks the set is complete (a missing,
+doubled or lone part writes nothing), `combineBackupParts()` puts them
+together (counters: the highest), then the usual `checkBackup()` and ONE
+atomic `applyBackup()`; ids, revisions and counters as exported. The limits
+apply per file; a backup within them is one file as before. Test:
+`tests/backup-parts.test.mjs`.
 
 ## App identity
 

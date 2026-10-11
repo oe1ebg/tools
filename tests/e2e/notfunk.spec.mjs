@@ -564,3 +564,55 @@ test('draft restore keeps a Stichzeit typed as 1405', async ({ page }) => {
   await page.reload();
   await expect(page.locator('#m-stichzeit')).toHaveValue('mitta');
 });
+
+// Issue #15 review: a backup the tool wrote must be restorable. 1100 messages
+// of 50000 characters (~56 MB) exceed the import limit as one file, so the
+// export is written in parts; selected together they restore everything.
+test('a backup beyond the import limit is exported in parts and restored from them', async ({ page, browser, baseURL }, testInfo) => {
+  test.setTimeout(240_000);
+  await openNewOp(page, 'E2E Groß', 'G1');
+  await page.evaluate(async () => {
+    const { newMessage, messageFields } = await import(new URL('js/model.js', location.href).href);
+    const { formatNumber } = await import(new URL('js/numbering.js', location.href).href);
+    const open = await new Promise((res, rej) => { const r = indexedDB.open('oe1ebg-notfunk'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+    const op = await new Promise(res => { const q = open.transaction('operations').objectStore('operations').getAll(); q.onsuccess = () => res(q.result[0]); });
+    const t = open.transaction(['messages', 'counters'], 'readwrite');
+    const text = 'x'.repeat(50000);
+    for (let i = 1; i <= 1100; i++) {
+      const f = messageFields({ direction: 'in', ts: '2026-10-04T16:00:00.000Z', channel: 'funk', radio: { freq: '145.500' }, peer: 'OE1ABC', from: { name: 'Lichtinsel' }, to: { name: 'Stab' }, subject: `Groß ${i}`, text });
+      t.objectStore('messages').put(newMessage(f, { prefix: op.prefix, seq: i, number: formatNumber(op.prefix, i) }, { id: `big${i}`, opId: op.id, operator: 'OE1EBG', stationCall: '', now: '2026-10-04T16:00:00.000Z' }));
+    }
+    t.objectStore('counters').put({ id: `${op.id}:${op.prefix}`, eventId: op.id, prefix: op.prefix, last: 1100 });
+    await new Promise((res, rej) => { t.oncomplete = res; t.onerror = () => rej(t.error); });
+    open.close();
+  });
+  await page.reload();
+  await expect(page.locator('#book-body tr[data-id]')).toHaveCount(1100);
+  const downloads = [];
+  page.on('download', d => downloads.push(d));
+  await page.locator('#btn-backup').click();
+  await expect.poll(() => downloads.length, { timeout: 120_000 }).toBeGreaterThanOrEqual(2);
+  const paths = [];
+  for (const d of downloads) {
+    expect(d.suggestedFilename()).toMatch(/_teil-\d+-von-\d+\.json$/);
+    const p = testInfo.outputPath(d.suggestedFilename());
+    await d.saveAs(p);
+    paths.push(p);
+  }
+  // a fresh browser profile: one part alone is refused, all together restore the operation
+  const ctx = await browser.newContext({ baseURL, locale: 'de-AT', timezoneId: 'Europe/Vienna' });
+  try {
+    const b = await ctx.newPage();
+    await b.goto('tools/notfunk/');
+    await expect.poll(() => b.evaluate(() => globalThis.NOTFUNK_READY === true)).toBe(true);
+    await b.locator('#import-file').setInputFiles(paths.slice(0, 1));
+    await expect(b.locator('#import-msg')).toContainText('es fehlen die Teile');
+    await expect(b.locator('#import-msg')).toContainText('nichts importiert');
+    await b.locator('#import-file').setInputFiles(paths);
+    await expect(b.locator('#import-msg')).toContainText('1100 Meldungen neu', { timeout: 120_000 });
+    await b.getByRole('button', { name: /„E2E Groß“ öffnen/ }).click();
+    await expect(b.locator('#book-body tr[data-id]')).toHaveCount(1100);
+  } finally {
+    await ctx.close();
+  }
+});

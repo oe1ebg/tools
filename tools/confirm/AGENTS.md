@@ -107,6 +107,14 @@ are in `oe1ebg/tools/confirm/README.md`.
   `js/export.js`, which resolves like the map. A zone-less input takes its
   zone from `utmRef()` (set by `app.js` from the log header), default 33U.
   Details: README "UTMREF".
+- **Backups always restorable.** The import limits (50 MB / 200000 records)
+  must never make the tool's own export unrestorable: `backupTexts()` splits
+  an export beyond them into parts (`part: { set, n, of }`) that the multi-file
+  import puts together (`groupParts()`, `combineBackupParts()`) for ONE atomic
+  `planBackupImport()` write; never block an export or add a limit without a
+  restore path (`tests/backup-parts.test.mjs`). An edited, deleted or restored
+  line always gets a later `updated` (`laterIso()`): the log's row cache
+  compares it (a stalled clock must not keep a stale row).
 - **Saved / draft / backup wording:** "gespeichert" only after the commit; a
   draft is never called saved; "Sicherung" texts say a download was started,
   never that a backup is kept or safe; import is all-or-nothing, copy-on-
