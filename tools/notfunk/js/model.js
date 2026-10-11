@@ -109,8 +109,10 @@ export function messageFields(f) {
 // Longest Inhalt (characters): a radio message is a few hundred, this only stops pasted files.
 export const MESSAGE_TEXT_MAX = 50000;
 
-// lenient: an imported or already stored message (the limit applies to what is typed now)
-export function validateMessage(f, { lenient = false } = {}) {
+// lenient: an imported or already stored message (the limit applies to what is typed now).
+// keepText: the stored Inhalt of a message being edited; unchanged text passes
+// the length limit (an old or restored message stays editable, e.g. its Referenz).
+export function validateMessage(f, { lenient = false, keepText = null } = {}) {
   const errs = [];
   if (!(f.direction in DIRECTIONS)) errs.push('Eingang oder Ausgang wählen');
   if (!ISO_RE.test(f.ts || '')) errs.push('Zeit fehlt oder ist ungültig');
@@ -121,7 +123,7 @@ export function validateMessage(f, { lenient = false } = {}) {
   if (!f.to.name && !f.to.call) errs.push('Adressat fehlt');
   // (the form asks for both; older records may have only one of them)
   if (!f.text && !f.subject) errs.push('Betreff oder Inhalt fehlt');
-  if (!lenient && f.text.length > MESSAGE_TEXT_MAX) errs.push(`Inhalt ist zu lang (höchstens ${MESSAGE_TEXT_MAX} Zeichen, jetzt ${f.text.length})`);
+  if (!lenient && f.text.length > MESSAGE_TEXT_MAX && f.text !== keepText) errs.push(`Inhalt ist zu lang (höchstens ${MESSAGE_TEXT_MAX} Zeichen, jetzt ${f.text.length})`);
   for (const k of ['stichzeit']) if (f[k] && !ISO_RE.test(f[k])) errs.push('Stichzeit ist ungültig');
   if (f.origin.filed && !ISO_RE.test(f.origin.filed)) errs.push('Aufgabezeit ist ungültig');
   return errs;
@@ -163,7 +165,7 @@ export function newMessage(fields, numbered, meta) {
 // previous version as it was; identity, number and history are kept.
 export function editMessage(msg, changes, { revisionId, operator, now }) {
   const f = messageFields({ ...msg, ...changes });
-  const errs = validateMessage(f);
+  const errs = validateMessage(f, { keepText: msg.text });
   if (errs.length) throw new Error(errs.join('; '));
   const next = { ...msg, ...f, updated: now, editedBy: trimmed(operator).toUpperCase() };
   const revision = { id: revisionId, eventId: msg.eventId, messageId: msg.id, at: now, by: next.editedBy, old: msg };
