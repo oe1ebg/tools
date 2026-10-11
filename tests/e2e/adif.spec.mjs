@@ -4,6 +4,9 @@ import { fileURLToPath } from 'node:url';
 import { test, expect, downloadText } from './fixtures.mjs';
 import { readADI } from '../adif-spec.mjs';
 import { validateAdif } from '../../tools/shared/js/adif-validate.js';
+import { parseADIFAuto } from '../../tools/shared/js/adif.js';
+import { serializeADIF } from '../../tools/adif/js/export.js';
+import { readFileSync } from 'node:fs';
 
 const SAMPLE = fileURLToPath(new URL('fixtures/sample.adi', import.meta.url));
 
@@ -201,4 +204,110 @@ test('filters the large official log; the export keeps all 6197 QSOs', { tag: '@
   await page.locator('#btn-export').click();
   const check = validateAdif(await downloadText(await adiDownload), { today: '20991231' });
   expect(check.records).toHaveLength(6197);
+});
+
+/* ---------- big imports: progress, cancel, limits, re-check (issue #15) ---------- */
+
+// n QSOs of 180 fields made from the official test QSOs (as scripts/bench_ui.mjs does)
+function bigAdi(n) {
+  const base = parseADIFAuto(readFileSync(OFFICIAL, 'utf8'), [], 'test-qsos.adi', {});
+  const recs = [];
+  for (let i = 0; recs.length < n; i++) {
+    const r = { ...base[i % base.length] };
+    if (r.CALL) r.CALL = `${r.CALL}${i % 10}`.slice(0, 13);
+    recs.push(r);
+  }
+  const cols = [...new Set(recs.flatMap(r => Object.keys(r)))];
+  return { name: 'big.adi', mimeType: 'application/octet-stream', buffer: Buffer.from(serializeADIF(recs, cols, '2026-01-01T00:00:00Z')) };
+}
+
+test('a big import shows its progress and finishes', { tag: '@adif' }, async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.goto('tools/adif/');
+  // what the progress line said, in order
+  await page.evaluate(() => {
+    window.__seen = [];
+    new MutationObserver(() => window.__seen.push(document.querySelector('#import-text').textContent))
+      .observe(document.querySelector('#import-text'), { childList: true, characterData: true, subtree: true });
+  });
+  await page.locator('#file-input').setInputFiles(bigAdi(30000));
+  const progress = page.locator('#import-progress');
+  await expect(progress).toBeVisible();
+  await expect(page.locator('#import-bar')).toHaveAttribute('max', '100');
+  await expect(page.getByRole('button', { name: 'Cancel' })).toBeFocused(); // keyboard users can cancel at once
+  await expect(page.locator('#stats')).toContainText('30000 QSOs', { timeout: 120_000 });
+  await expect(progress).toBeHidden();
+  await expect(page.locator('#btn-open')).toBeEnabled();
+  const seen = await page.evaluate(() => window.__seen);
+  expect(seen.some(t => /Reading big\.adi: [\d,]+ QSOs read \(\d+ %\)/.test(t))).toBe(true);
+  expect(seen.some(t => /Checking big\.adi: [\d,]+ of 30,000 QSOs \(\d+ %\)/.test(t))).toBe(true);
+  await expect(page.locator('#validation-summary')).toContainText('ADIF');
+});
+
+test('cancelling a big import leaves the loaded log as it was', { tag: '@adif' }, async ({ page }) => {
+  test.setTimeout(180_000);
+  await loadSample(page);
+  // the user presses Cancel once the import has read something: done in the
+  // page at that moment, so the test does not race the import's speed
+  await page.evaluate(() => {
+    const line = document.querySelector('#import-text');
+    new MutationObserver(() => {
+      if (/QSOs read/.test(line.textContent)) document.querySelector('#btn-cancel-import').click();
+    }).observe(line, { childList: true, characterData: true, subtree: true });
+  });
+  await page.locator('#file-input').setInputFiles(bigAdi(100000));
+  await expect(page.locator('#import-progress')).toBeHidden({ timeout: 30_000 });
+  await expect(page.locator('#warnings')).toContainText('Import cancelled; the log is unchanged.');
+  await expect(page.locator('#stats')).toContainText(/^3 QSOs/);
+  await expect(page.locator('#file-info')).toHaveText('sample.adi: ADIF 3.1.7');
+  await expect(page.locator('#drop tbody')).toContainText('OE3XYZ');
+  await expect(page.locator('#btn-open')).toBeEnabled();
+  // the editor still works: the same big file can be added again afterwards
+  await expect(page.locator('#validation-summary')).toContainText('ADIF');
+});
+
+test('Escape cancels a running import', { tag: '@adif' }, async ({ page }) => {
+  test.setTimeout(180_000);
+  await loadSample(page);
+  await page.locator('#file-input').setInputFiles(bigAdi(200000));
+  await expect(page.locator('#import-progress')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#import-progress')).toBeHidden({ timeout: 30_000 });
+  await expect(page.locator('#stats')).toContainText(/^3 QSOs/);
+});
+
+test('a file over a limit is refused with a message and the log stays', { tag: '@adif' }, async ({ page }) => {
+  await loadSample(page);
+  const huge = `<CALL:5>OE1AB <NOTES:150000>${'x'.repeat(150000)} <EOR>\n`;
+  await page.locator('#file-input').setInputFiles({ name: 'huge-value.adi', mimeType: 'text/plain', buffer: Buffer.from(huge) });
+  await expect(page.locator('#warnings')).toContainText('huge-value.adi: not loaded, NOTES in QSO 1 has 150,000 characters, the editor takes values up to 100,000.');
+  await expect(page.locator('#warnings')).toContainText('The log is unchanged');
+  await expect(page.locator('#stats')).toContainText(/^3 QSOs/);
+  await expect(page.locator('#import-progress')).toBeHidden();
+});
+
+test('an edit during a re-check supersedes it; the result is the check of the current log', { tag: '@adif' }, async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.goto('tools/adif/');
+  await page.locator('#file-input').setInputFiles(bigAdi(30000));
+  await expect(page.locator('#stats')).toContainText('30000 QSOs', { timeout: 120_000 });
+  await expect(page.locator('#validation-summary')).toContainText('ADIF');
+  const band = page.locator('#drop tbody tr[data-ri="0"] td[data-col="BAND"]');
+  const box = page.locator('#validation');
+  // 1st edit: an invalid band; its re-check starts after the debounce
+  await band.click();
+  await band.fill('zz');
+  await band.press('Enter');
+  await expect(box).toHaveClass(/is-checking/);
+  await page.waitForTimeout(400); // the check is running now (30000 QSOs take longer than that)
+  // 2nd edit, during the check: the value is taken at once, and the editor answers
+  const band0 = page.locator('#drop tbody tr[data-ri="0"] td[data-col="BAND"]');
+  await band0.click();
+  await band0.fill('20m');
+  await band0.press('Enter');
+  await expect(box).toHaveClass(/is-checking/);
+  await expect(box).not.toHaveClass(/is-checking/, { timeout: 120_000 });
+  // the finished check is the one of the log with "20m": nothing is flagged in that cell
+  await expect(band0).not.toHaveClass(/cell-error/);
+  await expect(page.locator('#validation-summary')).toContainText('current log');
 });

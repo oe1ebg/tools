@@ -73,7 +73,7 @@ export class VirtualBody {
     const height = this.scroller.clientHeight || 600;
     const rh = this.rowHeight || 28;
     const y = Math.max(0, this.scroller.scrollTop - this.bodyTop());
-    const over = Math.ceil(height / rh); // one screen above and below
+    const over = Math.ceil(height / rh / 2); // half a screen above and below
     let first = Math.max(0, Math.floor(y / rh) - over);
     let last = Math.min(n, Math.ceil((y + height) / rh) + over);
     if (first > last) first = last;

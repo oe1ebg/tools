@@ -97,6 +97,16 @@
 
 <div id="warnings" role="status"></div>
 
+<!-- A running import (js/app.js, js/load.js): progress and Cancel. The bar and
+     the line are for the eyes; the status region speaks every 10 %. -->
+<div id="import-progress" class="import-progress" role="group" aria-labelledby="import-title" hidden>
+  <strong id="import-title">Loading file(s)</strong>
+  <progress id="import-bar" max="100" value="0" aria-labelledby="import-title"></progress>
+  <span id="import-text"></span>
+  <button type="button" id="btn-cancel-import">Cancel</button>
+  <span id="import-live" class="sr-only" role="status"></span>
+</div>
+
 <!-- ADIF validation (../shared/js/adif-validate.js): summary, then the issue list on demand. -->
 <div id="validation" class="validation" hidden>
   <span id="validation-summary" role="status"></span>
