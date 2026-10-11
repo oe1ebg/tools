@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "repo": "oe1ebg/tools",
+  "generated": "2026-10-11T10:00:00Z",
+  "entries": [
+    {"kind": "main", "name": "main", "title": "main", "branch": "main", "sha": "724b54398a220f269b958d7379e48886ac2da86c", "updated": "2026-10-11T09:30:00Z", "version": "main"},
+    {"kind": "pr", "name": "42", "title": "Fix <b>the</b> \"thing\" & more", "branch": "fix/the-thing", "sha": "f06ff35aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "updated": "2026-10-10T18:00:00Z"},
+    {"kind": "pr", "name": "7", "title": "A very long title that should wrap nicely on a narrow phone screen without causing horizontal scrolling of the whole page", "branch": "feature/very-long-branch-name-that-also-needs-to-wrap-somewhere", "sha": "4f315efbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "updated": "2026-10-09T08:00:00Z"},
+    {"kind": "release", "name": "v1.2.0", "version": "v1.2.0", "sha": "9c129dd111111111111111111111111111111111", "updated": "2026-09-01T12:00:00Z", "sha256": "0000000000000000000000000000000000000000000000000000000000000000"},
+    {"kind": "release", "name": "v1.1.0", "version": "v1.1.0", "sha": "9d91078222222222222222222222222222222222", "updated": "2026-08-01T12:00:00Z"},
+    {"kind": "data", "name": "data-latest", "version": "v1.2.0", "sha": "9c129dd111111111111111111111111111111111", "updated": "2026-10-05T04:30:00Z"}
+  ]
+}

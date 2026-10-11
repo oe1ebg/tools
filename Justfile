@@ -217,18 +217,22 @@ screenshots *args:
     cd tests/e2e && npx playwright test --config shots.config.mjs {{args}}
 
 # Nu Html Checker on the tool pages in site/ (tests/e2e/vnu.sh; errors fail,
-# warnings are printed). Uses the pinned validator image when docker or
+# warnings are printed; plus the Pages index page). Uses the pinned validator image when docker or
 # podman is installed, as in CI; otherwise the vnu-jar npm package.
 [doc("HTML validation (Nu Html Checker) of the tool pages, needs `just build` first")]
 vnu:
     #!/usr/bin/env sh
     set -eu
+    # the GitHub Pages index (scripts/build_pages_index.py) is checked too
+    pages=$(mktemp -d)
+    trap 'rm -rf "$pages"' EXIT
+    python3 scripts/build_pages_index.py --manifest tests/fixtures/pages/entries.json --out "$pages"
     if [ "{{container_tool}}" != none ]; then
       image=$(awk '$1 == "FROM" && $4 == "vnu" { print $2 }' tests/e2e/images.Dockerfile)
-      {{container_tool}} run --rm -v "$PWD/site:/site:ro" -v "$PWD/tests/e2e:/e2e:ro" "$image" sh /e2e/vnu.sh /site
+      {{container_tool}} run --rm -v "$PWD/site:/site:ro" -v "$PWD/tests/e2e:/e2e:ro" -v "$pages:/pages:ro" "$image" sh /e2e/vnu.sh /site /pages/index.html /pages/404.html
     else
       npm install --prefix .e2e --no-save --no-package-lock --no-audit --no-fund vnu-jar
-      VNU="java -jar .e2e/node_modules/vnu-jar/build/dist/vnu.jar" sh tests/e2e/vnu.sh site
+      VNU="java -jar .e2e/node_modules/vnu-jar/build/dist/vnu.jar" sh tests/e2e/vnu.sh site "$pages/index.html" "$pages/404.html"
     fi
 
 # Remove generated files (keeps .cache/, so the data steps stay cheap).

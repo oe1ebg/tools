@@ -1,15 +1,18 @@
 #!/bin/sh
 # Nu Html Checker (vnu) on the built tool pages (issue #57).
 #
-#   vnu.sh <docroot>      e.g. site/ (`just build`) or the production image's
-#                         /usr/share/nginx/html copied out by CI
+#   vnu.sh <docroot> [file.html ...]
+#                         <docroot>: e.g. site/ (`just build`) or the production
+#                         image's /usr/share/nginx/html copied out by CI;
+#                         further files (the Pages index, `just vnu`) are checked too
 #
 # VNU is the checker command (default: `vnu`, as in the validator image;
 # locally e.g. VNU="java -jar .e2e/vnu.jar"). Errors fail (exit 1),
 # warnings are printed only. Messages listed in vnu-filter.txt are dropped.
 set -eu
 
-root=${1:?usage: vnu.sh <docroot>}
+root=${1:?usage: vnu.sh <docroot> [file.html ...]}
+shift
 here=$(cd "$(dirname "$0")" && pwd)
 vnu=${VNU:-vnu}
 
@@ -22,5 +25,6 @@ $vnu --filterfile "$here/vnu-filter.txt" \
   "$root/tools/notfunk/notfunk-offline.html" \
   "$root/tools/adif/index.html" \
   "$root/tools/adif/adif-editor.html" \
-  "$root/tools/sota-alerts/index.html"
+  "$root/tools/sota-alerts/index.html" \
+  "$@"
 echo "vnu: no errors"

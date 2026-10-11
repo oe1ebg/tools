@@ -1,0 +1,247 @@
+name: Pages previews
+
+# GitHub Pages site from the `gh-pages` branch (README.md, "GitHub Pages
+# previews"): /main/ (latest build of main), /pr/<N>/ (one per open pull
+# request of this repository), /release/<tag>/ (the published release
+# tarballs, unpacked) and /release/data-latest/, plus a generated index at
+# the root. All entries share ONE browser origin: not for real data.
+#
+#   build     (read-only) builds site/tools/ like ci.yml's `bundle` for a PR
+#             or a push to main; runs the PR's code, so it has no write token
+#   releases  (read-only) downloads and verifies the release tarballs that
+#             the site does not have yet (scripts/pages_releases.py)
+#   deploy    (contents: write) treats both artifacts as data, runs only the
+#             scripts of the DEFAULT BRANCH, and replaces gh-pages with one
+#             orphan commit (scripts/pages_publish.py)
+#
+# Closing a PR removes its preview; the daily run also drops previews of
+# PRs that are not open any more and releases that are gone.
+#
+# One-time setting for the maintainer (not done by this workflow): Settings,
+# Pages, "Deploy from a branch", branch `gh-pages`, folder `/ (root)`.
+# No third-party deploy action: plain git in scripts/pages_publish.py.
+
+on:
+  pull_request:
+    branches: [ "main" ]
+    types: [ opened, reopened, synchronize, closed ]
+  push:
+    branches: [ "main" ]
+  release:
+    types: [ published, edited, deleted ]
+  # Releases and the data-latest refresh are written by workflows with the
+  # GITHUB_TOKEN, which does not fire `release` events: follow those runs.
+  workflow_run:
+    workflows: [ "Release", "Weekly data rebuild" ]
+    types: [ completed ]
+  workflow_dispatch:
+  schedule:
+    - cron: '40 3 * * *'
+
+permissions:
+  contents: read
+
+# GitHub keeps ONE pending run per concurrency group and cancels the older
+# pending ones, so a single global group would silently drop deployments
+# (a PR's preview, replaced in the queue by another PR's). Therefore: per
+# entry here (a newer run of the same PR or of main replaces an older pending
+# one, which is what we want; running ones are never cancelled), and the
+# writes to gh-pages are serialized by git itself: the push is a compare-and-
+# swap (--force-with-lease) and a lost race is applied again on the new
+# state (scripts/pages_publish.py).
+concurrency:
+  group: pages-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.event_name == 'push' && 'main' || 'sync' }}
+  cancel-in-progress: false
+
+jobs:
+  # A PR of this repository, not of a fork (no write token there) and not
+  # Dependabot's (read-only token): only those get a preview.
+  build:
+    if: >-
+      (github.event_name == 'pull_request' && github.event.action != 'closed'
+        && github.event.pull_request.head.repo.full_name == github.repository
+        && github.actor != 'dependabot[bot]')
+      || github.event_name == 'push'
+      || (github.event_name == 'workflow_dispatch' && github.ref_name == github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+
+      - name: Data epoch
+        id: epoch
+        run: echo "week=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
+
+      # the same cache as ci.yml's `bundle`
+      - name: Data download cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache
+          key: data-${{ steps.epoch.outputs.week }}
+          restore-keys: data-
+
+      # A PR preview is the PR merged into main (the checkout's merge
+      # commit, as in ci.yml); its footer names the PR's head commit.
+      - name: Build the bundle
+        env:
+          GIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          TOOLS_VERSION: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'main' }}
+        run: uvx --from rust-just just build
+
+      - name: Upload the bundle
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pages-entry
+          path: site/tools/
+          retention-days: 1
+          if-no-files-found: error
+
+  releases:
+    if: >-
+      github.event_name == 'release'
+      || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+      || github.event_name == 'workflow_dispatch'
+      || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout the default branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Releases the site does not have yet
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SLUG: ${{ github.repository }}
+          MAX_RELEASES: ${{ vars.PAGES_MAX_RELEASES || '5' }}
+        run: |
+          set -euo pipefail
+          [ -f scripts/pages_releases.py ] || { echo "::notice::scripts/pages_releases.py is not on the default branch yet"; mkdir out; echo "[]" > out/ops.json; exit 0; }
+          if git fetch --depth=1 origin gh-pages && git show FETCH_HEAD:entries.json > current.json; then :; else echo '{}' > current.json; fi
+          python3 scripts/pages_releases.py --slug "$SLUG" --out out --current current.json \
+            --max-releases "$MAX_RELEASES" --dir-prefix releases/
+
+      - name: Upload the releases
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pages-releases
+          path: out/
+          retention-days: 1
+          if-no-files-found: ignore
+
+  deploy:
+    needs: [ build, releases ]
+    # Not for fork or Dependabot PRs; not after a failed or cancelled
+    # build/releases job (skipped is fine: a closed PR has neither).
+    if: >-
+      ${{ !cancelled() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
+        && (github.event_name != 'pull_request'
+            || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')) }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write       # push gh-pages
+      pull-requests: write  # the sticky preview comment; nothing else
+    steps:
+      # Trusted code only: the scripts of the default branch, never the PR's.
+      - name: Checkout the default branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Check for the scripts
+        id: scripts
+        run: |
+          if [ -f scripts/pages_publish.py ] && [ -f scripts/pages_ops.py ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::The Pages scripts are not on the default branch yet (this workflow arrives with them); nothing deployed."
+          fi
+
+      - name: Download the bundle
+        if: steps.scripts.outputs.ok == 'true' && needs.build.result == 'success'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: pages-entry
+          path: ${{ runner.temp }}/incoming/entry
+
+      - name: Download the releases
+        if: steps.scripts.outputs.ok == 'true' && needs.releases.result == 'success'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: pages-releases
+          path: ${{ runner.temp }}/incoming/releases
+
+      # Event data reaches the scripts through the environment only (PR
+      # titles are untrusted); the PR state is checked again so a PR that was
+      # closed while its build ran does not come back.
+      - name: Plan
+        if: steps.scripts.outputs.ok == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SLUG: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_ACTION: ${{ github.event.action }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          gh pr list --repo "$SLUG" --state open --limit 1000 --json number,title,headRefName,isCrossRepository > "$RUNNER_TEMP/open-prs.json"
+          state=""
+          if [ "$EVENT_NAME" = pull_request ] && [ "$EVENT_ACTION" != closed ]; then
+            state=$(gh pr view "$PR_NUMBER" --repo "$SLUG" --json state --jq .state)
+          fi
+          python3 scripts/pages_ops.py --out "$RUNNER_TEMP/ops.json" --open-prs "$RUNNER_TEMP/open-prs.json" \
+            --pr-state "$state" --entry-dir "$RUNNER_TEMP/incoming/entry" \
+            --releases-ops "$RUNNER_TEMP/incoming/releases/ops.json" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish to gh-pages
+        if: steps.scripts.outputs.ok == 'true'
+        env:
+          SLUG: ${{ github.repository }}
+          PAGES_MESSAGE: "${{ format('Pages {0} {1} ({2}/{3}/actions/runs/{4})', github.event_name, github.event.action, github.server_url, github.repository, github.run_id) }}"
+          PAGES_MAX_TOTAL_MB: ${{ vars.PAGES_MAX_TOTAL_MB || '900' }}
+        run: |
+          python3 scripts/pages_publish.py --repo . --ops "$RUNNER_TEMP/ops.json" --incoming "$RUNNER_TEMP/incoming" \
+            --slug "$SLUG" --message "$PAGES_MESSAGE" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # One comment per PR, updated in place (marker in the body); the body
+      # holds the PR number only, no PR-controlled text.
+      - name: Preview comment
+        if: steps.scripts.outputs.ok == 'true' && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SLUG: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          EVENT_ACTION: ${{ github.event.action }}
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_URL: ${{ vars.PAGES_BASE_URL }}
+        run: |
+          set -uo pipefail
+          marker='<!-- oe1ebg-pages-preview -->'
+          name=${SLUG#*/}
+          base=${BASE_URL:-https://${OWNER,,}.github.io/$name}
+          base=${base%/}
+          if [ "$EVENT_ACTION" = closed ]; then
+            body="$marker"$'\n'"Preview removed (pull request closed)."
+          else
+            body="$marker"$'\n'"Preview of ${PR_SHA:0:7}: $base/pr/$PR_NUMBER/"$'\n\n'"Shared browser origin with all other previews: use test data only. GitHub Pages must be enabled for the repository (Settings, Pages, branch gh-pages) for this link to work."
+          fi
+          id=$(gh api "repos/$SLUG/issues/$PR_NUMBER/comments" --paginate \
+            --jq "[.[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$marker\")))][0].id // empty" | head -n1)
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$SLUG/issues/comments/$id" -f body="$body" >/dev/null || echo "::warning::could not update the preview comment"
+          elif [ "$EVENT_ACTION" != closed ]; then
+            gh api -X POST "repos/$SLUG/issues/$PR_NUMBER/comments" -f body="$body" >/dev/null || echo "::warning::could not post the preview comment"
+          fi
