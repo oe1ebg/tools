@@ -222,3 +222,37 @@ Each keystroke is one task of the same length (`updateCallFeedback` ->
 `renderLog` rebuilds every row); the cost is linear, ~0.1 ms per line
 unthrottled. Scrolling the page is fine up to 5000 lines unthrottled; at 4x on
 a phone viewport 5-7 frames are > 50 ms.
+
+### After the targeted updates (issue #15)
+
+`updateCallFeedback` no longer calls `renderLog`: `highlightMatches(call)`
+toggles the class `match` on the existing rows (index `rowsByCall`, built by
+`renderLog`) and `markEditing()` the class `editing`. `renderLog` itself keeps
+its rows between renders (`tools/shared/js/rowcache.js`, `syncRows`): key = line
+id, signature = `updated|deleted|seq|check-in number|date shown`; the rows'
+shared context (time mode, zone, read-only, UTM digits, template, callsign
+list) resets the cache when it changes. A save or edit builds the changed
+row(s) and leaves the others (and their focus) untouched. Any new thing a
+row shows must go into the signature or the context. `renderLog` still walks
+all lines (numbering, signatures, index): O(n) but ~100x cheaper than
+building rows. Chromium desktop, median / p95, 2 runs, before in brackets:
+
+| | 200 | 1000 | 5000 |
+| --- | ---: | ---: | ---: |
+| keystroke -> next frame, 1x | 16.7 / 18.9 (24) | 16.7 / 17.8 (107) | 16.9 / 18.2 (535) |
+| ... 4x CPU | 16.7 / 18.4 (104) | 20.1 / 34.2 (525) | 68.7 / 79.8 (2474) |
+| ... phone viewport 1x / 4x | 16.6 / 16.6 | 16.6 / 54.2 | 71.1 / 265 |
+| ... WebKit desktop | 17 (52) | 17 (245) | 17 (1260) |
+| keystroke handler (sync), 1x / 4x | 0.2 / 1.0 | 0.4 / 1.5 | 1.0 / 3.9 |
+| save line -> new row shown, 1x | 19 (31) | 39 (147) | 156 (745) |
+| ... 4x CPU | 43 (127) | 135 (688) | 627 (3131) |
+| ... WebKit desktop | 13 | 29 | 120 |
+| open log -> all rows, 1x (unchanged: one full build) | 104 | 156 | 593 |
+| heap after use / DOM nodes | 32 MB / 8k | 33 MB / 35k | 36 MB (34) / 174k |
+
+Tradeoffs: the row cache keeps one entry per line (a Map of node references,
+the nodes are in the DOM anyway), +2 MB heap at 5000. The remaining cost of
+a save at 5000 lines is the O(n) walk plus layout of the table; the phone
+viewport's 71 ms keystroke frame at 5000 is style/paint of the long table, not
+script (handler 1 ms). Not done: windowing the table (no measured need: scrolling
+is fine unthrottled, the open still builds all rows once).

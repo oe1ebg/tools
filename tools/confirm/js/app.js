@@ -31,8 +31,9 @@ import { attachCallSearch } from '../../shared/js/callsearch.js';
 import { sourceItem, trackOnline, repoLink } from '../../shared/js/sources.js';
 import { initOffline, setChip } from '../../shared/js/offline.js';
 import { createLineRepeater } from './linerepeater.js';
+import { createRowCache, syncRows, resetRows } from '../../shared/js/rowcache.js';
 import { formatShift, formatMHz } from '../../shared/js/repeaters.js';
-import { BACKUP_FORMAT, SEQ_LIMIT, validateBackup, planBackupImport } from './backup.js';
+import { BACKUP_FORMAT, BACKUP_MAX_BYTES, SEQ_LIMIT, validateBackup, planBackupImport } from './backup.js';
 
 const TIME_MODE_KEY = 'oe1ebg-confirm-time-mode';
 const CSV_SEP_KEY = 'oe1ebg-confirm-csv-sep';
@@ -1086,7 +1087,8 @@ function updateCallFeedback() {
     );
     box.hidden = false;
   }
-  renderLog(call);
+  highlightMatches(call);
+  markEditing();
 }
 
 function fmtStand(iso) {
@@ -1265,7 +1267,7 @@ function mapContext() {
     },
     // Tap/click on a pin: highlight that station's rows in the table.
     onPick: call => {
-      renderLog(call);
+      highlightMatches(call);
       document.querySelector('#log-body tr.match')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     },
   };
@@ -1656,18 +1658,74 @@ function renderLog(highlightCall) {
     th('Relais'), th('Notiz'), th('Op'), el('th', { scope: 'col', class: 'act' }, el('span', { class: 'sr-only' }, 'Aktionen'))));
 
   const body = $('#log-body');
-  body.replaceChildren();
   const cols = tpl.fields.length + 7 + tpl.fields.filter(f => f.type === 'location').length;
   if (!live.length) {
-    body.append(el('tr', {}, el('td', { colspan: String(cols), class: 'empty' }, 'Noch keine Einträge. Rufzeichen eingeben und Shift+Enter drücken.')));
+    resetRows(rowCache);
+    rowsByCall = new Map();
+    matched = [];
+    body.replaceChildren(el('tr', {}, el('td', { colspan: String(cols), class: 'empty' }, 'Noch keine Einträge. Rufzeichen eingeben und Shift+Enter drücken.')));
     return;
   }
+  // Rows are kept between renders (keyed by line id, signature = everything
+  // the row shows): a save creates one row, the rest stays as it is. A change
+  // of the context all rows share (template, time mode, callsign list, ...)
+  // rebuilds all.
+  const ctx = [timeMode(), zoneLabel(nowIso(), 'local'), state.readOnly, logUtmDigits(), state.event.template, state.event.id].join('|');
+  if (ctx !== rowCtx || tpl !== rowTpl || state.callbook !== rowBook) {
+    resetRows(rowCache);
+    rowCtx = ctx;
+    rowTpl = tpl;
+    rowBook = state.callbook;
+  }
+  const newestDate = splitTime(live[0].ts, timeMode()).date;
+  const dates = new Map();
+  syncRows(body, rowCache, live, {
+    key: e => e.id,
+    // Date only when it differs from the newest line (nets past midnight).
+    sig: e => {
+      const showDate = splitTime(e.ts, timeMode()).date !== newestDate;
+      dates.set(e.id, showDate);
+      return `${e.updated}|${e.deleted || ''}|${e.seq}|${nums.get(e.id)}|${showDate ? 1 : 0}`;
+    },
+    build: e => buildLogRow(e, { tpl, n: nums.get(e.id), showDate: dates.get(e.id), cols }),
+  });
+  rowsByCall = new Map();
   for (const e of live) {
-    const n = nums.get(e.id);
+    if (isComment(e)) continue;
+    const node = rowCache.get(e.id).node;
+    const list = rowsByCall.get(e.call);
+    if (list) list.push(node); else rowsByCall.set(e.call, [node]);
+  }
+  matched = [];
+  highlightMatches(call);
+  markEditing();
+}
+
+// The rows of the log (see renderLog): by callsign, and the ones marked now.
+const rowCache = createRowCache();
+let rowCtx = '', rowTpl = null, rowBook = null;
+let rowsByCall = new Map();
+let matched = [];
+
+// Marks the rows of one callsign (the one typed in the form, or picked on the
+// map) by toggling a class on the existing rows: no rebuild per keystroke.
+function highlightMatches(call) {
+  for (const tr of matched) tr.classList.remove('match');
+  matched = (call && rowsByCall.get(call)) || [];
+  for (const tr of matched) tr.classList.add('match');
+}
+
+// The line being edited gets the class `editing` (one row at a time).
+let editingRow = null;
+function markEditing() {
+  editingRow?.classList.remove('editing');
+  editingRow = (state.editingId && rowCache.get(state.editingId)?.node) || null;
+  editingRow?.classList.add('editing');
+}
+
+function buildLogRow(e, { tpl, n, showDate, cols }) {
     const { date, time } = splitTime(e.ts, timeMode());
     const s = e.snap || {};
-    // Date only when it differs from the newest line (nets past midnight).
-    const showDate = date !== splitTime(live[0].ts, timeMode()).date;
     const timeBits = [showDate ? el('span', { class: 'date' }, date + ' ') : null, time,
       timeMode() === 'utc' ? 'Z' : null, // ISO/military notation for UTC; local times keep the column's offset
       timeMode() === 'local' && zoneLabel(e.ts, 'local') !== zoneLabel(nowIso(), 'local') ? el('span', { class: 'date' }, ' ' + zoneLabel(e.ts, 'local')) : null];
@@ -1680,7 +1738,7 @@ function renderLog(highlightCall) {
     ];
     if (isComment(e)) {
       // Operator comment / marker: one full-width banner row.
-      body.append(el('tr', { 'data-id': e.id, class: ['marker', e.auto ? 'auto' : '', e.id === state.editingId ? 'editing' : ''].join(' ').trim() },
+      return el('tr', { 'data-id': e.id, class: e.auto ? 'marker auto' : 'marker' },
         el('td', { colspan: String(cols) },
           el('div', { class: 'marker-row' },
             el('span', { class: 'mono marker-time', title: `${isoUtc(e.ts)} (gespeichert, UTC)` }, timeBits),
@@ -1688,10 +1746,9 @@ function renderLog(highlightCall) {
             el('span', { class: 'marker-text' }, e.text || ''),
             el('span', { class: 'marker-op mono', title: 'Operator zu diesem Zeitpunkt' },
               s.operator && s.station && s.operator !== s.station ? `Op ${s.operator}/${s.station}` : s.operator ? `Op ${s.operator}` : ''),
-            el('span', { class: 'act' }, actions)))));
-      continue;
+            el('span', { class: 'act' }, actions))));
     }
-    body.append(el('tr', { 'data-id': e.id, class: [e.call === call && call ? 'match' : '', e.id === state.editingId ? 'editing' : ''].join(' ').trim() || null },
+    return el('tr', { 'data-id': e.id },
       el('td', { class: 'mono', title: `${isoUtc(e.ts)} (gespeichert, UTC)` }, timeBits),
       el('td', { class: 'mono' }, String(e.seq)),
       el('td', { class: 'call' }, e.call, n > 1 ? el('span', { class: 'badge', title: `Check-in Nr. ${n}` }, `${n}×`) : null,
@@ -1709,8 +1766,7 @@ function renderLog(highlightCall) {
       el('td', {}, e.note || ''),
       el('td', { class: 'mono' }, s.operator && s.station && s.operator !== s.station ? `${s.operator}/${s.station}` : s.operator || s.station || ''),
       el('td', { class: 'act' }, actions),
-    ));
-  }
+    );
 }
 
 // "Quelle" cell before a location column: where the location came from
@@ -1776,6 +1832,10 @@ function showImportMsg(kind, ...content) {
 }
 
 async function importBackup(file) {
+  if (file.size > BACKUP_MAX_BYTES) {
+    showImportMsg('err', el('strong', {}, 'Nicht importiert: '), `„${file.name}“ ist ${Math.round(file.size / 1048576)} MB groß; mehr als ${BACKUP_MAX_BYTES / 1048576} MB werden nicht importiert (zu groß für diesen Browser) – es wurde nichts geändert.`);
+    return;
+  }
   let data;
   try {
     data = JSON.parse(await file.text());

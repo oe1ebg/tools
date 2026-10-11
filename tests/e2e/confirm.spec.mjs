@@ -231,6 +231,60 @@ test('a save while the header write is in flight keeps the typed title', async (
   await expect.poll(() => storedEvent(page).then(e => e.title)).toBe('E2E Flug neu 2');
 });
 
+// Issue #15: the log's rows are kept between renders; typing only toggles the
+// "match" class of a station's rows, a save adds one row.
+test('typing marks the rows of the call without rebuilding the table, a save adds one row', async ({ page }) => {
+  await openNewLog(page, 'E2E Zeilen');
+  await logCall(page, 'OE1ABC');
+  await logCall(page, 'OE3XYZ');
+  await logCall(page, 'OE1ABC');
+  const rows = page.locator('#log-body tr[data-id]');
+  await expect(rows).toHaveCount(3);
+  // number the existing row nodes (newest first)
+  await page.evaluate(() => document.querySelectorAll('#log-body tr[data-id]').forEach((tr, i) => { tr.probe = i; }));
+  const kept = () => page.evaluate(() => [...document.querySelectorAll('#log-body tr[data-id]')].map(tr => tr.probe ?? null));
+  const matching = () => page.locator('#log-body tr.match').evaluateAll(trs => trs.map(tr => tr.querySelector('td.call').firstChild.textContent));
+  await page.locator('#f-call').focus();
+  await page.keyboard.type('oe1abc');
+  await expect(page.locator('#log-body tr.match')).toHaveCount(2);
+  expect(await matching()).toEqual(['OE1ABC', 'OE1ABC']);
+  await expect(page.locator('#f-call')).toBeFocused();
+  expect(await kept()).toEqual([0, 1, 2]); // the same nodes
+  await page.locator('#f-call').fill('OE3XYZ');
+  await expect(page.locator('#log-body tr.match')).toHaveCount(1);
+  expect(await matching()).toEqual(['OE3XYZ']);
+  await page.locator('#f-call').fill('OE9ZZZ');
+  await expect(page.locator('#log-body tr.match')).toHaveCount(0);
+  expect(await kept()).toEqual([0, 1, 2]);
+  // a save: one new row on top, the others are the same nodes
+  await logCall(page, 'OE9ZZZ');
+  await expect(rows).toHaveCount(4);
+  expect(await kept()).toEqual([null, 0, 1, 2]);
+  await expect(page.locator('#log-body tr.match')).toHaveCount(0);
+  // the repeat check-in badge follows the new count
+  await logCall(page, 'OE1ABC');
+  await expect(rows.first().locator('.badge')).toHaveText('3×');
+});
+
+test('editing a line and deleting one keep the other rows', async ({ page }) => {
+  await openNewLog(page, 'E2E Bearbeiten');
+  await logCall(page, 'OE1ABC');
+  await logCall(page, 'OE3XYZ');
+  await page.evaluate(() => document.querySelectorAll('#log-body tr[data-id]').forEach((tr, i) => { tr.probe = i; }));
+  const kept = () => page.evaluate(() => [...document.querySelectorAll('#log-body tr[data-id]')].map(tr => tr.probe ?? null));
+  await page.getByRole('button', { name: /Nr\. 1 OE1ABC bearbeiten/ }).click();
+  await expect(page.locator('#log-body tr.editing')).toHaveCount(1);
+  await expect(page.locator('#log-body tr.editing')).toContainText('OE1ABC');
+  await page.locator('#f-note').fill('geändert');
+  await page.locator('#btn-save').click();
+  await expect(page.locator('#log-body')).toContainText('geändert');
+  await expect(page.locator('#log-body tr.editing')).toHaveCount(0);
+  expect(await kept()).toEqual([0, null]); // the edited row is new, the other one is the same
+  await page.getByRole('button', { name: /Nr\. 2 OE3XYZ löschen/ }).click();
+  await expect(page.locator('#log-body tr[data-id]')).toHaveCount(1);
+  await expect(page.locator('#st-total')).toHaveText('1');
+});
+
 test('service worker installs the offline copy', async ({ page, browserName }) => {
   // Playwright drives service workers reliably only in Chromium.
   test.skip(browserName !== 'chromium', 'service workers: Chromium only');

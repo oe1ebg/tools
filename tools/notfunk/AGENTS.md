@@ -80,3 +80,38 @@ desktop, median / p95:
 on each search, filter, save and status change; the layout and paint after the
 rebuild cost about as much as the rebuild itself. Linear: ~0.15 ms per
 message unthrottled.
+
+### After keyed row reuse (issue #15)
+
+`renderBook` keeps its rows (`tools/shared/js/rowcache.js`, `syncRows`): key =
+message id, signature = `updated|deleted|status steps` (`updated` is the
+compare-and-set token and changes on every write; a row's buttons capture the
+message object of the render that built it, so a row may only be reused while
+the signature is equal). A new or changed message builds one row, a search or
+filter adds/moves/removes rows; rows filtered out are dropped from the cache
+(so clearing a search builds them again). Sort order, filters, row-click
+(delegated on `#book-body`), pills and ARIA are unchanged (tests/e2e/notfunk.spec.mjs
+"search, filter and a status step keep the rows"). Chromium desktop, median /
+p95, 2 runs, before in brackets:
+
+| | 200 | 1000 | 5000 |
+| --- | ---: | ---: | ---: |
+| search -> next frame, 1x | 23.8 / 41.8 (43) | 50.6 / 108 (156) | 270 / 519 (752) |
+| ... 4x CPU | 46.7 / 104 (125) | 211 / 502 (601) | 1088 / 2159 (3218) |
+| ... WebKit desktop | 24 (69) | 101 (264) | 505 (1289) |
+| `renderBook` after the debounce, 1x / 4x | 7 / 10 (20) | 12 / 41 (64) | 50 / 197 (280 / 1222) |
+| filter click -> frame, 1x | 16 (18) | 68 (86) | 361 (475) |
+| save message -> book updated, 1x | 23 (45) | 66 (199) | 273 (1024) |
+| ... 4x CPU | 61 (176) | 236 (819) | 1225 (3983) |
+| open book -> rows (unchanged: one full build) | 65 | 201 | 902 |
+| heap after use / DOM nodes | 32 MB / 9k | 34 MB / 36k | 44 MB / 173k |
+
+What is left at 5000 messages is the browser's layout and paint of 170k nodes
+when many rows appear or go away at once (search text cleared = ~5000 rows
+built again; filter changes likewise): the longest search task is 355 ms at 1x
+(was ~750). Windowing the table was **not** added: it would have to keep the
+keyboard order, the row buttons and the screen-reader table semantics for rows
+that are not in the DOM, which is not a small change. The practical limit
+stays about 1000 messages for comfortable use, 5000 usable (search answers in
+~0.3 s on a desktop, 1.1 s at 4x CPU). `scripts/bench_ui.mjs` counts a search
+that leaves the same rows (no DOM mutation) as done after 400 ms.
