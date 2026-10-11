@@ -333,3 +333,32 @@ test('column headers of short fields keep their sort and remove buttons visible 
   await th.locator('.rmcol').focus();
   await expect(th.locator('.rmcol')).toBeFocused();
 });
+
+test('adding a file while an edit of the log was already checked re-checks the combined log', { tag: '@adif' }, async ({ page }) => {
+  await loadSample(page);
+  // hold back the read of the second file until the test lets it go
+  await page.evaluate(() => {
+    const orig = FileReader.prototype.readAsArrayBuffer;
+    window.__held = [];
+    FileReader.prototype.readAsArrayBuffer = function (file) {
+      if (file.name === 'second.adi') window.__held.push(() => orig.call(this, file));
+      else orig.call(this, file);
+    };
+  });
+  const second = '<CALL:5>DL2BB <QSO_DATE:8>20260903 <TIME_ON:4>1000 <BAND:3>20m <MODE:2>CW <EOR>\n';
+  await page.locator('#file-input').setInputFiles({ name: 'second.adi', mimeType: 'text/plain', buffer: Buffer.from(second) });
+  await expect(page.locator('#import-progress')).toBeVisible();
+  // meanwhile: an invalid band in the first QSO, and its check finishes
+  const band = page.locator('#drop tbody tr[data-ri="0"] td[data-col="BAND"]');
+  await band.click();
+  await band.fill('zz');
+  await band.press('Enter');
+  await expect(band).toHaveClass(/cell-error/);
+  await expect(page.locator('#validation')).not.toHaveClass(/is-checking/);
+  await page.evaluate(() => window.__held.forEach(f => f()));
+  await expect(page.locator('#stats')).toContainText('4 QSOs');
+  await expect(page.locator('#validation')).not.toHaveClass(/is-checking/, { timeout: 30_000 });
+  // the error of the edit is still there, in the check of the combined log
+  await expect(band).toHaveClass(/cell-error/);
+  await expect(page.locator('#validation-summary')).toContainText('current log');
+});

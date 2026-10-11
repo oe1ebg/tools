@@ -81,12 +81,17 @@ function clearWarnings(){
 let validationView = null;
 let fileValidations = [];
 let revalidateTimer = 0;
+// The file results in fileValidations describe the files as they were
+// loaded: an edit (scheduleRevalidate) makes them obsolete, also when its
+// check has finished meanwhile, so adding a file must check the log again.
+let fileResultsObsolete = false;
 // record object -> { worst, issues, byField } of the current validation
 // view; issuesByIndex (state.js) is the same by current record index.
 let issuesByRec = new Map();
 const SEVERITY_RANK = { error: 3, warning: 2, info: 1 };
 const SEVERITY_GLYPH = { error: '✕', warning: '⚠', info: 'ⓘ' };
 const MAX_LISTED_ISSUES = 500;
+const MAX_SHOWN_WARNINGS = 50; // per file, in the warnings box
 
 function showFileValidations(){
   const scope = fileValidations.length === 1 ? fileValidations[0].label : `${fileValidations.length} files`;
@@ -119,6 +124,7 @@ const recheckSlot = new ChunkedSlot();
 let recheckSeq = 0;
 
 function scheduleRevalidate(){
+  fileResultsObsolete = true;
   clearTimeout(revalidateTimer);
   recheckSlot.cancel();
   recheckSeq++;
@@ -954,7 +960,8 @@ function applyLoaded(loaded, skipped, files){
   skipped.forEach(s => addWarning(s.message));
   if (!loaded.length) return;
   // an edit's re-check (pending or running) belongs to the log as it was
-  const recheckWanted = revalidateTimer || recheckSlot.running;
+  // (a finished one too: the file results shown again below are the old ones)
+  const recheckWanted = revalidateTimer || recheckSlot.running || fileResultsObsolete;
   clearTimeout(revalidateTimer);
   recheckSlot.cancel();
   recheckSeq++;
@@ -974,12 +981,14 @@ function applyLoaded(loaded, skipped, files){
       programId: f.headerInfo.PROGRAMID || null,
       programVersion: f.headerInfo.PROGRAMVERSION || null,
     });
-    f.warnings.forEach(addWarning);
+    f.warnings.slice(0, MAX_SHOWN_WARNINGS).forEach(addWarning);
+    if (f.warnings.length > MAX_SHOWN_WARNINGS) addWarning(`${f.name}: ${adifFormatCount(f.warnings.length - MAX_SHOWN_WARNINGS)} more warning(s) not shown.`);
     if (f.result?.issuesDropped) addWarning(`${f.name}: ${adifFormatCount(f.result.issuesDropped)} further issue(s) are counted in the summary but not listed or flagged (the first ${adifFormatCount(ADIF_LIMITS.maxIssues)} are kept).`);
   }
   if (files.length === 1) document.getElementById('filename-input').value = files[0].name.replace(/\.[^.]+$/, '') + '.adi';
   rebuildColumns();
   showFileValidations();
+  fileResultsObsolete = false; // what is shown now is the check of the files as loaded
   replaceView(filterView()); // an active filter applies to the new records too
   render();
   // Declarations that didn't fit together: show the log as the export
