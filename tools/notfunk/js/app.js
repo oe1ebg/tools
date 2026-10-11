@@ -579,7 +579,7 @@ function renderFormState() {
 
 // The form checked as it would be saved.
 function check(f = readForm()) {
-  return formToFields(f, { now: nowIso(), byNumber: new Map(state.msgs.filter(m => !m.deleted).map(m => [m.number, m])), editing: !!state.editing });
+  return formToFields(f, { now: nowIso(), byNumber: new Map(state.msgs.filter(m => !m.deleted).map(m => [m.number, m])), editing: !!state.editing, keepText: state.editing ? state.editing.text : null });
 }
 
 // Errors at the fields (German), aria-invalid on the inputs.

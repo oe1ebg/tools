@@ -167,8 +167,9 @@ const isBlankText = v => !String(v ?? '').trim();
 // before saving (missing Funkstelle, a time far off); the read-back is
 // optional and never asked for.
 // byNumber: the operation's messages by number, to link the Bezug.
-// editing: an edit of a stored message (no time warnings).
-export function formToFields(form, { now, byNumber = new Map(), editing = false }) {
+// editing: an edit of a stored message (no time warnings); keepText: its stored
+// Inhalt, which passes the length limit while unchanged.
+export function formToFields(form, { now, byNumber = new Map(), editing = false, keepText = null }) {
   const fieldErrors = {};
   // an edited message keeps its stored times while the fields still show them
   const keptTs = form.ts && form.date === dateText(form.ts) && form.time === clockText(form.ts) && (form.zone || '') === zoneHint(form.ts) ? form.ts : null;
@@ -228,7 +229,7 @@ export function formToFields(form, { now, byNumber = new Map(), editing = false 
   // Unreadable times were replaced above (now / none), and the form asks
   // for more than the model, so the model adds only what is left.
   const errors = Object.values(fieldErrors);
-  if (!errors.length) errors.push(...validateMessage(fields));
+  if (!errors.length) errors.push(...validateMessage(fields, { keepText }));
   // warnings by field too, so the form marks where they come from
   const fieldWarnings = {};
   if (fields.channel === 'funk' && !fields.peer) fieldWarnings.peer = 'Funkstelle fehlt';
