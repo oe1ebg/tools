@@ -198,6 +198,17 @@ name, and a distribution list ("Verteiler").
   and sets the Bezug; saving it marks the original "beantwortet"), earlier
   versions, print, delete (soft; the number stays taken) and restore.
 
+## Resource limits (issue #15)
+
+A backup import is refused as a whole, with a German message and nothing
+written: a file over 50 MB (`BACKUP_MAX_BYTES`, ~10x an operation of 5000
+messages with revisions; checked from the file size before it is read), more
+than 200000 messages and revisions together (`BACKUP_MAX_RECORDS`), a message
+whose Inhalt has over 50000 characters (`MESSAGE_TEXT_MAX`). The same
+`MESSAGE_TEXT_MAX` stops a message being saved in the form ("Inhalt ist zu
+lang ..."); a radio message is a few hundred characters, the limit only stops
+pasted files. Imports stay atomic (`applyBackup`).
+
 ## App identity
 
 The manifest has no `id` on purpose; see `../confirm/README.md`, "App identity" (#28), including the advice to back up both tools and not to delete site data when removing an old install.

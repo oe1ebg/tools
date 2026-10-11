@@ -14,12 +14,18 @@
 //   only adds or updates records and never lowers a counter, so no message
 //   number is ever handed out twice (numbering.counterAfterImport()).
 
-import { DIRECTIONS, CHANNELS, MESSAGE_TYPES, PRIORITIES, REF_KINDS, STATUS_FLOW, validateMessage, messageFields, statusLabel, statusEntry, currentStatus, liveMessages, fmtVienna, viennaDate, viennaTime, isoVienna, fmtFreq } from './model.js';
+import { MESSAGE_TEXT_MAX, DIRECTIONS, CHANNELS, MESSAGE_TYPES, PRIORITIES, REF_KINDS, STATUS_FLOW, validateMessage, messageFields, statusLabel, statusEntry, currentStatus, liveMessages, fmtVienna, viennaDate, viennaTime, isoVienna, fmtFreq } from './model.js';
 import { counterAfterImport, counterKey, PREFIX_RE, formatNumber } from './numbering.js';
 import { csvSafeRows } from '../../shared/js/csv.js';
 
 export const BACKUP_FORMAT = 'oe1ebg-notfunk-backup';
 export const BACKUP_VERSION = 1;
+
+// Resource limits (issue #15): a file beyond these is refused as a whole
+// (message, nothing written). 50 MB is ~10x a 5000-message operation with its
+// revisions, 200000 records ~20x.
+export const BACKUP_MAX_BYTES = 50 * 1024 * 1024;
+export const BACKUP_MAX_RECORDS = 200000;
 
 function partyLabel(p) {
   return [p.name, p.call && p.call !== p.name ? p.call : ''].filter(Boolean).join(' / ');
@@ -133,6 +139,8 @@ export function parseBackup(json) {
   if (!isObj(op) || typeof op.id !== 'string' || !ID_RE.test(op.id)) throw new Error('Sicherung unvollständig (operation)');
   if (typeof op.name !== 'string' || !op.name.trim()) throw new Error('Sicherung unvollständig (Name des Einsatzes)');
   if (op.prefix != null && !PREFIX_RE.test(op.prefix)) throw new Error('Sicherung fehlerhaft: Stationskürzel des Einsatzes');
+  const records = d.messages.length + d.revisions.length;
+  if (records > BACKUP_MAX_RECORDS) throw new Error(`Die Sicherung enthält ${records} Meldungen und Fassungen; mehr als ${BACKUP_MAX_RECORDS} werden nicht importiert (zu groß für diesen Browser)`);
   const bad = (what, why) => new Error(`Sicherung fehlerhaft: ${what}: ${why}`);
   const dropped = [];
   const droppedSeqs = [];
@@ -141,6 +149,7 @@ export function parseBackup(json) {
     const what = `Meldung ${isObj(m) && typeof m.number === 'string' ? m.number : i + 1}`;
     const why = identityProblem(m, op.id);
     if (why) throw bad(what, why);
+    if (typeof m.text === 'string' && m.text.length > MESSAGE_TEXT_MAX) throw bad(what, `Inhalt länger als ${MESSAGE_TEXT_MAX} Zeichen`);
     if (ids.has(m.id)) throw bad(what, 'ID doppelt');
     if (seqs.has(seqKey(m))) throw bad(what, 'Nummer doppelt');
     ids.add(m.id);

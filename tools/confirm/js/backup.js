@@ -19,6 +19,15 @@
 export const BACKUP_FORMAT = 'oe1ebg-confirm-backup';
 export const BACKUP_VERSIONS = [1];
 
+// Resource limits (issue #15): a file or log beyond these is refused as a
+// whole, with a message, before anything is written. 50 MB is about 10x a
+// 5000-line log with all its revisions; 200000 records (lines + versions)
+// about 20x. A text of one line (note, comment) above 100000 characters is
+// not something typed at a radio.
+export const BACKUP_MAX_BYTES = 50 * 1024 * 1024;
+export const BACKUP_MAX_RECORDS = 200000;
+export const BACKUP_MAX_TEXT = 100000;
+
 const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const isId = v => typeof v === 'string' && v.length > 0 && v.length <= 200;
 const isTime = v => typeof v === 'string' && v.length <= 40 && Number.isFinite(Date.parse(v));
@@ -42,6 +51,13 @@ export function validateBackup(data, limit = 20) {
   if (!BACKUP_VERSIONS.includes(data.version)) {
     const v = data.version === undefined ? '(fehlt)' : JSON.stringify(data.version);
     return { ok: false, errors: [`Version ${v} wird nicht unterstützt (unterstützt: ${BACKUP_VERSIONS.join(', ')})`], warnings };
+  }
+  let records = 0;
+  for (const item of data.events) {
+    if (isObj(item)) records += (Array.isArray(item.entries) ? item.entries.length : 0) + (Array.isArray(item.revisions) ? item.revisions.length : 0);
+  }
+  if (records > BACKUP_MAX_RECORDS) {
+    return { ok: false, errors: [`Die Datei enthält ${records} Zeilen und Versionen; mehr als ${BACKUP_MAX_RECORDS} werden nicht importiert (zu groß für diesen Browser). Bitte die Sicherung in kleinere Teile (einzelne Logs) aufteilen.`], warnings };
   }
   data.events.forEach((item, i) => {
     const where = `Log ${i + 1}`;
@@ -67,6 +83,7 @@ export function validateBackup(data, limit = 20) {
       if (ids.has(e.id)) bad(`${ew}: Kennung kommt doppelt vor`);
       ids.add(e.id);
       if (e.eventId !== undefined && e.eventId !== ev.id) bad(`${ew}: gehört zu einem anderen Log`);
+      for (const k of ['note', 'text']) if (typeof e[k] === 'string' && e[k].length > BACKUP_MAX_TEXT) bad(`${ew}: „${k}“ ist länger als ${BACKUP_MAX_TEXT} Zeichen`);
       if (!isTime(e.ts)) warn(`${ew}: Zeit fehlt oder ist ungültig (Erstellungszeit wird verwendet)`);
       for (const k of ['created', 'updated', 'deleted']) if (!timeOk(e[k])) warn(`${ew}: Zeitstempel „${k}“ ungültig`);
       if (e.kind === 'comment') {
