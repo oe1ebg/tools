@@ -395,7 +395,10 @@ thread (a Web Worker would need a Blob-URL worker in the single-file
 (CDP CPU throttling 1x/4x/6x) and WebKit (unthrottled), desktop (1400x900)
 and phone viewports (Pixel 7 / iPhone 13), 3 runs, median / p95 over the
 samples. `--quick`, `--tool`, `--size`, `--adif-size`, `--engine`,
-`--throttle`, `--viewport`, `--out` narrow it; raw numbers go to
+`--throttle`, `--viewport`, `--out` narrow it; an operation whose result does not
+show (saved row, edited cell, finished re-check) fails the run: its samples are
+dropped, the tables show ERROR and the exit code is 1 (`--selftest` proves it
+with disabled saves); raw numbers go to
 `bench-ui.json` (ignored by version control). WebKit has no long-task
 observer and Playwright no heap readout there, so those cells are empty.
 `node --expose-gc scripts/bench_adif.mjs 5` adds heap figures to the node

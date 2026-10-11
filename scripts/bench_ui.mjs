@@ -22,6 +22,11 @@
 // and always the long tasks (PerformanceObserver 'longtask': Chromium only;
 // WebKit has none, so only the timings are reported there).
 // CPU throttling uses CDP (Chromium only); WebKit runs unthrottled.
+// A measured operation must show its observable result (new row, edited cell,
+// finished re-check) within a timeout, else the run FAILS: its samples are
+// dropped, the tables show ERROR and the script exits 1. `--selftest` runs a
+// small configuration with the save/edit disabled and passes only if that
+// is detected.
 // Results: a JSON file (--out) and Markdown tables on stdout (median / p95 /
 // max over all samples of all runs).
 import { createServer } from 'node:net';
@@ -50,6 +55,18 @@ const THROTTLES = list('throttle', quick ? '1,4' : '1,4,6').map(Number);
 const VIEWPORTS = list('viewport', 'desktop,mobile');
 const OUT = opt('out', join(ROOT, 'bench-ui.json'));
 const KEY_REPS = quick ? 3 : 6;
+const NOOP = process.env.BENCH_INJECT_NOOP === '1'; // selftest: saves and edits are disabled
+
+if (args.includes('--selftest')) {
+  const { spawnSync } = await import('node:child_process');
+  const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url), '--tool', 'notfunk,adif', '--size', '200', '--adif-size', '10000',
+    '--engine', 'chromium', '--throttle', '1', '--viewport', 'desktop', '--runs', '1', '--out', join(tmpdir(), 'bench-ui-selftest.json')],
+  { env: { ...process.env, BENCH_INJECT_NOOP: '1' }, encoding: 'utf8' });
+  const out = r.stdout + r.stderr;
+  const ok = r.status === 1 && /ERROR/.test(out) && /notfunk 200 ERROR/.test(out) && /adif 10000 ERROR/.test(out);
+  console.log(ok ? 'selftest ok: disabled save/edit were detected, exit code 1' : `selftest FAILED (exit ${r.status}):\n${out}`);
+  process.exit(ok ? 0 : 1);
+}
 
 // ---- Playwright (installed by `just bench-ui` into tests/e2e/node_modules)
 const pwPath = join(ROOT, 'tests', 'e2e', 'node_modules', '@playwright', 'test', 'index.mjs');
@@ -283,8 +300,13 @@ async function benchConfirm(page, cdp, size, m) {
     const ms = await page.evaluate(async () => {
       const t = performance.now();
       const before = document.querySelectorAll('#log-body tr[data-id]').length;
+      const call = document.querySelector('#f-call').value;
       document.querySelector('#btn-save').click();
-      while (document.querySelectorAll('#log-body tr[data-id]').length <= before) await new Promise(r => setTimeout(r, 0));
+      // the saved line: one more row, showing the callsign
+      while (document.querySelectorAll('#log-body tr[data-id]').length <= before || !document.querySelector('#log-body').textContent.includes(call)) {
+        if (performance.now() - t > 30000) throw new Error(`save did not show ${call} within 30 s`);
+        await new Promise(r => setTimeout(r, 0));
+      }
       await window.__frame();
       return performance.now() - t;
     });
@@ -359,8 +381,13 @@ async function benchNotfunk(page, cdp, size, m) {
     const ms = await page.evaluate(async () => {
       const t = performance.now();
       const before = document.querySelector('#book-body tr[data-id]')?.dataset.id;
+      const subject = document.querySelector('#m-subject').value;
       document.querySelector('#btn-save').click();
-      for (let k = 0; k < 400 && document.querySelector('#book-body tr[data-id]')?.dataset.id === before; k++) {
+      // the saved message: a new first row (newest first) carrying the subject
+      for (;;) {
+        const first = document.querySelector('#book-body tr[data-id]');
+        if (first && first.dataset.id !== before && first.textContent.includes(subject)) break;
+        if (performance.now() - t > 30000) throw new Error(`save did not show "${subject}" within 30 s`);
         if (document.querySelector('#btn-save-anyway:not([hidden])')) { document.querySelector('#btn-save-anyway').click(); }
         await new Promise(r => setTimeout(r, 5));
       }
@@ -396,20 +423,31 @@ async function benchAdif(page, cdp, size, m, file) {
   // edit commit: type in a cell, Enter -> next frame; then until re-checked
   const edit = [];
   for (let i = 0; i < Math.min(KEY_REPS, 4); i++) {
-    const r = await page.evaluate(async i => {
+    const r = await page.evaluate(async ({ i, noop }) => {
       const td = document.querySelector('#drop tbody td[data-col="COMMENT"]') || document.querySelector('#drop tbody td[data-col]');
       td.focus();
       td.textContent = `bench ${i}`;
       const t = performance.now();
-      td.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+      if (!noop) td.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
       const sync = performance.now() - t;
       await window.__frame();
       const frame = performance.now() - t;
-      // re-check: "checking…" appears after the 150 ms debounce, goes when done
-      while (document.querySelector('#validation').classList.contains('is-checking') === false && performance.now() - t < 400) await new Promise(r => setTimeout(r, 5));
-      while (document.querySelector('#validation').classList.contains('is-checking')) await new Promise(r => setTimeout(r, 5));
+      // the commit marks the log as changed: "checking…" appears at once and
+      // stays until the re-check (after the 150 ms debounce) has run
+      const box = document.querySelector('#validation');
+      const checking = () => box.classList.contains('is-checking');
+      while (!checking()) {
+        if (performance.now() - t > 5000) throw new Error('edit was not committed: no re-check was scheduled within 5 s');
+        await new Promise(r => setTimeout(r, 5));
+      }
+      while (checking()) {
+        if (performance.now() - t > 120000) throw new Error('re-check did not finish within 120 s');
+        await new Promise(r => setTimeout(r, 5));
+      }
+      const rec = td.isConnected ? td.textContent : null;
+      if (rec !== null && rec !== `bench ${i}`) throw new Error(`edited cell shows "${rec}", not "bench ${i}"`);
       return { sync, frame, rechecked: performance.now() - t };
-    }, i);
+    }, { i, noop: NOOP });
     edit.push(r);
   }
   add(m, 'edit commit handler ms', edit.map(e => e.sync));
@@ -431,13 +469,21 @@ async function run(engine, throttle, vp, tool, size) {
   const launcher = engine === 'webkit' ? webkit : chromium;
   const browser = await launcher.launch(engine === 'chromium' ? { args: ['--enable-precise-memory-info'] } : {});
   const samples = {};
+  let failed = 0;
   try {
     for (let r = 0; r < RUNS; r++) {
+      const runSamples = {};
       const ctxOpts = vp === 'mobile'
         ? { ...devices[engine === 'webkit' ? 'iPhone 13' : 'Pixel 7'] }
         : { ...VIEWPORT_OPTS.desktop };
       const ctx = await browser.newContext({ ...ctxOpts, locale: 'de-AT', timezoneId: 'Europe/Vienna', serviceWorkers: 'block' });
       await ctx.addInitScript(INIT);
+      // selftest: the save buttons and form submits do nothing (document-level capture runs first)
+      if (NOOP) await ctx.addInitScript(() => {
+        for (const type of ['click', 'submit']) {
+          document.addEventListener(type, e => { if (e.target.closest?.('#btn-save, #btn-save-anyway, #msg-form, #entry-form')) { e.preventDefault(); e.stopImmediatePropagation(); } }, true);
+        }
+      });
       const page = await ctx.newPage();
       const errors = [];
       // (service workers are blocked on purpose: their registration then fails in the tools' start-up code, harmless)
@@ -448,27 +494,29 @@ async function run(engine, throttle, vp, tool, size) {
         await cdp.send('Performance.enable');
         if (throttle > 1) await cdp.send('Emulation.setCPUThrottlingRate', { rate: throttle });
       }
+      let failedThisRun = false;
       try {
-        if (tool === 'confirm') await benchConfirm(page, cdp, size, samples);
-        else if (tool === 'notfunk') await benchNotfunk(page, cdp, size, samples);
+        if (tool === 'confirm') await benchConfirm(page, cdp, size, runSamples);
+        else if (tool === 'notfunk') await benchNotfunk(page, cdp, size, runSamples);
         else {
           if (!adifFiles.has(size)) { const p = join(tmp, `bench-${size}.adi`); writeFileSync(p, await adifFile(size)); adifFiles.set(size, p); }
-          await benchAdif(page, cdp, size, samples, adifFiles.get(size));
+          await benchAdif(page, cdp, size, runSamples, adifFiles.get(size));
         }
       } catch (e) {
-        add(samples, 'ERROR', 1);
+        failed++; failedThisRun = true;
         console.error(`  ${engine} ${throttle}x ${vp} ${tool} ${size} run ${r + 1}: ${e.message.split('\n')[0]}`);
       }
+      if (!failedThisRun) for (const [k, v] of Object.entries(runSamples)) add(samples, k, v);
       if (errors.length) console.error(`  page errors: ${errors.slice(0, 2).join(' | ')}`);
       await ctx.close();
     }
   } finally {
     await browser.close();
   }
-  const row = { engine, throttle, viewport: vp, tool, size, metrics: Object.fromEntries(Object.entries(samples).map(([k, v]) => [k, summarize(v)])) };
+  const row = { engine, throttle, viewport: vp, tool, size, failed, runs: RUNS, metrics: Object.fromEntries(Object.entries(samples).map(([k, v]) => [k, summarize(v)])) };
   results.push(row);
   const key = Object.keys(row.metrics).find(k => /keystroke -> |search: -> |shown|edit commit -> /.test(k));
-  console.log(`${engine} ${throttle}x ${vp} ${tool} ${size}${key ? `: ${key} median ${f(row.metrics[key].median)} / p95 ${f(row.metrics[key].p95)}` : ''}`);
+  console.log(`${engine} ${throttle}x ${vp} ${tool} ${size}${failed ? ` ERROR: ${failed}/${RUNS} runs failed (not in the medians)` : ''}${key ? `: ${key} median ${f(row.metrics[key].median)} / p95 ${f(row.metrics[key].p95)}` : ''}`);
 }
 
 for (const engine of ENGINES) {
@@ -487,7 +535,7 @@ writeFileSync(OUT, JSON.stringify({ date: new Date().toISOString(), runs: RUNS, 
 const configLabel = r => `${r.engine}${r.engine === 'chromium' ? ` ${r.throttle}×` : ''} ${r.viewport}`;
 for (const tool of TOOLS) {
   const rows = results.filter(r => r.tool === tool);
-  const metrics = [...new Set(rows.flatMap(r => Object.keys(r.metrics)))].filter(k => k !== 'ERROR');
+  const metrics = [...new Set(rows.flatMap(r => Object.keys(r.metrics)))];
   const sizes = [...new Set(rows.map(r => r.size))].sort((a, b) => a - b);
   const configs = [...new Set(rows.map(configLabel))];
   console.log(`\n### ${tool} (median / p95, ${RUNS} runs)\n`);
@@ -496,14 +544,18 @@ for (const tool of TOOLS) {
     console.log(`| config | ${sizes.join(' | ')} |\n| --- |${sizes.map(() => ' ---:').join('|')}|`);
     for (const c of configs) {
       const cells = sizes.map(s => {
-        const x = rows.find(r => configLabel(r) === c && r.size === s)?.metrics[metric];
-        return x ? (/heap|nodes|>50ms/.test(metric) ? f(x.median) : `${f(x.median)} / ${f(x.p95)}`) : '';
+        const row = rows.find(r => configLabel(r) === c && r.size === s);
+        const x = row?.metrics[metric];
+        const err = row?.failed ? ` ERROR (${row.failed}/${row.runs} runs failed)` : '';
+        return (x ? (/heap|nodes|>50ms/.test(metric) ? f(x.median) : `${f(x.median)} / ${f(x.p95)}`) : (err ? '' : '')) + err;
       });
       console.log(`| ${c} | ${cells.join(' | ')} |`);
     }
     console.log('');
   }
 }
+const failedRows = results.filter(r => r.failed);
+if (failedRows.length) console.error(`\nERROR: ${failedRows.length} configuration(s) had failed runs (excluded from the medians): ${failedRows.map(r => `${configLabel(r)} ${r.tool} ${r.size}`).join('; ')}`);
 console.log(`raw results: ${OUT}`);
 server.kill();
-process.exit(0);
+process.exit(failedRows.length ? 1 : 0);
