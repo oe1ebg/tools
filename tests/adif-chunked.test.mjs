@@ -354,3 +354,19 @@ test('limits: maxValueChars counts decoded characters, also for byte-counted len
   r = await loadLogFiles([file('b.adi', '<NOTES:2>ää<EOR>')], { ...quick, limits: { maxValueChars: 2 } });
   assert.equal(r.loaded.length, 1, 'lengths counted as characters work as before');
 });
+
+test('a flood of <EOH> tags is counted, not kept as tokens', () => {
+  const text = '<ADIF_VER:5>3.1.7<EOH>' + '<EOH>'.repeat(50000) + '<CALL:3>ABC<EOR>';
+  const full = validateAdif(text, { today: TODAY });
+  assert.equal(full.errors, 50000, 'every second <EOH> is an error');
+  let pushes = 0;
+  const orig = Array.prototype.push;
+  Array.prototype.push = function (...a) { pushes++; return orig.apply(this, a); };
+  let capped;
+  try { capped = validateAdif(text, { today: TODAY, maxIssues: 10, lean: true }); } finally { Array.prototype.push = orig; }
+  assert.ok(pushes < 5000, `${pushes} array pushes`);
+  assert.equal(capped.errors, 50000);
+  assert.ok(capped.issues.length <= 10);
+  assert.equal(capped.issuesDropped, capped.errors + capped.warnings + capped.infos - capped.issues.length);
+  assert.equal(capped.records.length, 1);
+});

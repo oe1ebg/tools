@@ -142,8 +142,12 @@ function avByteToChar(text) {
 // through issue(); the scan never stops early.
 // dec: the value as text (byte mode: adifFromUtf8Bytes, the source being
 // the file's UTF-8 bytes, one char per byte); byteMode: lengths count bytes.
-function* avScan(source, issue, dec = v => v, byteMode = false) {
+// extraEoh: { offsets, omitted, cap }: a second and later <EOH> makes no
+// token (a flood of them would only fill memory); its offset is kept up to
+// cap, the rest is counted in omitted.
+function* avScan(source, issue, dec = v => v, byteMode = false, extraEoh = { offsets: [], omitted: 0, cap: Infinity }) {
   const tokens = [];
+  let eohSeen = false;
   let pos = 0;
   let work = 0;
   while (pos < source.length) {
@@ -163,7 +167,13 @@ function* avScan(source, issue, dec = v => v, byteMode = false) {
     const rawName = parts[0];
     const upper = rawName.toUpperCase();
     if ((upper === 'EOR' || upper === 'EOH') && parts.length === 1) {
-      tokens.push({ kind: upper.toLowerCase(), name: upper, offset: lt });
+      if (upper === 'EOH' && eohSeen) {
+        if (extraEoh.offsets.length < extraEoh.cap) extraEoh.offsets.push(lt);
+        else extraEoh.omitted++;
+      } else {
+        if (upper === 'EOH') eohSeen = true;
+        tokens.push({ kind: upper.toLowerCase(), name: upper, offset: lt });
+      }
       pos = tagEnd;
       continue;
     }
@@ -496,6 +506,7 @@ export function* validateAdifSteps(source, options = {}) {
   // budget could keep are retained (the first ones, in the order found, as
   // the cap would keep them); the others are only counted.
   const scanIssues = [];
+  const extraEoh = { offsets: [], omitted: 0, cap: issueBudget };
   const scanOmitted = { error: 0, warning: 0, info: 0 };
   // Lengths counted in UTF-8 bytes (many loggers): read the file as the
   // ADIF editor does (adifCountsBytes, shared with parseADIFAuto), by its
@@ -507,7 +518,8 @@ export function* validateAdifSteps(source, options = {}) {
       if (scanIssues.length >= issueBudget) { scanOmitted[severity]++; return; }
       scanIssues.push([severity, code, message, toChar && extra?.offset !== undefined ? { ...extra, offset: toChar(extra.offset) } : extra]);
     },
-    byteMode ? adifFromUtf8Bytes : undefined, byteMode);
+    byteMode ? adifFromUtf8Bytes : undefined, byteMode, extraEoh);
+  if (toChar) extraEoh.offsets = extraEoh.offsets.map(toChar);
   if (toChar) for (const t of tokens) { t.offset = toChar(t.offset); if (t.valueOffset !== undefined) t.valueOffset = toChar(t.valueOffset); }
   if (byteMode) {
     issue('warning', 'LENGTHS_IN_BYTES', 'The field lengths in this file count UTF-8 bytes, not characters as ADIF says (IV.A.1); read that way, as the ADIF editor does. Values with non-ASCII characters are not ASCII either (ADI is ASCII).');
@@ -534,7 +546,8 @@ export function* validateAdifSteps(source, options = {}) {
   } else {
     issue('info', 'NO_HEADER', `The file has no header, so it doesn't say which ADIF version it uses (ADIF_VER ${ADIF_SPEC_VERSION} is assumed).`, { recordType: 'header' });
   }
-  for (const extra of eohs.slice(1)) issue('error', 'DUPLICATE_EOH', 'A second <EOH>; ignored.', { recordType: 'file', offset: extra.offset });
+  for (const offset of extraEoh.offsets) issue('error', 'DUPLICATE_EOH', 'A second <EOH>; ignored.', { recordType: 'file', offset });
+  counts.error += extraEoh.omitted; dropped += extraEoh.omitted;
 
   const userdefs = new Map();
   if (bodyStart > 0) {
