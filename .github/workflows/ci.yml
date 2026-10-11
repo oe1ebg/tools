@@ -97,6 +97,7 @@ jobs:
               - 'tools/**'
               - 'docs/**'
               - 'tests/e2e/**'
+              - 'tests/fixtures/pages/**'
               - 'deploy/**'
               - 'scripts/**'
               - 'data-src/**'
@@ -311,16 +312,19 @@ jobs:
             echo "playwright-version=$version"
           } >> "$GITHUB_OUTPUT"
 
-      # Errors fail the job; warnings are printed only. Once per run.
+      # Errors fail the job; warnings are printed only. Once per run. The
+      # GitHub Pages index (pages.yml) is checked here too, from a fixture.
       - name: HTML validation (Nu Html Checker)
         if: matrix.project == 'chromium'
         env:
           VNU_IMAGE: ${{ steps.images.outputs.vnu }}
         run: |
+          python3 scripts/build_pages_index.py --manifest tests/fixtures/pages/entries.json --out "$RUNNER_TEMP/pages-index"
           docker run --rm \
             -v "$RUNNER_TEMP/site:/site:ro" \
+            -v "$RUNNER_TEMP/pages-index:/pages:ro" \
             -v "$GITHUB_WORKSPACE/tests/e2e:/e2e:ro" \
-            "$VNU_IMAGE" sh /e2e/vnu.sh /site
+            "$VNU_IMAGE" sh /e2e/vnu.sh /site /pages/index.html /pages/404.html
 
       # @playwright/test is installed at the image's version into the
       # throwaway tests/e2e/node_modules/ (no package.json in the repo);

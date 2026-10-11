@@ -255,7 +255,7 @@ just dist      # dist/oe1ebg-tools-<version>.tar.gz + .sha256
 | --- | --- |
 | `tools/` | the tools (source). The data and bundle steps write their git-ignored output in here. |
 | `docs/` | the user manuals (German) and the data sources page, with screenshots (`just screenshots`) |
-| `scripts/` | data fetch/build steps, the offline bundlers, `build_site.py` (assembles `site/tools/`) |
+| `scripts/` | data fetch/build steps, the offline bundlers, `build_site.py` (assembles `site/tools/`), the Pages scripts (`pages_*.py`, `build_pages_index.py`) |
 | `data-src/` | committed snapshots and curated inputs for the data steps (`just refresh-*` updates them) |
 | `tests/` | unit tests, `e2e/` browser tests, `tools/` the Go ADIF cross-check tools |
 | `deploy/` | webserver configuration examples |
@@ -274,6 +274,9 @@ just dist      # dist/oe1ebg-tools-<version>.tar.gz + .sha256
   only then attaches that tarball and its checksums to the GitHub release.
   Any failure stops the release. The ADIF editor's compliance panel links
   the run that built it.
+- **`pages.yml`** publishes `main`, open pull requests, releases and
+  `data-latest` to GitHub Pages (see *GitHub Pages previews*). It does not
+  test anything and does not gate merges.
 - **`data.yml`** runs weekly. It rebuilds the latest release tag with fresh
   data, validates the tarball the same way and uploads it to the rolling
   release `data-latest`, under the same asset name and with its own
@@ -282,6 +285,83 @@ just dist      # dist/oe1ebg-tools-<version>.tar.gz + .sha256
   offline bundles and the service-worker precache hash, so it cannot be
   swapped in separately; a data refresh always means a rebuild of the whole
   bundle at a fixed code version.
+
+## GitHub Pages previews
+
+`pages.yml` publishes builds of this repository to GitHub Pages, from the
+`gh-pages` branch, so a change can be tried in a browser before it is merged.
+The site root is a generated index (`scripts/build_pages_index.py`) that
+lists every entry. The base URL is `https://<owner>.github.io/<repo>/`
+(`https://oe1ebg.github.io/tools/`; with a custom domain, set the repository
+variable `PAGES_BASE_URL`, which only affects the link in the PR comment).
+
+| URL below the base | What | Created / replaced | Removed |
+| --- | --- | --- | --- |
+| `main/` | latest build of `main` | every push to `main` (or a manual run) | never |
+| `pr/<N>/` | pull request N (the PR merged into `main`, as `ci.yml` builds it) | opened, reopened, every push to the PR | PR closed or merged; the daily run also removes any that were missed |
+| `release/<tag>/` | the published release tarball `vX.Y.Z`, unpacked as it is (checksum verified, not rebuilt) | the release is published (`release.yml`), or the daily run | not among the newest 5 releases (repository variable `PAGES_MAX_RELEASES`), or the release was deleted |
+| `release/data-latest/` | the tarball of the rolling prerelease `data-latest` (weekly data rebuild) | after each `data.yml` run | never |
+
+Every entry is the `site/tools/` tree of the normal build, i.e. what the
+tarball contains, and works under its prefix like under any other
+(`tests/e2e/pwa-identity.spec.mjs`, `validate-dist.yml`). Open
+`<base>/pr/12/confirm/` for a tool, `<base>/pr/12/` for the overview. A pull
+request gets a comment with its link. The index also shows each PR's title,
+head branch, commit and update time, and links the PR.
+
+**One-time setting (maintainers; the workflow does not and cannot do it):**
+Settings, Pages, "Deploy from a branch", branch `gh-pages`, folder `/ (root)`.
+The branch is created by the first run. Do not protect `gh-pages` against
+force pushes: the workflow replaces it with one orphan commit each time, so
+the history stays at a single commit (the commit message names the run that
+made it). A `CNAME` that Pages adds for a custom domain is kept. If the
+organisation's own Pages site uses a custom domain, project sites are served
+below it (`<domain>/tools/`): check that this does not collide with a
+production site there.
+
+**Branches without a pull request have no preview.** Previews exist for
+`main` and for the head branches of open pull requests of this repository.
+Pull requests from forks and from Dependabot get none (no write token); the
+run skips cleanly.
+
+**All entries share one browser origin.** The tools keep their logbooks,
+drafts and settings per origin (IndexedDB `oe1ebg-*`, localStorage, the
+channel names), so every preview, `main` and the releases read and write the
+*same* logbook, and the code of a pull request nobody has reviewed yet can
+read it. Use a separate browser profile and test data only, never real logs.
+The service workers of different entries have their own scopes
+(`<base>/pr/12/confirm/`), but the Cache Storage is per origin, and a worker
+deletes every cache named `tools-confirm-*` (`tools-notfunk-*`) other than its
+own when it activates. Two entries with different builds therefore evict each
+other's offline copy: only the entry whose worker activated last stays
+offline-ready, the others fall back to the network. Try one entry at a time
+in a profile. (The identifiers cannot be renamed, see *Stable identifiers*.)
+
+**Previews are not a substitute for CI.** GitHub Pages cannot send the
+headers of `deploy/nginx.conf.example` (Content-Security-Policy, framing
+protection, `nosniff`, `Cache-Control: no-cache`; Pages sends its own
+caching). The `validate` job of `ci.yml` and `validate-dist.yml` check the
+bundle under those headers; a preview only shows how the tools look and
+behave.
+
+How it works (`.github/workflows/pages.yml`): the `build` job (read-only
+token, runs the PR's code) builds like `ci.yml`'s `bundle`; the `releases` job
+(read-only) downloads the release tarballs the site lacks and checks their
+`.sha256`; the `deploy` job (`contents: write`, plus `pull-requests: write`
+for the comment) treats both as data (no symlinks or special files, size
+limits, names validated, PR titles only as escaped text) and runs only the
+scripts of the default branch: `pages_ops.py` (event to operations),
+`pages_publish.py` (the `gh-pages` tree and the push), `build_pages_index.py`.
+Writes are serialized by git: the push is a compare-and-swap
+(`--force-with-lease` against the commit the change was based on), and a lost
+race applies the change again on the new state. A single `concurrency` group
+would not do: GitHub keeps only one pending run per group and cancels the
+rest, which would drop deployments; the workflow's groups are per PR and for
+`main`. A change that leaves the tree identical pushes nothing. A pull
+request's own run uses the workflow file of its branch, as every
+`pull_request` run does; that is no more power than pushing a workflow to a
+branch, which write access already allows. `tests/pages.test.mjs` exercises
+the scripts against a throwaway bare repository.
 
 ## License
 
