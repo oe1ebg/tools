@@ -51,8 +51,8 @@ provisional until the Notfunkreferat Wien confirms it.
   Notfunk-Nr. and "Referenz Meldesammelstelle" are never mixed up. After
   visible changes re-run `just screenshots` for the manual.
 - **Saved vs draft vs backup:** "gespeichert" only after the commit, a draft
-  is never called saved, "Sicherung heruntergeladen" means a download was
-  started, not that a copy is retained. The conflict/draft notices
+  is never called saved, "Download der Sicherung (JSON) gestartet" means a
+  download was started, not that a copy is retained. The conflict/draft notices
   (`NICHT GESPEICHERT`, `ENTWURF NICHT GESICHERT`, `ENTWURF PRÜFEN`) and
   their buttons are quoted in the manual; change both together.
 - **Not in the oe1ebg.at nav** or llms.txt until the format is

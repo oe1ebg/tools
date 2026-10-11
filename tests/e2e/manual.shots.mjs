@@ -271,7 +271,7 @@ test('Notfunk-Meldebuch: älterer Entwurf prüfen', async ({ page }) => {
   await page.locator('#book-body a', { hasText: 'W1-001' }).click();
   await page.getByRole('button', { name: 'Bearbeiten' }).click();
   await page.locator('#m-subject').fill('Stromausfall Pflegeheim, dringend');
-  await page.waitForTimeout(1000);
+  await expect(page.locator('#draft-status')).toContainText('Entwurf gesichert');
   // an edit draft of an older version (no base) and a change made meanwhile
   await page.evaluate(() => new Promise((resolve, reject) => {
     const open = indexedDB.open('oe1ebg-notfunk');
@@ -303,7 +303,10 @@ test('Notfunk-Meldebuch: älterer Entwurf prüfen', async ({ page }) => {
 });
 
 // The update banner: a new version waits and saving the input fails.
+// Every test has its own browser context, so the extra service worker
+// registration (sw.js?v2) and the stubbed storage never reach another shot.
 async function updateBanner(page, context, tool, typeInput, input, name) {
+  await page.clock.setFixedTime(at('2026-10-08T12:05:00Z'));
   await page.goto(`tools/${tool}/`);
   await expect(page.locator('#st-offline')).toHaveText('offline bereit ✓', { timeout: 45_000 });
   await typeInput();
@@ -319,7 +322,7 @@ async function updateBanner(page, context, tool, typeInput, input, name) {
   await page.locator(input).fill(`${await page.locator(input).inputValue()} und mehr`);
   await page.locator('#btn-update').click();
   await expect(page.locator('#update-problem')).toBeVisible();
-  await page.waitForTimeout(300);
+  await expect(page.locator('#btn-update')).toHaveText('Update wartet: Eingabe klären');
   await shotAround(page, ['#btn-update', '#update-problem'], name);
 }
 

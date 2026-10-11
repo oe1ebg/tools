@@ -173,12 +173,12 @@ name, and a distribution list ("Verteiler").
   the choice); "ENTWURF" (the edited message no longer exists: the draft
   would become a new message). A backup is read from the stored data, not the
   tab's memory (only when the storage is unreadable the tab's state is used,
-  and the status says so); "Sicherung (JSON) heruntergeladen" means a download
-  was started. A restore skips unusable records and lists them. Numbers are
+  and the status says so); "Download der Sicherung (JSON) gestartet" means a
+  download was started. A restore skips unusable records and lists them. Numbers are
   never reused; in the localStorage fallback without Web Locks (plain
   `http://`) two tabs can take the same number, a documented limitation. The
-  manual describes all of this; its screenshots of the notices are pending
-  (see the HTML comments in `docs/notfunk-anleitung.md`).
+  manual describes all of this, with screenshots of the notices and of the
+  update banner (`just screenshots`).
 - **Help:** "? Hilfe", F1, or ? outside text fields opens a dialog with the
   keys, the flow, who is who, places, times, confirmations, numbers and
   urgency; Esc closes it and the focus goes back to the field. The
@@ -190,7 +190,8 @@ name, and a distribution list ("Verteiler").
   an "Ausdruck" button per row; a summary says how many emergencies are
   open, how many aren't confirmed, and whether the numbers are gapless. The
   header shows the backup state ("Sicherung gestartet 14:40 · 3 Meldungen
-  ungesichert", a click downloads a backup).
+  ungesichert" or "… · nichts ungesichert", neutral, never "ok"-green; a
+  click starts a backup download).
 - **One message:** verbatim text, all fields, the flow (Ablauf) with a small
   form for the next step (to whom / by whom, when), failed attempts, the
   Meldesammelstelle's reference (an edit with a revision), replies ("Antwort erfassen" swaps Von/An
