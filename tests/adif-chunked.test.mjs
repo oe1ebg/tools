@@ -227,9 +227,55 @@ test('limits: different field names count together over the files and with the l
   assert.equal(r.loaded.length, 0, 'X A + B C = 4 names');
 });
 
-test('limits: an oversized value stops the parser before the value is cut out', () => {
-  const gen = parseADIFAutoSteps('<NOTES:99999999>short', [], 'x', {}, {}, { maxValueChars: 100 });
-  assert.throws(() => { let r; do r = gen.next(); while (!r.done); }, e => e instanceof AdifLimitError && e.code === 'VALUE' && e.length === 99999999);
+test('limits: the actual value counts, not a declared length past the end of the file', () => {
+  const run = (text, limits) => { const gen = parseADIFAutoSteps(text, [], 'x', {}, {}, limits); let r; do r = gen.next(); while (!r.done); return r.value; };
+  assert.throws(() => run(`<NOTES:500>${'x'.repeat(500)}<EOR>`, { maxValueChars: 100 }), e => e instanceof AdifLimitError && e.code === 'VALUE' && e.length === 500);
+  // a truncated file: bogus huge declared length, 5 real characters
+  assert.equal(run('<CALL:3>ABC<EOR><NOTES:99999999>short', { maxValueChars: 100 }).length, 2);
+});
+
+test('limits apply before the second reading of a non-ASCII file, and the validator reuses the detection', async () => {
+  const text = '<CALL:5>OE1AB<NAME:7>Jürgen<EOR>\n'.repeat(50); // lengths count UTF-8 bytes
+  const r = await loadLogFiles([file('u.adi', text)], { ...quick, limits: { maxRecords: 10 } });
+  assert.equal(r.loaded.length, 0);
+  assert.match(r.skipped[0].message, /more than 10 QSOs/);
+  // the detection is told to the validator: same result as detecting itself
+  const lim = { maxRecords: 100 };
+  const gen = parseADIFAutoSteps(text, [], 'x', {}, {}, lim);
+  for (let q = gen.next(); !q.done; q = gen.next());
+  assert.equal(lim.countsBytes, true);
+  assert.deepEqual(await chunkedRun(validateAdifSteps(text, { today: TODAY, bytesMode: true }), everyStep), validateAdif(text, { today: TODAY }));
+});
+
+test('a cancel in the last slice of the last file does not apply', async () => {
+  // a tiny file runs in one slice: the signal is read before reading, after
+  // reading, at the start of the slice; it flips to "cancelled" on the 4th
+  // read, i.e. once the work is done and the result is about to be handed out
+  let reads = 0;
+  const signal = { get aborted() { return ++reads > 3; } };
+  await assert.rejects(loadLogFiles([file('a.adi', '<CALL:3>ABC<EOR>')], { ...quick, budget: 1000, signal }), e => chunkedIsAbort(e));
+});
+
+test('maxIssues keeps issues of both phases when the structure has many', () => {
+  const syntax = Array.from({ length: 40 }, () => '<BROKEN>x').join('\n');
+  const text = `${syntax}\n<CALL:3>ABC<QSO_DATE:8>20241301<EOR>\n`;
+  const full = validateAdif(text, { today: TODAY });
+  const capped = validateAdif(text, { today: TODAY, maxIssues: 10 });
+  assert.ok(capped.issues.some(i => i.recordType === 'qso'), 'a QSO issue survives');
+  assert.ok(capped.issues.some(i => i.recordType !== 'qso'));
+  for (const k of ['errors', 'warnings', 'infos']) assert.equal(capped[k], full[k]);
+});
+
+test('chunked equals sync on CRLF text and on a multi-file merge of defs', async () => {
+  const crlf = official.replace(/\r?\n/g, '\r\n');
+  assert.deepEqual(await chunkedRun(validateAdifSteps(crlf, { today: TODAY }), everyStep), validateAdif(crlf, { today: TODAY }));
+  const a = '<ADIF_VER:5>3.1.7\n<USERDEF1:6:N>FOO_X\n<EOH>\n<CALL:3>ABC<FOO_X:1:N>1<APP_T_Y:1:N>2<EOR>\n';
+  const b = '<ADIF_VER:5>3.1.7\n<USERDEF1:12:N>FOO_X,{1:9}\n<EOH>\n<CALL:3>DEF<FOO_X:1:N>3<EOR>\n';
+  const { loaded } = await loadLogFiles([file('a.adi', a), file('b.adi', b)], quick);
+  for (const [i, t] of [a, b].entries()) {
+    const d = {}; const recs = parseADIFAuto(t, [], loaded[i].name, {}, d);
+    assert.deepEqual(loaded[i].parsed, recs); assert.deepEqual(loaded[i].defs, d);
+  }
 });
 
 test('limits: an unreadable file is reported, the others load', async () => {

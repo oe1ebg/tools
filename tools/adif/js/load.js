@@ -79,7 +79,7 @@ export function* loadFileSteps(name, text, warnings, limits = ADIF_LIMITS) {
   yield { phase: 'parsed', records: parsed.length };
   let result = null;
   try {
-    result = yield* validateAdifSteps(text, { lean: true, maxIssues: limits.maxIssues });
+    result = yield* validateAdifSteps(text, { lean: true, maxIssues: limits.maxIssues, bytesMode: limits.countsBytes });
   } catch (e) {
     console.error(e);
   }
@@ -153,6 +153,8 @@ export async function loadLogFiles(files, opts = {}) {
       const r = await chunkedRun(loadFileSteps(file.name, text, warnings, fileLimits), {
         signal, budget: opts.budget, tick: opts.tick, onProgress: p => report(file, i, p),
       });
+      // a cancel that was acknowledged must never apply, also in the last slice
+      if (signal?.aborted) throw chunkedAbortError();
       fields += fileLimits.fieldsRead || 0;
       for (const c of fileLimits.columnsRead || []) columns.add(c);
       records += r.parsed.length;
@@ -166,5 +168,6 @@ export async function loadLogFiles(files, opts = {}) {
     }
     doneBytes += file.size || 0;
   }
+  if (signal?.aborted) throw chunkedAbortError();
   return { loaded, skipped };
 }

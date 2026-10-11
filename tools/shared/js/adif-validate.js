@@ -445,7 +445,9 @@ function avParseUserdef(value, typeIndicator) {
 // issues kept, in the order they were found, then sorted; the counts
 // errors/warnings/infos and `valid` still count all, issuesDropped says
 // how many were left out; findings per file, as UNKNOWN_FIELD, are always
-// kept).
+// kept; half of the budget goes to the structure issues, the rest to the
+// per-field ones). bytesMode (true/false): the caller knows already how the
+// lengths count (adifCountsBytesSteps), so it is not detected again.
 export function validateAdif(source, options = {}) {
   return adifRunSteps(validateAdifSteps(source, options));
 }
@@ -462,11 +464,15 @@ export function* validateAdifSteps(source, options = {}) {
   const issues = [];
   const counts = { error: 0, warning: 0, info: 0 };
   const maxIssues = options.maxIssues > 0 ? options.maxIssues : Infinity;
+  // half of the budget for the file's structure (syntax, header, records),
+  // the rest, and what the first half left, for the per-field findings, so a
+  // file full of syntax problems still gets its QSO findings and flags
+  let issueBudget = maxIssues === Infinity ? Infinity : Math.ceil(maxIssues / 2);
   let dropped = 0;
   const where = avLineIndex(text);
   const issue = (severity, code, message, extra = {}) => {
     counts[severity]++;
-    if (issues.length >= maxIssues && !extra.always) { dropped++; return; }
+    if (issues.length >= issueBudget && !extra.always) { dropped++; return; }
     const it = { severity, code, message, recordType: extra.recordType || 'file' };
     for (const k of ['recordIndex', 'field', 'value', 'offset']) if (extra[k] !== undefined) it[k] = extra[k];
     if (it.offset !== undefined) Object.assign(it, where(it.offset));
@@ -488,7 +494,7 @@ export function* validateAdifSteps(source, options = {}) {
   // Lengths counted in UTF-8 bytes (many loggers): read the file as the
   // ADIF editor does (adifCountsBytes, shared with parseADIFAuto), by its
   // bytes; positions are mapped back to characters.
-  const byteMode = yield* adifCountsBytesSteps(text);
+  const byteMode = options.bytesMode !== undefined ? options.bytesMode : yield* adifCountsBytesSteps(text);
   const toChar = byteMode ? avByteToChar(text) : null;
   const tokens = yield* avScan(byteMode ? adifUtf8Bytes(text) : text,
     (severity, code, message, extra) => scanIssues.push([severity, code, message,
@@ -607,6 +613,7 @@ export function* validateAdifSteps(source, options = {}) {
   }
 
   /* fields */
+  issueBudget = maxIssues;
   const once = new Map(); // code|field -> issue, for per-file findings (reported once, with a count)
   const reportOnce = (severity, code, field, message, offset) => {
     const key = `${code}|${field}`;

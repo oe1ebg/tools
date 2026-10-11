@@ -230,9 +230,6 @@ export function* parseADIFSteps(text, warnings, sourceLabel, headerInfo, stats, 
     }
     const len = parseInt(lenStr, 10);
     if (limits) {
-      if (limits.maxValueChars && len > limits.maxValueChars) {
-        throw new AdifLimitError('VALUE', `<${name}:${len}> is longer than ${limits.maxValueChars} characters`, { limit: limits.maxValueChars, at: records.length + 1, field: name, length: len });
-      }
       fieldsTotal++;
       if (limits.maxFields && fieldsTotal > limits.maxFields) {
         throw new AdifLimitError('FIELDS_TOTAL', `more than ${limits.maxFields} fields in total`, { limit: limits.maxFields, at: records.length + 1 });
@@ -251,6 +248,14 @@ export function* parseADIFSteps(text, warnings, sourceLabel, headerInfo, stats, 
     // (as adif-validate.js does); a length that fits always holds.
     const cutAt = adifCutAt(body, tagEnd, tagEnd + len);
     const valueEnd = cutAt >= 0 ? cutAt : tagEnd + len;
+    // the limit is on the value as it is cut (a length past the end of the
+    // file doesn't count), before it is sliced out
+    if (limits && limits.maxValueChars) {
+      const actual = Math.min(valueEnd, body.length) - tagEnd;
+      if (actual > limits.maxValueChars) {
+        throw new AdifLimitError('VALUE', `<${name}:${len}> is longer than ${limits.maxValueChars} characters`, { limit: limits.maxValueChars, at: records.length + 1, field: name, length: actual });
+      }
+    }
     const value = cutAt >= 0 ? body.slice(tagEnd, cutAt).replace(/\s+$/, '') : body.slice(tagEnd, valueEnd);
     if (cutAt >= 0) warnings.push(`${sourceLabel}: <${name}:${len}> runs past the end of the file; the value was cut at the next tag.`);
     if (stats) {
@@ -301,7 +306,9 @@ export function parseADIFAuto(text, warnings, sourceLabel, headerInfo, defs, lim
 // progress is that of the reading that produces the result, a non-ASCII
 // file's first yields come from the check of how its lengths count).
 export function* parseADIFAutoSteps(text, warnings, sourceLabel, headerInfo, defs, limits) {
-  if (!(yield* adifCountsBytesSteps(text))) return yield* parseADIFSteps(text, warnings, sourceLabel, headerInfo, undefined, defs, limits);
+  const bytes = yield* adifCountsBytesSteps(text, limits);
+  if (limits) limits.countsBytes = bytes; // for the validator: no second detection
+  if (!bytes) return yield* parseADIFSteps(text, warnings, sourceLabel, headerInfo, undefined, defs, limits);
   const byteHeader = {}, byteDefs = {};
   const asBytes = yield* parseADIFSteps(adifUtf8Bytes(text), warnings, sourceLabel, byteHeader, undefined, byteDefs, limits);
   warnings.push(`${sourceLabel}: field lengths count UTF-8 bytes, not characters (as the file's program writes them); read that way.`);
@@ -331,11 +338,11 @@ export function adifCountsBytes(text) {
 
 // adifCountsBytes() as a generator (yields what the two readings yield,
 // with phase 'detect').
-export function* adifCountsBytesSteps(text) {
+export function* adifCountsBytesSteps(text, limits) {
   if (!/[^\x00-\x7f]/.test(text)) return false;
   const charStats = { unclean: 0 }, byteStats = { unclean: 0 };
   for (const [src, stats] of [[text, charStats], [adifUtf8Bytes(text), byteStats]]) {
-    const gen = parseADIFSteps(src, [], '', undefined, stats);
+    const gen = parseADIFSteps(src, [], '', undefined, stats, undefined, limits);
     for (let r = gen.next(); !r.done; r = gen.next()) yield { ...r.value, phase: 'detect' };
   }
   return byteStats.unclean < charStats.unclean;
