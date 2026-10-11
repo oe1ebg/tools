@@ -203,3 +203,143 @@ test('Bestätigungsverkehr', async ({ page }) => {
   await page.waitForTimeout(1500);
   await shotAround(page, ['#loc-panel'], 'confirm-standortsuche');
 });
+
+// --- notices (docs/notfunk-anleitung.md, docs/confirm-anleitung.md) ---
+
+async function notfunkOp(page, name, prefix) {
+  await page.goto('tools/notfunk/');
+  await expect.poll(() => page.evaluate(() => globalThis.NOTFUNK_READY === true)).toBe(true);
+  await page.getByRole('button', { name: '+ Neuer Einsatz' }).click();
+  await page.locator('#n-name').fill(name);
+  await page.locator('#n-prefix').fill(prefix);
+  await page.locator('#n-operator').fill('OE1EBG');
+  await page.getByRole('button', { name: 'Einsatz anlegen' }).click();
+  await expect(page.locator('#view-book')).toBeVisible();
+}
+
+test('Notfunk-Meldebuch: Konflikt- und Entwurfshinweise', async ({ page, context }) => {
+  await page.clock.setFixedTime(at('2026-10-08T12:05:00Z'));
+  await notfunkOp(page, 'Übung Blackout Wien', 'W1');
+  await page.locator('#m-from').fill('FF Floridsdorf, Einsatzleiter');
+  await page.locator('#m-peer').fill('OE1ABC');
+  await page.locator('#m-subject').fill('Stromausfall Pflegeheim');
+  await page.locator('#m-text').fill('Notstromaggregat läuft, Diesel reicht bis ca. 18:00.');
+  await page.locator('#m-readback').check();
+  await page.locator('#btn-save').click();
+  await expect(page.locator('#book-body')).toContainText('W1-001');
+
+  // NICHT GESPEICHERT: another tab changed the message while this one edited it
+  await page.locator('#book-body a', { hasText: 'W1-001' }).click();
+  const detailUrl = page.url();
+  await page.getByRole('button', { name: 'Bearbeiten' }).click();
+  await page.locator('#m-subject').fill('Stromausfall Pflegeheim, dringend');
+  const b = await context.newPage();
+  await b.goto(detailUrl);
+  await expect.poll(() => b.evaluate(() => globalThis.NOTFUNK_READY === true)).toBe(true);
+  await b.getByLabel('Übergeben an').fill('Meldesammelstelle');
+  await b.getByRole('button', { name: 'Übergabe eintragen' }).click();
+  await expect(b.locator('#msg-detail')).toContainText('an Meldesammelstelle');
+  await expect(page.locator('#book-body tr', { hasText: 'W1-001' })).toContainText('übergeben');
+  await page.locator('#btn-save').click();
+  await expect(page.locator('#banner')).toContainText('NICHT GESPEICHERT');
+  await shot(page.locator('#banner'), 'notfunk-nicht-gespeichert');
+  await b.close();
+
+  // ENTWURF NICHT GESICHERT: two tabs, two drafts
+  await notfunkOp(page, 'Übung Entwurf', 'E1');
+  const c = await context.newPage();
+  await c.goto(page.url());
+  await expect.poll(() => c.evaluate(() => globalThis.NOTFUNK_READY === true)).toBe(true);
+  await page.locator('#m-from').fill('FF Floridsdorf, Einsatzleiter');
+  await expect(page.locator('#draft-status')).toContainText('Entwurf gesichert');
+  await c.locator('#m-from').fill('Lichtinsel 7 Stammersdorf');
+  await expect(c.locator('#banner')).toContainText('ENTWURF NICHT GESICHERT');
+  await shot(c.locator('#banner'), 'notfunk-entwurf-nicht-gesichert');
+  await c.close();
+});
+
+test('Notfunk-Meldebuch: älterer Entwurf prüfen', async ({ page }) => {
+  await page.clock.setFixedTime(at('2026-10-08T12:05:00Z'));
+  await notfunkOp(page, 'Übung Blackout Wien', 'W1');
+  await page.locator('#m-from').fill('FF Floridsdorf, Einsatzleiter');
+  await page.locator('#m-peer').fill('OE1ABC');
+  await page.locator('#m-subject').fill('Stromausfall Pflegeheim');
+  await page.locator('#m-text').fill('Notstromaggregat läuft.');
+  await page.locator('#m-readback').check();
+  await page.locator('#btn-save').click();
+  await expect(page.locator('#book-body')).toContainText('W1-001');
+  await page.locator('#book-body a', { hasText: 'W1-001' }).click();
+  await page.getByRole('button', { name: 'Bearbeiten' }).click();
+  await page.locator('#m-subject').fill('Stromausfall Pflegeheim, dringend');
+  await page.waitForTimeout(1000);
+  // an edit draft of an older version (no base) and a change made meanwhile
+  await page.evaluate(() => new Promise((resolve, reject) => {
+    const open = indexedDB.open('oe1ebg-notfunk');
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const db = open.result;
+      const tx = db.transaction(['drafts', 'messages'], 'readwrite');
+      const drafts = tx.objectStore('drafts');
+      const msgs = tx.objectStore('messages');
+      drafts.getAll().onsuccess = ev => {
+        const d = ev.target.result[0];
+        delete d.base;
+        delete d.updated;
+        drafts.put(d);
+        msgs.getAll().onsuccess = ev2 => {
+          const m = ev2.target.result[0];
+          m.text = 'Notstromaggregat läuft, Diesel reicht bis ca. 18:00.';
+          m.updated = new Date(Date.parse(d.saved) - 60000).toISOString();
+          msgs.put(m);
+        };
+      };
+      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.onerror = () => reject(tx.error);
+    };
+  }));
+  await page.reload();
+  await expect(page.locator('#banner')).toContainText('ENTWURF PRÜFEN');
+  await shot(page.locator('#banner'), 'notfunk-entwurf-pruefen');
+});
+
+// The update banner: a new version waits and saving the input fails.
+async function updateBanner(page, context, tool, typeInput, input, name) {
+  await page.goto(`tools/${tool}/`);
+  await expect(page.locator('#st-offline')).toHaveText('offline bereit ✓', { timeout: 45_000 });
+  await typeInput();
+  await context.route(`**/tools/${tool}/precache.js`, async route => {
+    const res = await route.fetch();
+    await route.fulfill({ response: res, body: (await res.text()).replace(/version: "([^"]+)"/, 'version: "$1x"') });
+  });
+  await page.evaluate(() => navigator.serviceWorker.register('sw.js?v2').then(() => {}, () => {}));
+  await expect(page.locator('#btn-update')).toBeVisible({ timeout: 30_000 });
+  await page.evaluate(() => {
+    IDBDatabase.prototype.transaction = function () { throw new DOMException('quota', 'QuotaExceededError'); };
+  });
+  await page.locator(input).fill(`${await page.locator(input).inputValue()} und mehr`);
+  await page.locator('#btn-update').click();
+  await expect(page.locator('#update-problem')).toBeVisible();
+  await page.waitForTimeout(300);
+  await shotAround(page, ['#btn-update', '#update-problem'], name);
+}
+
+test('Notfunk-Meldebuch: Update wartet', async ({ page, context }) => {
+  await updateBanner(page, context, 'notfunk', async () => {
+    await page.getByRole('button', { name: '+ Neuer Einsatz' }).click();
+    await page.locator('#n-name').fill('Übung Blackout Wien');
+    await page.locator('#n-prefix').fill('W1');
+    await page.locator('#n-operator').fill('OE1EBG');
+    await page.getByRole('button', { name: 'Einsatz anlegen' }).click();
+    await page.locator('#m-text').fill('Halb getippte Meldung');
+  }, '#m-text', 'notfunk-update-wartet');
+});
+
+test('Bestätigungsverkehr: Update wartet', async ({ page, context }) => {
+  await updateBanner(page, context, 'confirm', async () => {
+    await page.getByRole('button', { name: '+ Neues Log' }).click();
+    await page.locator('#new-event input[name="title"]').fill('Rundspruch OE1 – Bestätigungsverkehr');
+    await page.getByRole('button', { name: /Log anlegen/ }).click();
+    await expect(page.locator('#view-log')).toBeVisible();
+    await page.locator('#f-call').fill('OE1ABC');
+  }, '#f-call', 'confirm-update-wartet');
+});

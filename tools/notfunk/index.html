@@ -29,8 +29,8 @@
   <span id="clock" class="clock" role="timer" aria-label="Uhrzeit (Ortszeit)"><b id="clock-local">--:--</b></span>
   <span id="st-offline" class="chip">offline: prüfe…</span>
   <span id="st-storage" class="chip">Speicher: prüfe…</span>
-  <button type="button" id="st-backup" class="chip chip-btn" hidden title="Sicherung (JSON) dieses Einsatzes jetzt herunterladen"></button>
-  <button id="btn-update" type="button" class="primary" hidden title="Neue Version installieren (Daten bleiben erhalten)">Update verfügbar</button>
+  <button type="button" id="st-backup" class="chip chip-btn" hidden title="Download der Sicherung (JSON) dieses Einsatzes jetzt starten; ob die Datei angekommen ist, meldet der Browser nicht"></button>
+  <button id="btn-update" type="button" class="primary" hidden title="Neue Version installieren (gespeicherte Daten bleiben erhalten; unfertige Eingaben vorher sichern oder kopieren)">Update verfügbar</button>
   <div id="theme-toggle" role="group" aria-label="Farbschema">
     <button type="button" data-theme-choice="light" aria-pressed="false">hell</button>
     <button type="button" data-theme-choice="auto" aria-pressed="false">auto</button>
@@ -382,7 +382,7 @@
           <li><b>Externe Referenz ergänzen:</b> die Nummer, die die Meldesammelstelle zurückmeldet.</li>
         </ol>
         <p>Ein Ausgang zeigt im Meldebuch, ob er nur <i>zur Übertragung</i> vorliegt, <i>übertragen</i> wurde oder der <i>Empfang bestätigt</i> ist. „Übergeben“ oder „übertragen“ heißt nie, dass ein Auftrag im Inhalt erledigt ist.</p>
-        <p>Der halb ausgefüllte Entwurf wird laufend auf dem Gerät gesichert („Entwurf gesichert“ oben im Formular); er bleibt auch nach einem Neuladen erhalten.</p>
+        <p>Der halb ausgefüllte Entwurf wird laufend zwischengesichert („Entwurf gesichert“ oben im Formular) und kommt nach einem Neuladen zurück. Er ist keine gespeicherte Meldung und kann verloren gehen; steht dort „Entwurf nicht gesichert!“ oder ein Hinweis zum Entwurf, ist er gerade nicht im Speicher. Vor einem Update fertige Meldungen speichern und wichtige unfertige Eingaben außerhalb des Meldebuchs kopieren; scheitert das Sichern, wartet das Update („Update wartet: Eingabe klären“), bis die Eingabe geklärt ist.</p>
       </section>
       <section id="h-who" aria-labelledby="h-who-t">
         <h3 id="h-who-t">Wer ist wer</h3>

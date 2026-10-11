@@ -76,6 +76,8 @@ Eingaben außerhalb des Werkzeugs kopieren. Ein Entwurf ist keine gespeicherte
 Zeile, und die Sicherung (JSON) enthält keine unfertigen Eingaben (siehe
 [Gespeichert, Entwurf und Sicherung](#gespeichert-entwurf-und-sicherung)).
 
+![Update wartet: Eingabe klären](img/confirm-update-wartet.png)
+
 **Mehrere Tabs.** Ein Log sollte nur in einem Tab offen sein; sonst warnt
 das Werkzeug („nur ein Tab pro Log!“).
 
