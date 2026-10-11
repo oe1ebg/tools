@@ -20,7 +20,7 @@ const PREFIXES = ['', 'a/b/', 'deep/er/prefix/'];
 // under test; without it the fixture would block its requests as foreign.
 const test = base.extend({
   prefixProxy: async ({ baseURL }, use) => {
-    const upstream = new URL(baseURL);
+    const upstream = new URL(baseURL.endsWith('/') ? baseURL : `${baseURL}/`);
     const hopByHop = new Set(['connection', 'keep-alive', 'transfer-encoding', 'content-encoding', 'content-length', 'upgrade', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailer']);
     const server = http.createServer(async (req, res) => {
       const prefix = PREFIXES.find(p => p && req.url.startsWith(`/${p}`));
@@ -30,7 +30,10 @@ const test = base.extend({
         // body is passed on uncompressed.
         const headers = {};
         for (const h of ['if-none-match', 'if-modified-since', 'range', 'accept']) if (req.headers[h]) headers[h] = req.headers[h];
-        const r = await fetch(new URL(req.url.slice(prefix.length), upstream), { method: req.method, headers, redirect: 'manual' });
+        // The synthetic prefix goes together with its leading slash; the rest
+        // is relative to the upstream base, which may have a path of its own
+        // (BASE_URL=http://host/a/b/, as in validate-dist.yml).
+        const r = await fetch(new URL(req.url.slice(prefix.length + 1), upstream), { method: req.method, headers, redirect: 'manual' });
         const out = Object.fromEntries([...r.headers].filter(([k]) => !hopByHop.has(k)));
         // A redirect that would leave the prefix breaks the simulation: fail loudly.
         if (out.location && /^(https?:)?\//.test(out.location)) {
