@@ -12,7 +12,7 @@
 // never touches prefix/seq/number. Edits keep the previous version as a
 // revision; deletes are soft (`deleted` timestamp).
 
-import { wallClock, isRepeatedWall, isoInZone } from '../../shared/js/time.js';
+import { wallClock, isRepeatedWall, isoInZone, laterIso } from '../../shared/js/time.js';
 
 export const DIRECTIONS = { in: 'Eingang', out: 'Ausgang' };
 export const CHANNELS = {
@@ -167,17 +167,17 @@ export function editMessage(msg, changes, { revisionId, operator, now }) {
   const f = messageFields({ ...msg, ...changes });
   const errs = validateMessage(f, { keepText: msg.text });
   if (errs.length) throw new Error(errs.join('; '));
-  const next = { ...msg, ...f, updated: now, editedBy: trimmed(operator).toUpperCase() };
+  const next = { ...msg, ...f, updated: laterIso(msg.updated, now), editedBy: trimmed(operator).toUpperCase() };
   const revision = { id: revisionId, eventId: msg.eventId, messageId: msg.id, at: now, by: next.editedBy, old: msg };
   return { next, revision };
 }
 
 export function softDelete(msg, { operator, now }) {
-  return { ...msg, deleted: now, deletedBy: trimmed(operator).toUpperCase(), updated: now };
+  return { ...msg, deleted: now, deletedBy: trimmed(operator).toUpperCase(), updated: laterIso(msg.updated, now) };
 }
 
 export function restoreDeleted(msg, { now }) {
-  return { ...msg, deleted: null, updated: now };
+  return { ...msg, deleted: null, updated: laterIso(msg.updated, now) };
 }
 
 // The furthest state reached. The handover steps (forwarded, acknowledged)
@@ -215,7 +215,7 @@ export function setStatus(msg, state, { operator, now, at = null, to = '', who =
     to: trimmed(to), who: trimmed(who), note: trimmed(note),
   };
   if (readBack) entry.readBack = true;
-  return { ...msg, ...(readBack ? { readBack: true } : {}), status: [...msg.status, entry], updated: now };
+  return { ...msg, ...(readBack ? { readBack: true } : {}), status: [...msg.status, entry], updated: laterIso(msg.updated, now) };
 }
 
 // The status entry of a state, if it was reached.
@@ -227,7 +227,7 @@ export function statusEntry(msg, state) {
 // status stays where it is.
 export function addAttempt(msg, { operator, now, at = null, note = '' }) {
   if (at && !ISO_RE.test(at)) throw new Error('Zeitpunkt ist ungültig');
-  return { ...msg, attempts: [...(msg.attempts || []), { at: at || now, recorded: now, by: trimmed(operator).toUpperCase(), note: trimmed(note) }], updated: now };
+  return { ...msg, attempts: [...(msg.attempts || []), { at: at || now, recorded: now, by: trimmed(operator).toUpperCase(), note: trimmed(note) }], updated: laterIso(msg.updated, now) };
 }
 
 // Live (not deleted) messages in number order per prefix, then by time.
