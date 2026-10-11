@@ -336,11 +336,13 @@ group), so a failure names the part of the spec. Each run requires:
 Logs of tens of thousands of QSOs stay usable:
 
 - **Virtualized table body** (`js/table.js`): only the rows in and around
-  the visible part (one screen above and below) exist in the DOM, between
-  two spacer rows; rows have one fixed height (measured), scrolling
+  the visible part (half a screen above and below) exist in the DOM,
+  between two spacer rows; rows have one fixed height (measured), scrolling
   re-renders the window in a `requestAnimationFrame`. Columns get fixed
-  widths from the longest value (a `<colgroup>`), so nothing jumps while
-  scrolling. One `focusin`/`focusout`/`keydown`/`click` listener on the
+  widths from the longest value (a `<colgroup>`) and the table is laid out
+  with `table-layout: fixed` and `border-collapse: separate` (see
+  *Import, re-check and limits*), so nothing jumps while scrolling and the
+  browser measures no cell contents. One `focusin`/`focusout`/`keydown`/`click` listener on the
   body handles every cell (event delegation via `data-ri`/`data-col`); a
   cell being edited is committed before its row scrolls out; Enter and Tab
   scroll the next row into the window before focusing it.
@@ -383,10 +385,10 @@ including the 150 ms debounce):
 | … browser: load and render | did not finish in 10 min | 0.34 s |
 | … browser: edit → re-checked | – | 0.49 s |
 
-Validation stays well under 150 ms for 6k QSOs, so it runs on the main
-thread (a Web Worker would need a Blob-URL worker in the single-file
-`file://` bundle, which `scripts/single_file.py` doesn't support). At
-50 000 QSOs one re-check takes about a third of a second of idle time.
+Validation stays well under 150 ms for 6k QSOs; at 50 000 QSOs one re-check
+takes about a third of a second. Since issue #15 it runs in slices on the main
+thread (see *Import, re-check and limits*, which also says why there is no
+Web Worker).
 
 ### Responsiveness baselines (issue #15)
 
@@ -428,6 +430,156 @@ The edit commit itself stays below 60 ms. Scrolling the virtualized table is
 smooth unthrottled (0 frames > 50 ms) but at 4x/6x CPU almost every frame
 takes 50-150 ms, independent of log size: the cost is per-row rendering
 (180 columns), not the size of the log.
+
+### Import, re-check and limits (issue #15)
+
+**Chunked, cancellable import** (`js/load.js`, `../shared/js/chunked.js`).
+`parseADIF()`, `validateAdif()` and `serializeADIF()` are thin drivers over
+generator versions (`parseADIFSteps()`, `validateAdifSteps()`,
+`serializeADIFSteps()`): the same code, which yields a progress value every
+few thousand tags/QSOs, so the results are exactly those of the synchronous
+functions whatever the pauses (`tests/adif-chunked.test.mjs` compares them
+with a pause at every step; the validator snapshot and the official-QSO and
+cross-check tests are unchanged). `chunkedRun()` runs a generator in slices
+of about 10 ms and hands the thread back between them with a
+`MessageChannel` (not `requestIdleCallback`, which Safari 15.4 lacks and
+which only schedules, it cannot interrupt). While a file loads, the page
+shows a labelled progress bar (reading: QSOs read; checking: n of m QSOs; in
+percent) and a Cancel button that has the focus (Escape cancels too); a
+status region announces every 10 %. `loadLogFiles()` reads, decodes, parses
+and checks the files one after the other and only **returns** what it got;
+the editor applies it (columns, records, validation view, table) in one step
+after the last file, so a cancel, or an unexpected error, leaves the loaded
+log, its filters and its warnings as they were. A file over a limit or
+unreadable is left out with a message while the others load. Edits made
+while a file loads stay (the new records are appended afterwards); a second
+import is refused until the first is done.
+
+**Chunked re-check after an edit.** The debounced re-check (serialize +
+validate) runs in the same slices. A newer edit cancels a running check and
+schedules a new one, and a result is applied only if no edit came after it
+started (a sequence number), so the finished check is always that of the
+current log, what a full `validateAdif()` of the export gives. The check
+reads a copy of the list of records with values, so sorting while it runs
+cannot change what it sees. "checking… n %" shows the progress. A truly
+incremental check (re-validating only the edited QSOs) was not attempted:
+issues carry line/column offsets into the exported text and some findings
+are per file (`UNKNOWN_FIELD` counts, the first occurrence of an `APP_` field
+decides its type), so an edit can change results anywhere; chunking keeps the
+guarantee "equals a full validation".
+
+**Memory.** The editor asks the validator for a `lean` result: the QSO records
+keep only `index`, `offset` and `line` (the editor never reads their fields),
+and the fields of a QSO are released as soon as it is checked. A 100 000 QSO
+result drops from 89 MB to 6 MB, the editor's heap after loading 50 000 QSOs
+from 39 to 16 MB. `maxIssues` keeps at most 100 000 issues per file (the
+counts stay exact; a warning says how many were not kept).
+
+**Table scrolling under CPU throttling.** A trace of a scroll at 4x CPU
+showed the time in paint (36 ms per frame), pre-paint (20 ms) and layout
+(19 ms) of ~8 000 cells, not in JavaScript. `border-collapse: collapse` was
+the expensive part (collapsed borders are resolved and painted per table, not
+per cell). With `border-collapse: separate; border-spacing: 0` (the same
+look: one 1 px border at the right and bottom of each cell),
+`table-layout: fixed` (widths from the `<colgroup>`; the table's width is set
+from their sum in `setTableWidth()`) and half a screen of overscan instead of
+a whole one (about 25 % fewer cells), the median frame at 4x CPU went from
+83-100 ms to 33 ms. Horizontal virtualization of the ~180 columns (about ten
+times fewer cells) would cut more, but changes the table's structure for
+keyboard navigation, screen readers and tests, and is not needed any more.
+
+**Resource limits** (`ADIF_LIMITS` in `js/load.js`). A file over one of them is
+refused before the memory is spent, with a message that names the file and the
+limit and says the log is unchanged:
+
+| limit | value | checked |
+| --- | ---: | --- |
+| one file | 50 MB | before reading (`File.size`) |
+| QSOs in the log (all files together) | 500 000 | while parsing, at the QSO that crosses it |
+| field values in the log (QSOs times fields) | 5 000 000 | while parsing |
+| one field value | 100 000 characters | at its tag, before the value is cut out |
+| fields in one QSO | 5 000 | while parsing |
+| different field names (table columns) | 1 000, counting those the log has | while parsing |
+| validation issues kept per file | 100 000 | the validator counts all, keeps the first ones |
+
+They follow from what a load takes (node, one parse + check in a fresh
+process): about 20 MB of peak memory per MB of file, 244 MB for 50 000 QSOs
+(7 MB), 600 MB for 200 000, 1.4 GB for 500 000 (73 MB, 4.4 M fields), about
+the most a desktop tab survives; phones have less room, so for them the
+limits are a ceiling, not a promise. Real logs are far below (a 10 000 QSO
+log has about 90 000 fields). Derived calculations (sorting, column widths,
+statistics, the comment template, exports) are linear in the log, which the
+limits bound; the table only ever builds its window. A value over the limit
+refuses the file instead of cutting the value, because silently dropping data
+from a log is worse than refusing the file. The messages are in English, like
+the rest of the editor.
+
+**Web Worker assessment: not used.** A worker would take the ~0.4 s (50 000
+QSOs, 1x) of checking off the main thread entirely, but chunking already keeps
+every task of a load and a re-check short (see the numbers below), and a
+worker would cost more than it gains here: (1) the single-file
+`adif-editor.html` has to run from `file://`, where module workers do not
+load, so the worker would have to be a second bundle (`scripts/single_file.py`
+makes one script per entry) embedded as text and started from a Blob URL,
+while the served build would use a module worker or the same Blob: two
+start-up paths to test in five engines; (2) the Content-Security-Policy in
+`deploy/nginx.conf.example` and `htaccess.example` would need `worker-src blob:`
+for the Blob (and `tests/deploy-headers.test.mjs` with it); (3) parsed
+records must be structured-cloned back to the page (16 MB of heap at 50 000
+QSOs: a main-thread cost of the order of the parse itself, and twice the
+memory for a while), so only the check could move, which is where the time is
+but also where the generator already gives the same responsiveness; (4)
+cancel and "the newest edit wins" would need messages instead of a flag. If
+the check grows (ADX in #24, more rules), a worker for `validateAdifSteps()`
+with the text transferred and a lean result back is the next step; the
+generator split keeps that small.
+
+**Measured** 2026-10-11 on the same machine and with the same configurations
+as the baselines above (`just bench-ui --tool adif`, 3 runs, median; before =
+`origin/main` at f06ff35). Chromium with CDP CPU throttling, WebKit
+unthrottled; "before -> after":
+
+| 50 000 QSOs | chromium 1x | 4x | 6x | webkit desktop | webkit iPhone 13 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| file chosen -> rows + validation shown (ms) | 606 -> 594 | 2627 -> 2512 | 3549 -> 3793 | 1038 -> 722 | 829 -> 683 |
+| load: longest task (ms) | 549 -> 62 | 2393 -> 254 | 3224 -> 377 | n/a | n/a |
+| scroll: median frame (ms) | 17 -> 17 | 100 -> 33 | 133 -> 50 | 67 -> 17 | 28 -> 17 |
+| scroll: frames over 50 ms (of 89) | 0 -> 0 | 84 -> 0 | 88 -> 11 | 89 -> 0 | 0 -> 0 |
+| edit commit -> next frame (ms) | 16 -> 11 | 42 -> 29 | 56 -> 38 | 62 -> 9 | 21 -> 9 |
+| edit -> re-checked, incl. 150 ms debounce (ms) | 693 -> 694 | 2361 -> 2410 | 3295 -> 3576 | 577 -> 666 | 603 -> 692 |
+| edit -> re-checked: longest task (ms) \* | 546 -> 0 | 2046 -> 134 | 3138 -> 198 | n/a | n/a |
+| JS heap loaded / after edits (MB) | 39 / 71 -> 16 / 24 | same | same | n/a | n/a |
+
+| 10 000 QSOs | chromium 1x | 4x | 6x | webkit desktop | webkit iPhone 13 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| file chosen -> rows + validation shown (ms) | 227 -> 205 | 976 -> 878 | 1360 -> 1300 | 623 -> 276 | 437 -> 236 |
+| load: longest task (ms) | 172 -> 0 | 715 -> 186 | 1016 -> 268 | n/a | n/a |
+| scroll: median frame (ms) | 17 -> 17 | 83 -> 33 | 133 -> 50 | 67 -> 17 | 28 -> 17 |
+| scroll: frames over 50 ms (of 89) | 0 -> 0 | 86 -> 0 | 89 -> 12 | 88 -> 0 | 0 -> 0 |
+| edit commit -> next frame (ms) | 13 -> 8 | 46 -> 24 | 73 -> 35 | 60 -> 9 | 21 -> 7 |
+| edit -> re-checked, incl. 150 ms debounce (ms) | 275 -> 263 | 639 -> 638 | 904 -> 901 | 275 -> 269 | 257 -> 261 |
+| edit -> re-checked: longest task (ms) \* | 125 -> 0 | 437 -> 0 | 665 -> 0 | n/a | n/a |
+| JS heap loaded / after edits (MB) | 10 / 16 -> 5.5 / 7.4 | same | same | n/a | n/a |
+
+\* `bench-ui` gained this line with the change; the "before" values were taken
+with the same page-side long-task probe on an unchanged build of `origin/main`
+(a profiling script, one run). The Chromium phone-viewport rows follow the
+desktop ones (50 000 QSOs at 4x: scroll median 50 -> 17 ms, load longest task
+2181 -> 259 ms); the full tables are in the pull request.
+
+Trade-offs: the time until the table shows is about the same, up to 7 % longer
+at 6x CPU for 50 000 QSOs (the slices and their hand-backs cost a little);
+what changed is that the page answers while it loads (longest task 549 -> 62
+ms at 1x, 3224 -> 377 ms at 6x), shows progress and can be cancelled. The
+re-check as a whole is not faster; it no longer blocks (frames during a
+50 000 QSO re-check at 4x stay below 30 ms at the 95th percentile). What
+remains in one task: the end of a load (columns, widths, the first window,
+~60 ms at 1x) and the end of a check (indexing the result, up to ~200 ms at
+6x). The synchronous functions are not slower (`node scripts/bench_adif.mjs`,
+50 000 QSOs: validate 420 -> 397 ms, parse 73 -> 67 ms, serialize 180 -> 172
+ms, within noise). Memory after a load is lower (lean results); the peak while
+reading is unchanged (the validator materializes the tokens before it checks
+them), which is what the limits are for.
 
 ## ADIF version compliance
 
@@ -498,8 +650,11 @@ record holding the focus always stays in the view.
   build provenance*); its pure parts tested in
   `oe1ebg/tests/adif-compliance.test.mjs`.
 - `build-info.js` — generated by `scripts/build_adif.py`, git-ignored.
-- `js/app.js` (table rendering, editing, validation display, file
-  loading, toolbar), `js/state.js` (the log, the view and the issue index:
+- `js/load.js` (loading files in slices: progress, cancel, the resource
+  limits; pure, tested in `oe1ebg/tests/adif-chunked.test.mjs`),
+  `../shared/js/chunked.js` (the slice runner),
+  `js/app.js` (table rendering, editing, validation display, applying a
+  loaded file, toolbar), `js/state.js` (the log, the view and the issue index:
   the view contract), `js/table.js` (the virtualized table body),
   `js/export.js` (ADI,
   CSV and SOTA CSV export; pure, unit-tested in `oe1ebg/tests/adif.test.mjs`),
