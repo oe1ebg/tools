@@ -222,6 +222,7 @@ jobs:
           python3 scripts/pages_publish.py --repo . --ops "$RUNNER_TEMP/ops.json" --incoming "$RUNNER_TEMP/incoming" \
             --slug "$SLUG" --message "$PAGES_MESSAGE" --error-file "$RUNNER_TEMP/publish-error.txt" > "$RUNNER_TEMP/publish.out" || rc=$?
           tee -a "$GITHUB_STEP_SUMMARY" < "$RUNNER_TEMP/publish.out"
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
           exit "$rc"
 
       # One comment per PR, updated in place; scripts/pages_comment.py builds
@@ -237,15 +238,23 @@ jobs:
           PR_SHA: ${{ github.event.pull_request.head.sha }}
           BASE_URL: ${{ vars.PAGES_BASE_URL }}
           PUBLISH: ${{ steps.publish.outcome }}
+          RC: ${{ steps.publish.outputs.rc }}
         run: |
           name=${SLUG#*/}
           base=${BASE_URL:-https://${OWNER,,}.github.io/$name}
-          if [ "$EVENT_ACTION" = closed ]; then state=removed
-          elif [ "$PUBLISH" = success ]; then state=published
-          elif grep -q 'site is full' "$RUNNER_TEMP/publish-error.txt" 2>/dev/null; then state=full
-          else state=error; fi
-          python3 scripts/pages_comment.py --slug "$SLUG" --pr "$PR_NUMBER" --state "$state" --sha "$PR_SHA" --base "$base" \
-            --detail-file "$RUNNER_TEMP/publish-error.txt"
+          # The state comes from the outcome and the exit code (a constant
+          # integer), never from message text; only the `full` message (entry
+          # names and sizes) is passed on, no other state includes any detail.
+          detail=()
+          if [ "$PUBLISH" = success ]; then
+            if [ "$EVENT_ACTION" = closed ]; then state=removed; else state=published; fi
+          elif [ "$EVENT_ACTION" != closed ] && [ "$RC" = 3 ]; then
+            state=full
+            detail=(--detail-file "$RUNNER_TEMP/publish-error.txt")
+          else
+            state=error
+          fi
+          python3 scripts/pages_comment.py --slug "$SLUG" --pr "$PR_NUMBER" --state "$state" --sha "$PR_SHA" --base "$base" "${detail[@]}"
 
   # A failed build skips `deploy`: say so on the PR, otherwise the old preview
   # (if any) looks current.

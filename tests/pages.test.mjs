@@ -425,11 +425,11 @@ def tarball(tag):
             ti = tarfile.TarInfo(n); ti.size = len(data); tf.addfile(ti, io.BytesIO(data))
     return buf.getvalue()
 if a[:2] == ["release", "list"]:
-    print(json.dumps([{"tagName": t, "isPrerelease": t == "data-latest", "isDraft": False} for t in ("v1.2.0", "v1.1.0", "v1.0.0", "data-latest")]))
+    print(json.dumps([{"tagName": t, "isPrerelease": t == "data-latest", "isDraft": False} for t in ("v1.2.0", "v1.1.0", "v1.0.0", "v0.9.0", "data-latest")]))
 elif a[:2] == ["release", "download"]:
     tag = a[2]; pat = a[a.index("--pattern") + 1]; out = pathlib.Path(a[a.index("--dir") + 1]); out.mkdir(parents=True, exist_ok=True)
     name = f"oe1ebg-tools-{tag}.tar.gz"
-    data = tarball(tag)
+    data = b"this is not a gzip tarball" if tag == "v0.9.0" else tarball(tag)  # corrupt, but its checksum matches
     digest = hashlib.sha256(data).hexdigest()
     if tag == "v1.0.0" and pat.endswith(".sha256"):            # two checksum assets
         (out / "oe1ebg-tools-a.tar.gz.sha256").write_text(f"{digest}  oe1ebg-tools-a.tar.gz\\n")
@@ -447,17 +447,17 @@ else:
 `;
   writeFileSync(join(bin, 'gh'), code, { mode: 0o755 });
   const out = join(d, 'out');
-  const r = spawnSync('python3', ['scripts/pages_releases.py', '--slug', 'oe1ebg/tools', '--out', out, '--max-releases', '3'],
+  const r = spawnSync('python3', ['scripts/pages_releases.py', '--slug', 'oe1ebg/tools', '--out', out, '--max-releases', '4'],
     { cwd: ROOT, encoding: 'utf8', env: { ...process.env, PATH: `${bin}:${process.env.PATH}` } });
   assert.equal(r.status, 0, r.stderr + r.stdout);
-  for (const tag of ['v1.1.0', 'v1.0.0', 'data-latest']) assert.match(r.stdout, new RegExp(`::warning title=Pages: ${tag} skipped::`), tag);
+  for (const tag of ['v1.1.0', 'v1.0.0', 'v0.9.0', 'data-latest']) assert.match(r.stdout, new RegExp(`::warning title=Pages: ${tag} skipped::`), tag);
   const ops = JSON.parse(readFileSync(join(out, 'ops.json'), 'utf8'));
   assert.deepEqual(ops.filter(o => o.op === 'put').map(o => o.name), ['v1.2.0'], 'only the good release is published');
   const keep = ops.find(o => o.op === 'keep-releases');
-  assert.deepEqual(keep.tags, ['v1.2.0', 'v1.1.0', 'v1.0.0', 'data-latest'], 'skipped ones keep their old entry');
+  assert.deepEqual(keep.tags, ['v1.2.0', 'v1.1.0', 'v1.0.0', 'v0.9.0', 'data-latest'], 'skipped ones keep their old entry');
   assert.match(keep.as_of, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/);
   assert.ok(existsSync(join(out, 'release', 'v1.2.0', 'index.html')));
-  assert.ok(!existsSync(join(out, 'release', 'data-latest')) && !existsSync(join(out, 'release', 'v1.0.0')), 'the mismatching tarball is not published');
+  assert.ok(!existsSync(join(out, 'release', 'data-latest')) && !existsSync(join(out, 'release', 'v1.0.0')) && !existsSync(join(out, 'release', 'v0.9.0')), 'the mismatching or corrupt tarball is not published');
 });
 
 test('comment: bodies for every state, built from the number and sha only', { skip: SKIP }, () => {
