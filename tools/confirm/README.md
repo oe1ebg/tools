@@ -240,7 +240,7 @@ now redirected; see "Move to /tools/" in `../shared/README.md`), and the source 
   Texts of a line (note, comment) have no limit of their own, so a backup
   the tool itself writes should be restorable: an export beyond these
   limits is written in **parts** (`backupTexts()`, `tools/shared/js/backup-parts.js`;
-  each part below 40 MB / 150000 records, named `..._teil-N-von-M.json`, a
+  each part below 40 MB / 80000 records, named `..._teil-N-von-M.json`, a
   valid backup file with an extra `part: { set, n, of }`; the log's own record
   is repeated in every part, lines and versions are divided in order). The
   import (`<input multiple>`) takes the parts together: `groupParts()` checks
@@ -249,7 +249,7 @@ now redirected; see "Move to /tools/" in `../shared/README.md`), and the source 
   result goes through the usual `validateBackup(..., { combined: true })` and
   ONE atomic `planBackupImport()` write, ids, revisions and counters as
   exported. The limits apply per file; a backup within them is one file as
-  before. The import transaction stays atomic as before. Limits: the set is bounded too (12 parts, 480 MB, 1000000 records in total; refused with a German message, nothing written); a single record larger than the per-file limit is not split and can still not be restored (Confirm has no text limit); an older app version may import a lone part as a partial backup; parts import only into the same tool; a blocked automatic multi-download is reported as "N files started, check that all arrived" and no export / backup time is recorded for parts. Test:
+  before. The import transaction stays atomic as before. Limits: the set is bounded too (12 parts, 480 MB, 1000000 records in total; the per-part limits are chosen so that every split the export makes is within the set limits: 12 x 80000 <= 1000000, 12 x 40 MB = 480 MB; the import refuses a larger set with a German message and nothing written, and the EXPORT refuses it before anything is downloaded, "zu groß für eine einzige Sicherung", pointing to the individual logs; never a partial set); a single record larger than the per-file limit is not split and can still not be restored (Confirm has no text limit); an older app version may import a lone part as a partial backup; parts import only into the same tool; a blocked automatic multi-download is reported as "N files started, check that all arrived" and no export / backup time is recorded for parts. Test:
   `tests/backup-parts.test.mjs`.
 
 ## Operator comments and log markers (issue #32)

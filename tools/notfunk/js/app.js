@@ -1562,7 +1562,14 @@ async function exportBackup() {
   const now = nowIso();
   // one file, or - beyond what an import accepts (50 MB, 200000 records) -
   // several parts, imported together; nothing is left out
-  const texts = toBackupTexts(data, now, newId(), globalThis.NOTFUNK_PART_LIMITS); // (test hook)
+  let texts;
+  try {
+    texts = toBackupTexts(data, now, newId(), globalThis.NOTFUNK_PART_LIMITS); // (test hook)
+  } catch (e) {
+    if (!e.tooLarge) throw e;
+    showNotice(el('strong', {}, 'Nicht gesichert. '), e.message); // refused before anything is downloaded
+    return;
+  }
   for (const [i, text] of texts.entries()) {
     if (i) await new Promise(r => setTimeout(r, 400)); // browsers ask before many downloads at once
     download(text, texts.length === 1 ? `${fileStem()}-sicherung.json` : partFileName(`${fileStem()}-sicherung`, i + 1, texts.length), 'application/json');
@@ -1570,8 +1577,10 @@ async function exportBackup() {
   const lead = texts.length > 1
     ? `Sicherung (JSON): Download von ${texts.length} Dateien gestartet (große Sicherung, geteilt). Prüfen Sie, dass alle ${texts.length} angekommen sind – der Browser fragt eventuell, ob mehrere Downloads erlaubt sind. Beim Import alle Teile gemeinsam auswählen`
     : 'Download der Sicherung (JSON) gestartet';
-  bookStatus(fromMemory ? `${lead} – der Speicher war nicht lesbar, sie enthält den Stand dieses Tabs` : lead);
-  // in parts: not known to have all arrived, so no "letzte Sicherung" time
+  const text = fromMemory ? `${lead} – der Speicher war nicht lesbar, sie enthält den Stand dieses Tabs` : lead;
+  if (texts.length > 1) fill($('#book-status'), text); // neutral, no check mark: not known to have all arrived
+  else bookStatus(text);
+  // in parts: not known to have all arrived, so no "Sicherung gestartet" time
   if (texts.length === 1) await updateOp(state.op, { backupAt: now });
   renderBackupChip();
 }

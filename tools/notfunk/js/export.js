@@ -17,7 +17,7 @@
 import { DIRECTIONS, CHANNELS, MESSAGE_TYPES, PRIORITIES, REF_KINDS, STATUS_FLOW, validateMessage, messageFields, statusLabel, statusEntry, currentStatus, liveMessages, fmtVienna, viennaDate, viennaTime, isoVienna, fmtFreq } from './model.js';
 import { counterAfterImport, counterKey, PREFIX_RE, formatNumber } from './numbering.js';
 import { csvSafeRows } from '../../shared/js/csv.js';
-import { splitToFit, partsTooManyRecords } from '../../shared/js/backup-parts.js';
+import { splitToFit, partsTooManyRecords, backupTooLargeMessage } from '../../shared/js/backup-parts.js';
 
 export const BACKUP_FORMAT = 'oe1ebg-notfunk-backup';
 export const BACKUP_VERSION = 1;
@@ -79,7 +79,8 @@ export function toBackup({ operation, messages, revisions, counters }, now, part
 export function toBackupTexts({ operation, messages, revisions, counters }, now, setId, limits) {
   const items = [...messages.map(m => ({ m })), ...revisions.map(r => ({ r }))];
   const build = (slice, part) => toBackup({ operation, messages: slice.filter(x => x.m).map(x => x.m), revisions: slice.filter(x => x.r).map(x => x.r), counters }, now, part);
-  const slices = splitToFit(items, build, () => 1, limits);
+  const tooLarge = backupTooLargeMessage('Bitte das Geschäftsbuch (CSV) exportieren und für weitere Meldungen einen neuen Einsatz anlegen.');
+  const slices = splitToFit(items, build, () => 1, { tooLarge, ...limits });
   return slices.map((slice, i) => build(slice, slices.length > 1 ? { set: setId, n: i + 1, of: slices.length } : undefined));
 }
 

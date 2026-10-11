@@ -2006,6 +2006,12 @@ function updateExportNudge() {
   chip.textContent = `${since} Zeilen seit letztem Export – jetzt sichern`;
 }
 
+function showExportRefused(msg) {
+  const box = $('#export-msg');
+  fill(box, el('b', {}, 'Nicht gesichert. '), msg, el('button', { type: 'button', onclick: () => { box.hidden = true; } }, 'OK'));
+  box.hidden = false;
+}
+
 function showEmptyAdif(entries) {
   const box = $('#export-msg');
   const comments = entries.some(e => !e.deleted && isComment(e));
@@ -2107,9 +2113,10 @@ async function doExport(kind, force = false) {
     // Not a full backup (only stations with a location): no markExported().
     download(toKML(ev, entries, { qth }), fileBase(ev) + '.kml', KML_MIME);
   } else if (kind === 'json') {
-    const split = await downloadBackup([await eventBackup(ev)], fileBase(ev) + '_sicherung');
-    if (split) logStatus(split);
-    else markExported(); // parts: not known to have all arrived, so the export is not counted
+    const r = await downloadBackup([await eventBackup(ev)], fileBase(ev) + '_sicherung');
+    if (r.error) showExportRefused(r.error);
+    else if (r.note) fill($('#log-status'), r.note); // neutral, no check mark: parts are not known to have all arrived, so the export is not counted
+    else markExported();
   } else if (kind === 'summary') {
     showText('Zusammenfassung', toSummary(ev, entries, timeMode(), { qth }));
   } else if (kind === 'print') {
@@ -2121,8 +2128,9 @@ async function backupAll() {
   const events = await state.store.getAll('events');
   const items = [];
   for (const ev of events) items.push(await eventBackup(ev));
-  const split = await downloadBackup(items, `${splitUtc(nowIso()).date}_bestaetigungsverkehr_alle`);
-  if (split) showImportMsg('warn', split);
+  const r = await downloadBackup(items, `${splitUtc(nowIso()).date}_bestaetigungsverkehr_alle`);
+  if (r.error) showImportMsg('err', el('strong', {}, 'Nicht gesichert: '), r.error);
+  else if (r.note) showImportMsg('warn', r.note);
 }
 
 // The JSON backup of logs: one file, or - when it is beyond what an import
@@ -2130,13 +2138,19 @@ async function backupAll() {
 // (selected together in the import dialog); nothing is left out.
 async function downloadBackup(items, base) {
   // (CONFIRM_PART_LIMITS: test hook, lowers the limits so a browser test can split a small backup)
-  const texts = backupTexts(items, nowIso(), newId(), globalThis.CONFIRM_PART_LIMITS);
-  if (texts.length === 1) { download(texts[0], base + '.json', 'application/json'); return ''; }
+  let texts;
+  try {
+    texts = backupTexts(items, nowIso(), newId(), globalThis.CONFIRM_PART_LIMITS);
+  } catch (e) {
+    if (e.tooLarge) return { error: e.message }; // refused before anything is downloaded
+    throw e;
+  }
+  if (texts.length === 1) { download(texts[0], base + '.json', 'application/json'); return {}; }
   for (const [i, text] of texts.entries()) {
     if (i) await new Promise(r => setTimeout(r, 400)); // browsers ask before many downloads at once
     download(text, partFileName(base, i + 1, texts.length), 'application/json');
   }
-  return `Download von ${texts.length} Dateien gestartet (die Sicherung ist groß und geteilt). Prüfen Sie, dass alle ${texts.length} angekommen sind – der Browser fragt eventuell, ob mehrere Downloads erlaubt sind. Beim Import alle Teile gemeinsam auswählen.`;
+  return { note: `Download von ${texts.length} Dateien gestartet (die Sicherung ist groß und geteilt). Prüfen Sie, dass alle ${texts.length} angekommen sind – der Browser fragt eventuell, ob mehrere Downloads erlaubt sind. Beim Import alle Teile gemeinsam auswählen.` };
 }
 
 /* ---------------------------------------------------------------- cross-tab sync */

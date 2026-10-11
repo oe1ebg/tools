@@ -16,7 +16,7 @@
 // in the file, a line without a readable time) is imported as written and
 // reported as a warning.
 
-import { splitToFit, partsTooManyRecords } from '../../shared/js/backup-parts.js';
+import { splitToFit, partsTooManyRecords, backupTooLargeMessage } from '../../shared/js/backup-parts.js';
 
 export const BACKUP_FORMAT = 'oe1ebg-confirm-backup';
 export const BACKUP_VERSIONS = [1];
@@ -201,7 +201,8 @@ export function backupTexts(events, exported, setId, limits) {
     }
     return JSON.stringify({ format: BACKUP_FORMAT, version: 1, exported, ...(part ? { part } : {}), events: out }, null, 1);
   };
-  const slices = splitToFit(items, build, it => (it.entry || it.rev ? 1 : 0), limits);
+  const tooLarge = backupTooLargeMessage('Bitte die einzelnen Logs getrennt sichern (Sicherung (JSON) im jeweiligen Log).');
+  const slices = splitToFit(items, build, it => (it.entry || it.rev ? 1 : 0), { tooLarge, ...limits });
   return slices.map((slice, i) => build(slice, slices.length > 1 ? { set: setId, n: i + 1, of: slices.length } : undefined));
 }
 
