@@ -65,6 +65,9 @@ const state = {
   showErrors: false, // field errors are shown after the first save attempt
   warned: '',        // the warnings already shown once (saving again = save anyway)
   saving: false,
+  forUpdate: false,  // the update flow is flushing the draft (offline.js beforeReload)
+  noticeKey: null,   // which draft notice #banner shows (conflict / review), so typing does not re-show it
+  heldForm: null,    // the form as the held-back draft shows it (readForm() as JSON)
   editStale: false,  // an older edit draft not reviewed yet: nothing is saved or overwritten
   editBase: null,    // { id, fields }: the fields of the version an edit was opened on, kept after a conflict
   saveKey: null,    // { sig, id }: the id a failed save used, kept while the form is unchanged (a retry can't number it twice)
@@ -666,6 +669,11 @@ function formIsEmpty(f) {
   return formIsBlank(f, state.op);
 }
 
+// flushDraft() resolves true when the draft is safe (saved, or nothing to
+// save) and false when it is not (storage error, conflict with another tab's
+// draft): a string says why (shown by the update flow, shared/js/offline.js).
+// An older draft held back for review is stored already: true while the form
+// is unchanged since, else a message.
 // Draft writes run one after the other, each reading the form and the token
 // (draftSeen) when its turn comes: a debounce that fires during a save, or
 // the clear after it, can't work with a stale token and leave the saved
@@ -686,8 +694,14 @@ function flushDraft() {
 
 async function flushDraftNow() {
   // an older draft waiting for the user's review is left as it is (a new write would look current)
-  if (state.editStale) return;
-  if (!state.op || $('#view-book').hidden && $('#view-msg').hidden) return;
+  if (state.editStale) {
+    // the held-back draft is what is stored and what the form shows: nothing
+    // is at risk until the user types something else
+    if (JSON.stringify(readForm()) === state.heldForm) return true;
+    if (state.forUpdate) reviewDraft(); // the notice is shown again if another message replaced it
+    return staleResult();
+  }
+  if (!state.op || $('#view-book').hidden && $('#view-msg').hidden) return true;
   const f = readForm();
   const empty = formIsEmpty(f) && !state.editing;
   const opId = state.op.id;
@@ -707,27 +721,54 @@ async function flushDraftNow() {
       }
       setText($('#draft-status'), `✓ Entwurf gesichert ${viennaTime(draft.saved)}`);
     }
+    return true;
   } catch (e) {
-    if (e instanceof ConflictError) { draftConflict(e); return; }
+    if (e instanceof ConflictError) {
+      // the notice shows once per conflict (not on every keystroke), and again when the update asks
+      if (state.forUpdate || state.noticeKey !== `conflict:${e.actual}`) draftConflict(e);
+      return conflictResult(e);
+    }
     console.warn('Entwurf nicht gespeichert', e);
     setText($('#draft-status'), 'Entwurf nicht gesichert!');
+    return false;
   }
 }
 
 // Another tab saved a draft for this operation since this one read it:
 // neither is overwritten silently. The user chooses.
+// What the two choices do (also offered by the update banner, offline.js):
+// keep mine = my text is saved and replaces the other window's draft; take
+// the other = its draft replaces what is typed here.
+async function keepMyDraft(e) {
+  state.noticeKey = null;
+  state.draftSeen = e.actual;
+  $('#banner').hidden = true;
+  await flushDraft();
+}
+function takeOtherDraft(e) {
+  state.noticeKey = null;
+  state.draftSeen = e.actual;
+  $('#banner').hidden = true;
+  applyDraft(e.current);
+  setText($('#draft-status'), '✓ Entwurf aus dem anderen Tab geladen');
+}
+function conflictResult(e) {
+  return {
+    message: 'Zwei Fenster haben für diesen Einsatz verschiedene Entwürfe (ein Entwurf ist eine noch nicht gespeicherte Meldung); Ihr Text in diesem Fenster ist nicht gesichert. Wählen Sie, welcher Text bleibt: ',
+    actions: [
+      { label: 'Meinen Text sichern (ersetzt den Entwurf des anderen Fensters)', run: () => keepMyDraft(e) },
+      { label: 'Entwurf des anderen Fensters laden (ersetzt meinen Text hier)', run: () => takeOtherDraft(e) },
+    ],
+    discards: 'Ihr aktueller Text in diesem Fenster geht verloren; der Entwurf aus dem anderen Fenster bleibt.',
+  };
+}
 function draftConflict(e) {
-  const other = e.current;
+  state.noticeKey = `conflict:${e.actual}`;
   setText($('#draft-status'), 'Entwurf nicht gesichert: anderer Tab!');
   showNotice('ENTWURF NICHT GESICHERT – In einem anderen Tab oder Fenster liegt ein anderer Entwurf für diesen Einsatz. ',
-    el('button', { type: 'button', onclick: () => { state.draftSeen = e.actual; $('#banner').hidden = true; flushDraft(); } }, 'Meinen Entwurf sichern (ersetzt den anderen)'),
+    el('button', { type: 'button', onclick: () => keepMyDraft(e) }, 'Meinen Entwurf sichern (ersetzt den anderen)'),
     ' ',
-    el('button', { type: 'button', onclick: () => {
-      state.draftSeen = e.actual;
-      $('#banner').hidden = true;
-      applyDraft(other);
-      setText($('#draft-status'), '✓ Entwurf aus dem anderen Tab geladen');
-    } }, 'Den anderen Entwurf laden (ersetzt meine Eingabe)'),
+    el('button', { type: 'button', onclick: () => takeOtherDraft(e) }, 'Den anderen Entwurf laden (ersetzt meine Eingabe)'),
     ' ');
 }
 
@@ -742,6 +783,7 @@ function applyDraft(d) {
   writeForm(d?.form || emptyForm(state.op));
   // an older draft's version is unknown: reviewed unless it holds nothing the message doesn't
   state.editStale = st.stale && draftDiff().length > 0;
+  state.heldForm = state.editStale ? JSON.stringify(readForm()) : null;
   if (state.editStale) reviewDraft();
   else if (st.gone) showNotice('ENTWURF – Die Meldung, die dieser Entwurf bearbeitet, gibt es in diesem Einsatz nicht mehr. Der Entwurf steht im Formular und würde als neue Meldung gespeichert. ');
 }
@@ -759,13 +801,38 @@ function draftDiff() {
   return [...new Set(Object.keys(changedFields(mine, messageFields(state.editing))).map(k => FIELD_LABELS[k] || k))];
 }
 
+function applyStaleDraft() {
+  state.noticeKey = null;
+  state.editStale = false;
+  state.editBase = editBaseOf(state.editing);
+  $('#banner').hidden = true;
+}
+function discardStaleDraft() {
+  state.noticeKey = null;
+  const m = state.editing;
+  $('#banner').hidden = true;
+  startEdit(m);
+  return flushDraft();
+}
+function staleResult() {
+  return {
+    message: `Ein älterer Entwurf zu ${state.editing?.number || 'einer Meldung'} wurde noch nicht geprüft, und Sie haben seither etwas geändert; das ist nicht gesichert. Wählen Sie: `,
+    actions: [
+      { label: 'Meinen Text auf die aktuelle Fassung anwenden (wird gesichert)', run: async () => { applyStaleDraft(); await flushDraft(); } },
+      { label: 'Entwurf verwerfen, gespeicherte Fassung laden (meine Änderungen gehen verloren)', run: discardStaleDraft },
+    ],
+    discards: 'Ihre ungesicherten Änderungen an dieser Meldung gehen verloren; die gespeicherte Fassung bleibt.',
+  };
+}
+
 function reviewDraft() {
   const cur = state.editing;
   const diff = draftDiff();
+  state.noticeKey = `review:${cur.id}:${diff.join(',')}`;
   showNotice(`ENTWURF PRÜFEN – Dieser Entwurf stammt aus einer älteren Version des Werkzeugs; es ist nicht bekannt, auf welcher Fassung von ${cur.number} er beruht (sie kann inzwischen, z. B. in einem anderen Tab, geändert worden sein). Der Entwurf steht im Formular, es wird nichts gespeichert, bevor Sie gewählt haben. Abweichend von der gespeicherten Fassung: ${diff.join(', ') || 'nichts'}. `,
-    el('button', { type: 'button', onclick: () => { state.editStale = false; state.editBase = editBaseOf(state.editing); $('#banner').hidden = true; } }, 'Entwurf auf die aktuelle Fassung anwenden'),
+    el('button', { type: 'button', onclick: applyStaleDraft }, 'Entwurf auf die aktuelle Fassung anwenden'),
     ' ',
-    el('button', { type: 'button', onclick: () => { const m = state.editing; $('#banner').hidden = true; startEdit(m); flushDraft(); } }, 'Entwurf verwerfen (gespeicherte Fassung laden)'),
+    el('button', { type: 'button', onclick: discardStaleDraft }, 'Entwurf verwerfen (gespeicherte Fassung laden)'),
     ' ');
 }
 
@@ -1661,7 +1728,11 @@ async function main() {
   initPersistence();
   initOffline({
     build: globalThis.NOTFUNK_BUILD,
-    beforeReload: flushDraft,
+    // the update flow asks for the draft; only then is a notice shown again
+    beforeReload: () => {
+      state.forUpdate = true;
+      return flushDraft().finally(() => { state.forUpdate = false; });
+    },
     fileHidden: ['#offline-file-link', '#offline-card', '#data-sources-link', '#home-link', '#manual-link', '#help-manual'],
   });
   fill($('#st-source'), ' · ', repoLink('Quellcode', 'tools/notfunk'));

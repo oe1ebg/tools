@@ -76,6 +76,8 @@ label.field > span, div.field > span, div.field > label{ text-transform:uppercas
 .banner.err{ color:var(--err); background:var(--err-soft); font-weight:600; }
 .banner.warn{ color:var(--warn); background:var(--warn-soft); }
 .banner button{ margin-left:.6em; }
+.banner button[aria-disabled="true"]{ opacity:.55; cursor:progress; }
+.banner textarea{ display:block; width:100%; box-sizing:border-box; margin:.4em 0; font:inherit; }
 /* text plus buttons, wrapping below the text when narrow (#old-install) */
 .banner.move{ display:flex; flex-wrap:wrap; align-items:center; gap:.6em; }
 .banner.move p{ margin:0; flex:1 1 32ch; min-width:0; }

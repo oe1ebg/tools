@@ -36,6 +36,12 @@ Die Kurzfassung steht im Werkzeug selbst: **„? Hilfe“** oben im Formular ode
 **Offline verwenden.** Beim ersten Öffnen mit Internet lädt das Meldebuch
 alles, was es braucht (Rufzeichenliste, Relaisliste, Wiener Adressen). Danach
 funktioniert es ohne Verbindung. „offline bereit ✓“ oben rechts zeigt das an.
+Steht dort „offline nicht bereit“, hat der Browser die Offline-Kopie
+gelöscht; mit Internet geöffnet, repariert sie sich selbst („Offline-Kopie
+wird repariert…“). Gibt es auf dem Server inzwischen eine neue Version,
+steht „Neue Version auf dem Server – bitte aktualisieren“; dann über „Update
+verfügbar“ aktualisieren. Bei „Offline-Einrichtung fehlgeschlagen“ oder
+„Reparatur fehlgeschlagen“ die Seite mit Internet neu laden.
 Am Handy oder Tablet über „Zum Startbildschirm hinzufügen“ als App ablegen.
 Für Laptops ohne Internet gibt es die **Offline-Datei** (eine HTML-Datei,
 etwa 6 MB, unten auf der Startseite des Werkzeugs), etwa für einen
@@ -52,18 +58,28 @@ angekommen ist und noch irgendwo liegt, kann es nicht wissen; siehe
 
 **Neue Version.** Erscheint „Update verfügbar“, ist eine neue Version
 geladen. Sie wird erst nach einem Klick darauf aktiv, nicht von selbst. Der
-Klick lädt aber **alle** offenen Tabs und Fenster des Meldebuchs neu und kann
-dort laufende Eingaben unterbrechen; einen Aufschub je Tab gibt es nicht.
-Gespeicherte Meldungen und die vergebenen Nummern bleiben unverändert. Beim
-Neuladen versucht das Meldebuch, den halb ausgefüllten Entwurf zu sichern und
-holt ihn danach zurück. Das kann scheitern (zum Beispiel bei vollem Speicher
-oder wenn ein Entwurfs-Hinweis, siehe unten, angezeigt wird), und das
-Neuladen läuft dann trotzdem weiter. **Deshalb vor jedem Update, in jedem
-offenen Tab:** fertige Meldungen speichern und unfertige Eingaben außerhalb
-des Meldebuchs kopieren, auch wenn kein Fehler angezeigt wird. Ein Entwurf
-ist keine gespeicherte Meldung, und die Sicherung (JSON) enthält keine
-unfertigen Eingaben. Im Einsatz lieber erst nach einer ruhigen Phase
-aktualisieren.
+Klick lädt aber **alle** offenen Tabs und Fenster des Meldebuchs neu; einen
+Aufschub, den man je Tab wählen kann, gibt es nicht. Gespeicherte Meldungen
+und die vergebenen Nummern bleiben unverändert. Vor dem Neuladen sichert
+jeder Tab den halb ausgefüllten Entwurf und holt ihn danach zurück. Gelingt
+das Sichern in einem Tab nicht (zum Beispiel bei vollem Speicher), wird
+dieser Tab **nicht** neu geladen: die Eingabe bleibt stehen, der Knopf heißt
+„Update wartet: Eingabe klären“, und eine rote Meldung unter der Kopfzeile
+erklärt warum. Haben zwei Fenster verschiedene Entwürfe (ein Entwurf ist
+eine noch nicht gespeicherte Meldung) oder wartet ein älterer Entwurf auf
+Prüfung, bietet die Meldung die Wahl gleich an: „Meinen Text sichern“
+ersetzt den Entwurf des anderen Fensters, „Entwurf des anderen Fensters
+laden“ ersetzt den Text in diesem Fenster; bei einem älteren Entwurf
+„anwenden“ (Ihr Text wird gesichert) oder „verwerfen“ (die gespeicherte
+Fassung wird geladen). Danach läuft das Update von selbst weiter. „Erneut
+versuchen“ und, mit Rückfrage (sie nennt, was verloren geht), „Trotzdem
+aktualisieren“ gibt es immer. Hat ein anderer Tab das Update schon
+installiert, steht dieselbe Meldung in dem Tab („Neuladen nicht
+ausgeführt“); die Seite läuft bis zum Neuladen mit der alten Version.
+**Trotzdem vor jedem Update:** fertige Meldungen speichern und wichtige
+unfertige Eingaben außerhalb des Meldebuchs kopieren. Ein Entwurf ist keine
+gespeicherte Meldung, und die Sicherung (JSON) enthält keine unfertigen
+Eingaben. Im Einsatz lieber erst nach einer ruhigen Phase aktualisieren.
 
 ## Einen Einsatz anlegen
 
