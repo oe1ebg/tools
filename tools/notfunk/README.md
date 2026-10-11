@@ -189,7 +189,7 @@ name, and a distribution list ("Verteiler").
   Dringend, search incl. the reference), the next status step as a button,
   an "Ausdruck" button per row; a summary says how many emergencies are
   open, how many aren't confirmed, and whether the numbers are gapless. The
-  header shows the backup state ("Letzte Sicherung 14:40 · 3 Meldungen
+  header shows the backup state ("Sicherung gestartet 14:40 · 3 Meldungen
   ungesichert", a click downloads a backup).
 - **One message:** verbatim text, all fields, the flow (Ablauf) with a small
   form for the next step (to whom / by whom, when), failed attempts, the

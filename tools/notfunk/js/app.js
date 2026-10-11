@@ -1550,7 +1550,7 @@ async function exportBackup() {
   }
   const now = nowIso();
   download(toBackup(data, now), `${fileStem()}-sicherung.json`, 'application/json');
-  bookStatus(fromMemory ? 'Sicherung (JSON) heruntergeladen – der Speicher war nicht lesbar, sie enthält den Stand dieses Tabs' : 'Sicherung (JSON) heruntergeladen');
+  bookStatus(fromMemory ? 'Download der Sicherung (JSON) gestartet – der Speicher war nicht lesbar, sie enthält den Stand dieses Tabs' : 'Download der Sicherung (JSON) gestartet');
   await updateOp(state.op, { backupAt: now });
   renderBackupChip();
 }
@@ -1565,7 +1565,7 @@ function renderBackupChip() {
   chip.hidden = !at && !since;
   chip.className = `chip chip-btn ${since ? 'warn' : 'ok'}`;
   setText(chip, at
-    ? `Letzte Sicherung ${viennaTime(at)}${since ? ` · ${since} ${since === 1 ? 'Meldung' : 'Meldungen'} ungesichert` : ' ✓'}`
+    ? `Sicherung gestartet ${viennaTime(at)}${since ? ` · ${since} ${since === 1 ? 'Meldung' : 'Meldungen'} ungesichert` : ' · seitdem nichts Neues'}`
     : `Noch keine Sicherung · ${since} ${since === 1 ? 'Meldung' : 'Meldungen'}`);
 }
 
