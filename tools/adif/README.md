@@ -510,10 +510,34 @@ the most a desktop tab survives; phones have less room, so for them the
 limits are a ceiling, not a promise. Real logs are far below (a 10 000 QSO
 log has about 90 000 fields). Derived calculations (sorting, column widths,
 statistics, the comment template, exports) are linear in the log, which the
-limits bound; the table only ever builds its window. The field-value limit counts what is in the log now (recounted at each load, deleted rows free it) and the value limit the value as it is cut, not a declared length past the end of the file, in characters of the decoded value (a file whose lengths count UTF-8 bytes is read by its bytes, so the limit counts the decoded characters, and the message too). The check of how a non-ASCII file's lengths count reads it both ways without building records or values (it only needs the limits and the count of unclean ends), and the validator's scanner yields by scanned work, so a long malformed stretch neither piles up memory nor blocks the page. Adding a file re-checks the log as it is now whenever an edit has made the loaded files' results obsolete, also when that edit's check had already finished. A value over the limit
-refuses the file instead of cutting the value, because silently dropping data
-from a log is worse than refusing the file. The messages are in English, like
-the rest of the editor.
+limits bound; the table only ever builds its window.
+
+Details of how the limits count:
+
+- The field-value limit counts what is in the log now (recounted at each
+  load, deleted rows free it).
+- The value limit counts the value as it is cut, not a declared length past
+  the end of the file, in characters of the decoded value. A file whose
+  lengths count UTF-8 bytes is read by its bytes; the limit and its message
+  still count the decoded characters.
+- A value over the limit refuses the file instead of cutting the value,
+  because silently dropping data from a log is worse than refusing the file.
+- The check of how a non-ASCII file's lengths count reads it both ways
+  without building records or values (it needs only the limits and the count
+  of unclean ends). The value limit is left to the real parse.
+- The validator's scanner yields by scanned work, so a long malformed stretch
+  neither piles up memory nor blocks the page. Findings beyond the issue
+  budget, and a second and later `<EOH>`, are only counted.
+- Not bounded by the limits: the line index (`avLineIndex`) and the byte to
+  character map of a byte-counted file (`avByteToChar`) grow with the size of
+  the file (at most 50 MB), not with the number of QSOs or issues.
+- `maxWarnings` (like the other limits) is enforced only where `limits` are
+  passed to `parseADIFSteps()`; the plain `parseADIF()` without them keeps
+  every warning.
+- Adding a file re-checks the log as it is now whenever an edit has made the
+  loaded files' results obsolete, also when that edit's check had already
+  finished.
+- The messages are in English, like the rest of the editor.
 
 **Web Worker assessment: not used.** A worker would take the ~0.4 s (50 000
 QSOs, 1x) of checking off the main thread entirely, but chunking already keeps
