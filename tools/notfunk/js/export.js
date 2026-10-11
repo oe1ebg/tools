@@ -14,7 +14,7 @@
 //   only adds or updates records and never lowers a counter, so no message
 //   number is ever handed out twice (numbering.counterAfterImport()).
 
-import { MESSAGE_TEXT_MAX, DIRECTIONS, CHANNELS, MESSAGE_TYPES, PRIORITIES, REF_KINDS, STATUS_FLOW, validateMessage, messageFields, statusLabel, statusEntry, currentStatus, liveMessages, fmtVienna, viennaDate, viennaTime, isoVienna, fmtFreq } from './model.js';
+import { DIRECTIONS, CHANNELS, MESSAGE_TYPES, PRIORITIES, REF_KINDS, STATUS_FLOW, validateMessage, messageFields, statusLabel, statusEntry, currentStatus, liveMessages, fmtVienna, viennaDate, viennaTime, isoVienna, fmtFreq } from './model.js';
 import { counterAfterImport, counterKey, PREFIX_RE, formatNumber } from './numbering.js';
 import { csvSafeRows } from '../../shared/js/csv.js';
 
@@ -109,7 +109,7 @@ function messageProblem(m) {
   if (m.origin.filed != null && !isIso(m.origin.filed)) return 'ungültige Aufgabezeit';
   let errs;
   try {
-    errs = validateMessage(messageFields(m));
+    errs = validateMessage(messageFields(m), { lenient: true });
   } catch {
     return 'ungültige Felder';
   }
@@ -149,7 +149,6 @@ export function parseBackup(json) {
     const what = `Meldung ${isObj(m) && typeof m.number === 'string' ? m.number : i + 1}`;
     const why = identityProblem(m, op.id);
     if (why) throw bad(what, why);
-    if (typeof m.text === 'string' && m.text.length > MESSAGE_TEXT_MAX) throw bad(what, `Inhalt länger als ${MESSAGE_TEXT_MAX} Zeichen`);
     if (ids.has(m.id)) throw bad(what, 'ID doppelt');
     if (seqs.has(seqKey(m))) throw bad(what, 'Nummer doppelt');
     ids.add(m.id);

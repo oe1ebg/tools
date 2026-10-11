@@ -204,8 +204,9 @@ A backup import is refused as a whole, with a German message and nothing
 written: a file over 50 MB (`BACKUP_MAX_BYTES`, ~10x an operation of 5000
 messages with revisions; checked from the file size before it is read), more
 than 200000 messages and revisions together (`BACKUP_MAX_RECORDS`), a message
-whose Inhalt has over 50000 characters (`MESSAGE_TEXT_MAX`). The same
-`MESSAGE_TEXT_MAX` stops a message being saved in the form ("Inhalt ist zu
+(there is no limit on texts in a file: a backup the tool wrote, revisions
+included, must import again). `MESSAGE_TEXT_MAX` (50000 characters of Inhalt)
+stops a message being saved in the form ("Inhalt ist zu
 lang ..."); a radio message is a few hundred characters, the limit only stops
 pasted files. Imports stay atomic (`applyBackup`).
 
