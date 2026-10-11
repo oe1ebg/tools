@@ -17,7 +17,7 @@
 import { DIRECTIONS, CHANNELS, MESSAGE_TYPES, PRIORITIES, REF_KINDS, STATUS_FLOW, validateMessage, messageFields, statusLabel, statusEntry, currentStatus, liveMessages, fmtVienna, viennaDate, viennaTime, isoVienna, fmtFreq } from './model.js';
 import { counterAfterImport, counterKey, PREFIX_RE, formatNumber } from './numbering.js';
 import { csvSafeRows } from '../../shared/js/csv.js';
-import { splitToFit, partsTooManyRecords, backupTooLargeMessage } from '../../shared/js/backup-parts.js';
+import { splitToFit, partsTooManyRecords, backupTooLargeMessage, chunkRecord, applyChunks } from '../../shared/js/backup-parts.js';
 
 export const BACKUP_FORMAT = 'oe1ebg-notfunk-backup';
 export const BACKUP_VERSION = 1;
@@ -65,10 +65,10 @@ export function toGeschaeftsbuchCSV(msgs, sep = ';', stats) {
   return '\ufeff' + csvSafeRows(rows, sep, stats) + '\r\n';
 }
 
-export function toBackup({ operation, messages, revisions, counters }, now, part) {
+export function toBackup({ operation, messages, revisions, counters, chunks }, now, part) {
   return JSON.stringify({
     format: BACKUP_FORMAT, version: BACKUP_VERSION, exported: now, ...(part ? { part } : {}),
-    operation, messages, revisions, counters,
+    operation, messages, revisions, counters, ...(chunks?.length ? { chunks } : {}),
   }, null, 1);
 }
 
@@ -78,9 +78,17 @@ export function toBackup({ operation, messages, revisions, counters }, now, part
 // operation and the counters. The parts restore only together.
 export function toBackupTexts({ operation, messages, revisions, counters }, now, setId, limits) {
   const items = [...messages.map(m => ({ m })), ...revisions.map(r => ({ r }))];
-  const build = (slice, part) => toBackup({ operation, messages: slice.filter(x => x.m).map(x => x.m), revisions: slice.filter(x => x.r).map(x => x.r), counters }, now, part);
+  const build = (slice, part) => toBackup({ operation, messages: slice.filter(x => x.m).map(x => x.m), revisions: slice.filter(x => x.r).map(x => x.r), counters, chunks: slice.filter(x => x.chunk).map(x => x.chunk) }, now, part);
+  // a text beyond the chunk size is written as chunks (chunkRecord) in the parts
+  // and put together again by combineBackupParts()
+  const expand = list => list.flatMap(it => {
+    const kind = it.m ? 'messages' : 'revisions';
+    const rec = it.m || it.r;
+    const cut = chunkRecord(rec, kind, rec.id, limits?.chunkChars);
+    return cut.chunks.length ? [it.m ? { m: cut.rec } : { r: cut.rec }, ...cut.chunks.map(chunk => ({ chunk }))] : [it];
+  });
   const tooLarge = backupTooLargeMessage('Bitte das Geschäftsbuch (CSV) exportieren und für weitere Meldungen einen neuen Einsatz anlegen.');
-  const slices = splitToFit(items, build, () => 1, { tooLarge, ...limits });
+  const slices = splitToFit(items, build, () => 1, { tooLarge, expand, ...limits });
   return slices.map((slice, i) => build(slice, slices.length > 1 ? { set: setId, n: i + 1, of: slices.length } : undefined));
 }
 
@@ -316,10 +324,20 @@ export function mergeBackup(backup, existing) {
 export function combineBackupParts(parts) {
   const ops = parts.map(d => checkFile(d));
   if (ops.some(o => o.id !== ops[0].id)) throw new Error('Die Teile gehören zu verschiedenen Einsätzen');
-  const big = partsTooManyRecords(parts.reduce((n, d) => n + d.messages.length + d.revisions.length, 0));
+  if (parts.some(d => d.chunks !== undefined && !Array.isArray(d.chunks))) throw new Error('Textblöcke ungültig – die Teile sind beschädigt; es wurde nichts importiert');
+  const big = partsTooManyRecords(parts.reduce((n, d) => n + d.messages.length + d.revisions.length + (d.chunks || []).length, 0));
   if (big) throw new Error(big.replace(/\.$/, ''));
   const last = new Map();
   for (const d of parts) for (const c of d.counters) if (isObj(c) && typeof c.id === 'string' && !(last.get(c.id)?.last >= c.last)) last.set(c.id, c);
-  const { part, ...rest } = parts[0];
-  return checkBackup({ ...rest, messages: parts.flatMap(d => d.messages), revisions: parts.flatMap(d => d.revisions), counters: [...last.values()] }, { combined: true });
+  const { part, chunks, ...rest } = parts[0];
+  const messages = parts.flatMap(d => d.messages);
+  const revisions = parts.flatMap(d => d.revisions);
+  const allChunks = parts.flatMap(d => d.chunks || []);
+  if (allChunks.length) {
+    const byKind = { messages: new Map(), revisions: new Map() };
+    for (const [k, list] of [['messages', messages], ['revisions', revisions]]) for (const r of list) if (isObj(r) && typeof r.id === 'string') byKind[k].set(r.id, r);
+    const why = applyChunks(allChunks, (kind, rid) => byKind[kind]?.get(rid));
+    if (why) throw new Error(why.replace(/\.$/, ''));
+  }
+  return checkBackup({ ...rest, messages, revisions, counters: [...last.values()] }, { combined: true });
 }

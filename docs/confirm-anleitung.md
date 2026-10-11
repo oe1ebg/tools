@@ -120,7 +120,10 @@ allen Zeilen, auch den gelöschten, und enthält die Daten **unverschlüsselt**.
   zusammen dürfen höchstens 12 Dateien, 480 MB und 1000000 Zeilen und
   Versionen umfassen. Ist ein Log dafür zu groß, meldet das Werkzeug „Zu groß
   für eine einzige Sicherung“ **bevor** etwas heruntergeladen wird: dann die
-  Logs einzeln sichern. Eine einzelne Datei darf höchstens 50 MB und 200000
+  Logs einzeln sichern. Auch ein einzelner sehr langer Text (eine Notiz oder
+  ein Kommentar über 50 MB) wird dabei auf mehrere Teile verteilt und beim
+  Import wieder zusammengesetzt; fehlt ein Stück, wird nichts importiert.
+  Eine einzelne Datei darf höchstens 50 MB und 200000
   Zeilen und Versionen enthalten.
 - Es wird nie etwas Vorhandenes überschrieben. Ist die ID des Logs, einer
   seiner Zeilen oder einer früheren Fassung schon gespeichert, kommt das Log

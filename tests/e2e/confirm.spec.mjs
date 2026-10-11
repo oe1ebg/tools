@@ -390,3 +390,41 @@ test('a split export beyond the set limits is refused without any download', asy
   await page.waitForTimeout(1000);
   expect(downloads).toBe(0);
 });
+
+// A note beyond the file limit is written as chunks across the parts and put
+// together again (the hook lowers the limits, so a small note stands in for 50 MB).
+test('a note beyond the per-file limit is chunked across the parts and restored whole', async ({ page, browser, baseURL }, testInfo) => {
+  await page.addInitScript(() => { globalThis.CONFIRM_PART_LIMITS = { maxBytes: 9000, chunkChars: 3000 }; });
+  await openNewLog(page, 'E2E Notiz');
+  const note = 'Anfang-' + 'n'.repeat(20000) + '-Ende';
+  await page.locator('#f-call').fill('OE1AAA');
+  await page.locator('#f-note').fill(note);
+  await page.locator('#btn-save').click();
+  await expect(page.locator('#log-body')).toContainText('-Ende');
+  const downloads = [];
+  page.on('download', d => downloads.push(d));
+  const first = page.waitForEvent('download');
+  await page.locator('#btn-export-menu').click();
+  await page.locator('#export-list [data-export="json"]').click();
+  const count = Number((await first).suggestedFilename().match(/_teil-\d+-von-(\d+)\.json$/)[1]);
+  expect(count).toBeGreaterThanOrEqual(3);
+  await expect.poll(() => downloads.length).toBe(count);
+  const paths = [];
+  for (const d of downloads) {
+    const p = testInfo.outputPath(d.suggestedFilename());
+    await d.saveAs(p);
+    paths.push(p);
+  }
+  const ctx = await browser.newContext({ baseURL, locale: 'de-AT', timezoneId: 'Europe/Vienna' });
+  try {
+    const b = await ctx.newPage();
+    await b.goto('tools/confirm/');
+    await expect.poll(() => b.evaluate(() => globalThis.CONFIRM_READY === true)).toBe(true);
+    await b.locator('#import-file').setInputFiles(paths);
+    await expect(b.locator('#import-msg')).toContainText('1 Log importiert');
+    await b.getByText('E2E Notiz').first().click();
+    await expect(b.locator('#log-body')).toContainText(note);
+  } finally {
+    await ctx.close();
+  }
+});

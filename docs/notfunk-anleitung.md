@@ -402,7 +402,9 @@ Zeitraum (Von/Bis je Datum und Uhrzeit; nur ein Datum = der ganze Tag).
   ein Einsatz dafür zu groß, meldet das Meldebuch „Zu groß für eine einzige
   Sicherung“ **bevor** etwas heruntergeladen wird; dann das Geschäftsbuch
   (CSV) exportieren und für weitere Meldungen einen neuen Einsatz anlegen.
-  Eine einzelne Datei darf höchstens 50 MB und 200000 Meldungen und
+  Auch ein einzelner sehr langer Inhalt (über 50 MB) wird auf mehrere Teile
+  verteilt und beim Import wieder zusammengesetzt; fehlt ein Stück, wird
+  nichts importiert. Eine einzelne Datei darf höchstens 50 MB und 200000 Meldungen und
   Fassungen enthalten.
 
 ### Gespeichert, Entwurf und Sicherung
