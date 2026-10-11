@@ -1,126 +1,93 @@
-# AGENTS.md — Notfunk-Meldebuch (emergency traffic log)
+# AGENTS.md — Notfunk-Meldebuch
 
-Draft (issue #31), published at `/tools/notfunk/` but not in the nav (only listed as a draft on the `/tools/` overview). Design, sources and open questions are in
-`oe1ebg/tools/notfunk/README.md`. Read it first: the message format is
-provisional until the Notfunkreferat Wien confirms it.
+Apply the root `AGENTS.md` and read `tools/notfunk/README.md` before editing.
+Paths below are relative to the repository root. The message format is
+provisional until the Notfunkreferat Wien confirms it; preserve the draft
+banner and draft labels wherever the tool is listed.
 
-## Rules to keep
+## Numbering and persistence
 
-- **Message numbers are sacred.** Take them only via
-  `saveNumbered()` (`js/numbering.js`), which writes the message and the
-  counter in one `store.atomic()` transaction. Never compute or change a
-  number anywhere else; `editMessage()` keeps prefix/seq/number. Restores
-  go through `mergeBackup()` (counters never go down). The tests in
-  `tests/notfunk-numbering.test.mjs` must keep passing.
-- **Backups restorable (within limits).** The import limits (50 MB / 200000 records)
-  should not make the tool's own export unrestorable: `toBackupTexts()` splits
-  an export beyond them into parts (`part: { set, n, of }`) that
-  `groupParts()` / `combineBackupParts()` put together for ONE atomic
-  `applyBackup()`; do not add a limit without a restore
-  path (`tests/backup-parts.test.mjs`). Limits of the parts: the set is bounded too (12 parts, 480 MB, 1000000 records in total, `PARTS_*` in backup-parts.js, with per-part limits chosen so every split the export makes is within them; the import refuses a larger set, nothing written, and `splitToFit()` makes the EXPORT refuse a set that could not be restored BEFORE anything is downloaded - the UI shows it, never a partial set, never data left out); a string longer than 1 Mi characters (a note, comment or Inhalt, also inside a revision) is cut out of its record for a split export and written as numbered chunks (`chunks: [{ kind, rid, path, n, of, data }]` at the top of the parts, `chunkRecord()` / `applyChunks()` in backup-parts.js) that `combineBackupParts()` puts back before the normal validation and atomic write, so a single huge text no longer has to fit one file (chunks count against the 12 parts / 480 MB / 1000000 records; a missing, doubled, inconsistent, orphaned or tampered chunk - wrong kind, a path with __proto__/constructor, a target that is not the empty placeholder - refuses the whole set with a German message "nichts importiert"); what still cannot be split - a record that stays beyond the per-file limit with no single string over 1 Mi characters (e.g. very many large fields) - is refused before anything is downloaded; an older app version may import a lone part as a partial backup and ignores `chunks` (long texts then stay empty), and a part may hold only chunks (no records); parts import only into the same tool; an automatic multi-download may be blocked, so the status says N files were *started* (check all arrived) and the export/backup time is not recorded for parts. A changed message always gets a later
-  `updated` (`laterIso()`): the row cache's signature relies on it. The
-  Inhalt limit applies to changed text only (`keepText`), so a restored long
-  message stays editable.
-- **Writes go through `js/ops.js`:** a new message is `saveNewMessage()`
-  (number, message and the reply's "answered" status in one `atomic()`; the
-  message id doubles as idempotency key, so a retry returns the committed
-  message); every change of a stored message (edit, status, attempt, delete,
-  restore, staff reference) is `updateMessage()`, a compare-and-set on
-  `updated` that throws `ConflictError` instead of overwriting another
-  tab's change, with the replaced record as the revision; a restore is
-  `applyBackup()` (decision + writes in one `atomic()`, ids are global).
-  After the number is committed nothing may make the message look unsaved
-  (station completion and the redraw only warn). Backups are read from the
-  storage, not from the tab's memory. Drafts carry `updated` and are
-  compare-and-set per operation (another tab's draft is never overwritten
-  silently). The compare-and-set token is `updated`, made strictly
-  increasing per record (`bumpUpdated()`: clock, or previous + 1 ms), so two
-  writes never share a token; the message format is unchanged. An edit
-  draft stores its base (`editBaseOf()`: token and field values of the
-  version it was opened on) and a restore checks against that, so a change
-  made meanwhile is a conflict and only fields the user changed are sent.
-  `parseBackup()` validates the whole file; keep it as strict as
-  the model.
-- **Never lose data:** soft deletes only, edits store a revision, the full
-  text is kept verbatim (ÖVSV Notfunk-Konzept § 6.7).
-- **Offline only, shared code first:** same rules as the confirmation log
-  (`../confirm/AGENTS.md`). Use `tools/shared/` (storage, location lookup,
-  callbook, repeaters, data, Leaflet) instead of copying from `confirm/`.
-- **Bundler rules** (`scripts/single_file.py`): `import { … } from './x.js'`
-  only, `export` only on function/const/let/class, top-level names unique
-  across all modules the tool loads (shared ones included).
-- **Print:** the printouts are data (`js/print.js`, tested) rendered by
-  `js/printview.js` into `#print-sheet`; the layout is the `.pf-*` rules in
-  `style.css` (A4). A message must fit one page (the e2e test counts the
-  PDF pages in Chromium): white, thin lines, no filled areas, nothing that
-  depends on printed backgrounds. Keep the E-31 field order and the words
-  of the web form (both use the same labels).
-- **Words:** German, the same in the form, the help dialog (`index.html`),
-  the printout, the CSV and the manual (`docs/notfunk-anleitung.md`).
-  Notfunk-Nr. and "Referenz Meldesammelstelle" are never mixed up. After
-  visible changes re-run `just screenshots` for the manual.
-- **Saved vs draft vs backup:** "gespeichert" only after the commit, a draft
-  is never called saved, "Download der Sicherung (JSON) gestartet" means a
-  download was started, not that a copy is retained. The conflict/draft notices
-  (`NICHT GESPEICHERT`, `ENTWURF NICHT GESICHERT`, `ENTWURF PRÜFEN`) and
-  their buttons are quoted in the manual; change both together.
-- **Not in the oe1ebg.at nav** or llms.txt until the format is
-  confirmed; the "Entwurf" banner stays until then.
-- **Check changes** with `just test`, and in a browser with
-  `just e2e` (or against the nginx image: `BASE_URL=…`).
+- Numbers are allocated only through `saveNewMessage()` in
+  `tools/notfunk/js/ops.js`, which uses `saveNumbered()` from
+  `tools/notfunk/js/numbering.js`. Message, counter, and a reply's answered
+  status commit in one `store.atomic()` transaction. Never compute numbers
+  in the UI, renumber edits, or reuse deleted numbers. Restore counters
+  never decrease.
+- Keep the new-message id as the idempotency key across retries. After a
+  successful commit, completion or redraw failures must not make the
+  message appear unsaved; report them as warnings.
+- Stored message changes use `updateMessage()` (edit, status, transmission
+  attempt, delete, restore, staff reference). Preserve compare-and-set on
+  `updated`, `ConflictError`, and revisions of replaced records.
+  `bumpUpdated()` keeps tokens strictly increasing even with equal or
+  backwards clock readings; timestamps alone must not bypass conflicts.
+- Draft writes/clears are compare-and-set per operation. An edit draft
+  retains the opened record's token and fields through `editBaseOf()` and
+  `draftEditState()`. Preserve conflict handling and `changedFields()`:
+  send only the user's changes when applying an edit to the current record.
+  Older drafts without a base require review before applying them.
+- Soft-delete messages and retain revisions and the full message text,
+  including inner whitespace and line breaks, under the model's existing
+  normalization contract (README, ÖVSV Notfunk-Konzept § 6.7). Notfunk number and
+  Meldesammelstelle reference are separate fields.
 
-## Performance baselines (issue #15)
+## Backup and status contracts
 
-`just bench-ui --tool notfunk` (see `tools/adif/README.md`, "Responsiveness
-baselines") seeds an Einsatz with 200 / 1000 / 5000 messages. Chromium,
-desktop, median / p95:
+- Restore through `applyBackup()`: read existing state, decide the merge,
+  and write within one transaction. IDs are global; an older backup must
+  not undo newer edits/deletes. Conflicting numbers/ownership are reported,
+  counters never go down.
+- `parseBackup()` checks the whole input before writes. Preserve its
+  distinction between file-rejecting identity/ownership errors and
+  recoverable records listed in `dropped`/`droppedSeqs`; do not silently
+  discard data or turn recovery warnings into blanket rejection.
+- Backups normally read committed storage. If recovery uses the tab's
+  memory because storage cannot be read, clearly label that snapshot.
+  Preserve compatibility with previously stored/exported data.
+- `toBackupTexts()` and `groupParts()` / `combineBackupParts()` must preserve
+  the root backup-parts contract before one atomic `applyBackup()`. Reconstructed
+  counters use the highest values. The Inhalt limit applies to changed text
+  only (`keepText`), so restored long messages remain editable.
+- “Gespeichert” requires the commit; a draft is not a saved message and
+  may be lost. Backup status establishes only that a download started.
+  Keep `NICHT GESPEICHERT`, `ENTWURF NICHT GESICHERT`, `ENTWURF PRÜFEN`,
+  their actions, and update-wait behaviour aligned with UI/help and
+  `docs/notfunk-anleitung.md`.
 
-| | 200 | 1000 | 5000 |
-| --- | ---: | ---: | ---: |
-| search: `renderBook` after the 150 ms debounce, 1x / 4x | 20 / 50 ms | 64 / 236 ms | 280 / 1222 ms |
-| search -> next frame, 1x | 43 / 57 ms | 156 / 201 ms | 752 / 874 ms |
-| ... 4x / 6x CPU | 125 / 217 ms | 601 / 992 ms | 3218 / 4806 ms |
-| filter button -> next frame, 1x / 4x | 18 / 80 ms | 86 / 386 ms | 475 / 1814 ms |
-| save message -> book updated, 1x / 4x | 45 / 176 ms | 199 / 819 ms | 1024 / 3983 ms |
-| open book -> rows, 1x / 4x | 62 / 263 ms | 196 / 787 ms | 872 / 3557 ms |
-| WebKit search -> frame, unthrottled | 69 ms | 264 ms | 1289 ms |
+## Offline UI and print
 
-`renderBook` rebuilds every row (about 35 DOM nodes per message, 170k at 5000)
-on each search, filter, save and status change; the layout and paint after the
-rebuild cost about as much as the rebuild itself. Linear: ~0.15 ms per
-message unthrottled.
+- `renderBook()` reuses rows through shared `syncRows()`. Keep displayed
+  values and captured message objects consistent with the row signature
+  (`updated`, deletion, status steps). Preserve delegated row clicks, focus,
+  keyboard order, pills, and ARIA; filtered-out rows leave the cache.
+- Use shared storage, location/completion, data, and offline modules rather
+  than copying Confirm code. Follow root offline/bundler rules and
+  `tools/shared/README.md`; Notfunk does not inherit Confirm-specific
+  counting, export, or keyboard contracts.
+- Keep German wording consistent across the form, help, print, CSV, and
+  manual. Regenerate affected manual screenshots with `just screenshots`.
+- Print data is produced by `tools/notfunk/js/print.js` and rendered by
+  `tools/notfunk/js/printview.js` into `#print-sheet`; layout uses `.pf-*`
+  in `style.css`. Preserve E-31 field order and shared form labels.
+  A message must fit one A4 page: white, thin lines, no filled areas or
+  dependence on printed backgrounds.
 
-### After keyed row reuse (issue #15)
+## Verification
 
-`renderBook` keeps its rows (`tools/shared/js/rowcache.js`, `syncRows`): key =
-message id, signature = `updated|deleted|status steps` (`updated` is the
-compare-and-set token and changes on every write; a row's buttons capture the
-message object of the render that built it, so a row may only be reused while
-the signature is equal). A new or changed message builds one row, a search or
-filter adds/moves/removes rows; rows filtered out are dropped from the cache
-(so clearing a search builds them again). Sort order, filters, row-click
-(delegated on `#book-body`), pills and ARIA are unchanged (tests/e2e/notfunk.spec.mjs
-"search, filter and a status step keep the rows"). Chromium desktop, median /
-p95, 2 runs, before in brackets:
+Use the root verification matrix and the relevant coverage below:
 
-| | 200 | 1000 | 5000 |
-| --- | ---: | ---: | ---: |
-| search -> next frame, 1x | 23.8 / 41.8 (43) | 50.6 / 108 (156) | 270 / 519 (752) |
-| ... 4x CPU | 46.7 / 104 (125) | 211 / 502 (601) | 1088 / 2159 (3218) |
-| ... WebKit desktop | 24 (69) | 101 (264) | 505 (1289) |
-| `renderBook` after the debounce, 1x / 4x | 7 / 10 (20) | 12 / 41 (64) | 50 / 197 (280 / 1222) |
-| filter click -> frame, 1x | 16 (18) | 68 (86) | 361 (475) |
-| save message -> book updated, 1x | 23 (45) | 66 (199) | 273 (1024) |
-| ... 4x CPU | 61 (176) | 236 (819) | 1225 (3983) |
-| open book -> rows (unchanged: one full build) | 65 | 201 | 902 |
-| heap after use / DOM nodes | 32 MB / 9k | 34 MB / 36k | 44 MB / 173k |
+| Behaviour | Coverage |
+| --- | --- |
+| Numbering/retries | `tests/notfunk-numbering.test.mjs`, `tests/notfunk-integrity.test.mjs` |
+| Model, status, replies, time | `tests/notfunk-model.test.mjs`, `tests/notfunk-times.test.mjs` |
+| Draft/conflict/backup recovery | Integrity tests, storage tests, `tests/backup-parts.test.mjs`, `tests/e2e/notfunk.spec.mjs` |
+| Form/print/exports | `tests/notfunk-form.test.mjs`, Notfunk browser specs; Chromium PDF page-count check; row reuse also needs `tests/rowcache.test.mjs` |
+| Offline/update/bundling | Rebuild; `tests/notfunk-offline.test.mjs` and relevant offline/update browser specs |
 
-What is left at 5000 messages is the browser's layout and paint of 170k nodes
-when many rows appear or go away at once (search text cleared = ~5000 rows
-built again; filter changes likewise): the longest search task is 355 ms at 1x
-(was ~750). Windowing the table was **not** added: it would have to keep the
-keyboard order, the row buttons and the screen-reader table semantics for rows
-that are not in the DOM, which is not a small change. The practical limit
-stays about 1000 messages for comfortable use, 5000 usable (search answers in
-~0.3 s on a desktop, 1.1 s at 4x CPU). `scripts/bench_ui.mjs` counts a search
-that leaves the same rows (no DOM mutation) as done after 400 ms.
+Exercise the affected save/edit/status/reply, retry/conflict, draft reload,
+backup restore, and print flows. Check served and `file://` variants for
+offline changes. For performance work, run `just bench-ui --tool notfunk`
+with comparable sizes, engines, viewports, and throttling; report search,
+filter, save, and DOM/heap costs. The measurement procedure is in
+`tools/adif/README.md`, “Responsiveness baselines”; historical timing tables
+remain in git history rather than defining current thresholds.
