@@ -16,7 +16,7 @@
 // in the file, a line without a readable time) is imported as written and
 // reported as a warning.
 
-import { splitToFit, partsTooManyRecords, backupTooLargeMessage } from '../../shared/js/backup-parts.js';
+import { splitToFit, partsTooManyRecords, backupTooLargeMessage, chunkRecord, applyChunks } from '../../shared/js/backup-parts.js';
 
 export const BACKUP_FORMAT = 'oe1ebg-confirm-backup';
 export const BACKUP_VERSIONS = [1];
@@ -193,16 +193,27 @@ export function backupTexts(events, exported, setId, limits) {
   }
   const build = (slice, part) => {
     const out = [];
+    const chunks = [];
     for (const it of slice) {
+      if (it.chunk) { chunks.push(it.chunk); continue; }
       let last = out[out.length - 1];
       if (!last || last.event !== it.ev) out.push(last = { event: it.ev, entries: [], revisions: [] });
       if (it.entry) last.entries.push(it.entry);
       if (it.rev) last.revisions.push(it.rev);
     }
-    return JSON.stringify({ format: BACKUP_FORMAT, version: 1, exported, ...(part ? { part } : {}), events: out }, null, 1);
+    return JSON.stringify({ format: BACKUP_FORMAT, version: 1, exported, ...(part ? { part } : {}), events: out, ...(chunks.length ? { chunks } : {}) }, null, 1);
   };
   const tooLarge = backupTooLargeMessage('Bitte die einzelnen Logs getrennt sichern (Sicherung (JSON) im jeweiligen Log).');
-  const slices = splitToFit(items, build, it => (it.entry || it.rev ? 1 : 0), { tooLarge, ...limits });
+  // a note, comment or revision text beyond the chunk size is written as chunks
+  // (chunkRecord) in the parts and put together again by combineBackupParts()
+  const expand = list => list.flatMap(it => {
+    const kind = it.entry ? 'entries' : it.rev ? 'revisions' : null;
+    if (!kind) return [it];
+    const rec = it.entry || it.rev;
+    const cut = chunkRecord(rec, kind, rec.id, limits?.chunkChars);
+    return cut.chunks.length ? [{ ...it, [it.entry ? 'entry' : 'rev']: cut.rec }, ...cut.chunks.map(chunk => ({ ev: it.ev, chunk }))] : [it];
+  });
+  const slices = splitToFit(items, build, it => (it.entry || it.rev || it.chunk ? 1 : 0), { tooLarge, expand, ...limits });
   return slices.map((slice, i) => build(slice, slices.length > 1 ? { set: setId, n: i + 1, of: slices.length } : undefined));
 }
 
@@ -214,8 +225,10 @@ export function combineBackupParts(parts) {
   for (const d of parts) {
     const c = validateBackup(d, 1, { fileOnly: true });
     if (!c.ok) return { errors: c.errors };
+    if (d.chunks !== undefined && !Array.isArray(d.chunks)) return { errors: ['Textblöcke ungültig – die Teile sind beschädigt; es wurde nichts importiert.'] };
   }
   let total = 0;
+  for (const d of parts) total += (d.chunks || []).length;
   for (const d of parts) for (const item of d.events) if (isObj(item)) total += (Array.isArray(item.entries) ? item.entries.length : 0) + (Array.isArray(item.revisions) ? item.revisions.length : 0);
   const big = partsTooManyRecords(total);
   if (big) return { errors: [big] };
@@ -236,6 +249,13 @@ export function combineBackupParts(parts) {
       }
     }
   }
-  const { part, ...rest } = parts[0];
+  const allChunks = parts.flatMap(d => d.chunks || []);
+  if (allChunks.length) {
+    const byKind = { entries: new Map(), revisions: new Map() };
+    for (const item of events) for (const k of ['entries', 'revisions']) for (const r of item[k]) if (isObj(r) && typeof r.id === 'string') byKind[k].set(r.id, r);
+    const why = applyChunks(allChunks, (kind, rid) => byKind[kind]?.get(rid));
+    if (why) return { errors: [why] };
+  }
+  const { part, chunks, ...rest } = parts[0];
   return { data: { ...rest, events } };
 }

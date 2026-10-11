@@ -41,6 +41,83 @@ export function backupTooLargeMessage(advice) {
   return `Zu groß für eine einzige Sicherung (mehr als ${PARTS_MAX_COUNT} Dateien, ${PARTS_MAX_TOTAL_BYTES / 1048576} MB oder ${PARTS_MAX_TOTAL_RECORDS} Datensätze): sie ließe sich nicht wieder einspielen. Es wurde nichts heruntergeladen. ${advice}`;
 }
 
+// A string longer than this (characters) in a record is cut out of it for a
+// split export and written as chunks of this size (see chunkRecord()): a
+// record with a huge note or text then never has to fit in one part.
+export const CHUNK_CHARS = 1 << 20;
+
+// A record with its long strings cut out. rec: the record (not changed);
+// kind: which list it belongs to ('entries', 'revisions', 'messages'); rid: its id.
+// Returns { rec, chunks }: rec is rec itself when nothing is long, else a copy
+// with '' in place of every string longer than maxChars (at any depth);
+// chunks: [{ kind, rid, path, n, of, data }], n = 1..of, data = a piece of the
+// string, path = where it belongs in the record (keys and array indexes).
+export function chunkRecord(rec, kind, rid, maxChars = CHUNK_CHARS) {
+  const found = [];
+  const walk = (v, path) => {
+    if (typeof v === 'string') {
+      if (v.length <= maxChars) return v;
+      found.push({ path, data: v });
+      return '';
+    }
+    if (v === null || typeof v !== 'object') return v;
+    let out = null;
+    for (const k of Object.keys(v)) {
+      const y = walk(v[k], [...path, Array.isArray(v) ? Number(k) : k]);
+      if (y !== v[k]) {
+        if (!out) out = Array.isArray(v) ? v.slice() : { ...v };
+        out[k] = y;
+      }
+    }
+    return out || v;
+  };
+  const stripped = walk(rec, []);
+  const chunks = [];
+  for (const f of found) {
+    const of = Math.ceil(f.data.length / maxChars);
+    for (let n = 1; n <= of; n++) chunks.push({ kind, rid, path: f.path, n, of, data: f.data.slice((n - 1) * maxChars, n * maxChars) });
+  }
+  return { rec: stripped, chunks };
+}
+
+// Puts the chunks of a set back into the records (changed in place).
+//   chunks   every chunk of all parts, in any order
+//   lookup   (kind, rid) -> the record, or undefined
+// Every string must be complete: n = 1..of exactly once each, the same `of`,
+// a record that is there, a path that leads to the '' left in its place.
+// Returns a German error text, or '' when all strings are whole again.
+export function applyChunks(chunks, lookup) {
+  const groups = new Map();
+  for (const c of chunks) {
+    const ok = c && typeof c === 'object' && typeof c.kind === 'string' && typeof c.rid === 'string' && Array.isArray(c.path) && c.path.length > 0
+      && Number.isInteger(c.n) && Number.isInteger(c.of) && c.of >= 1 && c.n >= 1 && c.n <= c.of && typeof c.data === 'string';
+    if (!ok) return 'Textblock ungültig – die Teile sind beschädigt; es wurde nichts importiert.';
+    const key = JSON.stringify([c.kind, c.rid, c.path]);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(c);
+  }
+  const todo = [];
+  for (const list of groups.values()) {
+    const { kind, rid, path, of } = list[0];
+    if (list.some(c => c.of !== of)) return `Textblock von ${rid}: die Stücke passen nicht zusammen (verschiedene Anzahl); es wurde nichts importiert.`;
+    const byN = new Map();
+    for (const c of list) {
+      if (byN.has(c.n)) return `Textblock von ${rid}: Stück ${c.n} doppelt; es wurde nichts importiert.`;
+      byN.set(c.n, c.data);
+    }
+    for (let n = 1; n <= of; n++) if (!byN.has(n)) return `Textblock von ${rid}: Stück ${n} von ${of} fehlt; es wurde nichts importiert.`;
+    const rec = lookup(kind, rid);
+    if (!rec) return `Textblock von ${rid}: der Datensatz fehlt in den Teilen; es wurde nichts importiert.`;
+    let holder = rec;
+    for (const k of path.slice(0, -1)) holder = holder && typeof holder === 'object' ? holder[k] : undefined;
+    const last = path[path.length - 1];
+    if (!holder || typeof holder !== 'object' || typeof holder[last] !== 'string') return `Textblock von ${rid}: die Stelle im Datensatz fehlt; es wurde nichts importiert.`;
+    todo.push({ holder, last, text: Array.from({ length: of }, (_, i) => byN.get(i + 1)).join('') });
+  }
+  for (const t of todo) t.holder[t.last] = t.text; // all checked: now write
+  return '';
+}
+
 const utf8 = new TextEncoder();
 export const utf8Length = s => utf8.encode(s).length;
 
@@ -48,6 +125,8 @@ export const utf8Length = s => utf8.encode(s).length;
 //   build(slice, part)  slice -> the complete file text (part: the marker, or
 //                       undefined when everything fits in one file)
 //   weight(item)        how many records the item counts for the record limit
+//   limits.expand       items -> items, applied once when the whole thing does not fit in
+//                       one file (the tools cut long strings out into chunk items)
 //   limits.tooLarge     German text of the refusal (the tool names what to do)
 // Returns [slice, ...]; one slice when the whole thing fits. Slices are
 // filled one after the other as far as they fit, so there are no more parts
@@ -55,15 +134,18 @@ export const utf8Length = s => utf8.encode(s).length;
 // restored (more than PARTS_MAX_COUNT parts, PARTS_MAX_TOTAL_BYTES or
 // PARTS_MAX_TOTAL_RECORDS in total) is refused here with an Error: the caller
 // must show it BEFORE anything is downloaded. Never a partial set, never data
-// left out. A single item that is alone beyond the file limit stays one slice.
-export function splitToFit(items, build, weight, limits = {}) {
+// left out. A single item that is alone beyond the file limit (after the
+// chunking) cannot be split: the export is refused.
+export function splitToFit(allItems, build, weight, limits = {}) {
+  let items = allItems;
   const { maxBytes = PART_MAX_BYTES, maxRecords = PART_MAX_RECORDS, maxParts = PARTS_MAX_COUNT,
     maxTotalBytes = PARTS_MAX_TOTAL_BYTES, maxTotalRecords = PARTS_MAX_TOTAL_RECORDS,
-    tooLarge = 'Die Sicherung ist zu groß für eine einzige Sicherung. Es wurde nichts heruntergeladen.' } = limits;
+    tooLarge = 'Die Sicherung ist zu groß für eine einzige Sicherung. Es wurde nichts heruntergeladen.', expand } = limits;
   const probe = { set: '0'.repeat(36), n: 9999, of: 9999 };
   const records = slice => slice.reduce((n, x) => n + weight(x), 0);
   const fits = (slice, part) => records(slice) <= maxRecords && utf8Length(build(slice, part)) <= maxBytes;
   if (fits(items, undefined)) return [items];
+  if (expand) items = expand(items);
   // greedy: each part takes as many items as fit (by records first, then by
   // the exact size, halving the span), so there are no more parts than needed
   const slices = [];
@@ -79,6 +161,7 @@ export function splitToFit(items, build, weight, limits = {}) {
       }
       hi = lo;
     }
+    if (hi === i + 1 && !fits([items[i]], probe)) throw tooMany(); // one record that cannot be split
     slices.push(items.slice(i, hi));
     if (slices.length > maxParts) throw tooMany();
     i = hi;

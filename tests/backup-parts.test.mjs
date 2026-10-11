@@ -194,3 +194,96 @@ test('exports at the real largest size are split into restorable sets, beyond it
   assert.equal(nfOk.reduce((n, t) => n + JSON.parse(t).revisions.length, 0), MAX); // every record is in some part
   assert.throws(() => toBackupTexts(nfData(MAX + 1), T, 'big'), e => e.tooLarge && /nichts heruntergeladen/.test(e.message) && /neuen Einsatz/.test(e.message));
 });
+
+// Review: one record whose text is beyond the per-file limit is split into
+// chunks across the parts and put together again, byte-identical.
+const MiB = 1048576;
+const chunksOf = texts => texts.flatMap(t => JSON.parse(t).chunks || []);
+
+test('confirm: a note, a comment and a revision text over 50 MiB are chunked across parts and restore byte-identical', () => {
+  const big = 'x'.repeat(52 * MiB);
+  const mixed = 'ä€😀z'.repeat(400000) + 'end'; // multi-byte and surrogate pairs at chunk edges
+  const entries = [
+    entry('a1', 1, { note: big }),
+    { id: 'c1', eventId: 'e1', kind: 'comment', ts: T, created: T, updated: T, deleted: null, text: mixed },
+    entry('a2', 2, { note: 'klein' }),
+  ];
+  const revisions = [{ id: 'r1', eventId: 'e1', entryId: 'a1', savedAt: T, reason: 'edit', data: { ...entries[0], note: big + 'alt' } }];
+  const texts = backupTexts([{ event: { ...ev, nextSeq: 3 }, entries, revisions }], T, 'big-note');
+  assert.ok(texts.length >= 2);
+  for (const t of texts) assert.ok(utf8Length(t) <= BACKUP_MAX_BYTES, 'each part is within the per-file limit');
+  assert.ok(chunksOf(texts).length >= 100);
+  const g = groupParts(named(texts));
+  const c = combineBackupParts(g.sets[0].files.map(f => f.data));
+  assert.equal(c.errors, undefined);
+  assert.equal(c.data.chunks, undefined);
+  const check = validateBackup(c.data, 20, { combined: true });
+  assert.equal(check.ok, true);
+  assert.deepEqual(check.warnings, []);
+  const e = c.data.events[0];
+  assert.equal(e.entries.length, 3);
+  assert.ok(e.entries.find(x => x.id === 'a1').note === big);
+  assert.ok(e.entries.find(x => x.id === 'c1').text === mixed);
+  assert.ok(e.revisions[0].data.note === big + 'alt');
+  let n = 0;
+  const plan = planBackupImport(c.data, { events: new Set(), entries: new Set(), revisions: new Set() }, () => `n${n++}`);
+  assert.equal(plan.copies, 0);
+  assert.ok(plan.puts.find(p => p.store === 'entries' && p.value.id === 'a1').value.note === big);
+  assert.equal(plan.puts.find(p => p.store === 'events').value.nextSeq, 3);
+});
+
+test('confirm: missing, duplicated, inconsistent and shuffled chunks', () => {
+  const big = 'abc'.repeat(2 * MiB); // 6 million characters: chunks, one part would do with a lower limit
+  const texts = backupTexts([{ event: ev, entries: [entry('a1', 1, { note: big })], revisions: [] }], T, 's', { maxBytes: 2000000 });
+  assert.ok(texts.length >= 2);
+  const parts = () => texts.map(t => JSON.parse(t));
+  const withChunks = ps => ps.map((p, i) => ({ p, i })).filter(x => (x.p.chunks || []).length);
+  // shuffled order inside and across parts: still byte-identical
+  const sh = parts();
+  for (const p of sh) if (p.chunks) p.chunks.reverse();
+  assert.ok(combineBackupParts(sh).data.events[0].entries[0].note === big);
+  // a missing chunk
+  const miss = parts();
+  withChunks(miss)[0].p.chunks.pop();
+  assert.match(combineBackupParts(miss).errors[0], /Textblock|fehl/);
+  // a duplicated chunk
+  const dup = parts();
+  const w = withChunks(dup)[0].p;
+  w.chunks.push(w.chunks[0]);
+  assert.match(combineBackupParts(dup).errors[0], /doppelt/);
+  // inconsistent count
+  const inc = parts();
+  withChunks(inc)[0].p.chunks[0].of += 1;
+  assert.ok(combineBackupParts(inc).errors[0]);
+  // a chunk for a record that is not there
+  const ghost = parts();
+  withChunks(ghost)[0].p.chunks[0].rid = 'nope';
+  assert.ok(combineBackupParts(ghost).errors[0]);
+});
+
+test('notfunk: an imported Inhalt over 50 MiB (and its revision) is chunked and restored byte-identical', () => {
+  const big = 'y'.repeat(52 * MiB);
+  const m = msg(1, 'kurz');
+  m.text = big; // as a lenient import keeps it
+  const rev = { id: 'r1', eventId: 'op1', messageId: 'b1', at: T, by: 'X', old: { ...m, text: big + '!' } };
+  const data = { operation: OP, messages: [m, msg(2, 'Kein Wasser.')], revisions: [rev], counters: [{ id: counterKey('op1', 'W1'), eventId: 'op1', prefix: 'W1', last: 2 }] };
+  const texts = toBackupTexts(data, T, 'nf-big');
+  assert.ok(texts.length >= 2);
+  for (const t of texts) assert.ok(utf8Length(t) <= NF_BYTES);
+  const back = nfCombine(named(texts).map(f => f.data));
+  assert.deepEqual(back.dropped, []);
+  assert.ok(back.messages.find(x => x.id === 'b1').text === big);
+  assert.ok(back.revisions[0].old.text === big + '!');
+  const r = mergeBackup(back, { operation: null, messages: [], revisions: [], counters: [] });
+  assert.equal(r.added, 2);
+  assert.equal(r.ops.find(o => o.store === 'counters').put.last, 2);
+  // a missing chunk is refused
+  const ps = named(texts).map(f => f.data);
+  ps.find(p => p.chunks?.length).chunks.pop();
+  assert.throws(() => nfCombine(ps), /Textblock|fehl/);
+});
+
+test('a record that cannot be split (many strings below the chunk size) is refused before any download', () => {
+  const rec = { id: 'a1', eventId: 'e1', seq: 1, a: 'x'.repeat(400000), b: 'y'.repeat(400000), c: 'z'.repeat(400000) };
+  assert.throws(() => backupTexts([{ event: ev, entries: [rec, entry('a2', 2)], revisions: [] }], T, 's', { maxBytes: 1000000 }), e => e.tooLarge && /nichts heruntergeladen/.test(e.message));
+});
