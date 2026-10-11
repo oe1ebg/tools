@@ -233,6 +233,12 @@ now redirected; see "Move to /tools/" in `../shared/README.md`), and the source 
   every reference remapped, title “… (Import)”; nothing is overwritten.
   Saving a line or comment is guarded against double submission, and the
   line number is taken from the stored log inside the write transaction.
+- **Resource limits (issue #15).** An import is refused as a whole, before
+  anything is read into the page or written, with a German message: a file
+  over 50 MB (`BACKUP_MAX_BYTES`, ~10x a 5000-line log with all versions),
+  more than 200000 lines and versions together (`BACKUP_MAX_RECORDS`), a
+  note or comment text of a line over 100000 characters
+  (`BACKUP_MAX_TEXT`). The import transaction stays atomic as before.
 
 ## Operator comments and log markers (issue #32)
 
