@@ -304,7 +304,7 @@ variable `PAGES_BASE_URL`, which only affects the link in the PR comment).
 | URL below the base | What | Created / replaced | Removed |
 | --- | --- | --- | --- |
 | `main/` | latest build of `main` | every push to `main` (or a manual run) | never |
-| `pr/<N>/` | pull request N (the PR merged into `main`, as `ci.yml` builds it) | opened, reopened, every push to the PR | PR closed or merged; the daily run also removes any that were missed |
+| `pr/<N>/` | pull request N (the PR merged into its base branch, `main` or the branch of the PR below it in a stack, as `ci.yml` builds it) | opened, reopened, every push to the PR | PR closed or merged; the daily run also removes any that were missed |
 | `release/<tag>/` | the published release tarball `vX.Y.Z`, unpacked as it is (checksum verified, not rebuilt) | the release is published (`release.yml`), or the daily run | not among the newest 3 releases (repository variable `PAGES_MAX_RELEASES`), or the release was deleted |
 | `release/data-latest/` | the tarball of the rolling prerelease `data-latest` (weekly data rebuild) | after each `data.yml` run | never |
 

@@ -22,8 +22,9 @@ name: Pages previews
 # No third-party deploy action: plain git in scripts/pages_publish.py.
 
 on:
+  # Every base branch, not only main: PRs are stacked (each on the branch of
+  # the PR below it), and each gets its preview.
   pull_request:
-    branches: [ "main" ]
     types: [ opened, reopened, synchronize, closed ]
   push:
     branches: [ "main" ]
@@ -85,8 +86,8 @@ jobs:
           key: data-${{ steps.epoch.outputs.week }}
           restore-keys: data-
 
-      # A PR preview is the PR merged into main (the checkout's merge
-      # commit, as in ci.yml); its footer names the PR's head commit.
+      # A PR preview is the PR merged into its base branch (the checkout's
+      # merge commit, as in ci.yml); its footer names the PR's head commit.
       - name: Build the bundle
         env:
           GIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
