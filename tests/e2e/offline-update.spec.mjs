@@ -246,6 +246,46 @@ for (const tool of Object.keys(TOOLS)) {
       expectSaveErrors(problems);
     });
 
+    // #41: the waiting worker gets skipWaiting, but activates only once the
+    // old worker has served its requests; a newer version that finishes
+    // installing meanwhile replaces it, and the click must go on with that one.
+    test('an update clicked while a newer version installs goes on with the newer one', async ({ page, context }) => {
+      await openReady(page, tool);
+      await stageUpdate(page, context, tool);
+      await page.evaluate(() => { globalThis.__marker = 'same page'; });
+
+      // keep the old worker busy: a precached file it has to fetch, held
+      const file = new URL('style.css', page.url()).href;
+      await page.evaluate(async f => {
+        for (const k of await caches.keys()) await (await caches.open(k)).delete(f);
+      }, file);
+      let release;
+      const held = new Promise(r => { release = r; });
+      let arrived;
+      const busy = new Promise(r => { arrived = r; });
+      let first = true;
+      await context.route(file, async route => {
+        if (first) {
+          first = false;
+          arrived();
+          await held;
+        }
+        await route.continue();
+      });
+      const pending = page.evaluate(f => fetch(f).then(r => r.status), file);
+      await busy;
+
+      await page.locator('#btn-update').click();
+      await registerVersion(page, 'v3');
+      await expect.poll(() => page.evaluate(async () => (await navigator.serviceWorker.getRegistration()).waiting?.scriptURL), { timeout: 30_000 }).toContain('sw.js?v3');
+      release();
+      expect(await pending).toBe(200);
+
+      await expect.poll(() => marker(page), { timeout: 30_000 }).toBeUndefined(); // reloaded
+      await expect(page.locator('#st-offline')).toHaveText('offline bereit ✓', { timeout: 30_000 });
+      expect(await page.evaluate(() => navigator.serviceWorker.controller.scriptURL)).toContain('sw.js?v3');
+    });
+
     test('a waiting version replaced by a newer install, or a failed newer one, is no "Update fehlgeschlagen"', async ({ page, context }) => {
       await openReady(page, tool);
       await stageUpdate(page, context, tool);
