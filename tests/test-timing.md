@@ -192,8 +192,8 @@ Two experiments, both with retries off:
    tab" failures at two workers show the same symptom (the other tab never
    reloads). Fix and a deterministic test in #41.
 
-The local WebKit `confirm.spec.mjs` timeouts (below) were not rerun in the
-Linux image; CI had none in the runs above.
+The local WebKit `confirm.spec.mjs` timeouts are covered in "Follow-up: the
+WebKit `confirm.spec.mjs` timeouts" below.
 
 ## Baseline (to do)
 
@@ -227,4 +227,40 @@ race that CI's slower runners (and its one retry) happen to hide. CI ran
 these projects 5 times each without a failure; at a 25% rate that happens
 about one time in four (0.75^5), so five runs cannot show whether CI has the
 same problem at a lower or equal rate.
+
+### Follow-up: the WebKit `confirm.spec.mjs` timeouts
+
+Rerun in the pinned Linux image under podman (WebKit, two workers, retries
+off), so the macOS engine is not needed to show them:
+
+| `--cpus` | repeats | failed test runs |
+| --- | ---: | ---: |
+| 1 | 10 | 2 of 170 |
+| 2 | 10 + 3 | 1 of 221 |
+| 4 | 10 | 2 of 170 |
+
+Again different tests each time, all 60 s timeouts. Two causes:
+
+1. **A false update offer on the first visit** (app bug). In most failures the
+   test hung in `openNewLog()`: the form of "+ Neues Log" never opened.
+   Temporary logging showed the pointerdown on the button but the click on
+   `BODY`: between WebKit's mousedown and mouseup (up to 1.5 s apart at 1 CPU)
+   the button had moved down 33.5 px. "Update verfügbar" had appeared and
+   wrapped the header to a second row. On the first install WebKit may already
+   report the claiming worker as `navigator.serviceWorker.controller` when that
+   worker's `installed` statechange arrives, while it is still `reg.waiting`;
+   `offerUpdate()` took that for an update and the button stayed. At 1 CPU
+   this happened in 177 of about 250 `openNewLog()` calls, so most runs only
+   missed the click by luck. Fix: an update is offered only beside an active
+   worker; a Chromium test makes `controller` report the waiting worker early
+   (fails 10 of 10 without the fix). Afterwards: 0 of 255 at 1 CPU.
+2. **A second page that stops rendering** (not explained yet). "a note beyond
+   the per-file limit is chunked…" failed 2 of 170 times at 2 CPUs after the
+   fix, in the click on the imported log in its second browser context
+   (`confirm.spec.mjs`, "waiting for element to be visible, enabled and
+   stable"): that page's screencast had stopped after the import, so its
+   animation frames, which the stability check needs, presumably stopped too.
+   Not seen in 30 runs of the test alone nor in a further 204 test runs of the
+   whole file with a probe for it (`requestAnimationFrame`, visibility, focus,
+   `bringToFront()`) in place. Open until it can be caught with the probe.
 
