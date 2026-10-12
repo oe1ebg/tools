@@ -188,8 +188,9 @@ Two experiments, both with retries off:
    tab's page load; meanwhile another install (started by that tab's
    `register('sw.js')`) replaces it, so nothing activates and the page never
    reloads. Temporary logging of every worker state change showed this in all
-   5 failures of 40 runs at 1 CPU. These are the "another tab" failures of
-   the two-worker runs on the Mac. Fix and a deterministic test in #41.
+   5 failures of 40 runs at 1 CPU. The Mac's four "an update from another
+   tab" failures at two workers show the same symptom (the other tab never
+   reloads). Fix and a deterministic test in #41.
 
 The local WebKit `confirm.spec.mjs` timeouts (below) were not rerun in the
 Linux image; CI had none in the runs above.
