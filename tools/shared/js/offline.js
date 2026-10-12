@@ -107,6 +107,7 @@ export async function initOffline({ build = null, beforeReload = async () => tru
   let busy = false; // a save check or an action of the banner is running
   let queued = null; // [action, what, intro] that arrived meanwhile (e.g. a controllerchange)
   let forceReload = false; // "Trotzdem aktualisieren" of a local update: its own controllerchange reloads without the hook
+  let asked = false; // skipWaiting sent from here, no controllerchange yet (a newer install may replace that worker)
   let current = null; // { action, what, intro, res } of the banner shown
 
   const updChip = el('span', { id: 'st-update', class: 'chip warn', role: 'status', hidden: true });
@@ -251,18 +252,40 @@ export async function initOffline({ build = null, beforeReload = async () => tru
   const doUpdate = force => {
     if (!reg.waiting) return doReload();
     updating = true;
+    asked = true;
     forceReload = !!force;
     reg.waiting.postMessage('skipWaiting');
   };
+  const updateIntro = 'Ein Update wartet; bevor die Seite neu lädt, muss die Eingabe geklärt sein. ';
   const offerUpdate = () => {
     if (!reg.waiting || !navigator.serviceWorker.controller) return;
     setUpdateNote('');
     const btn = $('#btn-update');
     btn.hidden = false;
-    btn.onclick = () => afterSave(doUpdate, 'Update', 'Ein Update wartet; bevor die Seite neu lädt, muss die Eingabe geklärt sein. ');
+    btn.onclick = () => afterSave(doUpdate, 'Update', updateIntro);
   };
-  const watch = w => w?.addEventListener('statechange', () => {
-    if (w.state === 'installed') offerUpdate();
+  // The worker told to take over activates only once the old one has served
+  // its requests; a newer version that finishes installing meanwhile replaces
+  // it, and with it the skipWaiting (#41). The update asked for goes on with
+  // the newer one: forced as it was, otherwise after another save check (the
+  // input may have changed since the click).
+  const goOn = () => {
+    if (forceReload) doUpdate(true);
+    else afterSave(doUpdate, 'Update', updateIntro);
+  };
+  // One listener per worker: the start and updatefound can both see the same
+  // installing worker, and goOn() must run once.
+  const watched = new WeakSet();
+  const watch = w => {
+    if (!w || watched.has(w)) return;
+    watched.add(w);
+    w.addEventListener('statechange', () => onState(w));
+  };
+  const onState = w => {
+    if (w.state === 'installed') {
+      offerUpdate();
+      if (asked && reg.waiting === w) goOn();
+    }
     if (w.state === 'activated') reportOfflineVersion();
     if (w.state === 'redundant' && !reg.installing && !reg.waiting) {
       // installation failed (not just replaced by a newer install: broken manifest, files missing, network)
@@ -273,11 +296,12 @@ export async function initOffline({ build = null, beforeReload = async () => tru
         $('#st-offline').title = 'Der Offline-Speicher konnte nicht eingerichtet werden (Dateiliste fehlerhaft oder Dateien nicht ladbar). Seite mit Internet neu laden.';
       }
     }
-  });
+  };
   reg.addEventListener('updatefound', () => watch(reg.installing));
   // The browser's own update check may have started before this listener.
   watch(reg.installing);
   navigator.serviceWorker.addEventListener('controllerchange', () => {
+    asked = false;
     // Update clicked here, or in another tab of this tool: the old cache is
     // gone, so every open tab must load the new version (draft kept; if the
     // save fails the page stays and the banner explains).
