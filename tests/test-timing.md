@@ -95,9 +95,9 @@ Firefox when it passes, but it is the least reliable here.
   5 runs where the test was recorded it was "an update from another tab: the
   tab with an unsaved draft is not reloaded" (4×) and "notfunk: update started
   in another tab while this tab has a draft conflict…" (1×). None with 1 or 4
-  workers (5 runs each, too few to rule it out). Not yet diagnosed. CI runs
-  two workers with one retry, which would report it as flaky rather than
-  failed. Worker counts cannot be compared until this is understood.
+  workers (5 runs each, too few to rule it out). Diagnosed since, see
+  "Follow-up: the `offline-update.spec.mjs` failures" below: two causes, one
+  fixed on `main`, one tracked in #41.
 
 ## CI sample (10 successful `ci.yml` runs up to run 38246575505)
 
@@ -147,8 +147,52 @@ failure and no `confirm.spec.mjs` timeout. The local failures above
 do not show up in CI at this sample size. CI differs from the local runs in
 the server (nginx from `deploy/nginx.conf.example` in a container instead of
 `tests/e2e/serve.py`), the OS and CPU count, the Playwright package and
-browsers in the pinned image, and the one retry. Which of these matters is
-not established.
+browsers in the pinned image, and the one retry. For `offline-update.spec.mjs`
+the machine load mattered, and CI fails too once the retry is off (next
+section).
+
+### Follow-up: the `offline-update.spec.mjs` failures
+
+Two experiments, both with retries off:
+
+- **CI** (a throwaway workflow on the CI runner, 4 vCPU AMD EPYC, 16 GB;
+  bundle served by nginx as in `validate`): `offline-update.spec.mjs` with
+  `--repeat-each=8` in each of 4 Chromium jobs and one mobile-Chromium job
+  (about 2750 test runs), `confirm.spec.mjs` with `--repeat-each=5` in WebKit
+  and mobile-WebKit.
+- **Local** in the pinned Linux Playwright image under podman (4 CPUs,
+  3.7 GB VM), `offline-update.spec.mjs` with `--repeat-each=5` at each of
+  `--cpus` 1, 2, 4 (two workers), plus about 43 single runs without a limit.
+
+| where | failed test runs | cause |
+| --- | ---: | --- |
+| CI, Chromium + mobile-Chromium | 11 of about 2750 | 1 |
+| CI, WebKit + mobile-WebKit (`confirm.spec.mjs`) | 0 of 170 | – |
+| podman, 1 CPU | 2 of 215 | 2 |
+| podman, 2 CPUs | 0 of 215 | – |
+| podman, 4 CPUs | 1 of 215 | 2 |
+| podman, no limit | 2 in about 43 spec runs | 2 |
+
+1. **A route handler outliving the test** (test bug). The workers fetch
+   `precache.js` in the background; `serveNewVersion()`'s `context.route()`
+   handler could still be in flight when the test ended and failed it
+   ("route.fetch: Test ended", "Response has been disposed"), sometimes in
+   the next test. In a normal CI run the retry would report it as flaky; the
+   10-run sample above had none, so without `--repeat-each` it is rarer.
+   Fixed on `main` (3f4967d: the routes are dropped after each test with
+   `unrouteAll({ behavior: 'ignoreErrors' })`): 0 failures in 1720 Chromium
+   test runs on CI afterwards.
+2. **An Update click lost to a newer install** (app race, #41). Seen locally
+   only, more often under load. The click posts `skipWaiting` to the waiting
+   worker; its activation waits until the old worker has served the second
+   tab's page load; meanwhile another install (started by that tab's
+   `register('sw.js')`) replaces it, so nothing activates and the page never
+   reloads. Temporary logging of every worker state change showed this in all
+   5 failures of 40 runs at 1 CPU. These are the "another tab" failures of
+   the two-worker runs on the Mac. Fix and a deterministic test in #41.
+
+The local WebKit `confirm.spec.mjs` timeouts (below) were not rerun in the
+Linux image; CI had none in the runs above.
 
 ## Baseline (to do)
 
