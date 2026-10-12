@@ -88,8 +88,8 @@ Firefox when it passes, but it is the least reliable here.
   1 of 35 idle runs and 2 of 10 runs under CPU load (18 busy loops). The fake `gh` rebuilt the
   tarball for the `.sha256` call and the tarball call; gzip stores the time in
   seconds, so the two differed whenever a second boundary fell between them.
-  Fix prepared separately (branch `fix/pages-test-gzip-mtime`: gzip `mtime=0`,
-  not part of this branch); 60 of 60 runs under load pass with it.
+  Fixed in #39 (gzip `mtime=0`), the PR below this one in the stack; 60 of
+  60 runs under load pass with it.
 - **Browser, `offline-update.spec.mjs`, 2 workers:** 7 of 30 runs had one
   failing test (127 of 128 passed), taking 112–1153 s instead of 85 s. In the
   5 runs where the test was recorded it was "an update from another tab: the
