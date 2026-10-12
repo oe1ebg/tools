@@ -244,10 +244,28 @@ optional, used for the HTML check and the ADIF cross-check tools.
 just build     # data (cached in .cache/) + offline bundles + site/tools/
 just serve     # http://localhost:8000/tools/
 just test      # unit tests (node --test, zero dependencies)
-just e2e       # browser tests (Playwright) against site/
+just e2e       # browser tests (Playwright): setup, then the run against site/
 just vnu       # HTML validation
 just dist      # dist/oe1ebg-tools-<version>.tar.gz + .sha256
 ```
+
+Which check when (the full commands stay the reference; CI runs them all):
+
+| While you work on | Run | Needs |
+| --- | --- | --- |
+| a pure JS module | `just test-file <name> ['<test name>']`, e.g. `just test-file storage` | nothing |
+| several modules or tools, before pushing | `just test` | nothing; checks needing data or Go tools skip |
+| UI code in `tools/` | `just stage`, then `just e2e-run --project=chromium <spec>` | `just e2e-setup` once, a built `site/` |
+| offline files, data, build scripts, `Justfile` | `just build`, then `just test-data` and `just e2e-run` | network on first build |
+| a release or data check | `just test-data`, `just crosscheck`, `just e2e` | as above |
+
+`just e2e-setup` installs the pinned Playwright and browsers (network); `just
+e2e-run` repeats the tests without installing and fails with a hint when
+`site/` is missing, when Playwright is not at the pinned version, or when
+another site is being served on the port. `just stage` copies edited sources
+into `site/` but does not rebuild the offline bundles (`just build` does).
+`scripts/bench_tests.mjs` times the test workflows (not part of CI);
+`tests/test-timing.md` holds the measurements.
 
 `just` lists every recipe. Repository layout:
 

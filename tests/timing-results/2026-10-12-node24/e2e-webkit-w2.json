@@ -1,0 +1,117 @@
+{
+  "scenario": "e2e",
+  "environment": {
+    "when": "2026-10-12T14:44:43.875Z",
+    "node": "v24.21.0",
+    "python": "Python 3.9.6",
+    "uv": "uv 0.13.0 (Homebrew 2026-10-09 aarch64-apple-darwin)",
+    "os": "darwin 27.0.0",
+    "cpus": 18,
+    "cpuModel": "Apple M5 Pro",
+    "memoryGiB": 64,
+    "commit": "33d5664d08040e9dc071a498ac76873cedf0cf59",
+    "dirty": true,
+    "playwrightImages": [
+      "ghcr.io/validator/validator:latest@sha256:3cb7d2f446677b84fb123427bc029e535739e2314b035b5824a4eb0557803761",
+      "mcr.microsoft.com/playwright:v1.64.0-noble@sha256:06a9939e57531807f8d5fd76ce44b53165ffb7d7501d87ab10e285c20b1e971f",
+      "nginx:1.31.0-alpine@sha256:2f07d83bf561b506400dc183b1b2003803e39efbd22451f848adaba14d28c7c7"
+    ],
+    "generatedData": [
+      "austria-areas.json",
+      "callsigns-oe.json",
+      "repeaters-at.json",
+      "vienna-locations.json",
+      "vienna-map.json"
+    ],
+    "manifest": {
+      "name": "oe1ebg-tools",
+      "version": "v0.3.0-dirty",
+      "commit": "33d5664d08040e9dc071a498ac76873cedf0cf59",
+      "built": "2026-10-12T12:31:14Z"
+    }
+  },
+  "measurements": [
+    {
+      "workers": 2,
+      "project": "webkit",
+      "runs": 5,
+      "wallMs": {
+        "median": 45555,
+        "min": 43936,
+        "max": 80024
+      },
+      "peakMiB": {
+        "median": 876.6,
+        "min": 815.6,
+        "max": 921.9
+      },
+      "failedRuns": 1,
+      "results": [
+        {
+          "wallMs": 50386,
+          "peakMiB": 815.6,
+          "status": 0,
+          "counts": {
+            "expected": 77,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 51,
+            "durationMs": 45575
+          }
+        },
+        {
+          "wallMs": 43936,
+          "peakMiB": 876.6,
+          "status": 0,
+          "counts": {
+            "expected": 77,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 51,
+            "durationMs": 43308
+          }
+        },
+        {
+          "wallMs": 80024,
+          "peakMiB": 896.1,
+          "status": 1,
+          "counts": {
+            "expected": 76,
+            "unexpected": 1,
+            "flaky": 0,
+            "skipped": 51,
+            "durationMs": 79553
+          },
+          "failed": [
+            "confirm.spec.mjs: importing a backup that reuses a line id leaves the existing log untouched (Test timeout of 60000ms exceeded.)"
+          ],
+          "outputTail": "       {\n              \"timeout\": 60000,\n              \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"webkit\",\n              \"projectName\": \"webkit\",\n              \"results\": [\n                {\n                  \"workerIndex\": 0,\n                  \"parallelIndex\": 0,\n                  \"status\": \"passed\",\n                  \"duration\": 194,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T14:47:14.538Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-deb00359009c723d633f\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 134,\n          \"column\": 1\n        },\n        {\n          \"title\": \"Notfunk migration: a taken message number is kept, never duplicated\",\n          \"ok\": true,\n          \"tags\": [],\n          \"tests\": [\n            {\n              \"timeout\": 60000,\n              \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"webkit\",\n              \"projectName\": \"webkit\",\n              \"results\": [\n                {\n                  \"workerIndex\": 0,\n                  \"parallelIndex\": 0,\n                  \"status\": \"passed\",\n                  \"duration\": 173,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T14:47:14.736Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-b6bd527bb248364df044\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 182,\n          \"column\": 1\n        },\n        {\n          \"title\": \"Notfunk: fallback notices leave the error banner alone and resolve\",\n          \"ok\": true,\n          \"tags\": [],\n          \"tests\": [\n            {\n              \"timeout\": 60000,\n              \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"webkit\",\n              \"projectName\": \"webkit\",\n              \"results\": [\n                {\n                  \"workerIndex\": 0,\n                  \"parallelIndex\": 0,\n                  \"status\": \"passed\",\n                  \"duration\": 5884,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T14:47:14.912Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-dc36dfec6b7fbe9ed01a\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 221,\n          \"column\": 1\n        }\n      ]\n    }\n  ],\n  \"errors\": [],\n  \"stats\": {\n    \"startTime\": \"2026-10-12T14:46:18.895Z\",\n    \"duration\": 79552.734,\n    \"expected\": 76,\n    \"skipped\": 51,\n    \"unexpected\": 1,\n    \"flaky\": 0\n  }\n}\n\n       80.02 real        29.05 user         6.82 sys\n           939589632  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n             1881615  page reclaims\n                 967  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n              193768  messages sent\n               73704  messages received\n                   0  signals received\n               31431  voluntary context switches\n              436009  involuntary context switches\n          1992548293  instructions retired\n           759023118  cycles elapsed\n            52255824  peak memory footprint\n"
+        },
+        {
+          "wallMs": 45555,
+          "peakMiB": 821.8,
+          "status": 0,
+          "counts": {
+            "expected": 77,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 51,
+            "durationMs": 45093
+          }
+        },
+        {
+          "wallMs": 45511,
+          "peakMiB": 921.9,
+          "status": 0,
+          "counts": {
+            "expected": 77,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 51,
+            "durationMs": 44914
+          }
+        }
+      ]
+    }
+  ]
+}

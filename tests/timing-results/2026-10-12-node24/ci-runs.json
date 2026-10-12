@@ -1,0 +1,1574 @@
+{
+  "scenario": "ci-runs",
+  "environment": {
+    "when": "2026-10-12T15:04:26.615Z",
+    "node": "v24.21.0",
+    "python": "Python 3.9.6",
+    "uv": "uv 0.13.0 (Homebrew 2026-10-09 aarch64-apple-darwin)",
+    "os": "darwin 27.0.0",
+    "cpus": 18,
+    "cpuModel": "Apple M5 Pro",
+    "memoryGiB": 64,
+    "commit": "33d5664d08040e9dc071a498ac76873cedf0cf59",
+    "dirty": true,
+    "playwrightImages": [
+      "ghcr.io/validator/validator:latest@sha256:3cb7d2f446677b84fb123427bc029e535739e2314b035b5824a4eb0557803761",
+      "mcr.microsoft.com/playwright:v1.64.0-noble@sha256:06a9939e57531807f8d5fd76ce44b53165ffb7d7501d87ab10e285c20b1e971f",
+      "nginx:1.31.0-alpine@sha256:2f07d83bf561b506400dc183b1b2003803e39efbd22451f848adaba14d28c7c7"
+    ],
+    "generatedData": [
+      "austria-areas.json",
+      "callsigns-oe.json",
+      "repeaters-at.json",
+      "vienna-locations.json",
+      "vienna-map.json"
+    ],
+    "manifest": {
+      "name": "oe1ebg-tools",
+      "version": "v0.3.0-dirty",
+      "commit": "33d5664d08040e9dc071a498ac76873cedf0cf59",
+      "built": "2026-10-12T12:31:14Z"
+    }
+  },
+  "measurements": [
+    {
+      "run": 38246575505,
+      "sha": "33d5664d08040e9dc071a498ac76873cedf0cf59",
+      "event": "schedule",
+      "wallS": 363
+    },
+    {
+      "run": 38175607710,
+      "sha": "33d5664d08040e9dc071a498ac76873cedf0cf59",
+      "event": "push",
+      "wallS": 335
+    },
+    {
+      "run": 38175057759,
+      "sha": "7e3aee6ea3107b8158ce67673888af5cc0814f07",
+      "event": "pull_request",
+      "wallS": 359
+    },
+    {
+      "run": 38174055263,
+      "sha": "bbc9ba94d124ce2bb43d7b9138308bd76274689d",
+      "event": "push",
+      "wallS": 360
+    },
+    {
+      "run": 38173641850,
+      "sha": "3b35aaf9b023fbccf4efe3d0ce900af0a33b62b5",
+      "event": "pull_request",
+      "wallS": 347
+    },
+    {
+      "run": 38173352457,
+      "sha": "f9d1b7f32c2189e821a5663ee2d47e3dcca5dcce",
+      "event": "push",
+      "wallS": 363
+    },
+    {
+      "run": 38172913646,
+      "sha": "46735d2eeb2376d16a6774000d6b5f91b28ba393",
+      "event": "pull_request",
+      "wallS": 371
+    },
+    {
+      "run": 38171870258,
+      "sha": "1d13dbac60e31fcad128e3df42516a53983163ec",
+      "event": "pull_request",
+      "wallS": 367
+    },
+    {
+      "run": 38171713271,
+      "sha": "724b54398a220f269b958d7379e48886ac2da86c",
+      "event": "push",
+      "wallS": 377
+    },
+    {
+      "run": 38171323054,
+      "sha": "36a3a67d530eed9a91ecf04d8039a3b168cabf90",
+      "event": "push",
+      "wallS": 364
+    }
+  ],
+  "steps": [
+    {
+      "step": "validate (mobile-chromium) / Browser tests (Playwright, mobile-chromium)",
+      "n": 5,
+      "medianS": 251,
+      "minS": 249,
+      "maxS": 254,
+      "values": [
+        251,
+        254,
+        253,
+        249,
+        250
+      ]
+    },
+    {
+      "step": "validate (chromium) / Browser tests (Playwright, chromium)",
+      "n": 10,
+      "medianS": 243,
+      "minS": 181,
+      "maxS": 246,
+      "values": [
+        219,
+        225,
+        181,
+        235,
+        246,
+        245,
+        197,
+        243,
+        244,
+        244
+      ]
+    },
+    {
+      "step": "validate (firefox) / Browser tests (Playwright, firefox)",
+      "n": 5,
+      "medianS": 154,
+      "minS": 127,
+      "maxS": 170,
+      "values": [
+        170,
+        166,
+        127,
+        145,
+        154
+      ]
+    },
+    {
+      "step": "validate (webkit) / Browser tests (Playwright, webkit)",
+      "n": 5,
+      "medianS": 154,
+      "minS": 148,
+      "maxS": 176,
+      "values": [
+        173,
+        176,
+        148,
+        153,
+        154
+      ]
+    },
+    {
+      "step": "validate (mobile-webkit) / Browser tests (Playwright, mobile-webkit)",
+      "n": 5,
+      "medianS": 135,
+      "minS": 130,
+      "maxS": 170,
+      "values": [
+        134,
+        170,
+        130,
+        154,
+        135
+      ]
+    },
+    {
+      "step": "bundle / Unit tests with the built data",
+      "n": 10,
+      "medianS": 49,
+      "minS": 29,
+      "maxS": 50,
+      "values": [
+        50,
+        50,
+        47,
+        50,
+        29,
+        49,
+        49,
+        50,
+        36,
+        46
+      ]
+    },
+    {
+      "step": "test / Run tests",
+      "n": 10,
+      "medianS": 48,
+      "minS": 24,
+      "maxS": 49,
+      "values": [
+        49,
+        48,
+        49,
+        24,
+        49,
+        43,
+        44,
+        43,
+        49,
+        43
+      ]
+    },
+    {
+      "step": "test / Set up Go (ADIF cross-check tools)",
+      "n": 6,
+      "medianS": 11,
+      "minS": 8,
+      "maxS": 15,
+      "values": [
+        15,
+        11,
+        10,
+        8,
+        11,
+        11
+      ]
+    },
+    {
+      "step": "validate (chromium) / HTML validation (Nu Html Checker)",
+      "n": 10,
+      "medianS": 11,
+      "minS": 8,
+      "maxS": 14,
+      "values": [
+        12,
+        9,
+        9,
+        12,
+        14,
+        11,
+        8,
+        10,
+        10,
+        13
+      ]
+    },
+    {
+      "step": "bundle / Build the bundle",
+      "n": 10,
+      "medianS": 10,
+      "minS": 9,
+      "maxS": 12,
+      "values": [
+        11,
+        11,
+        10,
+        12,
+        9,
+        10,
+        10,
+        11,
+        9,
+        10
+      ]
+    },
+    {
+      "step": "validate (chromium) / Start nginx with deploy/nginx.conf.example (port 8080)",
+      "n": 10,
+      "medianS": 8,
+      "minS": 3,
+      "maxS": 10,
+      "values": [
+        9,
+        8,
+        8,
+        10,
+        9,
+        3,
+        9,
+        6,
+        3,
+        5
+      ]
+    },
+    {
+      "step": "validate (webkit) / Start nginx with deploy/nginx.conf.example (port 8080)",
+      "n": 5,
+      "medianS": 6,
+      "minS": 5,
+      "maxS": 9,
+      "values": [
+        5,
+        6,
+        9,
+        5,
+        6
+      ]
+    },
+    {
+      "step": "validate (mobile-chromium) / Start nginx with deploy/nginx.conf.example (port 8080)",
+      "n": 5,
+      "medianS": 5,
+      "minS": 5,
+      "maxS": 7,
+      "values": [
+        7,
+        5,
+        6,
+        5,
+        5
+      ]
+    },
+    {
+      "step": "validate (firefox) / Start nginx with deploy/nginx.conf.example (port 8080)",
+      "n": 5,
+      "medianS": 4,
+      "minS": 4,
+      "maxS": 8,
+      "values": [
+        5,
+        4,
+        8,
+        4,
+        4
+      ]
+    },
+    {
+      "step": "validate (mobile-webkit) / Start nginx with deploy/nginx.conf.example (port 8080)",
+      "n": 5,
+      "medianS": 4,
+      "minS": 2,
+      "maxS": 9,
+      "values": [
+        4,
+        2,
+        9,
+        2,
+        9
+      ]
+    },
+    {
+      "step": "bundle / Set up job",
+      "n": 10,
+      "medianS": 3,
+      "minS": 2,
+      "maxS": 4,
+      "values": [
+        4,
+        2,
+        4,
+        3,
+        3,
+        2,
+        3,
+        2,
+        4,
+        3
+      ]
+    },
+    {
+      "step": "bundle / Set up uv",
+      "n": 10,
+      "medianS": 3,
+      "minS": 1,
+      "maxS": 4,
+      "values": [
+        3,
+        1,
+        3,
+        4,
+        2,
+        4,
+        2,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "step": "bundle / Upload the bundle",
+      "n": 10,
+      "medianS": 3,
+      "minS": 2,
+      "maxS": 4,
+      "values": [
+        3,
+        3,
+        3,
+        3,
+        2,
+        3,
+        4,
+        4,
+        2,
+        3
+      ]
+    },
+    {
+      "step": "validate (firefox) / Set up job",
+      "n": 5,
+      "medianS": 3,
+      "minS": 2,
+      "maxS": 4,
+      "values": [
+        3,
+        2,
+        4,
+        3,
+        2
+      ]
+    },
+    {
+      "step": "validate (webkit) / Set up job",
+      "n": 5,
+      "medianS": 3,
+      "minS": 2,
+      "maxS": 4,
+      "values": [
+        2,
+        3,
+        4,
+        3,
+        2
+      ]
+    },
+    {
+      "step": "validate (mobile-webkit) / Set up job",
+      "n": 5,
+      "medianS": 3,
+      "minS": 1,
+      "maxS": 3,
+      "values": [
+        3,
+        2,
+        3,
+        1,
+        3
+      ]
+    },
+    {
+      "step": "bundle / Data download cache",
+      "n": 10,
+      "medianS": 2,
+      "minS": 1,
+      "maxS": 2,
+      "values": [
+        2,
+        1,
+        2,
+        1,
+        1,
+        2,
+        2,
+        2,
+        1,
+        1
+      ]
+    },
+    {
+      "step": "test / Set up job",
+      "n": 10,
+      "medianS": 2,
+      "minS": 1,
+      "maxS": 4,
+      "values": [
+        1,
+        3,
+        1,
+        4,
+        1,
+        1,
+        2,
+        2,
+        3,
+        3
+      ]
+    },
+    {
+      "step": "test / Set up Node.js",
+      "n": 10,
+      "medianS": 2,
+      "minS": 0,
+      "maxS": 3,
+      "values": [
+        1,
+        2,
+        2,
+        0,
+        1,
+        3,
+        2,
+        3,
+        0,
+        2
+      ]
+    },
+    {
+      "step": "validate (firefox) / Download the bundle",
+      "n": 5,
+      "medianS": 2,
+      "minS": 1,
+      "maxS": 3,
+      "values": [
+        2,
+        2,
+        1,
+        3,
+        2
+      ]
+    },
+    {
+      "step": "validate (mobile-chromium) / Set up job",
+      "n": 5,
+      "medianS": 2,
+      "minS": 1,
+      "maxS": 3,
+      "values": [
+        2,
+        2,
+        1,
+        1,
+        3
+      ]
+    },
+    {
+      "step": "validate (webkit) / Download the bundle",
+      "n": 5,
+      "medianS": 2,
+      "minS": 2,
+      "maxS": 3,
+      "values": [
+        3,
+        2,
+        2,
+        2,
+        2
+      ]
+    },
+    {
+      "step": "validate (chromium) / Set up job",
+      "n": 10,
+      "medianS": 2,
+      "minS": 1,
+      "maxS": 4,
+      "values": [
+        2,
+        1,
+        3,
+        3,
+        2,
+        2,
+        4,
+        2,
+        1,
+        3
+      ]
+    },
+    {
+      "step": "validate (chromium) / Download the bundle",
+      "n": 10,
+      "medianS": 2,
+      "minS": 1,
+      "maxS": 3,
+      "values": [
+        2,
+        1,
+        1,
+        2,
+        2,
+        3,
+        1,
+        3,
+        1,
+        2
+      ]
+    },
+    {
+      "step": "validate (mobile-webkit) / Download the bundle",
+      "n": 5,
+      "medianS": 2,
+      "minS": 1,
+      "maxS": 3,
+      "values": [
+        2,
+        2,
+        3,
+        1,
+        2
+      ]
+    },
+    {
+      "step": "changes / Set up job",
+      "n": 10,
+      "medianS": 1,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        1,
+        1,
+        1,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "step": "changes / Checkout repository",
+      "n": 10,
+      "medianS": 1,
+      "minS": 1,
+      "maxS": 3,
+      "values": [
+        2,
+        1,
+        1,
+        1,
+        3,
+        2,
+        1,
+        1,
+        1,
+        3
+      ]
+    },
+    {
+      "step": "bundle / Checkout repository",
+      "n": 10,
+      "medianS": 1,
+      "minS": 1,
+      "maxS": 2,
+      "values": [
+        2,
+        1,
+        1,
+        1,
+        2,
+        1,
+        1,
+        1,
+        1,
+        2
+      ]
+    },
+    {
+      "step": "bundle / Set up Node.js",
+      "n": 10,
+      "medianS": 1,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        1,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "step": "test / Checkout repository",
+      "n": 10,
+      "medianS": 1,
+      "minS": 0,
+      "maxS": 2,
+      "values": [
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        2,
+        2
+      ]
+    },
+    {
+      "step": "test / Build the ADIF cross-check tools (adifmt, adif-checker)",
+      "n": 6,
+      "medianS": 1,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        1,
+        1,
+        0,
+        1,
+        1,
+        0
+      ]
+    },
+    {
+      "step": "test / Test report",
+      "n": 10,
+      "medianS": 1,
+      "minS": 0,
+      "maxS": 2,
+      "values": [
+        1,
+        1,
+        2,
+        1,
+        1,
+        1,
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "step": "test / Upload the test results",
+      "n": 10,
+      "medianS": 1,
+      "minS": 0,
+      "maxS": 2,
+      "values": [
+        0,
+        1,
+        0,
+        1,
+        1,
+        1,
+        2,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "step": "validate (firefox) / Checkout repository",
+      "n": 5,
+      "medianS": 1,
+      "minS": 1,
+      "maxS": 2,
+      "values": [
+        2,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "step": "validate (firefox) / Browser test report",
+      "n": 5,
+      "medianS": 1,
+      "minS": 1,
+      "maxS": 2,
+      "values": [
+        1,
+        1,
+        1,
+        1,
+        2
+      ]
+    },
+    {
+      "step": "validate (firefox) / Upload the browser test results",
+      "n": 5,
+      "medianS": 1,
+      "minS": 1,
+      "maxS": 2,
+      "values": [
+        2,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "step": "validate (mobile-chromium) / Checkout repository",
+      "n": 5,
+      "medianS": 1,
+      "minS": 1,
+      "maxS": 2,
+      "values": [
+        2,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "step": "validate (mobile-chromium) / Download the bundle",
+      "n": 5,
+      "medianS": 1,
+      "minS": 1,
+      "maxS": 3,
+      "values": [
+        1,
+        3,
+        1,
+        1,
+        2
+      ]
+    },
+    {
+      "step": "validate (mobile-chromium) / Browser test report",
+      "n": 5,
+      "medianS": 1,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        0,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "step": "validate (mobile-chromium) / Upload the browser test results",
+      "n": 5,
+      "medianS": 1,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        1,
+        1,
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "step": "validate (mobile-chromium) / Post Checkout repository",
+      "n": 5,
+      "medianS": 1,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        1,
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    {
+      "step": "validate (webkit) / Checkout repository",
+      "n": 5,
+      "medianS": 1,
+      "minS": 1,
+      "maxS": 2,
+      "values": [
+        1,
+        1,
+        1,
+        2,
+        2
+      ]
+    },
+    {
+      "step": "validate (webkit) / Browser test report",
+      "n": 5,
+      "medianS": 1,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        1,
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "step": "validate (webkit) / Upload the browser test results",
+      "n": 5,
+      "medianS": 1,
+      "minS": 1,
+      "maxS": 1,
+      "values": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "step": "validate (chromium) / Checkout repository",
+      "n": 10,
+      "medianS": 1,
+      "minS": 1,
+      "maxS": 2,
+      "values": [
+        1,
+        1,
+        1,
+        2,
+        1,
+        1,
+        1,
+        1,
+        1,
+        2
+      ]
+    },
+    {
+      "step": "validate (chromium) / Browser test report",
+      "n": 10,
+      "medianS": 1,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        0,
+        1,
+        0,
+        0,
+        1,
+        1,
+        1,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "step": "validate (chromium) / Upload the browser test results",
+      "n": 10,
+      "medianS": 1,
+      "minS": 0,
+      "maxS": 2,
+      "values": [
+        1,
+        0,
+        1,
+        1,
+        1,
+        2,
+        1,
+        2,
+        0,
+        2
+      ]
+    },
+    {
+      "step": "validate (mobile-webkit) / Checkout repository",
+      "n": 5,
+      "medianS": 1,
+      "minS": 0,
+      "maxS": 2,
+      "values": [
+        1,
+        0,
+        1,
+        2,
+        1
+      ]
+    },
+    {
+      "step": "validate (mobile-webkit) / Browser test report",
+      "n": 5,
+      "medianS": 1,
+      "minS": 0,
+      "maxS": 2,
+      "values": [
+        1,
+        1,
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "step": "validate (mobile-webkit) / Upload the browser test results",
+      "n": 5,
+      "medianS": 1,
+      "minS": 0,
+      "maxS": 2,
+      "values": [
+        1,
+        1,
+        2,
+        0,
+        1
+      ]
+    },
+    {
+      "step": "changes / Changed parts",
+      "n": 9,
+      "medianS": 1,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        0,
+        1,
+        1,
+        0,
+        1,
+        0,
+        1,
+        1,
+        0
+      ]
+    },
+    {
+      "step": "changes / Run scope",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": "changes / Summary",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": "changes / Post Checkout repository",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "step": "changes / Complete job",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": "bundle / Data epoch",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": "bundle / Post Set up Node.js",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": "bundle / Post Data download cache",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "step": "bundle / Post Set up uv",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "step": "bundle / Post Checkout repository",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": "bundle / Complete job",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": "test / Node version check",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        1
+      ]
+    },
+    {
+      "step": "test / Post Set up Go (ADIF cross-check tools)",
+      "n": 6,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": "test / Post Set up Node.js",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": "test / Post Checkout repository",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "step": "test / Complete job",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": "validate (firefox) / Read the pinned tool images",
+      "n": 5,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": "validate (firefox) / Browser results per project",
+      "n": 5,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": "validate (firefox) / Post Checkout repository",
+      "n": 5,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        0,
+        0,
+        1,
+        1,
+        0
+      ]
+    },
+    {
+      "step": "validate (firefox) / Complete job",
+      "n": 5,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": "validate (mobile-chromium) / Read the pinned tool images",
+      "n": 5,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": "validate (mobile-chromium) / Browser results per project",
+      "n": 5,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": "validate (mobile-chromium) / Complete job",
+      "n": 5,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": "validate (webkit) / Read the pinned tool images",
+      "n": 5,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": "validate (webkit) / Browser results per project",
+      "n": 5,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": "validate (webkit) / Post Checkout repository",
+      "n": 5,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        0,
+        1,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "step": "validate (webkit) / Complete job",
+      "n": 5,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": "validate (chromium) / Read the pinned tool images",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": "validate (chromium) / Browser results per project",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    {
+      "step": "validate (chromium) / Post Checkout repository",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        1,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "step": "validate (chromium) / Complete job",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": "validate (mobile-webkit) / Read the pinned tool images",
+      "n": 5,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": "validate (mobile-webkit) / Browser results per project",
+      "n": 5,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "step": "validate (mobile-webkit) / Post Checkout repository",
+      "n": 5,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        0,
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "step": "validate (mobile-webkit) / Complete job",
+      "n": 5,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ]
+}

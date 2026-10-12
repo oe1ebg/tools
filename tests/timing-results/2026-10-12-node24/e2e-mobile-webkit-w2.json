@@ -1,0 +1,126 @@
+{
+  "scenario": "e2e",
+  "environment": {
+    "when": "2026-10-12T14:57:16.649Z",
+    "node": "v24.21.0",
+    "python": "Python 3.9.6",
+    "uv": "uv 0.13.0 (Homebrew 2026-10-09 aarch64-apple-darwin)",
+    "os": "darwin 27.0.0",
+    "cpus": 18,
+    "cpuModel": "Apple M5 Pro",
+    "memoryGiB": 64,
+    "commit": "33d5664d08040e9dc071a498ac76873cedf0cf59",
+    "dirty": true,
+    "playwrightImages": [
+      "ghcr.io/validator/validator:latest@sha256:3cb7d2f446677b84fb123427bc029e535739e2314b035b5824a4eb0557803761",
+      "mcr.microsoft.com/playwright:v1.64.0-noble@sha256:06a9939e57531807f8d5fd76ce44b53165ffb7d7501d87ab10e285c20b1e971f",
+      "nginx:1.31.0-alpine@sha256:2f07d83bf561b506400dc183b1b2003803e39efbd22451f848adaba14d28c7c7"
+    ],
+    "generatedData": [
+      "austria-areas.json",
+      "callsigns-oe.json",
+      "repeaters-at.json",
+      "vienna-locations.json",
+      "vienna-map.json"
+    ],
+    "manifest": {
+      "name": "oe1ebg-tools",
+      "version": "v0.3.0-dirty",
+      "commit": "33d5664d08040e9dc071a498ac76873cedf0cf59",
+      "built": "2026-10-12T12:31:14Z"
+    }
+  },
+  "measurements": [
+    {
+      "workers": 2,
+      "project": "mobile-webkit",
+      "runs": 5,
+      "wallMs": {
+        "median": 79841,
+        "min": 44787,
+        "max": 137290
+      },
+      "peakMiB": {
+        "median": 918.3,
+        "min": 803.1,
+        "max": 988.3
+      },
+      "failedRuns": 3,
+      "results": [
+        {
+          "wallMs": 79940,
+          "peakMiB": 921.3,
+          "status": 1,
+          "counts": {
+            "expected": 75,
+            "unexpected": 1,
+            "flaky": 0,
+            "skipped": 52,
+            "durationMs": 79454
+          },
+          "failed": [
+            "confirm.spec.mjs: a header write from a tab with a stale counter never lowers nextSeq (Test timeout of 60000ms exceeded.)"
+          ],
+          "outputTail": "     \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"mobile-webkit\",\n              \"projectName\": \"mobile-webkit\",\n              \"results\": [\n                {\n                  \"workerIndex\": 0,\n                  \"parallelIndex\": 0,\n                  \"status\": \"passed\",\n                  \"duration\": 185,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T14:58:10.442Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-560979898465c3a9205a\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 134,\n          \"column\": 1\n        },\n        {\n          \"title\": \"Notfunk migration: a taken message number is kept, never duplicated\",\n          \"ok\": true,\n          \"tags\": [],\n          \"tests\": [\n            {\n              \"timeout\": 60000,\n              \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"mobile-webkit\",\n              \"projectName\": \"mobile-webkit\",\n              \"results\": [\n                {\n                  \"workerIndex\": 0,\n                  \"parallelIndex\": 0,\n                  \"status\": \"passed\",\n                  \"duration\": 161,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T14:58:10.632Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-7ecdb5026b8cac895f85\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 182,\n          \"column\": 1\n        },\n        {\n          \"title\": \"Notfunk: fallback notices leave the error banner alone and resolve\",\n          \"ok\": true,\n          \"tags\": [],\n          \"tests\": [\n            {\n              \"timeout\": 60000,\n              \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"mobile-webkit\",\n              \"projectName\": \"mobile-webkit\",\n              \"results\": [\n                {\n                  \"workerIndex\": 0,\n                  \"parallelIndex\": 0,\n                  \"status\": \"passed\",\n                  \"duration\": 5795,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T14:58:10.797Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-4f9a18dbfd493de27f61\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 221,\n          \"column\": 1\n        }\n      ]\n    }\n  ],\n  \"errors\": [],\n  \"stats\": {\n    \"startTime\": \"2026-10-12T14:57:17.312Z\",\n    \"duration\": 79454.15400000001,\n    \"expected\": 75,\n    \"skipped\": 52,\n    \"unexpected\": 1,\n    \"flaky\": 0\n  }\n}\n\n       79.93 real        22.34 user         5.26 sys\n           966098944  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n              543183  page reclaims\n                1047  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n              185614  messages sent\n               71808  messages received\n                   0  signals received\n               30136  voluntary context switches\n              428755  involuntary context switches\n          1986475897  instructions retired\n           770348130  cycles elapsed\n            51354584  peak memory footprint\n"
+        },
+        {
+          "wallMs": 79841,
+          "peakMiB": 918.3,
+          "status": 1,
+          "counts": {
+            "expected": 75,
+            "unexpected": 1,
+            "flaky": 0,
+            "skipped": 52,
+            "durationMs": 79372
+          },
+          "failed": [
+            "confirm.spec.mjs: a split export beyond the set limits is refused without any download (Test timeout of 60000ms exceeded.)"
+          ],
+          "outputTail": "             \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"mobile-webkit\",\n              \"projectName\": \"mobile-webkit\",\n              \"results\": [\n                {\n                  \"workerIndex\": 0,\n                  \"parallelIndex\": 0,\n                  \"status\": \"passed\",\n                  \"duration\": 185,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T14:59:30.030Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-560979898465c3a9205a\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 134,\n          \"column\": 1\n        },\n        {\n          \"title\": \"Notfunk migration: a taken message number is kept, never duplicated\",\n          \"ok\": true,\n          \"tags\": [],\n          \"tests\": [\n            {\n              \"timeout\": 60000,\n              \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"mobile-webkit\",\n              \"projectName\": \"mobile-webkit\",\n              \"results\": [\n                {\n                  \"workerIndex\": 0,\n                  \"parallelIndex\": 0,\n                  \"status\": \"passed\",\n                  \"duration\": 177,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T14:59:30.220Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-7ecdb5026b8cac895f85\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 182,\n          \"column\": 1\n        },\n        {\n          \"title\": \"Notfunk: fallback notices leave the error banner alone and resolve\",\n          \"ok\": true,\n          \"tags\": [],\n          \"tests\": [\n            {\n              \"timeout\": 60000,\n              \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"mobile-webkit\",\n              \"projectName\": \"mobile-webkit\",\n              \"results\": [\n                {\n                  \"workerIndex\": 0,\n                  \"parallelIndex\": 0,\n                  \"status\": \"passed\",\n                  \"duration\": 5729,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T14:59:30.400Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-4f9a18dbfd493de27f61\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 221,\n          \"column\": 1\n        }\n      ]\n    }\n  ],\n  \"errors\": [],\n  \"stats\": {\n    \"startTime\": \"2026-10-12T14:58:37.236Z\",\n    \"duration\": 79372.278,\n    \"expected\": 75,\n    \"skipped\": 52,\n    \"unexpected\": 1,\n    \"flaky\": 0\n  }\n}\n\n       79.83 real        22.59 user         5.35 sys\n           962920448  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n              534746  page reclaims\n                 973  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n              185850  messages sent\n               72369  messages received\n                   0  signals received\n               30526  voluntary context switches\n              442489  involuntary context switches\n          1992603455  instructions retired\n           769889994  cycles elapsed\n            53566616  peak memory footprint\n"
+        },
+        {
+          "wallMs": 45589,
+          "peakMiB": 806.3,
+          "status": 0,
+          "counts": {
+            "expected": 76,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 52,
+            "durationMs": 44950
+          }
+        },
+        {
+          "wallMs": 137290,
+          "peakMiB": 988.3,
+          "status": 1,
+          "counts": {
+            "expected": 74,
+            "unexpected": 2,
+            "flaky": 0,
+            "skipped": 52,
+            "durationMs": 136685
+          },
+          "failed": [
+            "confirm.spec.mjs: two immediate submits create one line with number 1 (Test timeout of 60000ms exceeded.)",
+            "confirm.spec.mjs: a note beyond the per-file limit is chunked across the parts and restored whole (Test timeout of 60000ms exceeded.)"
+          ],
+          "outputTail": "             \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"mobile-webkit\",\n              \"projectName\": \"mobile-webkit\",\n              \"results\": [\n                {\n                  \"workerIndex\": 0,\n                  \"parallelIndex\": 0,\n                  \"status\": \"passed\",\n                  \"duration\": 181,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T15:01:35.357Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-560979898465c3a9205a\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 134,\n          \"column\": 1\n        },\n        {\n          \"title\": \"Notfunk migration: a taken message number is kept, never duplicated\",\n          \"ok\": true,\n          \"tags\": [],\n          \"tests\": [\n            {\n              \"timeout\": 60000,\n              \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"mobile-webkit\",\n              \"projectName\": \"mobile-webkit\",\n              \"results\": [\n                {\n                  \"workerIndex\": 0,\n                  \"parallelIndex\": 0,\n                  \"status\": \"passed\",\n                  \"duration\": 177,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T15:01:35.542Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-7ecdb5026b8cac895f85\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 182,\n          \"column\": 1\n        },\n        {\n          \"title\": \"Notfunk: fallback notices leave the error banner alone and resolve\",\n          \"ok\": true,\n          \"tags\": [],\n          \"tests\": [\n            {\n              \"timeout\": 60000,\n              \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"mobile-webkit\",\n              \"projectName\": \"mobile-webkit\",\n              \"results\": [\n                {\n                  \"workerIndex\": 0,\n                  \"parallelIndex\": 0,\n                  \"status\": \"passed\",\n                  \"duration\": 5752,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T15:01:35.723Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-4f9a18dbfd493de27f61\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 221,\n          \"column\": 1\n        }\n      ]\n    }\n  ],\n  \"errors\": [],\n  \"stats\": {\n    \"startTime\": \"2026-10-12T15:00:42.805Z\",\n    \"duration\": 136685.32,\n    \"expected\": 74,\n    \"skipped\": 52,\n    \"unexpected\": 2,\n    \"flaky\": 0\n  }\n}\n\n      137.28 real        26.44 user         5.74 sys\n          1036288000  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n              628896  page reclaims\n                 971  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n              185127  messages sent\n               71799  messages received\n                   0  signals received\n               31421  voluntary context switches\n              441211  involuntary context switches\n          2135706095  instructions retired\n           884592227  cycles elapsed\n            54812016  peak memory footprint\n"
+        },
+        {
+          "wallMs": 44787,
+          "peakMiB": 803.1,
+          "status": 0,
+          "counts": {
+            "expected": 76,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 52,
+            "durationMs": 44313
+          }
+        }
+      ]
+    }
+  ]
+}
