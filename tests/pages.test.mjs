@@ -415,14 +415,19 @@ test('releases: one bad release is skipped loudly, the others go on, nothing unv
   const bin = join(d, 'bin');
   mkdirSync(bin);
   const code = `#!/usr/bin/env python3
-import hashlib, io, json, sys, tarfile, pathlib
+import gzip, hashlib, io, json, sys, tarfile, pathlib
 a = sys.argv[1:]
 def tarball(tag):
-    buf = io.BytesIO()
-    with tarfile.open(fileobj=buf, mode="w:gz") as tf:
+    # byte-identical on every call: the checksum and the tarball are fetched by
+    # separate gh calls, and gzip's header holds the time in seconds (mtime=0)
+    raw = io.BytesIO()
+    with tarfile.open(fileobj=raw, mode="w") as tf:
         for n, data in ((f"oe1ebg-tools-{tag}/index.html", b"<title>x</title>"),
                         (f"oe1ebg-tools-{tag}/manifest.json", json.dumps({"version": tag, "commit": "a" * 40, "built": "2026-10-01T00:00:00Z"}).encode())):
             ti = tarfile.TarInfo(n); ti.size = len(data); tf.addfile(ti, io.BytesIO(data))
+    buf = io.BytesIO()
+    with gzip.GzipFile(fileobj=buf, mode="wb", mtime=0) as gz:
+        gz.write(raw.getvalue())
     return buf.getvalue()
 if a[:2] == ["release", "list"]:
     print(json.dumps([{"tagName": t, "isPrerelease": t == "data-latest", "isDraft": False} for t in ("v1.2.0", "v1.1.0", "v1.0.0", "v0.9.0", "data-latest")]))
