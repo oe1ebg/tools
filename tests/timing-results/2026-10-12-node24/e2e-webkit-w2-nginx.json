@@ -1,0 +1,182 @@
+{
+  "scenario": "e2e",
+  "environment": {
+    "when": "2026-10-12T15:27:28.484Z",
+    "node": "v24.21.0",
+    "python": "Python 3.9.6",
+    "uv": "uv 0.13.0 (Homebrew 2026-10-09 aarch64-apple-darwin)",
+    "os": "darwin 27.0.0",
+    "cpus": 18,
+    "cpuModel": "Apple M5 Pro",
+    "memoryGiB": 64,
+    "commit": "33d5664d08040e9dc071a498ac76873cedf0cf59",
+    "dirty": true,
+    "playwrightImages": [
+      "ghcr.io/validator/validator:latest@sha256:3cb7d2f446677b84fb123427bc029e535739e2314b035b5824a4eb0557803761",
+      "mcr.microsoft.com/playwright:v1.64.0-noble@sha256:06a9939e57531807f8d5fd76ce44b53165ffb7d7501d87ab10e285c20b1e971f",
+      "nginx:1.31.0-alpine@sha256:2f07d83bf561b506400dc183b1b2003803e39efbd22451f848adaba14d28c7c7"
+    ],
+    "generatedData": [
+      "austria-areas.json",
+      "callsigns-oe.json",
+      "repeaters-at.json",
+      "vienna-locations.json",
+      "vienna-map.json"
+    ],
+    "manifest": {
+      "name": "oe1ebg-tools",
+      "version": "v0.3.0-dirty",
+      "commit": "33d5664d08040e9dc071a498ac76873cedf0cf59",
+      "built": "2026-10-12T12:31:14Z"
+    }
+  },
+  "measurements": [
+    {
+      "workers": 2,
+      "project": "webkit",
+      "runs": 10,
+      "wallMs": {
+        "median": 50206,
+        "min": 47515,
+        "max": 56543
+      },
+      "peakMiB": {
+        "median": 921.3,
+        "min": 797,
+        "max": 923.4
+      },
+      "failedRuns": 2,
+      "results": [
+        {
+          "wallMs": 55345,
+          "peakMiB": 864.6,
+          "status": 0,
+          "counts": {
+            "expected": 77,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 51,
+            "durationMs": 49975
+          }
+        },
+        {
+          "wallMs": 48074,
+          "peakMiB": 923.3,
+          "status": 0,
+          "counts": {
+            "expected": 77,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 51,
+            "durationMs": 47452
+          }
+        },
+        {
+          "wallMs": 52324,
+          "peakMiB": 922.3,
+          "status": 0,
+          "counts": {
+            "expected": 77,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 51,
+            "durationMs": 47465
+          }
+        },
+        {
+          "wallMs": 47515,
+          "peakMiB": 922.6,
+          "status": 0,
+          "counts": {
+            "expected": 77,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 51,
+            "durationMs": 46893
+          }
+        },
+        {
+          "wallMs": 48032,
+          "peakMiB": 921.3,
+          "status": 0,
+          "counts": {
+            "expected": 77,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 51,
+            "durationMs": 47419
+          }
+        },
+        {
+          "wallMs": 49264,
+          "peakMiB": 797.1,
+          "status": 0,
+          "counts": {
+            "expected": 77,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 51,
+            "durationMs": 48784
+          }
+        },
+        {
+          "wallMs": 48332,
+          "peakMiB": 923.4,
+          "status": 0,
+          "counts": {
+            "expected": 77,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 51,
+            "durationMs": 47718
+          }
+        },
+        {
+          "wallMs": 50206,
+          "peakMiB": 797,
+          "status": 0,
+          "counts": {
+            "expected": 77,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 51,
+            "durationMs": 49733
+          }
+        },
+        {
+          "wallMs": 56543,
+          "peakMiB": 797.4,
+          "status": 1,
+          "counts": {
+            "expected": 76,
+            "unexpected": 1,
+            "flaky": 0,
+            "skipped": 51,
+            "durationMs": 56079
+          },
+          "failed": [
+            "confirm.spec.mjs: a split export is imported from all its parts together, one part alone is refused (Error: expect(locator).toContainText(expected) failed)"
+          ],
+          "outputTail": "        {\n              \"timeout\": 60000,\n              \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"webkit\",\n              \"projectName\": \"webkit\",\n              \"results\": [\n                {\n                  \"workerIndex\": 0,\n                  \"parallelIndex\": 0,\n                  \"status\": \"passed\",\n                  \"duration\": 172,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T15:34:50.404Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-deb00359009c723d633f\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 134,\n          \"column\": 1\n        },\n        {\n          \"title\": \"Notfunk migration: a taken message number is kept, never duplicated\",\n          \"ok\": true,\n          \"tags\": [],\n          \"tests\": [\n            {\n              \"timeout\": 60000,\n              \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"webkit\",\n              \"projectName\": \"webkit\",\n              \"results\": [\n                {\n                  \"workerIndex\": 0,\n                  \"parallelIndex\": 0,\n                  \"status\": \"passed\",\n                  \"duration\": 172,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T15:34:50.581Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-b6bd527bb248364df044\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 182,\n          \"column\": 1\n        },\n        {\n          \"title\": \"Notfunk: fallback notices leave the error banner alone and resolve\",\n          \"ok\": true,\n          \"tags\": [],\n          \"tests\": [\n            {\n              \"timeout\": 60000,\n              \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"webkit\",\n              \"projectName\": \"webkit\",\n              \"results\": [\n                {\n                  \"workerIndex\": 0,\n                  \"parallelIndex\": 0,\n                  \"status\": \"passed\",\n                  \"duration\": 5735,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T15:34:50.757Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-dc36dfec6b7fbe9ed01a\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 221,\n          \"column\": 1\n        }\n      ]\n    }\n  ],\n  \"errors\": [],\n  \"stats\": {\n    \"startTime\": \"2026-10-12T15:34:08.165Z\",\n    \"duration\": 56078.71,\n    \"expected\": 76,\n    \"skipped\": 51,\n    \"unexpected\": 1,\n    \"flaky\": 0\n  }\n}\n\n       56.54 real        25.61 user         6.33 sys\n           836141056  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n             1449705  page reclaims\n                 943  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n              194320  messages sent\n               75609  messages received\n                   0  signals received\n               32129  voluntary context switches\n              470347  involuntary context switches\n          1980950099  instructions retired\n           753008983  cycles elapsed\n            52091912  peak memory footprint\n"
+        },
+        {
+          "wallMs": 56052,
+          "peakMiB": 798.5,
+          "status": 1,
+          "counts": {
+            "expected": 76,
+            "unexpected": 1,
+            "flaky": 0,
+            "skipped": 51,
+            "durationMs": 55585
+          },
+          "failed": [
+            "confirm.spec.mjs: a split export is imported from all its parts together, one part alone is refused (Error: expect(locator).toContainText(expected) failed)"
+          ],
+          "outputTail": "       {\n              \"timeout\": 60000,\n              \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"webkit\",\n              \"projectName\": \"webkit\",\n              \"results\": [\n                {\n                  \"workerIndex\": 2,\n                  \"parallelIndex\": 1,\n                  \"status\": \"passed\",\n                  \"duration\": 172,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T15:35:46.446Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-deb00359009c723d633f\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 134,\n          \"column\": 1\n        },\n        {\n          \"title\": \"Notfunk migration: a taken message number is kept, never duplicated\",\n          \"ok\": true,\n          \"tags\": [],\n          \"tests\": [\n            {\n              \"timeout\": 60000,\n              \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"webkit\",\n              \"projectName\": \"webkit\",\n              \"results\": [\n                {\n                  \"workerIndex\": 2,\n                  \"parallelIndex\": 1,\n                  \"status\": \"passed\",\n                  \"duration\": 178,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T15:35:46.621Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-b6bd527bb248364df044\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 182,\n          \"column\": 1\n        },\n        {\n          \"title\": \"Notfunk: fallback notices leave the error banner alone and resolve\",\n          \"ok\": true,\n          \"tags\": [],\n          \"tests\": [\n            {\n              \"timeout\": 60000,\n              \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"webkit\",\n              \"projectName\": \"webkit\",\n              \"results\": [\n                {\n                  \"workerIndex\": 2,\n                  \"parallelIndex\": 1,\n                  \"status\": \"passed\",\n                  \"duration\": 6014,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T15:35:46.803Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-dc36dfec6b7fbe9ed01a\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 221,\n          \"column\": 1\n        }\n      ]\n    }\n  ],\n  \"errors\": [],\n  \"stats\": {\n    \"startTime\": \"2026-10-12T15:35:04.712Z\",\n    \"duration\": 55585.315,\n    \"expected\": 76,\n    \"skipped\": 51,\n    \"unexpected\": 1,\n    \"flaky\": 0\n  }\n}\n\n       56.04 real        25.08 user         6.06 sys\n           837320704  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n             1431952  page reclaims\n                 940  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n              193998  messages sent\n               75318  messages received\n                   0  signals received\n               31967  voluntary context switches\n              455001  involuntary context switches\n          1983761458  instructions retired\n           748738838  cycles elapsed\n            52140992  peak memory footprint\n"
+        }
+      ]
+    }
+  ],
+  "server": "external http://localhost:8080/"
+}

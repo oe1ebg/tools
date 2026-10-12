@@ -182,20 +182,69 @@ crosscheck: crosscheck-tools
 eval-location *args:
     node scripts/eval_location.mjs {{args}}
 
+# One test file (short name or path), optionally only the tests whose name
+# matches PATTERN: `just test-file storage` or `just test-file adif 'parse'`.
+# Skips the rest of the suite; run `just test` before pushing.
+[doc("Run one unit-test file, optionally filtered by test name")]
+test-file file pattern="":
+    #!/usr/bin/env sh
+    set -eu
+    f="{{file}}"
+    for c in "$f" "tests/$f" "tests/$f.mjs" "tests/$f.test.mjs"; do
+      if [ -f "$c" ]; then found="$c"; break; fi
+    done
+    if [ -z "${found:-}" ]; then
+      echo "no test file '$f' (tried tests/$f, tests/$f.test.mjs)" >&2
+      exit 1
+    fi
+    if [ -n "{{pattern}}" ]; then
+      exec node --test --test-name-pattern="{{pattern}}" "$found"
+    fi
+    exec node --test "$found"
+
 # Version of the pinned Playwright image (tests/e2e/images.Dockerfile); the
 # npm package must match it.
 playwright_version := `sed -nE 's#^FROM mcr\.microsoft\.com/playwright:v([0-9]+\.[0-9]+\.[0-9]+)-.*#\1#p' tests/e2e/images.Dockerfile`
 
-# Browser tests (tests/e2e/, Playwright) against site/ from `just build`,
-# served by tests/e2e/serve.py. Installs @playwright/test at the image's
-# version into the ignored tests/e2e/node_modules/ (no package.json).
-# Extra args go to `playwright test`, e.g. `just e2e --project=chromium
-# confirm`. BASE_URL=… tests another server (the tools at <BASE_URL>tools/).
-[doc("Browser tests of the tools (Playwright, needs `just build` first)")]
-e2e *args:
+# Install @playwright/test at the pinned image's version into the ignored
+# tests/e2e/node_modules/ (no package.json) and the three browsers; then
+# check the versions. Needs the network; run once, `e2e-run` repeats cheaply.
+[doc("Install the pinned Playwright version + browsers for local browser tests")]
+e2e-setup:
     cd tests/e2e && npm install --no-save --no-package-lock --no-audit --no-fund @playwright/test@{{playwright_version}}
     cd tests/e2e && npx playwright install chromium firefox webkit
-    cd tests/e2e && npx playwright test {{args}}
+    cd tests/e2e && PW_VERSION={{playwright_version}} node check-playwright.mjs --local
+
+# Browser tests (tests/e2e/, Playwright) against the existing site/ from
+# `just build` (or `just stage` after source edits), served by
+# tests/e2e/serve.py. No install: fails with a hint when site/ is missing or
+# Playwright is not at the pinned version. Extra args go to `playwright
+# test`, e.g. `just e2e-run --project=chromium confirm`. BASE_URL=… tests
+# another server (the tools at <BASE_URL>tools/).
+[doc("Browser tests against the existing site/ and installed Playwright (no setup)")]
+e2e-run *args:
+    #!/usr/bin/env sh
+    set -eu
+    if [ -z "${BASE_URL:-}" ] && [ ! -f site/tools/index.html ]; then
+      echo "site/tools/ is missing: run 'just build' (or 'just stage' if the offline bundles exist)" >&2
+      exit 1
+    fi
+    # Playwright reuses whatever already listens on the port; a server
+    # left over from another checkout would test the wrong bundle.
+    if [ -z "${BASE_URL:-}" ] && served=$(curl -sS --max-time 2 http://127.0.0.1:{{port}}/tools/manifest.json 2>/dev/null) \
+       && [ "$served" != "$(cat site/tools/manifest.json)" ]; then
+      echo "something else serves http://127.0.0.1:{{port}}/tools/ (not this site/): stop it, or serve this site/ elsewhere and set BASE_URL=http://127.0.0.1:<port>/" >&2
+      exit 1
+    fi
+    cd tests/e2e
+    PW_VERSION={{playwright_version}} node check-playwright.mjs --local
+    exec npx playwright test {{args}}
+
+# Browser tests: setup, then the run, against site/ from `just build`.
+# Extra args go to `playwright test`, e.g. `just e2e --project=chromium
+# confirm`. For repeated runs use `just e2e-run`.
+[doc("Browser tests of the tools (Playwright, needs `just build` first)")]
+e2e *args: e2e-setup (e2e-run args)
 
 # Responsiveness benchmark with large logs (scripts/bench_ui.mjs, issue #15):
 # seeds confirm / notfunk / ADIF data, measures typing, search, import, scroll

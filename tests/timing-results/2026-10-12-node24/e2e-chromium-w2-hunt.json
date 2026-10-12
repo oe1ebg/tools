@@ -1,0 +1,253 @@
+{
+  "scenario": "e2e",
+  "environment": {
+    "when": "2026-10-12T14:07:31.323Z",
+    "node": "v24.21.0",
+    "python": "Python 3.9.6",
+    "uv": "uv 0.13.0 (Homebrew 2026-10-09 aarch64-apple-darwin)",
+    "os": "darwin 27.0.0",
+    "cpus": 18,
+    "cpuModel": "Apple M5 Pro",
+    "memoryGiB": 64,
+    "commit": "33d5664d08040e9dc071a498ac76873cedf0cf59",
+    "dirty": true,
+    "playwrightImages": [
+      "ghcr.io/validator/validator:latest@sha256:3cb7d2f446677b84fb123427bc029e535739e2314b035b5824a4eb0557803761",
+      "mcr.microsoft.com/playwright:v1.64.0-noble@sha256:06a9939e57531807f8d5fd76ce44b53165ffb7d7501d87ab10e285c20b1e971f",
+      "nginx:1.31.0-alpine@sha256:2f07d83bf561b506400dc183b1b2003803e39efbd22451f848adaba14d28c7c7"
+    ],
+    "generatedData": [
+      "austria-areas.json",
+      "callsigns-oe.json",
+      "repeaters-at.json",
+      "vienna-locations.json",
+      "vienna-map.json"
+    ],
+    "manifest": {
+      "name": "oe1ebg-tools",
+      "version": "v0.3.0-dirty",
+      "commit": "33d5664d08040e9dc071a498ac76873cedf0cf59",
+      "built": "2026-10-12T12:31:14Z"
+    }
+  },
+  "measurements": [
+    {
+      "workers": 2,
+      "project": "chromium",
+      "runs": 15,
+      "wallMs": {
+        "median": 86426,
+        "min": 83661,
+        "max": 113996
+      },
+      "peakMiB": {
+        "median": 3128.1,
+        "min": 3118.1,
+        "max": 3199
+      },
+      "failedRuns": 5,
+      "results": [
+        {
+          "wallMs": 85481,
+          "peakMiB": 3128.1,
+          "status": 0,
+          "counts": {
+            "expected": 128,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 84781
+          }
+        },
+        {
+          "wallMs": 85435,
+          "peakMiB": 3128.4,
+          "status": 0,
+          "counts": {
+            "expected": 128,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 84816
+          }
+        },
+        {
+          "wallMs": 86426,
+          "peakMiB": 3128,
+          "status": 0,
+          "counts": {
+            "expected": 128,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 85802
+          }
+        },
+        {
+          "wallMs": 85814,
+          "peakMiB": 3199,
+          "status": 0,
+          "counts": {
+            "expected": 128,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 85201
+          }
+        },
+        {
+          "wallMs": 85604,
+          "peakMiB": 3118.8,
+          "status": 0,
+          "counts": {
+            "expected": 128,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 85123
+          }
+        },
+        {
+          "wallMs": 86641,
+          "peakMiB": 3128.2,
+          "status": 0,
+          "counts": {
+            "expected": 128,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 86025
+          }
+        },
+        {
+          "wallMs": 85998,
+          "peakMiB": 3119.2,
+          "status": 0,
+          "counts": {
+            "expected": 128,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 85369
+          }
+        },
+        {
+          "wallMs": 113996,
+          "peakMiB": 3133.3,
+          "status": 1,
+          "counts": {
+            "expected": 127,
+            "unexpected": 1,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 113370
+          },
+          "failed": [
+            "offline-update.spec.mjs: notfunk: update started in another tab while this tab has a draft conflict: this tab offers the choice (Error: expect(locator).toContainText(expected) failed)"
+          ],
+          "outputTail": "            \"timeout\": 60000,\n              \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"chromium\",\n              \"projectName\": \"chromium\",\n              \"results\": [\n                {\n                  \"workerIndex\": 0,\n                  \"parallelIndex\": 0,\n                  \"status\": \"passed\",\n                  \"duration\": 69,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T14:18:38.825Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-270fba9933f7f4be7d2d\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 134,\n          \"column\": 1\n        },\n        {\n          \"title\": \"Notfunk migration: a taken message number is kept, never duplicated\",\n          \"ok\": true,\n          \"tags\": [],\n          \"tests\": [\n            {\n              \"timeout\": 60000,\n              \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"chromium\",\n              \"projectName\": \"chromium\",\n              \"results\": [\n                {\n                  \"workerIndex\": 0,\n                  \"parallelIndex\": 0,\n                  \"status\": \"passed\",\n                  \"duration\": 69,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T14:18:38.899Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-761921e72cb588c776f2\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 182,\n          \"column\": 1\n        },\n        {\n          \"title\": \"Notfunk: fallback notices leave the error banner alone and resolve\",\n          \"ok\": true,\n          \"tags\": [],\n          \"tests\": [\n            {\n              \"timeout\": 60000,\n              \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"chromium\",\n              \"projectName\": \"chromium\",\n              \"results\": [\n                {\n                  \"workerIndex\": 0,\n                  \"parallelIndex\": 0,\n                  \"status\": \"passed\",\n                  \"duration\": 5723,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T14:18:38.970Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-bade05d4fdc03f1978af\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 221,\n          \"column\": 1\n        }\n      ]\n    }\n  ],\n  \"errors\": [],\n  \"stats\": {\n    \"startTime\": \"2026-10-12T14:17:33.908Z\",\n    \"duration\": 113369.644,\n    \"expected\": 127,\n    \"skipped\": 0,\n    \"unexpected\": 1,\n    \"flaky\": 0\n  }\n}\n\n      113.99 real       117.92 user        28.36 sys\n          3285499904  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n             6934014  page reclaims\n               39088  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n              470776  messages sent\n              209493  messages received\n                   0  signals received\n               68497  voluntary context switches\n             2634080  involuntary context switches\n          2148990802  instructions retired\n           909835644  cycles elapsed\n            55287200  peak memory footprint\n"
+        },
+        {
+          "wallMs": 112406,
+          "peakMiB": 3134.3,
+          "status": 1,
+          "counts": {
+            "expected": 127,
+            "unexpected": 1,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 111814
+          },
+          "failed": [
+            "offline-update.spec.mjs: an update from another tab: the tab with an unsaved draft is not reloaded (Error: expect(received).toBeUndefined())"
+          ],
+          "outputTail": "            \"timeout\": 60000,\n              \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"chromium\",\n              \"projectName\": \"chromium\",\n              \"results\": [\n                {\n                  \"workerIndex\": 0,\n                  \"parallelIndex\": 0,\n                  \"status\": \"passed\",\n                  \"duration\": 75,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T14:20:32.331Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-270fba9933f7f4be7d2d\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 134,\n          \"column\": 1\n        },\n        {\n          \"title\": \"Notfunk migration: a taken message number is kept, never duplicated\",\n          \"ok\": true,\n          \"tags\": [],\n          \"tests\": [\n            {\n              \"timeout\": 60000,\n              \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"chromium\",\n              \"projectName\": \"chromium\",\n              \"results\": [\n                {\n                  \"workerIndex\": 0,\n                  \"parallelIndex\": 0,\n                  \"status\": \"passed\",\n                  \"duration\": 68,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T14:20:32.410Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-761921e72cb588c776f2\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 182,\n          \"column\": 1\n        },\n        {\n          \"title\": \"Notfunk: fallback notices leave the error banner alone and resolve\",\n          \"ok\": true,\n          \"tags\": [],\n          \"tests\": [\n            {\n              \"timeout\": 60000,\n              \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"chromium\",\n              \"projectName\": \"chromium\",\n              \"results\": [\n                {\n                  \"workerIndex\": 0,\n                  \"parallelIndex\": 0,\n                  \"status\": \"passed\",\n                  \"duration\": 5638,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T14:20:32.481Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-bade05d4fdc03f1978af\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 221,\n          \"column\": 1\n        }\n      ]\n    }\n  ],\n  \"errors\": [],\n  \"stats\": {\n    \"startTime\": \"2026-10-12T14:19:27.871Z\",\n    \"duration\": 111814.095,\n    \"expected\": 127,\n    \"skipped\": 0,\n    \"unexpected\": 1,\n    \"flaky\": 0\n  }\n}\n\n      112.40 real       116.44 user        28.19 sys\n          3286548480  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n             6922050  page reclaims\n               38658  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n              470378  messages sent\n              208818  messages received\n                   0  signals received\n               67703  voluntary context switches\n             2576805  involuntary context switches\n          2127778623  instructions retired\n           867622035  cycles elapsed\n            56221376  peak memory footprint\n"
+        },
+        {
+          "wallMs": 84155,
+          "peakMiB": 3120.3,
+          "status": 0,
+          "counts": {
+            "expected": 128,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 83660
+          }
+        },
+        {
+          "wallMs": 112881,
+          "peakMiB": 3126.8,
+          "status": 1,
+          "counts": {
+            "expected": 127,
+            "unexpected": 1,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 112390
+          },
+          "failed": [
+            "offline-update.spec.mjs: an update from another tab: the tab with an unsaved draft is not reloaded (Error: expect(received).toBeUndefined())"
+          ],
+          "outputTail": "             \"timeout\": 60000,\n              \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"chromium\",\n              \"projectName\": \"chromium\",\n              \"results\": [\n                {\n                  \"workerIndex\": 0,\n                  \"parallelIndex\": 0,\n                  \"status\": \"passed\",\n                  \"duration\": 80,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T14:23:50.248Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-270fba9933f7f4be7d2d\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 134,\n          \"column\": 1\n        },\n        {\n          \"title\": \"Notfunk migration: a taken message number is kept, never duplicated\",\n          \"ok\": true,\n          \"tags\": [],\n          \"tests\": [\n            {\n              \"timeout\": 60000,\n              \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"chromium\",\n              \"projectName\": \"chromium\",\n              \"results\": [\n                {\n                  \"workerIndex\": 0,\n                  \"parallelIndex\": 0,\n                  \"status\": \"passed\",\n                  \"duration\": 69,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T14:23:50.332Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-761921e72cb588c776f2\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 182,\n          \"column\": 1\n        },\n        {\n          \"title\": \"Notfunk: fallback notices leave the error banner alone and resolve\",\n          \"ok\": true,\n          \"tags\": [],\n          \"tests\": [\n            {\n              \"timeout\": 60000,\n              \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"chromium\",\n              \"projectName\": \"chromium\",\n              \"results\": [\n                {\n                  \"workerIndex\": 0,\n                  \"parallelIndex\": 0,\n                  \"status\": \"passed\",\n                  \"duration\": 5626,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T14:23:50.404Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-bade05d4fdc03f1978af\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 221,\n          \"column\": 1\n        }\n      ]\n    }\n  ],\n  \"errors\": [],\n  \"stats\": {\n    \"startTime\": \"2026-10-12T14:22:44.335Z\",\n    \"duration\": 112389.66,\n    \"expected\": 127,\n    \"skipped\": 0,\n    \"unexpected\": 1,\n    \"flaky\": 0\n  }\n}\n\n      112.87 real       115.65 user        27.16 sys\n          3278716928  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n             6893714  page reclaims\n               39020  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n              469511  messages sent\n              209437  messages received\n                   0  signals received\n               66654  voluntary context switches\n             2538224  involuntary context switches\n          2099067718  instructions retired\n           864252622  cycles elapsed\n            55615072  peak memory footprint\n"
+        },
+        {
+          "wallMs": 83661,
+          "peakMiB": 3118.1,
+          "status": 0,
+          "counts": {
+            "expected": 128,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 83187
+          }
+        },
+        {
+          "wallMs": 113948,
+          "peakMiB": 3127.9,
+          "status": 1,
+          "counts": {
+            "expected": 127,
+            "unexpected": 1,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 113483
+          },
+          "failed": [
+            "offline-update.spec.mjs: an update from another tab: the tab with an unsaved draft is not reloaded (Error: expect(received).toBeUndefined())"
+          ],
+          "outputTail": "            \"timeout\": 60000,\n              \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"chromium\",\n              \"projectName\": \"chromium\",\n              \"results\": [\n                {\n                  \"workerIndex\": 0,\n                  \"parallelIndex\": 0,\n                  \"status\": \"passed\",\n                  \"duration\": 89,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T14:27:08.438Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-270fba9933f7f4be7d2d\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 134,\n          \"column\": 1\n        },\n        {\n          \"title\": \"Notfunk migration: a taken message number is kept, never duplicated\",\n          \"ok\": true,\n          \"tags\": [],\n          \"tests\": [\n            {\n              \"timeout\": 60000,\n              \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"chromium\",\n              \"projectName\": \"chromium\",\n              \"results\": [\n                {\n                  \"workerIndex\": 0,\n                  \"parallelIndex\": 0,\n                  \"status\": \"passed\",\n                  \"duration\": 99,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T14:27:08.530Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-761921e72cb588c776f2\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 182,\n          \"column\": 1\n        },\n        {\n          \"title\": \"Notfunk: fallback notices leave the error banner alone and resolve\",\n          \"ok\": true,\n          \"tags\": [],\n          \"tests\": [\n            {\n              \"timeout\": 60000,\n              \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"chromium\",\n              \"projectName\": \"chromium\",\n              \"results\": [\n                {\n                  \"workerIndex\": 0,\n                  \"parallelIndex\": 0,\n                  \"status\": \"passed\",\n                  \"duration\": 5759,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T14:27:08.634Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-bade05d4fdc03f1978af\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 221,\n          \"column\": 1\n        }\n      ]\n    }\n  ],\n  \"errors\": [],\n  \"stats\": {\n    \"startTime\": \"2026-10-12T14:26:00.848Z\",\n    \"duration\": 113482.866,\n    \"expected\": 127,\n    \"skipped\": 0,\n    \"unexpected\": 1,\n    \"flaky\": 0\n  }\n}\n\n      113.94 real       116.18 user        28.73 sys\n          3279880192  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n             6951374  page reclaims\n               39023  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n              469482  messages sent\n              209334  messages received\n                   0  signals received\n               66715  voluntary context switches\n             2569699  involuntary context switches\n          2089976763  instructions retired\n           815675207  cycles elapsed\n            54959448  peak memory footprint\n"
+        },
+        {
+          "wallMs": 86515,
+          "peakMiB": 3135.3,
+          "status": 0,
+          "counts": {
+            "expected": 128,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 85937
+          }
+        },
+        {
+          "wallMs": 113459,
+          "peakMiB": 3128.3,
+          "status": 1,
+          "counts": {
+            "expected": 127,
+            "unexpected": 1,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 112995
+          },
+          "failed": [
+            "offline-update.spec.mjs: an update from another tab: the tab with an unsaved draft is not reloaded (Error: expect(received).toBeUndefined())"
+          ],
+          "outputTail": "           \"timeout\": 60000,\n              \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"chromium\",\n              \"projectName\": \"chromium\",\n              \"results\": [\n                {\n                  \"workerIndex\": 0,\n                  \"parallelIndex\": 0,\n                  \"status\": \"passed\",\n                  \"duration\": 94,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T14:30:27.649Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-270fba9933f7f4be7d2d\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 134,\n          \"column\": 1\n        },\n        {\n          \"title\": \"Notfunk migration: a taken message number is kept, never duplicated\",\n          \"ok\": true,\n          \"tags\": [],\n          \"tests\": [\n            {\n              \"timeout\": 60000,\n              \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"chromium\",\n              \"projectName\": \"chromium\",\n              \"results\": [\n                {\n                  \"workerIndex\": 0,\n                  \"parallelIndex\": 0,\n                  \"status\": \"passed\",\n                  \"duration\": 134,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T14:30:27.747Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-761921e72cb588c776f2\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 182,\n          \"column\": 1\n        },\n        {\n          \"title\": \"Notfunk: fallback notices leave the error banner alone and resolve\",\n          \"ok\": true,\n          \"tags\": [],\n          \"tests\": [\n            {\n              \"timeout\": 60000,\n              \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"chromium\",\n              \"projectName\": \"chromium\",\n              \"results\": [\n                {\n                  \"workerIndex\": 0,\n                  \"parallelIndex\": 0,\n                  \"status\": \"passed\",\n                  \"duration\": 5812,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T14:30:27.883Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-bade05d4fdc03f1978af\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 221,\n          \"column\": 1\n        }\n      ]\n    }\n  ],\n  \"errors\": [],\n  \"stats\": {\n    \"startTime\": \"2026-10-12T14:29:21.317Z\",\n    \"duration\": 112995.405,\n    \"expected\": 127,\n    \"skipped\": 0,\n    \"unexpected\": 1,\n    \"flaky\": 0\n  }\n}\n\n      113.45 real       115.98 user        28.12 sys\n          3280273408  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n             6970405  page reclaims\n               38707  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n              469626  messages sent\n              209070  messages received\n                   0  signals received\n               66566  voluntary context switches\n             2574002  involuntary context switches\n          2081916115  instructions retired\n           802005978  cycles elapsed\n            53960168  peak memory footprint\n"
+        }
+      ]
+    }
+  ]
+}

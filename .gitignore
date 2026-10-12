@@ -29,3 +29,6 @@ tests/e2e/report
 tests/tools/bin
 tests/reports
 bench-ui.json
+
+bench-tests.json
+.bench/

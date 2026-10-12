@@ -1,0 +1,3 @@
+e2e, webkit, 2 workers     median 45.55 s  range 43.94–80.02 s  peak 876.6 MiB  FAILED RUNS: 1  77 passed, 51 skipped, 0 flaky
+
+wrote .bench/node24/e2e-webkit-w2.json (1 measurements; individual results kept)
