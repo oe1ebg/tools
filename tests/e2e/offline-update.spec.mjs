@@ -54,6 +54,13 @@ async function serveNewVersion(context, tool) {
   });
 }
 
+// The workers keep fetching precache.js in the background (update checks,
+// installs started by another tab), so a route handler can still be in
+// flight when a test ends; it then fails with "Test ended" or "Response has
+// been disposed", in that test or the next one (#36). What the browser does
+// after the test is not part of it: drop the routes without waiting.
+test.afterEach(({ context }) => context.unrouteAll({ behavior: 'ignoreErrors' }));
+
 // Chromium does not route the browser's own update check (reg.update()) through
 // Playwright, but a registration of another script URL for the same scope is
 // an update to the page in every way (updatefound, waiting worker): the tests
