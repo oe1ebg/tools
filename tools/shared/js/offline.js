@@ -257,8 +257,11 @@ export async function initOffline({ build = null, beforeReload = async () => tru
     reg.waiting.postMessage('skipWaiting');
   };
   const updateIntro = 'Ein Update wartet; bevor die Seite neu lädt, muss die Eingabe geklärt sein. ';
+  // An update waits beside the active version. On the first install, WebKit
+  // may already report the claiming worker as controller while it is still
+  // the waiting one, with no active worker yet: no update to offer (#36).
   const offerUpdate = () => {
-    if (!reg.waiting || !navigator.serviceWorker.controller) return;
+    if (!reg.waiting || !reg.active || !navigator.serviceWorker.controller) return;
     setUpdateNote('');
     const btn = $('#btn-update');
     btn.hidden = false;

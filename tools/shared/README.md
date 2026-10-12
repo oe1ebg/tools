@@ -224,7 +224,10 @@ and `checkOldInstall()`. The redirects stay.
   `offline bereit ✓` (only with a complete cache), `offline nicht bereit`,
   `Entwicklungsmodus (nicht offline)`, `Offline-Einrichtung fehlgeschlagen`;
   next to the update button `Update verfügbar`, `Update fehlgeschlagen`
-  (new version could not install) and `Update-Prüfung fehlgeschlagen`.
+  (new version could not install) and `Update-Prüfung fehlgeschlagen`. The
+  button is offered only for a waiting worker beside an active one: on the
+  first install WebKit may report the claiming worker as controller while it
+  is still waiting.
 - **Save hook** (`initOffline({ beforeReload })`). Before an update or reload
   the page calls the tool's hook, which must resolve exactly `true` when
   nothing typed is at risk: it is safe in storage, there was nothing to save,
