@@ -131,6 +131,25 @@ for (const tool of Object.keys(TOOLS)) {
       expect((await swInfo(page, tool)).caches).toEqual([]);
     });
 
+    // WebKit may already report the claiming worker as the page's controller
+    // when that worker's 'installed' statechange arrives: the first install
+    // looked like a waiting update and showed "Update verfügbar", which also
+    // moved the page (#36). Chromium reports it only later, so the test makes
+    // controller return the registration's waiting worker meanwhile.
+    test('the first install offers no update, even with the controller reported early', async ({ page }) => {
+      await page.addInitScript(() => {
+        const proto = ServiceWorkerContainer.prototype;
+        const controller = Object.getOwnPropertyDescriptor(proto, 'controller').get;
+        const register = proto.register;
+        let reg = null;
+        proto.register = function (...args) { return register.apply(this, args).then(r => { reg = r; return r; }); };
+        Object.defineProperty(proto, 'controller', { configurable: true, get() { return controller.call(this) || reg?.waiting || null; } });
+      });
+      await openReady(page, tool);
+      expect((await swInfo(page, tool)).active).toBe('activated');
+      await expect(page.locator('#btn-update')).toBeHidden();
+    });
+
     test('the explicit development stub is reported as development', async ({ page, context }) => {
       await context.route(`**/tools/${tool}/precache.js`, route => route.fulfill(scriptJs(`self.${tool.toUpperCase()}_PRECACHE = { dev: true };`)));
       await page.goto(TOOLS[tool].path);
