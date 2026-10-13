@@ -1,0 +1,22 @@
+node v24.21.0, playwright 1.64.0, Tue 13 Oct 2026 21:28:13 CEST
+build, no generated data (download cache kept) #1: 7.5s rc=0
+build, no generated data (download cache kept) #2: 6.4s rc=0
+build, no generated data (download cache kept) #3: 6.4s rc=0
+build, warm (everything present) #1: 6.4s rc=0
+build, warm (everything present) #2: 6.3s rc=0
+build, warm (everything present) #3: 6.4s rc=0
+npm install @playwright/test, empty npm cache #1: 2.0s rc=0
+npm install @playwright/test, empty npm cache #2: 1.4s rc=0
+npm install @playwright/test, empty npm cache #3: 1.7s rc=0
+npm install @playwright/test, warm npm cache #1: 0.5s rc=0
+npm install @playwright/test, warm npm cache #2: 0.5s rc=0
+npm install @playwright/test, warm npm cache #3: 0.5s rc=0
+playwright install chromium firefox webkit, no browsers #1: 26.8s rc=0
+playwright install chromium firefox webkit, no browsers #2: 29.2s rc=0
+playwright install chromium firefox webkit, no browsers #3: 27.7s rc=0
+browsers size: 1.1G
+podman pull of the Playwright image, absent #1: 40.7s rc=0
+podman pull of the Playwright image, absent #2: 41.1s rc=0
+podman pull of the Playwright image, absent #3: 37.2s rc=0
+podman pull, present: 0.6s rc=0
+DONE
