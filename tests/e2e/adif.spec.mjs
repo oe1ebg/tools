@@ -75,7 +75,7 @@ test('a large log loads fast, scrolls and exports edits', { tag: '@adif' }, asyn
   expect(await rows.count()).toBeLessThan(400);
 
   await page.locator('#drop').evaluate(d => { d.scrollTop = d.scrollHeight; });
-  const lastCall = page.locator('#drop tbody tr[data-ri="6196"] td[data-col="CALL"]');
+  const lastCall = page.locator('#drop tbody tr[data-ri="6201"] td[data-col="CALL"]');
   await expect(lastCall).toBeVisible();
   expect(await rows.count()).toBeLessThan(400);
   await lastCall.click();
@@ -97,7 +97,7 @@ test('a large log loads fast, scrolls and exports edits', { tag: '@adif' }, asyn
   const check = validateAdif(await downloadText(await adiDownload), { today: '20991231' });
   expect(check.errors).toBe(0);
   expect(check.records).toHaveLength(6202);
-  expect(check.records[6196].fields.CALL).toBe('OE1ZZZ');
+  expect(check.records[6201].fields.CALL).toBe('OE1ZZZ');
 });
 
 // Search & filter: only the table's view changes, exports keep every QSO.
