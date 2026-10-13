@@ -1,0 +1,3 @@
+focused tests/storage.test.mjs median 0.40 s  range 0.39–0.40 s  peak 52.6 MiB
+
+wrote /private/tmp/claude-501/bl-res2/unit-focused.json (1 measurements; individual results kept)

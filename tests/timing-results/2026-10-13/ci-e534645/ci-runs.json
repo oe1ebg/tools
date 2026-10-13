@@ -1,0 +1,3242 @@
+{
+  "scenario": "ci-runs",
+  "environment": {
+    "when": "2026-10-12T23:15:40.099Z",
+    "node": "v26.11.1",
+    "python": "Python 3.9.6",
+    "uv": "uv 0.13.0 (Homebrew 2026-10-09 aarch64-apple-darwin)",
+    "os": "darwin 27.0.0",
+    "cpus": 10,
+    "cpuModel": "Apple M1 Max",
+    "memoryGiB": 64,
+    "commit": "e5346459344a04c31c4deab4f48fed8720c5b3fa",
+    "dirty": true,
+    "playwrightImages": [
+      "ghcr.io/validator/validator:latest@sha256:3cb7d2f446677b84fb123427bc029e535739e2314b035b5824a4eb0557803761",
+      "mcr.microsoft.com/playwright:v1.64.0-noble@sha256:06a9939e57531807f8d5fd76ce44b53165ffb7d7501d87ab10e285c20b1e971f",
+      "nginx:1.31.0-alpine@sha256:2f07d83bf561b506400dc183b1b2003803e39efbd22451f848adaba14d28c7c7"
+    ],
+    "generatedData": [
+      "austria-areas.json",
+      "callsigns-oe.json",
+      "repeaters-at.json",
+      "vienna-locations.json",
+      "vienna-map.json"
+    ],
+    "manifest": {
+      "name": "oe1ebg-tools",
+      "version": "v0.3.0-11-ge534645-dirty",
+      "commit": "e5346459344a04c31c4deab4f48fed8720c5b3fa",
+      "built": "2026-10-12T22:12:45Z"
+    }
+  },
+  "measurements": [
+    {
+      "run": 38320411862,
+      "sha": "e5346459344a04c31c4deab4f48fed8720c5b3fa",
+      "event": "workflow_dispatch",
+      "queueS": 0,
+      "wallS": 348,
+      "lastJob": {
+        "name": "validate (mobile-chromium)",
+        "startS": 88,
+        "endS": 348
+      },
+      "runnerS": 1206,
+      "billedMin": 26,
+      "jobs": [
+        {
+          "name": "changes",
+          "runner": "GitHub Actions 1000001189",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 3,
+          "endS": 6
+        },
+        {
+          "name": "bundle",
+          "runner": "GitHub Actions 1000001190",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 1,
+          "startS": 8,
+          "endS": 86
+        },
+        {
+          "name": "test",
+          "runner": "GitHub Actions 1000001191",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 9,
+          "endS": 81
+        },
+        {
+          "name": "validate (chromium)",
+          "runner": "GitHub Actions 1000001193",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 1,
+          "startS": 88,
+          "endS": 329,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 30,
+            "npmS": 2,
+            "startS": 1,
+            "testsS": 181
+          }
+        },
+        {
+          "name": "validate (mobile-webkit)",
+          "runner": "GitHub Actions 1000001192",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 1,
+          "startS": 88,
+          "endS": 272,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 25,
+            "npmS": 2,
+            "startS": 2,
+            "testsS": 146
+          }
+        },
+        {
+          "name": "validate (mobile-chromium)",
+          "runner": "GitHub Actions 1000001196",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 1,
+          "startS": 88,
+          "endS": 348,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 33,
+            "npmS": 2,
+            "startS": 1,
+            "testsS": 206
+          }
+        },
+        {
+          "name": "validate (firefox)",
+          "runner": "GitHub Actions 1000001195",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 1,
+          "startS": 88,
+          "endS": 259,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 25,
+            "npmS": 2,
+            "startS": 2,
+            "testsS": 133
+          }
+        },
+        {
+          "name": "validate (webkit)",
+          "runner": "GitHub Actions 1000001194",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 89,
+          "endS": 286,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 35,
+            "npmS": 2,
+            "startS": 1,
+            "testsS": 142
+          }
+        }
+      ]
+    },
+    {
+      "run": 38319894643,
+      "sha": "e5346459344a04c31c4deab4f48fed8720c5b3fa",
+      "event": "workflow_dispatch",
+      "queueS": 0,
+      "wallS": 333,
+      "lastJob": {
+        "name": "validate (chromium)",
+        "startS": 90,
+        "endS": 333
+      },
+      "runnerS": 1167,
+      "billedMin": 26,
+      "jobs": [
+        {
+          "name": "changes",
+          "runner": "GitHub Actions 1000001181",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 3,
+          "endS": 8
+        },
+        {
+          "name": "test",
+          "runner": "GitHub Actions 1000001183",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 10,
+          "endS": 71
+        },
+        {
+          "name": "bundle",
+          "runner": "GitHub Actions 1000001182",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 10,
+          "endS": 87
+        },
+        {
+          "name": "validate (chromium)",
+          "runner": "GitHub Actions 1000001188",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 3,
+          "startS": 90,
+          "endS": 333,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 32,
+            "npmS": 2,
+            "startS": 1,
+            "testsS": 181
+          }
+        },
+        {
+          "name": "validate (webkit)",
+          "runner": "GitHub Actions 1000001187",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 3,
+          "startS": 90,
+          "endS": 276,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 25,
+            "npmS": 2,
+            "startS": 2,
+            "testsS": 146
+          }
+        },
+        {
+          "name": "validate (mobile-chromium)",
+          "runner": "GitHub Actions 1000001185",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 1,
+          "startS": 88,
+          "endS": 316,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 32,
+            "npmS": 2,
+            "startS": 1,
+            "testsS": 179
+          }
+        },
+        {
+          "name": "validate (mobile-webkit)",
+          "runner": "GitHub Actions 1000001184",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 89,
+          "endS": 272,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 25,
+            "npmS": 2,
+            "startS": 2,
+            "testsS": 143
+          }
+        },
+        {
+          "name": "validate (firefox)",
+          "runner": "GitHub Actions 1000001186",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 89,
+          "endS": 273,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 25,
+            "npmS": 2,
+            "startS": 2,
+            "testsS": 139
+          }
+        }
+      ]
+    },
+    {
+      "run": 38319271138,
+      "sha": "e5346459344a04c31c4deab4f48fed8720c5b3fa",
+      "event": "workflow_dispatch",
+      "queueS": 0,
+      "wallS": 390,
+      "lastJob": {
+        "name": "validate (chromium)",
+        "startS": 84,
+        "endS": 390
+      },
+      "runnerS": 1308,
+      "billedMin": 28,
+      "jobs": [
+        {
+          "name": "changes",
+          "runner": "GitHub Actions 1000001173",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 3,
+          "startS": 4,
+          "endS": 10
+        },
+        {
+          "name": "bundle",
+          "runner": "GitHub Actions 1000001174",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 12,
+          "endS": 82
+        },
+        {
+          "name": "test",
+          "runner": "GitHub Actions 1000001175",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 12,
+          "endS": 86
+        },
+        {
+          "name": "validate (mobile-chromium)",
+          "runner": "GitHub Actions 1000001177",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 85,
+          "endS": 373,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 25,
+            "npmS": 4,
+            "startS": 2,
+            "testsS": 241
+          }
+        },
+        {
+          "name": "validate (firefox)",
+          "runner": "GitHub Actions 1000001176",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 1,
+          "startS": 84,
+          "endS": 266,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 25,
+            "npmS": 2,
+            "startS": 2,
+            "testsS": 141
+          }
+        },
+        {
+          "name": "validate (mobile-webkit)",
+          "runner": "GitHub Actions 1000001179",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 85,
+          "endS": 278,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 25,
+            "npmS": 3,
+            "startS": 2,
+            "testsS": 145
+          }
+        },
+        {
+          "name": "validate (webkit)",
+          "runner": "GitHub Actions 1000001178",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 85,
+          "endS": 274,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 25,
+            "npmS": 3,
+            "startS": 2,
+            "testsS": 145
+          }
+        },
+        {
+          "name": "validate (chromium)",
+          "runner": "GitHub Actions 1000001180",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 1,
+          "startS": 84,
+          "endS": 390,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 28,
+            "npmS": 2,
+            "startS": 2,
+            "testsS": 251
+          }
+        }
+      ]
+    },
+    {
+      "run": 38318698657,
+      "sha": "e5346459344a04c31c4deab4f48fed8720c5b3fa",
+      "event": "workflow_dispatch",
+      "queueS": 0,
+      "wallS": 347,
+      "lastJob": {
+        "name": "validate (chromium)",
+        "startS": 57,
+        "endS": 347
+      },
+      "runnerS": 1184,
+      "billedMin": 23,
+      "jobs": [
+        {
+          "name": "changes",
+          "runner": "GitHub Actions 1000001165",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 1,
+          "startS": 3,
+          "endS": 9
+        },
+        {
+          "name": "bundle",
+          "runner": "GitHub Actions 1000001166",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 1,
+          "startS": 10,
+          "endS": 55
+        },
+        {
+          "name": "test",
+          "runner": "GitHub Actions 1000001167",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 1,
+          "startS": 10,
+          "endS": 57
+        },
+        {
+          "name": "validate (mobile-chromium)",
+          "runner": "GitHub Actions 1000001168",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 57,
+          "endS": 338,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 25,
+            "npmS": 2,
+            "startS": 2,
+            "testsS": 239
+          }
+        },
+        {
+          "name": "validate (firefox)",
+          "runner": "GitHub Actions 1000001171",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 57,
+          "endS": 229,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 23,
+            "npmS": 2,
+            "startS": 1,
+            "testsS": 129
+          }
+        },
+        {
+          "name": "validate (mobile-webkit)",
+          "runner": "GitHub Actions 1000001169",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 57,
+          "endS": 211,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 31,
+            "npmS": 2,
+            "startS": 1,
+            "testsS": 103
+          }
+        },
+        {
+          "name": "validate (webkit)",
+          "runner": "GitHub Actions 1000001172",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 57,
+          "endS": 246,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 25,
+            "npmS": 2,
+            "startS": 2,
+            "testsS": 149
+          }
+        },
+        {
+          "name": "validate (chromium)",
+          "runner": "GitHub Actions 1000001170",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 57,
+          "endS": 347,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 25,
+            "npmS": 2,
+            "startS": 2,
+            "testsS": 235
+          }
+        }
+      ]
+    },
+    {
+      "run": 38318063306,
+      "sha": "e5346459344a04c31c4deab4f48fed8720c5b3fa",
+      "event": "workflow_dispatch",
+      "queueS": 0,
+      "wallS": 385,
+      "lastJob": {
+        "name": "validate (mobile-chromium)",
+        "startS": 104,
+        "endS": 385
+      },
+      "runnerS": 1233,
+      "billedMin": 25,
+      "jobs": [
+        {
+          "name": "changes",
+          "runner": "GitHub Actions 1000001157",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 3,
+          "endS": 9
+        },
+        {
+          "name": "bundle",
+          "runner": "GitHub Actions 1000001158",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 11,
+          "endS": 101
+        },
+        {
+          "name": "test",
+          "runner": "GitHub Actions 1000001159",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 11,
+          "endS": 60
+        },
+        {
+          "name": "validate (mobile-webkit)",
+          "runner": "GitHub Actions 1000001160",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 1,
+          "startS": 103,
+          "endS": 288,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 25,
+            "npmS": 3,
+            "startS": 2,
+            "testsS": 144
+          }
+        },
+        {
+          "name": "validate (mobile-chromium)",
+          "runner": "GitHub Actions 1000001162",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 104,
+          "endS": 385,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 24,
+            "npmS": 2,
+            "startS": 2,
+            "testsS": 234
+          }
+        },
+        {
+          "name": "validate (chromium)",
+          "runner": "GitHub Actions 1000001161",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 1,
+          "startS": 103,
+          "endS": 358,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 31,
+            "npmS": 2,
+            "startS": 1,
+            "testsS": 191
+          }
+        },
+        {
+          "name": "validate (firefox)",
+          "runner": "GitHub Actions 1000001163",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 1,
+          "startS": 103,
+          "endS": 283,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 25,
+            "npmS": 2,
+            "startS": 2,
+            "testsS": 140
+          }
+        },
+        {
+          "name": "validate (webkit)",
+          "runner": "GitHub Actions 1000001164",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 1,
+          "startS": 103,
+          "endS": 290,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 25,
+            "npmS": 3,
+            "startS": 2,
+            "testsS": 145
+          }
+        }
+      ]
+    },
+    {
+      "run": 38317475998,
+      "sha": "e5346459344a04c31c4deab4f48fed8720c5b3fa",
+      "event": "workflow_dispatch",
+      "queueS": 0,
+      "wallS": 352,
+      "lastJob": {
+        "name": "validate (chromium)",
+        "startS": 65,
+        "endS": 352
+      },
+      "runnerS": 1194,
+      "billedMin": 23,
+      "jobs": [
+        {
+          "name": "changes",
+          "runner": "GitHub Actions 1000001149",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 3,
+          "endS": 10
+        },
+        {
+          "name": "test",
+          "runner": "GitHub Actions 1000001151",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 1,
+          "startS": 11,
+          "endS": 60
+        },
+        {
+          "name": "bundle",
+          "runner": "GitHub Actions 1000001150",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 1,
+          "startS": 11,
+          "endS": 63
+        },
+        {
+          "name": "validate (firefox)",
+          "runner": "GitHub Actions 1000001156",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 1,
+          "startS": 64,
+          "endS": 242,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 25,
+            "npmS": 2,
+            "startS": 2,
+            "testsS": 136
+          }
+        },
+        {
+          "name": "validate (mobile-webkit)",
+          "runner": "GitHub Actions 1000001153",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 1,
+          "startS": 64,
+          "endS": 253,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 25,
+            "npmS": 2,
+            "startS": 2,
+            "testsS": 149
+          }
+        },
+        {
+          "name": "validate (chromium)",
+          "runner": "GitHub Actions 1000001152",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 65,
+          "endS": 352,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 25,
+            "npmS": 2,
+            "startS": 2,
+            "testsS": 231
+          }
+        },
+        {
+          "name": "validate (webkit)",
+          "runner": "GitHub Actions 1000001154",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 1,
+          "startS": 64,
+          "endS": 220,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 31,
+            "npmS": 2,
+            "startS": 1,
+            "testsS": 101
+          }
+        },
+        {
+          "name": "validate (mobile-chromium)",
+          "runner": "GitHub Actions 1000001155",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 1,
+          "startS": 64,
+          "endS": 340,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 25,
+            "npmS": 2,
+            "startS": 2,
+            "testsS": 236
+          }
+        }
+      ]
+    },
+    {
+      "run": 38316874166,
+      "sha": "e5346459344a04c31c4deab4f48fed8720c5b3fa",
+      "event": "workflow_dispatch",
+      "queueS": 0,
+      "wallS": 351,
+      "lastJob": {
+        "name": "validate (mobile-chromium)",
+        "startS": 70,
+        "endS": 351
+      },
+      "runnerS": 1213,
+      "billedMin": 24,
+      "jobs": [
+        {
+          "name": "changes",
+          "runner": "GitHub Actions 1000001141",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 3,
+          "endS": 8
+        },
+        {
+          "name": "test",
+          "runner": "GitHub Actions 1000001142",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 10,
+          "endS": 54
+        },
+        {
+          "name": "bundle",
+          "runner": "GitHub Actions 1000001143",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 10,
+          "endS": 68
+        },
+        {
+          "name": "validate (mobile-webkit)",
+          "runner": "GitHub Actions 1000001144",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 1,
+          "startS": 69,
+          "endS": 254,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 25,
+            "npmS": 2,
+            "startS": 2,
+            "testsS": 145
+          }
+        },
+        {
+          "name": "validate (mobile-chromium)",
+          "runner": "GitHub Actions 1000001145",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 70,
+          "endS": 351,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 24,
+            "npmS": 2,
+            "startS": 2,
+            "testsS": 235
+          }
+        },
+        {
+          "name": "validate (firefox)",
+          "runner": "GitHub Actions 1000001147",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 70,
+          "endS": 245,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 23,
+            "npmS": 2,
+            "startS": 1,
+            "testsS": 130
+          }
+        },
+        {
+          "name": "validate (chromium)",
+          "runner": "GitHub Actions 1000001146",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 1,
+          "startS": 69,
+          "endS": 349,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 25,
+            "npmS": 3,
+            "startS": 2,
+            "testsS": 232
+          }
+        },
+        {
+          "name": "validate (webkit)",
+          "runner": "GitHub Actions 1000001148",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 1,
+          "startS": 69,
+          "endS": 254,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 25,
+            "npmS": 2,
+            "startS": 2,
+            "testsS": 145
+          }
+        }
+      ]
+    },
+    {
+      "run": 38316324919,
+      "sha": "e5346459344a04c31c4deab4f48fed8720c5b3fa",
+      "event": "workflow_dispatch",
+      "queueS": 0,
+      "wallS": 336,
+      "lastJob": {
+        "name": "validate (chromium)",
+        "startS": 58,
+        "endS": 336
+      },
+      "runnerS": 1173,
+      "billedMin": 24,
+      "jobs": [
+        {
+          "name": "changes",
+          "runner": "GitHub Actions 1000001133",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 3,
+          "endS": 7
+        },
+        {
+          "name": "bundle",
+          "runner": "GitHub Actions 1000001134",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 9,
+          "endS": 56
+        },
+        {
+          "name": "test",
+          "runner": "GitHub Actions 1000001135",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 9,
+          "endS": 55
+        },
+        {
+          "name": "validate (webkit)",
+          "runner": "GitHub Actions 1000001136",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 58,
+          "endS": 248,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 25,
+            "npmS": 4,
+            "startS": 2,
+            "testsS": 148
+          }
+        },
+        {
+          "name": "validate (mobile-chromium)",
+          "runner": "GitHub Actions 1000001138",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 58,
+          "endS": 333,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 25,
+            "npmS": 2,
+            "startS": 2,
+            "testsS": 235
+          }
+        },
+        {
+          "name": "validate (mobile-webkit)",
+          "runner": "GitHub Actions 1000001139",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 58,
+          "endS": 209,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 31,
+            "npmS": 2,
+            "startS": 1,
+            "testsS": 98
+          }
+        },
+        {
+          "name": "validate (chromium)",
+          "runner": "GitHub Actions 1000001137",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 58,
+          "endS": 336,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 25,
+            "npmS": 2,
+            "startS": 2,
+            "testsS": 231
+          }
+        },
+        {
+          "name": "validate (firefox)",
+          "runner": "GitHub Actions 1000001140",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 58,
+          "endS": 240,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 25,
+            "npmS": 2,
+            "startS": 2,
+            "testsS": 141
+          }
+        }
+      ]
+    },
+    {
+      "run": 38315719632,
+      "sha": "e5346459344a04c31c4deab4f48fed8720c5b3fa",
+      "event": "workflow_dispatch",
+      "queueS": 0,
+      "wallS": 359,
+      "lastJob": {
+        "name": "validate (chromium)",
+        "startS": 74,
+        "endS": 359
+      },
+      "runnerS": 1241,
+      "billedMin": 25,
+      "jobs": [
+        {
+          "name": "changes",
+          "runner": "GitHub Actions 1000001125",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 1,
+          "startS": 3,
+          "endS": 7
+        },
+        {
+          "name": "test",
+          "runner": "GitHub Actions 1000001126",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 9,
+          "endS": 74
+        },
+        {
+          "name": "bundle",
+          "runner": "GitHub Actions 1000001127",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 9,
+          "endS": 71
+        },
+        {
+          "name": "validate (mobile-webkit)",
+          "runner": "GitHub Actions 1000001128",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 73,
+          "endS": 248,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 35,
+            "npmS": 2,
+            "startS": 1,
+            "testsS": 115
+          }
+        },
+        {
+          "name": "validate (chromium)",
+          "runner": "GitHub Actions 1000001131",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 3,
+          "startS": 74,
+          "endS": 359,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 24,
+            "npmS": 2,
+            "startS": 2,
+            "testsS": 230
+          }
+        },
+        {
+          "name": "validate (firefox)",
+          "runner": "GitHub Actions 1000001129",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 73,
+          "endS": 251,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 25,
+            "npmS": 3,
+            "startS": 2,
+            "testsS": 138
+          }
+        },
+        {
+          "name": "validate (webkit)",
+          "runner": "GitHub Actions 1000001130",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 73,
+          "endS": 264,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 25,
+            "npmS": 2,
+            "startS": 2,
+            "testsS": 151
+          }
+        },
+        {
+          "name": "validate (mobile-chromium)",
+          "runner": "GitHub Actions 1000001132",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 3,
+          "startS": 74,
+          "endS": 355,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 25,
+            "npmS": 2,
+            "startS": 2,
+            "testsS": 234
+          }
+        }
+      ]
+    },
+    {
+      "run": 38315097585,
+      "sha": "e5346459344a04c31c4deab4f48fed8720c5b3fa",
+      "event": "workflow_dispatch",
+      "queueS": 0,
+      "wallS": 367,
+      "lastJob": {
+        "name": "validate (chromium)",
+        "startS": 87,
+        "endS": 367
+      },
+      "runnerS": 1185,
+      "billedMin": 25,
+      "jobs": [
+        {
+          "name": "changes",
+          "runner": "GitHub Actions 1000001117",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 4,
+          "endS": 10
+        },
+        {
+          "name": "test",
+          "runner": "GitHub Actions 1000001118",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 12,
+          "endS": 57
+        },
+        {
+          "name": "bundle",
+          "runner": "GitHub Actions 1000001119",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 2,
+          "startS": 12,
+          "endS": 85
+        },
+        {
+          "name": "validate (mobile-webkit)",
+          "runner": "GitHub Actions 1000001120",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 1,
+          "startS": 87,
+          "endS": 268,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 36,
+            "npmS": 2,
+            "startS": 1,
+            "testsS": 119
+          }
+        },
+        {
+          "name": "validate (firefox)",
+          "runner": "GitHub Actions 1000001122",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 1,
+          "startS": 87,
+          "endS": 282,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 26,
+            "npmS": 3,
+            "startS": 2,
+            "testsS": 146
+          }
+        },
+        {
+          "name": "validate (chromium)",
+          "runner": "GitHub Actions 1000001121",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 1,
+          "startS": 87,
+          "endS": 367,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 25,
+            "npmS": 2,
+            "startS": 1,
+            "testsS": 228
+          }
+        },
+        {
+          "name": "validate (mobile-chromium)",
+          "runner": "GitHub Actions 1000001123",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 1,
+          "startS": 87,
+          "endS": 300,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 31,
+            "npmS": 2,
+            "startS": 1,
+            "testsS": 168
+          }
+        },
+        {
+          "name": "validate (webkit)",
+          "runner": "GitHub Actions 1000001124",
+          "labels": [
+            "ubuntu-latest"
+          ],
+          "queueS": 1,
+          "startS": 87,
+          "endS": 279,
+          "runnerImage": "ubuntu-24.04",
+          "runnerImageVersion": "20261004.327.1",
+          "phases": {
+            "pullS": 25,
+            "npmS": 2,
+            "startS": 2,
+            "testsS": 152
+          }
+        }
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "name": "validate (mobile-chromium) / Browser tests (Playwright, mobile-chromium)",
+      "n": 10,
+      "medianS": 263,
+      "minS": 202,
+      "maxS": 273,
+      "values": [
+        242,
+        213,
+        273,
+        268,
+        262,
+        266,
+        263,
+        264,
+        263,
+        202
+      ]
+    },
+    {
+      "name": "validate (chromium) / Browser tests (Playwright, chromium)",
+      "n": 10,
+      "medianS": 260,
+      "minS": 214,
+      "maxS": 284,
+      "values": [
+        214,
+        216,
+        284,
+        264,
+        225,
+        260,
+        261,
+        260,
+        258,
+        257
+      ]
+    },
+    {
+      "name": "validate (webkit) / Browser tests (Playwright, webkit)",
+      "n": 10,
+      "medianS": 177,
+      "minS": 136,
+      "maxS": 181,
+      "values": [
+        181,
+        175,
+        175,
+        177,
+        174,
+        136,
+        173,
+        178,
+        180,
+        181
+      ]
+    },
+    {
+      "name": "validate (mobile-webkit) / Browser tests (Playwright, mobile-webkit)",
+      "n": 10,
+      "medianS": 173,
+      "minS": 131,
+      "maxS": 177,
+      "values": [
+        175,
+        172,
+        175,
+        137,
+        174,
+        177,
+        173,
+        131,
+        154,
+        158
+      ]
+    },
+    {
+      "name": "validate (firefox) / Browser tests (Playwright, firefox)",
+      "n": 10,
+      "medianS": 168,
+      "minS": 156,
+      "maxS": 177,
+      "values": [
+        162,
+        168,
+        170,
+        156,
+        169,
+        165,
+        157,
+        170,
+        168,
+        177
+      ]
+    },
+    {
+      "name": "bundle / Unit tests with the built data",
+      "n": 10,
+      "medianS": 37,
+      "minS": 25,
+      "maxS": 51,
+      "values": [
+        50,
+        49,
+        50,
+        25,
+        37,
+        27,
+        37,
+        26,
+        36,
+        51
+      ]
+    },
+    {
+      "name": "test / Run tests",
+      "n": 10,
+      "medianS": 28,
+      "minS": 23,
+      "maxS": 49,
+      "values": [
+        49,
+        35,
+        48,
+        28,
+        27,
+        26,
+        25,
+        23,
+        36,
+        24
+      ]
+    },
+    {
+      "name": "test / Set up Go (ADIF cross-check tools)",
+      "n": 10,
+      "medianS": 12,
+      "minS": 8,
+      "maxS": 14,
+      "values": [
+        12,
+        12,
+        11,
+        8,
+        8,
+        13,
+        10,
+        13,
+        14,
+        8
+      ]
+    },
+    {
+      "name": "validate (chromium) / HTML validation (Nu Html Checker)",
+      "n": 10,
+      "medianS": 10,
+      "minS": 8,
+      "maxS": 12,
+      "values": [
+        8,
+        9,
+        10,
+        11,
+        12,
+        10,
+        9,
+        9,
+        10,
+        9
+      ]
+    },
+    {
+      "name": "bundle / Build the bundle",
+      "n": 10,
+      "medianS": 9,
+      "minS": 7,
+      "maxS": 11,
+      "values": [
+        11,
+        10,
+        10,
+        7,
+        9,
+        8,
+        9,
+        7,
+        9,
+        11
+      ]
+    },
+    {
+      "name": "validate (mobile-webkit) / Start nginx with deploy/nginx.conf.example (port 8080)",
+      "n": 10,
+      "medianS": 6,
+      "minS": 2,
+      "maxS": 10,
+      "values": [
+        2,
+        5,
+        6,
+        6,
+        4,
+        3,
+        5,
+        9,
+        7,
+        10
+      ]
+    },
+    {
+      "name": "validate (chromium) / Start nginx with deploy/nginx.conf.example (port 8080)",
+      "n": 10,
+      "medianS": 5,
+      "minS": 2,
+      "maxS": 10,
+      "values": [
+        10,
+        8,
+        2,
+        3,
+        9,
+        5,
+        3,
+        2,
+        4,
+        5
+      ]
+    },
+    {
+      "name": "validate (mobile-chromium) / Start nginx with deploy/nginx.conf.example (port 8080)",
+      "n": 10,
+      "medianS": 4,
+      "minS": 3,
+      "maxS": 9,
+      "values": [
+        9,
+        6,
+        3,
+        4,
+        4,
+        3,
+        5,
+        4,
+        5,
+        3
+      ]
+    },
+    {
+      "name": "validate (firefox) / Start nginx with deploy/nginx.conf.example (port 8080)",
+      "n": 10,
+      "medianS": 4,
+      "minS": 2,
+      "maxS": 5,
+      "values": [
+        2,
+        3,
+        3,
+        5,
+        4,
+        5,
+        5,
+        4,
+        3,
+        5
+      ]
+    },
+    {
+      "name": "validate (webkit) / Start nginx with deploy/nginx.conf.example (port 8080)",
+      "n": 10,
+      "medianS": 4,
+      "minS": 3,
+      "maxS": 11,
+      "values": [
+        4,
+        4,
+        3,
+        4,
+        3,
+        11,
+        5,
+        4,
+        4,
+        4
+      ]
+    },
+    {
+      "name": "bundle / Set up job",
+      "n": 10,
+      "medianS": 3,
+      "minS": 1,
+      "maxS": 3,
+      "values": [
+        3,
+        3,
+        1,
+        2,
+        3,
+        2,
+        2,
+        3,
+        3,
+        1
+      ]
+    },
+    {
+      "name": "bundle / Upload the bundle",
+      "n": 10,
+      "medianS": 3,
+      "minS": 2,
+      "maxS": 3,
+      "values": [
+        3,
+        3,
+        3,
+        2,
+        2,
+        2,
+        2,
+        2,
+        3,
+        3
+      ]
+    },
+    {
+      "name": "test / Set up job",
+      "n": 10,
+      "medianS": 3,
+      "minS": 2,
+      "maxS": 5,
+      "values": [
+        4,
+        4,
+        2,
+        2,
+        4,
+        2,
+        3,
+        2,
+        5,
+        2
+      ]
+    },
+    {
+      "name": "bundle / Checkout repository",
+      "n": 10,
+      "medianS": 2,
+      "minS": 1,
+      "maxS": 2,
+      "values": [
+        2,
+        2,
+        1,
+        1,
+        2,
+        2,
+        1,
+        2,
+        2,
+        1
+      ]
+    },
+    {
+      "name": "bundle / Set up uv",
+      "n": 10,
+      "medianS": 2,
+      "minS": 2,
+      "maxS": 16,
+      "values": [
+        2,
+        2,
+        2,
+        2,
+        16,
+        2,
+        2,
+        3,
+        2,
+        2
+      ]
+    },
+    {
+      "name": "test / Checkout repository",
+      "n": 10,
+      "medianS": 2,
+      "minS": 1,
+      "maxS": 2,
+      "values": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        1,
+        1,
+        1,
+        2,
+        1
+      ]
+    },
+    {
+      "name": "validate (chromium) / Set up job",
+      "n": 10,
+      "medianS": 2,
+      "minS": 1,
+      "maxS": 3,
+      "values": [
+        2,
+        2,
+        2,
+        3,
+        2,
+        2,
+        1,
+        1,
+        2,
+        2
+      ]
+    },
+    {
+      "name": "validate (chromium) / Download the bundle",
+      "n": 10,
+      "medianS": 2,
+      "minS": 1,
+      "maxS": 3,
+      "values": [
+        1,
+        2,
+        2,
+        2,
+        1,
+        3,
+        1,
+        1,
+        2,
+        1
+      ]
+    },
+    {
+      "name": "validate (mobile-webkit) / Set up job",
+      "n": 10,
+      "medianS": 2,
+      "minS": 1,
+      "maxS": 3,
+      "values": [
+        1,
+        1,
+        2,
+        2,
+        1,
+        1,
+        1,
+        2,
+        3,
+        3
+      ]
+    },
+    {
+      "name": "validate (mobile-chromium) / Set up job",
+      "n": 10,
+      "medianS": 2,
+      "minS": 1,
+      "maxS": 3,
+      "values": [
+        2,
+        2,
+        3,
+        2,
+        2,
+        1,
+        2,
+        1,
+        2,
+        2
+      ]
+    },
+    {
+      "name": "validate (firefox) / Set up job",
+      "n": 10,
+      "medianS": 2,
+      "minS": 1,
+      "maxS": 3,
+      "values": [
+        1,
+        2,
+        2,
+        3,
+        1,
+        1,
+        3,
+        2,
+        1,
+        3
+      ]
+    },
+    {
+      "name": "changes / Set up job",
+      "n": 10,
+      "medianS": 1,
+      "minS": 0,
+      "maxS": 2,
+      "values": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+        2
+      ]
+    },
+    {
+      "name": "changes / Checkout repository",
+      "n": 10,
+      "medianS": 1,
+      "minS": 1,
+      "maxS": 2,
+      "values": [
+        1,
+        1,
+        2,
+        1,
+        1,
+        2,
+        1,
+        1,
+        1,
+        2
+      ]
+    },
+    {
+      "name": "bundle / Data download cache",
+      "n": 10,
+      "medianS": 1,
+      "minS": 0,
+      "maxS": 16,
+      "values": [
+        2,
+        2,
+        1,
+        1,
+        16,
+        1,
+        0,
+        1,
+        2,
+        0
+      ]
+    },
+    {
+      "name": "bundle / Set up Node.js",
+      "n": 10,
+      "medianS": 1,
+      "minS": 0,
+      "maxS": 4,
+      "values": [
+        1,
+        1,
+        0,
+        1,
+        0,
+        4,
+        2,
+        1,
+        0,
+        1
+      ]
+    },
+    {
+      "name": "bundle / Post Set up uv",
+      "n": 10,
+      "medianS": 1,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        1,
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "test / Test report",
+      "n": 10,
+      "medianS": 1,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "test / Upload the test results",
+      "n": 10,
+      "medianS": 1,
+      "minS": 1,
+      "maxS": 1,
+      "values": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "validate (chromium) / Checkout repository",
+      "n": 10,
+      "medianS": 1,
+      "minS": 1,
+      "maxS": 2,
+      "values": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        2,
+        1
+      ]
+    },
+    {
+      "name": "validate (chromium) / Browser test report",
+      "n": 10,
+      "medianS": 1,
+      "minS": 0,
+      "maxS": 2,
+      "values": [
+        1,
+        1,
+        2,
+        1,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "validate (chromium) / Upload the browser test results",
+      "n": 10,
+      "medianS": 1,
+      "minS": 0,
+      "maxS": 2,
+      "values": [
+        1,
+        1,
+        0,
+        1,
+        1,
+        2,
+        1,
+        1,
+        2,
+        1
+      ]
+    },
+    {
+      "name": "validate (mobile-webkit) / Checkout repository",
+      "n": 10,
+      "medianS": 1,
+      "minS": 1,
+      "maxS": 3,
+      "values": [
+        1,
+        1,
+        1,
+        3,
+        1,
+        2,
+        1,
+        1,
+        2,
+        2
+      ]
+    },
+    {
+      "name": "validate (mobile-webkit) / Download the bundle",
+      "n": 10,
+      "medianS": 1,
+      "minS": 1,
+      "maxS": 3,
+      "values": [
+        1,
+        1,
+        3,
+        1,
+        1,
+        1,
+        1,
+        2,
+        3,
+        2
+      ]
+    },
+    {
+      "name": "validate (mobile-webkit) / Browser test report",
+      "n": 10,
+      "medianS": 1,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        1,
+        1,
+        0
+      ]
+    },
+    {
+      "name": "validate (mobile-webkit) / Upload the browser test results",
+      "n": 10,
+      "medianS": 1,
+      "minS": 1,
+      "maxS": 1,
+      "values": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "validate (mobile-chromium) / Checkout repository",
+      "n": 10,
+      "medianS": 1,
+      "minS": 1,
+      "maxS": 2,
+      "values": [
+        1,
+        1,
+        1,
+        2,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "validate (mobile-chromium) / Download the bundle",
+      "n": 10,
+      "medianS": 1,
+      "minS": 1,
+      "maxS": 3,
+      "values": [
+        1,
+        1,
+        2,
+        1,
+        3,
+        1,
+        3,
+        1,
+        3,
+        1
+      ]
+    },
+    {
+      "name": "validate (mobile-chromium) / Browser test report",
+      "n": 10,
+      "medianS": 1,
+      "minS": 1,
+      "maxS": 1,
+      "values": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "validate (mobile-chromium) / Upload the browser test results",
+      "n": 10,
+      "medianS": 1,
+      "minS": 0,
+      "maxS": 2,
+      "values": [
+        1,
+        1,
+        1,
+        0,
+        2,
+        0,
+        2,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "name": "validate (mobile-chromium) / Post Checkout repository",
+      "n": 10,
+      "medianS": 1,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        0,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "validate (firefox) / Checkout repository",
+      "n": 10,
+      "medianS": 1,
+      "minS": 1,
+      "maxS": 2,
+      "values": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        2,
+        2,
+        1,
+        1,
+        2
+      ]
+    },
+    {
+      "name": "validate (firefox) / Download the bundle",
+      "n": 10,
+      "medianS": 1,
+      "minS": 1,
+      "maxS": 3,
+      "values": [
+        1,
+        3,
+        1,
+        2,
+        1,
+        1,
+        2,
+        1,
+        1,
+        2
+      ]
+    },
+    {
+      "name": "validate (firefox) / Browser test report",
+      "n": 10,
+      "medianS": 1,
+      "minS": 0,
+      "maxS": 2,
+      "values": [
+        2,
+        1,
+        1,
+        0,
+        1,
+        1,
+        0,
+        1,
+        0,
+        1
+      ]
+    },
+    {
+      "name": "validate (firefox) / Upload the browser test results",
+      "n": 10,
+      "medianS": 1,
+      "minS": 0,
+      "maxS": 2,
+      "values": [
+        0,
+        2,
+        1,
+        2,
+        0,
+        1,
+        2,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "validate (webkit) / Set up job",
+      "n": 10,
+      "medianS": 1,
+      "minS": 1,
+      "maxS": 3,
+      "values": [
+        3,
+        1,
+        1,
+        1,
+        2,
+        2,
+        1,
+        2,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "validate (webkit) / Checkout repository",
+      "n": 10,
+      "medianS": 1,
+      "minS": 1,
+      "maxS": 2,
+      "values": [
+        2,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "validate (webkit) / Download the bundle",
+      "n": 10,
+      "medianS": 1,
+      "minS": 1,
+      "maxS": 3,
+      "values": [
+        2,
+        1,
+        3,
+        1,
+        2,
+        2,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "validate (webkit) / Browser test report",
+      "n": 10,
+      "medianS": 1,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        1,
+        1,
+        1,
+        0,
+        1,
+        0,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "validate (webkit) / Upload the browser test results",
+      "n": 10,
+      "medianS": 1,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        1,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "changes / Run scope",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "changes / Summary",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "name": "changes / Post Checkout repository",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "changes / Complete job",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "bundle / Data epoch",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "bundle / Post Set up Node.js",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "bundle / Post Data download cache",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "bundle / Post Checkout repository",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "bundle / Complete job",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "test / Set up Node.js",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 3,
+      "values": [
+        0,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        1,
+        3
+      ]
+    },
+    {
+      "name": "test / Node version check",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 4,
+      "values": [
+        0,
+        1,
+        4,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "test / Build the ADIF cross-check tools (adifmt, adif-checker)",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "test / Post Set up Go (ADIF cross-check tools)",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "test / Post Set up Node.js",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "test / Post Checkout repository",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "test / Complete job",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "name": "validate (chromium) / Read the pinned tool images",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "validate (chromium) / Browser results per project",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "validate (chromium) / Post Checkout repository",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "validate (chromium) / Complete job",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "validate (mobile-webkit) / Read the pinned tool images",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "validate (mobile-webkit) / Browser results per project",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "name": "validate (mobile-webkit) / Post Checkout repository",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "name": "validate (mobile-webkit) / Complete job",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "validate (mobile-chromium) / Read the pinned tool images",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "validate (mobile-chromium) / Browser results per project",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "validate (mobile-chromium) / Complete job",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "validate (firefox) / Read the pinned tool images",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "validate (firefox) / Browser results per project",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "validate (firefox) / Post Checkout repository",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "validate (firefox) / Complete job",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "validate (webkit) / Read the pinned tool images",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "validate (webkit) / Browser results per project",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "validate (webkit) / Post Checkout repository",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 1,
+      "values": [
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "validate (webkit) / Complete job",
+      "n": 10,
+      "medianS": 0,
+      "minS": 0,
+      "maxS": 0,
+      "values": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "jobs": [
+    {
+      "name": "validate (mobile-chromium)",
+      "n": 10,
+      "medianS": 281,
+      "minS": 213,
+      "maxS": 288,
+      "values": [
+        260,
+        228,
+        288,
+        281,
+        281,
+        276,
+        281,
+        275,
+        281,
+        213
+      ]
+    },
+    {
+      "name": "validate (chromium)",
+      "n": 10,
+      "medianS": 280,
+      "minS": 241,
+      "maxS": 306,
+      "values": [
+        241,
+        243,
+        306,
+        290,
+        255,
+        287,
+        280,
+        278,
+        285,
+        280
+      ]
+    },
+    {
+      "name": "validate (webkit)",
+      "n": 10,
+      "medianS": 189,
+      "minS": 156,
+      "maxS": 197,
+      "values": [
+        197,
+        186,
+        189,
+        189,
+        187,
+        156,
+        185,
+        190,
+        191,
+        192
+      ]
+    },
+    {
+      "name": "validate (mobile-webkit)",
+      "n": 10,
+      "medianS": 184,
+      "minS": 151,
+      "maxS": 193,
+      "values": [
+        184,
+        183,
+        193,
+        154,
+        185,
+        189,
+        185,
+        151,
+        175,
+        181
+      ]
+    },
+    {
+      "name": "validate (firefox)",
+      "n": 10,
+      "medianS": 180,
+      "minS": 171,
+      "maxS": 195,
+      "values": [
+        171,
+        184,
+        182,
+        172,
+        180,
+        178,
+        175,
+        182,
+        178,
+        195
+      ]
+    },
+    {
+      "name": "bundle",
+      "n": 10,
+      "medianS": 70,
+      "minS": 45,
+      "maxS": 90,
+      "values": [
+        78,
+        77,
+        70,
+        45,
+        90,
+        52,
+        58,
+        47,
+        62,
+        73
+      ]
+    },
+    {
+      "name": "test",
+      "n": 10,
+      "medianS": 49,
+      "minS": 44,
+      "maxS": 74,
+      "values": [
+        72,
+        61,
+        74,
+        47,
+        49,
+        49,
+        44,
+        46,
+        65,
+        45
+      ]
+    },
+    {
+      "name": "changes",
+      "n": 10,
+      "medianS": 6,
+      "minS": 3,
+      "maxS": 7,
+      "values": [
+        3,
+        5,
+        6,
+        6,
+        6,
+        7,
+        5,
+        4,
+        4,
+        6
+      ]
+    }
+  ]
+}

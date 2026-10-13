@@ -1,0 +1,308 @@
+{
+  "scenario": "unit",
+  "environment": {
+    "when": "2026-10-13T06:31:01.226Z",
+    "node": "v26.11.1",
+    "python": "Python 3.9.6",
+    "uv": "uv 0.13.0 (Homebrew 2026-10-09 aarch64-apple-darwin)",
+    "os": "darwin 27.0.0",
+    "cpus": 10,
+    "cpuModel": "Apple M1 Max",
+    "memoryGiB": 64,
+    "loadAvg": [
+      3.52,
+      4.45,
+      6.11
+    ],
+    "commit": "6797d77d1390ff414808d3e1a89870b581c775fd",
+    "dirty": true,
+    "playwrightImages": [
+      "ghcr.io/validator/validator:latest@sha256:3cb7d2f446677b84fb123427bc029e535739e2314b035b5824a4eb0557803761",
+      "mcr.microsoft.com/playwright:v1.64.0-noble@sha256:06a9939e57531807f8d5fd76ce44b53165ffb7d7501d87ab10e285c20b1e971f",
+      "nginx:1.31.0-alpine@sha256:2f07d83bf561b506400dc183b1b2003803e39efbd22451f848adaba14d28c7c7"
+    ],
+    "generatedData": [
+      "austria-areas.json",
+      "callsigns-oe.json",
+      "repeaters-at.json",
+      "vienna-locations.json",
+      "vienna-map.json"
+    ],
+    "manifest": {
+      "name": "oe1ebg-tools",
+      "version": "v0.3.0-13-g6797d77-dirty",
+      "commit": "6797d77d1390ff414808d3e1a89870b581c775fd",
+      "built": "2026-10-13T06:31:01Z"
+    }
+  },
+  "measurements": [
+    {
+      "concurrency": "1",
+      "runs": 5,
+      "wallMs": {
+        "median": 45093,
+        "min": 44809,
+        "max": 45876
+      },
+      "peakMiB": {
+        "median": 2220.9,
+        "min": 2211.2,
+        "max": 2223.5
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 45390,
+          "peakMiB": 2222.5,
+          "status": 0,
+          "counts": {
+            "tests": 645,
+            "failures": 0,
+            "skipped": 80
+          }
+        },
+        {
+          "wallMs": 45876,
+          "peakMiB": 2218.1,
+          "status": 0,
+          "counts": {
+            "tests": 645,
+            "failures": 0,
+            "skipped": 80
+          }
+        },
+        {
+          "wallMs": 44911,
+          "peakMiB": 2211.2,
+          "status": 0,
+          "counts": {
+            "tests": 645,
+            "failures": 0,
+            "skipped": 80
+          }
+        },
+        {
+          "wallMs": 45093,
+          "peakMiB": 2220.9,
+          "status": 0,
+          "counts": {
+            "tests": 645,
+            "failures": 0,
+            "skipped": 80
+          }
+        },
+        {
+          "wallMs": 44809,
+          "peakMiB": 2223.5,
+          "status": 0,
+          "counts": {
+            "tests": 645,
+            "failures": 0,
+            "skipped": 80
+          }
+        }
+      ]
+    },
+    {
+      "concurrency": "2",
+      "runs": 5,
+      "wallMs": {
+        "median": 24015,
+        "min": 23766,
+        "max": 24073
+      },
+      "peakMiB": {
+        "median": 2221.1,
+        "min": 2193.8,
+        "max": 2224.9
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 23766,
+          "peakMiB": 2193.8,
+          "status": 0,
+          "counts": {
+            "tests": 645,
+            "failures": 0,
+            "skipped": 80
+          }
+        },
+        {
+          "wallMs": 24010,
+          "peakMiB": 2213.5,
+          "status": 0,
+          "counts": {
+            "tests": 645,
+            "failures": 0,
+            "skipped": 80
+          }
+        },
+        {
+          "wallMs": 24073,
+          "peakMiB": 2224.9,
+          "status": 0,
+          "counts": {
+            "tests": 645,
+            "failures": 0,
+            "skipped": 80
+          }
+        },
+        {
+          "wallMs": 24015,
+          "peakMiB": 2222,
+          "status": 0,
+          "counts": {
+            "tests": 645,
+            "failures": 0,
+            "skipped": 80
+          }
+        },
+        {
+          "wallMs": 24036,
+          "peakMiB": 2221.1,
+          "status": 0,
+          "counts": {
+            "tests": 645,
+            "failures": 0,
+            "skipped": 80
+          }
+        }
+      ]
+    },
+    {
+      "concurrency": "4",
+      "runs": 5,
+      "wallMs": {
+        "median": 20807,
+        "min": 20613,
+        "max": 21156
+      },
+      "peakMiB": {
+        "median": 2217.3,
+        "min": 2213.5,
+        "max": 2246
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 20807,
+          "peakMiB": 2217.3,
+          "status": 0,
+          "counts": {
+            "tests": 645,
+            "failures": 0,
+            "skipped": 80
+          }
+        },
+        {
+          "wallMs": 20904,
+          "peakMiB": 2246,
+          "status": 0,
+          "counts": {
+            "tests": 645,
+            "failures": 0,
+            "skipped": 80
+          }
+        },
+        {
+          "wallMs": 20662,
+          "peakMiB": 2220.8,
+          "status": 0,
+          "counts": {
+            "tests": 645,
+            "failures": 0,
+            "skipped": 80
+          }
+        },
+        {
+          "wallMs": 20613,
+          "peakMiB": 2214.4,
+          "status": 0,
+          "counts": {
+            "tests": 645,
+            "failures": 0,
+            "skipped": 80
+          }
+        },
+        {
+          "wallMs": 21156,
+          "peakMiB": 2213.5,
+          "status": 0,
+          "counts": {
+            "tests": 645,
+            "failures": 0,
+            "skipped": 80
+          }
+        }
+      ]
+    },
+    {
+      "concurrency": "default",
+      "runs": 5,
+      "wallMs": {
+        "median": 20633,
+        "min": 20514,
+        "max": 20882
+      },
+      "peakMiB": {
+        "median": 2219.3,
+        "min": 2196.3,
+        "max": 2219.4
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 20633,
+          "peakMiB": 2219.3,
+          "status": 0,
+          "counts": {
+            "tests": 645,
+            "failures": 0,
+            "skipped": 80
+          }
+        },
+        {
+          "wallMs": 20575,
+          "peakMiB": 2219.4,
+          "status": 0,
+          "counts": {
+            "tests": 645,
+            "failures": 0,
+            "skipped": 80
+          }
+        },
+        {
+          "wallMs": 20870,
+          "peakMiB": 2196.3,
+          "status": 0,
+          "counts": {
+            "tests": 645,
+            "failures": 0,
+            "skipped": 80
+          }
+        },
+        {
+          "wallMs": 20514,
+          "peakMiB": 2204,
+          "status": 0,
+          "counts": {
+            "tests": 645,
+            "failures": 0,
+            "skipped": 80
+          }
+        },
+        {
+          "wallMs": 20882,
+          "peakMiB": 2219.3,
+          "status": 0,
+          "counts": {
+            "tests": 645,
+            "failures": 0,
+            "skipped": 80
+          }
+        }
+      ]
+    }
+  ]
+}
