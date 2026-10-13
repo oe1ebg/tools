@@ -8,10 +8,10 @@ import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
+import { sharedDataBuilt } from './real-data.mjs';
 
 const OE1EBG = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIR = join(OE1EBG, 'tools', 'notfunk');
-const SHARED_DATA = join(OE1EBG, 'tools', 'shared', 'data');
 const GENERATED = new Set(['notfunk-offline.html', 'precache.js', 'build-info.js']);
 
 // The project's Python via uv (see confirm-offline.test.mjs), else python3.
@@ -59,7 +59,7 @@ test('offline bundle builds into one self-contained, parseable file', () => {
   assert.ok(!/<script[^>]+src=/.test(html), 'no external scripts');
   assert.ok(!/<link[^>]+href="(?!data:)/.test(html), 'no external links');
   const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
-  const hasData = existsSync(SHARED_DATA) && readdirSync(SHARED_DATA).some(n => n.endsWith('.json'));
+  const hasData = sharedDataBuilt();
   // theme, load-failure fallback, (inlined data when built), app bundle
   assert.equal(scripts.length, hasData ? 4 : 3);
   assert.ok(scripts[0].includes('OE1EBG_THEME'), 'theme script inlined, first');

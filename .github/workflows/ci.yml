@@ -91,8 +91,8 @@ jobs:
               - '.github/workflows/release.yml'
               - '.github/workflows/data.yml'
               - '.github/workflows/validate-dist.yml'
-              # node tests and helpers: `bundle` reruns them with the data
-              # (DATA_TESTS=require)
+              # node tests and helpers: `bundle` runs those that import
+              # tests/real-data.mjs again with the data (DATA_TESTS=require)
               - 'tests/*.mjs'
               - 'tests/location-goldset.txt'
               - 'tools/**'
@@ -237,15 +237,23 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      # The checks that `test` skips for want of data (callsign and repeater
-      # lists, location gold set, basemap, build_site.py with python-markdown):
-      # here the data is built, so DATA_TESTS=require makes a missing file a
-      # failure. The whole suite (a few seconds); the ADIF cross-checks
-      # skip here, `test` runs them.
+      # The checks that `test` skips or narrows for want of data (callsign
+      # and repeater lists, location gold set, basemap, build_site.py with
+      # python-markdown, the data inlined in the offline files): here the
+      # data is built, so DATA_TESTS=require makes a missing file a failure.
+      # Only the test files that import tests/real-data.mjs, i.e. read the
+      # built data or site/ (tests/real-data.test.mjs checks that none is
+      # missing); `test` has run all the others, which check the same
+      # without the data (issue #36). release.yml and data.yml still run the
+      # whole suite.
       - name: Unit tests with the built data
         env:
           DATA_TESTS: require
-        run: node --test tests/*.test.mjs
+        run: |
+          set -- $(grep -l "from './real-data.mjs'" tests/*.test.mjs)
+          [ "$#" -gt 0 ] || { echo "::error::no test file imports tests/real-data.mjs"; exit 1; }
+          echo "After the build: $*"
+          node --test "$@"
 
       - name: Upload the bundle
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
