@@ -7,13 +7,13 @@ import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
+import { sharedDataBuilt } from './real-data.mjs';
 import { commitUrl, versionItems, repoUrl, repoLink, REPO_URL } from '../tools/shared/js/sources.js';
 
 const OE1EBG = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIR = join(OE1EBG, 'tools', 'confirm');
 // tools/shared/ modules (location lookup, Maidenhead, geo), shipped with the tool.
 const SHARED_JS = join(OE1EBG, 'tools', 'shared', 'js');
-const SHARED_DATA = join(OE1EBG, 'tools', 'shared', 'data');
 const GENERATED = new Set(['confirm-offline.html', 'precache.js', 'build-info.js']);
 // Dataset/licence links and map links: <a href> targets only, never fetched.
 const LINK_ONLY = '../shared/js/sources.js';
@@ -82,7 +82,7 @@ test('offline bundle builds into one self-contained, parseable file', () => {
   assert.ok(!/<link[^>]+href="(?!data:)/.test(html), 'no external links');
   const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
   // the inlined tools/shared/data/ files, when they have been built
-  const hasData = existsSync(SHARED_DATA) && readdirSync(SHARED_DATA).some(n => n.endsWith('.json'));
+  const hasData = sharedDataBuilt();
   // theme, Leaflet, load-failure fallback, (inlined data when built), app bundle
   assert.equal(scripts.length, hasData ? 5 : 4);
   assert.ok(scripts.some(s => s.includes('Leaflet 1.9.4')), 'Leaflet inlined');

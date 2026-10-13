@@ -3,6 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -46,3 +47,21 @@ test('DATA_TESTS=require turns a missing data file into a failure', () => {
   assert.equal(run(''), 0, 'skips without the flag');
   assert.notEqual(run('require'), 0, 'fails with DATA_TESTS=require');
 });
+
+// ci.yml `bundle` runs only the test files that import tests/real-data.mjs
+// after the build. A test file that reads the generated data or site/
+// without importing it would run there never with the data: its source
+// names those paths, so this catches it (not data read through a script, as
+// location-goldset.test.mjs does via scripts/eval_location.mjs; such a file
+// imports real-data.mjs for skipWithout anyway).
+test('every test file that reads the built data or site/ imports real-data.mjs', () => {
+  const builtPaths = /tools\/shared\/data|'shared', 'data'|sota-alerts\/data|'sota-alerts', 'data'|site\/tools|'site', 'tools'/;
+  const marker = "from './real-data.mjs'";
+  const missing = readdirSync(new URL('.', import.meta.url)).filter(f => f.endsWith('.test.mjs'))
+    .filter(f => {
+      const src = readFileSync(new URL(f, import.meta.url), 'utf8');
+      return builtPaths.test(src) && !src.includes(marker);
+    });
+  assert.deepEqual(missing, []);
+});
+
