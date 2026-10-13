@@ -1,8 +1,8 @@
 # Test timing (issue #36)
 
-Status: **CI baseline done** (2026-10-13, below); the local baseline on the
-development machine (Apple M5 Pro, Node 24) is still to be repeated on a fixed
-commit. Commands and raw results must accompany every table.
+Status: **done** (2026-10-14). Baseline, changes and their result on CI are
+below ("Result after the changes"); the local baseline of the development
+machine is an estimate. Commands and raw results accompany every table.
 
 ## How to measure
 
@@ -550,6 +550,45 @@ download cache means fetching the sources (cached for 7 or 30 days, not
 measured here: the servers are third parties'). A fresh local browser setup
 (`just e2e-setup`) is therefore dominated by the browser download, about
 30 s on this line; in CI the image pull is 25 s per job (above).
+
+## Result after the changes (2026-10-14, commit 926d857)
+
+`main` with #46–#51 merged, pinned as branch `bench/36-ci-926d857`, ten
+`workflow_dispatch` runs one after another (every check, as the baseline),
+runs 38456232626 to 38465171963, all successful. Raw:
+`tests/timing-results/2026-10-14/ci-926d857/ci-runs.json`.
+
+| per run, median (range) | baseline, e534645 | after, 926d857 | change |
+| --- | ---: | ---: | ---: |
+| wall time | 352 s (333–390) | 324 s (305–1272\*) | −28 s, −8 % |
+| wall time from the first job's start | 348 s (330–386) | 314 s (302–1268\*) | −34 s, −10 % |
+| `bundle` job | 66 s (45–90) | 31 s (26–35) | −35 s |
+| `bundle`: unit tests with the data | 37 s (25–51) | 6 s (4–7) | −31 s |
+| chromium tests | 230 s (181–251) | 198 s (155–224) | −14 % |
+| mobile-chromium tests | 234 s (168–241) | 216 s (176–224) | −8 % |
+| webkit / mobile-webkit / firefox tests | 146 / 144 / 138 s | 154 / 151 / 136 s | ± runner CPU |
+| runner time | 1200 s | 1197 s | ≈ 0 |
+| billed minutes | 25 | 25 | 0 |
+
+\* Two outliers, both GitHub's: one run waited 283 s before its first job
+started; in another the `npm install` of `@playwright/test` in the
+mobile-chromium job stalled for 991 s (normally 2 s; the step has no timeout
+of its own). The medians are not affected.
+
+The critical path is now `bundle` (ending at about 43 s instead of 82 s), then
+`validate (mobile-chromium)` (last in 5 runs) or `validate (chromium)` (4).
+Both browser jobs are balanced (their two workers end within seconds of each
+other); what remains is their test work (about 420 s on two workers) plus
+about 60 s of fixed setup per job.
+
+**The 20 % target is not reached:** −8 % in wall time (−10 % without GitHub's
+queueing), no change in runner minutes. The changes were cheap (a test
+selection with a guard, one line of Playwright configuration, a faster
+export search), so they stay. Not pursued, by decision (2026-10-14): sharding
+the two Chromium-engine jobs (estimated about −30 % for about +12 % runner
+minutes) and running `offline-update.spec.mjs` in desktop Chromium only
+(fewer tests at phone width). Moving `.nvmrc` to Node 26 once it is LTS
+(about 30 % faster unit runs, #49) remains a cheap follow-up.
 
 ## Baseline, still to do
 

@@ -242,7 +242,15 @@ try {
     const filter = [...(opt('branch') ? ['--branch', opt('branch')] : []), ...(opt('event') ? ['--event', opt('event')] : [])];
     const list = sh('gh', ['run', 'list', '--workflow', 'ci.yml', '--status', 'success', ...filter, '--limit', String(runsN), '--json', 'databaseId,headSha,event']);
     if (!list) throw new Error('gh run list failed (is gh installed and authenticated?)');
-    const api = path => JSON.parse(sh('gh', ['api', '--paginate', '--slurp', path]) ?? '[]');
+    // the API answers 502 now and then: retry, and stop rather than record an empty run
+    const api = path => {
+      for (let i = 0; i < 3; i++) {
+        const out = sh('gh', ['api', '--paginate', '--slurp', path]);
+        if (out) return JSON.parse(out);
+        spawnSync('sleep', [String(5 * (i + 1))]);
+      }
+      throw new Error(`gh api ${path} failed three times`);
+    };
     const secs = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 1000);
     const steps = new Map();
     const jobTimes = new Map();
