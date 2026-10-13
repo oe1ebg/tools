@@ -36,6 +36,8 @@ export class VirtualBody {
     };
     scroller.addEventListener('scroll', this.onScroll, { passive: true });
     window.addEventListener('resize', this.onScroll);
+    this.resizeObserver = new ResizeObserver(this.onScroll);
+    this.resizeObserver.observe(scroller);
   }
 
   spacer(columns){
@@ -51,6 +53,7 @@ export class VirtualBody {
   destroy(){
     this.scroller.removeEventListener('scroll', this.onScroll);
     window.removeEventListener('resize', this.onScroll);
+    this.resizeObserver.disconnect();
     if (this.frame) cancelAnimationFrame(this.frame);
     this.frame = 0;
   }

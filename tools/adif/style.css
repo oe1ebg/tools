@@ -418,3 +418,17 @@ td.rownum.row-warning{ color:var(--warn); font-weight:600; }
   text-decoration:underline; cursor:pointer;
 }
 .v-goto:hover{ background:none; }
+
+#stats{ display:flex; flex-wrap:wrap; align-items:baseline; gap:.25em .6em; }
+.statistics-item + .statistics-item::before{ content:"· "; }
+#log-statistics{ margin:.5em 1em; }
+#statistics-body{ display:flex; flex-wrap:wrap; gap:1em; }
+#statistics-body > p{ flex-basis:100%; margin:.5em 0; }
+#statistics-body section{ max-width:100%; overflow:auto; }
+#statistics-body h2{ font-size:1em; }
+.statistics-table{ border-collapse:collapse; }
+.statistics-table th, .statistics-table td{ padding:.3em .6em; text-align:left; border-bottom:1px solid var(--line); overflow-wrap:anywhere; }
+.statistics-table td{ white-space:nowrap; }
+#stats{ white-space:normal; }
+#drop{ min-height:160px; }
+#statistics-body{ max-height:45vh; overflow:auto; }

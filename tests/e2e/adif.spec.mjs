@@ -66,7 +66,7 @@ test('a large log loads fast, scrolls and exports edits', { tag: '@adif' }, asyn
   await page.goto('tools/adif/');
   const start = Date.now();
   await page.locator('#file-input').setInputFiles(OFFICIAL);
-  await expect(page.locator('#stats')).toContainText('6202 QSOs', { timeout: 30_000 });
+  await expect(page.locator('#stats')).toContainText('6,202 QSOs', { timeout: 30_000 });
   await expect(page.locator('#validation-summary')).toContainText('ADIF valid');
   // generous: ~0.15 s in desktop Chromium, 4.4 s before the virtual table
   expect(Date.now() - start).toBeLessThan(20_000);
@@ -185,7 +185,7 @@ test('filters the large official log; the export keeps all 6202 QSOs', { tag: '@
   test.setTimeout(120_000);
   await page.goto('tools/adif/');
   await page.locator('#file-input').setInputFiles(OFFICIAL);
-  await expect(page.locator('#stats')).toContainText('6202 QSOs', { timeout: 30_000 });
+  await expect(page.locator('#stats')).toContainText('6,202 QSOs', { timeout: 30_000 });
   const count = page.locator('#flt-count');
   await page.locator('#flt-add-cond').click();
   await page.getByLabel('condition 1 field').fill('MODE');
@@ -235,7 +235,7 @@ test('a big import shows its progress and finishes', { tag: '@adif' }, async ({ 
   await expect(progress).toBeVisible();
   await expect(page.locator('#import-bar')).toHaveAttribute('max', '100');
   await expect(page.getByRole('button', { name: 'Cancel' })).toBeFocused(); // keyboard users can cancel at once
-  await expect(page.locator('#stats')).toContainText('30000 QSOs', { timeout: 120_000 });
+  await expect(page.locator('#stats')).toContainText('30,000 QSOs', { timeout: 120_000 });
   await expect(progress).toBeHidden();
   await expect(page.locator('#btn-open')).toBeEnabled();
   const seen = await page.evaluate(() => window.__seen);
@@ -258,7 +258,7 @@ test('cancelling a big import leaves the loaded log as it was', { tag: '@adif' }
   await page.locator('#file-input').setInputFiles(bigAdi(100000));
   await expect(page.locator('#import-progress')).toBeHidden({ timeout: 30_000 });
   await expect(page.locator('#warnings')).toContainText('Import cancelled; the log is unchanged.');
-  await expect(page.locator('#stats')).toContainText(/^3 QSOs/);
+  await expect(page.locator('#stats')).toContainText(/Whole log: 3 QSOs/);
   await expect(page.locator('#file-info')).toHaveText('sample.adi: ADIF 3.1.7');
   await expect(page.locator('#drop tbody')).toContainText('OE3XYZ');
   await expect(page.locator('#btn-open')).toBeEnabled();
@@ -273,7 +273,7 @@ test('Escape cancels a running import', { tag: '@adif' }, async ({ page }) => {
   await expect(page.locator('#import-progress')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.locator('#import-progress')).toBeHidden({ timeout: 30_000 });
-  await expect(page.locator('#stats')).toContainText(/^3 QSOs/);
+  await expect(page.locator('#stats')).toContainText(/Whole log: 3 QSOs/);
 });
 
 test('a file over a limit is refused with a message and the log stays', { tag: '@adif' }, async ({ page }) => {
@@ -282,7 +282,7 @@ test('a file over a limit is refused with a message and the log stays', { tag: '
   await page.locator('#file-input').setInputFiles({ name: 'huge-value.adi', mimeType: 'text/plain', buffer: Buffer.from(huge) });
   await expect(page.locator('#warnings')).toContainText('huge-value.adi: not loaded, NOTES in QSO 1 has 150,000 characters, the editor takes values up to 100,000.');
   await expect(page.locator('#warnings')).toContainText('The log is unchanged');
-  await expect(page.locator('#stats')).toContainText(/^3 QSOs/);
+  await expect(page.locator('#stats')).toContainText(/Whole log: 3 QSOs/);
   await expect(page.locator('#import-progress')).toBeHidden();
 });
 
@@ -290,7 +290,7 @@ test('an edit during a re-check supersedes it; the result is the check of the cu
   test.setTimeout(180_000);
   await page.goto('tools/adif/');
   await page.locator('#file-input').setInputFiles(bigAdi(30000));
-  await expect(page.locator('#stats')).toContainText('30000 QSOs', { timeout: 120_000 });
+  await expect(page.locator('#stats')).toContainText('30,000 QSOs', { timeout: 120_000 });
   await expect(page.locator('#validation-summary')).toContainText('ADIF');
   const band = page.locator('#drop tbody tr[data-ri="0"] td[data-col="BAND"]');
   const box = page.locator('#validation');
@@ -316,7 +316,7 @@ test('column headers of short fields keep their sort and remove buttons visible 
   test.setTimeout(120_000);
   await page.goto('tools/adif/');
   await page.locator('#file-input').setInputFiles(OFFICIAL);
-  await expect(page.locator('#stats')).toContainText('6202 QSOs', { timeout: 30_000 });
+  await expect(page.locator('#stats')).toContainText('6,202 QSOs', { timeout: 30_000 });
   // every header: name button and x button inside the cell, not overlapping each other
   const bad = await page.locator('#drop thead th[data-col]').evaluateAll(ths => ths.flatMap(th => {
     const th0 = th.getBoundingClientRect(), s = th.querySelector('.sortcol').getBoundingClientRect(), r = th.querySelector('.rmcol').getBoundingClientRect();
@@ -361,4 +361,38 @@ test('adding a file while an edit of the log was already checked re-checks the c
   // the error of the edit is still there, in the check of the combined log
   await expect(band).toHaveClass(/cell-error/);
   await expect(page.locator('#validation-summary')).toContainText('current log');
+});
+
+test('statistics update after callsign edits, deletion and actual-view filtering', { tag: '@adif' }, async ({ page }) => {
+  await loadSample(page);
+  const overview = page.locator('#stats');
+  await expect(overview).toContainText('Whole log:');
+  await expect(overview).toContainText('3 reported callsigns');
+  await page.locator('#log-statistics summary').click();
+  await expect(page.locator('#statistics-body')).toContainText('Whole log: 3 QSOs');
+  await page.locator('#flt-text').fill('OE1ABC');
+  await expect(page.locator('#flt-count')).toContainText('1 of 3');
+  await page.locator('#statistics-scope').selectOption('shown');
+  await expect(page.locator('#statistics-body')).toContainText('Shown QSOs: 1 QSOs');
+  const cell = page.locator('td[data-col="CALL"]').first();
+  await cell.fill('OE1ABC/P');
+  await cell.press('Tab');
+  await expect(page.locator('#statistics-body')).toContainText('Shown QSOs: 1 QSOs');
+  await page.locator('#flt-clear').click();
+  await expect(page.locator('#statistics-body')).toContainText('Shown QSOs: 3 QSOs');
+  await page.locator('td[data-col="CALL"]').nth(1).fill('OE1ABC/P');
+  await page.locator('td[data-col="CALL"]').nth(1).press('Tab');
+  await expect(overview).toContainText('2 reported callsigns');
+});
+
+test('official overview stays bounded and statistics controls support keyboard use', { tag: '@adif' }, async ({ page }) => {
+  await page.goto('tools/adif/');
+  await page.locator('#file-input').setInputFiles(OFFICIAL);
+  await expect(page.locator('#stats')).toContainText('33 bands');
+  await expect(page.locator('#stats')).toContainText('49 modes');
+  expect((await page.locator('#stats').textContent()).length).toBeLessThan(230);
+  const summary = page.locator('#log-statistics summary');
+  await summary.focus(); await summary.press('Enter');
+  await expect(page.locator('#statistics-scope')).toBeVisible();
+  await expect(page.locator('#statistics-body')).toContainText('340 DXCC entities');
 });
