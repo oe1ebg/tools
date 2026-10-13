@@ -1,5 +1,5 @@
 // ADIF validator for .adi text: validateAdif(source) checks a file against
-// ADIF 3.1.7 and returns every issue it finds, without throwing on bad
+// ADIF 3.1.8 and returns every issue it finds, without throwing on bad
 // input. Pure (no DOM), used by the ADIF editor and the node tests.
 //
 // Pipeline: tolerant scanner (tags, values, resync after a wrong length)
@@ -78,7 +78,7 @@ function avShort(v) {
   return s.length > 40 ? s.slice(0, 39) + '…' : s;
 }
 
-// "3.1.7" > "3.1.6": compares X.Y.Z numerically; null when not X.Y.Z.
+// "3.1.8" > "3.1.6": compares X.Y.Z numerically; null when not X.Y.Z.
 function avCompareVersion(a, b) {
   const pa = a.split('.').map(Number), pb = b.split('.').map(Number);
   for (let i = 0; i < 3; i++) if (pa[i] !== pb[i]) return pa[i] < pb[i] ? -1 : 1;
@@ -233,7 +233,7 @@ function* avScan(source, issue, dec = v => v, byteMode = false, extraEoh = { off
       break;
     }
     // The declared length fits: it is what counts. The value is the
-    // declared number of characters (ADIF 3.1.7 IV.A.1), never split at
+    // declared number of characters (ADIF 3.1.8 IV.A.1), never split at
     // tag-shaped text inside it, and characters after it outside a field
     // or <EOR> are ignored (IV.A.6), also the rest of a tag the length
     // ends in. Suspicious boundaries are warnings only; they never change
@@ -684,7 +684,7 @@ export function* validateAdifSteps(source, options = {}) {
           continue;
         }
         if (!indicator) reportOnce('info', 'APP_FIELD_WITHOUT_TYPE', name, `${name} has no data type indicator (e.g. <${name}:LENGTH:S>); other programs read it as text.`, offset);
-        // ADIF 3.1.7 IV.A.4: without an indicator the contents must conform
+        // ADIF 3.1.8 IV.A.4: without an indicator the contents must conform
         // to MultilineString (so line breaks are fine), and the first
         // occurrence of an application-defined field in a file determines
         // its data type: later values are checked against that.

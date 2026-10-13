@@ -85,7 +85,7 @@ doesn't define is kept through load → edit → export. `parseADIF(…, defs)`
 (`../shared/js/adif.js`) collects the header's `USERDEFn` declarations as
 written (type letter, enumeration `{A,B}` or range `{min:max}`) and the
 data type of each application-defined field from its first occurrence
-(its indicator, or none = MultilineString, ADIF 3.1.7 IV.A.4; for other
+(its indicator, or none = MultilineString, ADIF 3.1.8 IV.A.4; for other
 fields the first indicator given); `js/export.js`
 merges them per loaded file (`mergeFieldDefs`) and `serializeADIF(…,
 defs)` writes them back: `<USERDEFn:len:T>` in the header (renumbered
@@ -119,7 +119,7 @@ the same as before. Combining files whose declarations differ:
 
 ## Validation
 
-Every loaded file is checked against ADIF 3.1.7 by
+Every loaded file is checked against ADIF 3.1.8 by
 `../shared/js/adif-validate.js` (`validateAdif(source)`, pure, no DOM,
 issue #56). The page shows a summary line (`✓ ADIF valid`,
 `⚠ ADIF valid with warnings`, `✕ Invalid ADIF`, with the counts) in a
@@ -148,7 +148,7 @@ Input never makes it throw: when no field structure can be found the result
 holds one `UNRECOVERABLE_PARSE_ERROR`.
 
 **How it works.** A tolerant scanner reads tags. A declared length that
-fits in the file always counts (ADIF 3.1.7 IV.A.1): the value is the
+fits in the file always counts (ADIF 3.1.8 IV.A.1): the value is the
 declared number of characters, never split at tag-shaped text inside it,
 and characters after it outside a field or `<EOR>` are ignored (IV.A.6),
 also the rest of a tag-shaped sequence the length ends in. So
@@ -171,8 +171,8 @@ bytes, reports values and positions in characters, and says so once
 are still read. Within a file, the first occurrence of an `APP_` field
 determines its type (IV.A.4), also an empty one: later values are checked against it, a
 different type is `APP_FIELD_TYPE_INCONSISTENT`. Field and value checks are driven by
-`../shared/js/adif-spec-data.js`, generated from the official ADIF 3.1.7
-resources archive (`https://adif.org.uk/317/resources`, `exports/csv/`:
+`../shared/js/adif-spec-data.js`, generated from the official ADIF 3.1.8
+resources archive (`https://adif.org.uk/318/resources`, `exports/csv/`:
 data types, fields, enumerations) by `scripts/build_adif_spec.py`
 (`just build-adif-spec`; the output is committed, rerun it only for a
 new ADIF version). Only the cross-field checks and heuristics are code.
@@ -201,12 +201,12 @@ new ADIF version). Only the cross-field checks and heuristics are code.
 | `INVALID_ENUM` | error | value not in the enumeration (STATE/MY_STATE checked per DXCC where ADIF lists codes) |
 | `INVALID_GRIDSQUARE` | error | not a 2/4/6/8-character locator (10/12 characters belong into `*_EXT`) |
 | `INVALID_LOCATION` | error | not `XDDD MM.MMM`, wrong direction letter, out of range |
-| `UNSUPPORTED_ADIF_VERSION` | warning | file declares a newer ADIF than 3.1.7 |
+| `UNSUPPORTED_ADIF_VERSION` | warning | file declares a newer ADIF than 3.1.8 |
 | `LENGTHS_IN_BYTES` | warning | the field lengths count UTF-8 bytes, not characters (IV.A.1); read by bytes, as the editor does (once per file) |
 | `HEADER_STARTS_WITH_TAG` | warning | file starts with `<` but has an `<EOH>` |
 | `TAG_IN_VALUE` | warning | tag-shaped text inside a value whose declared length ends cleanly: read as part of the value (IV.A.1); a too-long length can look the same, and naive readers split there |
 | `RECORD_END_IN_VALUE` | warning | the same with `<EOR>` inside the value: the typical sign of a too-long length that swallowed the end of the QSO (two QSOs read as one); valid per spec, so a warning |
-| `UNKNOWN_FIELD` | warning | not an ADIF 3.1.7 field, not `APP_`, not USERDEF (once per field name) |
+| `UNKNOWN_FIELD` | warning | not an ADIF 3.1.8 field, not `APP_`, not USERDEF (once per field name) |
 | `FIELD_NOT_IN_HEADER` / `HEADER_FIELD_IN_RECORD` | warning | QSO field in the header, or the other way round |
 | `TYPE_INDICATOR_MISMATCH` | warning | type letter differs from the field's type |
 | `APP_FIELD_TYPE_INCONSISTENT` | warning | an `APP_` field with another type than at its first occurrence in the file (no indicator = M), which determines its type (IV.A.4) |
@@ -608,14 +608,14 @@ them), which is what the limits are for.
 
 ## ADIF version compliance
 
-The tool targets and declares **ADIF 3.1.7** (https://www.adif.org/317/ADIF_317.htm)
+The tool targets and declares **ADIF 3.1.8** (https://www.adif.org/318/ADIF_318.htm)
 — this must be kept in sync if a newer ADIF version is adopted:
-- Exported `.adi` files emit `<ADIF_VER:5>3.1.7` in the header.
+- Exported `.adi` files emit `<ADIF_VER:5>3.1.8` in the header.
 - Each loaded file's own declared `ADIF_VER` (if present in its header) is
   parsed and surfaced per-file in the UI, purely informational — the tool
   doesn't refuse or reinterpret files declaring a different/no version.
-- The field picker and column-header inline help are backed by ADIF 3.1.7's
-  own machine-readable field export (`adif.org.uk/317/resources` →
+- The field picker and column-header inline help are backed by ADIF 3.1.8's
+  own machine-readable field export (`adif.org.uk/318/resources` →
   `exports/csv/fields.csv`), transformed offline into an embedded JS data
   table (name/type/description for all ~181 QSO-record fields) — not
   hand-typed from memory, so it stays accurate to the spec. Re-run that
@@ -683,7 +683,7 @@ record holding the focus always stays in the view.
   the view contract), `js/table.js` (the virtualized table body),
   `js/export.js` (ADI,
   CSV and SOTA CSV export; pure, unit-tested in `oe1ebg/tests/adif.test.mjs`),
-  `js/fields.js` (ADIF 3.1.7 field reference data), `js/filter.js` +
+  `js/fields.js` (ADIF 3.1.8 field reference data), `js/filter.js` +
   `js/filter-ui.js` (search & filter, see above).
 - `../shared/js/adif.js` — ADI parsing and field encoding, shared with the
   confirmation log's ADIF export.
