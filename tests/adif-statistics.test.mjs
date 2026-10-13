@@ -57,3 +57,9 @@ for (const [file, count, calls, lastDate] of [['test-qsos-317.adi', 6197, 6006, 
     assert.ok(ADIF_SPEC_ENUMS.DXCC_Entity_Code.deleted.includes('2'));
   });
 }
+
+test('advisory submode values are unrecognized rather than invalid ADIF strings', () => {
+  const s = calculateLogStatistics([{ MODE: 'SSB', SUBMODE: 'CUSTOM' }, { MODE: 'SSB', SUBMODE: 'line\nbreak' }]);
+  assert.equal(bucket(s, 'submodes', 'SSB: (unrecognized)'), 1);
+  assert.equal(bucket(s, 'submodes', '(invalid)'), 1);
+});

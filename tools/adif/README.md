@@ -745,7 +745,7 @@ Whole log / Shown QSOs selector uses the actual displayed view, including edited
 rows pinned until filters change. Exports still include the whole log. BAND,
 MODE and SUBMODE use canonical spec spelling without changing stored values.
 Whitespace-only values are missing; other whitespace is not silently stripped.
-Submodes retain their reported MODE context. DXCC uses the explicit code only,
+Submodes retain their reported MODE context. Unrecognized submodes can be valid ADIF String values; they are separate from invalid text. DXCC uses the explicit code only,
 with bundled official labels; deleted/import-only codes remain recognized, and
 code 0 (no entity) is separate from the distinct entity count. Populated fields
 exclude wholly blank columns. Missing/invalid-present counts supplement the
@@ -759,7 +759,7 @@ open. The official 3.1.8 fixture has 6,202 QSOs, 6,008 distinct reported calls,
 of 1970-01-01–2026-09-05. The retained 3.1.7 fixture's separate expectations
 remain covered by `tests/adif-statistics.test.mjs`.
 
-Local calculation benchmark (Node 24, Apple silicon, five warm samples):
+Local calculation benchmark (Node 26.11.1, Apple silicon, five warm samples):
 old band/mode summary / new overview / full details medians were 0.41 /
 2.67 / 10.06 ms on 6,202 official records, and 1.33 / 13.55 / 57.48 ms on
 50,000 synthetic records (CALL, BAND, MODE, QSO_DATE, TIME_ON, FREQ, DXCC).

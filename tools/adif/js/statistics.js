@@ -59,7 +59,9 @@ export function* logStatisticsSteps(log, { indices = null, fileCount = 0, detail
     }
     if (details) {
       for (const [name, value] of Object.entries(rec)) if (!lsMissing(String(value ?? ''))) fields.add(name);
-      const sub = lsCanonical(lsValue(rec, 'SUBMODE'), 'Submode');
+      const rawSub = lsValue(rec, 'SUBMODE');
+      let sub = lsCanonical(rawSub, 'Submode');
+      if (sub === LS_INVALID && !/[^\x20-\x7e]/.test(rawSub)) sub = '(unrecognized)';
       lsAdd(submodes, sub === LS_MISSING || sub === LS_INVALID ? sub : `${mode}: ${sub}`);
       lsAdd(dxcc, lsCanonical(lsValue(rec, 'DXCC'), 'DXCC_Entity_Code'));
       const checks = { CALL: v => !/[^\x20-\x7e]/.test(v), QSO_DATE: lsDate, TIME_ON: lsTime,
