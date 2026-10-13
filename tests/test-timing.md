@@ -341,6 +341,49 @@ before. So the local baseline belongs on an idle, awake, fixed machine; Node
 26 was not slower than 24 on the heaviest unit file in any pair (a candidate
 next to Bun in part 5, to be measured properly).
 
+## Part 3: the unit suite after the build (coverage map)
+
+`bundle` ran the whole unit suite again after the build (37 s median in CI,
+on the critical path before every browser job). Per test, from the JUnit
+reports: CI `test` (run 38315097585, no data, cross-checks required) against
+a local run after `just build` with `DATA_TESTS=require` (Node 24):
+
+| | `test` (no data) | `bundle` (data) |
+| --- | ---: | ---: |
+| tests | 645 | 645 |
+| skipped | 9: the data tests | 80: the ADIF cross-checks |
+| passed in both | 556 | 556 |
+
+The 9 tests that only `bundle` runs, in 8 files: `build-site` (2, need
+python-markdown), `callbook`, `confirm-map`, `deploy-headers` (the built
+pages), `location-areas`, `location-goldset`, `location-search`, `repeaters`.
+Two more files pass in both runs but check more once the data is built:
+`confirm-offline` and `notfunk-offline` (the data inlined in the offline
+file, one more script). No other test file reads the generated data or
+`site/` (by source: `existsSync`, the data and site paths; `adif.test.mjs`
+builds its own file without data).
+
+**Change:** `bundle` runs only the test files that import
+`tests/real-data.mjs` (the existing marker of data tests: `skipWithout`,
+`DATA_REQUIRED`); the two offline tests now take `sharedDataBuilt()` from
+there. A unit test in `real-data.test.mjs` fails when a test file names the
+data or site paths without importing it, so a new data test cannot fall out
+of the selection unnoticed. `release.yml` and `data.yml` still run the whole
+suite with the data.
+
+| where each check runs | before | after |
+| --- | --- | --- |
+| 556 tests independent of the data | `test` and `bundle` | `test` |
+| 9 data tests | `bundle` | `bundle` |
+| 2 offline-file tests, with data | `bundle` (and without, `test`) | the same |
+| 80 ADIF cross-checks (ADIF changes, dispatch, schedule) | `test` | `test` |
+| everything, with fresh data | `release.yml`, `data.yml` | the same |
+
+Locally after `just build` (Node 24, M1 Max, busy machine, 3 runs each): the
+selection (11 files, 74 tests) 3.1–3.2 s against 28.4–28.7 s for the whole
+suite. In CI that should take most of the 37 s off the critical path (about
+352 s), to be confirmed by runs after the change.
+
 ## Baseline, still to do
 
 - [x] fixed commit, with the large-backup and ADIF loading tests (e534645)
