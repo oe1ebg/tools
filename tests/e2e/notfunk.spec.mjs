@@ -3,7 +3,7 @@
 // a reply marks the original answered, an edit keeps a revision, the
 // Geschäftsbuch CSV downloads, the print layout shows only the form (one
 // A4 page), the help opens and closes without touching the form.
-import { test, expect, downloadText } from './fixtures.mjs';
+import { test, expect, downloadText, offlineSettled } from './fixtures.mjs';
 
 async function openNewOp(page, name, prefix) {
   await page.goto('tools/notfunk/');
@@ -11,6 +11,7 @@ async function openNewOp(page, name, prefix) {
   await expect(page.locator('#view-ops')).toBeVisible();
   // the buttons work only once the app has started
   await expect.poll(() => page.evaluate(() => globalThis.NOTFUNK_READY === true)).toBe(true);
+  await offlineSettled(page);
   await page.getByRole('button', { name: '+ Neuer Einsatz' }).click();
   await page.locator('#n-name').fill(name);
   await page.locator('#n-prefix').fill(prefix);
