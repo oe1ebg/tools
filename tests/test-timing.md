@@ -482,6 +482,54 @@ smaller image would have to be built, pinned and updated with every
 Playwright version, for at most the 25 s that each browser job spends
 pulling; not worth that maintenance.
 
+## Part 5: runtimes (2026-10-13)
+
+Apple M1 Max, the tests of commit 903770d, alternating runs, the machine
+awake; raw in `tests/timing-results/2026-10-13/runtimes/`.
+
+| runtime | whole unit suite | `backup-parts.test.mjs` alone | result |
+| --- | ---: | ---: | --- |
+| Node 24.21.0 (`.nvmrc`, CI) | 28.3–34.7 s (5 runs) | 27.4–28.5 s, 2.3 GB | 645 tests: 565 pass, 80 skip |
+| Node 26.11.1 | 20.0–21.4 s (8 runs) | 19.2–19.5 s, 2.3 GB | the same 645 / 565 / 80 |
+| Bun 1.4.2, `bun test` | 28.1–29.3 s (3 runs) | 9.4 s, 4.8 GB | 642 tests: 558 pass, 81 skip, 3 fail |
+| Bun 1.4.2, `bun test --parallel` | 10.3–10.4 s (3 runs) | – | the same 642 / 558 / 81 / 3 |
+
+**Node 26** runs the unchanged suite about 30 % faster than Node 24 with the
+same results (the heaviest file, which bounds the parallel run, likewise).
+No migration: `.nvmrc` moves to 26 once it is LTS (planned for October 2026;
+`tests/check-node.mjs` then warns that `.nvmrc` is behind).
+
+**Bun** without changes (`bun-unchanged.txt`), then with `--timeout`:
+
+1. Bun stops a test after 5 s by default, `node:test` does not:
+   `backup-parts.test.mjs` "notfunk: more records than one file accepts…"
+   (5.9 s) fails. `--timeout 120000` fixes it.
+2. Tests that start `process.execPath` with Node flags fail, because that is
+   Bun: `real-data.test.mjs` (`--input-type=module -e`) and
+   `junit-reporter.test.mjs` (`--test --test-reporter=…`; the file fails
+   while loading, so 3 of its tests are not counted).
+3. The JUnit reporter (`tests/junit-reporter.mjs`, the CI "Unit tests" check)
+   is a `node:test` reporter; Bun has its own `--reporter=junit` with another
+   format.
+4. `t.mock.method(globalThis, 'fetch', …)` does not take effect:
+   `sota-alerts-api.test.mjs` "Overpass sends form data…" reaches the
+   network instead of the mock.
+
+A failing test still fails the run (exit status 1 in every Bun run above).
+Bun is fast per file (`backup-parts` 9.4 s against 19.4 s on Node 26) and,
+with `--parallel` worker processes, runs the suite in half Node 26's time, at
+twice the memory of the large-backup tests.
+
+**Recommendation: keep Node, move to Node 26 when it is LTS; no Bun
+migration.** Since #47 the unit suite is off the CI critical path (`test`
+runs beside `bundle`, which now runs a 6 s selection), so Bun would only
+shorten local runs (here 10 s against Node 26's 20 s; on the M5 Pro the
+suite takes 15 s with Node 24, an estimated 10 s with Node 26), for a replacement of the JUnit
+reporter and the "Unit tests" check, three rewritten tests, explicit
+timeouts, double memory, and a second runtime to keep in step. A Playwright
+runtime change was not tested: the browser jobs are dominated by the
+browsers, not the runner process.
+
 ## Baseline, still to do
 
 - [x] fixed commit, with the large-backup and ADIF loading tests (e534645)
