@@ -55,6 +55,14 @@ export const test = base.extend({
 
 export { expect };
 
+// The offline chip has left "offline: prüfe…" / "offline: lädt…" (whatever
+// the result, also "nicht offline-fähig", "Offline-Datei"): the first visit's
+// setup can no longer move the page under a click (#36; the chip keeps its
+// width anyway, header.spec.mjs). Not the storage chip: headless Firefox
+// leaves storage.persist() unanswered, so it may stay at "Speicher: prüfe…".
+export const offlineSettled = page =>
+  expect(page.locator('#st-offline')).not.toHaveText(/^offline: (prüfe|lädt)…$/, { timeout: 30_000 });
+
 // Text content of a download (UTF-8).
 export async function downloadText(download) {
   return readFile(await download.path(), 'utf8');

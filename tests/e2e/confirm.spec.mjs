@@ -2,7 +2,7 @@
 // logged, the offline location search answers, CSV and ADIF export download
 // and the ADI file passes the strict ADIF 3.1.7 reader the unit tests use.
 import { readFileSync, writeFileSync } from 'node:fs';
-import { test, expect, downloadText } from './fixtures.mjs';
+import { test, expect, downloadText, offlineSettled } from './fixtures.mjs';
 import { readADI } from '../adif-spec.mjs';
 
 async function openNewLog(page, title) {
@@ -11,6 +11,7 @@ async function openNewLog(page, title) {
   await expect(page).toHaveTitle('Bestätigungsverkehr');
   await expect(page.locator('#view-events')).toBeVisible();
   await expect.poll(() => page.evaluate(() => globalThis.CONFIRM_READY === true)).toBe(true);
+  await offlineSettled(page);
   await page.getByRole('button', { name: '+ Neues Log' }).click();
   await page.locator('#new-event input[name="title"]').fill(title);
   await page.getByRole('button', { name: /Log anlegen/ }).click();
