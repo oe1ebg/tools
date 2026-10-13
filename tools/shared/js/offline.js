@@ -400,7 +400,7 @@ function repairOfflineCopy(ctl) {
 function reportOfflineVersion() {
   const ctl = navigator.serviceWorker && navigator.serviceWorker.controller;
   if (!ctl) {
-    setChip('#st-offline', 'offline: wird eingerichtet…', 'warn');
+    setChip('#st-offline', 'offline: lädt…', 'warn');
     return;
   }
   // A worker the browser has stopped needs a moment (or a second message) to
