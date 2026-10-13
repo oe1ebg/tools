@@ -730,3 +730,38 @@ bridging is needed.
 ## License
 
 No external code, no dependencies. Do whatever you want with it.
+
+## Log statistics
+
+The wrapping overview describes the **whole loaded log**, including incomplete
+rows: QSO count, loaded source-file count (including zero-record files), valid
+QSO_DATE range, distinct reported callsigns, and recognized bands/modes. Calls
+are trimmed and grouped without case differences; portable suffixes stay distinct.
+Dates must be real dates from 1930 onward; future dates count while validation
+reports them separately. No BAND is inferred from FREQ, or MODE from SUBMODE.
+
+“Log statistics” expands count/percentage tables and completeness counts. Its
+Whole log / Shown QSOs selector uses the actual displayed view, including edited
+rows pinned until filters change. Exports still include the whole log. BAND,
+MODE and SUBMODE use canonical spec spelling without changing stored values.
+Whitespace-only values are missing; other whitespace is not silently stripped.
+Submodes retain their reported MODE context. DXCC uses the explicit code only,
+with bundled official labels; deleted/import-only codes remain recognized, and
+code 0 (no entity) is separate from the distinct entity count. Populated fields
+exclude wholly blank columns. Missing/invalid-present counts supplement the
+validation panel rather than adding conformance errors.
+
+All distribution percentages use the scoped row count, including missing and
+invalid buckets, and are rounded to one decimal. Calculations run in slices,
+coalesced after committed changes; expanded details are only calculated while
+open. The official 3.1.8 fixture has 6,202 QSOs, 6,008 distinct reported calls,
+33 bands, 49 modes, 180 populated fields, 340 DXCC entities and a QSO_DATE range
+of 1970-01-01–2026-09-05. The retained 3.1.7 fixture's separate expectations
+remain covered by `tests/adif-statistics.test.mjs`.
+
+Local calculation benchmark (Node 24, Apple silicon, five warm samples):
+old band/mode summary / new overview / full details medians were 0.41 /
+2.67 / 10.06 ms on 6,202 official records, and 1.33 / 13.55 / 57.48 ms on
+50,000 synthetic records (CALL, BAND, MODE, QSO_DATE, TIME_ON, FREQ, DXCC).
+These measure pure calculation, not DOM rendering; the UI runs it in 10 ms
+slices and omits details while collapsed.

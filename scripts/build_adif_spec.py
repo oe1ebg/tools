@@ -155,6 +155,9 @@ def enumerations(csvs: dict[str, list[dict[str, str]]]) -> dict:
         import_only = sorted({r[value_col] for r in rows if r.get("Import-only")})
         if import_only:
             e["importOnly"] = import_only
+        if name == "DXCC_Entity_Code":
+            e["labels"] = {r[value_col]: r["Entity Name"] for r in rows}
+            e["deleted"] = [r[value_col] for r in rows if r.get("Deleted")]
         if name == "Band":
             e["ranges"] = {r["Band"]: [num(r["Lower Freq (MHz)"]), num(r["Upper Freq (MHz)"])] for r in rows}
         out[name] = e

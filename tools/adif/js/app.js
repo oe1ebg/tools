@@ -16,6 +16,7 @@ import { renderCompliance } from './compliance.js';
 import { records, recordFile, issuesByIndex, view, setView, scrollToRecord, bindViewHooks, replaceView, viewLength, viewIndexAt } from './state.js';
 import { computeView, isFilterActive, invalidateRecord, invalidateAllRecords, revealRecordFilter } from './filter.js';
 import { initFilterUI } from './filter-ui.js';
+import { initLogStatistics } from './statistics-ui.js';
 import { VirtualBody } from './table.js';
 
 function populateFieldDatalist(){
@@ -621,7 +622,7 @@ function commitCell(td){
     invalidateRecord(rec);
     if (view) filterPinned.add(rec); // stays shown even if it no longer matches
     markDirty();
-    if (col === 'BAND' || col === 'MODE') scheduleStats();
+    scheduleStats();
   }
   const shown = displayValue(rec[col] ?? '');
   if (td.textContent !== shown) td.textContent = shown;
@@ -678,21 +679,10 @@ function scheduleStats(){
   if (!statsFrame) statsFrame = requestAnimationFrame(() => { statsFrame = 0; updateStats(); });
 }
 
+const logStatistics = initLogStatistics(() => ({ records, view, fileCount: fileMeta.length }));
 function updateStats(){
   syncFilterBar();
-  const stats = document.getElementById('stats');
-  if (records.length === 0){ stats.textContent = ''; return; }
-  const bands = new Set(), modes = new Set();
-  for (const r of records){
-    if (r.BAND) bands.add(r.BAND);
-    if (r.MODE) modes.add(r.MODE);
-  }
-  // Built from nodes: BAND/MODE come straight from the loaded file.
-  fill(stats, el('b', {}, records.length), ' QSOs',
-    fileMeta.length > 1 ? [' from ', el('b', {}, fileMeta.length), ' files'] : null,
-    ' · ', el('b', {}, columns.length), ' fields',
-    bands.size ? ` · bands: ${[...bands].join(', ')}` : null,
-    modes.size ? ` · modes: ${[...modes].join(', ')}` : null);
+  logStatistics.update();
 }
 
 function updateFileInfo(){
@@ -833,6 +823,7 @@ function applyFilter(){
   const v = filterView();
   if (!sameView(v, view)) setView(v);
   syncFilterBar();
+  scheduleStats();
 }
 
 // Bar visibility, its "search in" and file options (rebuilt only when they
