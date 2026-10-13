@@ -27,6 +27,10 @@ and for each `validate` job its browser step in phases from the timestamped
 job log: image pull, `npm install`, Playwright start, the tests.
 Warm runs: five repetitions. Cold runs (three) are done by hand and name what
 is absent: package cache, generated data, or container images, one at a time.
+On macOS run long series under `caffeinate -i` (e.g. `caffeinate -i node
+scripts/bench_tests.mjs …`): an unattended Mac goes to sleep and then to
+DarkWake, where the browsers are throttled and tests time out (the Node 24
+series below).
 
 ## Local results, 2026-10-12 (partial baseline)
 
@@ -315,20 +319,27 @@ again under load (load average 3–9). Raw:
 | webkit, 2 workers | 75.0 s | 56.6–95.6 s |
 | mobile-webkit, 2 workers | 111.6 s | 92.9–119.6 s, one failed run |
 
-Two failed runs out of 30 (no retries), not seen in the Node 26 series an
-hour earlier: `notfunk.spec.mjs` "search, filter and a status step keep the
-rows of unchanged messages" in both (mobile-chromium: 60 s timeout;
-mobile-webkit: "Clicking the checkbox did not change its state"), plus
-`offline-update.spec.mjs` "a missing manifest (404)…" timing out in the
-mobile-chromium run that took 1079 s. Not analysed yet; the browser side does
-not depend on the Node version, the machine load does.
+Two failed runs out of 30 (no retries): `notfunk.spec.mjs` "search, filter
+and a status step keep the rows of unchanged messages" in both (mobile-chromium:
+60 s timeout; mobile-webkit: "Clicking the checkbox did not change its
+state"), plus `offline-update.spec.mjs` "a missing manifest (404)…" timing out
+in the mobile-chromium run that took 1079 s. **The Mac was asleep then**
+(`pmset -g log`): maintenance sleep from 10:32:45 to 10:49:04 local time,
+inside that run (98 s + 979 s), and only DarkWake afterwards (display off,
+processes throttled) until 19:03, when the webkit and mobile-webkit series
+ran (hence their 56–120 s against 53 s). The unit and chromium series ran
+before, awake. The notfunk test alone, 20 repeats each in mobile-webkit and
+mobile-chromium at four workers with eight extra busy loops, awake: 40 of 40
+passed. So no test or app bug is shown; the browser rows of this series are
+not usable.
 
 **This machine drifts too much for a baseline.** `backup-parts.test.mjs` run
-alternately with both versions (`backup-parts-node24-vs-26.txt`): Node 26
-25.8–28.0 s, Node 24 27.5–40.3 s (median 37.6 s), at similar load; but the
-same file took 19.8 s under Node 26 two hours before. So the local baseline
-belongs on an idle, fixed machine, and Node 26 is at least not slower than
-24 on the heaviest unit file (a candidate next to Bun in part 5).
+alternately with both versions (`backup-parts-node24-vs-26.txt`, after the
+series, possibly in DarkWake too): Node 26 25.8–28.0 s, Node 24 27.5–40.3 s
+(median 37.6 s), at similar load; but the same file took 19.8 s under Node 26
+before. So the local baseline belongs on an idle, awake, fixed machine; Node
+26 was not slower than 24 on the heaviest unit file in any pair (a candidate
+next to Bun in part 5, to be measured properly).
 
 ## Baseline, still to do
 
@@ -337,8 +348,6 @@ belongs on an idle, fixed machine, and Node 26 is at least not slower than
 - [x] the three largest contributors to elapsed time and runner cost (CI)
 - [ ] local on the development machine (Node 24), idle, five warm
       repetitions per scenario, on one fixed commit; Firefox
-- [ ] the `notfunk.spec.mjs` "search, filter and a status step…" failures
-      under load (2 of 30 runs above)
 - [ ] local cold setup runs (package cache, generated data, container images)
 
 ### Local WebKit against nginx (server experiment)
