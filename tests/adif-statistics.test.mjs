@@ -63,3 +63,8 @@ test('advisory submode values are unrecognized rather than invalid ADIF strings'
   assert.equal(bucket(s, 'submodes', 'SSB: (unrecognized)'), 1);
   assert.equal(bucket(s, 'submodes', '(invalid)'), 1);
 });
+
+test('frequency classification follows the Number datatype rather than inferred physical limits', () => {
+  const s = calculateLogStatistics([{ FREQ: '-1' }, { FREQ: 'abc' }]);
+  assert.deepEqual(s.completeness['BAND/FREQ'], { missing: 0, invalid: 1 });
+});

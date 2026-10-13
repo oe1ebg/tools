@@ -73,7 +73,7 @@ export function* logStatisticsSteps(log, { indices = null, fileCount = 0, detail
       }
       const frequency = lsValue(rec, 'FREQ');
       if (band === LS_MISSING && lsMissing(frequency)) completeness['BAND/FREQ'].missing++;
-      else if (band === LS_INVALID || (!lsMissing(frequency) && (!/^-?(?:\d+\.?\d*|\.\d+)$/.test(frequency) || +frequency < 0))) completeness['BAND/FREQ'].invalid++;
+      else if (band === LS_INVALID || (!lsMissing(frequency) && !/^-?(?:\d+\.?\d*|\.\d+)$/.test(frequency))) completeness['BAND/FREQ'].invalid++;
     }
     if ((pos + 1) % 256 === 0) yield { phase: 'statistics', done: pos + 1, total: count };
   }
