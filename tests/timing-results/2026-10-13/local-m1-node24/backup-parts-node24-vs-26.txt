@@ -1,0 +1,13 @@
+# node --test tests/backup-parts.test.mjs, alternating Node 24 / Node 26,
+# same machine (Apple M1 Max), same commit (ead6326); wall time in seconds,
+# load = 5-minute load average after the run
+v24.21.0 rc=0 27.52 load=3.25
+v26.11.1 rc=0 27.55 load=2.95
+v24.21.0 rc=0 39.84 load=2.51
+v26.11.1 rc=0 27.88 load=2.12
+v24.21.0 rc=0 40.32 load=2.24
+v26.11.1 rc=0 27.95 load=3.12
+v24.21.0 rc=0 37.62 load=2.52
+v26.11.1 rc=0 26.44 load=2.60
+v24.21.0 rc=0 35.45 load=2.14
+v26.11.1 rc=0 25.76 load=1.94

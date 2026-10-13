@@ -1,0 +1,17 @@
+tests/backup-parts.test.mjs median 27.61 s  range 27.61–27.61 s  peak 2383.8 MiB  17 tests
+tests/pages.test.mjs       median 8.57 s  range 8.57–8.57 s  peak 55.6 MiB  17 tests
+tests/confirm-offline.test.mjs median 3.01 s  range 3.01–3.01 s  peak 242.1 MiB  7 tests
+tests/notfunk-offline.test.mjs median 1.85 s  range 1.85–1.85 s  peak 237.3 MiB  4 tests
+tests/location-goldset.test.mjs median 1.50 s  range 1.50–1.50 s  peak 278.1 MiB  1 tests
+tests/adif-chunked.test.mjs median 1.46 s  range 1.46–1.46 s  peak 379 MiB  71 tests
+tests/location-areas.test.mjs median 0.72 s  range 0.72–0.72 s  peak 269.4 MiB  12 tests
+tests/adif-official.test.mjs median 0.58 s  range 0.58–0.58 s  peak 265.8 MiB  12 tests
+tests/location-search.test.mjs median 0.50 s  range 0.50–0.50 s  peak 196.2 MiB  13 tests
+tests/build-site.test.mjs  median 0.49 s  range 0.49–0.49 s  peak 49.5 MiB  3 tests
+tests/real-data.test.mjs   median 0.40 s  range 0.40–0.40 s  peak 49 MiB  2 tests
+tests/adif-validate-snapshot.test.mjs median 0.38 s  range 0.38–0.38 s  peak 164.4 MiB  1 tests
+tests/deploy-headers.test.mjs median 0.28 s  range 0.28–0.28 s  peak 195.4 MiB  7 tests
+tests/storage.test.mjs     median 0.26 s  range 0.26–0.26 s  peak 54 MiB  15 tests
+tests/junit-reporter.test.mjs median 0.24 s  range 0.24–0.24 s  peak 50 MiB  4 tests
+
+wrote /private/tmp/claude-501/bl-res3/unit-files.json (49 measurements; individual results kept)

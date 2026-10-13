@@ -1,0 +1,6 @@
+unit, concurrency 1        median 49.07 s  range 48.85–49.39 s  peak 2361 MiB  645 tests, 80 skipped
+unit, concurrency 2        median 29.50 s  range 29.37–29.67 s  peak 2351.1 MiB  645 tests, 80 skipped
+unit, concurrency 4        median 28.33 s  range 28.28–28.57 s  peak 2423.4 MiB  645 tests, 80 skipped
+unit, concurrency default  median 28.24 s  range 28.14–28.40 s  peak 2375 MiB  645 tests, 80 skipped
+
+wrote /private/tmp/claude-501/bl-res3/unit.json (4 measurements; individual results kept)
