@@ -50,7 +50,7 @@ test('serializeADIF round-trips through parseADIF', () => {
   const recs = parseADIF(SAMPLE, [], 's');
   const columns = ['CALL', 'QSO_DATE', 'TIME_ON', 'BAND', 'MODE', 'MY_SOTA_REF', 'COMMENT'];
   const out = serializeADIF(recs, columns, '2026-10-06T12:34:56.789Z');
-  assert.match(out, /<PROGRAMID:10>ADIFEditor\n<ADIF_VER:5>3\.1\.7\n<CREATED_TIMESTAMP:15>20261006 123456\n<EOH>/);
+  assert.match(out, /<PROGRAMID:10>ADIFEditor\n<ADIF_VER:5>3\.1\.8\n<CREATED_TIMESTAMP:15>20261006 123456\n<EOH>/);
   readADI(out); // spec-conformant (tests/adif-spec.mjs)
   assert.ok(out.includes('<CALL:5>OE1AB <QSO_DATE:8>20261004 <TIME_ON:4>1830 <BAND:3>20m <MODE:2>CW <EOR>\n'));
   const header = {};

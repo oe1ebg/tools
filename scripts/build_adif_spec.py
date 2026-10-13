@@ -15,7 +15,7 @@ from pathlib import Path
 # enumerations the validator checks. Source: the official ADIF resources
 # archive, which carries the spec's own CSV exports (exports/csv/*.csv):
 #
-#   https://adif.org.uk/317/resources  (redirects to ADIF_317_resources_<date>.zip)
+#   https://adif.org.uk/318/resources  (redirects to ADIF_317_resources_<date>.zip)
 #
 # It also copies the archive's official test QSOs (tests/ADIF_*_test_QSOs_*.adi)
 # to tests/fixtures/adif-spec/, which tests/adif-official.test.mjs validates
@@ -28,8 +28,8 @@ from pathlib import Path
 # (ADIF_SPEC_FORCE_REFRESH=1 bypasses), `--zip PATH` reads a local archive.
 # Stdlib only.
 
-SPEC_VERSION = "3.1.7"
-RESOURCES_URL = "https://adif.org.uk/317/resources"
+SPEC_VERSION = "3.1.8"
+RESOURCES_URL = "https://adif.org.uk/318/resources"
 
 OE1EBG_DIR = Path(__file__).resolve().parent.parent
 CACHE_DIR = OE1EBG_DIR / ".cache" / "adif-spec"

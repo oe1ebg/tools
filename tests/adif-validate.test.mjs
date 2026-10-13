@@ -267,8 +267,8 @@ test('datatypes and enumerations from the spec data', () => {
 });
 
 test('the spec version is explicit and the data comes from the spec export', () => {
-  assert.equal(ADIF_SPEC_VERSION, '3.1.7');
-  assert.equal(check(fixture('valid-minimal.adi')).specVersion, '3.1.7');
+  assert.equal(ADIF_SPEC_VERSION, '3.1.8');
+  assert.equal(check(fixture('valid-minimal.adi')).specVersion, '3.1.8');
   assert.ok(Object.keys(ADIF_SPEC_FIELDS).length > 180);
   assert.deepEqual(ADIF_SPEC_ENUMS.Band.ranges['70cm'], [420, 450]);
   assert.ok(ADIF_SPEC_ENUMS.Submode.byScope.DIGITALVOICE.includes('C4FM'));
@@ -307,3 +307,13 @@ test('cross-check: every confirmation-log template exports without errors or war
 });
 
 // Cross-checks against adifmt and adif-checker: adif-crosscheck.test.mjs.
+
+test('ADIF 3.1.8 additions and older-version imports', () => {
+  const q = (fields, version = '3.1.8') => `x\n<ADIF_VER:5>${version}<EOH><CALL:5>OE1AB<QSO_DATE:8>20261012<TIME_ON:4>1200<BAND:3>20m<MODE:4>MFSK${fields}<EOR>`;
+  assert.equal(check(q('<SUBMODE:4>JTTY')).errors, 0);
+  assert.ok(!codes(check(q('<SUBMODE:4>JTTY'))).includes('NONSTANDARD_ENUM_VALUE'));
+  for (const id of ['SKCC-SKS', 'SKCC-SKSA', 'SKCC-SKSE', 'SKCC-WES']) {
+    assert.ok(!codes(check(q(`<CONTEST_ID:${id.length}>${id}`))).includes('NONSTANDARD_ENUM_VALUE'));
+  }
+  assert.equal(check(q('<REGION:2>ET', '3.1.7')).errors, 0);
+});

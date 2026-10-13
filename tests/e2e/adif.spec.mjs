@@ -45,7 +45,7 @@ test('compliance panel names the spec, the cross-check tools and this build', { 
   await page.goto('tools/adif/');
   const panel = page.locator('#compliance');
   await panel.locator('summary').click();
-  await expect(panel).toContainText('ADIF 3.1.7');
+  await expect(panel).toContainText('ADIF 3.1.8');
   await expect(panel.getByRole('link', { name: 'adifmt' })).toHaveAttribute('rel', 'noopener');
   await expect(panel.getByRole('link', { name: 'adif-checker' })).toBeVisible();
   // build-info.js (scripts/build_adif.py): a commit link, unless built outside git

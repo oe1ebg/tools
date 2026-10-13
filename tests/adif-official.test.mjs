@@ -4,6 +4,7 @@
 // issue, and the ADIF editor's export (parse → serializeADIF) must keep every
 // value and stay free of errors. Checked once for the whole file, and per
 // group of QSOs (adif-official.mjs) so a failure names the part of the spec.
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ADIF_SPEC_VERSION } from '../tools/shared/js/adif-spec-data.js';
@@ -53,3 +54,9 @@ for (const [name, idx] of groups) {
     assertValidAndRoundTrips(groupText(idx), idx.length, name);
   });
 }
+
+// Keep the previous full archive as an import compatibility regression.
+test('official ADIF 3.1.7 fixture still validates and preserves every value', () => {
+  const text = readFileSync(new URL('./fixtures/adif-spec/test-qsos-317.adi', import.meta.url), 'utf8');
+  assertValidAndRoundTrips(text, 6197, 'ADIF 3.1.7');
+});
