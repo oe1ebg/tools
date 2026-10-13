@@ -384,13 +384,111 @@ selection (11 files, 74 tests) 3.1–3.2 s against 28.4–28.7 s for the whole
 suite. In CI that should take most of the 37 s off the critical path (about
 352 s), to be confirmed by runs after the change.
 
+## Local estimate for the development machine (2026-10-13)
+
+The development machine (Apple M5 Pro, 18 CPUs) may not be available for a
+second series, so its baseline is estimated. Input: the clean series on the
+M1 Max with the same Node (24.21.0), awake under `caffeinate -dims`, on the
+fixed tests (commit 903770d, the tree of #46's head), 5 runs each, no
+failed run in 30 browser runs (raw: `local-m1-node24-clean/`), against the
+M5 measurements of 2026-10-12 (Node 24, commit 33d5664: the same 645 unit
+tests, 128 instead of 134 chromium tests).
+
+| scenario | M5, 2026-10-12 | M1, clean | M1 / M5 | **M5 estimate, fixed commit** |
+| --- | ---: | ---: | ---: | ---: |
+| unit, concurrency 1 | 33.4 s | 50.2 s | 1.50 | **33 s** |
+| unit, concurrency 2 | 17.8 s | 29.9 s | 1.68 | **18 s** |
+| unit, concurrency default | 14.9 s | 29.1 s | 1.95 | **15 s** |
+| unit, `backup-parts.test.mjs` alone | 14.1 s | 28.1 s | 1.99 | **14 s** |
+| unit, focused `storage.test.mjs` | 0.23 s | 0.27 s | 1.17 | **0.23 s** |
+| chromium, 1 worker | 150 s | 172 s | 1.10\* | **157 s** |
+| chromium, 2 workers | 84.7 s | 91.8 s | 1.03\* | **89 s** |
+| chromium, 4 workers | 71 s | 76.6 s | 1.03\* | **74 s** |
+| mobile-chromium, 2 workers | 86 s | 98.4 s | 1.09\* | **90 s** |
+| webkit, 2 workers | 46 s | 55.1 s | 1.17\* | **47 s** |
+| mobile-webkit, 2 workers | 45 s | 52.8 s | 1.14\* | **46 s** |
+| firefox, 2 workers | 50 s | – | – | **51 s** |
+
+The unit tests have the same 645 tests, so the M5 values stand. Browser
+estimates: the M5 median of the passing runs times the growth in tests
+(chromium 128 → 134, webkit 77 → 79, …); \* the ratio after that correction.
+The unit suite is CPU-bound (M1 1.5–2× slower; `backup-parts` alone is the
+lower bound of a parallel run on both), the browser runs mostly wait (M1
+3–17 % slower). Firefox does not start on either Mac from this session; its
+M5 value is from 2026-10-12. Uncertainty: about ±10 % for the browser rows
+(the M5 runs had failures in the same series, now fixed), the unit rows are
+measured.
+
+## Part 4: Playwright workers on the CI runner (2026-10-13)
+
+Throwaway workflow on branch `bench/36-workers` (never merged): one bundle,
+then every (project, workers, repetition) in its own job on a fresh
+`ubuntu-latest` runner, the steps of `validate`, retries off. Run
+38440651213 (3 repetitions each, 42 jobs, all passed), raw with each job's
+CPU in `tests/timing-results/2026-10-13/ci-experiments/workers.json`.
+Wall time of `playwright test`, median and range:
+
+| project | 1 worker | 2 workers (CI) | 3 workers | 4 workers |
+| --- | ---: | ---: | ---: | ---: |
+| chromium | 319 s (318–362) | 237 s (237–243) | 191 s (166–245) | 235 s (203–241) |
+| mobile-chromium | 370 s (369–374) | 215 s (197–236) | 245 s (238–247) | 245 s (185–246) |
+| webkit | – | 124 s (124–156) | – | 157 s (126–158) |
+| mobile-webkit | – | 155 s (151–160) | – | 152 s (151–152) |
+| firefox | – | 105 s (98–106) | – | 146 s (95–148) |
+
+More than two workers does not help on the 4-vCPU runner: at 4 workers the
+summed test time grows from 416 s to 620 s (chromium), so the browsers
+compete for the CPU. Two workers stay.
+
+**The runner is not one machine type.** The 52 experiment jobs ran on six
+CPUs: AMD EPYC 7763 (23), 9V74 (12), 9V45 (9), Intel Xeon Platinum 8573C (5),
+8370C (2), 6973P-C (1). Much of the spread above (e.g. 166 against 245 s)
+is the CPU a job happened to get; compare per CPU or use many runs.
+
+**The longest file holds a worker.** Playwright gives a whole file to one
+worker. `offline-update.spec.mjs` (47 tests, Chromium only) took 180 s of the
+237 s chromium run at two workers, while the other worker ran all other
+files. With `test.describe.configure({ mode: 'parallel' })` in that file
+(run 38442842219, 5 repetitions each), compared on the same CPU:
+
+| CPU | project | as on `main` | parallel |
+| --- | --- | ---: | ---: |
+| AMD EPYC 7763 | chromium | 243 s | 214, 214, 217 s |
+| AMD EPYC 9V74 | chromium | 237 s | 187 s |
+| AMD EPYC 9V45 | mobile-chromium | 197 s | 158 s |
+| AMD EPYC 9V74 | mobile-chromium | 215 s | 191 s |
+| Xeon Platinum 8573C | mobile-chromium | 236 s | 209 s |
+
+24–50 s less on every CPU (10–20 %), on the job that ends the critical
+path; all 10 runs passed. Locally (M1 Max, Node 24) the file in parallel mode
+passed 470 of 470 test runs each in chromium and mobile-chromium (10
+repetitions, two workers, no retries), and the whole chromium run took 87 s
+at two workers (91.8 s before) and 52 s at four (76.6 s before).
+
+## Part 3: the Playwright image (2026-10-13)
+
+Throwaway workflow on branch `bench/36-image`, run 38440830333, each in its
+own job: `docker pull` of the pinned image (2.5 GB) as `validate` does it,
+against restoring a `docker save | zstd` copy (888 MB) from the Actions
+cache and `docker load`. Raw: `ci-experiments/image.txt`.
+
+| | median | range |
+| --- | ---: | ---: |
+| `docker pull` (5 runs) | 25.9 s | 24.5–38.3 s |
+| cache restore + `docker load` (5 runs) | 40.3 s | 32.6–50.4 s |
+
+The cache is slower (the load alone takes 27 s): the pull stays. A prepared,
+smaller image would have to be built, pinned and updated with every
+Playwright version, for at most the 25 s that each browser job spends
+pulling; not worth that maintenance.
+
 ## Baseline, still to do
 
 - [x] fixed commit, with the large-backup and ADIF loading tests (e534645)
 - [x] CI: ten comparable runs; queue time, critical path, runner minutes
 - [x] the three largest contributors to elapsed time and runner cost (CI)
-- [ ] local on the development machine (Node 24), idle, five warm
-      repetitions per scenario, on one fixed commit; Firefox
+- [x] local on the development machine (Node 24): estimated from a clean
+      series on the M1 Max (above); Firefox only from 2026-10-12
 - [ ] local cold setup runs (package cache, generated data, container images)
 
 ### Local WebKit against nginx (server experiment)

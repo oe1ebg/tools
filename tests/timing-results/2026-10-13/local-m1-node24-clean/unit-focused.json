@@ -1,0 +1,107 @@
+{
+  "scenario": "unit-focused",
+  "environment": {
+    "when": "2026-10-13T17:54:45.586Z",
+    "node": "v24.21.0",
+    "python": "Python 3.9.6",
+    "uv": "uv 0.13.0 (Homebrew 2026-10-09 aarch64-apple-darwin)",
+    "os": "darwin 27.0.0",
+    "cpus": 10,
+    "cpuModel": "Apple M1 Max",
+    "memoryGiB": 64,
+    "loadAvg": [
+      21.91,
+      11.4,
+      8.78
+    ],
+    "commit": "903770d53ef71cae1bde10d4fd604ab2be0a3a45",
+    "dirty": false,
+    "playwrightImages": [
+      "ghcr.io/validator/validator:latest@sha256:3cb7d2f446677b84fb123427bc029e535739e2314b035b5824a4eb0557803761",
+      "mcr.microsoft.com/playwright:v1.64.0-noble@sha256:06a9939e57531807f8d5fd76ce44b53165ffb7d7501d87ab10e285c20b1e971f",
+      "nginx:1.31.0-alpine@sha256:2f07d83bf561b506400dc183b1b2003803e39efbd22451f848adaba14d28c7c7"
+    ],
+    "generatedData": [
+      "austria-areas.json",
+      "callsigns-oe.json",
+      "repeaters-at.json",
+      "vienna-locations.json",
+      "vienna-map.json"
+    ],
+    "manifest": {
+      "name": "oe1ebg-tools",
+      "version": "v0.3.0-17-g903770d",
+      "commit": "903770d53ef71cae1bde10d4fd604ab2be0a3a45",
+      "built": "2026-10-13T17:40:21Z"
+    }
+  },
+  "measurements": [
+    {
+      "file": "tests/storage.test.mjs",
+      "runs": 5,
+      "wallMs": {
+        "median": 272,
+        "min": 262,
+        "max": 274
+      },
+      "peakMiB": {
+        "median": 53.8,
+        "min": 53.4,
+        "max": 53.9
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 273,
+          "peakMiB": 53.7,
+          "status": 0,
+          "counts": {
+            "tests": 15,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 262,
+          "peakMiB": 53.8,
+          "status": 0,
+          "counts": {
+            "tests": 15,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 264,
+          "peakMiB": 53.9,
+          "status": 0,
+          "counts": {
+            "tests": 15,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 274,
+          "peakMiB": 53.4,
+          "status": 0,
+          "counts": {
+            "tests": 15,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 272,
+          "peakMiB": 53.9,
+          "status": 0,
+          "counts": {
+            "tests": 15,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    }
+  ]
+}
