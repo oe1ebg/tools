@@ -155,17 +155,41 @@ export function splitToFit(allItems, build, weight, limits = {}) {
   if (fits(items, undefined)) return [items];
   if (expand) items = expand(items);
   // greedy: each part takes as many items as fit (by records first, then by
-  // the exact size, halving the span), so there are no more parts than needed
+  // the exact size), so there are no more parts than needed. The longest
+  // prefix within maxBytes is searched with the exact size of its built text.
+  // That size grows with the prefix, so each try is interpolated from the
+  // sizes measured at both ends (regula falsi, Illinois variant: an end kept
+  // twice in a row counts half, so the tries do not creep up from one side;
+  // a few builds instead of one per halving of the span, which cost seconds
+  // for the largest sets). After two tries in a row that did not halve the
+  // span the next one halves it, so it never takes more than three times the
+  // halvings. The prefix found is the same.
   const slices = [];
   const tooMany = () => Object.assign(new Error(tooLarge), { tooLarge: true });
+  const size = (i, end) => utf8Length(build(items.slice(i, end), probe));
   for (let i = 0; i < items.length;) {
     let hi = i + 1, n = weight(items[i]);
     while (hi < items.length && n + weight(items[hi]) <= maxRecords) n += weight(items[hi++]);
-    if (hi - i > 1 && !fits(items.slice(i, hi), probe)) {
-      let lo = i + 1; // lo fits (or is a single item), hi does not
+    const hiBytes = hi - i > 1 ? size(i, hi) : 0;
+    if (hiBytes > maxBytes) {
+      // lo fits (or is the single first item, not measured), hi does not
+      // below / above: how far the size at lo / hi is from maxBytes
+      let lo = i + 1, below = maxBytes, above = hiBytes - maxBytes, kept = '', slow = 0;
       while (lo + 1 < hi) {
-        const mid = (lo + hi) >> 1;
-        if (fits(items.slice(i, mid), probe)) lo = mid; else hi = mid;
+        const span = hi - lo;
+        const guess = slow >= 2 ? (lo + hi) >> 1 : lo + Math.floor(span * below / (below + above));
+        const mid = Math.min(hi - 1, Math.max(lo + 1, guess));
+        const bytes = size(i, mid);
+        if (bytes <= maxBytes) {
+          lo = mid; below = maxBytes - bytes;
+          if (kept === 'hi') above /= 2;
+          kept = 'hi';
+        } else {
+          hi = mid; above = bytes - maxBytes;
+          if (kept === 'lo') below /= 2;
+          kept = 'lo';
+        }
+        slow = hi - lo > span / 2 ? slow + 1 : 0;
       }
       hi = lo;
     }

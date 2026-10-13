@@ -177,6 +177,57 @@ test('splitToFit: the largest supported set splits and restores, one more is ref
   assert.equal(splitToFit(items(20), build, () => 1, lim).length, 2);
 });
 
+// The search for the longest prefix that fits (#36) must find exactly what a
+// plain scan finds, for any sizes of the items: even, random, skewed (a few
+// large ones among small ones), one item just at the limit; and it must
+// need only a few builds per part for even sizes.
+test('splitToFit: each part is the longest prefix that fits, the same as a plain scan', () => {
+  const build = (slice, part) => JSON.stringify({ part, items: slice });
+  const probe = { set: '0'.repeat(36), n: 9999, of: 9999 };
+  const scan = (items, maxBytes, maxRecords) => {
+    const out = [];
+    for (let i = 0; i < items.length;) {
+      let end = i + 1;
+      while (end < items.length && end + 1 - i <= maxRecords && utf8Length(build(items.slice(i, end + 1), probe)) <= maxBytes) end++;
+      out.push(items.slice(i, end));
+      i = end;
+    }
+    return out;
+  };
+  let seed = 7;
+  const rnd = () => (seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31;
+  const shapes = {
+    even: i => 'x'.repeat(20),
+    random: () => 'y'.repeat(1 + Math.floor(rnd() * 80)),
+    skewed: i => (i % 37 === 0 ? 'z'.repeat(600) : 'a'),
+    umlauts: () => 'äöü€'.repeat(1 + Math.floor(rnd() * 20)),
+  };
+  for (const [name, text] of Object.entries(shapes)) {
+    for (const maxBytes of [700, 1500, 4000]) {
+      for (const maxRecords of [7, 50, 1000]) {
+        const items = Array.from({ length: 300 }, (_, i) => text(i));
+        const lim = { maxBytes, maxRecords, maxParts: 1000, maxTotalBytes: 1e9, maxTotalRecords: 1e9 };
+        let got;
+        try { got = splitToFit(items, build, () => 1, lim); } catch (e) { got = e.message; }
+        let want;
+        try {
+          if (items.some(x => utf8Length(build([x], probe)) > maxBytes)) throw new Error('one item too large');
+          want = scan(items, maxBytes, maxRecords);
+        } catch (e) { want = e.message; }
+        if (typeof want === 'string') assert.equal(typeof got, 'string', `${name} ${maxBytes} ${maxRecords}`);
+        else assert.deepEqual(got, want, `${name} ${maxBytes} ${maxRecords}`);
+      }
+    }
+  }
+  // even sizes: a handful of builds per part, not one per halving of 20000
+  let builds = 0;
+  const counting = (slice, part) => { builds++; return build(slice, part); };
+  const many = Array.from({ length: 20000 }, () => 'x'.repeat(20));
+  const parts = splitToFit(many, counting, () => 1, { maxBytes: 100000, maxRecords: 20000, maxParts: 1000, maxTotalBytes: 1e9, maxTotalRecords: 1e9 });
+  assert.deepEqual(parts.flat(), many);
+  assert.ok(builds <= 4 * parts.length + 2, `${builds} builds for ${parts.length} parts`);
+});
+
 test('exports at the real largest size are split into restorable sets, beyond it they are refused in both tools', () => {
   const MAX = PART_MAX_RECORDS * PARTS_MAX_COUNT;
   const mk = n => Array.from({ length: n }, (_, i) => ({ id: `a${i}` }));
