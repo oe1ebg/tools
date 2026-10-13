@@ -1,0 +1,124 @@
+{
+  "scenario": "e2e",
+  "environment": {
+    "when": "2026-10-13T08:27:23.655Z",
+    "node": "v24.21.0",
+    "python": "Python 3.9.6",
+    "uv": "uv 0.13.0 (Homebrew 2026-10-09 aarch64-apple-darwin)",
+    "os": "darwin 27.0.0",
+    "cpus": 10,
+    "cpuModel": "Apple M1 Max",
+    "memoryGiB": 64,
+    "loadAvg": [
+      8.89,
+      9.23,
+      6.48
+    ],
+    "commit": "ead6326cb1e8f5ea5670c516b3672c59dc0c4180",
+    "dirty": false,
+    "playwrightImages": [
+      "ghcr.io/validator/validator:latest@sha256:3cb7d2f446677b84fb123427bc029e535739e2314b035b5824a4eb0557803761",
+      "mcr.microsoft.com/playwright:v1.64.0-noble@sha256:06a9939e57531807f8d5fd76ce44b53165ffb7d7501d87ab10e285c20b1e971f",
+      "nginx:1.31.0-alpine@sha256:2f07d83bf561b506400dc183b1b2003803e39efbd22451f848adaba14d28c7c7"
+    ],
+    "generatedData": [
+      "austria-areas.json",
+      "callsigns-oe.json",
+      "repeaters-at.json",
+      "vienna-locations.json",
+      "vienna-map.json"
+    ],
+    "manifest": {
+      "name": "oe1ebg-tools",
+      "version": "v0.3.0-15-gead6326",
+      "commit": "ead6326cb1e8f5ea5670c516b3672c59dc0c4180",
+      "built": "2026-10-13T07:46:58Z"
+    }
+  },
+  "measurements": [
+    {
+      "workers": 2,
+      "project": "mobile-chromium",
+      "runs": 5,
+      "wallMs": {
+        "median": 98199,
+        "min": 97646,
+        "max": 1078700
+      },
+      "peakMiB": {
+        "median": 3123.9,
+        "min": 3122.6,
+        "max": 3127.5
+      },
+      "failedRuns": 1,
+      "results": [
+        {
+          "wallMs": 98405,
+          "peakMiB": 3123.9,
+          "status": 0,
+          "counts": {
+            "expected": 133,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 1,
+            "durationMs": 97773
+          }
+        },
+        {
+          "wallMs": 98015,
+          "peakMiB": 3127.2,
+          "status": 0,
+          "counts": {
+            "expected": 133,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 1,
+            "durationMs": 97365
+          }
+        },
+        {
+          "wallMs": 98199,
+          "peakMiB": 3123.7,
+          "status": 0,
+          "counts": {
+            "expected": 133,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 1,
+            "durationMs": 97533
+          }
+        },
+        {
+          "wallMs": 1078700,
+          "peakMiB": 3127.5,
+          "status": 1,
+          "counts": {
+            "expected": 131,
+            "unexpected": 2,
+            "flaky": 0,
+            "skipped": 1,
+            "durationMs": 1078065
+          },
+          "failed": [
+            "notfunk.spec.mjs: search, filter and a status step keep the rows of unchanged messages (Test timeout of 60000ms exceeded.)",
+            "offline-update.spec.mjs: a missing manifest (404) is no development mode either (Test timeout of 60000ms exceeded.)"
+          ],
+          "outputTail": "ions\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"mobile-chromium\",\n              \"projectName\": \"mobile-chromium\",\n              \"results\": [\n                {\n                  \"workerIndex\": 3,\n                  \"parallelIndex\": 0,\n                  \"status\": \"passed\",\n                  \"duration\": 125,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-13T08:49:58.865Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-bbf8b6bf1146b37672aa\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 134,\n          \"column\": 1\n        },\n        {\n          \"title\": \"Notfunk migration: a taken message number is kept, never duplicated\",\n          \"ok\": true,\n          \"tags\": [],\n          \"tests\": [\n            {\n              \"timeout\": 60000,\n              \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"mobile-chromium\",\n              \"projectName\": \"mobile-chromium\",\n              \"results\": [\n                {\n                  \"workerIndex\": 3,\n                  \"parallelIndex\": 0,\n                  \"status\": \"passed\",\n                  \"duration\": 149,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-13T08:49:58.998Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-9aee7a31136a4b74e42b\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 182,\n          \"column\": 1\n        },\n        {\n          \"title\": \"Notfunk: fallback notices leave the error banner alone and resolve\",\n          \"ok\": true,\n          \"tags\": [],\n          \"tests\": [\n            {\n              \"timeout\": 60000,\n              \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"mobile-chromium\",\n              \"projectName\": \"mobile-chromium\",\n              \"results\": [\n                {\n                  \"workerIndex\": 3,\n                  \"parallelIndex\": 0,\n                  \"status\": \"passed\",\n                  \"duration\": 6299,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-13T08:49:59.153Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-2e36fe03ea22d5f207eb\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 221,\n          \"column\": 1\n        }\n      ]\n    }\n  ],\n  \"errors\": [],\n  \"stats\": {\n    \"startTime\": \"2026-10-13T08:32:19.152Z\",\n    \"duration\": 1078064.8879999998,\n    \"expected\": 131,\n    \"skipped\": 1,\n    \"unexpected\": 2,\n    \"flaky\": 0\n  }\n}\n\n     1078.70 real       184.29 user        44.48 sys\n          3279470592  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n             7552431  page reclaims\n               40956  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n              494183  messages sent\n              227003  messages received\n                   0  signals received\n               69146  voluntary context switches\n             2620218  involuntary context switches\n          2138241474  instructions retired\n           820473658  cycles elapsed\n            52190624  peak memory footprint\n"
+        },
+        {
+          "wallMs": 97646,
+          "peakMiB": 3122.6,
+          "status": 0,
+          "counts": {
+            "expected": 133,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 1,
+            "durationMs": 97001
+          }
+        }
+      ]
+    }
+  ],
+  "server": "tests/e2e/serve.py"
+}

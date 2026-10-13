@@ -1,0 +1,5 @@
+e2e, chromium, 1 workers   median 170.81 s  range 170.11–171.57 s  peak 3126.7 MiB  134 passed, 0 skipped, 0 flaky
+e2e, chromium, 2 workers   median 91.42 s  range 91.19–91.87 s  peak 3127.9 MiB  134 passed, 0 skipped, 0 flaky
+e2e, chromium, 4 workers   median 76.45 s  range 75.80–77.33 s  peak 3125.4 MiB  134 passed, 0 skipped, 0 flaky
+
+wrote /private/tmp/claude-501/bl-res3/e2e-chromium.json (3 measurements; individual results kept)

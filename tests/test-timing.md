@@ -298,13 +298,47 @@ hardware and that the browser runs no longer fail. Raw:
 5 (the header jump, see "Follow-up: the WebKit `confirm.spec.mjs` timeouts").
 Firefox does not start from this session on macOS 27 and is not measured.
 
+### The same machine with Node 24 (2026-10-13, commit ead6326)
+
+Node 24.21.0 (`brew install node@24`, as in `.nvmrc`) on the same M1 Max,
+again under load (load average 3–9). Raw:
+`tests/timing-results/2026-10-13/local-m1-node24/`.
+
+| scenario (5 runs each) | median | range |
+| --- | ---: | ---: |
+| unit, concurrency 1 | 49.1 s | 48.9–49.4 s |
+| unit, concurrency default | 28.2 s | 28.1–28.4 s |
+| unit, `backup-parts.test.mjs` alone (1 run) | 27.6 s, 2.3 GiB | – |
+| unit, focused `storage.test.mjs` | 0.26 s | 0.26–0.27 s |
+| chromium, 1 / 2 / 4 workers | 170.8 / 91.4 / 76.5 s | within ±1 s each |
+| mobile-chromium, 2 workers | 98.2 s | 97.7–98.7 s, one failed run of 1079 s |
+| webkit, 2 workers | 75.0 s | 56.6–95.6 s |
+| mobile-webkit, 2 workers | 111.6 s | 92.9–119.6 s, one failed run |
+
+Two failed runs out of 30 (no retries), not seen in the Node 26 series an
+hour earlier: `notfunk.spec.mjs` "search, filter and a status step keep the
+rows of unchanged messages" in both (mobile-chromium: 60 s timeout;
+mobile-webkit: "Clicking the checkbox did not change its state"), plus
+`offline-update.spec.mjs` "a missing manifest (404)…" timing out in the
+mobile-chromium run that took 1079 s. Not analysed yet; the browser side does
+not depend on the Node version, the machine load does.
+
+**This machine drifts too much for a baseline.** `backup-parts.test.mjs` run
+alternately with both versions (`backup-parts-node24-vs-26.txt`): Node 26
+25.8–28.0 s, Node 24 27.5–40.3 s (median 37.6 s), at similar load; but the
+same file took 19.8 s under Node 26 two hours before. So the local baseline
+belongs on an idle, fixed machine, and Node 26 is at least not slower than
+24 on the heaviest unit file (a candidate next to Bun in part 5).
+
 ## Baseline, still to do
 
 - [x] fixed commit, with the large-backup and ADIF loading tests (e534645)
 - [x] CI: ten comparable runs; queue time, critical path, runner minutes
 - [x] the three largest contributors to elapsed time and runner cost (CI)
-- [ ] local on the development machine (Node 24), five warm repetitions per
-      scenario, on one fixed commit; Firefox
+- [ ] local on the development machine (Node 24), idle, five warm
+      repetitions per scenario, on one fixed commit; Firefox
+- [ ] the `notfunk.spec.mjs` "search, filter and a status step…" failures
+      under load (2 of 30 runs above)
 - [ ] local cold setup runs (package cache, generated data, container images)
 
 ### Local WebKit against nginx (server experiment)

@@ -1,0 +1,275 @@
+{
+  "scenario": "e2e",
+  "environment": {
+    "when": "2026-10-13T07:59:08.980Z",
+    "node": "v24.21.0",
+    "python": "Python 3.9.6",
+    "uv": "uv 0.13.0 (Homebrew 2026-10-09 aarch64-apple-darwin)",
+    "os": "darwin 27.0.0",
+    "cpus": 10,
+    "cpuModel": "Apple M1 Max",
+    "memoryGiB": 64,
+    "loadAvg": [
+      4.03,
+      4.32,
+      3.77
+    ],
+    "commit": "ead6326cb1e8f5ea5670c516b3672c59dc0c4180",
+    "dirty": false,
+    "playwrightImages": [
+      "ghcr.io/validator/validator:latest@sha256:3cb7d2f446677b84fb123427bc029e535739e2314b035b5824a4eb0557803761",
+      "mcr.microsoft.com/playwright:v1.64.0-noble@sha256:06a9939e57531807f8d5fd76ce44b53165ffb7d7501d87ab10e285c20b1e971f",
+      "nginx:1.31.0-alpine@sha256:2f07d83bf561b506400dc183b1b2003803e39efbd22451f848adaba14d28c7c7"
+    ],
+    "generatedData": [
+      "austria-areas.json",
+      "callsigns-oe.json",
+      "repeaters-at.json",
+      "vienna-locations.json",
+      "vienna-map.json"
+    ],
+    "manifest": {
+      "name": "oe1ebg-tools",
+      "version": "v0.3.0-15-gead6326",
+      "commit": "ead6326cb1e8f5ea5670c516b3672c59dc0c4180",
+      "built": "2026-10-13T07:46:58Z"
+    }
+  },
+  "measurements": [
+    {
+      "workers": 1,
+      "project": "chromium",
+      "runs": 5,
+      "wallMs": {
+        "median": 170815,
+        "min": 170113,
+        "max": 171575
+      },
+      "peakMiB": {
+        "median": 3126.7,
+        "min": 3125.8,
+        "max": 3127.4
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 171295,
+          "peakMiB": 3126.7,
+          "status": 0,
+          "counts": {
+            "expected": 134,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 170509
+          }
+        },
+        {
+          "wallMs": 170486,
+          "peakMiB": 3127.1,
+          "status": 0,
+          "counts": {
+            "expected": 134,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 169874
+          }
+        },
+        {
+          "wallMs": 171575,
+          "peakMiB": 3126.1,
+          "status": 0,
+          "counts": {
+            "expected": 134,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 170948
+          }
+        },
+        {
+          "wallMs": 170815,
+          "peakMiB": 3127.4,
+          "status": 0,
+          "counts": {
+            "expected": 134,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 170184
+          }
+        },
+        {
+          "wallMs": 170113,
+          "peakMiB": 3125.8,
+          "status": 0,
+          "counts": {
+            "expected": 134,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 169494
+          }
+        }
+      ]
+    },
+    {
+      "workers": 2,
+      "project": "chromium",
+      "runs": 5,
+      "wallMs": {
+        "median": 91423,
+        "min": 91186,
+        "max": 91872
+      },
+      "peakMiB": {
+        "median": 3127.9,
+        "min": 3125.5,
+        "max": 3130.1
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 91872,
+          "peakMiB": 3130.1,
+          "status": 0,
+          "counts": {
+            "expected": 134,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 91240
+          }
+        },
+        {
+          "wallMs": 91423,
+          "peakMiB": 3127.9,
+          "status": 0,
+          "counts": {
+            "expected": 134,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 90767
+          }
+        },
+        {
+          "wallMs": 91360,
+          "peakMiB": 3125.5,
+          "status": 0,
+          "counts": {
+            "expected": 134,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 90732
+          }
+        },
+        {
+          "wallMs": 91186,
+          "peakMiB": 3125.8,
+          "status": 0,
+          "counts": {
+            "expected": 134,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 90540
+          }
+        },
+        {
+          "wallMs": 91801,
+          "peakMiB": 3128.4,
+          "status": 0,
+          "counts": {
+            "expected": 134,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 91161
+          }
+        }
+      ]
+    },
+    {
+      "workers": 4,
+      "project": "chromium",
+      "runs": 5,
+      "wallMs": {
+        "median": 76447,
+        "min": 75803,
+        "max": 77333
+      },
+      "peakMiB": {
+        "median": 3125.4,
+        "min": 3125,
+        "max": 3126
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 75803,
+          "peakMiB": 3126,
+          "status": 0,
+          "counts": {
+            "expected": 134,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 75159
+          }
+        },
+        {
+          "wallMs": 76447,
+          "peakMiB": 3125,
+          "status": 0,
+          "counts": {
+            "expected": 134,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 75930
+          }
+        },
+        {
+          "wallMs": 77333,
+          "peakMiB": 3125.4,
+          "status": 0,
+          "counts": {
+            "expected": 134,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 76679
+          }
+        },
+        {
+          "wallMs": 76333,
+          "peakMiB": 3125.1,
+          "status": 0,
+          "counts": {
+            "expected": 134,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 75696
+          }
+        },
+        {
+          "wallMs": 76540,
+          "peakMiB": 3125.5,
+          "status": 0,
+          "counts": {
+            "expected": 134,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 75900
+          }
+        }
+      ]
+    }
+  ],
+  "server": "tests/e2e/serve.py"
+}

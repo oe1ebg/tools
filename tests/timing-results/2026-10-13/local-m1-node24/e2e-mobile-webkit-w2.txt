@@ -1,0 +1,3 @@
+e2e, mobile-webkit, 2 workers median 111.62 s  range 92.91–119.61 s  peak 760.4 MiB  FAILED RUNS: 1  78 passed, 56 skipped, 0 flaky
+
+wrote /private/tmp/claude-501/bl-res3/e2e-mobile-webkit-w2.json (1 measurements; individual results kept)
