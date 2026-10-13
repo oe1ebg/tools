@@ -83,7 +83,7 @@ export function* parseADXSteps(source, { parser = null, limits = {}, name = '' }
   }
   axAttributes(children[0]); axContainer(children[0]);
   axAttributes(children[1]); axContainer(children[1]);
-  const headerInfo = {}, defs = { userdefs: [], types: {}, apps: {}, appOrigins: new WeakMap() }, parsed = [], recordTypes = [], syntax = [];
+  const headerInfo = {}, defs = { userdefs: [], types: {}, apps: {}, appOrigins: new WeakMap(), adxRecords: new WeakSet() }, parsed = [], recordTypes = [], syntax = [];
   const syntaxCounts = { error: 0, warning: 0, info: 0 };
   const syntaxLimit = limits.maxIssues > 0 ? limits.maxIssues : Infinity;
   const diagnostic = (code, message, extra) => {
@@ -176,6 +176,7 @@ export function* parseADXSteps(source, { parser = null, limits = {}, name = '' }
       if (limits.maxColumns && allColumns.size > limits.maxColumns) throw new AdifLimitError('COLUMNS', 'too many columns', { at: index + 1, limit: limits.maxColumns });
       if (fieldsRead % 1024 === 0) yield { phase: 'parse', records: index, pos: index, total: recordNodes.length };
     }
+    defs.adxRecords.add(rec);
     defs.appOrigins.set(rec, appInfo);
     parsed.push(rec); recordTypes.push(types);
     if (parsed.length % 256 === 0) yield { phase: 'parse', records: parsed.length, pos: parsed.length, total: recordNodes.length };
@@ -216,11 +217,10 @@ export function* serializeADXSteps(log, columns, createdIso = new Date().toISOSt
   out.push('</HEADER>\n<RECORDS>\n');
   for (let i = 0; i < log.length; i++) {
     const rec = log[i];
-    if (!columns.some(c => rec[c] !== undefined && rec[c] !== null && rec[c] !== '')) continue;
     out.push('<RECORD>');
     for (const field of columns) {
       const value = rec[field];
-      if (value === undefined || value === null || value === '') continue;
+      if (value === undefined || value === null) continue;
       if (users.has(field)) out.push(`<USERDEF FIELDNAME="${axEscape(field, true)}">${axEscape(value)}</USERDEF>`);
       else if (field.startsWith('APP_')) {
         const identity = defs.appOrigins?.get(rec)?.[field] || defs.apps?.[field];

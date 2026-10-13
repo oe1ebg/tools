@@ -436,7 +436,7 @@ function avParseUserdef(value, typeIndicator) {
   if (!m) return `USERDEF value "${avShort(value)}" is not NAME, NAME,{A,B} or NAME,{min:max}`;
   const def = { name: m[1].trim().toUpperCase(), type };
   if (m[2] !== undefined) {
-    const range = /^(-?\d+(?:\.\d+)?):(-?\d+(?:\.\d+)?)$/.exec(m[2]);
+    const range = /^(-?(?:\d+\.?\d*|\.\d+)):(-?(?:\d+\.?\d*|\.\d+))$/.exec(m[2]);
     if (range) { def.min = parseFloat(range[1]); def.max = parseFloat(range[2]); }
     else def.userEnum = new Set(m[2].split(',').map(s => s.trim().toUpperCase()));
   }
@@ -667,7 +667,7 @@ function* avValidateRecords(records, userdefs, issue, ctx, options, issues) {
         const first = !ind ? 'M' : AV_INDICATOR_TYPES[ind] ? ind : '';
         if (first) appTypes.set(appKey, first);
       }
-      if (value === '') continue; // <NAME:0>: no value
+      if (value === '' && ctx.format !== 'adx') continue; // ADI <NAME:0>: no value; ADX still has datatype constraints
       if (rec.unsure.has(name)) continue; // wrong length: already reported, the value is unreliable
       const indicator = rec.types[name];
       if (indicator && !AV_INDICATOR_TYPES[indicator]) {

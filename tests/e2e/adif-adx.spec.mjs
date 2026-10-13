@@ -250,6 +250,7 @@ test('different source APP identities keep independent types and values in combi
 test('colliding APP identities within one ADX record remain distinct and survive sorting/export', { tag: '@adif' }, async ({ page }) => {
   const fields = '<APP PROGRAMID="X_Y" FIELDNAME="Z" TYPE="N">3</APP><APP PROGRAMID="X" FIELDNAME="Y_Z" TYPE="S">text</APP>';
   await loadXml(page, xml(fields));
+  await page.locator('th[data-col="CALL"] .sortcol').click();
   await expect(page.locator('#validation-summary')).toContainText('ADIF valid');
   await expect(page.locator('td[data-col="APP_X_Y_Z"]')).toHaveText('text');
   await expect(page.locator('td[data-col^="APP_X_Y_Z ["]')).toHaveText('3');
@@ -259,4 +260,51 @@ test('colliding APP identities within one ADX record remain distinct and survive
   expect(result).toContain('<APP PROGRAMID="X_Y" FIELDNAME="Z" TYPE="N">3</APP>');
   expect(result).toContain('<APP PROGRAMID="X" FIELDNAME="Y_Z" TYPE="S">text</APP>');
   await expect(page.locator('td[data-col^="APP_X_Y_Z ["]')).toHaveText('3');
+});
+
+test('switching to ADX after earlier conversion decisions restarts from original Unicode data', { tag: '@adif' }, async ({ page }) => {
+  await page.goto('tools/adif/');
+  const a = 'x\n<USERDEF1:1:N>X<EOH><CALL:1>A<X:1>1<EOR>';
+  const b = xml('<USERDEF FIELDNAME="X">é</USERDEF>').replace('</HEADER>', '<USERDEF FIELDID="1" TYPE="I">X</USERDEF></HEADER>');
+  await page.locator('#file-input').setInputFiles([input(a, 'a.adi'), input(b, 'b.adx')]);
+  await expect(page.locator('#stats')).toContainText('2 QSOs');
+  await page.locator('#btn-export').click();
+  await approveChoices(page, { X: 'first' });
+  await expect(page.locator('#export-decisions')).toContainText('ADI serialization changes');
+  await approveChoices(page, { X: 'convert' });
+  await expect(page.locator('#export-decisions')).toContainText('Selected ADI export:');
+  await page.locator('#export-decisions').getByRole('button', { name: 'Export ADX instead', exact: true }).click();
+  const downloaded = page.waitForEvent('download');
+  await approveChoices(page, { X: 'text' });
+  const result = await downloadText(await downloaded);
+  expect(result).toContain('<USERDEF FIELDNAME="X">é</USERDEF>');
+  await expect(page.locator('td[data-col="X"]').nth(1)).toHaveText('é');
+});
+
+test('empty ADX records/fields and unused declarations survive export; ADI omissions require a choice', { tag: '@adif' }, async ({ page }) => {
+  await page.goto('tools/adif/');
+  const source = '<ADX><HEADER><ADIF_VER>3.1.8</ADIF_VER><USERDEF FIELDID="1" TYPE="E" ENUM="{A,B}">UNUSED</USERDEF></HEADER><RECORDS><RECORD/><RECORD><NAME/></RECORD></RECORDS></ADX>';
+  await page.locator('#file-input').setInputFiles(input(source));
+  await expect(page.locator('#stats')).toContainText('2 QSOs');
+  let download = page.waitForEvent('download'); await page.locator('#btn-export-adx').click();
+  const ax = await downloadText(await download);
+  expect(ax.match(/<RECORD>/g)).toHaveLength(2); expect(ax).toContain('<NAME></NAME>'); expect(ax).toContain('>UNUSED</USERDEF>');
+  await page.locator('#btn-export').click();
+  await expect(page.locator('#export-decisions')).toContainText('cannot restore fieldless ADX records');
+  download = page.waitForEvent('download');
+  await approveChoices(page, { '(empty records)': 'drop' });
+  const adi = await downloadText(await download);
+  expect(adi).toContain('<NAME:0>'); expect(adi).toContain('UNUSED,{A,B}');
+  expect(parseADIF(adi)).toEqual([{ NAME: '' }]);
+  await expect(page.locator('#stats')).toContainText('2 QSOs');
+});
+
+test('header-only ADX files retain definitions and can be exported without invented QSOs', { tag: '@adif' }, async ({ page }) => {
+  await page.goto('tools/adif/');
+  await page.locator('#file-input').setInputFiles(input('<ADX><HEADER><USERDEF FIELDID="1" TYPE="N" RANGE="{0:5}">UNUSED</USERDEF></HEADER><RECORDS/></ADX>'));
+  await expect(page.locator('#stats')).toContainText('0 QSOs');
+  await expect(page.locator('#stats')).toContainText('1 loaded file');
+  const download = page.waitForEvent('download'); await page.locator('#btn-export-adx').click();
+  const result = await downloadText(await download);
+  expect(result).toContain('RANGE="{0:5}">UNUSED</USERDEF>'); expect(result).not.toContain('<RECORD>');
 });
