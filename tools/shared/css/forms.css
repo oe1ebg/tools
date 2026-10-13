@@ -17,6 +17,11 @@
 .chip.ok{ color:var(--ok); border-color:currentColor; }
 .chip.warn{ color:var(--warn); border-color:currentColor; }
 .chip.err{ color:var(--err); border-color:currentColor; }
+/* The offline chip goes from "offline: prüfe…" to "offline: lädt…" (seconds
+   on a slow line, while the page can already be used) to "offline bereit ✓":
+   all of them fit this width, so the change cannot wrap the header bar and
+   move the page under the pointer (#36). Only failures are wider. */
+#st-offline{ box-sizing:border-box; min-width:9em; text-align:center; }
 
 .toolbar{ display:flex; align-items:center; gap:.5em; flex-wrap:wrap; margin-bottom:1em; }
 

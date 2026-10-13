@@ -220,9 +220,12 @@ and `checkOldInstall()`. The redirects stay.
   dev-precache` writes the stub `{ dev: true }`. The worker answers the
   page's `version` message with `{ version, mode: 'production' | 'dev' |
   'broken', ready }` (`ready`: every precached file is in the cache). Chip
-  (`js/offline.js`, `offlineStatus()`): `offline: wird eingerichtet…`,
+  (`js/offline.js`, `offlineStatus()`): `offline: lädt…`,
   `offline bereit ✓` (only with a complete cache), `offline nicht bereit`,
-  `Entwicklungsmodus (nicht offline)`, `Offline-Einrichtung fehlgeschlagen`;
+  `Entwicklungsmodus (nicht offline)`, `Offline-Einrichtung fehlgeschlagen`
+  (`#st-offline` keeps the width of `offline bereit ✓` from the start, so the
+  first visit's `offline: prüfe…` → `offline: lädt…` → `offline bereit ✓`
+  never rewraps the header; keep these texts that short);
   next to the update button `Update verfügbar`, `Update fehlgeschlagen`
   (new version could not install) and `Update-Prüfung fehlgeschlagen`. The
   button is offered only for a waiting worker beside an active one: on the

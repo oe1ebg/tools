@@ -42,7 +42,7 @@ nicht von selbst. Steht dort „nicht dauerhaft“, regelmäßig eine Sicherung
 (JSON) exportieren.
 
 **Offline-Status.** „offline bereit ✓“ oben rechts heißt: alles ist
-im Browser gespeichert. „offline: wird eingerichtet…“ dauert beim ersten
+im Browser gespeichert. „offline: lädt…“ dauert beim ersten
 Öffnen kurz. „offline nicht bereit“ heißt: der Browser hat die
 Offline-Kopie gelöscht; mit Internet geöffnet, repariert sie sich selbst
 („Offline-Kopie wird repariert…“). Gibt es auf dem Server inzwischen eine
