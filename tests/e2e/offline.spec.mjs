@@ -73,3 +73,21 @@ for (const [tool, bundle, saveAs] of [
     expect(await page.evaluate(() => typeof globalThis.OE1EBG_DATA)).toBe('object');
   });
 }
+
+test('saved ADIF editor imports, edits and exports Unicode ADX without networking', { tag: '@adif' }, async ({ page, request }, testInfo) => {
+  const { url, requests } = await openSavedCopy(page, request, 'tools/adif/adif-editor.html', testInfo);
+  await page.context().setOffline(true);
+  const source = '<ADX><HEADER><ADIF_VER>3.1.8</ADIF_VER></HEADER><RECORDS><RECORD><CALL>OE1AB</CALL><QSO_DATE>20261012</QSO_DATE><TIME_ON>1200</TIME_ON><BAND>20m</BAND><MODE>SSB</MODE><NAME_INTL>Éva 😀</NAME_INTL></RECORD></RECORDS></ADX>';
+  await page.locator('#file-input').setInputFiles({ name: 'offline.adx', mimeType: 'application/xml', buffer: Buffer.from(source) });
+  await expect(page.locator('#stats')).toContainText('1 QSOs');
+  const name = page.locator('td[data-col="NAME_INTL"]');
+  await name.fill('Änne 😀'); await name.press('Tab');
+  await expect(page.locator('#validation-summary')).toContainText('current log');
+  const download = page.waitForEvent('download');
+  await page.locator('#btn-export-adx').click();
+  const result = await download;
+  expect(result.suggestedFilename()).toBe('offline.adx');
+  const { readFile } = await import('node:fs/promises');
+  expect(await readFile(await result.path(), 'utf8')).toContain('<NAME_INTL>Änne 😀</NAME_INTL>');
+  expect(requests.filter(u => u !== url && !u.startsWith('blob:') && !u.startsWith('data:'))).toEqual([]);
+});

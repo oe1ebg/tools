@@ -91,6 +91,11 @@ jobs:
           DATA_TESTS: require
           GIT_SHA: ${{ steps.sha.outputs.sha }}
         run: |
+          # Older release tags have no XML test group yet.
+          if grep -q '^xml-tests =' pyproject.toml; then
+            uv sync --locked --group xml-tests
+            export ADIF_XMLCHECK=require
+          fi
           uvx --from rust-just just dist
           uvx --from rust-just just test
           (cd dist && cat ./*.sha256 > SHA256SUMS)

@@ -16,6 +16,8 @@ import { renderCompliance } from './compliance.js';
 import { records, recordFile, issuesByIndex, view, setView, scrollToRecord, bindViewHooks, replaceView, viewLength, viewIndexAt } from './state.js';
 import { computeView, isFilterActive, invalidateRecord, invalidateAllRecords, revealRecordFilter } from './filter.js';
 import { initFilterUI } from './filter-ui.js';
+import { exportLogWithDecisions } from './export-ui.js';
+import { validateAdifRecordsSteps } from '../../shared/js/adif-validate.js';
 import { initLogStatistics } from './statistics-ui.js';
 import { VirtualBody } from './table.js';
 
@@ -41,6 +43,8 @@ let fileMeta = [];  // [{name, adifVer, programId, programVersion}], one per loa
 // USERDEF declarations and type indicators of the loaded files, merged
 // (export.js, mergeFieldDefs): the ADI export writes them back.
 const fieldDefs = emptyFieldDefs();
+const recordOrigins = new WeakMap();
+let exporting = false;
 let dirty = false;  // edits since the last export (asked about before leaving the page)
 
 function markDirty(){ dirty = true; scheduleRevalidate(); }
@@ -149,6 +153,22 @@ function recheckPct(p){
   return Math.min(99, Math.floor(100 * frac));
 }
 
+function* recheckMixedSteps(filled) {
+  const groups = new Map();
+  const newSource = { name: 'new records', format: 'adx', defs: fieldDefs };
+  for (const rec of filled) {
+    const source = recordOrigins.get(rec) || newSource;
+    if (!groups.has(source)) groups.set(source, []);
+    groups.get(source).push(rec);
+  }
+  const results = [];
+  for (const [source, recs] of groups) {
+    const result = yield* validateAdifRecordsSteps(recs, source.defs, { format: source.format, lean: true, maxIssues: ADIF_LIMITS.maxIssues });
+    results.push({ label: source.name, result, recs });
+  }
+  return results;
+}
+
 async function revalidate(){
   revalidateTimer = 0;
   if (!records.length){ validationView = null; indexValidation(); setChecking(false); renderValidation(); return; }
@@ -157,14 +177,15 @@ async function revalidate(){
   const filled = records.filter(hasAnyValue);
   const seq = recheckSeq;
   let result;
+  const mixed = fileMeta.some(f => f.format === 'adx');
   try {
-    result = await recheckSlot.start(recheckSteps(filled, columns.slice(), fieldDefs), { budget: 10, onProgress: p => setChecking(true, recheckPct(p)) });
+    result = await recheckSlot.start(mixed ? recheckMixedSteps(filled) : recheckSteps(filled, columns.slice(), fieldDefs), { budget: 10, onProgress: p => setChecking(true, recheckPct(p)) });
   } catch (e){
     if (!chunkedIsAbort(e)){ console.error(e); if (seq === recheckSeq) setChecking(false); }
     return; // cancelled: the edit that did it has scheduled the next check
   }
   if (seq !== recheckSeq) return;
-  validationView = { scope: 'current log, as it would be exported', results: [{ label: 'current log', result, recs: filled }] };
+  validationView = { scope: mixed ? 'current log, ADI/ADX record semantics' : 'current log, as it would be exported', results: mixed ? result : [{ label: 'current log', result, recs: filled }] };
   indexValidation();
   body?.forEachRow((tr, ri) => applyFlags(tr, ri));
   setChecking(false);
@@ -480,7 +501,10 @@ function renderRow(ri){
   return tr;
 }
 
+function setExportButtons(){ setExportButtonsDisabled(!records.length); }
 function setExportButtonsDisabled(disabled){
+  disabled = disabled || !!importing || exporting;
+  document.getElementById('btn-export-adx').disabled = disabled;
   document.getElementById('btn-export').disabled = disabled;
   document.getElementById('btn-export-csv').disabled = disabled;
   document.getElementById('btn-export-sota').disabled = disabled;
@@ -688,7 +712,7 @@ function updateStats(){
 function updateFileInfo(){
   const el = document.getElementById('file-info');
   if (!fileMeta.length){ el.textContent = ''; return; }
-  el.textContent = fileMeta.map(f => `${f.name}: ADIF ${f.adifVer || 'version not declared'}`).join(' · ');
+  el.textContent = fileMeta.map(f => `${f.name}: ADIF ${f.adifVer || 'version not declared'}${f.format === 'adx' ? ' (ADX)' : ''}`).join(' · ');
 }
 
 /* ---------- editing ops ---------- */
@@ -893,6 +917,7 @@ function showImportProgress(on){
   const box = document.getElementById('import-progress');
   box.hidden = !on;
   document.getElementById('btn-open').disabled = on;
+  setExportButtons();
   const cancel = document.getElementById('btn-cancel-import');
   cancel.disabled = false;
   cancel.textContent = 'Cancel';
@@ -917,6 +942,7 @@ function cancelImport(){
 async function loadFiles(fileList){
   const files = Array.from(fileList);
   if (!files.length) return;
+  if (exporting) { addWarning('Finish or cancel the export before adding more files.'); return; }
   if (importing){
     addWarning('An import is already running: wait for it, or cancel it, before adding more files.');
     return;
@@ -965,9 +991,10 @@ function applyLoaded(loaded, skipped, files){
     // result record i belongs to parsed record i, unless the two parsers disagree on the count
     const recs = !f.result ? [] : f.result.records.length === f.parsed.length ? f.parsed : f.result.records.map(() => null);
     fileValidations.push({ label: f.name, result: f.result, recs });
-    for (const rec of f.parsed){ records.push(rec); recordFile.push(f.name); }
+    const origin = { name: f.name, format: f.format, defs: f.defs };
+    for (const rec of f.parsed){ recordOrigins.set(rec, origin); records.push(rec); recordFile.push(f.name); }
     fileMeta.push({
-      name: f.name,
+      name: f.name, format: f.format, defs: f.defs,
       adifVer: f.headerInfo.ADIF_VER || null,
       programId: f.headerInfo.PROGRAMID || null,
       programVersion: f.headerInfo.PROGRAMVERSION || null,
@@ -1043,15 +1070,20 @@ function commitFocusedCell(){
   if (td) commitCell(td);
 }
 
-document.getElementById('btn-export').addEventListener('click', () => {
+async function exportFormat(target) {
+  if (exporting || importing) return;
   commitFocusedCell();
-  const name = document.getElementById('filename-input').value.trim() || 'export.adi';
-  // .adi is ASCII: say which values had to be transliterated
-  const changed = adifChangedValues(records, columns, fieldDefs);
-  if (changed) addWarning(`${changed} value(s) contained non-ASCII characters or line breaks their field can't hold; changed in the export (ä → ae, é → e, other → ?, line break → blank).`);
-  downloadText(serializeADIF(records, columns, undefined, fieldDefs), ADI_MIME, name);
-  dirty = false;
-});
+  exporting = true;
+  setExportButtons();
+  try {
+    const success = await exportLogWithDecisions({ records, columns, target, sources: fileMeta, defs: fieldDefs,
+      download: (text, mime, format) => downloadText(text, mime, format === 'adi' || format === 'adx' ? swapExt(document.getElementById('filename-input').value, format) : format),
+      onMessage: addWarning, sourceOf: rec => recordOrigins.get(rec)?.defs, returnFocus: document.getElementById(target === 'adx' ? 'btn-export-adx' : 'btn-export') });
+    if (success) dirty = false;
+  } finally { exporting = false; setExportButtons(); document.getElementById(target === 'adx' ? 'btn-export-adx' : 'btn-export').focus(); }
+}
+document.getElementById('btn-export').addEventListener('click', () => exportFormat('adi'));
+document.getElementById('btn-export-adx').addEventListener('click', () => exportFormat('adx'));
 
 document.getElementById('btn-export-csv').addEventListener('click', () => {
   commitFocusedCell();

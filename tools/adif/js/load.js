@@ -9,6 +9,7 @@
 // from freezing or crashing it: such a file is refused with a message
 // before the memory is spent, see "Resource limits" in tools/adif/README.md.
 
+import { detectLogFormat, parseADXSteps, validateADXRecordsSteps, AdxImportError } from './adx.js';
 import { parseADIFAutoSteps, AdifLimitError } from '../../shared/js/adif.js';
 import { validateAdifSteps } from '../../shared/js/adif-validate.js';
 import { chunkedRun, chunkedAbortError } from '../../shared/js/chunked.js';
@@ -73,7 +74,15 @@ export function decodeLog(buffer, name, warnings) {
 // ({ phase, pos|done, total, records }) and returns { parsed, warnings,
 // headerInfo, defs, result }; result is the validation (null if the
 // validator itself failed: a bug in it must not break loading the file).
-export function* loadFileSteps(name, text, warnings, limits = ADIF_LIMITS) {
+export function* loadFileSteps(name, text, warnings, limits = ADIF_LIMITS, xmlParser = null) {
+  const format = detectLogFormat(text, name);
+  if (format === 'adx') {
+    if (warnings.some(w => w.includes('read as Windows-1252'))) throw new AdxImportError('ADX_ENCODING', 'ADX must use valid UTF-8; Windows-1252 fallback is only supported for ADI.');
+    const data = yield* parseADXSteps(text, { parser: xmlParser, limits, name });
+    yield { phase: 'parsed', records: data.parsed.length };
+    const result = yield* validateADXRecordsSteps(data, { lean: true, maxIssues: limits.maxIssues });
+    return { ...data, result, format };
+  }
   const headerInfo = {};
   const defs = {};
   const parsed = yield* parseADIFAutoSteps(text, warnings, name, headerInfo, defs, limits);
@@ -84,7 +93,7 @@ export function* loadFileSteps(name, text, warnings, limits = ADIF_LIMITS) {
   } catch (e) {
     console.error(e);
   }
-  return { parsed, headerInfo, defs, result };
+  return { parsed, headerInfo, defs, result, format };
 }
 
 // Where a phase's progress lies in one file's share of the bar (0..1) and
@@ -151,7 +160,7 @@ export async function loadLogFiles(files, opts = {}) {
       // the number of records/fields left is 0: the file may not hold any
       if (!fileLimits.maxRecords) fileLimits.maxRecords = -1;
       if (!fileLimits.maxFields) fileLimits.maxFields = -1;
-      const r = await chunkedRun(loadFileSteps(file.name, text, warnings, fileLimits), {
+      const r = await chunkedRun(loadFileSteps(file.name, text, warnings, fileLimits, opts.xmlParser), {
         signal, budget: opts.budget, tick: opts.tick, onProgress: p => report(file, i, p),
       });
       // a cancel that was acknowledged must never apply, also in the last slice
@@ -159,12 +168,13 @@ export async function loadLogFiles(files, opts = {}) {
       fields += fileLimits.fieldsRead || 0;
       for (const c of fileLimits.columnsRead || []) columns.add(c);
       records += r.parsed.length;
-      loaded.push({ name: file.name, size: file.size || 0, fields: fileLimits.fieldsRead || 0, parsed: r.parsed, headerInfo: r.headerInfo, defs: r.defs, result: r.result, warnings });
+      loaded.push({ format: r.format, recordTypes: r.recordTypes, name: file.name, size: file.size || 0, fields: fileLimits.fieldsRead || 0, parsed: r.parsed, headerInfo: r.headerInfo, defs: r.defs, result: r.result, warnings });
     } catch (e) {
       if (e && e.name === 'AbortError') throw e;
       if (e instanceof AdifLimitError && e.code === 'RECORDS') e.limit = limits.maxRecords;
       if (e instanceof AdifLimitError && e.code === 'FIELDS_TOTAL') e.limit = limits.maxFields;
-      if (e instanceof AdifLimitError) skipped.push({ name: file.name, message: e.code === 'READ' ? `${file.name}: ${e.message}.` : adifLimitMessage(file.name, e) });
+      if (e instanceof AdxImportError) skipped.push({ name: file.name, message: `${file.name}: not loaded (${e.code}): ${e.message} Existing records are unchanged.` });
+      else if (e instanceof AdifLimitError) skipped.push({ name: file.name, message: e.code === 'READ' ? `${file.name}: ${e.message}.` : adifLimitMessage(file.name, e) });
       else throw e;
     }
     doneBytes += file.size || 0;
