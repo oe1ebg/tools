@@ -29,7 +29,7 @@ function userdefParts(spec){
   if (!m) return { name: String(spec || '').trim(), values: null, range: null, odd: true };
   const name = m[1].trim();
   if (m[2] === undefined) return { name, values: null, range: null };
-  const range = /^\s*(-?\d+(?:\.\d+)?)\s*:\s*(-?\d+(?:\.\d+)?)\s*$/.exec(m[2]);
+  const range = /^\s*(-?(?:\d+\.?\d*|\.\d+))\s*:\s*(-?(?:\d+\.?\d*|\.\d+))\s*$/.exec(m[2]);
   if (range) return { name, values: null, range: [parseFloat(range[1]), parseFloat(range[2])] };
   return { name, values: m[2].split(',').map(s => s.trim()).filter(Boolean), range: null };
 }
@@ -92,9 +92,10 @@ export function mergeFieldDefs(target, defs, file){
 
 // A field's definitions are dropped with its column.
 export function forgetFieldDefs(target, name){
-  target.userdefs = target.userdefs.filter(u => u.name !== name);
-  delete target.types[name];
-  delete target.typeFiles[name];
+  target.userdefs = (target.userdefs || []).filter(u => u.name !== name);
+  if (target.types) delete target.types[name];
+  if (target.typeFiles) delete target.typeFiles[name];
+  if (target.apps) delete target.apps[name];
 }
 
 /* ---------- ADI ---------- */
@@ -151,7 +152,11 @@ export function* serializeADIFSteps(records, columns, createdIso = new Date().to
     if ((++done & 511) === 0) yield { phase: 'export', done, total: records.length };
     for (let c = 0; c < n; c++){
       const v = rec[columns[c]];
-      if (v === undefined || v === null || v === '') continue; // ADIF has no empty fields
+      if (v === undefined || v === null) continue;
+      if (v === '') {
+        if (defs?.adxRecords?.has(rec)) out.push(`<${columns[c]}:0${formats[c][1] ? ':' + formats[c][1] : ''}>`);
+        continue;
+      }
       out.push(adifAsciiField(columns[c], v, formats[c][0], formats[c][1]));
     }
     out.push("<EOR>\n");

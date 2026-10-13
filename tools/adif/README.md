@@ -797,7 +797,7 @@ in favor of ADX. Namespace prefixes and processing instructions are ignored. XML
 entities/numeric references are decoded; XML's standard newline normalization
 applies on import. Export escapes XML text/attributes and uses numeric CR
 references to retain CR/LF values. Only Intl types allow Unicode; ordinary ADIF
-fields retain their ASCII rules. New edits are validated directly against their
+fields retain their ASCII rules. Custom Number ranges accept the full ADIF decimal spelling (including `.5` and `2.`), with bounds checked before and after conversion; Go cross-checks cover these boundaries. New edits are validated directly against their
 source definitions in a log containing ADX, never through lossy ASCII output.
 
 Both export buttons cover the whole log. Preflight runs in slices and stops for
@@ -817,8 +817,11 @@ validation errors; this does not make them conforming ADIF.
 Representable fields/definitions survive ADI↔ADX conversion semantically.
 Formatting, attribute order, namespace prefixes, processing instructions, ADI
 free-text headers, original provenance header values, and generated USERDEF
-numbers are not preserved byte-for-byte. As before, empty values/wholly empty
-rows are omitted by export, and compatible custom enum/range definitions from
+numbers are not preserved byte-for-byte. ADX retains empty records and empty fields. ADI keeps zero-length fields from
+ADX, and requires an explicit decision to omit fieldless ADX records (which ADI
+readers cannot restore). The existing ADI-only empty-value handling stays intact.
+Unused USERDEF declarations survive export; explicitly removing a column removes
+its declarations from the current log. Compatible custom enum/range definitions from
 multiple sources are widened. ASCII conversion still uses the existing
 transliteration (unsupported non-BMP characters can become `??`); the decision
 preview shows the actual result. Unicode controls or unpaired surrogates that
