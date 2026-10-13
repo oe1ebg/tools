@@ -504,8 +504,9 @@ function renderRow(ri){
 function setExportButtons(){ setExportButtonsDisabled(!records.length); }
 function setExportButtonsDisabled(disabled){
   disabled = disabled || !!importing || exporting;
-  document.getElementById('btn-export-adx').disabled = disabled;
-  document.getElementById('btn-export').disabled = disabled;
+  const logDisabled = (!records.length && !fileMeta.length) || !!importing || exporting;
+  document.getElementById('btn-export-adx').disabled = logDisabled;
+  document.getElementById('btn-export').disabled = logDisabled;
   document.getElementById('btn-export-csv').disabled = disabled;
   document.getElementById('btn-export-sota').disabled = disabled;
 }
@@ -752,6 +753,13 @@ function addColumn(name){
 function removeColumn(name){
   columns = columns.filter(c => c !== name);
   forgetFieldDefs(fieldDefs, name);
+  // A deliberate column removal also removes each source's effective declaration.
+  for (const file of fileMeta) forgetFieldDefs(file.defs, name);
+  for (const rec of records) {
+    const source = recordOrigins.get(rec)?.defs;
+    const info = source?.appOrigins?.get(rec);
+    if (info?.[name]) { const copy = { ...info }; delete copy[name]; source.appOrigins.set(rec, copy); }
+  }
   markDirty();
   for (const rec of records) delete rec[name];
   invalidateAllRecords();
@@ -1113,7 +1121,7 @@ document.getElementById('btn-apply-tpl').addEventListener('click', () => {
 
 // Closing the tab or reloading would lose unexported edits: the browser asks.
 window.addEventListener('beforeunload', e => {
-  if (!dirty || !records.length) return;
+  if (!dirty || (!records.length && !fileMeta.length)) return;
   e.preventDefault();
   e.returnValue = ''; // older Chrome/Safari need it set
 });

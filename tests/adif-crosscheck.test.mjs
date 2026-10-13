@@ -249,3 +249,8 @@ for (const [fields, code, differs] of VALUES) {
     crossCheck(label, text, differs);
   });
 }
+
+test('cross-check USERDEF Number range with leading/trailing decimal points', { skip }, () => {
+  const text = value => `x\n<ADIF_VER:5>3.1.8<USERDEF1:13:N>LEVEL,{.5:2.}<EOH><CALL:5>OE1AB<QSO_DATE:8>20261012<TIME_ON:4>1200<BAND:3>20m<MODE:3>SSB<LEVEL:${value.length}>${value}<EOR>`;
+  for (const value of ['.4', '.5', '2.', '2.1']) crossCheck(`USERDEF range .5:2. value ${value}`, text(value));
+});

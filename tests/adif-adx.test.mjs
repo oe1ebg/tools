@@ -100,3 +100,39 @@ test('unknown typed fields acquire equivalent USERDEF metadata in ADX', () => {
   const result = applyExportChoices(plan, { 'unknown:CUSTOM': 'declare' });
   assert.equal(result.defs.userdefs[0].type, 'N');
 });
+
+test('custom Number ranges use the full ADIF decimal syntax and enforce boundaries', () => {
+  const defs = { userdefs: [{ name: 'LEVEL', type: 'N', spec: 'LEVEL,{.5:2.}' }] };
+  for (const [value, errors] of [['.4', 1], ['.5', 0], ['2.', 0], ['2.1', 1]]) {
+    const result = validateAdifRecords([{ LEVEL: value }], defs, { format: 'adx' });
+    assert.equal(result.errors, errors, value);
+  }
+});
+
+test('unused USERDEF declarations are preserved and empty ADX fields remain representable', { skip }, () => {
+  const defs = { userdefs: [{ name: 'UNUSED', type: 'E', spec: 'UNUSED,{A,B}' }], types: {} };
+  const plan = prepareExport([{ CALL: 'OE1AB' }], ['CALL'], 'adx', [], defs);
+  const copy = applyExportChoices(plan, {});
+  assert.equal(copy.defs.userdefs.length, 1);
+  assert.match(serializeADX(copy.records, copy.columns, stamp, copy.defs), /ENUM="\{A,B\}">UNUSED<\/USERDEF>/);
+  const empty = serializeADX([{}, { NAME: '' }], ['NAME'], stamp, defs);
+  assert.equal((empty.match(/<RECORD>/g) || []).length, 2);
+  assert.match(empty, /<NAME><\/NAME>/);
+  assert.equal(schema(empty).status, 0);
+  assert.ok(validateAdifRecords([{ QSO_DATE: '' }], {}, { format: 'adx' }).issues.some(i => i.code === 'INVALID_DATE'));
+});
+
+test('import-only angle values require an explicit ADX export decision', () => {
+  assert.deepEqual(prepareExport([{ ANT_AZ: '360' }], ['ANT_AZ'], 'adx').groups, []);
+  const plan = prepareExport([{ ANT_AZ: '370' }], ['ANT_AZ'], 'adx');
+  assert.ok(plan.groups.some(g => g.key === 'deprecated:ANT_AZ'));
+  assert.throws(() => applyExportChoices(plan, {}), /Choose/);
+});
+
+test('official ADI export retains unused Intl declarations without conversion prompts', () => {
+  const defs = {};
+  const log = parseADIF(readFileSync(new URL('./fixtures/adif-spec/test-qsos.adi', import.meta.url), 'utf8'), [], 'official', undefined, undefined, defs);
+  const plan = prepareExport(log, [...new Set(log.flatMap(r => Object.keys(r)))], 'adi', [], defs);
+  assert.deepEqual(plan.groups, []);
+  assert.equal(plan.defs.userdefs.length, defs.userdefs.length);
+});

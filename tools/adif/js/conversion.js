@@ -11,14 +11,14 @@ function cvMultiline(field, defs) {
 function cvAscii(value, field, defs) { return adifAscii(value, { keepBrackets: true, multiline: cvMultiline(field, defs) }); }
 function cvChoice(value, label) { return { value, label }; }
 function cvCloneDefs(defs) {
-  return { ...emptyFieldDefs(), userdefs: (defs?.userdefs || []).map(u => ({ ...u })), types: { ...(defs?.types || {}) }, typeFiles: { ...(defs?.typeFiles || {}) }, apps: { ...(defs?.apps || {}) }, appOrigins: defs?.appOrigins || new WeakMap(), typeOverrides: new Set(defs?.typeOverrides || []) };
+  return { ...emptyFieldDefs(), userdefs: (defs?.userdefs || []).map(u => ({ ...u })), types: { ...(defs?.types || {}) }, typeFiles: { ...(defs?.typeFiles || {}) }, apps: { ...(defs?.apps || {}) }, appOrigins: defs?.appOrigins || new WeakMap(), typeOverrides: new Set(defs?.typeOverrides || []), adxRecords: defs?.adxRecords || new WeakSet() };
 }
 
 export function prepareExport(log, columns, target, sources = [], fallbackDefs = emptyFieldDefs(), sourceOf = null) {
   return adifRunSteps(prepareExportSteps(log, columns, target, sources, fallbackDefs, sourceOf));
 }
 export function* prepareExportSteps(log, columns, target, sources = [], fallbackDefs = emptyFieldDefs(), sourceOf = null) {
-  const defs = emptyFieldDefs(); defs.apps = {}; defs.appOrigins = new WeakMap(); defs.typeOverrides = new Set();
+  const defs = emptyFieldDefs(); defs.apps = {}; defs.appOrigins = new WeakMap(); defs.typeOverrides = new Set(); defs.adxRecords = new WeakSet();
   const candidates = new Map(), groups = new Map();
   function group(key, field, reason, choices) {
     if (!groups.has(key)) groups.set(key, { key, field, reason, choices, entries: [] });
@@ -27,7 +27,6 @@ export function* prepareExportSteps(log, columns, target, sources = [], fallback
   const keep = new Set(columns);
   for (const source of sources.length ? sources : [{ name: 'current log', defs: fallbackDefs }]) {
     const sourceDefs = cvCloneDefs(source.defs);
-    sourceDefs.userdefs = sourceDefs.userdefs.filter(u => keep.has(u.name));
     sourceDefs.types = Object.fromEntries(Object.entries(sourceDefs.types).filter(([field]) => keep.has(field)));
     mergeFieldDefs(defs, sourceDefs, source.name);
     for (const field of sourceDefs.typeOverrides) defs.typeOverrides.add(field);
@@ -78,11 +77,16 @@ export function* prepareExportSteps(log, columns, target, sources = [], fallback
     const original = log[index];
     const rec = { ...original }; copy.push(rec);
     const sourceDefs = sourceOf?.(original) || fallbackDefs;
+    if (sourceDefs?.adxRecords?.has(original)) defs.adxRecords.add(rec);
+    if (target === 'adi' && defs.adxRecords.has(rec) && !Object.keys(rec).length) {
+      const g = group('empty-records', '(empty records)', 'ADI readers cannot restore fieldless ADX records. Export ADX to retain them, or explicitly omit these records.', [cvChoice('drop', 'Omit fieldless records')]);
+      g.entries.push({ recordIndex: index, field: '', before: 'empty ADX record', after: '(omitted)' });
+    }
     const originalApps = sourceDefs?.appOrigins?.get(original) || sourceDefs?.apps || {};
     defs.appOrigins.set(rec, originalApps);
     for (const field of columns) {
       const value = rec[field];
-      if (value === undefined || value === null || value === '') continue;
+      if (value === undefined || value === null || (value === '' && !(target === 'adi' && defs.adxRecords.has(rec)))) continue;
       // Resolve declaration conflicts before presenting value/type losses.
       if (/[^\x20-\x7e\r\n]/.test(value)) unicodeFields.add(field);
       if (groups.has('definition:' + field)) {
@@ -113,7 +117,7 @@ export function* prepareExportSteps(log, columns, target, sources = [], fallback
       } else if (target === 'adx' && !def && !field.startsWith('APP_') && !defs.userdefs.some(u => u.name === field)) {
         g = group('unknown:' + field, field, 'ADX requires a USERDEF declaration for this nonstandard field.', [cvChoice('declare', 'Declare as text, preserving values'), cvChoice('drop', 'Omit this field')]);
         after = value;
-      } else if (target === 'adx' && (def?.importOnly || (def?.enum && (def.enumScope ? ADIF_SPEC_ENUMS[def.enum]?.importOnlyByScope?.[String(rec[def.enumScope] || '').toUpperCase()] : ADIF_SPEC_ENUMS[def.enum]?.importOnly)?.some(v => v.toUpperCase() === String(value).toUpperCase())))) {
+      } else if (target === 'adx' && (def?.importOnly || (def?.rangeImportOnly && /^-?(?:\d+\.?\d*|\.\d+)$/.test(value) && ((def.min !== undefined && +value < def.min) || (def.max !== undefined && +value > def.max))) || (def?.enum && (def.enumScope ? ADIF_SPEC_ENUMS[def.enum]?.importOnlyByScope?.[String(rec[def.enumScope] || '').toUpperCase()] : ADIF_SPEC_ENUMS[def.enum]?.importOnly)?.some(v => v.toUpperCase() === String(value).toUpperCase())))) {
         g = group('deprecated:' + field, field, 'This field/value is import-only and cannot be emitted in a conforming export. Cancel to edit it or use ADI to retain the existing representation.', [cvChoice('drop', 'Omit import-only occurrences')]);
         after = '';
       } else if (target === 'adx' && /[^\x20-\x7e\r\n]/.test(value) && !(def?.type.startsWith('Intl') || customType === 'I' || customType === 'G')) {
@@ -124,10 +128,9 @@ export function* prepareExportSteps(log, columns, target, sources = [], fallback
     }
     if ((index & 255) === 255) yield { phase: 'preflight', done: index + 1, total: log.length };
   }
-  // Definitions with no populated values still need a decision about Intl types.
-  if (target === 'adi') for (const u of defs.userdefs) if ((u.type === 'I' || u.type === 'G') && !groups.has('international:' + u.name)) {
-    group('international:' + u.name, u.name, 'International custom declaration cannot be written in ADI.', [cvChoice('convert', 'Convert declaration to ASCII text type'), cvChoice('drop', 'Omit this field')]);
-  }
+  // An unused Intl USERDEF declaration is representable in an ADI header
+  // (the official ADI fixture includes these); only using its values needs conversion.
+
   return { target, records: copy, columns: [...columns], defs, unicodeFields, groups: [...groups.values()] };
 }
 
@@ -139,15 +142,21 @@ export function* applyExportChoicesSteps(plan, choices) {
   for (let i = 0; i < plan.records.length; i++) {
     const rec = { ...plan.records[i] };
     log.push(rec);
+    if (plan.defs.adxRecords?.has(plan.records[i])) defs.adxRecords.add(rec);
     const appInfo = plan.defs.appOrigins?.get(plan.records[i]);
     if (appInfo) defs.appOrigins.set(rec, appInfo);
     if ((i & 255) === 255) yield { phase: 'copy', done: i + 1, total: plan.records.length };
   }
-  const columns = new Set(plan.columns), summary = [];
+  const columns = new Set(plan.columns), summary = [], omittedRecords = new Set();
   for (const group of plan.groups) {
     const action = choices[group.key];
     if (!group.choices.some(c => c.value === action)) throw new Error(`Choose how to handle ${group.field}: ${group.reason}`);
     const field = group.field;
+    if (group.key === 'empty-records') {
+      for (const entry of group.entries) omittedRecords.add(entry.recordIndex);
+      summary.push(`Omitted ${group.entries.length} fieldless ADX record(s).`);
+      continue;
+    }
     summary.push(`${field}: ${group.entries.length} affected item(s), ${group.choices.find(c => c.value === action).label}`);
     if (group.key.startsWith('definition:')) {
       defs.typeOverrides.add(field);
@@ -230,5 +239,5 @@ export function* applyExportChoicesSteps(plan, choices) {
       } else if (c >= 0xdc00 && c <= 0xdfff) throw new Error('An exported value contains an unpaired Unicode surrogate. Edit it before exporting.');
     }
   }
-  return { records: log, columns: [...columns], defs, summary };
+  return { records: log.filter((_, i) => !omittedRecords.has(i)), columns: [...columns], defs, summary };
 }
