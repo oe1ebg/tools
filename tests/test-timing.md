@@ -530,6 +530,27 @@ timeouts, double memory, and a second runtime to keep in step. A Playwright
 runtime change was not tested: the browser jobs are dominated by the
 browsers, not the runner process.
 
+## Cold setup runs (2026-10-13)
+
+Apple M1 Max, Node 24.21.0, Playwright 1.64.0, the tests of commit 903770d;
+each run names what is absent, three runs each; the script and its output in
+`tests/timing-results/2026-10-13/cold-setup/` (downloads over the local
+connection, so the network dominates those rows).
+
+| absent | command | 3 runs | the same, warm |
+| --- | --- | ---: | ---: |
+| generated data (download cache `.cache/` kept) | `just build` | 6.4–7.5 s | 6.3–6.4 s |
+| npm package cache | `npm install @playwright/test@1.64.0` (in `tests/e2e`) | 1.4–2.0 s | 0.5 s |
+| Playwright browsers (1.1 GB) | `npx playwright install chromium firefox webkit` | 26.8–29.2 s | – |
+| the Playwright container image (2.5 GB) | `podman pull` | 37.2–41.1 s | 0.6 s |
+
+`just build` regenerates the data from the download cache on every run, so a
+build without generated data costs the same as a warm one; only an empty
+download cache means fetching the sources (cached for 7 or 30 days, not
+measured here: the servers are third parties'). A fresh local browser setup
+(`just e2e-setup`) is therefore dominated by the browser download, about
+30 s on this line; in CI the image pull is 25 s per job (above).
+
 ## Baseline, still to do
 
 - [x] fixed commit, with the large-backup and ADIF loading tests (e534645)
@@ -537,7 +558,7 @@ browsers, not the runner process.
 - [x] the three largest contributors to elapsed time and runner cost (CI)
 - [x] local on the development machine (Node 24): estimated from a clean
       series on the M1 Max (above); Firefox only from 2026-10-12
-- [ ] local cold setup runs (package cache, generated data, container images)
+- [x] local cold setup runs (package cache, generated data, browsers, container image)
 
 ### Local WebKit against nginx (server experiment)
 
