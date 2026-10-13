@@ -9,7 +9,7 @@ including servers without internet access. Source code, issues and releases:
 | --- | --- | --- |
 | Bestätigungsverkehr: offline logbook for check-in nets (PWA) | `tools/confirm/` | no (after the first load) |
 | Notfunk-Meldebuch: offline emergency message log (PWA, draft) | `tools/notfunk/` | no (after the first load) |
-| ADIF editor: view, validate and edit `.adi` logs | `tools/adif/` | no |
+| ADIF editor: view, validate, edit and convert `.adi` / `.adx` logs | `tools/adif/` | no |
 | SOTA Alerts Map | `tools/sota-alerts/` | **yes** (SOTA API, map tiles) |
 
 Everything runs in the browser: plain HTML, CSS and ES modules, with no
@@ -243,7 +243,7 @@ optional, used for the HTML check and the ADIF cross-check tools.
 ```sh
 just build     # data (cached in .cache/) + offline bundles + site/tools/
 just serve     # http://localhost:8000/tools/
-just test      # unit tests (node --test, zero dependencies)
+just test      # Node tests; optional XML checks need the xml-tests group
 just e2e       # browser tests (Playwright): setup, then the run against site/
 just vnu       # HTML validation
 just dist      # dist/oe1ebg-tools-<version>.tar.gz + .sha256
@@ -266,6 +266,11 @@ another site is being served on the port. `just stage` copies edited sources
 into `site/` but does not rebuild the offline bundles (`just build` does).
 `scripts/bench_tests.mjs` times the test workflows (not part of CI);
 `tests/test-timing.md` holds the measurements.
+
+`uv sync --locked --group xml-tests` installs the offline ADX schema checker
+(test-only lxml). `just xmlcheck` requires those checks; missing dependencies
+fail with `ADIF_XMLCHECK=require`. CI requires them for ADIF changes, releases
+and data rebuilds of versions containing the XML test group.
 
 `just` lists every recipe. Repository layout:
 

@@ -13,10 +13,16 @@ import { test as base, expect } from '@playwright/test';
 const CONSOLE_ERROR_ALLOWLIST = [];
 
 export const test = base.extend({
+  // Explicit, counted browser-native diagnostics for deliberately malformed
+  // input. Every other console error still fails; unmet expectations fail too.
+  expectedConsoleErrors: async ({}, use) => { await use([]); },
+  expectConsoleError: async ({ expectedConsoleErrors }, use) => {
+    await use(pattern => expectedConsoleErrors.push({ pattern, remaining: 1 }));
+  },
   // Further origins that belong to the bundle under test (the prefix proxy
   // of pwa-identity.spec.mjs); checked like the base URL's origin.
   extraOrigins: [[], { option: true }],
-  problems: [async ({ page, baseURL, extraOrigins }, use) => {
+  problems: [async ({ page, baseURL, extraOrigins, expectedConsoleErrors }, use) => {
     const origin = new URL(baseURL).origin;
     const ours = new Set([origin, ...extraOrigins]);
     const problems = [];
@@ -32,6 +38,8 @@ export const test = base.extend({
       if (msg.type() !== 'error') return;
       const text = msg.text();
       if (CONSOLE_ERROR_ALLOWLIST.some(re => re.test(text))) return;
+      const expected = expectedConsoleErrors.find(e => e.remaining && e.pattern.test(text));
+      if (expected) { expected.remaining--; return; }
       const loc = msg.location();
       problems.push(`console.error: ${text}${loc && loc.url ? ` (${loc.url}:${loc.lineNumber})` : ''}`);
     });
@@ -49,6 +57,7 @@ export const test = base.extend({
       return route.abort('blockedbyclient');
     });
     await use(problems);
+    expect(expectedConsoleErrors.filter(e => e.remaining).map(e => String(e.pattern)), 'declared native diagnostics were observed exactly').toEqual([]);
     expect(problems, 'page errors, console errors, failed or external requests').toEqual([]);
   }, { auto: true }],
 });

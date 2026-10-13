@@ -275,18 +275,19 @@ function avCheckType(value, typeName, def, name, report, ctx) {
   const v = value;
   const say = text => `${name} "${avShort(v)}" ${text}`;
   const multiline = typeName === 'MultilineString' || typeName === 'IntlMultilineString';
-  if (typeName === 'IntlString' || typeName === 'IntlMultilineString' || typeName === 'IntlCharacter') {
+  const international = typeName === 'IntlString' || typeName === 'IntlMultilineString' || typeName === 'IntlCharacter';
+  if (international && ctx.format !== 'adx') {
     report('error', 'INTL_FIELD_IN_ADI', `${name} has type ${typeName}, which ADIF allows only in ADX files, not in .adi.`);
     return;
   }
   // Every other type is ASCII (Character: codes 32-126).
-  const bad = /[^\x20-\x7e\r\n]/.exec(v);
+  const bad = international ? /[\x00-\x08\x0b\x0c\x0e-\x1f\ufffe\uffff]/.exec(v) : /[^\x20-\x7e\r\n]/.exec(v);
   if (bad) {
-    report('error', 'INVALID_CHARACTER', say(`contains "${bad[0]}", which is not printable ASCII (ADI files are ASCII).`));
+    report('error', 'INVALID_CHARACTER', say(international ? 'contains a character forbidden in XML.' : ctx.format === 'adx' ? `contains "${bad[0]}", which this non-international ADIF type cannot hold.` : `contains "${bad[0]}", which is not printable ASCII (ADI files are ASCII).`));
   }
   if (/[\r\n]/.test(v)) {
     if (!multiline) report('error', 'INVALID_CHARACTER', say('contains a line break, which only MultilineString fields may.'));
-    else if (/[\r\n]/.test(v.replace(/\r\n/g, ''))) report('info', 'LINE_BREAK_NOT_CRLF', `${name}: line breaks in ADIF are CR LF; this value has bare CR or LF.`);
+    else if (ctx.format !== 'adx' && /[\r\n]/.test(v.replace(/\r\n/g, ''))) report('info', 'LINE_BREAK_NOT_CRLF', `${name}: line breaks in ADIF are CR LF; this value has bare CR or LF.`);
   }
   switch (typeName) {
     case 'Boolean':
@@ -636,6 +637,13 @@ export function* validateAdifSteps(source, options = {}) {
 
   /* fields */
   issueBudget = maxIssues;
+  yield* avValidateRecords(records, userdefs, issue, ctx, options, issues);
+  return result();
+}
+
+// The record whose text contains offset (records are in file order).
+// Shared record semantics for ADI source validation and format-aware ADX edits.
+function* avValidateRecords(records, userdefs, issue, ctx, options, issues) {
   const once = new Map(); // code|field -> issue, for per-file findings (reported once, with a count)
   const reportOnce = (severity, code, field, message, offset) => {
     const key = `${code}|${field}`;
@@ -649,13 +657,15 @@ export function* validateAdifSteps(source, options = {}) {
       const offset = rec.offsets[name];
       const at = { recordType: 'qso', recordIndex: rec.index, field: name, value, offset };
       const report = (severity, code, message) => issue(severity, code, message, at);
+      const appIdentity = rec.appInfo?.[name];
+      const appKey = ctx.format === 'adx' && appIdentity ? JSON.stringify([appIdentity.programId.toUpperCase(), appIdentity.fieldName.toUpperCase()]) : name;
       // The first occurrence of an application-defined field determines its
       // type (IV.A.4), also when it has no value (<APP_X_Y:0:N>); the
       // editor's parser takes it from there too.
-      if (name.startsWith('APP_') && !appTypes.has(name)) {
+      if (name.startsWith('APP_') && !appTypes.has(appKey)) {
         const ind = rec.types[name];
         const first = !ind ? 'M' : AV_INDICATOR_TYPES[ind] ? ind : '';
-        if (first) appTypes.set(name, first);
+        if (first) appTypes.set(appKey, first);
       }
       if (value === '') continue; // <NAME:0>: no value
       if (rec.unsure.has(name)) continue; // wrong length: already reported, the value is unreliable
@@ -690,9 +700,9 @@ export function* validateAdifSteps(source, options = {}) {
         // its data type: later values are checked against that.
         const own = !indicator ? 'M' : AV_INDICATOR_TYPES[indicator] ? indicator : '';
         if (own) {
-          if (!appTypes.has(name)) appTypes.set(name, own);
-          const first = appTypes.get(name);
-          if (first !== own) report('warning', 'APP_FIELD_TYPE_INCONSISTENT', `${name} has type ${indicator || 'M (no indicator)'} here, but ${first} at its first occurrence in the file, which determines its type (IV.A.4); checked as ${first}.`);
+          if (!appTypes.has(appKey)) appTypes.set(appKey, own);
+          const first = appTypes.get(appKey);
+          if (first !== own) report(ctx.format === 'adx' ? 'error' : 'warning', 'APP_FIELD_TYPE_INCONSISTENT', `${name} has type ${indicator || 'M (no indicator)'} here, but ${first} at its first occurrence in the file, which determines its type (IV.A.4); checked as ${first}.`);
           typeName = AV_INDICATOR_TYPES[first];
         } else {
           typeName = 'String';
@@ -706,7 +716,7 @@ export function* validateAdifSteps(source, options = {}) {
       let v = value;
       // A value ending in a line break in a one-line field: the length
       // counted the separator too (unless the scanner already said so).
-      if (/[\r\n]+$/.test(v) && typeName !== 'MultilineString' && typeName !== 'IntlMultilineString') {
+      if (ctx.format !== 'adx' && /[\r\n]+$/.test(v) && typeName !== 'MultilineString' && typeName !== 'IntlMultilineString') {
         report('error', 'FIELD_LENGTH_MISMATCH', `${name}: the declared length includes the line break after the value "${avShort(v.replace(/[\r\n]+$/, ''))}".`);
         v = v.replace(/[\r\n]+$/, '');
         if (!v) continue;
@@ -728,10 +738,73 @@ export function* validateAdifSteps(source, options = {}) {
   } else {
     for (const r of records) { delete r.types; delete r.unsure; }
   }
-  return result();
+
 }
 
-// The record whose text contains offset (records are in file order).
+// Header value semantics without ADI source length/tag heuristics.
+export function validateAdifHeader(fields, options = {}) {
+  const issues = [], counts = { error: 0, warning: 0, info: 0 };
+  const limit = options.maxIssues > 0 ? options.maxIssues : Infinity;
+  const issue = (severity, code, message, field, value) => {
+    counts[severity]++;
+    if (issues.length < limit) issues.push({ severity, code, message, recordType: 'header', field, value });
+  };
+  const ctx = { format: options.format || 'adi', today: '' };
+  for (const [name, value] of Object.entries(fields)) {
+    const report = (severity, code, message) => issue(severity, code, message, name, value);
+    if (AV_HEADER_FIELDS.has(name)) avCheckType(value, 'String', null, name, report, ctx);
+    else if (ADIF_SPEC_FIELDS[name]) report('warning', 'FIELD_NOT_IN_HEADER', `${name} is a QSO field; in the header it applies to no QSO.`);
+    else report('warning', 'UNKNOWN_FIELD', `${name} is not an ADIF ${ADIF_SPEC_VERSION} header field.`);
+  }
+  const ver = fields.ADIF_VER;
+  if (ver === undefined) issue('info', 'MISSING_ADIF_VERSION', `The header has no ADIF_VER; this validator assumes ${ADIF_SPEC_VERSION}.`, 'ADIF_VER');
+  else if (!/^\d+\.\d\.\d$/.test(ver)) issue('error', 'INVALID_ADIF_VERSION', `ADIF_VER "${avShort(ver)}" is not in X.Y.Z format.`, 'ADIF_VER', ver);
+  else if (avCompareVersion(ver, ADIF_SPEC_VERSION) > 0) issue('warning', 'UNSUPPORTED_ADIF_VERSION', `The file declares ADIF ${ver}; this validator knows ADIF ${ADIF_SPEC_VERSION}, so the check may be incomplete.`, 'ADIF_VER', ver);
+  const ts = fields.CREATED_TIMESTAMP;
+  if (ts !== undefined) {
+    const [date, time, ...more] = ts.split(' ');
+    if (more.length || !time || time.length !== 6 || avDateProblem(date) || avTimeProblem(time)) issue('error', 'INVALID_DATATYPE', `CREATED_TIMESTAMP "${avShort(ts)}" is not "YYYYMMDD HHMMSS".`, 'CREATED_TIMESTAMP', ts);
+  }
+  return { errors: counts.error, warnings: counts.warning, infos: counts.info, issues };
+}
+
+export function validateAdifRecords(log, defs = {}, options = {}) {
+  return adifRunSteps(validateAdifRecordsSteps(log, defs, options));
+}
+
+// A direct record check never serializes through a lossy interchange format.
+export function* validateAdifRecordsSteps(log, defs = {}, options = {}) {
+  const issues = [], counts = { error: 0, warning: 0, info: 0 };
+  const limit = options.maxIssues > 0 ? options.maxIssues : Infinity;
+  let dropped = 0;
+  const issue = (severity, code, message, extra = {}) => {
+    counts[severity]++;
+    if (issues.length >= limit) { dropped++; return; }
+    const it = { severity, code, message, recordType: extra.recordType || 'file', ...extra };
+    issues.push(it);
+  };
+  const recs = log.map((fields, index) => {
+    const appInfo = defs.appOrigins?.get(fields) || defs.apps;
+    let types = options.recordTypes?.[index] || defs.types || {};
+    if (!options.recordTypes && appInfo && Object.keys(appInfo).length) {
+      types = { ...types };
+      for (const [name, identity] of Object.entries(appInfo)) if (!defs.typeOverrides?.has(name)) types[name] = identity.type || types[name] || 'M';
+    }
+    return { index, fields, appInfo, offsets: {}, types, unsure: new Set() };
+  });
+  const userdefs = new Map();
+  for (const u of defs.userdefs || []) {
+    const def = avParseUserdef(u.spec, u.type);
+    if (typeof def === 'string' || ADIF_SPEC_FIELDS[u.name]) issue('error', 'INVALID_USERDEF', `${u.name}: ${typeof def === 'string' ? def : 'declares an ADIF-defined field'}.`, { recordType: 'header', field: u.name });
+    else userdefs.set(u.name, def);
+  }
+  const ctx = { today: options.today !== undefined ? options.today : new Date().toISOString().slice(0, 10).replace(/-/g, ''), format: options.format || 'adi' };
+  yield* avValidateRecords(recs, userdefs, issue, ctx, options, issues);
+  const out = { valid: counts.error === 0, errors: counts.error, warnings: counts.warning, infos: counts.info, issues, records: recs, header: null, specVersion: ADIF_SPEC_VERSION };
+  if (dropped) out.issuesDropped = dropped;
+  return out;
+}
+
 function avRecordAt(records, offset) {
   let lo = 0, hi = records.length - 1, found = null;
   while (lo <= hi) {

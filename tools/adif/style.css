@@ -432,3 +432,12 @@ td.rownum.row-warning{ color:var(--warn); font-weight:600; }
 #stats{ white-space:normal; }
 #drop{ min-height:160px; }
 #statistics-body{ max-height:45vh; overflow:auto; }
+
+#export-decisions{ background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:.4em; max-width:min(90vw, 52em); max-height:85vh; }
+#export-decisions::backdrop{ background:rgba(0,0,0,.5); }
+.export-decisions-body{ max-height:55vh; overflow:auto; }
+.export-decisions-body section{ border-top:1px solid var(--line); padding:.5em 0; }
+.export-decisions-body h3{ font-size:1em; }
+.export-decisions-body li{ overflow-wrap:anywhere; }
+.export-decisions-body select{ max-width:100%; }
+.export-decisions-actions{ display:flex; flex-wrap:wrap; gap:.5em; margin-top:1em; }

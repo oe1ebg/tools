@@ -84,7 +84,10 @@ jobs:
               - 'tests/fixtures/adif/**'
               - 'tests/fixtures/adif-spec/**'
               - 'tests/tools/**'
-              - 'tests/e2e/adif.spec.mjs'
+              - 'tests/e2e/adif*.spec.mjs'
+              - 'scripts/check_adx_schema.py'
+              - 'pyproject.toml'
+              - 'uv.lock'
             site:
               - '.github/workflows/ci.yml'
               - '.nvmrc'
@@ -119,7 +122,7 @@ jobs:
             echo "- HTML check and browser tests: **$SITE** (projects: \`$BROWSERS\`)"
           } >> "$GITHUB_STEP_SUMMARY"
 
-  # node --test tests/ (zero dependencies; the bundle tests run the
+  # Node tests; XML checks use locked test-only lxml. Bundle tests run the
   # stdlib-only build scripts with the runner's python3). Tests that need
   # the built data (location gold set, …) skip themselves here; `bundle`
   # runs them with DATA_TESTS=require after the build. The ADIF
@@ -147,6 +150,14 @@ jobs:
       - name: Node version check
         run: node tests/check-node.mjs
 
+      - name: Set up uv (ADX schema checks)
+        if: needs.changes.outputs.adif == 'true'
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+
+      - name: Install locked XML test dependencies
+        if: needs.changes.outputs.adif == 'true'
+        run: uv sync --locked --group xml-tests
+
       - name: Set up Go (ADIF cross-check tools)
         if: needs.changes.outputs.adif == 'true'
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -165,7 +176,7 @@ jobs:
         run: |
           set -- tests/*.test.mjs
           if [ "$ADIF" = true ]; then
-            export ADIF_CROSSCHECK=require
+            export ADIF_CROSSCHECK=require ADIF_XMLCHECK=require
           else
             # the ADIF test files: tests/adif*.test.mjs, confirm-adif-spec
             for f; do case "$f" in tests/adif*|tests/confirm-adif-spec.test.mjs) ;; *) set -- "$@" "$f" ;; esac; shift; done

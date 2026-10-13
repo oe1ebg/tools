@@ -155,6 +155,12 @@ def enumerations(csvs: dict[str, list[dict[str, str]]]) -> dict:
         import_only = sorted({r[value_col] for r in rows if r.get("Import-only")})
         if import_only:
             e["importOnly"] = import_only
+        if scope_col and import_only:
+            scoped_import_only: dict[str, list[str]] = {}
+            for r in rows:
+                if r.get("Import-only"):
+                    scoped_import_only.setdefault(r[scope_col].strip().upper(), []).append(r[value_col])
+            e["importOnlyByScope"] = {k: sorted(set(v)) for k, v in sorted(scoped_import_only.items())}
         if name == "DXCC_Entity_Code":
             e["labels"] = {r[value_col]: r["Entity Name"] for r in rows}
             e["deleted"] = [r[value_col] for r in rows if r.get("Deleted")]
@@ -196,13 +202,13 @@ def render(spec: dict) -> str:
     return text
 
 
-def test_qsos(data: bytes) -> bytes:
+def test_qsos(data: bytes, extension: str = ".adi") -> bytes:
     """The archive's tests/ADIF_<ver>_test_QSOs_<date>.adi, byte for byte."""
     with zipfile.ZipFile(io.BytesIO(data)) as z:
         names = [n for n in z.namelist()
-                 if n.split("/")[-2:-1] == ["tests"] and n.endswith(".adi") and "_test_QSOs_" in n]
+                 if n.split("/")[-2:-1] == ["tests"] and n.endswith(extension) and "_test_QSOs_" in n]
         if len(names) != 1:
-            raise SystemExit(f"resources archive: expected one tests/*_test_QSOs_*.adi, found {names}")
+            raise SystemExit(f"resources archive: expected one tests/*_test_QSOs_*{extension}, found {names}")
         log(f"test QSOs from {names[0]}")
         return z.read(names[0])
 
@@ -210,6 +216,7 @@ def test_qsos(data: bytes) -> bytes:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--zip", help="read this resources archive instead of downloading it")
+    ap.add_argument("--schemas-dir", help="read official ADX XSD files locally instead of downloading them")
     args = ap.parse_args()
     data = resources_zip(args.zip)
     csvs = read_csvs(data)
@@ -228,6 +235,24 @@ def main() -> None:
     TEST_QSOS_PATH.parent.mkdir(parents=True, exist_ok=True)
     TEST_QSOS_PATH.write_bytes(qsos)
     log(f"wrote {TEST_QSOS_PATH.relative_to(OE1EBG_DIR)} ({len(qsos) / 1024:.0f} KiB)")
+    TEST_QSOS_PATH.with_suffix('.adx').write_bytes(test_qsos(data, '.adx'))
+    version = SPEC_VERSION.replace('.', '')
+    for filename in [f'adx{version}.xsd', f'adx{version}generic.xsd']:
+        if args.schemas_dir:
+            schema = (Path(args.schemas_dir) / filename).read_bytes()
+        else:
+            cached = CACHE_DIR / filename
+            if cached.exists() and os.environ.get('ADIF_SPEC_FORCE_REFRESH') != '1':
+                schema = cached.read_bytes()
+            else:
+                url = f'https://adif.org.uk/{version}/{filename}'
+                req = urllib.request.Request(url, headers={'User-Agent': 'oe1ebg.at build (adif validator)'})
+                with urllib.request.urlopen(req, timeout=120) as resp:
+                    schema = resp.read()
+                CACHE_DIR.mkdir(parents=True, exist_ok=True)
+                cached.write_bytes(schema)
+        (TEST_QSOS_PATH.parent / filename).write_bytes(schema)
+        log(f'wrote {filename} ({len(schema)} bytes)')
 
 
 if __name__ == "__main__":

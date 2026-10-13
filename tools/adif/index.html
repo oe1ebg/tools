@@ -35,11 +35,12 @@
   <h1>ADIF editor</h1>
   <span class="sep" aria-hidden="true">/</span>
   <button type="button" id="btn-open">add file(s)…</button>
-  <input id="file-input" type="file" accept=".adi,.adif,.txt" multiple hidden>
+  <input id="file-input" type="file" accept=".adi,.adif,.adx,.txt" multiple hidden>
   <span id="stats"></span>
   <div class="spacer"></div>
   <input id="filename-input" type="text" value="export.adi" title="export filename" aria-label="export filename" autocomplete="off" spellcheck="false">
   <button type="button" id="btn-export" disabled>export .adi</button>
+  <button type="button" id="btn-export-adx" disabled>export .adx</button>
   <button type="button" id="btn-export-csv" disabled>export .csv</button>
   <span class="sep" aria-hidden="true">/</span>
   <select id="sota-mode" title="SOTA CSV mode" aria-label="SOTA CSV mode">
@@ -131,7 +132,7 @@
 
 <main id="drop" class="empty">
   <div id="empty-msg">
-    drag &amp; drop .adi file(s) here<br>
+    drag &amp; drop .adi / .adx file(s) here<br>
     <span class="hint">or click "add file(s)…" — files are added to the current log; nothing leaves the browser</span>
   </div>
 </main>
