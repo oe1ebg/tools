@@ -1,8 +1,65 @@
 # Test timing (issue #36)
 
-Status: **done** (2026-10-14). Baseline, changes and their result on CI are
-below ("Result after the changes"); the local baseline of the development
-machine is an estimate. Commands and raw results accompany every table.
+Status: **done** (2026-10-14). The summary comes first; the measurements,
+commands and raw results follow in the order they were taken.
+
+## Summary
+
+**Goal** (#36): shorter local feedback and CI time without losing coverage,
+failure detection, browser projects or release validation; Node as the
+baseline, Bun evaluated; target 20 % off the measured workflow.
+
+**Result on CI** (10 `workflow_dispatch` runs of every check before and after,
+"Baseline, CI" and "Result after the changes" below):
+
+| per run, median | before (e534645) | after (926d857) | change |
+| --- | ---: | ---: | ---: |
+| wall time | 352 s | 324 s | −8 % |
+| wall time from the first job's start | 348 s | 314 s | −10 % |
+| `bundle` job | 66 s | 31 s | −35 s |
+| chromium / mobile-chromium tests | 230 / 234 s | 198 / 216 s | −14 / −8 % |
+| billed minutes | 25 | 25 | 0 |
+
+**The 20 % target is not reached.** The changes stay: each is small and keeps
+every check.
+
+**What changed:**
+
+| PR | change | effect |
+| --- | --- | --- |
+| #40 | timing tooling (`scripts/bench_tests.mjs`), `just test-file`, `just e2e-setup` / `e2e-run` | focused unit file in 0.2–0.4 s; measurements reproducible |
+| #39, #42, #44, #45 | flaky tests found while measuring: a tarball timestamp, a lost Update click (#41), a false "Update verfügbar" in WebKit, a header jumping under the pointer | no failed run in 30 local browser runs without retries; no failed or flaky test in 20 CI runs of all five projects |
+| #47 | `bundle` runs only the test files that need the built data; a guard test keeps the selection complete | its unit step 37 s → 6 s on the critical path |
+| #48 | `offline-update.spec.mjs` runs its tests in parallel | the longest file no longer holds one worker; 24–50 s less per Chromium job in the experiment |
+| #50 | the split backup export finds each part's size with few builds | slowest unit test 16 s → 8 s; real exports of large backups likewise |
+| #46, #49, #51 | baseline, runtimes, cold setup (documentation) | see below |
+
+**Findings:**
+
+- The three largest contributors (CI): the Chromium-engine browser jobs (the
+  critical path), the unit suite repeated in `bundle` (fixed), the image pull
+  in each browser job (25 s; the Actions cache is slower, so the pull stays).
+- Two Playwright workers suit the 4-vCPU runner; four compete for the CPU.
+  The hosted runners come with six different CPUs, which explains much of
+  the spread between runs.
+- Runtimes: Node 26 runs the unchanged unit suite about 30 % faster than Node
+  24. Bun 1.4 is faster still with `--parallel` but needs a new JUnit
+  reporter, three rewritten tests, explicit timeouts and twice the memory.
+  Since #47 the unit suite is off the CI critical path anyway.
+- Local (estimate for the Apple M5 Pro, Node 24): unit suite about 15 s,
+  chromium about 89 s at two workers. A cold browser setup is dominated by
+  the downloads (browsers about 28 s, image about 40 s).
+- Reliability: CI showed two infrastructure outliers in 20 runs (283 s of run
+  queueing; an `npm install` stalled for 991 s without a timeout of its own).
+  On macOS, run long local series under `caffeinate -i`.
+
+**Not pursued** (decision 2026-10-14): sharding the two Chromium-engine jobs
+(estimated −30 % critical path for +12 % runner minutes); running
+`offline-update.spec.mjs` in desktop Chromium only (less phone-width
+coverage); a Bun migration.
+
+**Follow-up:** move `.nvmrc` to Node 26 once it is LTS (planned for October
+2026; `tests/check-node.mjs` warns then).
 
 ## How to measure
 
