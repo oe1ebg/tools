@@ -1,0 +1,2343 @@
+{
+  "scenario": "unit-files",
+  "environment": {
+    "when": "2026-10-13T17:51:57.578Z",
+    "node": "v24.21.0",
+    "python": "Python 3.9.6",
+    "uv": "uv 0.13.0 (Homebrew 2026-10-09 aarch64-apple-darwin)",
+    "os": "darwin 27.0.0",
+    "cpus": 10,
+    "cpuModel": "Apple M1 Max",
+    "memoryGiB": 64,
+    "loadAvg": [
+      8.71,
+      8.83,
+      7.74
+    ],
+    "commit": "903770d53ef71cae1bde10d4fd604ab2be0a3a45",
+    "dirty": false,
+    "playwrightImages": [
+      "ghcr.io/validator/validator:latest@sha256:3cb7d2f446677b84fb123427bc029e535739e2314b035b5824a4eb0557803761",
+      "mcr.microsoft.com/playwright:v1.64.0-noble@sha256:06a9939e57531807f8d5fd76ce44b53165ffb7d7501d87ab10e285c20b1e971f",
+      "nginx:1.31.0-alpine@sha256:2f07d83bf561b506400dc183b1b2003803e39efbd22451f848adaba14d28c7c7"
+    ],
+    "generatedData": [
+      "austria-areas.json",
+      "callsigns-oe.json",
+      "repeaters-at.json",
+      "vienna-locations.json",
+      "vienna-map.json"
+    ],
+    "manifest": {
+      "name": "oe1ebg-tools",
+      "version": "v0.3.0-17-g903770d",
+      "commit": "903770d53ef71cae1bde10d4fd604ab2be0a3a45",
+      "built": "2026-10-13T17:40:21Z"
+    }
+  },
+  "measurements": [
+    {
+      "file": "tests/backup-parts.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 28062,
+        "min": 27993,
+        "max": 28855
+      },
+      "peakMiB": {
+        "median": 2344.1,
+        "min": 2311.9,
+        "max": 2361.1
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 28062,
+          "peakMiB": 2311.9,
+          "status": 0,
+          "counts": {
+            "tests": 17,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 28855,
+          "peakMiB": 2361.1,
+          "status": 0,
+          "counts": {
+            "tests": 17,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 27993,
+          "peakMiB": 2344.1,
+          "status": 0,
+          "counts": {
+            "tests": 17,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/pages.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 10339,
+        "min": 9748,
+        "max": 11932
+      },
+      "peakMiB": {
+        "median": 56.1,
+        "min": 56,
+        "max": 56.2
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 10339,
+          "peakMiB": 56.1,
+          "status": 0,
+          "counts": {
+            "tests": 17,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 11932,
+          "peakMiB": 56.2,
+          "status": 0,
+          "counts": {
+            "tests": 17,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 9748,
+          "peakMiB": 56,
+          "status": 0,
+          "counts": {
+            "tests": 17,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/confirm-offline.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 3077,
+        "min": 3069,
+        "max": 3082
+      },
+      "peakMiB": {
+        "median": 242.9,
+        "min": 242.6,
+        "max": 243.6
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 3077,
+          "peakMiB": 242.6,
+          "status": 0,
+          "counts": {
+            "tests": 7,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 3082,
+          "peakMiB": 242.9,
+          "status": 0,
+          "counts": {
+            "tests": 7,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 3069,
+          "peakMiB": 243.6,
+          "status": 0,
+          "counts": {
+            "tests": 7,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/notfunk-offline.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 1920,
+        "min": 1892,
+        "max": 1983
+      },
+      "peakMiB": {
+        "median": 237.3,
+        "min": 236.7,
+        "max": 237.4
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 1920,
+          "peakMiB": 237.4,
+          "status": 0,
+          "counts": {
+            "tests": 4,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 1983,
+          "peakMiB": 237.3,
+          "status": 0,
+          "counts": {
+            "tests": 4,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 1892,
+          "peakMiB": 236.7,
+          "status": 0,
+          "counts": {
+            "tests": 4,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/location-goldset.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 1541,
+        "min": 1519,
+        "max": 1593
+      },
+      "peakMiB": {
+        "median": 279.4,
+        "min": 278.3,
+        "max": 282.5
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 1519,
+          "peakMiB": 278.3,
+          "status": 0,
+          "counts": {
+            "tests": 1,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 1541,
+          "peakMiB": 282.5,
+          "status": 0,
+          "counts": {
+            "tests": 1,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 1593,
+          "peakMiB": 279.4,
+          "status": 0,
+          "counts": {
+            "tests": 1,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/adif-chunked.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 1502,
+        "min": 1480,
+        "max": 1532
+      },
+      "peakMiB": {
+        "median": 383.8,
+        "min": 373.3,
+        "max": 387.9
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 1480,
+          "peakMiB": 373.3,
+          "status": 0,
+          "counts": {
+            "tests": 71,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 1532,
+          "peakMiB": 383.8,
+          "status": 0,
+          "counts": {
+            "tests": 71,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 1502,
+          "peakMiB": 387.9,
+          "status": 0,
+          "counts": {
+            "tests": 71,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/location-areas.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 731,
+        "min": 730,
+        "max": 742
+      },
+      "peakMiB": {
+        "median": 272.7,
+        "min": 269.4,
+        "max": 272.8
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 742,
+          "peakMiB": 269.4,
+          "status": 0,
+          "counts": {
+            "tests": 12,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 730,
+          "peakMiB": 272.8,
+          "status": 0,
+          "counts": {
+            "tests": 12,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 731,
+          "peakMiB": 272.7,
+          "status": 0,
+          "counts": {
+            "tests": 12,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/adif-official.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 587,
+        "min": 585,
+        "max": 625
+      },
+      "peakMiB": {
+        "median": 263.5,
+        "min": 263.2,
+        "max": 263.9
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 625,
+          "peakMiB": 263.5,
+          "status": 0,
+          "counts": {
+            "tests": 12,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 587,
+          "peakMiB": 263.2,
+          "status": 0,
+          "counts": {
+            "tests": 12,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 585,
+          "peakMiB": 263.9,
+          "status": 0,
+          "counts": {
+            "tests": 12,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/location-search.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 540,
+        "min": 539,
+        "max": 545
+      },
+      "peakMiB": {
+        "median": 230.9,
+        "min": 197.2,
+        "max": 236
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 539,
+          "peakMiB": 236,
+          "status": 0,
+          "counts": {
+            "tests": 13,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 545,
+          "peakMiB": 197.2,
+          "status": 0,
+          "counts": {
+            "tests": 13,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 540,
+          "peakMiB": 230.9,
+          "status": 0,
+          "counts": {
+            "tests": 13,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/build-site.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 504,
+        "min": 497,
+        "max": 596
+      },
+      "peakMiB": {
+        "median": 49.5,
+        "min": 49.4,
+        "max": 49.7
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 596,
+          "peakMiB": 49.4,
+          "status": 0,
+          "counts": {
+            "tests": 3,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 504,
+          "peakMiB": 49.7,
+          "status": 0,
+          "counts": {
+            "tests": 3,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 497,
+          "peakMiB": 49.5,
+          "status": 0,
+          "counts": {
+            "tests": 3,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/real-data.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 445,
+        "min": 436,
+        "max": 447
+      },
+      "peakMiB": {
+        "median": 49.3,
+        "min": 49.2,
+        "max": 49.5
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 436,
+          "peakMiB": 49.2,
+          "status": 0,
+          "counts": {
+            "tests": 2,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 445,
+          "peakMiB": 49.3,
+          "status": 0,
+          "counts": {
+            "tests": 2,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 447,
+          "peakMiB": 49.5,
+          "status": 0,
+          "counts": {
+            "tests": 2,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/adif-validate-snapshot.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 392,
+        "min": 384,
+        "max": 398
+      },
+      "peakMiB": {
+        "median": 165.3,
+        "min": 164,
+        "max": 165.7
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 384,
+          "peakMiB": 165.3,
+          "status": 0,
+          "counts": {
+            "tests": 1,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 398,
+          "peakMiB": 165.7,
+          "status": 0,
+          "counts": {
+            "tests": 1,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 392,
+          "peakMiB": 164,
+          "status": 0,
+          "counts": {
+            "tests": 1,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/deploy-headers.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 290,
+        "min": 283,
+        "max": 297
+      },
+      "peakMiB": {
+        "median": 195.6,
+        "min": 154.5,
+        "max": 195.8
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 297,
+          "peakMiB": 195.6,
+          "status": 0,
+          "counts": {
+            "tests": 7,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 283,
+          "peakMiB": 154.5,
+          "status": 0,
+          "counts": {
+            "tests": 7,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 290,
+          "peakMiB": 195.8,
+          "status": 0,
+          "counts": {
+            "tests": 7,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/storage.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 275,
+        "min": 265,
+        "max": 277
+      },
+      "peakMiB": {
+        "median": 54,
+        "min": 53.5,
+        "max": 54.3
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 265,
+          "peakMiB": 53.5,
+          "status": 0,
+          "counts": {
+            "tests": 15,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 277,
+          "peakMiB": 54,
+          "status": 0,
+          "counts": {
+            "tests": 15,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 275,
+          "peakMiB": 54.3,
+          "status": 0,
+          "counts": {
+            "tests": 15,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/adif-crosscheck.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 255,
+        "min": 245,
+        "max": 257
+      },
+      "peakMiB": {
+        "median": 105.8,
+        "min": 105.6,
+        "max": 106
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 255,
+          "peakMiB": 105.6,
+          "status": 0,
+          "counts": {
+            "tests": 80,
+            "failures": 0,
+            "skipped": 80
+          }
+        },
+        {
+          "wallMs": 245,
+          "peakMiB": 106,
+          "status": 0,
+          "counts": {
+            "tests": 80,
+            "failures": 0,
+            "skipped": 80
+          }
+        },
+        {
+          "wallMs": 257,
+          "peakMiB": 105.8,
+          "status": 0,
+          "counts": {
+            "tests": 80,
+            "failures": 0,
+            "skipped": 80
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/junit-reporter.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 232,
+        "min": 228,
+        "max": 234
+      },
+      "peakMiB": {
+        "median": 49.6,
+        "min": 49.4,
+        "max": 49.6
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 234,
+          "peakMiB": 49.6,
+          "status": 0,
+          "counts": {
+            "tests": 4,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 232,
+          "peakMiB": 49.6,
+          "status": 0,
+          "counts": {
+            "tests": 4,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 228,
+          "peakMiB": 49.4,
+          "status": 0,
+          "counts": {
+            "tests": 4,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/adif.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 205,
+        "min": 196,
+        "max": 240
+      },
+      "peakMiB": {
+        "median": 55,
+        "min": 55,
+        "max": 55.1
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 240,
+          "peakMiB": 55,
+          "status": 0,
+          "counts": {
+            "tests": 10,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 196,
+          "peakMiB": 55,
+          "status": 0,
+          "counts": {
+            "tests": 10,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 205,
+          "peakMiB": 55.1,
+          "status": 0,
+          "counts": {
+            "tests": 10,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/resource-limits.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 193,
+        "min": 185,
+        "max": 193
+      },
+      "peakMiB": {
+        "median": 133.8,
+        "min": 133.7,
+        "max": 133.9
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 193,
+          "peakMiB": 133.7,
+          "status": 0,
+          "counts": {
+            "tests": 6,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 193,
+          "peakMiB": 133.8,
+          "status": 0,
+          "counts": {
+            "tests": 6,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 185,
+          "peakMiB": 133.9,
+          "status": 0,
+          "counts": {
+            "tests": 6,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/utm.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 177,
+        "min": 175,
+        "max": 178
+      },
+      "peakMiB": {
+        "median": 58.5,
+        "min": 58.3,
+        "max": 58.8
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 178,
+          "peakMiB": 58.8,
+          "status": 0,
+          "counts": {
+            "tests": 11,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 177,
+          "peakMiB": 58.5,
+          "status": 0,
+          "counts": {
+            "tests": 11,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 175,
+          "peakMiB": 58.3,
+          "status": 0,
+          "counts": {
+            "tests": 11,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/sota-alerts.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 167,
+        "min": 158,
+        "max": 172
+      },
+      "peakMiB": {
+        "median": 68.3,
+        "min": 68.2,
+        "max": 68.4
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 172,
+          "peakMiB": 68.4,
+          "status": 0,
+          "counts": {
+            "tests": 30,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 167,
+          "peakMiB": 68.3,
+          "status": 0,
+          "counts": {
+            "tests": 30,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 158,
+          "peakMiB": 68.2,
+          "status": 0,
+          "counts": {
+            "tests": 30,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/sw-core.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 159,
+        "min": 153,
+        "max": 164
+      },
+      "peakMiB": {
+        "median": 62.5,
+        "min": 62.4,
+        "max": 62.5
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 164,
+          "peakMiB": 62.5,
+          "status": 0,
+          "counts": {
+            "tests": 25,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 153,
+          "peakMiB": 62.4,
+          "status": 0,
+          "counts": {
+            "tests": 25,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 159,
+          "peakMiB": 62.5,
+          "status": 0,
+          "counts": {
+            "tests": 25,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/notfunk-integrity.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 156,
+        "min": 153,
+        "max": 160
+      },
+      "peakMiB": {
+        "median": 62.1,
+        "min": 62,
+        "max": 62.1
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 153,
+          "peakMiB": 62,
+          "status": 0,
+          "counts": {
+            "tests": 25,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 156,
+          "peakMiB": 62.1,
+          "status": 0,
+          "counts": {
+            "tests": 25,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 160,
+          "peakMiB": 62.1,
+          "status": 0,
+          "counts": {
+            "tests": 25,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/tools-html.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 153,
+        "min": 151,
+        "max": 153
+      },
+      "peakMiB": {
+        "median": 56.6,
+        "min": 56.5,
+        "max": 56.7
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 153,
+          "peakMiB": 56.5,
+          "status": 0,
+          "counts": {
+            "tests": 21,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 151,
+          "peakMiB": 56.7,
+          "status": 0,
+          "counts": {
+            "tests": 21,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 153,
+          "peakMiB": 56.6,
+          "status": 0,
+          "counts": {
+            "tests": 21,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/adif-validate.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 150,
+        "min": 148,
+        "max": 154
+      },
+      "peakMiB": {
+        "median": 64.4,
+        "min": 64.4,
+        "max": 64.4
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 154,
+          "peakMiB": 64.4,
+          "status": 0,
+          "counts": {
+            "tests": 31,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 150,
+          "peakMiB": 64.4,
+          "status": 0,
+          "counts": {
+            "tests": 31,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 148,
+          "peakMiB": 64.4,
+          "status": 0,
+          "counts": {
+            "tests": 31,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/notfunk-form.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 143,
+        "min": 139,
+        "max": 150
+      },
+      "peakMiB": {
+        "median": 60.7,
+        "min": 60.5,
+        "max": 60.8
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 150,
+          "peakMiB": 60.5,
+          "status": 0,
+          "counts": {
+            "tests": 25,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 143,
+          "peakMiB": 60.8,
+          "status": 0,
+          "counts": {
+            "tests": 25,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 139,
+          "peakMiB": 60.7,
+          "status": 0,
+          "counts": {
+            "tests": 25,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/notfunk-model.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 142,
+        "min": 141,
+        "max": 146
+      },
+      "peakMiB": {
+        "median": 59,
+        "min": 58.9,
+        "max": 59.2
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 146,
+          "peakMiB": 59,
+          "status": 0,
+          "counts": {
+            "tests": 11,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 142,
+          "peakMiB": 58.9,
+          "status": 0,
+          "counts": {
+            "tests": 11,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 141,
+          "peakMiB": 59.2,
+          "status": 0,
+          "counts": {
+            "tests": 11,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/notfunk-times.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 141,
+        "min": 140,
+        "max": 142
+      },
+      "peakMiB": {
+        "median": 58.6,
+        "min": 58.4,
+        "max": 58.7
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 141,
+          "peakMiB": 58.7,
+          "status": 0,
+          "counts": {
+            "tests": 6,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 140,
+          "peakMiB": 58.6,
+          "status": 0,
+          "counts": {
+            "tests": 6,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 142,
+          "peakMiB": 58.4,
+          "status": 0,
+          "counts": {
+            "tests": 6,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/confirm-model.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 140,
+        "min": 137,
+        "max": 143
+      },
+      "peakMiB": {
+        "median": 58.6,
+        "min": 58.4,
+        "max": 58.8
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 137,
+          "peakMiB": 58.4,
+          "status": 0,
+          "counts": {
+            "tests": 14,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 140,
+          "peakMiB": 58.6,
+          "status": 0,
+          "counts": {
+            "tests": 14,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 143,
+          "peakMiB": 58.8,
+          "status": 0,
+          "counts": {
+            "tests": 14,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/sota-alerts-api.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 140,
+        "min": 140,
+        "max": 143
+      },
+      "peakMiB": {
+        "median": 58,
+        "min": 57.9,
+        "max": 58.1
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 140,
+          "peakMiB": 58.1,
+          "status": 0,
+          "counts": {
+            "tests": 5,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 140,
+          "peakMiB": 58,
+          "status": 0,
+          "counts": {
+            "tests": 5,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 143,
+          "peakMiB": 57.9,
+          "status": 0,
+          "counts": {
+            "tests": 5,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/location-names.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 137,
+        "min": 136,
+        "max": 138
+      },
+      "peakMiB": {
+        "median": 59.1,
+        "min": 58.9,
+        "max": 59.1
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 138,
+          "peakMiB": 59.1,
+          "status": 0,
+          "counts": {
+            "tests": 9,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 137,
+          "peakMiB": 59.1,
+          "status": 0,
+          "counts": {
+            "tests": 9,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 136,
+          "peakMiB": 58.9,
+          "status": 0,
+          "counts": {
+            "tests": 9,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/confirm-export.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 135,
+        "min": 131,
+        "max": 136
+      },
+      "peakMiB": {
+        "median": 54.6,
+        "min": 54.6,
+        "max": 54.7
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 131,
+          "peakMiB": 54.6,
+          "status": 0,
+          "counts": {
+            "tests": 14,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 135,
+          "peakMiB": 54.6,
+          "status": 0,
+          "counts": {
+            "tests": 14,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 136,
+          "peakMiB": 54.7,
+          "status": 0,
+          "counts": {
+            "tests": 14,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/csv-export.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 135,
+        "min": 133,
+        "max": 144
+      },
+      "peakMiB": {
+        "median": 60.7,
+        "min": 60.6,
+        "max": 60.8
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 144,
+          "peakMiB": 60.8,
+          "status": 0,
+          "counts": {
+            "tests": 6,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 135,
+          "peakMiB": 60.6,
+          "status": 0,
+          "counts": {
+            "tests": 6,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 133,
+          "peakMiB": 60.7,
+          "status": 0,
+          "counts": {
+            "tests": 6,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/location-freetext.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 135,
+        "min": 134,
+        "max": 139
+      },
+      "peakMiB": {
+        "median": 59.2,
+        "min": 59.1,
+        "max": 59.5
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 139,
+          "peakMiB": 59.1,
+          "status": 0,
+          "counts": {
+            "tests": 11,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 134,
+          "peakMiB": 59.5,
+          "status": 0,
+          "counts": {
+            "tests": 11,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 135,
+          "peakMiB": 59.2,
+          "status": 0,
+          "counts": {
+            "tests": 11,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/confirm-map.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 134,
+        "min": 128,
+        "max": 134
+      },
+      "peakMiB": {
+        "median": 58.9,
+        "min": 58.8,
+        "max": 59.2
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 134,
+          "peakMiB": 58.9,
+          "status": 0,
+          "counts": {
+            "tests": 6,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 128,
+          "peakMiB": 58.8,
+          "status": 0,
+          "counts": {
+            "tests": 6,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 134,
+          "peakMiB": 59.2,
+          "status": 0,
+          "counts": {
+            "tests": 6,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/location-parse.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 130,
+        "min": 129,
+        "max": 138
+      },
+      "peakMiB": {
+        "median": 50.3,
+        "min": 50.1,
+        "max": 50.5
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 130,
+          "peakMiB": 50.1,
+          "status": 0,
+          "counts": {
+            "tests": 5,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 138,
+          "peakMiB": 50.5,
+          "status": 0,
+          "counts": {
+            "tests": 5,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 129,
+          "peakMiB": 50.3,
+          "status": 0,
+          "counts": {
+            "tests": 5,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/confirm-comments.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 129,
+        "min": 128,
+        "max": 135
+      },
+      "peakMiB": {
+        "median": 54.9,
+        "min": 54.9,
+        "max": 55.3
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 135,
+          "peakMiB": 55.3,
+          "status": 0,
+          "counts": {
+            "tests": 15,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 128,
+          "peakMiB": 54.9,
+          "status": 0,
+          "counts": {
+            "tests": 15,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 129,
+          "peakMiB": 54.9,
+          "status": 0,
+          "counts": {
+            "tests": 15,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/notfunk-numbering.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 129,
+        "min": 127,
+        "max": 130
+      },
+      "peakMiB": {
+        "median": 51.7,
+        "min": 51.7,
+        "max": 52
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 129,
+          "peakMiB": 51.7,
+          "status": 0,
+          "counts": {
+            "tests": 8,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 127,
+          "peakMiB": 52,
+          "status": 0,
+          "counts": {
+            "tests": 8,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 130,
+          "peakMiB": 51.7,
+          "status": 0,
+          "counts": {
+            "tests": 8,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/adif-filter.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 128,
+        "min": 126,
+        "max": 128
+      },
+      "peakMiB": {
+        "median": 50,
+        "min": 49.9,
+        "max": 50.1
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 128,
+          "peakMiB": 49.9,
+          "status": 0,
+          "counts": {
+            "tests": 9,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 126,
+          "peakMiB": 50.1,
+          "status": 0,
+          "counts": {
+            "tests": 9,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 128,
+          "peakMiB": 50,
+          "status": 0,
+          "counts": {
+            "tests": 9,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/confirm-adif-spec.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 128,
+        "min": 127,
+        "max": 131
+      },
+      "peakMiB": {
+        "median": 54.3,
+        "min": 54.3,
+        "max": 54.4
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 131,
+          "peakMiB": 54.4,
+          "status": 0,
+          "counts": {
+            "tests": 9,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 127,
+          "peakMiB": 54.3,
+          "status": 0,
+          "counts": {
+            "tests": 9,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 128,
+          "peakMiB": 54.3,
+          "status": 0,
+          "counts": {
+            "tests": 9,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/adif-userdef.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 127,
+        "min": 126,
+        "max": 133
+      },
+      "peakMiB": {
+        "median": 52.7,
+        "min": 52.7,
+        "max": 52.8
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 133,
+          "peakMiB": 52.8,
+          "status": 0,
+          "counts": {
+            "tests": 10,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 127,
+          "peakMiB": 52.7,
+          "status": 0,
+          "counts": {
+            "tests": 10,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 126,
+          "peakMiB": 52.7,
+          "status": 0,
+          "counts": {
+            "tests": 10,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/callbook.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 126,
+        "min": 124,
+        "max": 126
+      },
+      "peakMiB": {
+        "median": 60.5,
+        "min": 59.5,
+        "max": 60.8
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 126,
+          "peakMiB": 60.5,
+          "status": 0,
+          "counts": {
+            "tests": 9,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 126,
+          "peakMiB": 59.5,
+          "status": 0,
+          "counts": {
+            "tests": 9,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 124,
+          "peakMiB": 60.8,
+          "status": 0,
+          "counts": {
+            "tests": 9,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/location-maidenhead.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 125,
+        "min": 123,
+        "max": 127
+      },
+      "peakMiB": {
+        "median": 59.6,
+        "min": 59.4,
+        "max": 59.7
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 127,
+          "peakMiB": 59.7,
+          "status": 0,
+          "counts": {
+            "tests": 6,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 125,
+          "peakMiB": 59.4,
+          "status": 0,
+          "counts": {
+            "tests": 6,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 123,
+          "peakMiB": 59.6,
+          "status": 0,
+          "counts": {
+            "tests": 6,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/repeaters.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 125,
+        "min": 123,
+        "max": 130
+      },
+      "peakMiB": {
+        "median": 53.3,
+        "min": 53.3,
+        "max": 53.3
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 130,
+          "peakMiB": 53.3,
+          "status": 0,
+          "counts": {
+            "tests": 9,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 125,
+          "peakMiB": 53.3,
+          "status": 0,
+          "counts": {
+            "tests": 9,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 123,
+          "peakMiB": 53.3,
+          "status": 0,
+          "counts": {
+            "tests": 9,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/adif-compliance.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 124,
+        "min": 123,
+        "max": 125
+      },
+      "peakMiB": {
+        "median": 49.7,
+        "min": 49.6,
+        "max": 49.7
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 125,
+          "peakMiB": 49.6,
+          "status": 0,
+          "counts": {
+            "tests": 4,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 124,
+          "peakMiB": 49.7,
+          "status": 0,
+          "counts": {
+            "tests": 4,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 123,
+          "peakMiB": 49.7,
+          "status": 0,
+          "counts": {
+            "tests": 4,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/confirm-locfield.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 124,
+        "min": 123,
+        "max": 124
+      },
+      "peakMiB": {
+        "median": 51.3,
+        "min": 51.2,
+        "max": 51.4
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 124,
+          "peakMiB": 51.4,
+          "status": 0,
+          "counts": {
+            "tests": 9,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 124,
+          "peakMiB": 51.3,
+          "status": 0,
+          "counts": {
+            "tests": 9,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 123,
+          "peakMiB": 51.2,
+          "status": 0,
+          "counts": {
+            "tests": 9,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/rowcache.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 123,
+        "min": 121,
+        "max": 129
+      },
+      "peakMiB": {
+        "median": 53.1,
+        "min": 52.9,
+        "max": 53.3
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 129,
+          "peakMiB": 53.3,
+          "status": 0,
+          "counts": {
+            "tests": 5,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 123,
+          "peakMiB": 53.1,
+          "status": 0,
+          "counts": {
+            "tests": 5,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 121,
+          "peakMiB": 52.9,
+          "status": 0,
+          "counts": {
+            "tests": 5,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/confirm-backup.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 118,
+        "min": 118,
+        "max": 121
+      },
+      "peakMiB": {
+        "median": 50,
+        "min": 50,
+        "max": 50.1
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 121,
+          "peakMiB": 50,
+          "status": 0,
+          "counts": {
+            "tests": 12,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 118,
+          "peakMiB": 50,
+          "status": 0,
+          "counts": {
+            "tests": 12,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 118,
+          "peakMiB": 50.1,
+          "status": 0,
+          "counts": {
+            "tests": 12,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/pwa-manifest.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 118,
+        "min": 116,
+        "max": 123
+      },
+      "peakMiB": {
+        "median": 49.2,
+        "min": 49.1,
+        "max": 49.4
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 123,
+          "peakMiB": 49.2,
+          "status": 0,
+          "counts": {
+            "tests": 2,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 118,
+          "peakMiB": 49.4,
+          "status": 0,
+          "counts": {
+            "tests": 2,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 116,
+          "peakMiB": 49.1,
+          "status": 0,
+          "counts": {
+            "tests": 2,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    },
+    {
+      "file": "tests/geo.test.mjs",
+      "runs": 3,
+      "wallMs": {
+        "median": 109,
+        "min": 109,
+        "max": 115
+      },
+      "peakMiB": {
+        "median": 49.1,
+        "min": 49,
+        "max": 49.1
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 115,
+          "peakMiB": 49.1,
+          "status": 0,
+          "counts": {
+            "tests": 1,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 109,
+          "peakMiB": 49,
+          "status": 0,
+          "counts": {
+            "tests": 1,
+            "failures": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "wallMs": 109,
+          "peakMiB": 49.1,
+          "status": 0,
+          "counts": {
+            "tests": 1,
+            "failures": 0,
+            "skipped": 0
+          }
+        }
+      ]
+    }
+  ]
+}

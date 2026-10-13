@@ -1,0 +1,13 @@
+# Run 38440830333 (branch bench/36-image, throwaway): the pinned Playwright
+# image (2,521,590,405 bytes; docker save | zstd -3: 888,135,087 bytes) onto
+# a fresh ubuntu-latest runner, each in its own job. Milliseconds.
+pull  24495
+pull  25401
+pull  25930
+pull  33759
+pull  38330
+cache restore 5424  load 27187  total 32611
+cache restore 11346 load 26783  total 38129
+cache restore 12724 load 27556  total 40281
+cache restore 15877 load 27627  total 43504
+cache restore 7284  load 43072  total 50357
