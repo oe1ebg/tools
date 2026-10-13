@@ -61,6 +61,12 @@ async function serveNewVersion(context, tool) {
 // after the test is not part of it: drop the routes without waiting.
 test.afterEach(({ context }) => context.unrouteAll({ behavior: 'ignoreErrors' }));
 
+// The longest file (about 180 s of the Chromium run on the CI runner): its
+// tests spread over the workers instead of keeping one of them for the whole
+// file while the other runs out of work (#36). Each test has its own context
+// (its own service workers, caches and routes), so the order does not matter.
+test.describe.configure({ mode: 'parallel' });
+
 // Chromium does not route the browser's own update check (reg.update()) through
 // Playwright, but a registration of another script URL for the same scope is
 // an update to the page in every way (updatefound, waiting worker): the tests
