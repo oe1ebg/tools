@@ -55,7 +55,7 @@ test('compliance panel names the spec, the cross-check tools and this build', { 
   else await expect(panel.getByRole('link', { name: 'checks for this commit' })).toHaveAttribute('href', /\/commit\/[0-9a-f]+\/checks$/);
 });
 
-// The official ADIF test QSOs: 6197 QSOs × 180 fields. The table body is
+// The official ADIF test QSOs: 6202 QSOs × 180 fields. The table body is
 // virtualized (tools/adif/js/table.js): only the rows around the visible
 // part exist; an edit at the end of the log survives scrolling away and
 // back and lands in the export.
@@ -66,7 +66,7 @@ test('a large log loads fast, scrolls and exports edits', { tag: '@adif' }, asyn
   await page.goto('tools/adif/');
   const start = Date.now();
   await page.locator('#file-input').setInputFiles(OFFICIAL);
-  await expect(page.locator('#stats')).toContainText('6197 QSOs', { timeout: 30_000 });
+  await expect(page.locator('#stats')).toContainText('6202 QSOs', { timeout: 30_000 });
   await expect(page.locator('#validation-summary')).toContainText('ADIF valid');
   // generous: ~0.15 s in desktop Chromium, 4.4 s before the virtual table
   expect(Date.now() - start).toBeLessThan(20_000);
@@ -96,7 +96,7 @@ test('a large log loads fast, scrolls and exports edits', { tag: '@adif' }, asyn
   // known gaps)
   const check = validateAdif(await downloadText(await adiDownload), { today: '20991231' });
   expect(check.errors).toBe(0);
-  expect(check.records).toHaveLength(6197);
+  expect(check.records).toHaveLength(6202);
   expect(check.records[6196].fields.CALL).toBe('OE1ZZZ');
 });
 
@@ -181,29 +181,29 @@ test('field condition: counter, and the export still has every QSO', { tag: '@ad
   expect(records.map(r => r.CALL)).toEqual(['OE1ABC', 'OE3XYZ', 'DL1AA']);
 });
 
-test('filters the large official log; the export keeps all 6197 QSOs', { tag: '@adif' }, async ({ page }) => {
+test('filters the large official log; the export keeps all 6202 QSOs', { tag: '@adif' }, async ({ page }) => {
   test.setTimeout(120_000);
   await page.goto('tools/adif/');
   await page.locator('#file-input').setInputFiles(OFFICIAL);
-  await expect(page.locator('#stats')).toContainText('6197 QSOs', { timeout: 30_000 });
+  await expect(page.locator('#stats')).toContainText('6202 QSOs', { timeout: 30_000 });
   const count = page.locator('#flt-count');
   await page.locator('#flt-add-cond').click();
   await page.getByLabel('condition 1 field').fill('MODE');
   await page.getByLabel('condition 1 operator').selectOption('eq');
   await page.getByLabel('condition 1 value').fill('CW');
-  await expect(count).toHaveText('154 of 6197 QSOs shown'); // <MODE:2>CW in the file
+  await expect(count).toHaveText('154 of 6202 QSOs shown'); // <MODE:2>CW in the file
   const modes = await page.locator('#drop tbody tr[data-ri] td[data-col="MODE"]').allTextContents();
   expect(modes.length).toBeGreaterThan(0);
   expect(modes.every(m => m === 'CW')).toBe(true);
   // a search on top of it
   await page.locator('#flt-text').fill('zzzz-no-such-value');
-  await expect(count).toHaveText('0 of 6197 QSOs shown');
+  await expect(count).toHaveText('0 of 6202 QSOs shown');
   await expect(shownRows(page)).toHaveCount(0);
 
   const adiDownload = page.waitForEvent('download');
   await page.locator('#btn-export').click();
   const check = validateAdif(await downloadText(await adiDownload), { today: '20991231' });
-  expect(check.records).toHaveLength(6197);
+  expect(check.records).toHaveLength(6202);
 });
 
 /* ---------- big imports: progress, cancel, limits, re-check (issue #15) ---------- */
@@ -316,7 +316,7 @@ test('column headers of short fields keep their sort and remove buttons visible 
   test.setTimeout(120_000);
   await page.goto('tools/adif/');
   await page.locator('#file-input').setInputFiles(OFFICIAL);
-  await expect(page.locator('#stats')).toContainText('6197 QSOs', { timeout: 30_000 });
+  await expect(page.locator('#stats')).toContainText('6202 QSOs', { timeout: 30_000 });
   // every header: name button and x button inside the cell, not overlapping each other
   const bad = await page.locator('#drop thead th[data-col]').evaluateAll(ths => ths.flatMap(th => {
     const th0 = th.getBoundingClientRect(), s = th.querySelector('.sortcol').getBoundingClientRect(), r = th.querySelector('.rmcol').getBoundingClientRect();
