@@ -1,0 +1,73 @@
+bun test v1.4.2 (43848b5a7)
+
+tests/backup-parts.test.mjs:
+✗ notfunk: more records than one file accepts are split and restored [5880.58ms]
+  ^ this test timed out after 5000ms, before its done callback was called. If a done callback was not intended, remove the last parameter from the test callback function
+
+tests/junit-reporter.test.mjs:
+
+# Unhandled error between tests
+-------------------------------
+12 | const out = join(mkdtempSync(join(tmpdir(), 'junit-')), 'sample.xml');
+13 | // Without NODE_TEST_CONTEXT, which would make the child report to this run.
+14 | const { NODE_TEST_CONTEXT, ...env } = process.env;
+15 | const run = spawnSync(process.execPath, ['--test', '--test-reporter=./tests/junit-reporter.mjs',
+16 |   `--test-reporter-destination=${out}`, 'tests/fixtures/junit/sample.mjs'], { cwd: OE1EBG, encoding: 'utf8', env });
+17 | const xml = readFileSync(out, 'utf8');
+                 ^
+ENOENT: no such file or directory, open '$TMPDIR/junit-EtcnsI/sample.xml'
+    path: "$TMPDIR/junit-EtcnsI/sample.xml",
+ syscall: "open",
+   errno: -2,
+    code: "ENOENT"
+
+      at tests/junit-reporter.test.mjs:17:13
+-------------------------------
+
+
+tests/real-data.test.mjs:
+41 |       return 0;
+42 |     } catch (e) {
+43 |       return e.status;
+44 |     }
+45 |   };
+46 |   assert.equal(run(''), 0, 'skips without the flag');
+              ^
+AssertionError: skips without the flag
+
+1 !== 0
+
+ generatedMessage: false,
+     actual: 1,
+   expected: 0,
+   operator: "strictEqual",
+       diff: "simple",
+       code: "ERR_ASSERTION"
+
+      at tests/real-data.test.mjs:46:10
+      at run (node:async_hooks:144:29)
+      at node:test:1445:26
+      at executeTestNode (node:test:1448:45)
+      at node:test:1591:20
+✗ DATA_TESTS=require turns a missing data file into a failure [19.38ms]
+
+tests/sota-alerts-api.test.mjs:
+92 |       });
+93 |     } catch (err) {
+94 |       if (err.name === 'AbortError') throw new Error('Overpass timed out — try again later');
+95 |       // A rejected response without CORS headers is hidden by the browser;
+96 |       // JavaScript cannot distinguish it from other network failures.
+97 |       throw new Error('Overpass could not be reached (network, CORS or a server refusal). It requires a browser Referer; privacy settings may suppress it. Try summit search by name/code instead');
+                     ^
+error: Overpass could not be reached (network, CORS or a server refusal). It requires a browser Referer; privacy settings may suppress it. Try summit search by name/code instead
+      at searchOsmSummitsInView (tools/sota-alerts/js/api.js:97:17)
+      at async <anonymous> (tests/sota-alerts-api.test.mjs:22:26)
+      at async <anonymous> (node:test:1445:26)
+      at async executeTestNode (node:test:1448:63)
+✗ Overpass sends form data, no credentials and an origin-only Referer policy [2.67ms]
+
+ 557 pass
+ 81 skip
+ 4 fail
+ 1 error
+Ran 642 tests across 49 files. [28.66s]
