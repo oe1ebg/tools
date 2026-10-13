@@ -33,7 +33,7 @@ export function initLogStatistics(read) {
           el('tbody', {}, ...rows.map(row => el('tr', {}, el('th', { scope: 'row' }, labels[row.value] ? `${row.value} — ${labels[row.value]}` : row.value), el('td', {}, lsCount(row.count)), el('td', {}, `${row.percent.toFixed(1)}%`))))) : el('p', {}, 'No QSOs.'));
       fill(content,
         el('p', {}, `${scope.value === 'shown' ? 'Shown QSOs' : 'Whole log'}: ${lsCount(stats.count)} QSOs · ${stats.fieldCount} populated fields · ${stats.dxccCount} DXCC entities · ${stats.missingCalls} missing callsigns.`),
-        el('p', { class: 'hint' }, 'Percentages use all QSOs in this scope, including missing/invalid values; rounded to one decimal. Submodes retain reported MODE context. DXCC 0 means no entity. Callsigns are reported calls, including portable suffixes. Files count loaded sources, including empty files.'),
+        el('p', { class: 'hint' }, 'Percentages use all QSOs in this scope, including missing/invalid values; rounded to one decimal. Submodes retain reported MODE context; unrecognized submodes can be valid ADIF strings. DXCC 0 means no entity. Callsigns are reported calls, including portable suffixes. Files count loaded sources, including empty files.'),
         distribution('Bands', stats.bands), distribution('Modes', stats.modes), distribution('Submodes by reported MODE', stats.submodes),
         distribution('DXCC', stats.dxcc, ADIF_SPEC_ENUMS.DXCC_Entity_Code.labels),
         el('section', {}, el('h2', {}, 'Completeness'), el('p', { class: 'hint' }, 'Missing and invalid-present values are separate. BAND/FREQ is missing only when both are absent. Dates use QSO_DATE only. These counts do not add validation errors.'),
