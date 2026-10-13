@@ -1,0 +1,274 @@
+{
+  "scenario": "e2e",
+  "environment": {
+    "when": "2026-10-12T22:23:14.341Z",
+    "node": "v26.11.1",
+    "python": "Python 3.9.6",
+    "uv": "uv 0.13.0 (Homebrew 2026-10-09 aarch64-apple-darwin)",
+    "os": "darwin 27.0.0",
+    "cpus": 10,
+    "cpuModel": "Apple M1 Max",
+    "memoryGiB": 64,
+    "commit": "e5346459344a04c31c4deab4f48fed8720c5b3fa",
+    "dirty": true,
+    "playwrightImages": [
+      "ghcr.io/validator/validator:latest@sha256:3cb7d2f446677b84fb123427bc029e535739e2314b035b5824a4eb0557803761",
+      "mcr.microsoft.com/playwright:v1.64.0-noble@sha256:06a9939e57531807f8d5fd76ce44b53165ffb7d7501d87ab10e285c20b1e971f",
+      "nginx:1.31.0-alpine@sha256:2f07d83bf561b506400dc183b1b2003803e39efbd22451f848adaba14d28c7c7"
+    ],
+    "generatedData": [
+      "austria-areas.json",
+      "callsigns-oe.json",
+      "repeaters-at.json",
+      "vienna-locations.json",
+      "vienna-map.json"
+    ],
+    "manifest": {
+      "name": "oe1ebg-tools",
+      "version": "v0.3.0-11-ge534645-dirty",
+      "commit": "e5346459344a04c31c4deab4f48fed8720c5b3fa",
+      "built": "2026-10-12T22:12:45Z"
+    }
+  },
+  "measurements": [
+    {
+      "workers": 1,
+      "project": "chromium",
+      "runs": 5,
+      "wallMs": {
+        "median": 170120,
+        "min": 169789,
+        "max": 171377
+      },
+      "peakMiB": {
+        "median": 3131.1,
+        "min": 3125.2,
+        "max": 3143.8
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 171377,
+          "peakMiB": 3125.9,
+          "status": 0,
+          "counts": {
+            "expected": 132,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 170509
+          }
+        },
+        {
+          "wallMs": 170120,
+          "peakMiB": 3125.2,
+          "status": 0,
+          "counts": {
+            "expected": 132,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 169221
+          }
+        },
+        {
+          "wallMs": 171272,
+          "peakMiB": 3143.8,
+          "status": 0,
+          "counts": {
+            "expected": 132,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 170486
+          }
+        },
+        {
+          "wallMs": 169789,
+          "peakMiB": 3141.3,
+          "status": 0,
+          "counts": {
+            "expected": 132,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 169026
+          }
+        },
+        {
+          "wallMs": 170001,
+          "peakMiB": 3131.1,
+          "status": 0,
+          "counts": {
+            "expected": 132,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 169159
+          }
+        }
+      ]
+    },
+    {
+      "workers": 2,
+      "project": "chromium",
+      "runs": 5,
+      "wallMs": {
+        "median": 90186,
+        "min": 90091,
+        "max": 90412
+      },
+      "peakMiB": {
+        "median": 3124.7,
+        "min": 3113.7,
+        "max": 3139.6
+      },
+      "failedRuns": 0,
+      "results": [
+        {
+          "wallMs": 90186,
+          "peakMiB": 3113.7,
+          "status": 0,
+          "counts": {
+            "expected": 132,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 89434
+          }
+        },
+        {
+          "wallMs": 90202,
+          "peakMiB": 3115.6,
+          "status": 0,
+          "counts": {
+            "expected": 132,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 89415
+          }
+        },
+        {
+          "wallMs": 90133,
+          "peakMiB": 3124.9,
+          "status": 0,
+          "counts": {
+            "expected": 132,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 89353
+          }
+        },
+        {
+          "wallMs": 90412,
+          "peakMiB": 3124.7,
+          "status": 0,
+          "counts": {
+            "expected": 132,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 89628
+          }
+        },
+        {
+          "wallMs": 90091,
+          "peakMiB": 3139.6,
+          "status": 0,
+          "counts": {
+            "expected": 132,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 89325
+          }
+        }
+      ]
+    },
+    {
+      "workers": 4,
+      "project": "chromium",
+      "runs": 5,
+      "wallMs": {
+        "median": 79534,
+        "min": 78946,
+        "max": 103819
+      },
+      "peakMiB": {
+        "median": 3126.1,
+        "min": 3117.7,
+        "max": 3142.3
+      },
+      "failedRuns": 1,
+      "results": [
+        {
+          "wallMs": 79339,
+          "peakMiB": 3117.7,
+          "status": 0,
+          "counts": {
+            "expected": 132,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 78574
+          }
+        },
+        {
+          "wallMs": 81833,
+          "peakMiB": 3124.8,
+          "status": 0,
+          "counts": {
+            "expected": 132,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 81059
+          }
+        },
+        {
+          "wallMs": 78946,
+          "peakMiB": 3126.1,
+          "status": 0,
+          "counts": {
+            "expected": 132,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 78297
+          }
+        },
+        {
+          "wallMs": 79534,
+          "peakMiB": 3142.3,
+          "status": 0,
+          "counts": {
+            "expected": 132,
+            "unexpected": 0,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 78750
+          }
+        },
+        {
+          "wallMs": 103819,
+          "peakMiB": 3139.2,
+          "status": 1,
+          "counts": {
+            "expected": 131,
+            "unexpected": 1,
+            "flaky": 0,
+            "skipped": 0,
+            "durationMs": 103033
+          },
+          "failed": [
+            "offline-update.spec.mjs: a failed draft save holds the update back, keeps the input, and a retry updates (Error: expect(received).toBeUndefined())"
+          ],
+          "outputTail": "   \"timeout\": 60000,\n              \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"chromium\",\n              \"projectName\": \"chromium\",\n              \"results\": [\n                {\n                  \"workerIndex\": 1,\n                  \"parallelIndex\": 1,\n                  \"status\": \"passed\",\n                  \"duration\": 101,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T22:50:43.460Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-270fba9933f7f4be7d2d\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 134,\n          \"column\": 1\n        },\n        {\n          \"title\": \"Notfunk migration: a taken message number is kept, never duplicated\",\n          \"ok\": true,\n          \"tags\": [],\n          \"tests\": [\n            {\n              \"timeout\": 60000,\n              \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"chromium\",\n              \"projectName\": \"chromium\",\n              \"results\": [\n                {\n                  \"workerIndex\": 1,\n                  \"parallelIndex\": 1,\n                  \"status\": \"passed\",\n                  \"duration\": 99,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T22:50:43.568Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-761921e72cb588c776f2\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 182,\n          \"column\": 1\n        },\n        {\n          \"title\": \"Notfunk: fallback notices leave the error banner alone and resolve\",\n          \"ok\": true,\n          \"tags\": [],\n          \"tests\": [\n            {\n              \"timeout\": 60000,\n              \"annotations\": [],\n              \"expectedStatus\": \"passed\",\n              \"projectId\": \"chromium\",\n              \"projectName\": \"chromium\",\n              \"results\": [\n                {\n                  \"workerIndex\": 1,\n                  \"parallelIndex\": 1,\n                  \"status\": \"passed\",\n                  \"duration\": 6383,\n                  \"errors\": [],\n                  \"stdout\": [],\n                  \"stderr\": [],\n                  \"retry\": 0,\n                  \"startTime\": \"2026-10-12T22:50:43.672Z\",\n                  \"annotations\": [],\n                  \"attachments\": []\n                }\n              ],\n              \"status\": \"expected\"\n            }\n          ],\n          \"id\": \"41a9034ffaaff0acdbbb-bade05d4fdc03f1978af\",\n          \"file\": \"storage.spec.mjs\",\n          \"line\": 221,\n          \"column\": 1\n        }\n      ]\n    }\n  ],\n  \"errors\": [],\n  \"stats\": {\n    \"startTime\": \"2026-10-12T22:50:18.671Z\",\n    \"duration\": 103033.17199999999,\n    \"expected\": 131,\n    \"skipped\": 0,\n    \"unexpected\": 1,\n    \"flaky\": 0\n  }\n}\n\n      103.81 real       183.19 user        45.19 sys\n          3291725824  maximum resident set size\n                   0  average shared memory size\n                   0  average unshared data size\n                   0  average unshared stack size\n             7133245  page reclaims\n               40969  page faults\n                   0  swaps\n                   0  block input operations\n                   0  block output operations\n              484372  messages sent\n              223640  messages received\n                   0  signals received\n               69246  voluntary context switches\n             2543786  involuntary context switches\n          2942859681  instructions retired\n          1023689013  cycles elapsed\n            50206960  peak memory footprint\n"
+        }
+      ]
+    }
+  ],
+  "server": "tests/e2e/serve.py"
+}

@@ -1,7 +1,8 @@
 # Test timing (issue #36)
 
-Status: **baseline pending.** This file records measurements; none of the
-numbers below are final. Commands and raw results must accompany every table.
+Status: **CI baseline done** (2026-10-13, below); the local baseline on the
+development machine (Apple M5 Pro, Node 24) is still to be repeated on a fixed
+commit. Commands and raw results must accompany every table.
 
 ## How to measure
 
@@ -10,13 +11,20 @@ node scripts/bench_tests.mjs unit --runs 5 --concurrency 1,2,4,default
 node scripts/bench_tests.mjs unit-files            # each test file alone: its own wall time
 node scripts/bench_tests.mjs unit-focused --file tests/storage.test.mjs
 node scripts/bench_tests.mjs e2e --project chromium --workers 1,2,4 --runs 5   # needs just e2e-setup + build
-node scripts/bench_tests.mjs ci-runs --runs 10     # step durations from recent ci.yml runs (gh)
+node scripts/bench_tests.mjs ci-runs --runs 10 --branch B --event workflow_dispatch   # jobs, steps, phases of ci.yml runs (gh)
 ```
 
 Each writes `bench-tests.json` (git-ignored; `--out` renames it) with the
 environment (runtimes, OS, CPUs, memory, commit, image digests, generated
 data) and every individual result. Wall time is elapsed time, not summed case
 durations. Peak memory is the largest single process, not the process tree.
+The environment includes the load average at the start: timings of a busy
+machine differ. `ci-runs` also records per run the queue time (per job; the
+run itself starts at once), the wall time from the start to the last job's
+end, the job that ended last (the end of the critical path), runner seconds
+and billed minutes (each job rounded up to a minute), the runner and its image,
+and for each `validate` job its browser step in phases from the timestamped
+job log: image pull, `npm install`, Playwright start, the tests.
 Warm runs: five repetitions. Cold runs (three) are done by hand and name what
 is absent: package cache, generated data, or container images, one at a time.
 
@@ -195,12 +203,109 @@ Two experiments, both with retries off:
 The local WebKit `confirm.spec.mjs` timeouts are covered in "Follow-up: the
 WebKit `confirm.spec.mjs` timeouts" below.
 
-## Baseline (to do)
+## Baseline, CI (2026-10-13, commit e534645)
 
-- [ ] fixed commit, with the large-backup and ADIF loading tests
-- [ ] local: five warm repetitions per scenario; local cold setup runs
-- [ ] CI: about ten comparable runs; queue time, critical path, runner minutes
-- [ ] the three largest contributors to elapsed time and runner cost
+Fixed commit e534645 (`main` with #41 and #44, the large-backup and ADIF
+loading tests included), pinned as branch `bench/36-ci-e534645` and run ten
+times one after another with `workflow_dispatch` (every check: all five browser
+projects, the ADIF cross-checks with `ADIF_CROSSCHECK=require` in `test`, the
+data tests with `DATA_TESTS=require` in `bundle`). Runs 38315097585 to
+38320411862, all successful. GitHub-hosted `ubuntu-latest` (image
+ubuntu-24.04, version 20261004.327.1; 4 vCPU AMD EPYC, 16 GB, seen in the
+earlier throwaway workflow). Raw:
+`tests/timing-results/2026-10-13/ci-e534645/ci-runs.json`, from
+`node scripts/bench_tests.mjs ci-runs --runs 10 --branch bench/36-ci-e534645 --event workflow_dispatch`.
+
+| per run | median | range |
+| --- | ---: | ---: |
+| wall time, run start to the last job's end | 352 s | 333–390 s |
+| queue time of a job (the run itself starts at once) | 2 s | 1–3 s |
+| runner time, all jobs | 1206 s (20 min) | 1167–1308 s |
+| billed minutes (each job rounded up) | 25 | 23–28 |
+
+| job | start | end | duration |
+| --- | ---: | ---: | ---: |
+| changes | 3 s | 9 s | 6 s |
+| test (unit tests, Go cross-check tools) | 10 s | 60 s | 49 s |
+| bundle (build, unit tests with the data) | 10 s | 82 s | 70 s |
+| validate (chromium) | 84 s | 352 s | 280 s |
+| validate (mobile-chromium) | 85 s | 348 s | 281 s |
+| validate (webkit) | 85 s | 274 s | 189 s |
+| validate (mobile-webkit) | 85 s | 268 s | 184 s |
+| validate (firefox) | 84 s | 259 s | 180 s |
+
+Starts and ends are medians from the run start. Within the jobs:
+
+| step | median | range |
+| --- | ---: | ---: |
+| `test`: unit tests (645, 9 skipped: the data tests) | 28 s | 23–49 s |
+| `test`: set up Go; build the cross-check tools (cached) | 12 s; 0 s | 8–14 s; 0–1 s |
+| `bundle`: build | 9 s | 7–11 s |
+| `bundle`: unit tests with the data (645, 80 skipped: the cross-checks) | 37 s | 25–51 s |
+| `validate`: Playwright image pull (each project) | 25 s | 23–36 s |
+| `validate`: `npm install` of `@playwright/test` | 2 s | 2 s |
+| `validate`: tests, chromium / mobile-chromium | 231 / 235 s | 168–251 s |
+| `validate`: tests, webkit / mobile-webkit / firefox | 146 / 144 / 139 s | 98–152 s |
+| `validate (chromium)`: Nu Html Checker | 10 s | 8–12 s |
+
+Critical path: `changes`, then `bundle` (ends at about 82 s), then
+`validate (chromium)` (ended last in 7 runs) or `validate (mobile-chromium)`
+(3 runs). `test` runs beside `bundle` and gives the first result (unit tests
+and cross-checks) after about 60 s. Reliability: no failed and no flaky test
+(one retry per test in CI) in the 10 runs × 5 projects.
+
+**The three largest contributors:**
+
+1. **The Chromium-engine browser tests** (chromium, mobile-chromium: about
+   230 s of tests each). They are the critical path after `bundle`; together
+   with the other three projects the browser tests are about 900 s of the
+   1206 runner seconds of a run.
+2. **The unit suite repeated in `bundle`** (37 s, on the critical path before
+   any browser job can start). It repeats the 556 tests `test` has already
+   run and adds the 9 data tests that `test` skips (part 3: whether some of
+   the repeated tests check something else once the data is there).
+3. **Setup per browser job**: pulling the Playwright image (25 s × 5 = about
+   2 min of runner time per run, 11 %), plus `npm install` and the Nu Html
+   Checker; small per job, but paid in each of the five.
+
+## Local, second machine (2026-10-13, commit 6797d77)
+
+Not the development machine of the 2026-10-12 results: this session ran on
+an Apple M1 Max (10 CPUs, 64 GiB, macOS 27.0.0) with **Node v26.11.1** (only
+Node 26 is installed there; `.nvmrc` and CI use 24.21.0), and the machine was
+busy (load average 3.5–12 at the starts). So these numbers are **not
+comparable** with the 2026-10-12 table; they show the suite on slower, busier
+hardware and that the browser runs no longer fail. Raw:
+`tests/timing-results/2026-10-13/local-m1-node26/`.
+
+| scenario (5 runs each) | median | range |
+| --- | ---: | ---: |
+| unit, concurrency 1 | 45.1 s | 44.8–45.9 s |
+| unit, concurrency 2 | 24.0 s | 23.8–24.1 s |
+| unit, concurrency 4 | 20.8 s | 20.6–21.2 s |
+| unit, concurrency default | 20.6 s | 20.5–20.9 s |
+| unit, `backup-parts.test.mjs` alone (1 run) | 19.8 s, 2.2 GiB | – |
+| unit, focused `storage.test.mjs` | 0.40 s | 0.39–0.40 s |
+| chromium, 1 worker (134 tests) | 169.7 s | 168.4–171.7 s |
+| chromium, 2 workers | 91.1 s | 91.1–92.1 s |
+| chromium, 4 workers | 76.4 s | 76.0–76.9 s |
+| mobile-chromium, 2 workers | 98.2 s | 97.3–98.7 s |
+| webkit, 2 workers (79 passed, 55 skipped) | 55.5 s | 54.4–55.8 s |
+| mobile-webkit, 2 workers (78 passed, 56 skipped) | 53.2 s | 52.7–53.6 s |
+
+0 failed runs in these 35 (no retries). The same scenarios on e534645, before
+#45 (`before-45/`): webkit failed 3 of 5 runs and chromium at 4 workers 1 of
+5 (the header jump, see "Follow-up: the WebKit `confirm.spec.mjs` timeouts").
+Firefox does not start from this session on macOS 27 and is not measured.
+
+## Baseline, still to do
+
+- [x] fixed commit, with the large-backup and ADIF loading tests (e534645)
+- [x] CI: ten comparable runs; queue time, critical path, runner minutes
+- [x] the three largest contributors to elapsed time and runner cost (CI)
+- [ ] local on the development machine (Node 24), five warm repetitions per
+      scenario, on one fixed commit; Firefox
+- [ ] local cold setup runs (package cache, generated data, container images)
 
 ### Local WebKit against nginx (server experiment)
 
