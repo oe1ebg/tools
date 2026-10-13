@@ -1,7 +1,7 @@
 # ADIF Editor
 
-A dependency-free, client-side ADIF (.adi) viewer/editor. Drag-drop
-a log file in, edit cells/rows/fields in a table, export a fresh `.adi`. No
+A dependency-free, client-side ADIF (ADI/ADX) viewer/editor. Drag-drop
+a log file in, edit cells/rows/fields in a table, export a fresh `.adi` or `.adx`. No
 network calls, no framework. The published page loads plain ES modules; a
 generated single-file version (`adif-editor.html`) runs without a server.
 
@@ -75,8 +75,8 @@ that haven't been exported (ADI or CSV), closing or reloading the tab
 asks first.
 
 **Encoding:** files are read as UTF-8, else as Windows-1252 (with a
-warning). The ADI export is ASCII, as ADIF requires: other characters are
-transliterated (ä → ae, é → e, the rest → ?), line breaks become blanks
+warning). The ADI export is ASCII, as ADIF requires: an explicit preflight decision
+is required before other characters are transliterated (ä → ae, é → e, the rest → ?), line breaks become blanks
 except in MultilineString fields (written as CR LF), and the editor says how
 many values that changed.
 
@@ -102,15 +102,14 @@ the same as before. Combining files whose declarations differ:
   valid; the warnings box says so;
 - same name, another type (USERDEF, or the type of an `APP_` field, where
   no indicator counts as M, so `<APP_X_Y:13>a\r\nb` in one file and
-  `<APP_X_Y:1:N>1` in the other conflict): the first loaded file's
-  declaration stays. The warnings box names the
+  `<APP_X_Y:1:N>1` in the other conflict): the combined ADI preview retains the first loaded file's
+  declaration, while export requires an explicit definition choice. The warnings box names the
   conflict at load, and the validation panel switches right away to the
   check of the log *as it would be exported*, so every value that no
   longer fits its declaration is in the issue list (and flagged in the
   table) before anything is exported.
 
 **Known gaps** (not implemented — flag if you want these):
-- No ADX (XML variant) read/write, `.adi` only.
 - No in-browser paste-from-clipboard entry point (file/drag-drop only).
 - Type indicators of ADIF's own fields (`<CALL:5:S>`) aren't written back:
   their type is fixed by the spec.
@@ -119,9 +118,9 @@ the same as before. Combining files whose declarations differ:
 
 ## Validation
 
-Every loaded file is checked against ADIF 3.1.8 by
-`../shared/js/adif-validate.js` (`validateAdif(source)`, pure, no DOM,
-issue #56). The page shows a summary line (`✓ ADIF valid`,
+Every loaded file is checked against ADIF 3.1.8. ADI source syntax uses
+`../shared/js/adif-validate.js` (`validateAdif(source)`, pure, no DOM); ADX
+uses native XML parsing and the same field/header/cross-field semantics. The page shows a summary line (`✓ ADIF valid`,
 `⚠ ADIF valid with warnings`, `✕ Invalid ADIF`, with the counts) in a
 `role="status"` region; "show issues" opens the list, grouped per file and
 per QSO (with its current table row). Problem cells get `cell-error`,
@@ -130,8 +129,10 @@ shows the worst severity.
 
 Until the first edit the panel shows the check of the loaded files' own
 text (so it catches wrong lengths, malformed tags, non-ASCII, header
-problems). After any edit it re-checks the log *as the ADI export would
-write it* (`serializeADIF`), with the rows in table order; rows without any
+problems). After any edit an ADI-only log is checked *as the ADI export
+would write it* (`serializeADIF`); a log containing ADX is checked directly
+with each source file's definitions and format, preserving Unicode and
+keeping conversion effects separate. The records follow table order; rows without any
 value are skipped. Sorting keeps the flags (they belong to the record).
 The re-check waits 150 ms after the last edit and then runs when the
 browser is idle (`requestIdleCallback`, a timeout in Safari); meanwhile
@@ -623,7 +624,7 @@ The tool targets and declares **ADIF 3.1.8** (https://www.adif.org/318/ADIF_318.
 
 ## Exports
 
-Beyond `.adi`, the toolbar offers:
+Besides `.adi` and `.adx`, the toolbar offers:
 - **`.csv`** — every current column/row, RFC4180-quoted, for spreadsheet use;
   spreadsheet-safe: a value or field name starting with `=`, `+`, `-`, `@`
   or a control character gets a leading `'` (plain numbers like `-10`
@@ -765,3 +766,95 @@ old band/mode summary / new overview / full details medians were 0.41 /
 50,000 synthetic records (CALL, BAND, MODE, QSO_DATE, TIME_ON, FREQ, DXCC).
 These measure pure calculation, not DOM rendering; the UI runs it in 10 ms
 slices and omits details while collapsed.
+
+## ADX import, validation and conversion (#24)
+
+The file picker and drag/drop accept ADI and ADX; content selects the format,
+including a BOM, XML declaration, comments or namespace prefixes. ADI keeps
+UTF-8/Windows-1252 recovery and declared-length diagnostics. ADX requires UTF-8;
+malformed XML, incompatible XML content, DOCTYPE/custom entities, field CDATA,
+nested field elements and wrong structure reject that file without applying any
+records. Other valid files in a batch can load; cancelling the batch applies
+nothing. Existing size/record/field/value/column limits cover both formats.
+New file-rejection codes: `ADX_ENCODING`, `ADX_XML_SYNTAX`, `ADX_STRUCTURE`,
+`ADX_PROHIBITED_XML`, `ADX_FIELD_CONTENT`. Changing an APP type within one ADX file is an `APP_FIELD_TYPE_INCONSISTENT` error (the existing ADI warning remains unchanged). Semantic/cell issue codes remain the
+shared validator's codes, with per-QSO indices. Firefox's native DOMParser emits
+an unavoidable console diagnostic for malformed XML; the corresponding browser
+test registers that specific diagnostic with an exact expected count. Other
+console/page errors, CSP violations and unstubbed requests still fail tests.
+
+APP elements map to existing `APP_{PROGRAMID}_{FIELDNAME}` names and types;
+USERDEF header declarations retain their names, types, enums/ranges, and record
+references. Original APP PROGRAMID/FIELDNAME components are retained per record,
+including PROGRAMIDs containing underscores; ADI cannot retain that boundary,
+so flattening requires explicit approval. Distinct APP identities from different
+files retain their own components/types in ADX. When APP identities collapse to one ADI-style name within a source, the editor
+uses an internal qualified column for the alternatives; the ordinary ADI
+identity retains its stable name. Those qualifiers are never written to ADX:
+original attributes/types are retained per record. ADI cannot retain such a
+qualified identity, so its export requires deliberate omission or cancellation
+in favor of ADX. Namespace prefixes and processing instructions are ignored. XML
+entities/numeric references are decoded; XML's standard newline normalization
+applies on import. Export escapes XML text/attributes and uses numeric CR
+references to retain CR/LF values. Only Intl types allow Unicode; ordinary ADIF
+fields retain their ASCII rules. New edits are validated directly against their
+source definitions in a log containing ADX, never through lossy ASCII output.
+
+Both export buttons cover the whole log. Preflight runs in slices and stops for
+losses or incompatible definitions before any log download. Each field/category
+shows its reason, count and examples; “Download complete affected list” provides
+all occurrences as JSON. No destructive choice is preselected. Choices cover
+ASCII/whitespace conversion, international-to-ordinary mapping (with explicit
+keep/replace destination choices), custom type conversion, nonstandard-field
+USERDEF declarations, conflicting definitions, and deliberate omission. Cancel
+to edit individual exceptions; “Export ADX instead” restarts from the original
+log so supported international values are retained. Choices apply only to an
+export copy and the final message summarizes transformations. Cancelled/failed
+exports retain dirty state and restore focus. Invalid edited logs remain
+exportable only after explicit approval of the selected output's reported
+validation errors; this does not make them conforming ADIF.
+
+Representable fields/definitions survive ADI↔ADX conversion semantically.
+Formatting, attribute order, namespace prefixes, processing instructions, ADI
+free-text headers, original provenance header values, and generated USERDEF
+numbers are not preserved byte-for-byte. As before, empty values/wholly empty
+rows are omitted by export, and compatible custom enum/range definitions from
+multiple sources are widened. ASCII conversion still uses the existing
+transliteration (unsupported non-BMP characters can become `??`); the decision
+preview shows the actual result. Unicode controls or unpaired surrogates that
+cannot be serialized as XML require editing before export.
+
+Native XML parsing is one synchronous browser operation, bracketed by progress
+and cancellation checks; traversal, record validation, preflight and writing run
+in cancellable slices. Cancellation cannot interrupt the native parse itself.
+The 50 MiB file ceiling remains unchanged; XML temporarily holds a native DOM as well as decoded records, so the ADI memory estimates do not establish an ADX peak-memory guarantee. no runtime XSD engine is bundled and
+no imported document can trigger a schema/DTD/network fetch.
+
+### Independent XML checks and upstream deviations
+
+Official fixture/schema sources: [3.1.8 resources](https://adif.org.uk/318/ADIF_318_Resources.htm),
+[generic import schema](https://adif.org.uk/318/adx318generic.xsd),
+[export schema](https://adif.org.uk/318/adx318.xsd). All are committed unchanged;
+`build-adif-spec` now refreshes ADI/ADX fixtures and both schemas. `--zip` and
+`--schemas-dir` support fully local regeneration. `just xmlcheck` installs locked
+test-only lxml and checks schemas offline; `ADIF_XMLCHECK=require` prevents skips.
+
+Both official schemas (3.1.8.0, 2026-09-26) contain `(?=[a-zA-Z])` lookahead in
+`Secondary_Administrative_Subdivision_Enumeration_Alt`. That is outside XML
+Schema 1.0 regular-expression syntax, so libxml2 refuses to compile them.
+`scripts/check_adx_schema.py` keeps the originals unchanged, removes only those
+two lookaheads in memory for XSD compilation, and additionally checks the
+**original** expression on CNTY_ALT/MY_CNTY_ALT in Python. Unexpected non-XSD
+patterns fail. Regression cases require rejection of repeated/trailing
+spaces/dashes, retaining the original constraint alongside the XSD checks.
+This follows the intent of the spec's subdivision type and its documented
+schema version; it is an upstream schema-compatibility deviation, not a relaxed
+application validator. [Specification](https://adif.org.uk/318/ADIF_318.htm#ADX_Schemas)
+
+The schemas intentionally omit advisory CONTEST_ID/SUBMODE enumeration checks;
+they also omit STATE/MY_STATE, several USERDEF name/reference/type/restriction
+checks, APP contents against TYPE, and duplicate fields. The browser's shared
+semantic checks remain necessary. ADI→ADX→XSD adds an independent structural and
+value check of the recovered/exported representation, but cannot prove original
+ADI tag lengths, boundaries, encoding or recoverability. Original ADI source
+checks, snapshots and Go cross-checks remain separate required gates.

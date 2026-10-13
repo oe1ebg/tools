@@ -176,6 +176,12 @@ crosscheck-tools:
 crosscheck: crosscheck-tools
     ADIF_CROSSCHECK=require node --test tests/adif-crosscheck.test.mjs
 
+# Install locked test-only XML tooling, then require the offline schema checks.
+[doc("Cross-check ADX imports/exports against the committed official XML schemas")]
+xmlcheck:
+    uv sync --locked --group xml-tests
+    ADIF_XMLCHECK=require node --test tests/adif-adx.test.mjs
+
 # Score the location lookup against the gold set tests/location-goldset.txt
 # (needs `data`). `just eval-location -v` lists every failing case.
 [doc("Score the offline location lookup against the gold set (tests/location-goldset.txt)")]
