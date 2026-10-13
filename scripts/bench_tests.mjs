@@ -1,12 +1,12 @@
 // Timing of the test workflows (issue #36): wall time, peak memory and
 // pass/fail/skip counts of repeated runs, with the environment recorded.
-// Not part of `just test` or CI; the results go in docs/test-timing.md.
+// Not part of `just test` or CI; the results go in tests/test-timing.md.
 //
 //   node scripts/bench_tests.mjs unit [--runs 5] [--concurrency 1,2,4,default]
 //   node scripts/bench_tests.mjs unit-files [--runs 1]      each file alone: its own wall time
 //   node scripts/bench_tests.mjs unit-focused --file tests/storage.test.mjs [--runs 5]
 //   node scripts/bench_tests.mjs e2e [--runs 5] [--project chromium] [--workers 1,2,4] [--grep text] [--base-url http://localhost:8080/]
-//   node scripts/bench_tests.mjs ci-runs [--runs 10]        step durations of recent ci.yml runs (gh)
+//   node scripts/bench_tests.mjs ci-runs [--runs 10] [--branch B] [--event E]   jobs and steps of successful ci.yml runs (gh)
 //   common: --out bench-tests.json (default; individual results are kept)
 //
 // Warm runs: 5 repetitions (the default); cold setup runs (3) are done by hand
@@ -20,7 +20,7 @@
 // (a leftover server on :8000 cannot answer).
 import { spawn, spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, readdirSync, existsSync, writeFileSync, rmSync } from 'node:fs';
-import { tmpdir, cpus, totalmem, platform, release } from 'node:os';
+import { tmpdir, cpus, totalmem, platform, release, loadavg } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { performance } from 'node:perf_hooks';
@@ -51,6 +51,8 @@ function environment() {
     cpus: cpus().length,
     cpuModel: cpus()[0]?.model,
     memoryGiB: +(totalmem() / 2 ** 30).toFixed(1),
+    // other load on the machine at the start (1, 5, 15 min): timings of a busy machine differ
+    loadAvg: loadavg().map(x => +x.toFixed(2)),
     commit: sh('git', ['rev-parse', 'HEAD']),
     dirty: !!sh('git', ['status', '--porcelain', '--untracked-files=no']),
     playwrightImages: dockerfile.split('\n').filter(l => /^FROM .*@sha256:/.test(l)).map(l => l.split(' ')[1]),
@@ -135,6 +137,27 @@ const keep = r => ({
   // failed runs keep what failed and the end of the output
   ...(r.status !== 0 ? { failed: r.failed, outputTail: `${r.stdout}\n${r.stderr}`.slice(-4000) } : {}),
 });
+// The browser step of a validate job in phases, from its timestamped log:
+// Playwright image pull, npm install, the tests (until Playwright's summary).
+// Also the runner image of the job. Null phases where a marker is missing.
+function browserPhases(jobId) {
+  const log = sh('gh', ['api', '--allow-escape-sequences', `repos/{owner}/{repo}/actions/jobs/${jobId}/logs`]);
+  if (!log) return { phases: null };
+  const lines = log.replace(/\u001b\[[0-9;]*m/g, '').split('\n');
+  const at = re => { const l = lines.find(x => re.test(x)); return l ? Date.parse(l.slice(0, 28)) : null; };
+  const step = at(/##\[group\]Run docker run --rm --network host/);
+  const pulled = at(/Status: (Downloaded newer|Image is up to date) .*playwright/);
+  const installed = at(/added \d+ packages? in/);
+  const running = at(/Running \d+ tests? using/);
+  const done = at(/^\S+\s+\d+ (passed|failed|flaky)/);
+  const d = (a, b) => (a && b ? Math.round((b - a) / 1000) : null);
+  return {
+    runnerImage: lines.find(x => /\bImage: /.test(x))?.split('Image: ')[1]?.trim() ?? null,
+    runnerImageVersion: lines.find((x, i) => i > 0 && /\bVersion: /.test(x) && /\bImage: /.test(lines[i - 1]))?.split('Version: ')[1]?.trim() ?? null,
+    phases: { pullS: d(step, pulled), npmS: d(pulled, installed), startS: d(installed, running), testsS: d(running, done) },
+  };
+}
+
 const results = { scenario, environment: environment(), measurements: [] };
 const dir = mkdtempSync(join(tmpdir(), 'bench-tests-'));
 const runsN = Number(opt('runs', scenario === 'unit-files' ? 1 : scenario === 'ci-runs' ? 10 : 5));
@@ -215,23 +238,57 @@ try {
       server?.kill();
     }
   } else if (scenario === 'ci-runs') {
-    const list = sh('gh', ['run', 'list', '--workflow', 'ci.yml', '--status', 'success', '--limit', String(runsN), '--json', 'databaseId,headSha,event,createdAt,updatedAt']);
+    // --branch / --event: comparable runs only (e.g. workflow_dispatch on a pinned branch)
+    const filter = [...(opt('branch') ? ['--branch', opt('branch')] : []), ...(opt('event') ? ['--event', opt('event')] : [])];
+    const list = sh('gh', ['run', 'list', '--workflow', 'ci.yml', '--status', 'success', ...filter, '--limit', String(runsN), '--json', 'databaseId,headSha,event']);
     if (!list) throw new Error('gh run list failed (is gh installed and authenticated?)');
+    const api = path => JSON.parse(sh('gh', ['api', '--paginate', '--slurp', path]) ?? '[]');
+    const secs = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 1000);
     const steps = new Map();
+    const jobTimes = new Map();
     for (const run of JSON.parse(list)) {
-      const jobs = JSON.parse(sh('gh', ['run', 'view', String(run.databaseId), '--json', 'jobs']) ?? '{"jobs":[]}').jobs;
-      for (const j of jobs) for (const st of j.steps ?? []) {
-        if (!st.startedAt || !st.completedAt || st.conclusion !== 'success') continue;
-        const key = `${j.name} / ${st.name}`;
-        if (!steps.has(key)) steps.set(key, []);
-        steps.get(key).push(Math.round((Date.parse(st.completedAt) - Date.parse(st.startedAt)) / 1000));
+      const info = api(`repos/{owner}/{repo}/actions/runs/${run.databaseId}`)[0];
+      const jobs = api(`repos/{owner}/{repo}/actions/runs/${run.databaseId}/jobs`).flatMap(p => p.jobs)
+        .filter(j => j.started_at && j.completed_at && j.conclusion !== 'skipped');
+      const start = info.run_started_at;
+      const end = jobs.reduce((t, j) => (j.completed_at > t ? j.completed_at : t), start);
+      for (const j of jobs) {
+        if (!jobTimes.has(j.name)) jobTimes.set(j.name, []);
+        jobTimes.get(j.name).push(secs(j.started_at, j.completed_at));
+        for (const st of j.steps ?? []) {
+          if (!st.started_at || !st.completed_at || st.conclusion !== 'success') continue;
+          const key = `${j.name} / ${st.name}`;
+          if (!steps.has(key)) steps.set(key, []);
+          steps.get(key).push(secs(st.started_at, st.completed_at));
+        }
       }
-      results.measurements.push({ run: run.databaseId, sha: run.headSha, event: run.event, wallS: Math.round((Date.parse(run.updatedAt) - Date.parse(run.createdAt)) / 1000) });
+      const last = jobs.reduce((a, j) => (!a || j.completed_at > a.completed_at ? j : a), null);
+      results.measurements.push({
+        run: run.databaseId, sha: run.headSha, event: run.event,
+        // queued: created until the run started; wall: run start until the last job ended
+        queueS: secs(info.created_at, start),
+        wallS: secs(start, end),
+        // the job that ended last ends the critical path; its start shows what it waited for
+        lastJob: last && { name: last.name, startS: secs(start, last.started_at), endS: secs(start, last.completed_at) },
+        // runner minutes: job durations summed (GitHub bills each job rounded up to a minute)
+        runnerS: jobs.reduce((t, j) => t + secs(j.started_at, j.completed_at), 0),
+        billedMin: jobs.reduce((t, j) => t + Math.ceil(secs(j.started_at, j.completed_at) / 60), 0),
+        jobs: jobs.map(j => ({
+          name: j.name, runner: j.runner_name, labels: j.labels,
+          queueS: secs(j.created_at, j.started_at), startS: secs(start, j.started_at), endS: secs(start, j.completed_at),
+          ...(j.name.startsWith('validate') ? browserPhases(j.id) : {}),
+        })),
+      });
     }
     // descriptive only: small sample, steps present in some runs only
-    results.steps = [...steps].map(([step, xs]) => ({ step, n: xs.length, medianS: median(xs), minS: Math.min(...xs), maxS: Math.max(...xs), values: xs }))
-      .sort((a, b) => b.medianS - a.medianS);
-    for (const s of results.steps.slice(0, 20)) console.log(`${s.step.padEnd(70)} n=${s.n} median ${s.medianS} s  range ${s.minS}–${s.maxS} s`);
+    const stats = ([name, xs]) => ({ name, n: xs.length, medianS: median(xs), minS: Math.min(...xs), maxS: Math.max(...xs), values: xs });
+    results.steps = [...steps].map(stats).sort((a, b) => b.medianS - a.medianS);
+    results.jobs = [...jobTimes].map(stats).sort((a, b) => b.medianS - a.medianS);
+    const m = results.measurements;
+    const desc = k => { const xs = m.map(x => x[k]); return `median ${median(xs)}, range ${Math.min(...xs)}–${Math.max(...xs)}`; };
+    console.log(`${m.length} runs; queue s ${desc('queueS')}; wall s ${desc('wallS')}; runner s ${desc('runnerS')}; billed min ${desc('billedMin')}`);
+    for (const s of results.jobs) console.log(`job ${s.name.padEnd(40)} n=${s.n} median ${s.medianS} s  range ${s.minS}–${s.maxS} s`);
+    for (const s of results.steps.slice(0, 20)) console.log(`${s.name.padEnd(70)} n=${s.n} median ${s.medianS} s  range ${s.minS}–${s.maxS} s`);
   } else {
     console.error('usage: bench_tests.mjs unit | unit-files | unit-focused --file F | e2e | ci-runs  (see the header)');
     process.exitCode = 2;
