@@ -728,3 +728,59 @@ test('new and clear wait while a file loads', { tag: '@adif' }, async ({ page })
   await expect(page.locator('#btn-new')).toBeEnabled();
   await expect(page.locator('#btn-clear')).toBeEnabled();
 });
+
+test('the parts above the table fold away while it is scrolled down, and come back at the top', { tag: '@adif' }, async ({ page }) => {
+  const recs = Array.from({ length: 300 }, (_, i) => ({ CALL: `OE${i % 9 + 1}AB`, QSO_DATE: '20260901', TIME_ON: '1200', BAND: '20m', MODE: 'SSB' }));
+  await page.goto('tools/adif/');
+  await page.locator('#file-input').setInputFiles(adiFile('many.adi', recs));
+  await expect(page.locator('#stats')).toContainText('300 QSOs');
+  const drop = page.locator('#drop');
+  const top = () => drop.evaluate(d => d.getBoundingClientRect().top);
+  const atRest = await top();
+  for (const id of ['#stats', '#file-info', '#compliance > summary', '#log-statistics > summary', '#validation-summary']) await expect(page.locator(id)).toBeVisible();
+  await drop.evaluate(d => { d.scrollTop = 600; });
+  await expect(page.locator('body')).toHaveClass(/\bcompact\b/);
+  for (const id of ['#stats', '#file-info', '#compliance', '#log-statistics']) await expect(page.locator(id)).toBeHidden();
+  await expect(page.locator('#validation-summary')).toBeVisible(); // the verdict stays
+  for (const id of ['#btn-open', '#btn-export', '#flt-text']) await expect(page.locator(id)).toBeVisible();
+  expect(await top()).toBeLessThan(atRest);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true); // no page-wide sideways scroll
+  // a little scrolling back keeps it folded; the top of the table unfolds
+  await drop.evaluate(d => { d.scrollTop = 20; });
+  await expect(page.locator('body')).toHaveClass(/\bcompact\b/);
+  await drop.evaluate(d => { d.scrollTop = 0; });
+  await expect(page.locator('body')).not.toHaveClass(/\bcompact\b/);
+  await expect(page.locator('#stats')).toBeVisible();
+  expect(await top()).toBe(atRest);
+  // what was opened, or has the focus, stays
+  await page.locator('#compliance > summary').click();
+  await page.locator('#log-statistics > summary').focus();
+  await drop.evaluate(d => { d.scrollTop = 600; });
+  await expect(page.locator('body')).toHaveClass(/\bcompact\b/);
+  await expect(page.locator('#compliance-body')).toBeVisible();
+  await expect(page.locator('#log-statistics > summary')).toBeFocused();
+  await expect(page.locator('#log-statistics > summary')).toBeVisible();
+  // clear: the empty editor is never folded
+  await page.locator('#btn-clear').click();
+  await page.locator('dialog[open]').getByRole('button', { name: 'Clear', exact: true }).click();
+  await expect(page.locator('#empty-msg')).toContainText('.adi / .adx');
+  await expect(page.locator('body')).not.toHaveClass(/\bcompact\b/);
+});
+
+test('a table that would stop scrolling once folded does not fold', { tag: '@adif' }, async ({ page }) => {
+  await page.goto('tools/adif/');
+  await page.locator('#file-input').setInputFiles(adiFile('few.adi', Array.from({ length: 30 }, (_, i) => ({ CALL: `OE${i % 9 + 1}AB`, QSO_DATE: '20260901', TIME_ON: '1200' }))));
+  await expect(page.locator('#stats')).toContainText('30 QSOs');
+  const drop = page.locator('#drop');
+  // a window in which the table scrolls 60 px: past the threshold (48 px),
+  // but folding would leave less than that
+  const { width } = page.viewportSize();
+  const { scrollHeight, top } = await drop.evaluate(d => ({ scrollHeight: d.scrollHeight, top: d.getBoundingClientRect().top }));
+  await page.setViewportSize({ width, height: Math.round(scrollHeight + top - 60) });
+  await expect.poll(() => drop.evaluate(d => d.scrollHeight - d.clientHeight)).toBeGreaterThan(48);
+  await drop.evaluate(d => { d.scrollTop = d.scrollHeight; });
+  const states = [];
+  for (let i = 0; i < 5; i++){ await page.waitForTimeout(50); states.push(await page.evaluate(() => document.body.classList.contains('compact'))); }
+  expect(states).toEqual([false, false, false, false, false]);
+  expect(await drop.evaluate(d => d.scrollTop)).toBeGreaterThan(48); // where it was scrolled to
+});

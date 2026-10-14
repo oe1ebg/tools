@@ -96,15 +96,11 @@
   <div id="flt-conds"></div>
 </div>
 
-<details id="log-statistics">
-  <summary>Log statistics</summary>
-  <label for="statistics-scope">Statistics scope</label>
-  <select id="statistics-scope"><option value="whole">Whole log</option><option value="shown">Shown QSOs</option></select>
-  <div id="statistics-body"></div>
-</details>
-
-<div id="file-info"></div>
-
+<!-- Under the filter bar, one line: validation, files, statistics, about.
+     A panel opened from it takes the whole width; while the table is
+     scrolled down, the parts only read now and then fold away (style.css,
+     body.compact). -->
+<div id="status-area">
 <div id="warnings" role="status"></div>
 
 <!-- A running import (js/app.js, js/load.js): progress and Cancel. The bar and
@@ -120,10 +116,17 @@
 <!-- ADIF validation (../shared/js/adif-validate.js): summary, then the issue list on demand. -->
 <div id="validation" class="validation" hidden>
   <span id="validation-summary" role="status"></span>
-  <span class="spacer"></span>
   <button type="button" id="btn-issues" aria-expanded="false" aria-controls="validation-issues">show issues <span aria-hidden="true">▾</span></button>
 </div>
-<div id="validation-issues" hidden></div>
+
+<div id="file-info"></div>
+
+<details id="log-statistics">
+  <summary>Log statistics</summary>
+  <label for="statistics-scope">Statistics scope</label>
+  <select id="statistics-scope"><option value="whole">Whole log</option><option value="shown">Shown QSOs</option></select>
+  <div id="statistics-body"></div>
+</details>
 
 <!-- What the validation covers, how the editor is verified, and this build's
      commit / CI run (js/compliance.js, from build-info.js). -->
@@ -131,6 +134,9 @@
   <summary>About ADIF compliance &amp; validation</summary>
   <div id="compliance-body"></div>
 </details>
+
+<div id="validation-issues" hidden></div>
+</div>
 
 <main id="drop" class="empty">
   <div id="empty-msg">

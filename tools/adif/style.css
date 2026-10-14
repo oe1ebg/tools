@@ -497,7 +497,6 @@ td.rownum.row-warning{ color:var(--warn); font-weight:600; }
 
 #stats{ display:flex; flex-wrap:wrap; align-items:baseline; gap:.25em .6em; }
 .statistics-item + .statistics-item::before{ content:"· "; }
-#log-statistics{ margin:.5em 1em; }
 #statistics-body{ display:flex; flex-wrap:wrap; gap:1em; }
 #statistics-body > p{ flex-basis:100%; margin:.5em 0; }
 #statistics-body section{ max-width:100%; overflow:auto; }
@@ -517,3 +516,40 @@ td.rownum.row-warning{ color:var(--warn); font-weight:600; }
 .export-decisions-body li{ overflow-wrap:anywhere; }
 .export-decisions-body select{ max-width:100%; }
 .export-decisions-actions{ display:flex; flex-wrap:wrap; gap:.5em; margin-top:1em; }
+
+/* The status line under the filter bar (index.html, #status-area). */
+#status-area{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  border-bottom:1px solid var(--line);
+  font-size:12px;
+}
+#status-area > *{ flex:0 1 auto; }
+#warnings, #import-progress, #validation-issues, #status-area > details[open]{ flex-basis:100%; }
+#status-area .validation{ border-bottom:none; padding:.3em .8em; }
+#file-info{ padding:.3em .8em; }
+#file-info:empty{ display:none; }
+#log-statistics{ margin:0; }
+#log-statistics > summary{ padding:.3em .8em; cursor:pointer; }
+#log-statistics[open]{ padding:0 .8em .5em; }
+#log-statistics[open] > summary{ padding-left:0; }
+#compliance{ border-bottom:none; }
+#status-area > details:not([open]) > summary{ color:var(--text-dim); }
+#status-area > details:not([open]) > summary:hover{ color:var(--accent-text); }
+#validation-issues{ border-top:1px solid var(--line); border-bottom:none; }
+
+/* Folded while the table is scrolled down (js/app.js, updateCompact): the
+   log overview, file versions and the closed "Log statistics" / "About"
+   lines. What has the focus or was opened stays. */
+body.compact #stats,
+body.compact #file-info,
+body.compact #status-area > details:not([open]):not(:focus-within){ display:none; }
+body.compact #toolbar{ column-gap:.6em; }
+/* On a phone the page header goes too, and the toolbar and the filter line
+   become one row each that scrolls sideways. */
+@media (max-width: 600px){
+  body.compact #site-header:not(:focus-within){ display:none; }
+  body.compact #toolbar, body.compact .flt-line{ flex-wrap:nowrap; overflow-x:auto; }
+  body.compact #toolbar > *, body.compact .flt-line > *{ flex-shrink:0; }
+}
