@@ -1,14 +1,13 @@
 // Alert times (UTC or local, the header's toggle) and the one-line alert
 // summaries. Pure; `mode` is 'utc' or 'local'.
 
+// ISO 8601 and 24-hour in both zones (root AGENTS.md): built from the
+// date's parts, never from a locale-dependent formatter.
+const pad2 = n => String(n).padStart(2, '0');
 export function formatTimeUTC(t){ return t.toISOString().slice(11, 16) + 'Z'; }
-// hour12:false forces 24h everywhere regardless of the browser's locale
-// default (many, e.g. en-US, would otherwise render 12h AM/PM) — the UTC
-// formatters are already always-24h since they're built from
-// toISOString() directly rather than a locale-dependent formatter.
-export function formatTimeLocal(t){ return t.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false }); }
+export function formatTimeLocal(t){ return `${pad2(t.getHours())}:${pad2(t.getMinutes())}`; }
 export function formatDateTimeUTC(t){ return t.toISOString().slice(0, 16).replace('T', ' ') + 'Z'; }
-export function formatDateTimeLocal(t){ return t.toLocaleString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }); }
+export function formatDateTimeLocal(t){ return `${t.getFullYear()}-${pad2(t.getMonth() + 1)}-${pad2(t.getDate())} ${formatTimeLocal(t)}`; }
 
 // Every alert-time display in the app goes through this, so the header's
 // UTC/local toggle changes them all consistently instead of each place

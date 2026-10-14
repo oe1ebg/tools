@@ -92,6 +92,11 @@ entirely instead of needing a proxy.
 - **Alerts map + date range** — filters within whatever near-term window
   SOTA's feed currently returns; own callsign(s) highlighted green. A
   "today" button jumps both from/to to the current UTC date in one click.
+  The range is typed as ISO dates (`2026-09-01`, `2026-9-1` or `20260901`,
+  shown as `YYYY-MM-DD`), with a calendar button per field that opens the
+  browser's picker (`../shared/js/isodate.js`). A visible
+  `<input type="date">` would show the browser-locale format. A field that
+  holds no complete date is marked and doesn't limit the range.
 - **Hover-to-open info cards** — every marker's popup opens on hover, not
   just click (closes on mouseout, debounced ~200ms so moving the cursor
   from the marker into the popup itself to click a link/button doesn't
@@ -294,8 +299,11 @@ entirely instead of needing a proxy.
   summit cards — via one shared `timeDisplayPair()` helper, so there's a
   single source of truth rather than each place picking its own format.
   The non-selected zone still shows as a small secondary reference in the
-  marker popup (e.g. "10:45Z (local 12:45 PM)"). The date-range picker
-  itself stays UTC-labeled regardless of this toggle — that's a filter
+  marker popup (e.g. "10:45Z (local 12:45)"). UTC and local times are both
+  ISO and 24-hour (`2026-10-07 12:45`), built from the date's parts, not
+  with `toLocale*String`, which follows the browser's locale. The date-range
+  fields
+  stay UTC-labeled regardless of this toggle — that's a filter
   input tied to SOTA's own UTC-dated feed, not a "time display" the toggle
   is about. Nothing here is persisted beyond the zone preference itself;
   times are computed fresh on each render, never stored.

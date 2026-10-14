@@ -63,3 +63,7 @@
    each tool's style.css sets its fields to >= 16px under
    @media (pointer: coarse) (a blanket rule here would also shrink the
    bigger ones, like confirm's callsign field). */
+
+/* The hidden <input type="date"> behind the date fields' calendar button
+   (js/isodate.js): only its picker shows. */
+.iso-date-picker{ position:fixed; width:1px; height:1px; padding:0; border:0; opacity:0; pointer-events:none; }

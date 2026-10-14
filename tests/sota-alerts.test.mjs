@@ -95,6 +95,13 @@ test('time display: UTC primary by default, local as the other zone', () => {
   assert.equal(timeDisplayPair('2026-10-07T08:05:00Z', false, 'utc').primary, '08:05Z');
   const local = timeDisplayPair('2026-10-07T08:05:00Z', false, 'local');
   assert.equal(local.secondary, 'UTC 08:05Z');
+  // local time: ISO and 24-hour in any locale and zone, never toLocale*String
+  const t = new Date('2026-10-07T21:05:00Z');
+  const p2 = n => String(n).padStart(2, '0');
+  assert.equal(timeDisplayPair(t.toISOString(), true, 'local').primary,
+    `${t.getFullYear()}-${p2(t.getMonth() + 1)}-${p2(t.getDate())} ${p2(t.getHours())}:${p2(t.getMinutes())}`);
+  assert.match(timeDisplayPair(t.toISOString(), false, 'local').primary, /^\d{2}:\d{2}$/);
+  assert.match(timeDisplayPair(t.toISOString(), true, 'utc').secondary, /^local \d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
   assert.deepEqual(timeDisplayPair('soon', false, 'utc'), { primary: 'soon', secondary: '' });
   const alerts = ['A', 'B', 'C', 'D'].map(c => ({ dateActivated: '2026-10-07T08:05:00Z', activatingCallsign: c, activatorName: '' }));
   assert.equal(formatAlertsBrief(alerts.slice(0, 1), 'utc'), '2026-10-07 08:05Z · A');

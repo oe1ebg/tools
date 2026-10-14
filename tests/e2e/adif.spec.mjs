@@ -852,7 +852,7 @@ test('a date cell has a calendar button; a picked date is stored at once', { tag
   await btn.click();
   await expect(td).toBeFocused(); // the button doesn't take the focus
   // the native calendar can't be driven: its input gets a value as a pick would
-  await page.locator('#dt-picker').evaluate(i => { i.value = '2026-10-14'; i.dispatchEvent(new Event('change')); });
+  await page.locator('#iso-date-picker').evaluate(i => { i.value = '2026-10-14'; i.dispatchEvent(new Event('change')); });
   await expect(td).toHaveText('2026-10-14');
   expect(await asksBeforeLeaving(page)).toBe(true);
   const records = parseADIFAuto(await exportAdi(page), [], 'export.adi', {});

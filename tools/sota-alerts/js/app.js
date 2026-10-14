@@ -3,6 +3,7 @@
 // before adding requests.
 
 import { copyToClipboard } from '../../shared/js/dom.js';
+import { isoDateFromText, isoBindDateField } from '../../shared/js/isodate.js';
 import { fetchAlerts, fetchSummit, searchSummits, searchOsmSummitsInView, fetchJson, SUMMIT_LOOKUP_URL, ALL_SUMMITS_URL } from './api.js';
 import {
   parseAlerts, computeDataBounds, filterAlertsByRange, capDefaultToDate, groupAlertsBySummit, alertSummitKey,
@@ -107,13 +108,17 @@ function setAllSummitsNote(text){
 
 let mapView = null; // createMap(), in init()
 
+// The date range fields hold typed text (ISO, ../shared/js/isodate.js):
+// their date as YYYY-MM-DD, or '' while it is incomplete or no date.
+function rangeDate(id){ return isoDateFromText($id(id).value); }
+
 /* ---------- shareable link ---------- */
 
 function buildShareUrl(){
   const url = new URL(location.href);
   url.search = shareSearch({
-    from: $id('range-from').value,
-    to: $id('range-to').value,
+    from: rangeDate('range-from'),
+    to: rangeDate('range-to'),
     ref: state.referenceKey,
     pins: [...state.candidates.keys()],
     bands: [...state.selectedBands],
@@ -133,8 +138,9 @@ async function applySharedStateFromUrl(){
   const shared = parseShareSearch(location.search);
   if (!shared) return false;
 
-  if (shared.from) $id('range-from').value = shared.from;
-  if (shared.to) $id('range-to').value = shared.to;
+  // a date input dropped anything but a date; the text fields do the same
+  if (shared.from) $id('range-from').value = isoDateFromText(shared.from);
+  if (shared.to) $id('range-to').value = isoDateFromText(shared.to);
   if (shared.bands){
     state.selectedBands = new Set(shared.bands);
     store.saveBands(state.selectedBands);
@@ -245,10 +251,10 @@ async function loadAlerts(){
     // live: one alert dated ~2 years out among ~350 mostly-near-term
     // ones). Using the literal max as the default "to" date would make
     // the initial view absurdly wide, so default to a 14-day window from
-    // the earliest available date and expose the true bounds via
-    // min/max on the inputs so users can still reach further-out alerts.
-    fromEl.min = toEl.min = state.bounds.min;
-    fromEl.max = toEl.max = state.bounds.max;
+    // the earliest available date and expose the true bounds as the
+    // calendar's range so users can still reach further-out alerts.
+    fromEl.dataset.min = toEl.dataset.min = state.bounds.min;
+    fromEl.dataset.max = toEl.dataset.max = state.bounds.max;
     if (!fromEl.value) fromEl.value = state.bounds.min;
     if (!toEl.value) toEl.value = capDefaultToDate(state.bounds.min, state.bounds.max);
   }
@@ -284,7 +290,7 @@ function renderAlertsAge(){
 // computed inside renderAll() (they're independent, on-demand lookups),
 // so re-derive it the same way, directly from the date inputs on screen.
 function alertsForSummitInRange(key){
-  return filterAlertsByRange(state.rawAlerts, $id('range-from').value, $id('range-to').value)
+  return filterAlertsByRange(state.rawAlerts, rangeDate('range-from'), rangeDate('range-to'))
     .filter(a => alertSummitKey(a) === key);
 }
 
@@ -339,8 +345,8 @@ function renderAll(fitView = false){
   finally { warnings.flush(); }
 }
 function renderAllParts(fitView){
-  const from = $id('range-from').value;
-  const to = $id('range-to').value;
+  const from = rangeDate('range-from');
+  const to = rangeDate('range-to');
   const ownSet = parseOwnCallsigns($id('callsigns-input').value);
   checkPastRangeNote(to);
   const dateFiltered = filterAlertsByRange(state.rawAlerts, from, to);
@@ -605,12 +611,17 @@ function wireEvents(){
   // A changed date range is a deliberate re-scope, so re-frame the view
   // (unlike most other listeners below, which pass no argument and so
   // leave the current pan/zoom alone — see renderAll()'s fitView param).
-  $id('range-from').addEventListener('change', () => renderAll(true));
-  $id('range-to').addEventListener('change', () => renderAll(true));
+  // first: a complete date is rewritten as YYYY-MM-DD before it is read
+  for (const id of ['range-from', 'range-to']){
+    isoBindDateField($id(id), document.querySelector(`button.date-pick[data-for="${id}"]`));
+    $id(id).addEventListener('change', () => renderAll(true));
+  }
   $id('btn-today').addEventListener('click', () => {
     const todayUtc = new Date().toISOString().slice(0, 10);
-    $id('range-from').value = todayUtc;
-    $id('range-to').value = todayUtc;
+    for (const id of ['range-from', 'range-to']){
+      $id(id).value = todayUtc;
+      $id(id).removeAttribute('aria-invalid');
+    }
     renderAll(true); // date range change: re-frame the view, same as editing the fields directly
   });
   $id('callsigns-input').addEventListener('change', e => {

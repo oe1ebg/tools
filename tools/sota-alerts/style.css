@@ -4,8 +4,8 @@
    The shared theme.js always sets <html data-theme="light|dark">, so the
    tool's own tokens below need exactly one light set and one dark
    override. (tools.css's color-scheme: dark matters here: without it,
-   native form-control chrome such as the <input type=date> calendar icon
-   keeps its light-mode colours, a near-black icon on a near-black input.) */
+   native form-control chrome such as a select's arrow keeps its
+   light-mode colours, near-black on a near-black control.) */
 
 :root{
   --own: #008300;
@@ -129,7 +129,7 @@ button, .btn{
 button:hover, .btn:hover{ background:rgba(82,108,254,0.1); }
 button:disabled{ color:var(--text-dim); border-color:var(--line); cursor:not-allowed; }
 button.active{ background:var(--accent); color:#fff; }
-input[type=text], input[type=date]{
+input[type=text]{
   font-family:var(--font-ui);
   font-size:12px;
   background:var(--bg);
@@ -138,12 +138,16 @@ input[type=text], input[type=date]{
   padding:.35em .5em;
   border-radius:.2rem;
 }
-input[type=text]:focus, input[type=date]:focus{
+input[type=text]:focus{
   outline:1px solid var(--accent);
   outline-offset:-1px;
 }
 #callsigns-input{ width:16em; }
-input[type=date]{ min-width:9.5em; }
+/* ISO dates typed as text (../shared/js/isodate.js) */
+input.iso-date{ width:7.6em; font-variant-numeric:tabular-nums; }
+input.iso-date[aria-invalid="true"]{ color:var(--err); }
+.date-pick{ display:inline-flex; align-items:center; padding:.25em .4em; }
+.icon-calendar{ width:1.1em; height:1.1em; }
 #all-summits-note{ color:var(--text-dim); font-size:11px; }
 .spacer{ flex:1; }
 
@@ -182,12 +186,12 @@ input[type=date]{ min-width:9.5em; }
   overflow:hidden;
   background:var(--bg);
 }
-.date-range-group input[type=date]{
+.date-range-group input.iso-date, .date-range-group .date-pick{
   border:none;
   border-radius:0;
   background:transparent;
 }
-.date-range-group input[type=date]:focus{
+.date-range-group input.iso-date:focus{
   outline:1px solid var(--accent);
   outline-offset:-2px;
   z-index:1;
@@ -358,7 +362,7 @@ input[type=date]{ min-width:9.5em; }
   }
   #toolbar-controls.show{ display:flex; }
   #toolbar-controls .field{ flex-direction:column; align-items:stretch; gap:.25em; }
-  #toolbar-controls .date-range-group input[type=date]{ min-width:0; flex:1; }
+  #toolbar-controls .date-range-group input.iso-date{ min-width:0; flex:1; }
   #toolbar-controls #callsigns-input,
   #toolbar-controls #summit-search{ width:auto; }
   #toolbar-controls .field-actions{ display:flex; gap:.4em; }
@@ -370,7 +374,7 @@ input[type=date]{ min-width:9.5em; }
      out to a ~22px tall hit area, well under the ~44px platform
      guideline for a touch target. */
   button, .btn{ padding:.6em .8em; font-size:13px; }
-  input[type=text], input[type=date]{ padding:.6em .6em; font-size:13px; }
+  input[type=text]{ padding:.6em .6em; font-size:13px; }
 
   /* Search/"find in view" result cards: the name text and "set as
      reference"/"+ pin" buttons were squeezed into one row (space-between)

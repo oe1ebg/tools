@@ -21,7 +21,8 @@ import { validateAdifRecordsSteps } from '../../shared/js/adif-validate.js';
 import { initLogStatistics } from './statistics-ui.js';
 import { VirtualBody } from './table.js';
 import { eoColumnKind, eoScopedKey, eoScopeCtx, eoCurrent, eoSuggestions, eoDependents } from './enum-options.js';
-import { dtColumnKind, dtShow, dtParse, dtOpenPicker, dtPickerSupported } from './datetime.js';
+import { dtColumnKind, dtShow, dtParse } from './datetime.js';
+import { isoOpenPicker, isoPickerSupported } from '../../shared/js/isodate.js';
 import { ceSelectCell, ceTextCell, ceSetCurrent, ceFill, ceClearCache, initCellSuggest } from './cell-editors.js';
 
 function populateFieldDatalist(){
@@ -794,7 +795,7 @@ const suggest = initCellSuggest({
 });
 
 // The calendar button of the focused date cell (index.html, #cell-date-btn):
-// it opens the browser's date picker (datetime.js, dtOpenPicker), as does
+// it opens the browser's date picker (../../shared/js/isodate.js), as does
 // Alt+↓ in the cell. The picked date is committed at once, so it is kept
 // when the picker hands the focus back. Not offered without showPicker.
 const datePick = (() => {
@@ -802,7 +803,7 @@ const datePick = (() => {
   let td = null;
   function hide(){ btn.hidden = true; td = null; }
   function show(cell){
-    if (!dtPickerSupported) return;
+    if (!isoPickerSupported) return;
     td = cell;
     // only over the visible part of the table
     const r = cell.getBoundingClientRect(), box = dropEl.getBoundingClientRect();
@@ -815,7 +816,7 @@ const datePick = (() => {
     const cell = td;
     if (!cell) return;
     const rec = records[Number(cell.parentNode?.dataset.ri)];
-    dtOpenPicker(cell, rec?.[cell.dataset.col] ?? '', iso => {
+    isoOpenPicker(cell, rec?.[cell.dataset.col] ?? '', iso => {
       if (!cell.isConnected) return;
       cell.textContent = iso;
       commitCell(cell);

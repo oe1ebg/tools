@@ -27,6 +27,7 @@ browser loads.
 | `js/rowcache.js` | keyed row reuse for big tables (`syncRows`): a re-render creates only rows whose signature changed (confirm log, notfunk book; issue #15) | confirm, notfunk |
 | `js/dom.js` | DOM helpers (`el`, `fill`, `popover`, …); the one module touching the DOM directly, besides the UI modules below | confirm, notfunk |
 | `js/time.js` | ids, "now", ISO UTC timestamps shown/typed in UTC or local time (the device's or a named zone via Intl, incl. the repeated/skipped hour at the DST change), `laterIso()` (a changed record's `updated`, always after the previous one: row caches compare it) | confirm, notfunk |
+| `js/isodate.js` | ISO dates in text fields: `isoDateFromText()` (pure), and `isoBindDateField()` for a field and its calendar button, which opens the browser's date picker through `showPicker()` on a hidden `<input type="date">` and only takes its value (UI) | adif, sota-alerts |
 | `js/locmeta.js` | where a resolved location came from and how it was named (`LOC_ORIGINS`, …) | confirm, notfunk |
 | `js/prefs.js` | `prefGet`/`prefSet`: per-browser settings in localStorage, errors swallowed | confirm, notfunk |
 | `js/theme.js` | light/auto/dark theme (classic script, first in every page's `<head>`) | all tools |
