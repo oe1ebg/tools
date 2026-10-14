@@ -47,9 +47,11 @@
     <div class="field">
       <label for="range-from">date range (UTC)</label>
       <div class="date-range-group">
-        <input id="range-from" type="date" aria-label="from date (UTC)">
+        <input id="range-from" class="iso-date" type="text" aria-label="from date (UTC)" placeholder="YYYY-MM-DD" inputmode="numeric" maxlength="10" autocomplete="off" spellcheck="false">
+        <button type="button" class="date-pick" data-for="range-from" title="choose the first date" aria-label="choose the first date (UTC)"><svg class="icon-calendar" aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></button>
         <span class="date-range-arrow" aria-hidden="true">→</span>
-        <input id="range-to" type="date" aria-label="to date (UTC)">
+        <input id="range-to" class="iso-date" type="text" aria-label="to date (UTC)" placeholder="YYYY-MM-DD" inputmode="numeric" maxlength="10" autocomplete="off" spellcheck="false">
+        <button type="button" class="date-pick" data-for="range-to" title="choose the last date" aria-label="choose the last date (UTC)"><svg class="icon-calendar" aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></button>
       </div>
     </div>
     <button type="button" id="btn-today" title="jump the date range to today (UTC)">today</button>

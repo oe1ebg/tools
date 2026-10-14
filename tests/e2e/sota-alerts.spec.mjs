@@ -373,3 +373,53 @@ test('malformed alert responses are failed refreshes; the next valid one recover
   await expect(stats).toHaveText('2 alerts · 2 summits on map · 0 yours');
   await expect(warnings).toHaveText("⚠ 2 alerts in SOTA's feed were malformed and skipped.");
 });
+
+test.describe('ISO dates and times', () => {
+test.use({ locale: 'en-US', timezoneId: 'America/New_York' });
+test('the date range is typed as ISO dates, and local times are ISO and 24-hour', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name.startsWith('mobile'), 'desktop layout: the range is visible without the phone toggle');
+  await page.route(TILE_HOSTS, route => route.fulfill({ contentType: 'image/png', body: TILE }));
+  await page.route('https://api2.sota.org.uk/**', route => {
+    const url = new URL(route.request().url());
+    if (url.pathname === '/api/alerts') return route.fulfill({ json: alertsIn(3) });
+    if (url.pathname === '/api/summits/ZZ/TE-001') {
+      return route.fulfill({ json: { name: 'Test Peak', altM: 1000, points: 4, latitude: 47.5, longitude: 15.5, locator: 'JN77SM' } });
+    }
+    return route.fulfill({ status: 404, json: {} });
+  });
+  await page.goto('tools/sota-alerts/');
+  await expect(page.locator('#stats')).toHaveText('2 alerts · 2 summits on map · 0 yours');
+  const from = page.locator('#range-from'), to = page.locator('#range-to');
+  for (const f of [from, to]){
+    await expect(f).toHaveAttribute('type', 'text');
+    await expect(f).toHaveValue(/^\d{4}-\d{2}-\d{2}$/); // the default window, ISO
+  }
+  const today = new Date().toISOString().slice(0, 10);
+  // typed in other forms: rewritten as ISO and used
+  await from.fill(today.replace(/-/g, ''));
+  await from.press('Tab');
+  await expect(from).toHaveValue(today);
+  await expect(page.locator('#stats')).toHaveText('2 alerts · 2 summits on map · 0 yours');
+  // not a date: marked, filters nothing on that side
+  await to.fill('31.12.2099');
+  await to.press('Tab');
+  await expect(to).toHaveAttribute('aria-invalid', 'true');
+  await page.locator('#btn-today').click();
+  await expect(to).toHaveValue(today);
+  await expect(to).not.toHaveAttribute('aria-invalid', /.*/);
+  // a calendar button per field, when the browser has showPicker
+  const supported = await page.evaluate(() => 'showPicker' in HTMLInputElement.prototype);
+  for (const id of ['range-from', 'range-to']) await expect(page.locator(`button.date-pick[data-for="${id}"]`)).toBeVisible({ visible: supported });
+  if (supported){
+    await page.locator('button.date-pick[data-for="range-to"]').click();
+    // the native calendar can't be driven: its input gets a value as a pick would
+    await page.locator('#iso-date-picker').evaluate(i => { i.value = '2099-12-31'; i.dispatchEvent(new Event('change')); });
+    await expect(to).toHaveValue('2099-12-31');
+  }
+  // alert times in local mode: YYYY-MM-DD HH:MM in a 12-hour, month-first
+  // locale too (this test runs as en-US in New York)
+  await page.locator('[data-time-choice="local"]').click();
+  await expect(page.locator('#list-items .li-meta').first()).toHaveText(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2} · /);
+  expect(await page.locator('body').textContent()).not.toMatch(/\b\d{1,2}\/\d{1,2}\/\d{4}\b|\b[AP]M\b/);
+});
+});

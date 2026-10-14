@@ -2,7 +2,7 @@
 // typed as ISO 8601, stored as ADIF.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DT_DATE, DT_TIME, dtColumnKind, dtShow, dtParse, dtAdifDate, dtIsoDate } from '../tools/adif/js/datetime.js';
+import { DT_DATE, DT_TIME, dtColumnKind, dtShow, dtParse, dtAdifDate } from '../tools/adif/js/datetime.js';
 import { ADIF_SPEC_FIELDS } from '../tools/shared/js/adif-spec-data.js';
 
 test('every ADIF Date and Time field, and USERDEF/APP fields of type D and T, are date/time columns', () => {
@@ -42,13 +42,9 @@ test('typed ISO or ADIF values are stored as ADIF; anything else as typed', () =
   for (const v of ['0000', '2359', '235959', '0905']) assert.equal(dtParse(DT_TIME, dtShow(DT_TIME, v)), v);
 });
 
-test('filter dates and picker values', () => {
+test('filter dates are complete ISO or ADIF calendar dates', () => {
   assert.equal(dtAdifDate('2026-09-01'), '20260901');
   assert.equal(dtAdifDate('2026-9-1'), '20260901');
   assert.equal(dtAdifDate('20260901'), '20260901');
-  for (const v of ['', '2026-1', '01.09.2026', 'x']) assert.equal(dtAdifDate(v), '', v);
-  assert.equal(dtIsoDate('20260901'), '2026-09-01');
-  assert.equal(dtIsoDate('2026-9-1'), '2026-09-01');
-  assert.equal(dtIsoDate('20240229'), '2024-02-29');
-  for (const v of ['20260230', '20261301', '2026091', '']) assert.equal(dtIsoDate(v), '', v);
+  for (const v of ['', '2026-1', '01.09.2026', 'x', '20260230']) assert.equal(dtAdifDate(v), '', v);
 });

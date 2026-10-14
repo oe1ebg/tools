@@ -127,7 +127,7 @@ Anything else is kept as typed, and the validator reports it. A stored
 value that isn't ADIF's spelling (`2026-09-02`, `12:00`) is shown as it
 is, and leaving it as shown is no edit. A focused date cell has a calendar
 button (not in the Tab order; Alt+↓ does the same) that opens the
-browser's date picker. The picked date is stored at once. Only the
+browser's date picker (`../shared/js/isodate.js`). The picked date is stored at once. Only the
 picker's value is used, never its locale-formatted field, so no
 `<input type="date">` shows. Without `showPicker` (Safari before 16) there
 is no calendar, and typing works everywhere. Times have no picker: the
