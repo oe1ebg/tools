@@ -147,7 +147,7 @@ test('status and file filters; the issue list reveals a hidden QSO', { tag: '@ad
 
   await page.locator('#flt-status').selectOption('errors');
   await expect(shownRows(page)).toHaveCount(1);
-  await expect(shownRows(page)).toContainText('20260230');
+  await expect(shownRows(page)).toContainText('2026-02-30'); // QSO_DATE 20260230, shown as ISO
   await expect(page.locator('#flt-count')).toHaveText('1 of 4 QSOs shown');
 
   await page.locator('#flt-status').selectOption('any');
@@ -783,4 +783,104 @@ test('a table that would stop scrolling once folded does not fold', { tag: '@adi
   for (let i = 0; i < 5; i++){ await page.waitForTimeout(50); states.push(await page.evaluate(() => document.body.classList.contains('compact'))); }
   expect(states).toEqual([false, false, false, false, false]);
   expect(await drop.evaluate(d => d.scrollTop)).toBeGreaterThan(48); // where it was scrolled to
+});
+
+test('date and time cells show and take ISO, store ADIF, and leave other spellings alone', { tag: '@adif' }, async ({ page }) => {
+  await page.goto('tools/adif/');
+  await page.locator('#file-input').setInputFiles(adiFile('dates.adi', [
+    { CALL: 'OE1ABC', QSO_DATE: '20260901', TIME_ON: '1200', TIME_OFF: '120530', QSLSDATE: '20260915' },
+    { CALL: 'OE3XYZ', QSO_DATE: '2026-09-02', TIME_ON: '12:00', TIME_OFF: '7' },
+  ]));
+  await expect(page.locator('#stats')).toContainText('2 QSOs');
+  await expect(cell(page, 0, 'QSO_DATE')).toHaveText('2026-09-01');
+  await expect(cell(page, 0, 'TIME_ON')).toHaveText('12:00');
+  await expect(cell(page, 0, 'TIME_OFF')).toHaveText('12:05:30');
+  await expect(cell(page, 0, 'QSLSDATE')).toHaveText('2026-09-15');
+  // not ADIF: shown as stored (the validator reports them)
+  await expect(cell(page, 1, 'QSO_DATE')).toHaveText('2026-09-02');
+  await expect(cell(page, 1, 'TIME_ON')).toHaveText('12:00');
+  await expect(cell(page, 1, 'TIME_OFF')).toHaveText('7');
+  const before = await exportAdi(page, { invalid: true });
+  // through every cell with the keyboard: nothing changes
+  await cell(page, 0, 'CALL').click();
+  const cells = await page.locator('#drop tbody td[data-col]').count();
+  for (let i = 1; i < cells; i++) await page.keyboard.press('Tab');
+  await page.keyboard.press('Tab');
+  expect(await asksBeforeLeaving(page)).toBe(false);
+  expect(await exportAdi(page, { invalid: true })).toBe(before);
+  // typed as ISO, stored as ADIF
+  const type = async (ri, col, text, key = 'Enter') => {
+    const td = cell(page, ri, col);
+    await td.click();
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.type(text);
+    await page.keyboard.press(key);
+  };
+  await type(1, 'QSO_DATE', '2026-9-3');
+  await type(1, 'TIME_ON', '9:05');
+  await type(1, 'TIME_OFF', '09:10:15');
+  await type(0, 'QSLSDATE', '20261001');
+  await expect(cell(page, 1, 'QSO_DATE')).toHaveText('2026-09-03');
+  await expect(cell(page, 1, 'TIME_ON')).toHaveText('09:05');
+  await expect(cell(page, 1, 'TIME_OFF')).toHaveText('09:10:15');
+  await expect(cell(page, 0, 'QSLSDATE')).toHaveText('2026-10-01');
+  // Esc restores the value from before
+  await cell(page, 0, 'TIME_ON').click();
+  await page.keyboard.press('ControlOrMeta+a');
+  await page.keyboard.type('23:59');
+  await page.keyboard.press('Escape');
+  await expect(cell(page, 0, 'TIME_ON')).toHaveText('12:00');
+  const records = parseADIFAuto(await exportAdi(page), [], 'export.adi', {});
+  expect(records.map(r => [r.QSO_DATE, r.TIME_ON, r.TIME_OFF, r.QSLSDATE])).toEqual([
+    ['20260901', '1200', '120530', '20261001'],
+    ['20260903', '0905', '091015', undefined],
+  ]);
+});
+
+test('a date cell has a calendar button; a picked date is stored at once', { tag: '@adif' }, async ({ page }) => {
+  await loadSample(page);
+  const td = cell(page, 0, 'QSO_DATE');
+  const supported = await page.evaluate(() => 'showPicker' in HTMLInputElement.prototype);
+  await td.click();
+  const btn = page.locator('#cell-date-btn');
+  if (!supported){ await expect(btn).toBeHidden(); return; }
+  await expect(btn).toBeVisible();
+  await expect(btn).toHaveAttribute('tabindex', '-1'); // not in the Tab order
+  await cell(page, 0, 'TIME_ON').click();
+  await expect(btn).toBeHidden();
+  await td.click();
+  await btn.click();
+  await expect(td).toBeFocused(); // the button doesn't take the focus
+  // the native calendar can't be driven: its input gets a value as a pick would
+  await page.locator('#dt-picker').evaluate(i => { i.value = '2026-10-14'; i.dispatchEvent(new Event('change')); });
+  await expect(td).toHaveText('2026-10-14');
+  expect(await asksBeforeLeaving(page)).toBe(true);
+  const records = parseADIFAuto(await exportAdi(page), [], 'export.adi', {});
+  expect(records[0].QSO_DATE).toBe('20261014');
+});
+
+test('the QSO_DATE range is typed as ISO dates', { tag: '@adif' }, async ({ page }) => {
+  await page.goto('tools/adif/');
+  await page.locator('#file-input').setInputFiles(adiFile('range.adi', ['20260830', '20260901', '20260902', '20260910'].map((d, i) => ({ CALL: `OE${i + 1}AB`, QSO_DATE: d, TIME_ON: '1200' }))));
+  await expect(page.locator('#stats')).toContainText('4 QSOs');
+  for (const id of ['#flt-from', '#flt-to']){
+    await expect(page.locator(id)).toHaveAttribute('type', 'text');
+    await expect(page.locator(id)).toHaveAttribute('placeholder', 'YYYY-MM-DD');
+  }
+  const rows = page.locator('#drop tbody tr[data-ri]');
+  await page.locator('#flt-from').fill('2026-9-1');
+  await page.locator('#flt-from').press('Tab');
+  await expect(page.locator('#flt-from')).toHaveValue('2026-09-01');
+  await expect(rows).toHaveCount(3);
+  await page.locator('#flt-to').fill('20260902');
+  await page.locator('#flt-to').press('Tab');
+  await expect(page.locator('#flt-to')).toHaveValue('2026-09-02');
+  await expect(rows).toHaveCount(2);
+  await page.locator('#flt-to').fill('02.09.2026');
+  await page.locator('#flt-to').press('Tab');
+  await expect(page.locator('#flt-to')).toHaveAttribute('aria-invalid', 'true');
+  await expect(rows).toHaveCount(3); // an incomplete or other date filters nothing
+  await page.locator('#flt-clear').click();
+  await expect(page.locator('#flt-to')).not.toHaveAttribute('aria-invalid', /.*/);
+  await expect(rows).toHaveCount(4);
 });

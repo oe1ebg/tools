@@ -5,6 +5,7 @@
 
 import { el, fill } from '../../shared/js/dom.js';
 import { emptyFilter, isFilterActive } from './filter.js';
+import { DT_DATE, dtAdifDate, dtShow, dtOpenPicker, dtPickerSupported } from './datetime.js';
 
 const FILTER_OP_LABELS = [
   ['eq', 'equals'], ['starts', 'starts with'], ['contains', 'contains'], ['empty', 'is empty'], ['notempty', 'is not empty'],
@@ -77,11 +78,36 @@ export function initFilterUI({ onChange }){
     file.value = s.file;
     from.value = s.dateFrom;
     to.value = s.dateTo;
+    checkDate(from);
+    checkDate(to);
     fill(condBox, s.conditions.map(c => condRow(c)));
   }
 
   text.addEventListener('input', fireLater);
-  for (const c of [textField, status, file, from, to]) c.addEventListener('change', fire);
+  for (const c of [textField, status, file]) c.addEventListener('change', fire);
+  // QSO_DATE range: ISO dates typed as text (2026-09-01, 2026-9-1 or
+  // 20260901), shown as YYYY-MM-DD once complete; the calendar buttons
+  // open the browser's picker, whose locale format never shows.
+  const checkDate = input => {
+    const d = dtAdifDate(input.value);
+    if (d) input.value = dtShow(DT_DATE, d);
+    if (input.value.trim() && !d) input.setAttribute('aria-invalid', 'true');
+    else input.removeAttribute('aria-invalid');
+  };
+  for (const input of [from, to]){
+    input.addEventListener('input', fireLater);
+    input.addEventListener('change', () => { checkDate(input); fire(); });
+  }
+  for (const btn of bar.querySelectorAll('button.date-pick')){
+    const input = $f(btn.dataset.for);
+    btn.hidden = !dtPickerSupported;
+    btn.addEventListener('click', () => dtOpenPicker(input, input.value, iso => {
+      input.value = iso;
+      checkDate(input);
+      fire();
+      input.focus();
+    }));
+  }
   $f('flt-add-cond').addEventListener('click', () => {
     const row = condRow();
     condBox.append(row);

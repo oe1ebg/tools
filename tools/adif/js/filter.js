@@ -14,8 +14,11 @@
 //              a condition without field, or eq/starts/contains without
 //              value, is still being typed and filters nothing)
 //   file       source file name ('' = all)
-//   dateFrom, dateTo  QSO_DATE range, inclusive, YYYYMMDD or YYYY-MM-DD
+//   dateFrom, dateTo  QSO_DATE range, inclusive, as typed: YYYY-MM-DD (also
+//                     2026-9-1) or YYYYMMDD (datetime.js, dtAdifDate)
 //              (a QSO without a valid QSO_DATE is outside any range)
+
+import { dtAdifDate } from './datetime.js';
 
 export const FILTER_OPS = ['eq', 'starts', 'contains', 'empty', 'notempty'];
 export const FILTER_STATUSES = ['any', 'errors', 'warnings', 'info', 'clean'];
@@ -25,8 +28,7 @@ export function emptyFilter(){
 }
 
 function filterDate(v){
-  const d = String(v || '').replace(/-/g, '');
-  return /^\d{8}$/.test(d) ? d : '';
+  return dtAdifDate(v);
 }
 
 function filterConditionActive(c){

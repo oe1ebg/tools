@@ -21,6 +21,7 @@ import { validateAdifRecordsSteps } from '../../shared/js/adif-validate.js';
 import { initLogStatistics } from './statistics-ui.js';
 import { VirtualBody } from './table.js';
 import { eoColumnKind, eoScopedKey, eoScopeCtx, eoCurrent, eoSuggestions, eoDependents } from './enum-options.js';
+import { dtColumnKind, dtShow, dtParse, dtOpenPicker, dtPickerSupported } from './datetime.js';
 import { ceSelectCell, ceTextCell, ceSetCurrent, ceFill, ceClearCache, initCellSuggest } from './cell-editors.js';
 
 function populateFieldDatalist(){
@@ -409,6 +410,14 @@ function displayValue(v){
   return /[\r\n]/.test(v) ? v.replace(/\r\n|\r|\n/g, '¶') : v;
 }
 
+// Date and time cells (datetime.js) show ISO dates and times.
+function isDtKind(kind){ return kind?.kind === 'date' || kind?.kind === 'time'; }
+
+// The text of a cell that isn't being edited.
+function cellShown(kind, raw){
+  return displayValue(isDtKind(kind) ? dtShow(kind, raw) : raw);
+}
+
 // Width of a displayed value in characters.
 function displayWidth(v){
   return /[\r\n]/.test(v) ? displayValue(v).length : v.length;
@@ -458,18 +467,20 @@ function buildColgroup(){
   numCol.style.width = `calc(${rownumCss})`;
   colsPx = 0;
   const group = el('colgroup', {}, numCol);
-  for (const col of columns){
+  columns.forEach((col, ci) => {
     // wide enough for the values (up to MAX_COL_CHARS) and for the header:
-    // the name (a proportional bold font) and the sort/remove buttons
+    // the name (a proportional bold font) and the sort/remove buttons;
+    // ISO dates and times have two separators more than they store
     const headChars = Math.ceil(col.length * 1.15) + 4;
-    const chars = Math.max(headChars, Math.min(MAX_COL_CHARS, Math.max(4, longest.get(col) || 0)));
+    const valueChars = (longest.get(col) || 0) + (isDtKind(colKinds[ci]) ? 2 : 0);
+    const chars = Math.max(headChars, Math.min(MAX_COL_CHARS, Math.max(4, valueChars)));
     const c = document.createElement('col');
     c.style.width = colWidth(chars);
     colsPx += colPxOf(chars);
     colEls.push(c);
     colChars.push(chars);
     group.appendChild(c);
-  }
+  });
   return group;
 }
 
@@ -513,7 +524,7 @@ function cellListKey(kind, rec){
   return null;
 }
 
-// One cell of a select or scoped column: a scoped one (STATE, CNTY) is a
+// One cell of a select, scoped, date or time column: a scoped one (STATE, CNTY) is a
 // select only while the row's (MY_)DXCC has a list. A select shows only
 // the stored value until it is used (fillSelect).
 function renderCell(td, rec, col, ri, kind){
@@ -525,7 +536,7 @@ function renderCell(td, rec, col, ri, kind){
     else if (!key && isSelect) ceTextCell(td, EDITABLE);
   }
   if (key) ceSetCurrent(td.firstElementChild, raw, eoCurrent(key, raw, eoScopeCtx(kind, rec)).label, `${col}, row ${ri + 1}`);
-  else if (td.textContent !== displayValue(raw)) td.textContent = displayValue(raw);
+  else if (td.textContent !== cellShown(kind, raw)) td.textContent = cellShown(kind, raw);
 }
 
 // The full option list of a select, before it opens or gets the focus.
@@ -626,7 +637,7 @@ function render(){
   }
   setExportButtonsDisabled(false);
   colIndex = new Map(columns.map((c, i) => [c, i]));
-  colKinds = columns.map(c => eoColumnKind(c, fieldDefs));
+  colKinds = columns.map(c => eoColumnKind(c, fieldDefs) || dtColumnKind(c, fieldDefs));
   protoRow = buildProtoRow();
 
   const htr = el('tr', { 'aria-rowindex': '1' }, el('th', { class: 'rownum-col', scope: 'col' }, '#'));
@@ -741,10 +752,14 @@ function commitCell(td){
   const rec = records[ri];
   if (!rec || !col) return;
   const sel = cellSelect(td);
-  const v = sel ? sel.value : td.textContent;
+  const kind = colKinds[colIndex.get(col)];
+  let v = sel ? sel.value : td.textContent;
+  // a date or time typed as ISO (or ADIF) is stored as ADIF; one left as
+  // shown is no edit, even when its stored spelling isn't ADIF's
+  if (!sel && isDtKind(kind)) v = v === dtShow(kind, rec[col] ?? '') ? (rec[col] ?? '') : dtParse(kind, v);
   if (v !== (rec[col] ?? '')){
     if (v === '') delete rec[col];
-    else { rec[col] = v; widenColumn(col, v); }
+    else { rec[col] = v; widenColumn(col, cellShown(kind, v)); }
     invalidateRecord(rec);
     if (view) filterPinned.add(rec); // stays shown even if it no longer matches
     markDirty();
@@ -752,7 +767,7 @@ function commitCell(td){
     refreshDependents(rec, col);
   }
   if (sel) return;
-  const shown = displayValue(rec[col] ?? '');
+  const shown = cellShown(kind, rec[col] ?? '');
   if (td.textContent !== shown) td.textContent = shown;
 }
 
@@ -778,6 +793,43 @@ const suggest = initCellSuggest({
   },
 });
 
+// The calendar button of the focused date cell (index.html, #cell-date-btn):
+// it opens the browser's date picker (datetime.js, dtOpenPicker), as does
+// Alt+↓ in the cell. The picked date is committed at once, so it is kept
+// when the picker hands the focus back. Not offered without showPicker.
+const datePick = (() => {
+  const btn = document.getElementById('cell-date-btn');
+  let td = null;
+  function hide(){ btn.hidden = true; td = null; }
+  function show(cell){
+    if (!dtPickerSupported) return;
+    td = cell;
+    // only over the visible part of the table
+    const r = cell.getBoundingClientRect(), box = dropEl.getBoundingClientRect();
+    btn.hidden = !cell.isConnected || r.bottom <= box.top + r.height || r.top >= box.bottom || r.right <= box.left || r.right > box.right;
+    if (btn.hidden) return;
+    btn.style.left = `${Math.round(r.right - btn.offsetWidth - 2)}px`;
+    btn.style.top = `${Math.round(r.top + (r.height - btn.offsetHeight) / 2)}px`;
+  }
+  function open(){
+    const cell = td;
+    if (!cell) return;
+    const rec = records[Number(cell.parentNode?.dataset.ri)];
+    dtOpenPicker(cell, rec?.[cell.dataset.col] ?? '', iso => {
+      if (!cell.isConnected) return;
+      cell.textContent = iso;
+      commitCell(cell);
+      (cellSelect(cell) || cell).focus({ preventScroll: true });
+    });
+  }
+  // a click keeps the focus in the cell
+  btn.addEventListener('pointerdown', e => e.preventDefault());
+  btn.addEventListener('mousedown', e => e.preventDefault());
+  btn.addEventListener('click', open);
+  dropEl.addEventListener('scroll', () => { if (td) show(td); }, { passive: true });
+  return { show, hide, open, cell: () => td };
+})();
+
 function bindBodyEvents(tbody){
   tbody.addEventListener('focusin', e => {
     const td = e.target.closest('td[data-col]');
@@ -785,14 +837,21 @@ function bindBodyEvents(tbody){
     const rec = records[Number(td.parentNode.dataset.ri)];
     const raw = rec?.[td.dataset.col] ?? '';
     const sel = cellSelect(td);
+    const kind = colKinds[colIndex.get(td.dataset.col)];
     if (sel) fillSelect(sel);
-    // the full value (with its line breaks) while editing
-    else if (td.textContent !== raw) td.textContent = raw;
+    // the full value (with its line breaks) while editing; a date or time
+    // in its ISO form
+    else {
+      const text = isDtKind(kind) ? dtShow(kind, raw) : raw;
+      if (td.textContent !== text) td.textContent = text;
+    }
+    if (kind?.kind === 'date') datePick.show(td);
     editBefore = raw;
   });
   tbody.addEventListener('focusout', e => {
     const td = e.target.closest('td[data-col]');
     if (suggest.cell() === td) suggest.hide();
+    if (datePick.cell() === td) datePick.hide();
     if (td && td.isConnected) commitCell(td);
   });
   // A select gets its full list before it opens (the pointer events come
@@ -820,6 +879,11 @@ function bindBodyEvents(tbody){
         return;
       }
     }
+    if (td && e.key === 'ArrowDown' && e.altKey && datePick.cell() === td){
+      e.preventDefault();
+      datePick.open();
+      return;
+    }
     const pos = posOf(Number(tr.dataset.ri));
     if (td && e.key === 'Enter' && !isComposing(e)){
       e.preventDefault();
@@ -828,7 +892,11 @@ function bindBodyEvents(tbody){
       e.preventDefault();
       const sel = cellSelect(td);
       if (sel){ sel.value = editBefore; sel.blur(); }
-      else { td.textContent = editBefore; td.blur(); }
+      else {
+        const kind = colKinds[colIndex.get(td.dataset.col)];
+        td.textContent = isDtKind(kind) ? dtShow(kind, editBefore) : editBefore;
+        td.blur();
+      }
     } else if (e.key === 'Tab' && !e.shiftKey && td && !td.nextElementSibling && pos + 1 < viewLength()){
       e.preventDefault();
       focusCell(pos + 1);
