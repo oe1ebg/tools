@@ -29,16 +29,27 @@ jobs:
   #             HTML check and browser tests
   #   browsers  the Playwright projects: all five on PRs, Chromium only on a
   #             push to main (the PR already ran all of them)
+  #   verified  this exact content (git tree) already passed with that scope
+  #             or a wider one, with all five projects: a clean rebase merge
+  #             to main, or a restacked PR whose content didn't change. Then
+  #             test, bundle and validate are skipped (scripts/ci_verified.py,
+  #             the marker comes from the `verified` job below).
   # Scheduled and manual runs and version tags check everything.
   changes:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: read # paths-filter lists a PR's files through the API
+      actions: read # the verified-tree markers (artifacts) and their runs
     outputs:
       adif: ${{ steps.scope.outputs.all == 'true' || steps.filter.outputs.adif == 'true' }}
       site: ${{ steps.scope.outputs.all == 'true' || steps.filter.outputs.site == 'true' }}
       browsers: ${{ steps.scope.outputs.browsers }}
+      tree: ${{ steps.tree.outputs.tree }}
+      verified: ${{ steps.verified.outputs.verified == 'true' }}
+      # leave a marker when this run checks with all five projects (not a
+      # push to main, not a fork's PR, whose marker would not be accepted)
+      record: ${{ steps.verified.outputs.verified != 'true' && !(github.event_name == 'push' && github.ref == 'refs/heads/main') && github.event.pull_request.head.repo.fork != true }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -109,15 +120,37 @@ jobs:
               - 'pyproject.toml'
               - 'uv.lock'
 
+      # the content under test: the pushed commit, or a PR's merge commit
+      - name: Tree
+        id: tree
+        run: echo "tree=$(git rev-parse 'HEAD^{tree}')" >> "$GITHUB_OUTPUT"
+
+      # Not for scheduled and manual runs or tags: they always check everything.
+      - name: Already verified?
+        id: verified
+        if: steps.scope.outputs.all != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TREE: ${{ steps.tree.outputs.tree }}
+          ADIF: ${{ steps.filter.outputs.adif == 'true' }}
+          SITE: ${{ steps.filter.outputs.site == 'true' }}
+        run: python3 scripts/ci_verified.py lookup --tree "$TREE" --adif "$ADIF" --site "$SITE" --repo "$GITHUB_REPOSITORY"
+
       - name: Summary
         env:
           ADIF: ${{ steps.scope.outputs.all == 'true' || steps.filter.outputs.adif == 'true' }}
           SITE: ${{ steps.scope.outputs.all == 'true' || steps.filter.outputs.site == 'true' }}
           BROWSERS: ${{ steps.scope.outputs.browsers }}
+          TREE: ${{ steps.tree.outputs.tree }}
+          VERIFIED: ${{ steps.verified.outputs.verified == 'true' }}
+          VERIFIED_RUN: ${{ steps.verified.outputs.run-url }}
         run: |
           {
             echo '### Scope of this run'
             echo
+            if [ "$VERIFIED" = true ]; then
+              echo "- **Already verified:** tree \`$TREE\` passed this scope with all five browser projects in $VERIFIED_RUN; unit tests, bundle and browser tests are skipped. A manual run (workflow_dispatch) checks everything."
+            fi
             echo "- ADIF checks (unit tests, cross-checks, browser test): **$ADIF**"
             echo "- HTML check and browser tests: **$SITE** (projects: \`$BROWSERS\`)"
           } >> "$GITHUB_STEP_SUMMARY"
@@ -133,6 +166,7 @@ jobs:
   # XML as an artifact.
   test:
     needs: changes
+    if: needs.changes.outputs.verified != 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -216,7 +250,7 @@ jobs:
   # builds refresh them.
   bundle:
     needs: changes
-    if: needs.changes.outputs.site == 'true'
+    if: needs.changes.outputs.site == 'true' && needs.changes.outputs.verified != 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -284,7 +318,7 @@ jobs:
   # job. Skipped when nothing the bundle is built from changed.
   validate:
     needs: [changes, bundle]
-    if: needs.changes.outputs.site == 'true'
+    if: needs.changes.outputs.site == 'true' && needs.changes.outputs.verified != 'true'
     name: validate (${{ matrix.project }})
     runs-on: ubuntu-latest
     permissions:
@@ -420,3 +454,44 @@ jobs:
       - name: nginx log
         if: ${{ failure() }}
         run: docker logs site
+
+  # The marker of a run that passed with all five browser projects: an
+  # artifact named after the tree it checked and its scope
+  # (scripts/ci_verified.py). `changes` of a later run with the same tree,
+  # e.g. after a clean rebase merge or an unchanged restack, skips the
+  # checks. Not from a push to main (Chromium only), a fork's PR or a run
+  # that skipped them itself.
+  verified:
+    needs: [changes, test, bundle, validate]
+    if: ${{ !cancelled() && needs.changes.outputs.record == 'true' && needs.test.result == 'success' && (needs.changes.outputs.site != 'true' || (needs.bundle.result == 'success' && needs.validate.result == 'success')) }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Marker
+        id: marker
+        env:
+          TREE: ${{ needs.changes.outputs.tree }}
+          ADIF: ${{ needs.changes.outputs.adif }}
+          SITE: ${{ needs.changes.outputs.site }}
+          BROWSERS: ${{ needs.changes.outputs.browsers }}
+        run: |
+          name=$(python3 scripts/ci_verified.py name --tree "$TREE" --adif "$ADIF" --site "$SITE")
+          mkdir -p "$RUNNER_TEMP/marker"
+          jq -n --arg tree "$TREE" --arg sha "$GITHUB_SHA" --arg event "$GITHUB_EVENT_NAME" --arg run "$GITHUB_RUN_ID" \
+            --argjson adif "$ADIF" --argjson site "$SITE" --argjson browsers "$BROWSERS" \
+            '{tree: $tree, sha: $sha, event: $event, run: $run, adif: $adif, site: $site, browsers: $browsers}' \
+            > "$RUNNER_TEMP/marker/verified.json"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "Marker: \`$name\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the marker
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ steps.marker.outputs.name }}
+          path: ${{ runner.temp }}/marker/verified.json
+          retention-days: 30
+          if-no-files-found: error
