@@ -410,10 +410,12 @@ function adiFile(name, recs, header = '') {
 
 const cell = (page, ri, col) => page.locator(`#drop tbody tr[data-ri="${ri}"] td[data-col="${col}"]`);
 // the export without its CREATED_TIMESTAMP (the only part that changes by
-// itself); read back with the tolerant parser (these logs are not all valid)
-async function exportAdi(page) {
+// itself); read back with the tolerant parser (these logs are not all valid).
+// An invalid log is exported only after its errors are approved (export-ui.js).
+async function exportAdi(page, { invalid = false } = {}) {
   const download = page.waitForEvent('download');
   await page.locator('#btn-export').click();
+  if (invalid) await page.locator('#export-decisions').getByRole('button', { name: 'Export with reported validation errors', exact: true }).click();
   return (await downloadText(await download)).replace(/<CREATED_TIMESTAMP:15>\d{8} \d{6}/, '');
 }
 // Would leaving the page ask? (the beforeunload handler cancels the event)
@@ -473,7 +475,7 @@ test('stored values are kept as they are: marked options, no edit by tabbing, id
     { CALL: 'OE3XYZ', QSO_DATE: '20260901', TIME_ON: '1300', MODE: 'zz', BAND: '40m', QSL_RCVD: 'Y', DXCC: '291', MYCLASS: 'Al', REGION: 'NONE' },
   ], '<USERDEF1:15:E>MYCLASS,{Al,Be} '));
   await expect(page.locator('#stats')).toContainText('2 QSOs');
-  const before = await exportAdi(page);
+  const before = await exportAdi(page, { invalid: true });
   const options = async (ri, col) => {
     const sel = cell(page, ri, col).locator('select');
     await sel.focus(); // fills the list
@@ -511,7 +513,7 @@ test('stored values are kept as they are: marked options, no edit by tabbing, id
   await page.keyboard.press('Tab');
   await expect(page.locator('#validation-summary')).not.toContainText('current log'); // nothing was edited
   expect(await asksBeforeLeaving(page)).toBe(false);
-  expect(await exportAdi(page)).toBe(before);
+  expect(await exportAdi(page, { invalid: true })).toBe(before);
 });
 
 test('STATE is a select only where the DXCC has a list; unlisted values stay', { tag: '@adif' }, async ({ page }) => {
@@ -554,7 +556,7 @@ test('STATE is a select only where the DXCC has a list; unlisted values stay', {
   await expect(state(0).locator('select')).toHaveCount(0);
   h = await heights();
   expect(Math.max(...h) - Math.min(...h)).toBeLessThan(0.5);
-  const records = parseADIFAuto(await exportAdi(page), [], 'export.adi', {});
+  const records = parseADIFAuto(await exportAdi(page, { invalid: true }), [], 'export.adi', {});
   expect(records.map(r => r.STATE)).toEqual(['ZZ', 'XY', 'CA']);
   expect(records.map(r => r.DXCC)).toEqual([undefined, '291', '291']);
 });
