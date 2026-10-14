@@ -85,9 +85,11 @@
       </select>
     </span>
     <label for="flt-from">QSO_DATE from</label>
-    <input type="date" id="flt-from">
+    <input type="text" id="flt-from" class="flt-date" placeholder="YYYY-MM-DD" inputmode="numeric" maxlength="10" autocomplete="off" spellcheck="false">
+    <button type="button" class="date-pick" data-for="flt-from" title="choose the first date" aria-label="choose the first date"><svg class="icon-calendar" aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></button>
     <label for="flt-to">to</label>
-    <input type="date" id="flt-to">
+    <input type="text" id="flt-to" class="flt-date" placeholder="YYYY-MM-DD" inputmode="numeric" maxlength="10" autocomplete="off" spellcheck="false">
+    <button type="button" class="date-pick" data-for="flt-to" title="choose the last date" aria-label="choose the last date"><svg class="icon-calendar" aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></button>
     <button type="button" id="flt-add-cond">+ condition</button>
     <button type="button" id="flt-clear">clear filters</button>
     <span id="flt-count" role="status"></span>
@@ -150,6 +152,9 @@
 <!-- Suggestions for the focused CONTEST_ID / SUBMODE cell (js/cell-editors.js):
      the focus stays in the cell, the highlighted item is announced. -->
 <ul id="cell-suggest" role="listbox" aria-label="suggestions" hidden></ul>
+<!-- The calendar of the focused date cell (js/app.js, datePick): not in the
+     Tab order, Alt+↓ in the cell does the same. -->
+<button type="button" id="cell-date-btn" class="date-pick" tabindex="-1" title="choose a date (Alt+↓)" aria-label="choose a date" hidden><svg class="icon-calendar" aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></button>
 <span id="cell-suggest-status" class="sr-only" role="status"></span>
 
 <!-- Confirmation for "new" and "clear…" (js/app.js, askConfirm). -->

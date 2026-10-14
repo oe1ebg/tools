@@ -115,6 +115,24 @@ commits like a text cell: on blur, Enter (and down), Tab, or before its row
 scrolls out; not on `change`, because some browsers step a closed select's
 value with the arrow keys. Esc restores the value from before.
 
+**Dates and times** (`js/datetime.js`, ISO 8601 as everywhere in these
+tools). The 16 `Date` fields (QSO_DATE, QSO_DATE_OFF, the QSL, LoTW, eQSL
+and DCL sent/received dates, the Club Log, HAMLOG.EU, HamQTH, HRDLog and
+QRZ.COM upload/download dates), TIME_ON and TIME_OFF, and USERDEF/`APP_`
+fields declared `D` or `T` are shown as `2026-09-01`, `12:00` and
+`12:00:30`, and stored as ADIF (`20260901`, `1200`, `120030`). You can type
+`2026-09-01`, `2026-9-1` (also with `.` or `/`) or `20260901`; `12:00`,
+`9:05`, `12:00:30`, `1200` or `120030`. Seconds are stored only when typed.
+Anything else is kept as typed, and the validator reports it. A stored
+value that isn't ADIF's spelling (`2026-09-02`, `12:00`) is shown as it
+is, and leaving it as shown is no edit. A focused date cell has a calendar
+button (not in the Tab order; Alt+↓ does the same) that opens the
+browser's date picker. The picked date is stored at once. Only the
+picker's value is used, never its locale-formatted field, so no
+`<input type="date">` shows. Without `showPicker` (Safari before 16) there
+is no calendar, and typing works everywhere. Times have no picker: the
+browser's time picker shows AM/PM in some locales.
+
 **new / clear…** in the toolbar. *new* starts an empty log with the
 columns CALL, QSO_DATE, TIME_ON, BAND, FREQ, MODE, RST_SENT, RST_RCVD, one
 empty row and the focus on CALL (export file name `new.adi`); with
@@ -747,7 +765,11 @@ free-text search (case-insensitive substring, any field's value or one
 field's), validation status (QSOs with errors / warnings / info, or
 issue-free), field conditions (equals, starts with, contains, is empty,
 is not empty; case-insensitive), the source file (only with more than one
-file loaded) and a `QSO_DATE` range. A QSO edited while filtered stays
+file loaded) and a `QSO_DATE` range. The range is typed as ISO dates
+(`2026-09-01`, `2026-9-1` or `20260901`, shown as `YYYY-MM-DD` once
+complete). A calendar button next to each field opens the browser's
+picker. A date that is not complete or not ISO is marked and filters
+nothing. A QSO edited while filtered stays
 visible until the filter is changed, even if it no longer matches. "row N"
 in the issue list clears the filters that hide that QSO and goes to it.
 
@@ -780,7 +802,9 @@ record holding the focus always stays in the view.
   `js/filter-ui.js` (search & filter, see above), `js/enum-options.js`
   (which cells get a dropdown or suggestions and their options; pure,
   tested in `oe1ebg/tests/adif-enum-options.test.mjs`), `js/cell-editors.js`
-  (the select cells and the suggestion list).
+  (the select cells and the suggestion list), `js/datetime.js` (ISO
+  display and input of date and time fields; pure apart from the picker,
+  tested in `oe1ebg/tests/adif-datetime.test.mjs`).
 - `../shared/js/adif.js` — ADI parsing and field encoding, shared with the
   confirmation log's ADIF export.
 - `../shared/js/adif-validate.js` + `../shared/js/adif-spec-data.js` — the
