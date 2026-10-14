@@ -455,7 +455,18 @@ test('enumeration cells are selects: Enter commits and moves down, Esc restores,
   expect(records[2].MODE).toBeUndefined();
 });
 
-test('stored values are kept as they are: marked options, no edit by tabbing, identical export', { tag: '@adif' }, async ({ page }) => {
+test('a select changed and exported while it still has the focus is exported with its new value', { tag: '@adif' }, async ({ page }) => {
+  await loadSample(page);
+  const band0 = cell(page, 0, 'BAND').locator('select');
+  await band0.focus();
+  await band0.selectOption('40m');
+  // no Enter, no blur: the export takes the focused cell's value (in WebKit
+  // clicking the button leaves the focus on the select)
+  const records = parseADIFAuto(await exportAdi(page), [], 'export.adi', {});
+  expect(records[0].BAND).toBe('40m');
+});
+
+test('stored values are kept as they are: marked options, no edit by tabbing, identical export',{ tag: '@adif' }, async ({ page }) => {
   await page.goto('tools/adif/');
   await page.locator('#file-input').setInputFiles(adiFile('odd.adi', [
     { CALL: 'OE1ABC', QSO_DATE: '20260901', TIME_ON: '1200', MODE: 'PSK31', BAND: '20M', QSL_RCVD: 'V', DXCC: '001', MYCLASS: 'Gamma', REGION: 'KO' },

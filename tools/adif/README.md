@@ -92,8 +92,9 @@ as the validator does:
   them only then, too). Changing DXCC switches the row's cells.
 - **Open lists** (a `String` field that recommends an enumeration; other
   values are valid, the validator only warns): CONTEST_ID and SUBMODE stay
-  free text with suggestions. SUBMODE's follow the row's MODE (all
-  submodes without one, or for an unknown MODE). Typing shows the matching
+  free text with suggestions. SUBMODE's follow the row's MODE (none for
+  an ADIF mode without submodes such as FT8; all submodes without a MODE,
+  or for one ADIF doesn't know). Typing shows the matching
   values (case-insensitive; those starting with the text first, at most 30,
   then "… n more"); ↓ opens the list, ↑/↓ move the highlight (announced to
   screen readers), Enter takes the highlighted value, or the typed text when
@@ -490,6 +491,26 @@ The edit commit itself stays below 60 ms. Scrolling the virtualized table is
 smooth unthrottled (0 frames > 50 ms) but at 4x/6x CPU almost every frame
 takes 50-150 ms, independent of log size: the cost is per-row rendering
 (180 columns), not the size of the log.
+
+**Enumeration selects** (measured 2026-10-14, same machine, `just bench-ui
+--tool adif --engine chromium --throttle 1,4 --viewport desktop`, main
+before the change / with it, median):
+
+| | 10k QSOs | 50k QSOs |
+| --- | ---: | ---: |
+| file chosen -> rows + validation shown, 1x / 4x | 135 → 169 / 539 → 661 ms | 377 → 419 / 1551 → 1602 ms |
+| longest task while loading, 4x | 112 → 198 ms | 149 → 222 ms |
+| rendered DOM nodes | 10 329 → 24 142 | 10 329 → 24 142 |
+| scroll frame, 4x (median / p95) | 16.7 / 16.8 → 33.3 / 33.4 ms | 16.7 / 33.3 → 16.7 / 33.4 ms |
+| edit commit -> next frame, 4x | 28 → 33 ms | 36 → 40 ms |
+| edit -> re-checked, 4x | 454 → 456 ms | 1571 → 1514 ms |
+
+Each enumeration cell of the rendered window is a `<select>` with one
+option until it is used, which more than doubles the rendered nodes; the
+first render of a log is up to about a quarter slower, scrolling at 4x CPU
+still has no frame over 50 ms, editing and re-checking are unchanged. Should
+this grow, the fallback is a text cell that becomes a select on
+hover/focus.
 
 ### Import, re-check and limits (issue #15)
 

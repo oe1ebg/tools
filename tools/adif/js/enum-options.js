@@ -145,10 +145,18 @@ export function eoCellOptions(key, raw, ctx){
 
 const eoSuggestLists = new Map();
 
+// A value of the scope field's own enumeration (MODE: Mode).
+function eoIsScopeValue(scopeField, v){
+  const values = ADIF_SPEC_ENUMS[ADIF_SPEC_FIELDS[scopeField]?.enum]?.values;
+  return !!v && !!values && values.some(x => x.toUpperCase() === v);
+}
+
 function eoSuggestValues(source, rec){
   const e = ADIF_SPEC_ENUMS[source.enumName];
   if (!e) return [];
-  // SUBMODE: the submodes of the row's MODE, all of them without one
+  // SUBMODE: the submodes of the row's MODE; none for an ADIF mode that
+  // has no submodes (FT8, AM, …); all of them without a MODE or for one
+  // ADIF doesn't know
   let id = source.enumName;
   let values;
   const scoped = source.scope && e.byScope;
@@ -156,6 +164,8 @@ function eoSuggestValues(source, rec){
   if (scoped && e.byScope[scopeVal]){
     id += '@' + scopeVal;
     values = e.byScope[scopeVal];
+  } else if (scoped && eoIsScopeValue(source.scope, scopeVal)){
+    return [];
   } else if (scoped){
     values = Object.values(e.byScope).flat();
   } else {
