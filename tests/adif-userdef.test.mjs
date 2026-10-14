@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseADIF, parseADIFAuto } from '../tools/shared/js/adif.js';
 import { validateAdif } from '../tools/shared/js/adif-validate.js';
-import { serializeADIF, adifChangedValues, emptyFieldDefs, mergeFieldDefs, forgetFieldDefs } from '../tools/adif/js/export.js';
+import { serializeADIF, adifChangedValues, emptyFieldDefs, mergeFieldDefs, forgetFieldDefs, userdefParts } from '../tools/adif/js/export.js';
 
 const STAMP = '2026-10-06T00:00:00Z';
 
@@ -116,6 +116,17 @@ test('serializeADIF with defs: USERDEF header, type indicators and multiline val
   forgetFieldDefs(fieldDefs, 'APP_OE1EBG_RATING');
   const out3 = serializeADIF(recs, cols.filter(c => c !== 'ANTENNA'), STAMP, fieldDefs);
   assert.ok(!out3.includes('ANTENNA') && out3.includes('<USERDEF3:6:S>MY_AMP') && out3.includes('<APP_OE1EBG_RATING:1>5 '), out3);
+});
+
+// The editor's USERDEF dropdowns (tools/adif/js/enum-options.js) read the
+// values of a declaration with it.
+test('userdefParts: enumeration, range, plain name, blanks', () => {
+  assert.deepEqual(userdefParts('MY_E,{Alpha,Beta}'), { name: 'MY_E', values: ['Alpha', 'Beta'], range: null });
+  assert.deepEqual(userdefParts('MY_E , { A , B ,, }'), { name: 'MY_E', values: ['A', 'B'], range: null });
+  assert.deepEqual(userdefParts('MY_N,{-5:12.5}'), { name: 'MY_N', values: null, range: [-5, 12.5] });
+  assert.deepEqual(userdefParts('PLAIN'), { name: 'PLAIN', values: null, range: null });
+  assert.deepEqual(userdefParts(''), { name: '', values: null, range: null });
+  assert.equal(userdefParts('A{B').odd, true);
 });
 
 test('mergeFieldDefs: conflicting declarations from two files', () => {

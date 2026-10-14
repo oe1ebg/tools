@@ -74,6 +74,56 @@ at the end of a row goes on to the next row's first field. With edits
 that haven't been exported (ADI or CSV), closing or reloading the tab
 asks first.
 
+**Dropdowns and suggestions** (`js/enum-options.js`, `js/cell-editors.js`).
+ADIF 3.1.8 has two kinds of enumerated fields, and the editor treats them
+as the validator does:
+- **Strict** (type `Enumeration`: any other value is an error): the cell is
+  a native `<select>`. That is BAND, BAND_RX, MODE, DXCC, MY_DXCC, the
+  QSL/LoTW/eQSL/DCL sent and received fields, QSL_SENT_VIA/QSL_RCVD_VIA,
+  the upload/download status fields, PROP_MODE, ANT_PATH, (MY_)ARRL_SECT,
+  CONT, EQSL_AG, QSO_COMPLETE, REGION, (MY_)MORSE_KEY_TYPE, and a USERDEF
+  field declared with type `E` and values (`NAME,{A,B}`). The first option
+  is empty: it removes the field. Import-only values (MODE PSK31, QSL_RCVD
+  V, QSL_VIA M, …) are not offered; REGION's `KO`, listed three times in
+  the spec data, once. DXCC options read `291 – UNITED STATES OF AMERICA`,
+  deleted entities are marked `(deleted)`.
+- **STATE, MY_STATE, CNTY, MY_CNTY**: a select only when the row's DXCC
+  (MY_DXCC) has a list in the spec data, else text (the validator checks
+  them only then, too). Changing DXCC switches the row's cells.
+- **Open lists** (a `String` field that recommends an enumeration; other
+  values are valid, the validator only warns): CONTEST_ID and SUBMODE stay
+  free text with suggestions. SUBMODE's follow the row's MODE (all
+  submodes without one, or for an unknown MODE). Typing shows the matching
+  values (case-insensitive; those starting with the text first, at most 30,
+  then "… n more"); ↓ opens the list, ↑/↓ move the highlight (announced to
+  screen readers), Enter takes the highlighted value, or the typed text when
+  none is highlighted, and moves down as usual; the first Esc closes the
+  list, the second restores the value; Tab closes it. A click takes a value.
+- Everything else (MY_COUNTRY: the spec data has no Country list; DARC_DOK:
+  no data; credit and award lists, CNTY_ALT, `APP_` fields) stays text.
+
+**A stored value is never changed by showing it.** The selected option's
+value is always the stored value: one that matches an option except for
+letter case (`20M`) or DXCC zero padding (`001`) keeps its own spelling; an
+import-only value stays in the list as `PSK31 (import-only)`; any other
+stays too, as `zz (not in ADIF 3.1.8)`, `(not declared in USERDEF)` or
+`(not listed for DXCC=291)`. Focusing or tabbing through a cell edits
+nothing. A select shows only its current value until it is used (the full
+list is filled in on pointer-down, hover or focus, once per select). It
+commits like a text cell: on blur, Enter (and down), Tab, or before its row
+scrolls out; not on `change`, because some browsers step a closed select's
+value with the arrow keys. Esc restores the value from before.
+
+**new / clear…** in the toolbar. *new* starts an empty log with the
+columns CALL, QSO_DATE, TIME_ON, BAND, FREQ, MODE, RST_SENT, RST_RCVD, one
+empty row and the focus on CALL (export file name `new.adi`); with
+unexported edits it asks first. *clear…* always asks (naming unexported
+edits) and empties the editor: the log, its files, field definitions,
+validation, filters, sort order and warnings; it is disabled while the
+editor is empty. Both wait while a file loads. The question is a modal
+`<dialog>` (Cancel has the focus, Esc is no), not `confirm()`, which a
+sandboxed iframe of an embedding page blocks.
+
 **Encoding:** files are read as UTF-8, else as Windows-1252 (with a
 warning). The ADI export is ASCII, as ADIF requires: an explicit preflight decision
 is required before other characters are transliterated (ä → ae, é → e, the rest → ?), line breaks become blanks
@@ -115,6 +165,15 @@ the same as before. Combining files whose declarations differ:
   their type is fixed by the spec.
 - A USERDEF declared with an Intl type (`I`, `G`) is kept, but ADI values
   stay ASCII.
+- MY_COUNTRY / MY_COUNTRY_INTL get no dropdown: the spec data has no
+  Country enumeration.
+- STATE / MY_STATE: the spec data's import-only list of these values does
+  not say for which DXCC entity it holds (BC and NL are valid for Canada,
+  import-only for Mexico), so the scoped dropdowns mark nothing
+  import-only; the validator doesn't report those either.
+- iOS Safari zooms into a focused table cell (select or text): the cells
+  keep the table's 13px so that every row has the same height, which the
+  virtual table needs.
 
 ## Validation
 
@@ -685,7 +744,10 @@ record holding the focus always stays in the view.
   `js/export.js` (ADI,
   CSV and SOTA CSV export; pure, unit-tested in `oe1ebg/tests/adif.test.mjs`),
   `js/fields.js` (ADIF 3.1.8 field reference data), `js/filter.js` +
-  `js/filter-ui.js` (search & filter, see above).
+  `js/filter-ui.js` (search & filter, see above), `js/enum-options.js`
+  (which cells get a dropdown or suggestions and their options; pure,
+  tested in `oe1ebg/tests/adif-enum-options.test.mjs`), `js/cell-editors.js`
+  (the select cells and the suggestion list).
 - `../shared/js/adif.js` — ADI parsing and field encoding, shared with the
   confirmation log's ADIF export.
 - `../shared/js/adif-validate.js` + `../shared/js/adif-spec-data.js` — the

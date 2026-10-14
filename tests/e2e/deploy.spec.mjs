@@ -71,7 +71,17 @@ test('adif-editor.html can be embedded by a page of the same origin', { tag: '@a
     body: '<!doctype html><title>embed</title><iframe src="adif/adif-editor.html" title="ADIF Editor"></iframe>',
   }));
   await page.goto('tools/embed-test.html');
-  await expect(page.frameLocator('iframe').locator('#btn-open')).toBeVisible();
+  const frame = page.frameLocator('iframe');
+  await expect(frame.locator('#btn-open')).toBeVisible();
+  // the confirmation is a <dialog> in the frame (confirm() can be blocked in
+  // an embedding page's sandboxed iframe)
+  await frame.locator('#btn-new').click();
+  await frame.locator('#btn-clear').click();
+  const dlg = frame.getByRole('dialog', { name: 'Clear the editor?' });
+  await expect(dlg).toBeVisible();
+  await dlg.getByRole('button', { name: 'Cancel' }).click();
+  await expect(dlg).toBeHidden();
+  await expect(frame.locator('#drop tbody tr[data-ri]')).toHaveCount(1);
 });
 
 // The inline load-failure script of confirm/ and notfunk/ runs (its hash is

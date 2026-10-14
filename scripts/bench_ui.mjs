@@ -477,7 +477,7 @@ async function benchAdif(page, cdp, size, m, file) {
   const edit = [];
   for (let i = 0; i < Math.min(KEY_REPS, 4); i++) {
     const r = await page.evaluate(async ({ i, noop }) => {
-      const td = document.querySelector('#drop tbody td[data-col="COMMENT"]') || document.querySelector('#drop tbody td[data-col]');
+      const td = document.querySelector('#drop tbody td[data-col="COMMENT"]') || document.querySelector('#drop tbody td[contenteditable]');
       td.focus();
       td.textContent = `bench ${i}`;
       const t = performance.now();

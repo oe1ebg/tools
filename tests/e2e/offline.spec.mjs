@@ -45,6 +45,16 @@ test('adif-editor.html runs from file://', { tag: '@adif' }, async ({ page, requ
   const { url, requests } = await openSavedCopy(page, request, 'tools/adif/adif-editor.html', testInfo);
   await expect(page).toHaveTitle('ADIF Editor');
   await expect(page.locator('#btn-open')).toBeVisible();
+  // new and clear (its <dialog>) work in the bundle too
+  await page.locator('#btn-new').click();
+  await expect(page.locator('#drop thead th[data-col]')).toHaveCount(8);
+  await expect(page.locator('#drop tbody tr[data-ri="0"] td[data-col="CALL"]')).toBeFocused();
+  await expect(page.locator('#drop tbody tr[data-ri="0"] td[data-col="BAND"] select')).toHaveAttribute('aria-label', 'BAND, row 1');
+  await page.locator('#btn-clear').click();
+  const dlg = page.getByRole('dialog', { name: 'Clear the editor?' });
+  await expect(dlg).toBeVisible();
+  await dlg.getByRole('button', { name: 'Clear', exact: true }).click();
+  await expect(page.locator('#empty-msg')).toBeVisible();
   expect(requests.filter(u => u !== url && !u.startsWith('blob:') && !u.startsWith('data:'))).toEqual([]);
 });
 

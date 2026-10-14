@@ -360,6 +360,82 @@ tbody tr.spacer:hover td{ background:none; }
 #compliance-body ul{ padding-left:1.4em; }
 #compliance-body a{ color:var(--accent-text); }
 
+/* Enumeration cells (js/cell-editors.js): a borderless select filling the
+   cell, as high as a text cell (js/table.js measures the row height once),
+   also under pointer: coarse; the arrow only on hover and focus (a
+   gradient: the CSP allows no data: images). */
+tbody td.enum-cell{ padding:0; }
+tbody td.enum-cell select.cell-select{
+  -webkit-appearance:none;
+  -moz-appearance:none;
+  appearance:none;
+  display:block;
+  box-sizing:border-box;
+  width:100%;
+  height:calc(1.4em + .7em);
+  margin:0;
+  padding:.35em .6em;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  color:inherit;
+  font:inherit;
+  font-size:inherit;
+  line-height:1.4;
+  white-space:pre;
+  text-overflow:ellipsis;
+  cursor:pointer;
+}
+tbody td.enum-cell select.cell-select:hover,
+tbody td.enum-cell select.cell-select:focus{
+  padding-right:1.6em;
+  background-image:linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position:calc(100% - .9em) 55%, calc(100% - .55em) 55%;
+  background-size:.35em .35em;
+  background-repeat:no-repeat;
+}
+tbody td.enum-cell select.cell-select:focus{
+  outline:1px solid var(--accent);
+  outline-offset:-1px;
+}
+tbody td.enum-cell select.cell-select option{ background:var(--bg); color:var(--text); }
+
+/* Suggestions of a CONTEST_ID / SUBMODE cell, placed next to it. */
+#cell-suggest{
+  position:fixed;
+  z-index:30;
+  margin:0;
+  padding:.2em 0;
+  list-style:none;
+  max-height:16em;
+  max-width:calc(100vw - 16px);
+  overflow:auto;
+  background:var(--bg-raised);
+  color:var(--text);
+  border:1px solid var(--line-strong);
+  border-radius:.2rem;
+  box-shadow:0 4px 14px rgba(0,0,0,.25);
+  font-family:var(--font-mono);
+}
+#cell-suggest li{ padding:.25em .6em; cursor:pointer; white-space:pre; }
+#cell-suggest li:hover, #cell-suggest li[aria-selected="true"]{ background:var(--accent-soft); color:var(--accent-text); }
+#cell-suggest li.more{ color:var(--text-dim); cursor:default; background:none; }
+
+/* "new" / "clear…" confirmation. */
+#confirm-dlg{
+  max-width:min(32em, calc(100vw - 32px));
+  padding:1em 1.2em;
+  background:var(--bg-raised);
+  color:var(--text);
+  border:1px solid var(--line-strong);
+  border-radius:.3rem;
+}
+/* a literal colour: older Chrome and Safari don't pass custom properties to ::backdrop */
+#confirm-dlg::backdrop{ background:rgba(0,0,0,.45); }
+#confirm-dlg h2{ margin:0 0 .5em; font-size:14px; }
+#confirm-dlg p{ margin:0 0 1em; }
+.dlg-buttons{ display:flex; flex-wrap:wrap; justify-content:flex-end; gap:.6em; }
+
 tbody td.cell-error{ background:var(--err-soft); box-shadow:inset 0 -2px 0 var(--err); }
 tbody td.cell-warning{ background:var(--warn-soft); box-shadow:inset 0 -2px 0 var(--warn); }
 tbody td.cell-info{ box-shadow:inset 0 -2px 0 var(--accent-dim); }
