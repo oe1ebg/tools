@@ -141,6 +141,8 @@ test('suggestions: SUBMODE by MODE, CONTEST_ID filter, limit and total', () => {
   assert.ok(all.total > 50);
   assert.equal(new Set(all.items.map(v => v.toUpperCase())).size, all.items.length, 'no duplicates');
   assert.equal(eoSuggestions(sub, { MODE: 'NOSUCH' }, '', 1000).total, all.total); // unknown MODE: all submodes
+  assert.deepEqual(eoSuggestions(sub, { MODE: 'FT8' }, ''), { items: [], total: 0 }); // an ADIF mode without submodes: none
+  assert.deepEqual(eoSuggestions(sub, { MODE: 'am' }, 'u'), { items: [], total: 0 });
   const contest = eoColumnKind('CONTEST_ID', emptyFieldDefs());
   assert.deepEqual(eoSuggestions(contest, {}, 'arrl-1'), { items: ['ARRL-10', 'ARRL-10-GHZ', 'ARRL-160'], total: 3 });
   const r = eoSuggestions(contest, {}, 'ARRL', 5);
