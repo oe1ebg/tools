@@ -24,7 +24,8 @@ export function emptyFieldDefs(){
 }
 
 // NAME,{A,B} / NAME,{min:max} / NAME -> { name, values | null, range | null }.
-function userdefParts(spec){
+// Also read by enum-options.js (the values of a USERDEF's dropdown).
+export function userdefParts(spec){
   const m = /^([^,{}]*?)\s*(?:,\s*\{(.*)\})?\s*$/.exec(spec || '');
   if (!m) return { name: String(spec || '').trim(), values: null, range: null, odd: true };
   const name = m[1].trim();

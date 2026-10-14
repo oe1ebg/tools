@@ -192,7 +192,8 @@ test('filters the large official log; the export keeps all 6202 QSOs', { tag: '@
   await page.getByLabel('condition 1 operator').selectOption('eq');
   await page.getByLabel('condition 1 value').fill('CW');
   await expect(count).toHaveText('154 of 6202 QSOs shown'); // <MODE:2>CW in the file
-  const modes = await page.locator('#drop tbody tr[data-ri] td[data-col="MODE"]').allTextContents();
+  // MODE cells are selects (the stored value selected)
+  const modes = await page.locator('#drop tbody tr[data-ri] td[data-col="MODE"] select').evaluateAll(sels => sels.map(s => s.value));
   expect(modes.length).toBeGreaterThan(0);
   expect(modes.every(m => m === 'CW')).toBe(true);
   // a search on top of it
@@ -292,23 +293,24 @@ test('an edit during a re-check supersedes it; the result is the check of the cu
   await page.locator('#file-input').setInputFiles(bigAdi(30000));
   await expect(page.locator('#stats')).toContainText('30,000 QSOs', { timeout: 120_000 });
   await expect(page.locator('#validation-summary')).toContainText('ADIF');
-  const band = page.locator('#drop tbody tr[data-ri="0"] td[data-col="BAND"]');
+  // a text cell (BAND is a select)
+  const time = page.locator('#drop tbody tr[data-ri="0"] td[data-col="TIME_ON"]');
   const box = page.locator('#validation');
-  // 1st edit: an invalid band; its re-check starts after the debounce
-  await band.click();
-  await band.fill('zz');
-  await band.press('Enter');
+  // 1st edit: an invalid time; its re-check starts after the debounce
+  await time.click();
+  await time.fill('zz');
+  await time.press('Enter');
   await expect(box).toHaveClass(/is-checking/);
   await page.waitForTimeout(400); // the check is running now (30000 QSOs take longer than that)
   // 2nd edit, during the check: the value is taken at once, and the editor answers
-  const band0 = page.locator('#drop tbody tr[data-ri="0"] td[data-col="BAND"]');
-  await band0.click();
-  await band0.fill('20m');
-  await band0.press('Enter');
+  const time0 = page.locator('#drop tbody tr[data-ri="0"] td[data-col="TIME_ON"]');
+  await time0.click();
+  await time0.fill('1200');
+  await time0.press('Enter');
   await expect(box).toHaveClass(/is-checking/);
   await expect(box).not.toHaveClass(/is-checking/, { timeout: 120_000 });
-  // the finished check is the one of the log with "20m": nothing is flagged in that cell
-  await expect(band0).not.toHaveClass(/cell-error/);
+  // the finished check is the one of the log with "1200": nothing is flagged in that cell
+  await expect(time0).not.toHaveClass(/cell-error/);
   await expect(page.locator('#validation-summary')).toContainText('current log');
 });
 
@@ -348,18 +350,18 @@ test('adding a file while an edit of the log was already checked re-checks the c
   const second = '<CALL:5>DL2BB <QSO_DATE:8>20260903 <TIME_ON:4>1000 <BAND:3>20m <MODE:2>CW <EOR>\n';
   await page.locator('#file-input').setInputFiles({ name: 'second.adi', mimeType: 'text/plain', buffer: Buffer.from(second) });
   await expect(page.locator('#import-progress')).toBeVisible();
-  // meanwhile: an invalid band in the first QSO, and its check finishes
-  const band = page.locator('#drop tbody tr[data-ri="0"] td[data-col="BAND"]');
-  await band.click();
-  await band.fill('zz');
-  await band.press('Enter');
-  await expect(band).toHaveClass(/cell-error/);
+  // meanwhile: an invalid time in the first QSO, and its check finishes
+  const time = page.locator('#drop tbody tr[data-ri="0"] td[data-col="TIME_ON"]');
+  await time.click();
+  await time.fill('zz');
+  await time.press('Enter');
+  await expect(time).toHaveClass(/cell-error/);
   await expect(page.locator('#validation')).not.toHaveClass(/is-checking/);
   await page.evaluate(() => window.__held.forEach(f => f()));
   await expect(page.locator('#stats')).toContainText('4 QSOs');
   await expect(page.locator('#validation')).not.toHaveClass(/is-checking/, { timeout: 30_000 });
   // the error of the edit is still there, in the check of the combined log
-  await expect(band).toHaveClass(/cell-error/);
+  await expect(time).toHaveClass(/cell-error/);
   await expect(page.locator('#validation-summary')).toContainText('current log');
 });
 
@@ -395,4 +397,321 @@ test('official overview stays bounded and statistics controls support keyboard u
   await summary.focus(); await summary.press('Enter');
   await expect(page.locator('#statistics-scope')).toBeVisible();
   await expect(page.locator('#statistics-body')).toContainText('340 DXCC entities');
+});
+
+/* ---------- enumeration cells, suggestions, new and clear ---------- */
+
+// An .adi file from records ({FIELD: value}), with optional header fields.
+function adiFile(name, recs, header = '') {
+  const f = (k, v) => `<${k}:${v.length}>${v} `;
+  const text = `${header}<ADIF_VER:5>3.1.8 <EOH>\n` + recs.map(r => Object.entries(r).map(([k, v]) => f(k, v)).join('') + '<EOR>\n').join('');
+  return { name, mimeType: 'application/octet-stream', buffer: Buffer.from(text) };
+}
+
+const cell = (page, ri, col) => page.locator(`#drop tbody tr[data-ri="${ri}"] td[data-col="${col}"]`);
+// the export without its CREATED_TIMESTAMP (the only part that changes by
+// itself); read back with the tolerant parser (these logs are not all valid)
+async function exportAdi(page) {
+  const download = page.waitForEvent('download');
+  await page.locator('#btn-export').click();
+  return (await downloadText(await download)).replace(/<CREATED_TIMESTAMP:15>\d{8} \d{6}/, '');
+}
+// Would leaving the page ask? (the beforeunload handler cancels the event)
+const asksBeforeLeaving = page => page.evaluate(() => {
+  const e = new Event('beforeunload', { cancelable: true });
+  window.dispatchEvent(e);
+  return e.defaultPrevented;
+});
+
+test('enumeration cells are selects: Enter commits and moves down, Esc restores, Tab goes on', { tag: '@adif' }, async ({ page }) => {
+  await loadSample(page);
+  const band0 = cell(page, 0, 'BAND').locator('select');
+  await expect(band0).toHaveAttribute('aria-label', 'BAND, row 1');
+  await expect(band0).toHaveValue('2m');
+  await band0.focus();
+  await band0.selectOption('40m');
+  await band0.press('Enter');
+  const band1 = cell(page, 1, 'BAND').locator('select');
+  await expect(band1).toBeFocused();
+  await expect(page.locator('#validation-summary')).toContainText('current log');
+  // Esc: the value from before
+  await band1.selectOption('80m');
+  await band1.press('Escape');
+  await expect(band1).toHaveValue('40m');
+  await expect(band1).not.toBeFocused();
+  // the empty option removes the field
+  const mode2 = cell(page, 2, 'MODE').locator('select');
+  await mode2.focus();
+  await mode2.selectOption('');
+  await mode2.press('Enter'); // last row: takes the value
+  // Tab at the end of a row (a select there) goes on to the next row
+  for (const col of ['MY_SOTA_REF', 'RST_RCVD', 'RST_SENT']) await page.getByRole('button', { name: `remove column ${col}` }).click();
+  const lastMode = cell(page, 0, 'MODE').locator('select');
+  await lastMode.focus();
+  await lastMode.press('Tab');
+  await expect(cell(page, 1, 'CALL')).toBeFocused();
+  const records = parseADIFAuto(await exportAdi(page), [], 'export.adi', {});
+  expect(records.map(r => r.BAND)).toEqual(['40m', '40m', '20m']);
+  expect(records[2].MODE).toBeUndefined();
+});
+
+test('stored values are kept as they are: marked options, no edit by tabbing, identical export', { tag: '@adif' }, async ({ page }) => {
+  await page.goto('tools/adif/');
+  await page.locator('#file-input').setInputFiles(adiFile('odd.adi', [
+    { CALL: 'OE1ABC', QSO_DATE: '20260901', TIME_ON: '1200', MODE: 'PSK31', BAND: '20M', QSL_RCVD: 'V', DXCC: '001', MYCLASS: 'Gamma', REGION: 'KO' },
+    { CALL: 'OE3XYZ', QSO_DATE: '20260901', TIME_ON: '1300', MODE: 'zz', BAND: '40m', QSL_RCVD: 'Y', DXCC: '291', MYCLASS: 'Al', REGION: 'NONE' },
+  ], '<USERDEF1:15:E>MYCLASS,{Al,Be} '));
+  await expect(page.locator('#stats')).toContainText('2 QSOs');
+  const before = await exportAdi(page);
+  const options = async (ri, col) => {
+    const sel = cell(page, ri, col).locator('select');
+    await sel.focus(); // fills the list
+    return sel.evaluate(s => ({ value: s.value, options: [...s.options].map(o => [o.value, o.text]) }));
+  };
+  const has = (o, value, text) => expect(o.options).toContainEqual([value, text]);
+  let o = await options(0, 'MODE');
+  expect(o.value).toBe('PSK31');
+  has(o, 'PSK31', 'PSK31 (import-only)');
+  expect(o.options.some(([v]) => v === 'PSK')).toBe(true);
+  expect(o.options[0]).toEqual(['', '']);
+  o = await options(0, 'BAND');
+  expect(o.value).toBe('20M');
+  has(o, '20M', '20M');
+  expect(o.options.some(([v]) => v === '20m')).toBe(false); // its own spelling, once
+  o = await options(0, 'QSL_RCVD');
+  has(o, 'V', 'V (import-only)');
+  o = await options(0, 'DXCC');
+  expect(o.value).toBe('001');
+  has(o, '001', '001 – CANADA');
+  o = await options(0, 'MYCLASS');
+  has(o, 'Gamma', 'Gamma (not declared in USERDEF)');
+  has(o, 'Be', 'Be');
+  o = await options(0, 'REGION');
+  expect(o.options.filter(([v]) => v === 'KO')).toHaveLength(1);
+  o = await options(1, 'MODE');
+  has(o, 'zz', 'zz (not in ADIF 3.1.8)');
+  o = await options(1, 'DXCC');
+  has(o, '291', '291 – UNITED STATES OF AMERICA');
+  // through every cell with the keyboard
+  await cell(page, 0, 'CALL').click();
+  const cells = await page.locator('#drop tbody td[data-col]').count();
+  for (let i = 1; i < cells; i++) await page.keyboard.press('Tab');
+  await expect(cell(page, 1, 'REGION').locator('select')).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(page.locator('#validation-summary')).not.toContainText('current log'); // nothing was edited
+  expect(await asksBeforeLeaving(page)).toBe(false);
+  expect(await exportAdi(page)).toBe(before);
+});
+
+test('STATE is a select only where the DXCC has a list; unlisted values stay', { tag: '@adif' }, async ({ page }) => {
+  await page.goto('tools/adif/');
+  await page.locator('#file-input').setInputFiles(adiFile('states.adi', [
+    { CALL: 'W1AW', DXCC: '291', STATE: 'ZZ' },
+    { CALL: 'YA1A', DXCC: '3', STATE: 'XY' },
+    { CALL: 'K1ABC', STATE: 'CA' },
+  ]));
+  await expect(page.locator('#stats')).toContainText('3 QSOs');
+  const state = ri => cell(page, ri, 'STATE');
+  const heights = () => page.locator('#drop tbody tr[data-ri]').evaluateAll(trs => trs.map(tr => tr.getBoundingClientRect().height));
+  await expect(state(0).locator('select')).toHaveValue('ZZ');
+  await expect(state(0).locator('select option:checked')).toHaveText('ZZ (not listed for DXCC=291)');
+  await expect(state(1)).toHaveAttribute('contenteditable', /.+/);
+  await expect(state(1)).toHaveText('XY');
+  await expect(state(2)).toHaveText('CA');
+  let h = await heights();
+  expect(Math.max(...h) - Math.min(...h)).toBeLessThan(0.5);
+  // DXCC set: the STATE cell gets the entity's list, the value stays
+  const dxcc2 = cell(page, 2, 'DXCC').locator('select');
+  await dxcc2.focus();
+  await dxcc2.selectOption('291');
+  await dxcc2.press('Enter');
+  await expect(state(2).locator('select')).toHaveValue('CA');
+  // ... also when Tab goes straight on into that cell
+  const dxcc1 = cell(page, 1, 'DXCC').locator('select');
+  await dxcc1.focus();
+  await dxcc1.selectOption('291');
+  await dxcc1.press('Tab');
+  await expect(state(1).locator('select')).toBeFocused();
+  await expect(state(1).locator('select')).toHaveValue('XY');
+  await expect(state(1).locator('select option:checked')).toHaveText('XY (not listed for DXCC=291)');
+  // DXCC cleared: text again
+  const dxcc0 = cell(page, 0, 'DXCC').locator('select');
+  await dxcc0.focus();
+  await dxcc0.selectOption('');
+  await dxcc0.press('Enter');
+  await expect(state(0)).toHaveText('ZZ');
+  await expect(state(0).locator('select')).toHaveCount(0);
+  h = await heights();
+  expect(Math.max(...h) - Math.min(...h)).toBeLessThan(0.5);
+  const records = parseADIFAuto(await exportAdi(page), [], 'export.adi', {});
+  expect(records.map(r => r.STATE)).toEqual(['ZZ', 'XY', 'CA']);
+  expect(records.map(r => r.DXCC)).toEqual([undefined, '291', '291']);
+});
+
+test('CONTEST_ID and SUBMODE: free text with suggestions', { tag: '@adif' }, async ({ page }) => {
+  await loadSample(page);
+  for (const name of ['CONTEST_ID', 'SUBMODE']) {
+    await page.getByLabel('new field name').fill(name);
+    await page.getByRole('button', { name: '+ field' }).click();
+  }
+  const list = page.getByRole('listbox', { name: 'suggestions' });
+  const contest = cell(page, 0, 'CONTEST_ID');
+  await contest.click();
+  await contest.pressSequentially('ARRL-1');
+  await expect(list).toBeVisible();
+  await expect(list.getByRole('option')).toHaveText(['ARRL-10', 'ARRL-10-GHZ', 'ARRL-160']);
+  await contest.press('ArrowDown');
+  await expect(list.getByRole('option', { name: 'ARRL-10', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#cell-suggest-status')).toHaveText('ARRL-10, 1 of 3');
+  await contest.press('Enter');
+  await expect(contest).toHaveText('ARRL-10');
+  await expect(cell(page, 1, 'CONTEST_ID')).toBeFocused();
+  await expect(list).toBeHidden();
+  // free text stays free text
+  await cell(page, 1, 'CONTEST_ID').pressSequentially('MY-OWN-TEST');
+  await cell(page, 1, 'CONTEST_ID').press('Enter');
+  await expect(cell(page, 1, 'CONTEST_ID')).toHaveText('MY-OWN-TEST');
+
+  // SUBMODE follows the row's MODE
+  const mode = cell(page, 0, 'MODE').locator('select');
+  await mode.focus();
+  await mode.selectOption('SSB');
+  await mode.press('Enter');
+  const sub = cell(page, 0, 'SUBMODE');
+  await sub.click();
+  await sub.press('ArrowDown');
+  await expect(list.getByRole('option')).toHaveText(['LSB', 'USB']);
+  // the first Esc closes the list, the second restores the value
+  await sub.press('Escape');
+  await expect(list).toBeHidden();
+  await expect(sub).toBeFocused();
+  await sub.pressSequentially('U');
+  await expect(list.getByRole('option')).toHaveText(['USB']);
+  await sub.press('Escape');
+  await expect(list).toBeHidden();
+  await expect(sub).toHaveText('U');
+  await sub.press('Escape');
+  await expect(sub).toHaveText('');
+  await expect(sub).not.toBeFocused();
+  // a click on an item takes it, the focus stays in the cell
+  await sub.click();
+  await sub.press('ArrowDown');
+  await list.getByRole('option', { name: 'USB' }).click();
+  await expect(sub).toBeFocused();
+  await sub.press('Enter');
+  const records = parseADIFAuto(await exportAdi(page), [], 'export.adi', {});
+  expect(records.map(r => r.CONTEST_ID)).toEqual(['ARRL-10', 'MY-OWN-TEST', undefined]);
+  expect(records[0].SUBMODE).toBe('USB');
+});
+
+test('new: an empty log at once, after edits only when confirmed; it resets the view', { tag: '@adif' }, async ({ page }) => {
+  await page.goto('tools/adif/');
+  await expect(page.locator('#btn-clear')).toBeDisabled();
+  await page.locator('#btn-new').click();
+  await expect(page.locator('#confirm-dlg')).toBeHidden();
+  await expect(page.locator('#drop thead th[data-col]')).toHaveText(['CALL', 'QSO_DATE', 'TIME_ON', 'BAND', 'FREQ', 'MODE', 'RST_SENT', 'RST_RCVD'].map(c => new RegExp(`^${c}`)));
+  await expect(page.locator('#drop tbody tr[data-ri]')).toHaveCount(1);
+  await expect(cell(page, 0, 'CALL')).toBeFocused();
+  await expect(page.locator('#filename-input')).toHaveValue('new.adi');
+  await expect(page.locator('#btn-clear')).toBeEnabled();
+
+  // a loaded log with edits, a filter, a sort order, warnings, validation, statistics
+  await page.locator('#file-input').setInputFiles(SAMPLE);
+  await expect(page.locator('#stats')).toContainText('4 QSOs');
+  await cell(page, 1, 'CALL').click();
+  await cell(page, 1, 'CALL').fill('OE1NEW');
+  await cell(page, 1, 'CALL').press('Enter');
+  await page.getByLabel('new field name').fill('1BAD');
+  await page.getByRole('button', { name: '+ field' }).click();
+  await expect(page.locator('#warnings')).toBeVisible();
+  await page.locator('#drop thead th[data-col="CALL"] .sortcol').click();
+  await page.locator('#flt-text').fill('oe');
+  await expect(page.locator('#flt-count')).not.toHaveText('');
+  await expect(page.locator('#validation')).toBeVisible();
+  await page.locator('#log-statistics summary').click();
+
+  const dlg = page.getByRole('dialog', { name: 'Start a new log?' });
+  await page.locator('#btn-new').click();
+  await expect(dlg).toBeVisible();
+  await expect(dlg.getByRole('button', { name: 'Cancel' })).toBeFocused();
+  await dlg.getByRole('button', { name: 'Cancel' }).click();
+  await expect(dlg).toBeHidden();
+  await expect(page.locator('#btn-new')).toBeFocused();
+  await expect(page.locator('#stats')).toContainText('4 QSOs');
+
+  await page.locator('#btn-new').click();
+  await dlg.getByRole('button', { name: 'Discard and start new' }).click();
+  await expect(dlg).toBeHidden();
+  await expect(page.locator('#drop tbody tr[data-ri]')).toHaveCount(1);
+  await expect(page.locator('#drop thead th[data-col]')).toHaveCount(8);
+  await expect(cell(page, 0, 'CALL')).toBeFocused();
+  await expect(page.locator('#flt-text')).toHaveValue('');
+  await expect(page.locator('#flt-count')).toHaveText('');
+  await expect(page.locator('#drop thead th[aria-sort]')).toHaveCount(0);
+  await expect(page.locator('#warnings')).toBeHidden();
+  await expect(page.locator('#validation')).toBeHidden();
+  await expect(page.locator('#file-info')).toHaveText('');
+  await expect(page.locator('#stats')).toContainText('1 QSOs');
+  await expect(page.locator('#statistics-body')).toContainText('Whole log: 1 QSOs');
+  expect(await asksBeforeLeaving(page)).toBe(false);
+});
+
+test('clear: asks every time; Esc and Cancel keep the log, OK empties the editor', { tag: '@adif' }, async ({ page }) => {
+  await loadSample(page);
+  await cell(page, 0, 'CALL').click();
+  await cell(page, 0, 'CALL').fill('OE1CLR');
+  await cell(page, 0, 'CALL').press('Enter');
+  expect(await asksBeforeLeaving(page)).toBe(true);
+  const dlg = page.getByRole('dialog', { name: 'Clear the editor?' });
+  await page.locator('#btn-clear').click();
+  await expect(dlg).toBeVisible();
+  await expect(dlg).toContainText('not been exported');
+  await page.keyboard.press('Escape');
+  await expect(dlg).toBeHidden();
+  await expect(page.locator('#btn-clear')).toBeFocused();
+  await page.locator('#btn-clear').click();
+  await dlg.getByRole('button', { name: 'Cancel' }).click();
+  await expect(page.locator('#stats')).toContainText('3 QSOs');
+  await expect(cell(page, 0, 'CALL')).toHaveText('OE1CLR');
+
+  await page.locator('#btn-clear').click();
+  await dlg.getByRole('button', { name: 'Clear', exact: true }).click();
+  await expect(dlg).toBeHidden();
+  await expect(page.locator('#drop')).toHaveClass(/empty/);
+  await expect(page.locator('#empty-msg')).toBeVisible();
+  await expect(page.locator('#btn-export')).toBeDisabled();
+  await expect(page.locator('#btn-clear')).toBeDisabled();
+  await expect(page.locator('#btn-open')).toBeFocused();
+  await expect(page.locator('#filter-bar')).toBeHidden();
+  await expect(page.locator('#filename-input')).toHaveValue('export.adi');
+  expect(await asksBeforeLeaving(page)).toBe(false);
+  // an unedited log is cleared after the question too, without the warning
+  await page.locator('#file-input').setInputFiles(SAMPLE);
+  await expect(page.locator('#stats')).toContainText('3 QSOs');
+  await page.locator('#btn-clear').click();
+  await expect(dlg).toBeVisible();
+  await expect(dlg).not.toContainText('not been exported');
+  await dlg.getByRole('button', { name: 'Clear', exact: true }).click();
+  await expect(page.locator('#empty-msg')).toBeVisible();
+});
+
+test('new and clear wait while a file loads', { tag: '@adif' }, async ({ page }) => {
+  await loadSample(page);
+  await page.evaluate(() => {
+    const orig = FileReader.prototype.readAsArrayBuffer;
+    window.__held = [];
+    FileReader.prototype.readAsArrayBuffer = function (file) {
+      if (file.name === 'second.adi') window.__held.push(() => orig.call(this, file));
+      else orig.call(this, file);
+    };
+  });
+  const second = '<CALL:5>DL2BB <QSO_DATE:8>20260903 <TIME_ON:4>1000 <BAND:3>20m <MODE:2>CW <EOR>\n';
+  await page.locator('#file-input').setInputFiles({ name: 'second.adi', mimeType: 'text/plain', buffer: Buffer.from(second) });
+  await expect(page.locator('#import-progress')).toBeVisible();
+  await expect(page.locator('#btn-new')).toBeDisabled();
+  await expect(page.locator('#btn-clear')).toBeDisabled();
+  await page.evaluate(() => window.__held.forEach(f => f()));
+  await expect(page.locator('#stats')).toContainText('4 QSOs');
+  await expect(page.locator('#btn-new')).toBeEnabled();
+  await expect(page.locator('#btn-clear')).toBeEnabled();
 });

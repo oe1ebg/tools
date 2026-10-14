@@ -14,12 +14,14 @@ import { loadLogFiles, ADIF_LIMITS, adifFormatCount } from './load.js';
 import { ADIF_SPEC_VERSION } from '../../shared/js/adif-spec-data.js';
 import { renderCompliance } from './compliance.js';
 import { records, recordFile, issuesByIndex, view, setView, scrollToRecord, bindViewHooks, replaceView, viewLength, viewIndexAt } from './state.js';
-import { computeView, isFilterActive, invalidateRecord, invalidateAllRecords, revealRecordFilter } from './filter.js';
+import { computeView, isFilterActive, invalidateRecord, invalidateAllRecords, revealRecordFilter, emptyFilter } from './filter.js';
 import { initFilterUI } from './filter-ui.js';
 import { exportLogWithDecisions } from './export-ui.js';
 import { validateAdifRecordsSteps } from '../../shared/js/adif-validate.js';
 import { initLogStatistics } from './statistics-ui.js';
 import { VirtualBody } from './table.js';
+import { eoColumnKind, eoScopedKey, eoScopeCtx, eoCurrent, eoSuggestions, eoDependents } from './enum-options.js';
+import { ceSelectCell, ceTextCell, ceSetCurrent, ceFill, ceClearCache, initCellSuggest } from './cell-editors.js';
 
 function populateFieldDatalist(){
   const dl = document.getElementById('adif-field-list');
@@ -245,6 +247,8 @@ function applyFlags(tr, ri){
     for (const td of tr.querySelectorAll('.cell-error, .cell-warning, .cell-info')){
       td.classList.remove('cell-error', 'cell-warning', 'cell-info');
       td.removeAttribute('title');
+      const sel = cellSelect(td);
+      if (sel){ sel.removeAttribute('title'); sel.removeAttribute('aria-invalid'); }
     }
   }
   const entry = issuesByIndex.get(ri);
@@ -256,8 +260,15 @@ function applyFlags(tr, ri){
     const ci = colIndex.get(field);
     if (ci === undefined) continue;
     const td = tr.children[ci + 1];
-    td.classList.add(`cell-${worstSeverity(list)}`);
+    const worst = worstSeverity(list);
+    td.classList.add(`cell-${worst}`);
     td.title = issueTitle(list);
+    // a select cell: the select is what has the focus and is read out
+    const sel = cellSelect(td);
+    if (sel){
+      sel.title = td.title;
+      if (worst === 'error') sel.setAttribute('aria-invalid', 'true');
+    }
   }
 }
 
@@ -388,6 +399,9 @@ let colChars = [];   // their width in characters
 let tableEl = null;  // the <table>, its width = the sum of the columns (table-layout: fixed)
 let rownumCss = '';  // width of the row number column
 let colsPx = 0;      // sum of the fields' column widths
+// per column: its cell kind (enum-options.js, eoColumnKind): a select, a
+// select depending on the row's DXCC, text with suggestions, or null (text)
+let colKinds = [];
 
 // Cells are one line high (the virtual table needs a fixed row height):
 // line breaks show as ¶ until the cell is edited.
@@ -474,14 +488,54 @@ function widenColumn(col, value){
 function buildProtoRow(){
   const tr = document.createElement('tr');
   tr.appendChild(el('td', { class: 'rownum' }, '', el('button', { type: 'button', class: 'del', title: 'delete row' }, '×')));
-  for (const col of columns){
+  columns.forEach((col, ci) => {
     const td = document.createElement('td');
     td.setAttribute('contenteditable', EDITABLE);
     td.spellcheck = false;
     td.dataset.col = col;
+    const kind = colKinds[ci];
+    if (kind?.kind === 'select') ceSelectCell(td);
+    else if (kind?.kind === 'suggest') td.dataset.suggest = '';
     tr.appendChild(td);
-  }
+  });
   return tr;
+}
+
+// The <select> of a select cell (null: a text cell).
+function cellSelect(td){
+  return td.classList.contains('enum-cell') ? td.firstElementChild : null;
+}
+
+// The option list key of a select or scoped cell for its row (null: text).
+function cellListKey(kind, rec){
+  if (kind?.kind === 'select') return kind.key;
+  if (kind?.kind === 'scoped') return eoScopedKey(kind, rec);
+  return null;
+}
+
+// One cell of a select or scoped column: a scoped one (STATE, CNTY) is a
+// select only while the row's (MY_)DXCC has a list. A select shows only
+// the stored value until it is used (fillSelect).
+function renderCell(td, rec, col, ri, kind){
+  const raw = rec[col] === undefined || rec[col] === null ? '' : String(rec[col]);
+  const key = cellListKey(kind, rec);
+  if (kind.kind === 'scoped'){
+    const isSelect = td.classList.contains('enum-cell');
+    if (key && !isSelect) ceSelectCell(td);
+    else if (!key && isSelect) ceTextCell(td, EDITABLE);
+  }
+  if (key) ceSetCurrent(td.firstElementChild, raw, eoCurrent(key, raw, eoScopeCtx(kind, rec)).label, `${col}, row ${ri + 1}`);
+  else if (td.textContent !== displayValue(raw)) td.textContent = displayValue(raw);
+}
+
+// The full option list of a select, before it opens or gets the focus.
+function fillSelect(sel){
+  const td = sel.parentNode;
+  const rec = records[Number(td?.parentNode?.dataset.ri)];
+  const kind = colKinds[colIndex.get(td?.dataset.col)];
+  const key = cellListKey(kind, rec);
+  if (!rec || !key) return;
+  ceFill(sel, key, rec[td.dataset.col] === undefined ? '' : String(rec[td.dataset.col]), eoScopeCtx(kind, rec));
 }
 
 function renderRow(ri){
@@ -492,9 +546,14 @@ function renderRow(ri){
   num.lastChild.setAttribute('aria-label', `delete row ${ri + 1}`);
   const rec = records[ri];
   let td = num.nextSibling;
-  for (const col of columns){
-    const v = rec[col];
-    if (v !== undefined && v !== null && v !== '') td.textContent = displayValue(String(v));
+  for (let ci = 0; ci < columns.length; ci++){
+    const col = columns[ci];
+    const kind = colKinds[ci];
+    if (kind && kind.kind !== 'suggest') renderCell(td, rec, col, ri, kind);
+    else {
+      const v = rec[col];
+      if (v !== undefined && v !== null && v !== '') td.textContent = displayValue(String(v));
+    }
     td = td.nextSibling;
   }
   applyFlags(tr, ri);
@@ -502,6 +561,35 @@ function renderRow(ri){
 }
 
 function setExportButtons(){ setExportButtonsDisabled(!records.length); }
+
+// After a DXCC or MY_DXCC change: its row's STATE/CNTY cells get the
+// entity's list (or become text). Run after the focus has moved on, so a
+// Tab into such a cell isn't lost; a cell that has the focus by then gets
+// it back in its new form.
+function refreshDependents(rec, col){
+  const deps = eoDependents(col).filter(c => colIndex.has(c));
+  if (!deps.length) return;
+  setTimeout(() => {
+    const ri = records.indexOf(rec);
+    const tr = ri < 0 ? null : body?.row(ri);
+    if (!tr) return;
+    for (const dep of deps){
+      const ci = colIndex.get(dep);
+      const td = tr.children[ci + 1];
+      if (!td) continue;
+      const focused = td.contains(document.activeElement);
+      if (focused) commitCell(td);
+      renderCell(td, rec, dep, ri, colKinds[ci]);
+      if (focused){
+        const sel = cellSelect(td);
+        if (sel){ fillSelect(sel); sel.focus({ preventScroll: true }); }
+        else td.focus({ preventScroll: true });
+      }
+    }
+    applyFlags(tr, ri);
+  }, 0);
+}
+
 function setExportButtonsDisabled(disabled){
   disabled = disabled || !!importing || exporting;
   const logDisabled = (!records.length && !fileMeta.length) || !!importing || exporting;
@@ -509,6 +597,8 @@ function setExportButtonsDisabled(disabled){
   document.getElementById('btn-export').disabled = logDisabled;
   document.getElementById('btn-export-csv').disabled = disabled;
   document.getElementById('btn-export-sota').disabled = disabled;
+  // nothing to clear in an empty editor, nor while a file loads
+  document.getElementById('btn-clear').disabled = logDisabled;
 }
 
 function sortLabel(col){
@@ -520,6 +610,8 @@ function sortLabel(col){
 function render(){
   body?.destroy();
   body = null;
+  suggest.hide();
+  ceClearCache();
   dropEl.classList.remove('empty');
   if (records.length === 0){
     dropEl.classList.add('empty');
@@ -533,6 +625,7 @@ function render(){
   }
   setExportButtonsDisabled(false);
   colIndex = new Map(columns.map((c, i) => [c, i]));
+  colKinds = columns.map(c => eoColumnKind(c, fieldDefs));
   protoRow = buildProtoRow();
 
   const htr = el('tr', { 'aria-rowindex': '1' }, el('th', { class: 'rownum-col', scope: 'col' }, '#'));
@@ -594,7 +687,11 @@ function render(){
     rowCount: viewLength,
     rowKey: viewIndexAt,
     renderRow,
-    beforeRemove: tr => { const td = tr.querySelector('td[data-col]:focus'); if (td) commitCell(td); },
+    // the cell holding the focus (a text cell, or a select in its cell)
+    beforeRemove: tr => {
+      const td = document.activeElement?.closest?.('td[data-col]');
+      if (td && tr.contains(td)) commitCell(td);
+    },
   });
   body.update(true);
 
@@ -623,7 +720,7 @@ function focusCell(pos, col){
   const ci = col === undefined ? 0 : colIndex.get(col);
   const td = tr.children[(ci ?? 0) + 1];
   if (!td) return false;
-  td.focus({ preventScroll: true });
+  (cellSelect(td) || td).focus({ preventScroll: true });
   td.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   return true;
 }
@@ -632,15 +729,18 @@ function focusCell(pos, col){
 
 let editBefore = ''; // value of the focused cell when it got the focus
 
-// Takes a cell's text into its record (on blur, Enter, or before its row
-// scrolls out of the window).
+// Takes a cell's text (or its select's value) into its record (on blur,
+// Enter, or before its row scrolls out of the window). A select is not
+// committed on "change": some browsers step a closed select's value with
+// the arrow keys, and each step is no edit.
 function commitCell(td){
   const tr = td.parentNode;
   const ri = Number(tr?.dataset.ri);
   const col = td.dataset.col;
   const rec = records[ri];
   if (!rec || !col) return;
-  const v = td.textContent;
+  const sel = cellSelect(td);
+  const v = sel ? sel.value : td.textContent;
   if (v !== (rec[col] ?? '')){
     if (v === '') delete rec[col];
     else { rec[col] = v; widenColumn(col, v); }
@@ -648,10 +748,34 @@ function commitCell(td){
     if (view) filterPinned.add(rec); // stays shown even if it no longer matches
     markDirty();
     scheduleStats();
+    refreshDependents(rec, col);
   }
+  if (sel) return;
   const shown = displayValue(rec[col] ?? '');
   if (td.textContent !== shown) td.textContent = shown;
 }
+
+// Suggestions for a text cell of CONTEST_ID or SUBMODE (the row's MODE).
+function showSuggestions(td, first){
+  const rec = records[Number(td.parentNode?.dataset.ri)];
+  const kind = colKinds[colIndex.get(td.dataset.col)];
+  if (!rec || kind?.kind !== 'suggest') return;
+  suggest.show(td, eoSuggestions(kind, rec, td.textContent, 30), first);
+}
+
+const suggest = initCellSuggest({
+  dropEl,
+  onPick: (td, value) => {
+    td.textContent = value;
+    // the caret after the value, the cell keeps the focus
+    const range = document.createRange();
+    range.selectNodeContents(td);
+    range.collapse(false);
+    const s = window.getSelection();
+    s.removeAllRanges();
+    s.addRange(range);
+  },
+});
 
 function bindBodyEvents(tbody){
   tbody.addEventListener('focusin', e => {
@@ -659,29 +783,51 @@ function bindBodyEvents(tbody){
     if (!td) return;
     const rec = records[Number(td.parentNode.dataset.ri)];
     const raw = rec?.[td.dataset.col] ?? '';
+    const sel = cellSelect(td);
+    if (sel) fillSelect(sel);
     // the full value (with its line breaks) while editing
-    if (td.textContent !== raw) td.textContent = raw;
+    else if (td.textContent !== raw) td.textContent = raw;
     editBefore = raw;
   });
   tbody.addEventListener('focusout', e => {
     const td = e.target.closest('td[data-col]');
+    if (suggest.cell() === td) suggest.hide();
     if (td && td.isConnected) commitCell(td);
+  });
+  // A select gets its full list before it opens (the pointer events come
+  // before the native picker) or gets the focus (focusin above).
+  const fillTarget = e => { if (e.target.classList?.contains('cell-select')) fillSelect(e.target); };
+  tbody.addEventListener('pointerdown', fillTarget);
+  tbody.addEventListener('pointerover', fillTarget);
+  tbody.addEventListener('input', e => {
+    const td = e.target.closest?.('td[data-suggest]');
+    if (td) showSuggestions(td, false);
   });
   // Enter takes the value and moves one row down (ADIF values have no
   // line breaks), Esc restores the value from before the edit, Tab at
   // the end/start of a row goes on to the next/previous row (scrolled in).
+  // An open suggestion list gets the keys first; ↓ opens it.
   tbody.addEventListener('keydown', e => {
     const td = e.target.closest('td[data-col]');
     const tr = e.target.closest('tr');
     if (!tr?.dataset.ri) return;
+    if (td && 'suggest' in td.dataset){
+      if (suggest.handleKey(e)) return;
+      if (e.key === 'ArrowDown' && !suggest.isOpen()){
+        e.preventDefault();
+        showSuggestions(td, true);
+        return;
+      }
+    }
     const pos = posOf(Number(tr.dataset.ri));
     if (td && e.key === 'Enter' && !isComposing(e)){
       e.preventDefault();
-      if (!focusCell(pos + 1, td.dataset.col)) td.blur();
+      if (!focusCell(pos + 1, td.dataset.col)) (cellSelect(td) || td).blur();
     } else if (td && e.key === 'Escape'){
       e.preventDefault();
-      td.textContent = editBefore;
-      td.blur();
+      const sel = cellSelect(td);
+      if (sel){ sel.value = editBefore; sel.blur(); }
+      else { td.textContent = editBefore; td.blur(); }
     } else if (e.key === 'Tab' && !e.shiftKey && td && !td.nextElementSibling && pos + 1 < viewLength()){
       e.preventDefault();
       focusCell(pos + 1);
@@ -926,6 +1072,7 @@ function showImportProgress(on){
   box.hidden = !on;
   document.getElementById('btn-open').disabled = on;
   setExportButtons();
+  document.getElementById('btn-new').disabled = on;
   const cancel = document.getElementById('btn-cancel-import');
   cancel.disabled = false;
   cancel.textContent = 'Cancel';
@@ -1021,6 +1168,116 @@ function applyLoaded(loaded, skipped, files){
   // would write it, so the values that no longer fit are in the issue list.
   if (defConflicts || recheckWanted) scheduleRevalidate();
 }
+
+/* ---------- new log, clear ---------- */
+
+// The columns of a new log (with one empty row).
+const NEW_LOG_COLUMNS = ['CALL', 'QSO_DATE', 'TIME_ON', 'BAND', 'FREQ', 'MODE', 'RST_SENT', 'RST_RCVD'];
+
+// Asks in a modal <dialog> (not confirm(): blocked inside a sandboxed
+// iframe, where the editor may be embedded). Cancel has the focus; Esc is
+// no. Resolves true for OK; on no the focus goes back to opener, the
+// button that asked (Safari doesn't focus a clicked button).
+function askConfirm({ title, message, ok, opener }){
+  const dlg = document.getElementById('confirm-dlg');
+  const okBtn = document.getElementById('confirm-ok');
+  const cancelBtn = document.getElementById('confirm-cancel');
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-msg').textContent = message;
+  okBtn.textContent = ok;
+  return new Promise(resolve => {
+    let yes = false;
+    const onOk = () => { yes = true; dlg.close(); };
+    const onCancel = () => dlg.close();
+    const onClose = () => {
+      okBtn.removeEventListener('click', onOk);
+      cancelBtn.removeEventListener('click', onCancel);
+      dlg.removeEventListener('close', onClose);
+      if (!yes && opener?.isConnected) opener.focus();
+      resolve(yes);
+    };
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancel);
+    dlg.addEventListener('close', onClose); // also after Esc
+    dlg.showModal();
+    cancelBtn.focus();
+  });
+}
+
+// Everything back to an empty editor: a pending or running re-check is
+// stopped, the log, its columns, files, field definitions, validation,
+// filter, sort order and warnings are gone.
+function resetEditor(){
+  clearTimeout(revalidateTimer);
+  revalidateTimer = 0;
+  recheckSlot.cancel();
+  recheckSeq++;
+  setChecking(false);
+  records.length = 0;
+  recordFile.length = 0;
+  columns = [];
+  colIndex = new Map();
+  fileMeta = [];
+  fieldDefs.userdefs = [];
+  fieldDefs.types = {};
+  fieldDefs.typeFiles = {};
+  fileValidations = [];
+  fileResultsObsolete = false;
+  validationView = null;
+  indexValidation();
+  document.getElementById('validation-issues').hidden = true;
+  filterUI.setState(emptyFilter());
+  filterPinned.clear();
+  replaceView(null);
+  invalidateAllRecords();
+  sortState = { col: null, asc: true };
+  clearWarnings();
+  suggest.hide();
+  dirty = false;
+}
+
+// "new": an empty log of the usual QSO columns, CALL focused. Unexported
+// edits are asked about first.
+async function newLog(){
+  if (importing) return;
+  commitFocusedCell();
+  if (dirty && records.length && !await askConfirm({
+    title: 'Start a new log?',
+    message: 'The current log has edits that have not been exported. A new log discards them.',
+    ok: 'Discard and start new',
+    opener: document.getElementById('btn-new'),
+  })) return;
+  if (importing) return;
+  resetEditor();
+  columns = NEW_LOG_COLUMNS.slice();
+  records.push({});
+  recordFile.push('');
+  document.getElementById('filename-input').value = 'new.adi';
+  render();
+  focusCell(0, 'CALL');
+}
+
+// "clear…": back to the empty drop zone, always after asking.
+async function clearEditor(){
+  if (importing || (!records.length && !fileMeta.length)) return;
+  commitFocusedCell();
+  const n = records.length;
+  if (!await askConfirm({
+    title: 'Clear the editor?',
+    message: (dirty ? 'The log has edits that have not been exported; they will be lost. ' : '') +
+      `This removes all ${adifFormatCount(n)} QSO${n === 1 ? '' : 's'} from the editor. Files on your disk are not changed.`,
+    ok: 'Clear',
+    opener: document.getElementById('btn-clear'),
+  })) return;
+  if (importing) return;
+  resetEditor();
+  document.getElementById('filename-input').value = 'export.adi';
+  render();
+  document.getElementById('btn-open').focus();
+}
+
+document.getElementById('btn-new').addEventListener('click', newLog);
+document.getElementById('btn-clear').addEventListener('click', clearEditor);
 
 /* ---------- drag & drop / open / export wiring ---------- */
 
