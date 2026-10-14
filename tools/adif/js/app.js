@@ -615,7 +615,8 @@ function render(){
   dropEl.classList.remove('empty');
   if (records.length === 0){
     dropEl.classList.add('empty');
-    fill(dropEl, el('div', { id: 'empty-msg' }, 'drag & drop .adi file(s) here', el('br'),
+    document.body.classList.remove('compact');
+    fill(dropEl, el('div', { id: 'empty-msg' }, 'drag & drop .adi / .adx file(s) here', el('br'),
       el('span', { class: 'hint' }, 'or click "add file(s)…" — files are added to the current log; nothing leaves the browser')));
     updateStats();
     updateFileInfo();
@@ -1278,6 +1279,29 @@ async function clearEditor(){
 
 document.getElementById('btn-new').addEventListener('click', newLog);
 document.getElementById('btn-clear').addEventListener('click', clearEditor);
+
+// While the table is scrolled down, the parts above it that are only read
+// now and then fold away (style.css, body.compact); back at the top they
+// return. Not when the table would then no longer scroll that far: the
+// layout would flip back and forth.
+const COMPACT_AFTER = 48; // px scrolled
+let compactBlocked = 0;   // scrollHeight at which folding didn't fit
+function updateCompact(){
+  const cls = document.body.classList;
+  if (cls.contains('compact')){
+    if (dropEl.scrollTop < 1) cls.remove('compact');
+    return;
+  }
+  if (dropEl.scrollTop <= COMPACT_AFTER || dropEl.scrollHeight === compactBlocked) return;
+  const top = dropEl.scrollTop;
+  cls.add('compact');
+  if (dropEl.scrollHeight - dropEl.clientHeight <= COMPACT_AFTER){
+    cls.remove('compact');
+    compactBlocked = dropEl.scrollHeight;
+    dropEl.scrollTop = top; // the folded layout clamped it
+  }
+}
+dropEl.addEventListener('scroll', updateCompact, { passive: true });
 
 /* ---------- drag & drop / open / export wiring ---------- */
 

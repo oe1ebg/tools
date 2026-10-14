@@ -125,6 +125,18 @@ editor is empty. Both wait while a file loads. The question is a modal
 `<dialog>` (Cancel has the focus, Esc is no), not `confirm()`, which a
 sandboxed iframe of an embedding page blocks.
 
+**Room for the table.** Validation verdict, file versions, *Log statistics*
+and *About ADIF compliance* share one line under the filter bar; a panel
+opened from it takes the whole width. Once the table is scrolled down more
+than 48 px, the parts only read now and then fold away (`body.compact`):
+the log overview in the toolbar, the file versions and the closed
+*Log statistics* / *About* lines. The verdict, the toolbar buttons and the
+filter stay. On a phone (≤ 600 px) the page header goes too, and the
+toolbar and the filter line become one row each that scrolls sideways.
+Scrolling the table back to the top unfolds everything. What is open or
+has the focus stays. A table that would scroll less than 48 px once folded
+is not folded, so the layout doesn't flip back and forth.
+
 **Encoding:** files are read as UTF-8, else as Windows-1252 (with a
 warning). The ADI export is ASCII, as ADIF requires: an explicit preflight decision
 is required before other characters are transliterated (ä → ae, é → e, the rest → ?), line breaks become blanks
