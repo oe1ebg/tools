@@ -294,7 +294,17 @@ See the linked guide for the release checklist.
 - **`ci.yml`** runs on every push and PR: unit tests, the ADIF cross-checks,
   the bundle build with the real-data checks (`DATA_TESTS=require`), the HTML
   check and the browser tests against the bundle served by
-  `deploy/nginx.conf.example`.
+  `deploy/nginx.conf.example`. A run that passes with all five browser
+  projects leaves a marker artifact named after the git tree it checked and
+  its scope (`scripts/ci_verified.py`). A later run of the same content
+  skips the unit tests, bundle and browser tests and links the run that
+  verified it: for example the push of a clean rebase merge to `main`, or a
+  restacked PR whose content didn't change. The marker counts only when it
+  comes from this repository's `ci.yml`, that run succeeded, and its scope
+  covers the one now needed. Markers expire after 30 days, and any lookup
+  failure runs everything. Scheduled and manual runs and tags always check
+  everything; a manual run (`workflow_dispatch`) is how to force a full
+  check of a commit.
 - **`release.yml`** runs on a `vX.Y.Z` tag. It builds the bundle with fresh
   data, runs the tests with the ADIF cross-checks and the real-data checks
   required, validates the exact tarball (`validate-dist.yml`: unpacked into
