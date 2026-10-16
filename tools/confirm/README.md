@@ -36,7 +36,9 @@ now redirected; see "Move to /tools/" in `../shared/README.md`), and the source 
   saved, or taken from a typed correction. The display mode never changes
   what is stored.
 - **UTC / Lokal toggle** in the page header, remembered in `localStorage`;
-  **Lokal** by default (what local nets go by). Exports are unaffected:
+  **Lokal** by default (what local nets go by). The local button names the
+  device's zone and offset (`localZoneText()` in `../shared/js/time.js`,
+  e.g. "Europe/Vienna (UTC+2)"; "Lokal (UTC+2)" without a zone name). Exports are unaffected:
   CSV `zeitstempel_utc` and ADIF stay UTC.
   - It controls the time column (UTC shown with a trailing `Z`, e.g. `19:30:00Z`), the clock, the time field's label and
     edit prefill, status messages, the repeat-check-in box, the recycle bin

@@ -292,7 +292,8 @@ sichern (JSON)“ alle Logs auf einmal.
 ## Zeit: UTC oder lokal
 
 Der Schalter **UTC / Lokal** oben rechts bestimmt, wie Zeiten angezeigt und
-eingegeben werden. Gespeichert wird immer die genaue Zeit; CSV
+eingegeben werden. Die lokale Wahl nennt die Zeitzone des Geräts mit ihrem
+Abstand zu UTC, etwa „Europe/Vienna (UTC+2)“. Gespeichert wird immer die genaue Zeit; CSV
 (`zeitstempel_utc`) und ADIF bleiben in UTC.
 
 ## Tastatur

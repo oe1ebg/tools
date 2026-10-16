@@ -441,3 +441,10 @@ test('a note beyond the per-file limit is chunked across the parts and restored 
     await ctx.close();
   }
 });
+
+test('the local time choice names the zone and its offset', async ({ page }) => {
+  await page.goto('tools/confirm/');
+  await expect.poll(() => page.evaluate(() => globalThis.CONFIRM_READY === true)).toBe(true);
+  // the test browsers run in Europe/Vienna
+  await expect(page.locator('#time-toggle button[data-time-mode="local"]')).toHaveText(/^Europe\/Vienna \(UTC\+[12]\)$/);
+});

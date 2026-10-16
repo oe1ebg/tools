@@ -2,6 +2,7 @@
 // A live client of SOTA's public API: read AGENTS.md (API call inventory)
 // before adding requests.
 
+import { localZoneText } from '../../shared/js/time.js';
 import { copyToClipboard } from '../../shared/js/dom.js';
 import { isoDateFromText, isoBindDateField } from '../../shared/js/isodate.js';
 import { fetchAlerts, fetchSummit, searchSummits, searchOsmSummitsInView, fetchJson, SUMMIT_LOOKUP_URL, ALL_SUMMITS_URL } from './api.js';
@@ -512,6 +513,8 @@ function applyTimeDisplayButtons(){
     const on = b.dataset.timeChoice === state.timeDisplay;
     b.classList.toggle('active', on);
     b.setAttribute('aria-pressed', String(on));
+    // the local choice names the device's zone and its offset now
+    if (b.dataset.timeChoice === 'local') b.textContent = localZoneText('local');
   });
 }
 function initTimeDisplay(){

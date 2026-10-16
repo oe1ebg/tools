@@ -423,3 +423,10 @@ test('the date range is typed as ISO dates, and local times are ISO and 24-hour'
   expect(await page.locator('body').textContent()).not.toMatch(/\b\d{1,2}\/\d{1,2}\/\d{4}\b|\b[AP]M\b/);
 });
 });
+
+test('the local time choice names the zone and its offset', async ({ page }) => {
+  await page.route(TILE_HOSTS, route => route.fulfill({ contentType: 'image/png', body: TILE }));
+  await page.route('https://api2.sota.org.uk/**', route => route.fulfill({ json: [] }));
+  await page.goto('tools/sota-alerts/');
+  await expect(page.locator('#time-toggle button[data-time-choice="local"]')).toHaveText(/^Europe\/Vienna \(UTC\+[12]\)$/);
+});
