@@ -23,6 +23,7 @@ $vnu --filterfile "$here/vnu-filter.txt" \
   "$root/tools/confirm/confirm-offline.html" \
   "$root/tools/notfunk/index.html" \
   "$root/tools/notfunk/notfunk-offline.html" \
+  "$root/tools/netlog/index.html" \
   "$root/tools/adif/index.html" \
   "$root/tools/adif/adif-editor.html" \
   "$root/tools/sota-alerts/index.html" \

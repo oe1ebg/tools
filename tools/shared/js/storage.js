@@ -782,6 +782,9 @@ function lsBackend(schema, ls, opts) {
 //   journalSettleMs        fallback without Web Locks: how long a foreign
 //                          undo journal must stay unchanged to count as
 //                          orphaned (default 1.5 s; tests)
+//   fallback               false: never use localStorage; without IndexedDB
+//                          the result is null (Netlog)
+//   onUnavailable(reason)  called with the error when IndexedDB is not used
 // Resolves to the backend, or null when neither IndexedDB nor localStorage
 // is usable. A localStorage backend carries `fallbackReason` (why
 // IndexedDB was not used) and `recovery` (an unfinished batch rolled back
@@ -795,10 +798,12 @@ export async function openToolStorage(schema, hooks = {}) {
       const db = await openIdb(schema, opts);
       return idbBackend(db, schema, opts);
     } catch (e) {
-      console.warn('IndexedDB nicht verfügbar, verwende localStorage', e);
+      console.warn('IndexedDB nicht verfügbar', e);
       reason = e;
     }
   }
+  hooks.onUnavailable?.(reason);
+  if (hooks.fallback === false) return null;
   let backend;
   try {
     const ls = globalThis.localStorage;

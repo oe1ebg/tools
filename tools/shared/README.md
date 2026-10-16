@@ -21,26 +21,26 @@ browser loads.
 | `js/callbook.js` | Austrian callsign list: lookup, typo suggestions | confirm, notfunk |
 | `js/repeaters.js` | Austrian repeater search (callsign, site, frequency, locator, nearest) | confirm, notfunk |
 | `js/data.js` | `loadDataFile(name)`: `data/` files (fetched, or inlined in single-file bundles) | confirm, notfunk |
-| `js/storage.js` | IndexedDB storage with localStorage fallback; each tool passes its schema; `atomic()` read-modify-write in one transaction, compare-and-set; contract below | confirm, notfunk |
-| `js/storageui.js` | the storage notices in their own box after the page banner: blocked open, connection taken over, moving fallback records into IndexedDB (UI) | confirm, notfunk |
+| `js/storage.js` | IndexedDB storage with localStorage fallback; each tool passes its schema; `atomic()` read-modify-write in one transaction, compare-and-set; contract below | confirm, notfunk, netlog |
+| `js/storageui.js` | the storage notices in their own box after the page banner: blocked open, connection taken over, moving fallback records into IndexedDB (UI) | confirm, notfunk, netlog |
 | `js/backup-parts.js` | JSON backups in parts (at most 12 parts / 480 MB / 1000000 records, also checked by the export, which refuses a set beyond them before downloading) when an export would exceed the import limits (`splitToFit`, `chunkRecord`/`applyChunks` for texts beyond the file limit, `groupParts`, part file names; issue #15) | confirm, notfunk |
 | `js/rowcache.js` | keyed row reuse for big tables (`syncRows`): a re-render creates only rows whose signature changed (confirm log, notfunk book; issue #15) | confirm, notfunk |
-| `js/dom.js` | DOM helpers (`el`, `fill`, `popover`, …); the one module touching the DOM directly, besides the UI modules below | confirm, notfunk |
-| `js/time.js` | ids, "now", ISO UTC timestamps shown/typed in UTC or local time (the device's or a named zone via Intl, incl. the repeated/skipped hour at the DST change), `laterIso()` (a changed record's `updated`, always after the previous one: row caches compare it) | confirm, notfunk |
-| `js/isodate.js` | ISO dates in text fields: `isoDateFromText()` (pure), and `isoBindDateField()` for a field and its calendar button, which opens the browser's date picker through `showPicker()` on a hidden `<input type="date">` and only takes its value (UI) | adif, sota-alerts |
+| `js/dom.js` | DOM helpers (`el`, `fill`, `popover`, …); the one module touching the DOM directly, besides the UI modules below | confirm, notfunk, netlog |
+| `js/time.js` | ids, "now", ISO UTC timestamps shown/typed in UTC or local time (the device's or a named zone via Intl, incl. the repeated/skipped hour at the DST change), `laterIso()` (a changed record's `updated`, always after the previous one: row caches compare it) | confirm, notfunk, netlog |
+| `js/isodate.js` | ISO dates in text fields: `isoDateFromText()` (pure), and `isoBindDateField()` for a field and its calendar button, which opens the browser's date picker through `showPicker()` on a hidden `<input type="date">` and only takes its value (UI) | adif, sota-alerts, netlog |
 | `js/locmeta.js` | where a resolved location came from and how it was named (`LOC_ORIGINS`, …) | confirm, notfunk |
-| `js/prefs.js` | `prefGet`/`prefSet`: per-browser settings in localStorage, errors swallowed | confirm, notfunk |
+| `js/prefs.js` | `prefGet`/`prefSet`: per-browser settings in localStorage, errors swallowed | confirm, notfunk, netlog |
 | `js/theme.js` | light/auto/dark theme (classic script, first in every page's `<head>`) | all tools |
 | `js/callsearch.js` | callsign completion for an input (UI) | confirm, notfunk |
 | `js/repeaterui.js` | repeater completion and description (UI) | confirm, notfunk |
 | `js/locationui.js` | the "Standortsuche" panel and the location index loader (UI); its settings keep their `oe1ebg-confirm-*` keys | confirm, notfunk |
 | `js/locfield.js` | location input field with lookup, chip and suggestions (UI) | confirm, notfunk |
-| `js/sources.js` | dataset/licence links, map links, version line; the only module with external URLs (links only, never fetched) | confirm, notfunk |
-| `js/offline.js` | offline readiness of a page: registers the tool's `sw.js`, version, user-triggered updates (UI) | confirm, notfunk |
-| `js/sw-core.js` | service worker logic (cache-first, own caches only); a tool's `sw.js` sets `self.OE1EBG_SW` and imports it | confirm, notfunk |
+| `js/sources.js` | dataset/licence links, map links, version line; the only module with external URLs (links only, never fetched) | confirm, notfunk, netlog |
+| `js/offline.js` | offline readiness of a page: registers the tool's `sw.js`, version, user-triggered updates (UI) | confirm, notfunk, netlog |
+| `js/sw-core.js` | service worker logic (cache-first, own caches only); a tool's `sw.js` sets `self.OE1EBG_SW` and imports it | confirm, notfunk, netlog |
 | `js/sw-move.js` | move worker for installs from before `/tools/` (see below); staged as `/confirm/sw.js` and `/notfunk/sw.js` | old installs of confirm, notfunk |
 | `css/tools.css` | colour/font tokens, `[hidden]`, `.sr-only` | all tools |
-| `css/forms.css` | buttons, fields, completion dropdowns, radio chips, banners, chips | confirm, notfunk |
+| `css/forms.css` | buttons, fields, completion dropdowns, radio chips, banners, chips | confirm, notfunk, netlog |
 | `data/` | build-time data, git-ignored (see below) | confirm, notfunk |
 | `vendor/leaflet/` | Leaflet 1.9.4, unmodified (BSD-2) | confirm, sota-alerts |
 
@@ -115,6 +115,10 @@ aborts the whole call: nothing is written. `assertUnchanged(store, key,
 record, expectedUpdated)` is the same check for a record already read.
 
 **Opening** (`hooks`, all optional):
+- `fallback: false`: never use localStorage; without IndexedDB the result
+  is `null` (Netlog, which then works in memory and says that nothing is
+  stored). `onUnavailable(reason)` is called with the error whenever
+  IndexedDB is not used, with or without the fallback.
 - `onBlocked({ oldVersion, newVersion })`: another tab still holds an
   older version open. The open **waits** (no switch to localStorage) and
   goes on by itself once that tab closes or reloads; the app tells the user.
@@ -207,7 +211,8 @@ and `checkOldInstall()`. The redirects stay.
   and `tests/confirm-offline.test.mjs` checks the shared modules for external
   URLs too.
 - **Offline tools precache what they use.** `scripts/offline_tool.py` (run
-  by `build_confirm.py` and `build_notfunk.py`) adds every shared module the tool imports, the
+  by `build_confirm.py`, `build_notfunk.py` and `build_netlog.py`, the last
+  with `bundle=None`: no single-file version) adds every shared module the tool imports, the
   files in its `<PREFIX>-VENDOR` block (styles, Leaflet) and the
   `loadDataFile()` data files to `precache.js`. A shared file a tool loads
   some other way must be added there by hand. `sw-core.js` is the
@@ -232,6 +237,14 @@ and `checkOldInstall()`. The redirects stay.
   button is offered only for a waiting worker beside an active one: on the
   first install WebKit may report the claiming worker as controller while it
   is still waiting.
+- **Texts in another language** (`initOffline({ strings })`,
+  `setOfflineText(strings)`): the chip, banner and button texts are the
+  German `OFFLINE_TEXT_DE` unless a tool passes its own (any subset; two of
+  them are functions, `notDone(what)` and `anywayConfirm(discards)`).
+  Netlog passes its language and switches with the page; Confirm and
+  Notfunk pass nothing. Likewise `openStorageWithNotices(open, anchor,
+  strings, hooks)` (`STORAGE_NOTICE_DE`). Whether the chip says "ready" is
+  tracked as state, never by comparing its text.
 - **Save hook** (`initOffline({ beforeReload })`). Before an update or reload
   the page calls the tool's hook, which must resolve exactly `true` when
   nothing typed is at risk: it is safe in storage, there was nothing to save,

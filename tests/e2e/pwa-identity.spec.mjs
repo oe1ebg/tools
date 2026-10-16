@@ -13,7 +13,7 @@
 import http from 'node:http';
 import { test as base, expect } from './fixtures.mjs';
 
-const TOOLS = { confirm: 'Bestätigungsverkehr', notfunk: 'Notfunk-Meldebuch' };
+const TOOLS = { confirm: 'Bestätigungsverkehr', notfunk: 'Notfunk-Meldebuch', netlog: 'Netlog' };
 const PREFIXES = ['', 'a/b/', 'deep/er/prefix/'];
 
 // `extraOrigins` (fixtures.mjs): the proxy is a second origin of the bundle
@@ -91,6 +91,6 @@ for (const prefix of PREFIXES) {
       expect(m.manifest.id, `${tool} id`).toBe(dir);
       ids[tool] = m.manifest.id;
     }
-    expect(ids.confirm).not.toBe(ids.notfunk);
+    expect(new Set(Object.values(ids)).size, 'distinct identities').toBe(Object.keys(TOOLS).length);
   });
 }

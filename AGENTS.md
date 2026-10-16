@@ -2,11 +2,11 @@
 
 ## Repository
 
-Standalone browser tools for radio amateurs: Confirm (Bestätigungsverkehr), Notfunk-Meldebuch, the ADIF editor, and the SOTA Alerts Map. Plain HTML/CSS/ES modules; no framework or server code. Releases are self-contained static bundles, consumed by oe1ebg.at and deployable elsewhere, including on webservers without internet. `README.md` covers usage, deployment, trust, stable identifiers, and releases.
+Standalone browser tools for radio amateurs: Confirm (Bestätigungsverkehr), Notfunk-Meldebuch, Netlog, the ADIF editor, and the SOTA Alerts Map. Plain HTML/CSS/ES modules; no framework or server code. Releases are self-contained static bundles, consumed by oe1ebg.at and deployable elsewhere, including on webservers without internet. `README.md` covers usage, deployment, trust, stable identifiers, and releases.
 
 ## Invariants
 
-- **Offline and relative assets.** Bundled assets and internal navigation, including rendered manuals, use relative URLs that stay inside the bundle. Never assume a host name or `/tools/` prefix; no CDN or external fonts. External links opened by users (sources, licences, specifications, maps) are allowed. Only SOTA Alerts may make runtime network requests; it is documented as online-only. Confirm and Notfunk must work offline, including their `file://` bundles.
+- **Offline and relative assets.** Bundled assets and internal navigation, including rendered manuals, use relative URLs that stay inside the bundle. Never assume a host name or `/tools/` prefix; no CDN or external fonts. External links opened by users (sources, licences, specifications, maps) are allowed. Only SOTA Alerts may make runtime network requests; it is documented as online-only. Confirm and Notfunk must work offline, including their `file://` bundles; Netlog must work offline once installed (its single-file build is a follow-up).
 - **Stable identifiers.** Never rename the `oe1ebg-*` IndexedDB/localStorage/BroadcastChannel names, `OE1EBG_DATA`/`OE1EBG_SW` globals, or `APP_OE1EBG_*` ADIF fields.
 - **Data preservation and recovery.** Preserve existing records, values, revisions, and supported backups. Use soft deletes; schema changes require versioned, data-preserving migrations. New resource limits must provide a supported recovery path for data previously accepted or exported. Reject oversized imports clearly before applying changes; preserve each tool's documented import transaction and recovery contracts.
 - **ISO dates and times.** Show and accept dates as ISO 8601 `YYYY-MM-DD` and times as 24-hour `HH:MM` or `HH:MM:SS` in every tool, with the time zone stated where it matters (UTC for radio data). Don't use locale-dependent formatting (`toLocale*String`, `Intl.DateTimeFormat` output as is) or a visible `<input type="date|time|datetime-local">`, whose display follows the browser locale. A native picker may only supply a value (`tools/shared/js/isodate.js`). Stored and exported formats (ADIF `YYYYMMDD`/`HHMM`, backups) stay as they are.
@@ -22,6 +22,7 @@ Read applicable nested `AGENTS.md` files and the documents below before editing.
 | --- | --- |
 | Confirm | `tools/confirm/AGENTS.md`, `tools/confirm/README.md` |
 | Notfunk | `tools/notfunk/AGENTS.md`, `tools/notfunk/README.md`; its form format remains provisional |
+| Netlog | `tools/netlog/AGENTS.md`, `tools/netlog/README.md`; issue #68 is the specification |
 | ADIF editor, parser, validator, exports | `tools/adif/README.md`, relevant sections of `tools/shared/README.md`; ADIF cross-check rule below |
 | SOTA API, map, summit lookup | `tools/sota-alerts/AGENTS.md`, `tools/sota-alerts/README.md`; read the API inventory and static-first lookup rules before extending network usage |
 | Shared code, storage, offline/update logic | `tools/shared/README.md`, affected tools' instructions |

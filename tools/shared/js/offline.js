@@ -9,6 +9,55 @@
 import { $, el, fill } from './dom.js';
 import { versionItems } from './sources.js';
 
+// The texts this module shows. German by default (Confirm, Notfunk); a tool
+// in another language passes its own through initOffline({ strings }), any
+// subset of these keys (the rest stay German).
+export const OFFLINE_TEXT_DE = {
+  ready: 'offline bereit ✓',
+  incomplete: 'offline nicht bereit',
+  incompleteTitle: 'Der Offline-Speicher ist unvollständig (vom Browser geleert?). Mit Internet geöffnet, wird die Offline-Kopie automatisch repariert.',
+  dev: 'Entwicklungsmodus (nicht offline)',
+  devTitle: 'Dieser Server liefert keine Dateiliste (precache.js ist ein Entwicklungs-Stub): nichts wird für offline gespeichert.',
+  broken: 'offline nicht bereit',
+  brokenTitle: 'Die Offline-Dateiliste ist fehlerhaft oder der Service Worker antwortet nicht.',
+  noAnswer: 'offline nicht bereit',
+  file: 'Offline-Datei',
+  unsupported: 'nicht offline-fähig',
+  setupFailed: 'Offline-Einrichtung fehlgeschlagen',
+  setupFailedTitle: 'Der Offline-Speicher konnte nicht eingerichtet werden (Dateiliste fehlerhaft oder Dateien nicht ladbar). Seite mit Internet neu laden.',
+  loading: 'offline: lädt…',
+  repairing: 'Offline-Kopie wird repariert…',
+  newer: 'Neue Version auf dem Server – bitte aktualisieren',
+  repairFailed: 'Reparatur fehlgeschlagen',
+  updateFailed: 'Update fehlgeschlagen',
+  updateFailedTitle: 'Die neue Version konnte nicht geladen werden. Die installierte Version läuft weiter.',
+  checkFailed: 'Update-Prüfung fehlgeschlagen',
+  checkFailedTitle: 'Der Server war nicht erreichbar oder lieferte eine fehlerhafte Version. Die installierte Version läuft weiter.',
+  copyLabel: 'Text zum Kopieren',
+  actionFailed: 'Die Aktion ist fehlgeschlagen. ',
+  update: 'Update',
+  reload: 'Neuladen',
+  notDone: what => `${what} nicht ausgeführt: `,
+  saveFailed: 'Die laufende Eingabe konnte nicht gesichert werden. ',
+  keepInput: 'Sie bleibt in diesem Fenster erhalten. Sichern Sie sie zuerst (Text kopieren oder die Sicherung/den Export des Werkzeugs nutzen) und versuchen Sie es dann erneut. ',
+  retry: 'Erneut versuchen',
+  anyway: 'Trotzdem aktualisieren',
+  anywayConfirm: discards => `${discards} Trotzdem aktualisieren?`,
+  discardsDefault: 'Nicht gesicherte Eingaben gehen verloren.',
+  waiting: 'Update wartet: Eingabe klären',
+  reloadIntro: 'Ein anderes Fenster dieses Werkzeugs hat ein Update installiert; diese Seite läuft noch mit der alten Version und muss neu laden, sobald die Eingabe geklärt ist. ',
+  updateIntro: 'Ein Update wartet; bevor die Seite neu lädt, muss die Eingabe geklärt sein. ',
+  oldRemoved: 'Alte Installation entfernt. Ein altes Symbol auf dem Startbildschirm kannst du jetzt löschen.',
+  ok: 'OK',
+};
+let OT = OFFLINE_TEXT_DE;
+
+// Switch the texts (the page's language changed); what is shown already
+// stays until it is next updated.
+export function setOfflineText(strings) {
+  OT = strings ? { ...OFFLINE_TEXT_DE, ...strings } : OFFLINE_TEXT_DE;
+}
+
 export function setChip(id, text, cls) {
   const c = $(id);
   c.textContent = text;
@@ -28,15 +77,15 @@ function showVersion(swVersion) {
 // no answer or a broken worker is never "ready".
 export function offlineStatus(reply) {
   if (reply && reply.mode === 'production' && reply.version) {
-    if (reply.ready) return { text: 'offline bereit ✓', cls: 'ok' };
-    return { text: 'offline nicht bereit', cls: 'err', title: 'Der Offline-Speicher ist unvollständig (vom Browser geleert?). Mit Internet geöffnet, wird die Offline-Kopie automatisch repariert.' };
+    if (reply.ready) return { text: OT.ready, cls: 'ok' };
+    return { text: OT.incomplete, cls: 'err', title: OT.incompleteTitle };
   }
   if (reply && reply.mode === 'dev') {
-    return { text: 'Entwicklungsmodus (nicht offline)', cls: 'warn', title: 'Dieser Server liefert keine Dateiliste (precache.js ist ein Entwicklungs-Stub): nichts wird für offline gespeichert.' };
+    return { text: OT.dev, cls: 'warn', title: OT.devTitle };
   }
   // a worker from before replies had a mode: { version } (null meant dev)
-  if (reply && !reply.mode) return reply.version ? { text: 'offline bereit ✓', cls: 'ok' } : offlineStatus({ mode: 'dev' });
-  return { text: 'offline nicht bereit', cls: 'err', title: 'Die Offline-Dateiliste ist fehlerhaft oder der Service Worker antwortet nicht.' };
+  if (reply && !reply.mode) return reply.version ? { text: OT.ready, cls: 'ok' } : offlineStatus({ mode: 'dev' });
+  return { text: OT.broken, cls: 'err', title: OT.brokenTitle };
 }
 
 // The save hook (beforeReload) contract: it resolves `true` when everything
@@ -75,20 +124,23 @@ export async function saveSucceeded(beforeReload) {
 //                message and actions (see runSaveHook)
 //   fileHidden   selectors of the online-only parts, hidden in the
 //                single-file version (file://)
+//   strings      texts replacing those of OFFLINE_TEXT_DE (another language)
 // Page elements it uses: #st-offline (chip), #st-version, #btn-update. It
 // adds #st-update (chip: update check/installation failed) after
 // #btn-update and #update-problem (banner: update held back because the
 // save failed) after the header.
-export async function initOffline({ build = null, beforeReload = async () => true, fileHidden = [] } = {}) {
+export async function initOffline({ build = null, beforeReload = async () => true, fileHidden = [], strings = null } = {}) {
   offlineBuild = build;
+  setOfflineText(strings);
+  OT = strings ? { ...OFFLINE_TEXT_DE, ...strings } : OFFLINE_TEXT_DE;
   showVersion();
   if (location.protocol === 'file:') {
-    setChip('#st-offline', 'Offline-Datei', 'ok');
+    setChip('#st-offline', OT.file, 'ok');
     for (const sel of fileHidden) { const n = $(sel); if (n) n.hidden = true; }
     return;
   }
   if (!('serviceWorker' in navigator)) {
-    setChip('#st-offline', 'nicht offline-fähig', 'err');
+    setChip('#st-offline', OT.unsupported, 'err');
     return;
   }
   let reg;
@@ -96,7 +148,7 @@ export async function initOffline({ build = null, beforeReload = async () => tru
     reg = await navigator.serviceWorker.register('sw.js');
   } catch (e) {
     console.warn('Service Worker nicht registriert', e);
-    setChip('#st-offline', 'Offline-Einrichtung fehlgeschlagen', 'err');
+    setChip('#st-offline', OT.setupFailed, 'err');
     return;
   }
   // An update replaces a controller this page already had. Without one,
@@ -123,7 +175,7 @@ export async function initOffline({ build = null, beforeReload = async () => tru
   const pTitle = el('strong', { id: 'update-problem-title', tabindex: '-1' });
   const pText = el('span', { id: 'update-problem-text' });
   const pNote = el('span', { id: 'update-problem-note' });
-  const pCopy = el('textarea', { id: 'update-problem-copy', readonly: true, rows: 4, 'aria-label': 'Text zum Kopieren', hidden: true });
+  const pCopy = el('textarea', { id: 'update-problem-copy', readonly: true, rows: 4, 'aria-label': OT.copyLabel, hidden: true });
   const pButtons = el('span', { id: 'update-problem-buttons' });
   const problem = el('div', { id: 'update-problem', class: 'banner err', role: 'alert', hidden: true }, pTitle, ' ', pText, ' ', pNote, pCopy, pButtons);
   ($('#site-header') || document.body.firstElementChild).after(problem);
@@ -153,7 +205,7 @@ export async function initOffline({ build = null, beforeReload = async () => tru
   // What an action reports: nothing/true = done; false, a string, { message,
   // text } or an exception = it did not work (text is shown to copy by hand).
   const actionFailure = r => {
-    if (r === false) return { message: 'Die Aktion ist fehlgeschlagen. ' };
+    if (r === false) return { message: OT.actionFailed };
     if (typeof r === 'string') return { message: r };
     if (r && typeof r === 'object' && (r.message || r.text)) return { message: r.message || '', text: r.text || '' };
     return null;
@@ -183,7 +235,7 @@ export async function initOffline({ build = null, beforeReload = async () => tru
       failure = actionFailure(await current.res.actions[i].run());
     } catch (e) {
       console.warn('Aktion vor dem Update fehlgeschlagen', e);
-      failure = { message: 'Die Aktion ist fehlgeschlagen. ' };
+      failure = { message: OT.actionFailed };
     }
     busy = false;
     setBusy(false);
@@ -192,22 +244,22 @@ export async function initOffline({ build = null, beforeReload = async () => tru
   };
   const render = () => {
     const { res, what, intro } = current;
-    setIfChanged(pTitle, `${what} nicht ausgeführt: `);
-    setIfChanged(pText, `${intro}${res.message || 'Die laufende Eingabe konnte nicht gesichert werden. '}${res.actions.length ? '' : 'Sie bleibt in diesem Fenster erhalten. Sichern Sie sie zuerst (Text kopieren oder die Sicherung/den Export des Werkzeugs nutzen) und versuchen Sie es dann erneut. '}`);
+    setIfChanged(pTitle, OT.notDone(what));
+    setIfChanged(pText, `${intro}${res.message || OT.saveFailed}${res.actions.length ? '' : OT.keepInput}`);
     const key = res.actions.map(a => a.label).join('\n');
     if (key === buttonsKey) return;
     buttonsKey = key;
     const hadFocus = pButtons.contains(document.activeElement);
     pButtons.replaceChildren(
       ...res.actions.map((a, i) => el('button', { type: 'button', class: 'update-action', id: `btn-update-action-${i}`, onclick: () => runAction(i) }, a.label)),
-      el('button', { type: 'button', id: 'btn-update-retry', onclick: () => { if (!busy) afterSave(current.action, current.what, current.intro); } }, 'Erneut versuchen'),
+      el('button', { type: 'button', id: 'btn-update-retry', onclick: () => { if (!busy) afterSave(current.action, current.what, current.intro); } }, OT.retry),
       el('button', { type: 'button', id: 'btn-update-anyway', onclick: () => {
         if (busy) return;
-        if (!globalThis.confirm(`${current.res.discards || 'Nicht gesicherte Eingaben gehen verloren.'} Trotzdem aktualisieren?`)) return;
+        if (!globalThis.confirm(OT.anywayConfirm(current.res.discards || OT.discardsDefault))) return;
         const { action } = current;
         hideProblem();
         action(true);
-      } }, 'Trotzdem aktualisieren'),
+      } }, OT.anyway),
     );
     if (hadFocus) pButtons.querySelector('button')?.focus();
   };
@@ -236,15 +288,15 @@ export async function initOffline({ build = null, beforeReload = async () => tru
     render();
     problem.hidden = false;
     const btn = $('#btn-update');
-    if (btn) btn.textContent = 'Update wartet: Eingabe klären';
-    if (first && what === 'Update') pTitle.focus(); // the user just clicked: take them to the message
+    if (btn) btn.textContent = OT.waiting;
+    if (first && what === OT.update) pTitle.focus(); // the user just clicked: take them to the message
     drain(false);
   };
 
   const doReload = () => { reloading = true; location.reload(); };
   const reloadForUpdate = () => {
     if (reloading) return;
-    afterSave(doReload, 'Neuladen', 'Ein anderes Fenster dieses Werkzeugs hat ein Update installiert; diese Seite läuft noch mit der alten Version und muss neu laden, sobald die Eingabe geklärt ist. ');
+    afterSave(doReload, OT.reload, OT.reloadIntro);
   };
   // The waiting worker is looked up when the action runs (another tab may
   // have activated it while the banner was up): then only reload. A forced
@@ -256,7 +308,7 @@ export async function initOffline({ build = null, beforeReload = async () => tru
     forceReload = !!force;
     reg.waiting.postMessage('skipWaiting');
   };
-  const updateIntro = 'Ein Update wartet; bevor die Seite neu lädt, muss die Eingabe geklärt sein. ';
+  const updateIntro = OT.updateIntro;
   // An update waits beside the active version. On the first install, WebKit
   // may already report the claiming worker as controller while it is still
   // the waiting one, with no active worker yet: no update to offer (#36).
@@ -265,7 +317,7 @@ export async function initOffline({ build = null, beforeReload = async () => tru
     setUpdateNote('');
     const btn = $('#btn-update');
     btn.hidden = false;
-    btn.onclick = () => afterSave(doUpdate, 'Update', updateIntro);
+    btn.onclick = () => afterSave(doUpdate, OT.update, updateIntro);
   };
   // The worker told to take over activates only once the old one has served
   // its requests; a newer version that finishes installing meanwhile replaces
@@ -274,7 +326,7 @@ export async function initOffline({ build = null, beforeReload = async () => tru
   // input may have changed since the click).
   const goOn = () => {
     if (forceReload) doUpdate(true);
-    else afterSave(doUpdate, 'Update', updateIntro);
+    else afterSave(doUpdate, OT.update, updateIntro);
   };
   // One listener per worker: the start and updatefound can both see the same
   // installing worker, and goOn() must run once.
@@ -293,10 +345,10 @@ export async function initOffline({ build = null, beforeReload = async () => tru
     if (w.state === 'redundant' && !reg.installing && !reg.waiting) {
       // installation failed (not just replaced by a newer install: broken manifest, files missing, network)
       if (navigator.serviceWorker.controller) {
-        setUpdateNote('Update fehlgeschlagen', 'Die neue Version konnte nicht geladen werden. Die installierte Version läuft weiter.');
+        setUpdateNote(OT.updateFailed, OT.updateFailedTitle);
       } else if (!reg.active) {
-        setChip('#st-offline', 'Offline-Einrichtung fehlgeschlagen', 'err');
-        $('#st-offline').title = 'Der Offline-Speicher konnte nicht eingerichtet werden (Dateiliste fehlerhaft oder Dateien nicht ladbar). Seite mit Internet neu laden.';
+        setChip('#st-offline', OT.setupFailed, 'err');
+        $('#st-offline').title = OT.setupFailedTitle;
       }
     }
   };
@@ -325,12 +377,12 @@ export async function initOffline({ build = null, beforeReload = async () => tru
     lastCheck = Date.now();
     reg.update().then(() => { if (!reg.waiting) setUpdateNote(''); }, e => {
       console.warn('Update-Prüfung fehlgeschlagen', e);
-      setUpdateNote('Update-Prüfung fehlgeschlagen', 'Der Server war nicht erreichbar oder lieferte eine fehlerhafte Version. Die installierte Version läuft weiter.');
+      setUpdateNote(OT.checkFailed, OT.checkFailedTitle);
     });
   };
   window.addEventListener('online', () => {
     // back online: an incomplete offline copy gets another repair attempt
-    if (navigator.serviceWorker.controller && $('#st-offline').textContent !== 'offline bereit ✓') { repairTried = false; reportOfflineVersion(); }
+    if (navigator.serviceWorker.controller && !offlineReady) { repairTried = false; reportOfflineVersion(); }
     check();
   });
   document.addEventListener('visibilitychange', () => {
@@ -372,9 +424,9 @@ async function checkOldInstall() {
       console.warn('Alte Installation nicht entfernt', e);
       return;
     }
-    $('#old-install-text').textContent = 'Alte Installation entfernt. Ein altes Symbol auf dem Startbildschirm kannst du jetzt löschen.';
+    $('#old-install-text').textContent = OT.oldRemoved;
     $('#btn-old-remove').hidden = true;
-    $('#btn-old-later').textContent = 'OK';
+    $('#btn-old-later').textContent = OT.ok;
   };
 }
 
@@ -382,17 +434,20 @@ async function checkOldInstall() {
 // online (once per page load and per reconnect): the worker fetches the
 // files of its own version again. The chip says what happens.
 let repairTried = false;
+// whether the chip last said "ready" (a complete cache)
+let offlineReady = false;
 function repairOfflineCopy(ctl) {
   repairTried = true;
-  setChip('#st-offline', 'Offline-Kopie wird repariert…', 'warn');
+  offlineReady = false;
+  setChip('#st-offline', OT.repairing, 'warn');
   const ch = new MessageChannel();
   ch.port1.onmessage = ev => {
     if (ev.data && ev.data.ok) reportOfflineVersion();
     else if (ev.data && ev.data.newer) {
       // the server publishes another release: the normal update path takes over
-      setChip('#st-offline', 'Neue Version auf dem Server – bitte aktualisieren', 'warn');
+      setChip('#st-offline', OT.newer, 'warn');
       navigator.serviceWorker.getRegistration().then(r => r && r.update()).catch(() => {});
-    } else setChip('#st-offline', 'Reparatur fehlgeschlagen', 'err');
+    } else setChip('#st-offline', OT.repairFailed, 'err');
   };
   ctl.postMessage('repair', [ch.port2]);
 }
@@ -400,7 +455,8 @@ function repairOfflineCopy(ctl) {
 function reportOfflineVersion() {
   const ctl = navigator.serviceWorker && navigator.serviceWorker.controller;
   if (!ctl) {
-    setChip('#st-offline', 'offline: lädt…', 'warn');
+    offlineReady = false;
+    setChip('#st-offline', OT.loading, 'warn');
     return;
   }
   // A worker the browser has stopped needs a moment (or a second message) to
@@ -417,6 +473,7 @@ function reportOfflineVersion() {
         repairOfflineCopy(ctl);
         return;
       }
+      offlineReady = st.cls === 'ok';
       setChip('#st-offline', st.text, st.cls);
       $('#st-offline').title = st.title || '';
       showVersion(ev.data && ev.data.version);
@@ -425,7 +482,7 @@ function reportOfflineVersion() {
     setTimeout(() => {
       if (answered) return;
       if (++attempt < 2) ask();
-      else setChip('#st-offline', 'offline nicht bereit', 'err');
+      else { offlineReady = false; setChip('#st-offline', OT.noAnswer, 'err'); }
     }, 5e3);
   };
   ask();

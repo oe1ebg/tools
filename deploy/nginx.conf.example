@@ -19,9 +19,9 @@
 # add_header of its own, so every header is set once, here, and no location
 # may add another one (or it has to repeat all of them).
 #
-#   default        tool pages and manuals: only files of the bundle; the two
-#                  inline load-failure scripts of confirm/ and notfunk/ by
-#                  hash (tests/deploy-headers.test.mjs fails when a page's
+#   default        tool pages and manuals: only files of the bundle; the
+#                  three inline load-failure scripts of confirm/, notfunk/
+#                  and netlog/ by hash (tests/deploy-headers.test.mjs fails when a page's
 #                  inline script and these hashes disagree).
 #   sota-alerts/   online only: SOTA's API and Overpass (connect-src) and
 #                  the three tile servers (img-src), tools/sota-alerts/js/;
@@ -40,7 +40,7 @@
 # WebKit reports the internals of its own <select> as blocked inline style;
 # stylesheets and <style> elements stay restricted.
 map $uri $oe1ebg_csp {
-    default                                                "default-src 'self'; script-src 'self' 'sha256-BFKCNN17mvY1faBbmDv6Qs2zM9TIJ4uOPbK2JRYPmY0=' 'sha256-4QzxWl/E8EGSZSZaTG6/Yh0/RwJ7dKruDne0oFCzeIQ='; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
+    default                                                "default-src 'self'; script-src 'self' 'sha256-BFKCNN17mvY1faBbmDv6Qs2zM9TIJ4uOPbK2JRYPmY0=' 'sha256-4QzxWl/E8EGSZSZaTG6/Yh0/RwJ7dKruDne0oFCzeIQ=' 'sha256-1WkpEWRepTjoTSNgcAX7BqTAoY2CLE/8+RQDS/hBEZM='; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
     ~/sota-alerts/                                         "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: https://*.tile.opentopomap.org https://tile.openstreetmap.org https://mapsneu.wien.gv.at; connect-src 'self' https://api2.sota.org.uk https://overpass-api.de; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
     ~/adif-editor\.html$                                   "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'";
     ~/(confirm-offline|notfunk-offline)\.html$             "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
@@ -57,7 +57,7 @@ map $uri $oe1ebg_frame_options {
 # a 304). Without it, browsers guess a lifetime from Last-Modified and
 # can mix an old and a new release after a deploy: the ADIF editor and
 # the SOTA Alerts Map have no service worker, and the PWAs (confirm,
-# notfunk) must see a new sw.js/precache.js to offer the update. The PWAs
+# notfunk, netlog) must see a new sw.js/precache.js to offer the update. The PWAs
 # answer everything else from their versioned cache, so it costs them
 # nothing. Directory URLs (…/confirm/) get it through the index redirect
 # ($uri is then …/confirm/index.html). An empty value sends no header.

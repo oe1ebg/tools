@@ -30,21 +30,34 @@ function hideStorageNote(anchor) {
   if (note) note.hidden = true;
 }
 
-const reloadButton = () => el('button', { type: 'button', onclick: () => location.reload() }, 'Neu laden');
+const reloadButton = (label = 'Neu laden') => el('button', { type: 'button', onclick: () => location.reload() }, label);
+
+// The texts of the opening notices; a tool in another language passes its
+// own (any subset) as `strings`.
+export const STORAGE_NOTICE_DE = {
+  blocked: 'Warte auf die Datenbank: ein anderer Tab dieses Werkzeugs hat noch eine ältere Version offen. '
+    + 'Bitte jenen Tab schließen oder neu laden, dann geht es hier von selbst weiter.',
+  closed: 'Die Datenbank wurde von einem anderen Tab (neuere Version) übernommen, hier kann nichts mehr gespeichert werden. '
+    + 'Bitte diese Seite neu laden.',
+  reload: 'Neu laden',
+};
 
 // open(hooks): the tool's openStorage(); resolves to its result. anchor:
-// the page's banner, the notices go right after it.
-export async function openStorageWithNotices(open, anchor) {
+// the page's banner, the notices go right after it. hooks: more hooks for
+// open() (e.g. a tool's own onUnavailable).
+export async function openStorageWithNotices(open, anchor, strings = null, hooks = {}) {
+  const text = strings ? { ...STORAGE_NOTICE_DE, ...strings } : STORAGE_NOTICE_DE;
   let waited = false;
   const store = await open({
-    onBlocked() {
+    ...hooks,
+    onBlocked(info) {
       waited = true;
-      showStorageNote(anchor, 'warn', 'Warte auf die Datenbank: ein anderer Tab dieses Werkzeugs hat noch eine ältere Version offen. '
-        + 'Bitte jenen Tab schließen oder neu laden, dann geht es hier von selbst weiter.');
+      showStorageNote(anchor, 'warn', text.blocked);
+      hooks.onBlocked?.(info);
     },
-    onClosed() {
-      showStorageNote(anchor, 'err', 'Die Datenbank wurde von einem anderen Tab (neuere Version) übernommen, hier kann nichts mehr gespeichert werden. '
-        + 'Bitte diese Seite neu laden.', reloadButton());
+    onClosed(info) {
+      showStorageNote(anchor, 'err', text.closed, reloadButton(text.reload));
+      hooks.onClosed?.(info);
     },
   });
   if (waited) hideStorageNote(anchor);

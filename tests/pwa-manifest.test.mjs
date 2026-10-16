@@ -7,7 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-for (const tool of ['confirm', 'notfunk']) {
+for (const tool of ['confirm', 'notfunk', 'netlog']) {
   test(`${tool} manifest: start_url "./", scope "./", no id`, () => {
     const m = JSON.parse(readFileSync(new URL(`../tools/${tool}/manifest.webmanifest`, import.meta.url), 'utf8'));
     assert.equal(m.start_url, './');
