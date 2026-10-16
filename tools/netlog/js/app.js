@@ -21,7 +21,7 @@ import { createSessionLock, CHANNEL_NAME } from './lock.js';
 import { createSaveState } from './status.js';
 import { setText, setAttr } from './keyed.js';
 import { sessionLabel, live, rosterSorted, isUnresolved, openQueueCount } from './model.js';
-import { initRoster, renderRoster, renderStation, flushDetails, callText, rosterRows } from './roster.js';
+import { initRoster, renderRoster, renderStation, flushDetails, callText, rosterRows, isOwn } from './roster.js';
 import { initSessions, renderSessions } from './sessions.js';
 import { initControl, renderControl } from './control.js';
 import { initKeys, loadEditBindings, registerEditCommand, EDIT_COMMANDS } from './keys.js';
@@ -33,6 +33,7 @@ import { initTurn, renderTurn, enterTurn, turnRows, focusedTurnItem, completeIte
 import { createNav } from './nav.js';
 import { initLog, renderLog, logRows } from './clog.js';
 import { initSearch } from './searchui.js';
+import { initSpeak, renderSpeak } from './speak.js';
 import { initData, renderData, exportBackup } from './dataui.js';
 import { undo, undoStep } from './ops.js';
 
@@ -252,12 +253,24 @@ app.select = (id, { focus = false } = {}) => {
   if (!app.participant(id)) return;
   if (id !== app.ui.selected) {
     app.ui.selected = id;
+    // the selected station decides between Live Notes and My Turn: me ->
+    // My Turn, anyone else -> their notes (the same for a click and j/k)
+    const own = isOwn(app, app.participant(id));
+    if (own && app.ui.view === 'live') switchView('turn');
+    else if (!own && app.ui.view === 'turn') switchView('live');
     renderRoster(app);
     if (app.ui.view === 'live') { renderStation(app); renderNotes(app); }
     saveUi();
   }
   if (focus) focusRosterRow(id);
 };
+
+function switchView(view) {
+  app.ui.view = view;
+  app.syncHash();
+  if (view === 'turn') enterTurn(app);
+  render();
+}
 
 function focusRosterRow(id) {
   const b = $('#roster').querySelector(`li[data-key="${CSS.escape(id)}"] button.person`);
@@ -267,6 +280,13 @@ function focusRosterRow(id) {
 // Open a station's notes at its current-round editing position (roster
 // click/Enter).
 app.openStation = async id => {
+  // my own station: no notes about myself, My Turn instead
+  if (isOwn(app, app.participant(id))) {
+    app.select(id);
+    if (app.ui.view !== 'turn') { app.nav.push(); app.ui.view = 'turn'; app.syncHash(); await enterTurn(app); render(); }
+    $('#turn-title').focus();
+    return;
+  }
   app.select(id);
   if (app.ui.view !== 'live') {
     app.ui.view = 'live';
@@ -379,6 +399,7 @@ function render() {
   }
   renderHeader();
   if (inSession) {
+    renderSpeak(app);
     renderRoster(app);
     if (view === 'live') { renderStation(app); renderNotes(app); }
     if (view === 'turn') renderTurn(app);
@@ -475,13 +496,15 @@ function renderMode(mode) {
 
 // The rows j/k move through: in Live Notes the notes when the focus is in
 // them, else the roster; in My Turn the checklist and the summary notes.
+// The list j/k move through follows the focus: inside My Turn its items,
+// inside the log or a station's notes their rows, everywhere else the
+// roster (so the stations can always be switched).
 function navList() {
   const a = document.activeElement;
-  if (app.ui.view === 'turn') return turnRows();
-  if (app.ui.view === 'log') return logRows();
-  if (app.ui.view === 'live' && a && a.closest && a.closest('#station-rounds')) {
-    return [...$('#station-rounds').querySelectorAll('.round-body:not([hidden]) li.note')];
-  }
+  const inside = sel => a && a.closest && a.closest(sel);
+  if (inside('#view-turn')) return turnRows();
+  if (inside('#view-log')) return logRows();
+  if (inside('#station-rounds')) return [...$('#station-rounds').querySelectorAll('.round-body:not([hidden]) li.note')];
   return [...$('#roster').querySelectorAll('button.person')];
 }
 
@@ -749,6 +772,7 @@ async function main() {
   initNotes(app);
   initTurn(app);
   initLog(app);
+  initSpeak(app);
   initSearch(app);
   initData(app);
   $('#btn-undo').addEventListener('click', () => app.undo(false));

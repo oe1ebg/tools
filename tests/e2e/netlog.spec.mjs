@@ -19,7 +19,7 @@ async function open(page, { lang } = {}) {
   await offlineSettled(page);
 }
 
-async function startSession(page, { round, own = 'OE0QXA' } = {}) {
+async function startSession(page, { round, own = 'OE0QXZ' } = {}) {
   await page.locator('#btn-new-session').click();
   await page.locator('#sf-own').fill(own);
   if (round) {
@@ -159,7 +159,6 @@ async function openStation(page, call) {
 async function newRound(page) {
   const before = await page.locator('#round-indicator').textContent();
   await page.locator('#btn-new-round').click();
-  await page.locator('#round-form button[value=ok]').click();
   await expect(page.locator('#round-indicator')).not.toHaveText(before);
 }
 
@@ -281,7 +280,7 @@ test('My Turn: round 1 response above the round 4 summary, points in, tasks and 
   await fourRounds(page);
   await page.keyboard.press('m');
   await expect(page.locator('#view-turn')).toBeVisible();
-  await expect(page.locator('#turn-title')).toHaveText('My Turn — OE0QXA — Round 4');
+  await expect(page.locator('#turn-title')).toHaveText('My Turn — OE0QXZ — Round 4');
   await page.locator('#point-text').fill('Mention the next portable test.');
   await page.locator('#point-text').press('Enter');
   await expect(queue(page)).toHaveCount(2);
@@ -849,4 +848,65 @@ test('j/k and the arrow keys wrap around at the ends of the roster', async ({ pa
   await expect(page.locator('#roster button.person', { hasText: 'OE0QXA' })).toBeFocused();
   await page.keyboard.press('k');
   await expect(page.locator('#roster li.active .call')).toHaveText('OE0QXC');
+});
+
+test('running a round: NCS first, Next through the order, my turn opens My Turn, the next round offered; status lines in the log', async ({ page }) => {
+  await open(page, { lang: 'en' });
+  await startSession(page, { own: 'OE0QXA' });
+  for (const c of ['OE0QXA', 'OE0QXB', 'OE0QXN', 'OE0QXC']) await checkIn(page, c);
+  await page.locator('#roster button.person', { hasText: 'OE0QXN' }).click();
+  await page.locator('#btn-ncs').click();
+  await expect(roster(page)).toHaveText(['OE0QXN', 'OE0QXA', 'OE0QXB', 'OE0QXC']);
+  await expect(page.locator('#speak-style')).toHaveText('Star net (via the NCS)');
+  await expect(page.locator('#speak-state')).toHaveText('Next to speak: OE0QXA (me)');
+  // my turn: Next opens My Turn, not notes about myself
+  await page.locator('#btn-next').click();
+  await expect(page.locator('#view-turn')).toBeVisible();
+  await expect(page.locator('#speak-state')).toHaveText('Speaking: OE0QXA (me) · Next to speak: OE0QXB');
+  await page.locator('#btn-next').click();
+  await expect(page.locator('#station-call')).toHaveText('OE0QXB');
+  await expect(composer(page)).toBeFocused();
+  // a station that is away is skipped
+  await page.locator('#tab-control').click();
+  await page.getByRole('combobox', { name: 'Status of OE0QXC' }).selectOption('paused');
+  await expect(page.locator('#speak-state')).toHaveText('Speaking: OE0QXB · round 1: everyone has spoken');
+  await page.locator('#btn-next').click();
+  await expect(page.locator('#round-indicator')).toHaveText('Round 2');
+  // one click: no dialog; undo takes it back
+  await page.locator('#btn-new-round').click();
+  await expect(page.locator('#round-indicator')).toHaveText('Round 3');
+  await page.locator('#btn-undo').click();
+  await expect(page.locator('#round-indicator')).toHaveText('Round 2');
+  // the status change is a line in the station's log and the Continuous Log
+  await page.locator('#tab-live').click();
+  await page.locator('#roster button.person', { hasText: 'OE0QXC' }).click();
+  await expect(page.locator('#station-rounds li.event-line').filter({ hasText: 'paused / away' })).toHaveCount(1);
+  await page.locator('#tab-log').click();
+  await expect(page.locator('#log-rounds li.event-line').filter({ hasText: 'OE0QXC: paused / away' })).toHaveCount(1);
+  // the NCS stays first; the others reorder below it
+  await page.locator('#tab-control').click();
+  await expect(page.locator('#order-list li').first()).toContainText('OE0QXN');
+  await expect(page.getByRole('button', { name: 'Move OE0QXA up' })).toBeDisabled();
+});
+
+test('my own station shows My Turn for a click and for j/k alike; j/k switch stations from My Turn', async ({ page }) => {
+  await open(page, { lang: 'en' });
+  await startSession(page, { own: 'OE0QXA' });
+  for (const c of ['OE0QXA', 'OE0QXB']) await checkIn(page, c);
+  // the check-in fields are at the bottom of the column
+  const [list, form] = await Promise.all([page.locator('#roster').boundingBox(), page.locator('#checkin-form').boundingBox()]);
+  expect(form.y).toBeGreaterThan(list.y);
+  await page.locator('#roster button.person', { hasText: 'OE0QXB' }).focus();
+  await page.keyboard.press('k');
+  await expect(page.locator('#view-turn')).toBeVisible();
+  await expect(page.locator('#roster button.person', { hasText: 'OE0QXA' })).toBeFocused();
+  await page.keyboard.press('j');
+  await expect(page.locator('#view-live')).toBeVisible();
+  await expect(page.locator('#station-call')).toHaveText('OE0QXB');
+  await page.locator('#roster button.person', { hasText: 'OE0QXA' }).click();
+  await expect(page.locator('#view-turn')).toBeVisible();
+  // in My Turn, with the focus in the roster, j/k still switch stations
+  await page.locator('#roster button.person', { hasText: 'OE0QXA' }).focus();
+  await page.keyboard.press('j');
+  await expect(page.locator('#station-call')).toHaveText('OE0QXB');
 });

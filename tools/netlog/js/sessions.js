@@ -34,6 +34,7 @@ export function initSessions(app) {
     $('#sf-name').value = '';
     $('#sf-round').value = '1';
     $('#sf-joined').checked = false;
+    { const sr = app.data.series.find(s => s.id === seriesId); $('#sf-style').value = sr && sr.defaults.style === 'circle' ? 'circle' : 'star'; }
     setText($('#sf-error'), '');
     suggestNumber(app);
     $('#sf-series').focus();
@@ -51,6 +52,7 @@ export function initSessions(app) {
     $('#srf-repeater').value = series ? series.defaults.repeater || '' : '';
     $('#srf-ncs').value = series ? series.defaults.ncs || '' : '';
     $('#srf-numbering').value = series ? series.numbering : 'sequential';
+    $('#srf-style').value = series && series.defaults.style === 'circle' ? 'circle' : 'star';
     setText($('#srf-error'), '');
     $('#srf-name').focus();
   };
@@ -94,6 +96,7 @@ export function initSessions(app) {
       own,
       radio: { repeater: $('#sf-repeater').value.trim() || undefined },
       round,
+      style: $('#sf-style').value,
       joined: $('#sf-joined').checked,
     }), { global: true });
     if (!s) return;
@@ -110,7 +113,7 @@ export function initSessions(app) {
       name,
       description: $('#srf-description').value.trim(),
       schedule: $('#srf-schedule').value.trim(),
-      defaults: { repeater: $('#srf-repeater').value.trim(), ncs: normCall($('#srf-ncs').value) },
+      defaults: { repeater: $('#srf-repeater').value.trim(), ncs: normCall($('#srf-ncs').value), style: $('#srf-style').value },
       numbering: $('#srf-numbering').value,
     };
     const r = editingSeries
@@ -163,6 +166,7 @@ function suggestNumber(app) {
   const series = app.data.series.find(s => s.id === id);
   $('#sf-number').value = series && series.numbering !== 'none' ? String(nextSessionNumber(app.data.sessions, id)) : '';
   $('#sf-repeater').value = series ? series.defaults.repeater || '' : '';
+  $('#sf-style').value = series && series.defaults.style === 'circle' ? 'circle' : 'star';
   $('#sf-repeater').placeholder = '';
 }
 

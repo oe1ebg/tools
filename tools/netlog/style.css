@@ -53,6 +53,10 @@ button.mini{ font-size:13.5px; padding:.15em .55em; }
 .toggle button + button{ border-left:1px solid var(--line); }
 .toggle button[aria-pressed="true"], #theme-toggle button.active{ background:var(--accent-soft); color:var(--accent-text); }
 #btn-help{ font-size:13.5px; padding:.15em .6em; }
+.header-tools{ display:inline-flex; gap:.6em; align-items:center; flex-wrap:nowrap; }
+/* the header's second row: the status chips, always on a line of their own */
+.status-bar{ flex-basis:100%; display:flex; gap:.5em; flex-wrap:wrap; align-items:center; justify-content:flex-end; }
+.speak-style{ margin:0; }
 .chip-btn{ cursor:pointer; font:inherit; font-size:12.5px; background:none; }
 .chip-btn.warn{ color:var(--warn); border-color:var(--warn); background:var(--warn-soft); }
 
@@ -72,7 +76,7 @@ footer a{ color:var(--accent-text); }
 .sidehead .hint{ margin:.2em 0 .6em; }
 .checkin{ display:grid; gap:.35em; }
 .checkin input{ width:100%; }
-.roster{ list-style:none; margin:0; padding:0; overflow:auto; flex:1; max-height:65vh; }
+.roster{ list-style:none; margin:0; padding:0; overflow:auto; flex:0 1 auto; max-height:60vh; }
 .person-row{ border-bottom:1px solid var(--line); }
 button.person{
   display:flex; gap:.5em; align-items:center; width:100%; text-align:left;
@@ -86,7 +90,8 @@ button.person .badges{ margin-left:auto; display:flex; gap:.25em; }
 .dot.paused, .dot.listening{ background:var(--warn); }
 .dot.unconfirmed{ background:transparent; border:2px solid var(--warn); }
 .dot.out{ background:var(--line-strong); }
-.sidefoot{ padding:.6em; border-top:1px solid var(--line); display:flex; gap:.4em; flex-wrap:wrap; }
+.sidefoot{ padding:.6em; border-top:1px solid var(--line); display:flex; gap:.4em; flex-wrap:wrap; margin-top:auto; }
+.sidecheckin{ padding:.6em .8em .8em; }
 
 .content{ flex:1; min-width:0; display:flex; flex-direction:column; }
 .viewbar{ padding:.6em 1em; border-bottom:1px solid var(--line); margin:0; }
@@ -339,3 +344,18 @@ table.keys th:first-child, table.keys td:first-child{ width:12.5rem; }
   button, select, input[type=text], input[type=url], input:not([type]){ min-height:44px; }
   button.mini, select.status-sel, .session-row select, .round-row input{ min-height:44px; }
 }
+
+/* ---------- running the round ---------- */
+.speak-panel{ padding:.6em .8em; border-bottom:1px solid var(--line); background:var(--bg); display:grid; gap:.4em; }
+.speak-state{ margin:0; font-size:13.5px; color:var(--text-dim); }
+.next-btn{ width:100%; text-align:left; }
+.next-btn.suggest-round{ background:var(--ok); border-color:var(--ok); }
+.own-turn{ margin:.4em 0; }
+/* status lines among the notes: tinted, so they are not overlooked */
+li.event-line{ list-style:none; display:flex; gap:.6em; margin:.3em 0; padding:.3em .6em; font-size:14px; color:var(--text); background:var(--accent-soft); border-left:4px solid var(--accent-dim); border-radius:0 4px 4px 0; }
+li.event-line .time{ color:var(--text-dim); }
+li.event-line .time{ min-width:5.5em; }
+
+/* the NCS: on top of the lists, as a band of its own */
+.person-row.ncs{ background:var(--accent-soft); border-bottom:2px solid var(--accent-dim); }
+.order-row.ncs{ background:var(--accent-soft); border-bottom:2px solid var(--accent-dim); padding-left:.4em; padding-right:.4em; }

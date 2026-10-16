@@ -8,7 +8,7 @@
 import { $, el, fill, popover, isComposing } from '../../shared/js/dom.js';
 import { t } from './i18n.js';
 import { keyedList, setText, setAttr, setValue } from './keyed.js';
-import { rosterSorted, rosterStats, isUnresolved, callCandidates, callPattern, normCall, baseCall, STATUSES, FLAGS, live } from './model.js';
+import { rosterSorted, rosterStats, isUnresolved, callCandidates, callPattern, normCall, baseCall, STATUSES, FLAGS, live, ncsFirst } from './model.js';
 import { addParticipant, updateParticipant, setStatus, setFlag, moveParticipant, setNcs, mergePreview, mergeParticipants, saveProfile, deleteParticipant } from './ops.js';
 import { stationLinks } from './links.js';
 import { hm, hmz, zone } from './clock.js';
@@ -197,8 +197,9 @@ async function moveSelected(app, dir) {
   if (moved) app.announce(t(dir < 0 ? 'roster.movedUp' : 'roster.movedDown', { call: callText(app.participant(id)) }));
 }
 
+// The roster as shown: the NCS first, then the roster order.
 export function rosterRows(app) {
-  return rosterSorted(app.sd.participants);
+  return ncsFirst(rosterSorted(app.sd.participants), app.s && app.s.ncsId);
 }
 
 export function renderRoster(app) {
@@ -229,6 +230,7 @@ export function renderRoster(app) {
       const selected = p.id === app.ui.selected;
       li.classList.toggle('active', selected);
       li.classList.toggle('own', isOwn(app, p));
+      li.classList.toggle('ncs', !!app.s && app.s.ncsId === p.id);
       setAttr(b, 'aria-current', selected ? 'true' : null);
       setAttr(b, 'aria-label', [callText(p), p.name, statusLabel(p.status), isUnresolved(p.call) ? t('station.unresolved') : '', ...marks.map(m => m.title || m.text)].filter(Boolean).join(', '));
       b.tabIndex = selected || (!app.ui.selected && p === list[0]) ? 0 : -1;
@@ -236,8 +238,11 @@ export function renderRoster(app) {
   });
   const sel = app.participant(app.ui.selected);
   const i = list.findIndex(p => p.id === app.ui.selected);
-  $('#btn-roster-up').disabled = !sel || i <= 0 || app.readOnly;
-  $('#btn-roster-down').disabled = !sel || i < 0 || i >= list.length - 1 || app.readOnly;
+  // the NCS stays first: it does not move, and nobody moves above it
+  const ncsTop = app.s && app.s.ncsId && list[0] && list[0].id === app.s.ncsId ? 1 : 0;
+  const isNcs = sel && sel.id === (app.s && app.s.ncsId);
+  $('#btn-roster-up').disabled = !sel || isNcs || i <= ncsTop || app.readOnly;
+  $('#btn-roster-down').disabled = !sel || isNcs || i < 0 || i >= list.length - 1 || app.readOnly;
   setAttr($('#btn-roster-up'), 'aria-label', sel ? t('roster.upLabel', { call: callText(sel) }) : null);
   setAttr($('#btn-roster-down'), 'aria-label', sel ? t('roster.downLabel', { call: callText(sel) }) : null);
   for (const n of $('#checkin-form').elements) n.disabled = app.readOnly;
@@ -336,6 +341,7 @@ function initStation(app) {
     const r = await app.act(store => setNcs(store, app.ctx(), on ? p.id : null));
     if (r) app.announce(t(on ? 'ncs.assigned' : 'ncs.cleared', { call: callText(p) }));
   });
+  $('#btn-own-turn').addEventListener('click', () => app.openStation(app.ui.selected));
   $('#btn-remove-station').addEventListener('click', async () => {
     const p = app.participant(app.ui.selected);
     if (!p || !globalThis.confirm(t('station.removeConfirm', { call: callText(p) }))) return;
@@ -498,6 +504,7 @@ export function renderStation(app) {
   $('#btn-ncs').disabled = app.readOnly;
   $('#btn-profile').disabled = app.readOnly;
   $('#btn-remove-station').disabled = app.readOnly;
+  $('#own-turn').hidden = !isOwn(app, p);
   const prof = p.profileId && app.data.profiles.find(x => x.id === p.profileId && live(x));
   setText($('#profile-state'), prof ? t('station.profileLinked') : '');
   $('#btn-spoke').disabled = app.readOnly;

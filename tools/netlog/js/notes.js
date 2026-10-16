@@ -347,8 +347,15 @@ export function renderNotes(app) {
       body.hidden = !open;
       const [ol, empty] = body.children;
       const notes = notesOf(app.sd.notes, p.id, r.id);
-      if (open) keyedList(ol, notes, { key: n => n.id, create: noteRow, update: (li, n) => updateNoteRow(app, li, n, p, r) });
-      empty.hidden = !open || notes.length > 0;
+      const items = timeline(notes, stationEvents(app, r.id, p.id));
+      if (open) {
+        keyedList(ol, items, {
+          key: x => (x.kind === 'note' ? x.n.id : `ev:${x.e.id}`),
+          create: x => (x.kind === 'note' ? noteRow() : eventRow()),
+          update: (li, x) => (x.kind === 'note' ? updateNoteRow(app, li, x.n, p, r) : updateEventRow(app, li, x.e)),
+        });
+      }
+      empty.hidden = !open || items.length > 0;
       setText(empty, t('round.noNotes'));
       // the composer at the end of the current round
       let comp = body.querySelector('.composer');
@@ -392,6 +399,43 @@ export function renderNotes(app) {
       }
     },
   });
+}
+
+// ---------- station events in the log ----------
+
+// The events of a station in a round (check-in, status changes, net
+// control), for showing them among its notes.
+export function stationEvents(app, roundId, participantId = null) {
+  return app.sd.events.filter(e => live(e) && e.roundId === roundId && ['presence', 'status', 'ncs'].includes(e.type)
+    && (!participantId || e.participantId === participantId || (e.type === 'ncs' && (e.to === participantId || e.from === participantId))));
+}
+
+// Notes and events in recorded order (created time; notes by their seq
+// among themselves, which follows it).
+export function timeline(notes, events) {
+  return [...notes.map(n => ({ kind: 'note', n, at: n.created })), ...events.map(e => ({ kind: 'event', e, at: e.created }))]
+    .sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0) || ((a.n && a.n.seq) || 0) - ((b.n && b.n.seq) || 0));
+}
+
+// "19:42 UTC · checked out" (whose, in the log)
+function eventText(app, e, withStation) {
+  const p = id => app.sd.participants.find(x => x.id === id);
+  const who = id => (p(id) ? callText(p(id)) : '—');
+  let what;
+  if (e.type === 'presence') what = t('event.checkin');
+  else if (e.type === 'status') what = t('event.status', { status: t(`status.${e.to}`) });
+  else what = t('event.ncs', { from: who(e.from), to: who(e.to) });
+  const prefix = withStation && e.type !== 'ncs' ? `${who(e.participantId)}: ` : '';
+  return `${prefix}${what}`;
+}
+
+export function eventRow() {
+  return el('li', { class: 'event-line' }, el('span', { class: 'time mono' }), ' ', el('span', { class: 'event-text' }));
+}
+
+export function updateEventRow(app, li, e, withStation = false) {
+  setText(li.firstChild, fmtTime(e.time));
+  setText(li.lastChild, eventText(app, e, withStation));
 }
 
 // Focus where a station is edited: the note (its text) or the composer.

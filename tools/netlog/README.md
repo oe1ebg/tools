@@ -74,9 +74,22 @@ yet (a follow-up).
   sequence number, its time stays). An emptied note is not saved (× deletes
   it). Unfinished text is a draft: kept per station and editor, restored
   with its caret after a switch or a reload.
-- **Rounds** start only with "+ New round" (a dialog with the next number
-  and an optional topic) or in Net Control, never by a note, a reorder or a
-  return to the NCS. Net Control corrects round numbers and topics and can
+- **Net style** (per session, the usual one stored with the series):
+  **star** (a directed net: every station gives back to the NCS, typical
+  for local nets where not everyone hears everyone) or **circle** (a
+  round-table / round-robin net: stations hand over in turn). The NCS is
+  always listed first.
+- **Running the round** (above the roster): who is on air (the last
+  recorded speaking turn) and who is next. "▶ Next" records the next
+  speaker's turn and opens that station (My Turn when it is me). Star: the
+  stations in the planned order, the NCS speaking in between (not
+  recorded); circle: the NCS takes part in the order. Stations that are
+  paused, listening or checked out are skipped. When everyone has spoken,
+  the button offers "▶ Start round N+1": a suggestion, it starts only when
+  pressed.
+- **Rounds** start only by that button, "+ New round" (one click: the next
+  number; number and topic can be corrected in Net Control; undo takes it
+  back), never by a note, a reorder or a return to the NCS. Net Control corrects round numbers and topics and can
   make another round the current one. "Spoke now" records a speaking turn
   (contribution) of the selected station; it is optional and may repeat.
   A new note belongs to its station's latest contribution in the round, if
@@ -162,7 +175,11 @@ yet (a follow-up).
   instance only, no deep link, no credentials). They open in a new tab; Netlog
   never fetches from them and never overwrites a station with what they
   show.
-- **My own station.** The session's own callsign ("My callsign" when it is
+- **Status lines**: check-ins, status changes and net-control changes
+  appear as timed lines among a station's notes and in the Continuous Log.
+- **My own station.** Selecting it (click, Enter, j/k, "Next") shows My
+  Turn instead of notes about myself; selecting any other station shows its
+  notes again. The session's own callsign ("My callsign" when it is
   created, later in Net Control, "This session") marks that station "me"
   in the roster and the Net Control list; "+ Check me in" adds it.
 - **Net Control's station list** switches each station's status (active,
@@ -422,6 +439,7 @@ Never rename (root `README.md`, "Stable identifiers"):
 | `js/links.js` | station lookup links (the only module with external URLs) |
 | `js/clock.js` | time display mode (UTC/local), formatting with the zone |
 | `js/fieldsearch.js` | repeater and callsign completion for single fields |
+| `js/speak.js` | running the round: on air, next, "Next", the next round |
 | `js/search.js` | offline search (pure, node-tested) |
 | `js/searchui.js` | the search dialog and opening a result |
 
