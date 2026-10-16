@@ -139,6 +139,18 @@ def sanitize_meta(kind: str, meta: dict, built: dict) -> dict:
 
 # --- the tree
 
+def tools_in(tree: Path) -> list[str]:
+    """The optional tools the published tree has (build_pages_index.py
+    OPTIONAL_TOOL_LINKS links only those): directories with an index.html."""
+    out = []
+    for p, _ in idx.OPTIONAL_TOOL_LINKS:
+        name = p.rstrip("/")
+        f = tree / name / "index.html"
+        if idx.TOOL_NAME_RE.fullmatch(name) and f.is_file() and not f.is_symlink():
+            out.append(name)
+    return out
+
+
 def load_manifest(root: Path) -> dict | None:
     p = root / "entries.json"
     if not p.is_file():
@@ -205,7 +217,8 @@ def apply_ops(root: Path, ops: list[dict], repo: str | None, incoming: Path | No
             shutil.rmtree(dest, ignore_errors=True)
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copytree(src, dest, symlinks=True)
-            entries[(kind, name)] = {"kind": kind, "name": name, **sanitize_meta(kind, op.get("meta") or {}, built), "published": now_iso()}
+            entries[(kind, name)] = {"kind": kind, "name": name, **sanitize_meta(kind, op.get("meta") or {}, built),
+                                     "tools": tools_in(dest), "published": now_iso()}
         elif which == "remove":
             drop(kind, name)
         elif which == "keep-prs":

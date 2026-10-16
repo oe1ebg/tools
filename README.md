@@ -334,7 +334,9 @@ See the linked guide for the release checklist.
 `pages.yml` publishes builds of this repository to GitHub Pages, from the
 `gh-pages` branch, so a change can be tried in a browser before it is merged.
 The site root is a generated index (`scripts/build_pages_index.py`) that
-lists every entry. The base URL is `https://<owner>.github.io/<repo>/`
+lists every entry, with direct links to its tools. A tool that older entries
+lack (Netlog) is linked only where the published tree has it: the publish
+step records it in the entry's `tools` in `entries.json`. The base URL is `https://<owner>.github.io/<repo>/`
 (`https://oe1ebg.github.io/tools/`; with a custom domain, set the repository
 variable `PAGES_BASE_URL`, which only affects the link in the PR comment).
 

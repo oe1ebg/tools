@@ -58,6 +58,18 @@ test('index: groups, order, links, the shared-origin notice', { skip: SKIP }, ()
   assert.ok(![...html.matchAll(/href="([^"]*)"/g)].some(([, h]) => h.startsWith('/')), 'no absolute paths');
 });
 
+test('index: Netlog is linked only for entries that have it', { skip: SKIP }, () => {
+  const html = render({ entries: [
+    { kind: 'pr', name: '12', title: 'With netlog', sha: 'd'.repeat(40), updated: NOW, tools: ['netlog'] },
+    { kind: 'release', name: 'v0.4.0', version: 'v0.4.0', sha: 'a'.repeat(40), updated: NOW },
+    { kind: 'main', name: 'main', sha: 'e'.repeat(40), updated: NOW, tools: ['bogus', '../x'] },
+  ] });
+  assert.ok(html.includes('href="pr/12/netlog/"'));
+  assert.ok(!html.includes('href="release/v0.4.0/netlog/"'), 'an older release without it');
+  assert.ok(!html.includes('href="main/netlog/"'));
+  assert.ok(!html.includes('../x'));
+});
+
 test('index: titles are untrusted, everything is escaped, hrefs come from patterns only', { skip: SKIP }, () => {
   const evil = '<img src=x onerror=alert(1)>"\'&<script>alert(2)</script>‮\x00';
   const html = render({ entries: [
@@ -196,6 +208,20 @@ const files = (origin, rev = 'gh-pages') => sh('git', ['--git-dir', origin, 'ls-
 const show = (origin, path) => sh('git', ['--git-dir', origin, 'show', `gh-pages:${path}`], { env: ENV });
 const commits = origin => sh('git', ['--git-dir', origin, 'rev-list', '--count', 'gh-pages'], { env: ENV }).trim();
 const put = (kind, name, dir, meta = {}) => ({ op: 'put', kind, name, dir, meta });
+
+test('publish: the entry records the optional tools its tree has; the index links them', { skip: SKIP }, () => {
+  const ctx = setup();
+  const d = bundle(ctx.base, 'withnetlog');
+  mkdirSync(join(d, 'netlog'));
+  writeFileSync(join(d, 'netlog', 'index.html'), '<!doctype html><title>Netlog</title>');
+  bundle(ctx.base, 'old');
+  publish(ctx, [put('pr', '12', 'withnetlog'), put('release', 'v0.4.0', 'old')]);
+  const m = JSON.parse(show(ctx.origin, 'entries.json'));
+  assert.deepEqual(m.entries.map(e => [e.name, e.tools]), [['12', ['netlog']], ['v0.4.0', []]]);
+  const html = show(ctx.origin, 'index.html');
+  assert.ok(html.includes('href="pr/12/netlog/"'));
+  assert.ok(!html.includes('href="release/v0.4.0/netlog/"'));
+});
 
 test('publish: first entry creates the branch, more entries and removals, one orphan commit', { skip: SKIP }, () => {
   const ctx = setup();

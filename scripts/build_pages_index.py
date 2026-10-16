@@ -40,6 +40,13 @@ TOOL_LINKS = [
     ("adif/", "ADIF editor"),
     ("sota-alerts/", "SOTA Alerts Map"),
 ]
+# Tool pages only some entries have (newer than the oldest releases): linked
+# only when the entry's `tools` (recorded by pages_publish.py from the
+# published tree) lists them, so an older release has no dead link.
+OPTIONAL_TOOL_LINKS = [
+    ("netlog/", "Netlog"),
+]
+TOOL_NAME_RE = re.compile(r"^[a-z0-9-]{1,40}$")
 
 # Order and headings of the groups.
 KINDS = [
@@ -141,7 +148,10 @@ def render_entry(e: dict, repo: str | None) -> str:
 
     label = {"main": "main", "pr": f"pull request {name}", "release": f"release {name}", "data": "data-latest"}[kind]
     links = [f'<a class="open" href="{esc(d)}" aria-label="Open the tools overview of {esc(label)}">Open</a>']
-    links += [f'<a href="{esc(d + p)}" aria-label="{esc(t)} of {esc(label)}">{esc(t)}</a>' for p, t in TOOL_LINKS]
+    tools = e.get("tools") if isinstance(e.get("tools"), list) else []
+    present = [p for p, _ in OPTIONAL_TOOL_LINKS if p.rstrip("/") in tools]
+    links += [f'<a href="{esc(d + p)}" aria-label="{esc(t)} of {esc(label)}">{esc(t)}</a>'
+              for p, t in TOOL_LINKS + [x for x in OPTIONAL_TOOL_LINKS if x[0] in present]]
     return (
         '<li class="entry">\n'
         f'<div class="head">{head}</div>\n'
