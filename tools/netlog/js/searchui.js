@@ -88,6 +88,8 @@ export function initSearch(app) {
   $('#search-scope').addEventListener('change', run);
   fieldSel.addEventListener('change', run);
   q.addEventListener('keydown', ev => {
+    // Esc closes at once (in a search field it would only clear the text)
+    if (ev.key === 'Escape') { ev.preventDefault(); dlg.close(); return; }
     if (ev.key === 'ArrowDown') { ev.preventDefault(); $('#search-results button')?.focus(); }
     if (ev.key === 'Enter' && !ev.isComposing) {
       ev.preventDefault();
@@ -107,7 +109,7 @@ export function initSearch(app) {
     const r = results[Number(b.dataset.i)];
     opened = true;
     dlg.close();
-    openResult(app, r);
+    app.navigate(() => openResult(app, r));
   });
   dlg.addEventListener('close', () => {
     // closed without opening a result: nothing to go back to

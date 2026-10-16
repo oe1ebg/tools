@@ -56,6 +56,17 @@ repository root.
 - Synthetic callsigns (`OE0QX…`) and fictitious names in examples, tests
   and screenshots.
 
+## Backup and erasure
+
+- Backups go through `tools/netlog/js/backup.js`: `checkBackup()` before
+  any write, `importBackup()` in one transaction, nothing stored is ever
+  overwritten (clashes import a copy with every reference remapped; extend
+  `REFS` in backup.js for every new reference field). Keep the export
+  refusal beyond the limits before any download and the README's "Backup"
+  section in step. A started download is not proof of a kept backup.
+- Permanent erasure is explicit, explained in its confirmation and also
+  removes revisions, drafts and undo steps that could hold copies.
+
 ## Offline and deployment
 
 - No runtime network access. Station-lookup links (QRZ.com, HamQTH, …)

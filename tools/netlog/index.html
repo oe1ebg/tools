@@ -105,6 +105,7 @@
             <span id="station-badges" class="badges"></span>
           </div>
           <p id="station-sub" class="hint"></p>
+          <p id="station-links" class="station-links online-only"></p>
           <div class="toolbar station-tools">
             <label class="inline-field"><span data-i18n="station.status">Status</span>
               <select id="station-status"></select></label>
@@ -134,6 +135,7 @@
             <label class="check"><input id="det-echolink" type="checkbox" data-field="echolink"> <span data-i18n="station.echolink">via EchoLink</span></label>
             <div class="form-buttons">
               <button type="button" id="btn-profile" data-i18n="station.saveProfile">Save as station profile</button>
+              <button type="button" id="btn-remove-station" class="danger" data-i18n="station.remove">Remove from this session</button>
               <span id="profile-state" class="hint"></span>
             </div>
             <div class="presence">
@@ -196,6 +198,10 @@
         </div>
         <p class="hint" data-i18n="log.hint">All notes of this session in recorded order, by round. The same notes as in Live Notes: an edit here is an edit there.</p>
         <div id="log-rounds" class="rounds"></div>
+        <details id="log-deleted" class="turn-history" hidden>
+          <summary id="log-deleted-summary"></summary>
+          <ul id="log-deleted-list"></ul>
+        </details>
       </section>
 
       <!-- ===== Net Control ===== -->
@@ -222,6 +228,10 @@
             <h3 id="order-title" data-i18n="control.order">Roster and planned order</h3>
             <p class="hint" data-i18n="control.orderHint">The order is for display and planning only; it never changes who actually spoke or creates a round.</p>
             <ol id="order-list" class="order-list"></ol>
+          </section>
+          <section class="card" aria-labelledby="removed-title">
+            <h3 id="removed-title" data-i18n="control.removed">Removed stations</h3>
+            <ul id="removed-list" class="task-list"></ul>
           </section>
           <section class="card" aria-labelledby="tasks-title">
             <h3 id="tasks-title" data-i18n="control.tasks">After-net tasks</h3>
@@ -287,6 +297,26 @@
         </form>
 
         <div id="series-list" class="series-list"></div>
+
+        <section class="card data-card" aria-labelledby="data-title">
+          <h3 id="data-title" data-i18n="data.title">Backup and data</h3>
+          <p class="hint" data-i18n="data.plaintext">A backup is a plain JSON file: anyone with the file can read it. Deleting something here does not delete copies already exported.</p>
+          <div class="toolbar">
+            <button type="button" id="btn-export-all" data-i18n="data.exportAll">Export everything (JSON)</button>
+            <button type="button" id="btn-import" data-i18n="data.import">Import a backup…</button>
+            <input type="file" id="import-file" accept=".json,application/json" hidden>
+          </div>
+          <p id="data-msg" class="data-msg" role="status"></p>
+          <h4 data-i18n="data.profiles">Station profiles</h4>
+          <ul id="profile-list" class="profile-list"></ul>
+          <h4 data-i18n="data.links">Station lookup links</h4>
+          <label class="field wavelog-field"><span data-i18n="data.wavelog">My Wavelog address (optional)</span>
+            <input id="wavelog-url" type="url" inputmode="url" autocorrect="off" spellcheck="false" placeholder="https://…"></label>
+          <p class="hint" data-i18n="data.linksHint">Netlog only offers links to QRZ.com, HamQTH, QRZCQ, APRS.fi and your Wavelog; they need internet and are opened only by you. Nothing is looked up or sent by itself.</p>
+          <h4 data-i18n="data.erase">Erase permanently</h4>
+          <p class="hint" data-i18n="data.eraseHint">Deleting a session, station or note is reversible (restore, undo). Erasing removes it from this device for good, with its history and drafts.</p>
+          <button type="button" id="btn-erase-all" class="danger" data-i18n="data.eraseAll">Erase all Netlog data on this device…</button>
+        </section>
       </section>
     </section>
   </div>

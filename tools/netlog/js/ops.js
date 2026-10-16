@@ -11,7 +11,8 @@
 // so claiming it never changes the session (and never breaks an undo).
 
 import { newId, nowIso, laterIso } from '../../shared/js/time.js';
-import { NETLOG_STORES } from './db.js';
+import { NETLOG_STORES, SESSION_STORES } from './db.js';
+import { BACKUP_STORES, planImport } from './backup.js';
 import {
   normCall, baseCall, isUnresolved, timeOf, changeStatus, nextOrder, moveInOrder,
   rosterSorted, nextSessionNumber, seriesDefaults, live, FLAGS,
@@ -741,5 +742,92 @@ export function writeDraft(store, ctx, key, draft) {
       return null;
     }
     return w.put('drafts', { id, eventId: ctx.sessionId, key, text: draft.text, selStart: draft.selStart ?? null, selEnd: draft.selEnd ?? null, base: draft.base ?? null }, prev, { revise: false });
+  });
+}
+
+// ---------- backup import ----------
+
+// Import a checked backup (backup.js checkBackup) in one transaction:
+// planned against what is stored at that moment, nothing overwritten
+// (planImport). Resolves to the report.
+export function importBackup(store, data, { copySuffix } = {}) {
+  return store.atomic(ALL_STORES, async api => {
+    const existing = {};
+    for (const s of BACKUP_STORES) existing[s] = new Map((await api.getAll(s)).map(r => [r.id, r]));
+    const { puts, report } = planImport(data, existing, newId, copySuffix);
+    for (const p of puts) api.put(p.store, p.value);
+    return report;
+  });
+}
+
+// Everything stored (for a backup), read in one transaction.
+export function readAll(store) {
+  return store.atomic(ALL_STORES, async api => {
+    const out = {};
+    for (const s of BACKUP_STORES) out[s] = await api.getAll(s);
+    return out;
+  });
+}
+
+// ---------- permanent erasure (explicit, not undoable) ----------
+
+// A session and everything it owns, including its revisions, drafts, undo
+// history and lease. Profiles and series stay.
+export function eraseSession(store, sessionId) {
+  return store.atomic(ALL_STORES, async api => {
+    for (const s of SESSION_STORES) for (const r of await api.getByEvent(s, sessionId)) api.del(s, r.id);
+    api.del('sessions', sessionId);
+    api.del('meta', leaseKey(sessionId));
+    return true;
+  });
+}
+
+// A participant of a session and what was recorded about it: its notes
+// (with their responses and tasks), speaking turns, events, the revisions
+// of all of these and the drafts of its editors. The session's undo
+// history is cleared (its steps may hold copies of the erased records).
+export function eraseParticipant(store, ctx, participantId) {
+  return store.atomic(ALL_STORES, async api => {
+    const sid = ctx.sessionId;
+    if (ctx.tab) await checkLease(api, sid, ctx.tab);
+    const gone = new Set([participantId]);
+    const notes = (await api.getByEvent('notes', sid)).filter(n => n.participantId === participantId);
+    for (const n of notes) { gone.add(n.id); api.del('notes', n.id); }
+    const noteIds = new Set(notes.map(n => n.id));
+    for (const i of await api.getByEvent('items', sid)) if (noteIds.has(i.noteId)) { gone.add(i.id); api.del('items', i.id); }
+    for (const c of await api.getByEvent('contributions', sid)) if (c.participantId === participantId) { gone.add(c.id); api.del('contributions', c.id); }
+    for (const e of await api.getByEvent('events', sid)) {
+      if (e.participantId === participantId || (e.type === 'ncs' && (e.from === participantId || e.to === participantId))) { gone.add(e.id); api.del('events', e.id); }
+    }
+    for (const r of await api.getByEvent('revisions', sid)) if (gone.has(r.recordId)) api.del('revisions', r.id);
+    for (const d of await api.getByEvent('drafts', sid)) {
+      const ref = String(d.key || '').split(':')[1];
+      if (gone.has(ref)) api.del('drafts', d.id);
+    }
+    for (const u of await api.getByEvent('undo', sid)) api.del('undo', u.id);
+    api.del('participants', participantId);
+    const s = await api.get('sessions', sid);
+    if (s && s.ncsId === participantId) api.put('sessions', { ...s, ncsId: null, updated: laterIso(s.updated) });
+    return true;
+  });
+}
+
+// A station profile; participants that linked to it keep their own copy.
+export function eraseProfile(store, profileId) {
+  return store.atomic(ALL_STORES, async api => {
+    for (const p of await api.getAll('participants')) {
+      if (p.profileId === profileId) api.put('participants', { ...p, profileId: null, updated: laterIso(p.updated) });
+    }
+    for (const r of await api.getAll('revisions')) if (r.recordId === profileId) api.del('revisions', r.id);
+    api.del('profiles', profileId);
+    return true;
+  });
+}
+
+// Every Netlog record on this device.
+export function eraseAll(store) {
+  return store.atomic(ALL_STORES, async api => {
+    for (const s of ALL_STORES) for (const r of await api.getAll(s)) api.del(s, r[NETLOG_STORES[s].keyPath]);
+    return true;
   });
 }

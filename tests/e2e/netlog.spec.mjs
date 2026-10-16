@@ -1,6 +1,13 @@
-// Netlog (/tools/netlog/): sessions and series, check-ins with partial
-// callsigns, inline correction and status, roster order, the read-only
-// second tab, both languages. Synthetic callsigns only (OE0QX…).
+// Netlog (/tools/netlog/), the MVP gates of issue #68: sessions and
+// series, check-ins with partial callsigns, roster, status and presence,
+// the read-only second tab, both languages, the note editor and drafts, My
+// Turn, net control, the Continuous Log, search, correction and undo,
+// backup/restore, failed saves, storage without IndexedDB, offline after
+// the install, privacy controls and lookup links. Synthetic callsigns only
+// (OE0QX…).
+import { writeFile, readFile, mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join as pathJoin } from 'node:path';
 import { test, expect, offlineSettled } from './fixtures.mjs';
 
 // The test browsers run with locale de-AT: Netlog starts in German. Tests
@@ -497,6 +504,7 @@ test('search: history and collapsed rounds, Enter opens the exact match, b retur
   await expect(page.locator('#search-results li')).toHaveCount(1);
   await page.locator('#search-results button').first().click();
   await expect(page.locator('#station-call')).toHaveText('OE0QXC');
+  await expect(page.locator('#station-rounds li.note.highlight textarea.note-text')).toBeFocused();
   expect(await page.evaluate(() => globalThis.NETLOG_APP.s.id)).not.toBe(session);
   await page.keyboard.press('Escape');
   await page.keyboard.press('b');
@@ -525,4 +533,162 @@ test('a partial callsign resolved to a station already checked in: preview, merg
   await expect.poll(() => values(notesOf(page))).toEqual(['heard only partly']);
   await page.locator('#btn-undo').click();
   await expect(roster(page)).toHaveText(['OE0QXB', 'OE0QX?']);
+});
+
+// ---------- backup, recovery, offline, privacy, links ----------
+
+
+async function oneNote(page, text = 'A note to keep.') {
+  await startSession(page);
+  await checkIn(page, 'OE0QXB', 'Jonas');
+  await openStation(page, 'OE0QXB');
+  await page.keyboard.type(text);
+  await page.keyboard.press('Enter');
+  await expect.poll(() => values(notesOf(page))).toEqual([text]);
+}
+
+test('backup: export, erase everything, import back; the same file again changes nothing; bad files change nothing', async ({ page }) => {
+  await open(page, { lang: 'en' });
+  await oneNote(page);
+  await page.locator('#tab-series').click();
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#btn-export-all').click()]);
+  await expect(page.locator('#data-msg')).toContainText('Check that the file arrived');
+  const file = await dl.path();
+  page.on('dialog', d => d.accept());
+  await page.locator('#btn-erase-all').click();
+  await expect(page.locator('#data-msg')).toHaveText('All Netlog data on this device was erased.');
+  await expect(page.locator('#series-list .session-row')).toHaveCount(0);
+  await page.locator('#import-file').setInputFiles(file);
+  await expect(page.locator('#data-msg')).toContainText('Imported: 1 sessions');
+  await page.locator('#series-list button[data-act=open]').first().click();
+  await expect(roster(page)).toHaveText(['OE0QXB']);
+  await openStation(page, 'OE0QXB');
+  await expect.poll(() => values(notesOf(page))).toEqual(['A note to keep.']);
+  await page.locator('#tab-series').click();
+  await page.locator('#import-file').setInputFiles(file);
+  await expect(page.locator('#data-msg')).toContainText('1 already here unchanged');
+  await expect(page.locator('#series-list .session-row')).toHaveCount(1);
+  // a file that is no backup / a damaged one: refused, nothing changes
+  const dir = await mkdtemp(pathJoin(tmpdir(), 'netlog-'));
+  const bad = pathJoin(dir, 'bad.json');
+  await writeFile(bad, '{"format":"oe1ebg-netlog-backup","version":1,"schema":1,"stores":{"notes":[{"id":"n","eventId":"nowhere","text":"x"}]}}');
+  await page.locator('#import-file').setInputFiles(bad);
+  await expect(page.locator('#data-msg')).toContainText('damaged or incomplete');
+  const notJson = pathJoin(dir, 'x.json');
+  await writeFile(notJson, 'not json');
+  await page.locator('#import-file').setInputFiles(notJson);
+  await expect(page.locator('#data-msg')).toHaveText('Not imported: this is not a JSON file. Nothing was changed.');
+  await expect(page.locator('#series-list .session-row')).toHaveCount(1);
+});
+
+test('a failed save keeps the text, never says saved, and saving again works', async ({ page, problems }) => {
+  await open(page, { lang: 'en' });
+  await oneNote(page);
+  await page.evaluate(() => {
+    globalThis.__tx = IDBDatabase.prototype.transaction;
+    IDBDatabase.prototype.transaction = function () { throw new DOMException('quota', 'QuotaExceededError'); };
+  });
+  await page.keyboard.type('Must not be lost.');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#st-save')).toHaveText('NOT SAVED');
+  await expect(page.locator('#banner')).toContainText('browser storage is full');
+  await expect(composer(page)).toHaveValue('Must not be lost.');
+  await expect.poll(() => values(notesOf(page))).toEqual(['A note to keep.']);
+  await page.evaluate(() => { IDBDatabase.prototype.transaction = globalThis.__tx; });
+  await composer(page).focus();
+  await page.keyboard.press('Enter');
+  await expect.poll(() => values(notesOf(page))).toEqual(['A note to keep.', 'Must not be lost.']);
+  await expect(page.locator('#st-save')).toContainText('saved');
+  for (let i = problems.length - 1; i >= 0; i--) if (/QuotaExceededError: quota/.test(problems[i])) problems.splice(i, 1);
+});
+
+test('without IndexedDB: works in memory, says nothing is stored, offers an export', async ({ page }) => {
+  await page.addInitScript(() => { Object.defineProperty(globalThis, 'indexedDB', { value: undefined }); });
+  await open(page, { lang: 'en' });
+  await expect(page.locator('#storage-banner')).toContainText('NOTHING is saved');
+  await expect(page.locator('#st-save')).toHaveText('NOT STORED (memory only)');
+  await expect(page.locator('#st-backend')).toHaveText('memory only, not saved');
+  await oneNote(page, 'kept in memory');
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#btn-memory-export').click()]);
+  expect(JSON.parse(await readFile(await dl.path(), 'utf8')).stores.notes[0].text).toBe('kept in memory');
+});
+
+test('a database of a newer version is left alone: memory mode, the records stay', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'IndexedDB version handling: Chromium is enough');
+  await open(page, { lang: 'en' });
+  await oneNote(page);
+  // another (newer) Netlog upgraded the database
+  await page.evaluate(() => new Promise((resolve, reject) => {
+    const r = indexedDB.open('oe1ebg-netlog', 99);
+    r.onsuccess = () => { r.result.close(); resolve(); };
+    r.onerror = () => reject(r.error);
+  }));
+  await page.reload();
+  await ready(page);
+  await expect(page.locator('#storage-banner')).toContainText('A newer version of Netlog has updated the data on this device');
+  await expect(page.locator('#st-save')).toHaveText('NOT STORED (memory only)');
+  const kept = await page.evaluate(() => new Promise(resolve => {
+    const r = indexedDB.open('oe1ebg-netlog', 99);
+    r.onsuccess = () => {
+      const tx = r.result.transaction('notes').objectStore('notes').getAll();
+      tx.onsuccess = () => { resolve(tx.result.map(n => n.text)); r.result.close(); };
+    };
+  }));
+  expect(kept).toEqual(['A note to keep.']);
+});
+
+test('offline after the install: reload, notes, search, My Turn, net control, backup', async ({ page, context, browserName }) => {
+  test.skip(browserName !== 'chromium', 'service workers: Chromium only');
+  await open(page, { lang: 'en' });
+  await expect(page.locator('#st-offline')).toHaveText('offline ready ✓', { timeout: 45_000 });
+  await oneNote(page, 'Before going offline.');
+  await context.setOffline(true);
+  await page.reload();
+  await ready(page);
+  await expect(page.locator('#station-call')).toHaveText('OE0QXB');
+  await expect(page.locator('#station-links')).toBeHidden();
+  await composer(page).focus();
+  await page.keyboard.type('Written offline.');
+  await page.keyboard.press('Enter');
+  await expect.poll(() => values(notesOf(page))).toEqual(['Before going offline.', 'Written offline.']);
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('/');
+  await page.keyboard.type('offline');
+  await expect(page.locator('#search-results li')).toHaveCount(2);
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('m');
+  await expect(page.locator('#view-turn')).toBeVisible();
+  await page.locator('#tab-control').click();
+  await page.getByRole('button', { name: 'Net control: OE0QXB' }).click();
+  await expect(page.locator('#ncs-current')).toContainText('OE0QXB');
+  await page.locator('#tab-series').click();
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#btn-export-all').click()]);
+  expect(await dl.path()).toBeTruthy();
+  await context.setOffline(false);
+});
+
+test('privacy: remove and restore a station, erase it for good; lookup links only for real callsigns', async ({ page }) => {
+  await open(page, { lang: 'en' });
+  await oneNote(page);
+  await expect(page.locator('#station-links a')).toHaveText(['QRZ.com ↗', 'HamQTH ↗', 'QRZCQ ↗', 'APRS.fi ↗']);
+  await expect(page.locator('#station-links a').first()).toHaveAttribute('href', 'https://www.qrz.com/db/OE0QXB');
+  await expect(page.locator('#station-links a').first()).toHaveAttribute('rel', 'noopener noreferrer');
+  await checkIn(page, 'OE0QX?');
+  await openStation(page, 'OE0QX?');
+  await expect(page.locator('#station-links')).toBeHidden();
+  await openStation(page, 'OE0QXB');
+  page.on('dialog', d => d.accept());
+  await page.locator('#btn-details').click();
+  await page.locator('#btn-remove-station').click();
+  await expect(roster(page)).toHaveText(['OE0QX?']);
+  await page.locator('#tab-control').click();
+  await page.getByRole('button', { name: 'Restore OE0QXB' }).click();
+  await expect(roster(page)).toHaveText(['OE0QXB', 'OE0QX?']);
+  await page.locator('#tab-live').click();
+  await openStation(page, 'OE0QXB');
+  await page.locator('#btn-remove-station').click();
+  await page.locator('#tab-control').click();
+  await page.getByRole('button', { name: 'Erase OE0QXB and everything recorded about it permanently' }).click();
+  await expect(page.locator('#removed-list')).toHaveText('No removed stations.');
+  expect(await page.evaluate(async () => (await globalThis.NETLOG_APP.store.getAll('notes')).length)).toBe(0);
 });
