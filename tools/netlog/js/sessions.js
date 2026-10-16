@@ -10,6 +10,7 @@ import { t } from './i18n.js';
 import { keyedList, setText } from './keyed.js';
 import { liveOf, nextSessionNumber, sessionLabel, sessionsOf, normCall, cmp } from './model.js';
 import { createSession, createSeries, updateSeries, assignSeries, deleteSession } from './ops.js';
+import { sessionAction } from './dataui.js';
 
 export const OWN_PREF = 'oe1ebg-netlog-own-call';
 
@@ -130,6 +131,7 @@ export function initSessions(app) {
       }
     }
     if (b.dataset.act === 'restore') await app.act(store => deleteSession(store, { tab: null }, id, true), { global: true });
+    if (b.dataset.act === 'export' || b.dataset.act === 'erase') await sessionAction(app, b.dataset.act, id);
   });
   $('#series-list').addEventListener('change', async ev => {
     const sel = ev.target.closest('select[data-assign]');
@@ -205,8 +207,12 @@ export function renderSessions(app) {
               s.id === app.sessionId() ? el('span', { class: 'pill' }, t('session.current')) : null,
               ' ', el('small', { class: 'hint' }, t('session.participants', { n: count }))),
             s.deleted
-              ? el('button', { type: 'button', class: 'mini', 'data-act': 'restore', 'data-id': s.id, 'aria-label': t('session.restoreLabel', { name: label }) }, t('common.restore'))
+              ? [
+                el('button', { type: 'button', class: 'mini', 'data-act': 'restore', 'data-id': s.id, 'aria-label': t('session.restoreLabel', { name: label }) }, t('common.restore')),
+                el('button', { type: 'button', class: 'mini danger', 'data-act': 'erase', 'data-id': s.id, 'aria-label': t('session.eraseLabel', { name: label }) }, t('session.erase')),
+              ]
               : [
+                el('button', { type: 'button', class: 'mini', 'data-act': 'export', 'data-id': s.id, 'aria-label': t('session.exportLabel', { name: label }) }, t('session.export')),
                 el('button', { type: 'button', class: 'mini primary', 'data-act': 'open', 'data-id': s.id, 'aria-label': t('session.openLabel', { name: label }) }, t('session.open')),
                 el('label', { class: 'inline-field' }, el('span', { class: 'sr-only' }, t('session.assignLabel', { name: label })),
                   el('select', { 'data-assign': s.id },

@@ -92,10 +92,8 @@ export function initKeys({ commands, edit, onMode }) {
   syncMode();
   document.addEventListener('keydown', ev => {
     if (ev.defaultPrevented || ev.isComposing || ev.keyCode === 229) return;
-    if (document.querySelector('dialog[open]') && ev.key !== 'Escape') {
-      // a dialog has its own keys; the global ones wait
-      return;
-    }
+    // a dialog has its own keys (Esc closes it); the global ones wait
+    if (document.querySelector('dialog[open]')) return;
     const target = ev.target;
     if (isEditable(target)) {
       if (ev.key === 'Escape' && !ev.shiftKey && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {

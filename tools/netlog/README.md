@@ -20,8 +20,8 @@ requests:
    My Turn.
 3. **NCS and navigation**: handovers, Continuous Log, search, merging and
    moving notes, undo/redo in the UI, return navigation across sessions.
-4. Release readiness: JSON backup/restore, privacy and deletion, station
-   lookup links, the full acceptance suite.
+4. **Release readiness**: JSON backup/restore, privacy and deletion,
+   station lookup links, offline and recovery checks, the acceptance suite.
 
 ## Using it
 
@@ -136,6 +136,28 @@ yet (a follow-up).
   applies): every change of the session, including note edits and moves,
   merges, round and status changes, flags and completions. The buttons name
   the step. See "Undo" below for its limits.
+- **Backup and restore** (Sessions & series, "Backup and data"): "Export
+  everything (JSON)", or "Export" next to one session. "Import a
+  backup…" checks the whole file first and imports it in one go (details in
+  "Backup" below). A started download is not proof the file was kept:
+  check it arrived.
+- **Privacy and deletion.** Removing a station ("Remove from this session"
+  in its details), deleting a note (×) or a session is reversible: removed
+  stations are listed in Net Control (Restore), deleted notes in the
+  Continuous Log, deleted sessions in the session list; undo works too.
+  Erasing is explicit and permanent, with a confirmation that says what
+  goes: a removed station with everything recorded about it (its notes,
+  their responses and tasks, its speaking turns and events, the revisions
+  and drafts of all of these; the session's undo history is cleared, as its
+  steps may hold copies), a deleted session with everything it owns, a
+  station profile, or all Netlog data on the device. A backup is plaintext,
+  and erasing here never touches files exported before.
+- **Station lookup links** (online only, hidden offline): QRZ.com, HamQTH,
+  QRZCQ and APRS.fi for a resolved callsign (never for `OE0QX?`), and the
+  address of your own Wavelog if you set one ("Backup and data"; the
+  instance only, no deep link, no credentials). They open in a new tab; Netlog
+  never fetches from them and never overwrites a station with what they
+  show.
 - **Second tab.** Only one tab or window edits a session; another one shows
   it read-only with "Edit here" (which takes over; the first one turns
   read-only).
@@ -288,7 +310,46 @@ stores and migration branches stay (data-preserving migrations).
   the session; a step that touched a record changed since (in another
   way) is refused with a message; text being typed is not a step until it
   is saved (the field's own undo applies until then); a later permanent
-  erasure (part 4) also removes the history.
+  erasure of a station clears the session's history, the erasure of a
+  session or of everything removes it.
+
+## Backup
+
+`js/backup.js` (format, checks, import plan; pure) and `importBackup()` /
+`readAll()` in `js/ops.js`:
+
+```
+{ format: 'oe1ebg-netlog-backup', version: 1, schema: 1, exported: <ISO UTC>,
+  scope: 'all' | 'session', sessionId?, stores: { series, sessions, profiles,
+  participants, rounds, contributions, notes, items, events, turns,
+  revisions, undo, drafts } }
+```
+
+- Everything, or one session with its series and the profiles its stations
+  link to. Deleted (soft-deleted) records are included; the leases (`meta`)
+  are not. Read in one transaction: the committed state.
+- **Limits**: 50 MB (UTF-8 bytes of the JSON) and 200,000 records. Beyond
+  them the export is refused before any download, with the advice to export
+  single sessions; an import beyond them is refused before parsing (size)
+  or before writing (records). Within them a backup restores in one
+  transaction in every supported browser.
+- **Checked before any write**: format and version, a schema not newer
+  than this Netlog's, known stores, ids (one per store, plain characters),
+  every session-owned record belonging to a session of the file, every
+  reference (series, rounds, participants, profiles, contributions, notes)
+  pointing inside the file. Anything else rejects the whole file with a
+  message and no change.
+- **Applied in one transaction, nothing stored is ever overwritten**: a
+  session not stored yet is imported as it is; the same session in the
+  same state is skipped (records missing here are added); a session whose
+  id exists with any difference is imported as a **copy** ("(import)") with
+  new ids for it and everything it owns, every internal reference remapped
+  (notes, items, contributions, events, revisions, drafts, the current
+  round, the NCS); its undo history is not copied (it describes the old
+  ids' states). Series and profiles: new imported, identical skipped,
+  different ones copied with a new id (the imported sessions point to the
+  copy). The report says how many sessions, copies, series, profiles.
+- Confirm and Notfunk backups are other formats and are refused.
 
 ## App identity
 
@@ -337,6 +398,9 @@ Never rename (root `README.md`, "Stable identifiers"):
 | `js/myturn.js` | My Turn |
 | `js/nav.js` | return navigation (origin stack, focus restore) |
 | `js/clog.js` | Continuous Log |
+| `js/backup.js` | backup format, checks, import plan (pure, node-tested) |
+| `js/dataui.js` | backup and data: export, import, profiles, Wavelog address, erasure |
+| `js/links.js` | station lookup links (the only module with external URLs) |
 | `js/search.js` | offline search (pure, node-tested) |
 | `js/searchui.js` | the search dialog and opening a result |
 
@@ -359,7 +423,38 @@ single-file version stays possible.
   reorders that keep the speaking history, the Continuous Log with a bulk
   move and undo, search across sessions and back, the merge with preview
   and undo.
-- `tests/netlog-search.test.mjs`: the search. Also in the
+- `tests/netlog-search.test.mjs`: the search.
+- `tests/netlog-backup.test.mjs`: lossless round trip (relationships,
+  history, response state and order, the open turn, drafts), copies with
+  remapped references on clashes, rejected files, size limits (below and
+  above, multi-byte text), a failing import changes nothing, erasure.
+- `tests/netlog-links.test.mjs`: lookup links and the Wavelog address.
+- In `tests/e2e/netlog.spec.mjs` also: backup export, erase all, import,
+  re-import and bad files; a failed save (storage full) that keeps the text
+  and never says "saved"; no IndexedDB (memory mode with export); a
+  database of a newer version left alone; offline after the install
+  (reload, notes, search, My Turn, net control, backup); removal, restore
+  and erasure of a station; lookup links only for resolved callsigns.
+
+### Acceptance gates (issue #68) and where they are checked
+
+| Gate | Checks |
+| --- | --- |
+| Ad-hoc session mid-round, partial identity resolved later, series assigned later | e2e "ad-hoc session mid-net…", "a partial callsign resolved…", ops tests |
+| Keyboard only: roster, status, NCS, notes, flags, My Turn, completion, back to editing; typing never runs commands | e2e "keyboard only…", "notes: Enter saves…", "net control: keyboard handover…", "My Turn: Enter opens the source…" |
+| Notes adjacent and stable through autosave, switches, collapse, reload, correction; IME Enter | e2e "notes: Enter saves…" |
+| Round 4 queue: round 1 response, points; no tasks, no other sessions; summary switch keeps the queue | e2e "My Turn: round 1 response above…", model tests |
+| Summary: current by default, previous by one key, grouping, no duplicated replies, empty round, no previous in the first | same e2e test, `roundSummary()` tests |
+| Station navigation from every view and Back | e2e My Turn, Continuous Log, search tests |
+| Complete/undo/reopen consistent; the cycle survives reloads; End Turn | e2e "My Turn: … x completes, End Turn clears", ops tests |
+| Late check-in, pause, checkout, reentry, handover keep history; no rounds from reorders | e2e "presence…", "net control…" |
+| Single/bulk move and round correction keep timestamps, ids, links; undo | e2e "Continuous Log…", ops tests |
+| Offline search across history and collapsed rounds; Enter focuses the match; Back restores | e2e "search: …" |
+| Reload recovery, failed writes, second tab, upgrade failures | e2e drafts, "a failed save…", "a second tab…", "a database of a newer version…" |
+| JSON round trip, collision copies, invalid/oversized imports, export limits | `tests/netlog-backup.test.mjs`, e2e "backup: …" |
+| Offline after install; not "ready" when incomplete; pending saves block updates | e2e "offline after the install…", `offline-update.spec.mjs` (netlog) |
+| Both languages, identical shortcuts, ISO dates/times; narrow layouts | `tests/netlog-i18n.test.mjs`, e2e language test, every test in the phone projects |
+| No console/page/CSP errors or foreign requests; other tools unaffected | the shared e2e fixture in every test; the full suite for all tools | Also in the
   shared specs: `offline-update.spec.mjs` (a failed save holds the update
   back), `pwa-identity.spec.mjs`, `header.spec.mjs`, `deploy.spec.mjs`.
 - All examples and fixtures use synthetic callsigns (`OE0QX…`) and

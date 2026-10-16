@@ -9,6 +9,8 @@ import { t } from './i18n.js';
 import { keyedList, setText, setAttr } from './keyed.js';
 import { roundsSorted, liveOf, bySeq } from './model.js';
 import { initNoteList, noteRow, updateNoteRow, roundOpen, openMoveDialog } from './notes.js';
+import { deleteNote } from './ops.js';
+import { callText } from './roster.js';
 
 export function initLog(app) {
   const box = $('#log-rounds');
@@ -37,6 +39,12 @@ export function initLog(app) {
     renderLog(app);
   });
   $('#btn-log-move').addEventListener('click', () => openMoveDialog(app, [...app.ui.logSelected]));
+  $('#log-deleted-list').addEventListener('click', async ev => {
+    const b = ev.target.closest('button[data-act=restore]');
+    if (!b) return;
+    const r = await app.act(store => deleteNote(store, app.ctx(), b.closest('li').dataset.key, true));
+    if (r) app.announce(t('note.restored'));
+  });
   app.onMoved = () => { app.ui.logSelected.clear(); app.render(); };
 }
 
@@ -90,6 +98,20 @@ export function renderLog(app) {
     },
   });
   renderLogBar(app);
+  // deleted notes of the session: restorable
+  const deleted = app.sd.notes.filter(n => n.deleted).sort((a, b) => (a.deleted < b.deleted ? 1 : -1));
+  $('#log-deleted').hidden = !deleted.length;
+  setText($('#log-deleted-summary'), t('log.deleted', { n: deleted.length }));
+  keyedList($('#log-deleted-list'), deleted, {
+    key: n => n.id,
+    create: () => el('li', {}, el('span', {}), ' ', el('button', { type: 'button', class: 'mini', 'data-act': 'restore' })),
+    update: (li, n) => {
+      const p = parts.get(n.participantId);
+      setText(li.firstChild, `${p ? callText(p) : '?'}: ${n.text}`);
+      setText(li.lastChild, t('common.restore'));
+      li.lastChild.disabled = app.readOnly;
+    },
+  });
 }
 
 // The rows j/k move through in the log.

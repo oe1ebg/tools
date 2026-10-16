@@ -9,7 +9,8 @@ import { $, el, fill, popover, isComposing } from '../../shared/js/dom.js';
 import { t } from './i18n.js';
 import { keyedList, setText, setAttr, setValue } from './keyed.js';
 import { rosterSorted, rosterStats, isUnresolved, callCandidates, normCall, baseCall, STATUSES, FLAGS, live } from './model.js';
-import { addParticipant, updateParticipant, setStatus, setFlag, moveParticipant, setNcs, mergePreview, mergeParticipants, saveProfile } from './ops.js';
+import { addParticipant, updateParticipant, setStatus, setFlag, moveParticipant, setNcs, mergePreview, mergeParticipants, saveProfile, deleteParticipant } from './ops.js';
+import { stationLinks } from './links.js';
 
 // "OE0QXA" or the provisional "?" marked as unresolved.
 export function callText(p) {
@@ -269,6 +270,18 @@ function initStation(app) {
     const r = await app.act(store => setNcs(store, app.ctx(), on ? p.id : null));
     if (r) app.announce(t(on ? 'ncs.assigned' : 'ncs.cleared', { call: callText(p) }));
   });
+  $('#btn-remove-station').addEventListener('click', async () => {
+    const p = app.participant(app.ui.selected);
+    if (!p || !globalThis.confirm(t('station.removeConfirm', { call: callText(p) }))) return;
+    const list = rosterSorted(app.sd.participants);
+    const next = list[list.indexOf(p) + 1] || list[list.indexOf(p) - 1] || null;
+    const r = await app.act(store => deleteParticipant(store, app.ctx(), p.id));
+    if (!r) return;
+    app.ui.selected = next ? next.id : null;
+    app.render();
+    app.announce(t('station.removed', { call: callText(p) }));
+    if (next) focusRosterButton(next.id); else $('#checkin-call').focus();
+  });
   $('#btn-profile').addEventListener('click', async () => {
     const p = app.participant(app.ui.selected);
     if (!p) return;
@@ -385,6 +398,15 @@ export function renderStation(app) {
     p.call !== p.base && p.base ? t('station.base', { base: p.base }) : '',
   ].filter(Boolean).join(' · ');
   setText($('#station-sub'), sub);
+  const links = stationLinks(p.call);
+  const lsig = `${links.map(l => l.href).join('|')}|${app.lang()}`;
+  const lbox = $('#station-links');
+  if (lbox.dataset.sig !== lsig) {
+    lbox.dataset.sig = lsig;
+    fill(lbox, links.length ? [el('span', { class: 'hint' }, t('station.lookup')), ' ',
+      links.map(l => [el('a', { href: l.href, target: '_blank', rel: 'noopener noreferrer', 'aria-label': t('station.lookupLabel', { site: l.label, call: callText(p) }) }, `${l.label} ↗`), ' '])] : []);
+  }
+  lbox.hidden = !links.length;
 
   const status = $('#station-status');
   if (status.options.length !== STATUSES.length || status.dataset.lang !== app.lang()) {
@@ -409,6 +431,7 @@ export function renderStation(app) {
   setText($('#btn-ncs'), t(isNcs ? 'station.isNcs' : 'station.ncs'));
   $('#btn-ncs').disabled = app.readOnly;
   $('#btn-profile').disabled = app.readOnly;
+  $('#btn-remove-station').disabled = app.readOnly;
   const prof = p.profileId && app.data.profiles.find(x => x.id === p.profileId && live(x));
   setText($('#profile-state'), prof ? t('station.profileLinked') : '');
   $('#btn-spoke').disabled = app.readOnly;

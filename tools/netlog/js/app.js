@@ -29,6 +29,7 @@ import { initTurn, renderTurn, enterTurn, turnRows, focusedTurnItem, completeIte
 import { createNav } from './nav.js';
 import { initLog, renderLog, logRows } from './clog.js';
 import { initSearch } from './searchui.js';
+import { initData, renderData, exportBackup } from './dataui.js';
 import { undo, undoStep } from './ops.js';
 
 const VIEWS = ['live', 'turn', 'log', 'control', 'series'];
@@ -85,7 +86,9 @@ app.writeFailed = (e, quiet) => handleWriteError(e, quiet);
 
 function handleWriteError(e, quiet) {
   // an undo refused on purpose is no error of the page
-  if (e instanceof UndoConflictError) console.warn(e); else console.error(e);
+  // as text: every browser prints it the same ("QuotaExceededError: …")
+  if (e instanceof UndoConflictError) console.warn(e);
+  else console.error(`Netlog: write failed: ${(e && e.name) || 'Error'}: ${(e && e.message) || e}`);
   if (e instanceof LeaseError) {
     setReadOnly(true, 'taken');
     showBanner(t('lock.lostWrite'), 'warn');
@@ -297,12 +300,22 @@ app.openSource = id => {
   if (note) app.openFrom(note.participantId, { noteId: note.id, field: 'row' });
 };
 
+// Jumps and Back run one after the other: a Back pressed while a jump
+// still opens its session waits for it (and vice versa).
+let navChain = Promise.resolve();
+app.navigate = fn => {
+  const p = navChain.then(fn, fn);
+  navChain = p.catch(e => console.error(e));
+  return p;
+};
+
 // Back to the origin of the last jump, else to `fallback`.
-app.back = async (fallback = null) => {
+app.back = (fallback = null) => app.navigate(() => backNow(fallback));
+async function backNow(fallback) {
   if (await app.nav.back()) return true;
   if (fallback && app.s) { app.ui.view = fallback; app.syncHash(); render(); if (fallback === 'live') focusNoteEditor(app); }
   return false;
-};
+}
 
 app.editKeyText = name => (EDIT_COMMANDS[name] ? bindingText(EDIT_COMMANDS[name].binding) : '');
 
@@ -370,7 +383,7 @@ function render() {
   }
   $('#btn-new-round').hidden = !inSession;
   renderUndo();
-  if (view === 'series') renderSessions(app);
+  if (view === 'series') { renderSessions(app); renderData(app); }
   renderKeysLine();
 }
 app.render = render;
@@ -589,7 +602,9 @@ app.flush = async () => {
 };
 
 async function beforeReload() {
-  if (!saveState.state.durable) return { message: t('update.memory'), discards: t('update.memoryDiscards') };
+  if (!saveState.state.durable) {
+    return { message: t('update.memory'), discards: t('update.memoryDiscards'), actions: [{ label: t('data.exportAll'), run: async () => (await exportBackup(app)) || false }] };
+  }
   const ok = await app.flush();
   if (ok && !saveState.state.failed) return true;
   return { message: t('update.unsaved') };
@@ -663,7 +678,11 @@ async function main() {
     app.store = memoryStore(NETLOG_STORES);
     saveState.set('durable', false);
     const b = $('#storage-banner');
-    setText(b, t('storage.unavailable', { reason: String((unavailable && (unavailable.message || unavailable.name)) || '') }));
+    // a newer Netlog changed the database: it is left alone (not opened,
+    // not replaced), and this version says so
+    const newer = unavailable && unavailable.name === 'VersionError';
+    fill(b, t(newer ? 'storage.newerVersion' : 'storage.unavailable', { reason: String((unavailable && (unavailable.message || unavailable.name)) || '') }), ' ',
+      el('button', { type: 'button', id: 'btn-memory-export', onclick: () => exportBackup(app) }, t('data.exportAll')));
     b.className = 'banner err';
     b.hidden = false;
   }
@@ -684,6 +703,7 @@ async function main() {
   initTurn(app);
   initLog(app);
   initSearch(app);
+  initData(app);
   $('#btn-undo').addEventListener('click', () => app.undo(false));
   $('#btn-redo').addEventListener('click', () => app.undo(true));
   $('#btn-spoke').addEventListener('click', () => recordSpoke(app));

@@ -6,7 +6,7 @@ import { $, el, fill } from '../../shared/js/dom.js';
 import { t } from './i18n.js';
 import { keyedList, setText, setAttr, setValue } from './keyed.js';
 import { rosterSorted, roundsSorted, nextRoundNumber, liveOf, cmp, timeOf, baseCall } from './model.js';
-import { moveParticipant, createRound, setCurrentRound, updateRound, setItemDone, addTask, setItemText, setNcs, setEventTime } from './ops.js';
+import { moveParticipant, createRound, setCurrentRound, updateRound, setItemDone, addTask, setItemText, setNcs, setEventTime, deleteParticipant, eraseParticipant } from './ops.js';
 import { callText, statusLabel } from './roster.js';
 import { expandedCount, setExpandedCount } from './notes.js';
 
@@ -92,6 +92,20 @@ export function initControl(app) {
     const date = (ev0.time && ev0.time.iso ? ev0.time.iso : ev0.created).slice(0, 10);
     const iso = m ? `${date}T${m[1].padStart(2, '0')}:${m[2]}:00.000Z` : null;
     await app.act(store => setEventTime(store, app.ctx(), ev0.id, timeOf(iso, est.checked ? 'estimated' : 'exact')));
+  });
+  $('#removed-list').addEventListener('click', async ev => {
+    const b = ev.target.closest('button[data-act]');
+    if (!b) return;
+    const id = b.closest('li').dataset.key;
+    const p = app.sd.participants.find(x => x.id === id);
+    if (b.dataset.act === 'restore') {
+      const r = await app.act(store => deleteParticipant(store, app.ctx(), id, true));
+      if (r) app.announce(t('station.restored', { call: callText(p) }));
+    }
+    if (b.dataset.act === 'erase' && globalThis.confirm(t('station.eraseConfirm', { call: callText(p) }))) {
+      const r = await app.act(store => eraseParticipant(store, app.ctx(), id));
+      if (r) app.announce(t('station.erased', { call: callText(p) }));
+    }
   });
   $('#task-list').addEventListener('change', ev => {
     const cb = ev.target.closest('input.item-done');
@@ -202,6 +216,26 @@ export function renderControl(app) {
     },
   });
   if (!handovers.length) fill($('#ncs-history'), el('li', { class: 'empty', 'data-key': '' }, t('ncs.noHandovers')));
+
+  // removed (soft-deleted) stations: restore or erase; merged ones are
+  // part of another station now and only come back through undo
+  const removed = app.sd.participants.filter(p => p.deleted && !p.mergedInto).sort((a, b) => cmp(b.deleted, a.deleted));
+  keyedList($('#removed-list'), removed, {
+    key: p => p.id,
+    create: () => el('li', { class: 'task-row' }, el('span', { class: 'task-note' }),
+      el('button', { type: 'button', class: 'mini', 'data-act': 'restore' }),
+      el('button', { type: 'button', class: 'mini danger', 'data-act': 'erase' })),
+    update: (li, p) => {
+      const [name, rb, eb] = li.children;
+      setText(name, `${callText(p)}${p.name ? ` · ${p.name}` : ''}`);
+      setText(rb, t('common.restore'));
+      setText(eb, t('station.erase'));
+      rb.setAttribute('aria-label', t('station.restoreLabel', { call: callText(p) }));
+      eb.setAttribute('aria-label', t('station.eraseLabel', { call: callText(p) }));
+      rb.disabled = eb.disabled = app.readOnly;
+    },
+  });
+  if (!removed.length) fill($('#removed-list'), el('li', { class: 'hint', 'data-key': '' }, t('control.noRemoved')));
 
   const rounds = roundsSorted(app.sd.rounds);
   const counts = new Map();
