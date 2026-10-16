@@ -95,8 +95,15 @@ export function initRoster(app) {
     const b = ev.target.closest('button.person');
     if (b) app.openStation(b.closest('li').dataset.key);
   });
+  // Keyboard focus (j/k, Tab) selects at once; a pointer selects on its
+  // click: re-rendering on pointer-down would change the page height
+  // under the pointer, and the release would land elsewhere.
+  let pointer = false;
+  $('#roster').addEventListener('pointerdown', () => { pointer = true; });
+  $('#roster').addEventListener('pointerup', () => { setTimeout(() => { pointer = false; }, 0); });
   $('#roster').addEventListener('focusin', ev => {
     const li = ev.target.closest('li');
+    if (pointer) return;
     if (li && li.dataset.key !== app.ui.selected) app.select(li.dataset.key, { focus: false });
   });
   $('#btn-roster-up').addEventListener('click', () => moveSelected(app, -1));
@@ -342,6 +349,7 @@ export function renderStation(app) {
     b.disabled = app.readOnly;
   }
   $('#btn-edit-identity').disabled = app.readOnly;
+  $('#btn-spoke').disabled = app.readOnly;
 
   const details = $('#station-details');
   details.hidden = !app.ui.detailsOpen;

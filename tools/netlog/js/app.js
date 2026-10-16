@@ -17,14 +17,18 @@ import { LeaseError, UndoConflictError } from './ops.js';
 import { createSessionLock, CHANNEL_NAME } from './lock.js';
 import { createSaveState } from './status.js';
 import { setText, setAttr } from './keyed.js';
-import { sessionLabel, live, rosterSorted, isUnresolved } from './model.js';
+import { sessionLabel, live, rosterSorted, isUnresolved, openQueueCount } from './model.js';
 import { initRoster, renderRoster, renderStation, flushDetails, callText, rosterRows } from './roster.js';
 import { initSessions, renderSessions } from './sessions.js';
 import { initControl, renderControl } from './control.js';
-import { initKeys, loadEditBindings } from './keys.js';
-import { initHelp } from './help.js';
+import { initKeys, loadEditBindings, registerEditCommand, EDIT_COMMANDS } from './keys.js';
+import { initHelp, bindingText } from './help.js';
+import { createDrafts } from './drafts.js';
+import { initNotes, renderNotes, focusNoteEditor, flagNote, recordSpoke } from './notes.js';
+import { initTurn, renderTurn, enterTurn, turnRows, focusedTurnItem, completeItem, setSummary } from './myturn.js';
+import { createNav } from './nav.js';
 
-const VIEWS = ['live', 'control', 'series'];
+const VIEWS = ['live', 'turn', 'control', 'series'];
 const UI_PREF = 'oe1ebg-netlog-ui';
 
 const app = {
@@ -33,8 +37,8 @@ const app = {
   readOnly: false,
   data: { series: [], sessions: [], profiles: [], knownCalls: [], participantCount: {} },
   s: null, // the open session
-  sd: { participants: [], rounds: [] },
-  ui: { view: 'series', selected: null, detailsOpen: false },
+  sd: { participants: [], rounds: [], notes: [], items: [], contributions: [], turns: [], events: [] },
+  ui: { view: 'series', selected: null, detailsOpen: false, roundOpen: {}, summary: 'current', composeFlag: false },
   langHooks: [],
 };
 globalThis.NETLOG_APP = app; // the browser tests read state through this
@@ -47,6 +51,9 @@ app.participant = id => app.sd.participants.find(p => p.id === id && live(p)) ||
 
 const saveState = createSaveState(() => renderSaveChip());
 app.saveState = saveState;
+app.drafts = createDrafts(app);
+app.nav = createNav(app);
+const EMPTY_SD = () => ({ participants: [], rounds: [], notes: [], items: [], contributions: [], turns: [], events: [] });
 
 // ---------- running changes ----------
 
@@ -70,6 +77,8 @@ app.act = async (op, { global = false, quiet = false } = {}) => {
   broadcast();
   return result;
 };
+
+app.writeFailed = (e, quiet) => handleWriteError(e, quiet);
 
 function handleWriteError(e, quiet) {
   console.error(e);
@@ -162,15 +171,32 @@ async function route() {
   const { sessionId, view } = parseHash();
   await app.flush();
   if (sessionId !== app.sessionId()) await openSession(sessionId);
+  const before = app.ui.view;
   app.ui.view = app.s ? view : 'series';
+  if (app.ui.view === 'turn' && before !== 'turn') await enterTurn(app);
   render();
   saveUi();
 }
 
+// Open another session directly (Back across sessions), without a route.
+app.openSessionNow = async (id, view) => {
+  await openSession(id);
+  app.ui.view = app.s ? view : 'series';
+};
+
+// The address follows the workspace without a new history entry.
+app.syncHash = () => {
+  const h = app.s ? `#/s/${encodeURIComponent(app.s.id)}/${app.ui.view}` : '#/';
+  if (location.hash !== h) history.replaceState(null, '', h);
+};
+
 async function openSession(id) {
   lock.release();
   app.s = null;
-  app.sd = { participants: [], rounds: [] };
+  app.sd = EMPTY_SD();
+  app.ui.roundOpen = {};
+  app.ui.summary = 'current';
+  await app.drafts.load(null);
   if (id) {
     const s = await app.store.get('sessions', id);
     if (!s || s.deleted) {
@@ -185,6 +211,7 @@ async function openSession(id) {
       app.ui.detailsOpen = !!ui.detailsOpen;
       setReadOnly(false, null);
       if (app.store.kind !== 'memory') await lock.acquire(id);
+      await app.drafts.load(id);
       await reload();
     }
   }
@@ -213,7 +240,7 @@ app.select = (id, { focus = false } = {}) => {
   if (id !== app.ui.selected) {
     app.ui.selected = id;
     renderRoster(app);
-    renderStation(app);
+    if (app.ui.view === 'live') { renderStation(app); renderNotes(app); }
     saveUi();
   }
   if (focus) focusRosterRow(id);
@@ -224,13 +251,55 @@ function focusRosterRow(id) {
   if (b) b.focus();
 }
 
-// Open a station's notes (roster click/Enter, links from other views).
+// Open a station's notes at its current-round editing position (roster
+// click/Enter).
 app.openStation = async id => {
-  await app.flush();
   app.select(id);
-  if (app.ui.view !== 'live') app.setView('live');
-  $('#station-call').focus?.();
+  if (app.ui.view !== 'live') {
+    app.ui.view = 'live';
+    app.syncHash();
+    render();
+  }
+  focusNoteEditor(app);
 };
+
+// Jump to a station from another workspace (My Turn, Net Control, later
+// the log and search): the origin is remembered for Back; the source
+// round is expanded and the source note focused and highlighted. Never
+// completes or changes anything.
+app.openFrom = async (pid, { noteId = null, roundId = null, field = 'text' } = {}) => {
+  if (!app.participant(pid)) return;
+  app.nav.push();
+  const note = noteId ? app.sd.notes.find(n => n.id === noteId) : null;
+  const rid = note ? note.roundId : roundId;
+  if (rid) app.ui.roundOpen[rid] = true;
+  app.ui.selected = pid;
+  app.ui.view = 'live';
+  app.syncHash();
+  render();
+  saveUi();
+  if (note) focusNoteEditor(app, note.id, { field, select: field === 'row' });
+  else if (rid && rid !== app.s.currentRoundId) {
+    const sec = $('#station-rounds').querySelector(`section.round[data-key="${CSS.escape(rid)}"] button.round-toggle`);
+    if (sec) { sec.focus(); sec.scrollIntoView({ block: 'nearest' }); }
+  } else focusNoteEditor(app);
+};
+
+// The source of a My Turn item.
+app.openSource = id => {
+  const item = app.sd.items.find(i => i.id === id);
+  const note = item && item.noteId ? app.sd.notes.find(n => n.id === item.noteId) : null;
+  if (note) app.openFrom(note.participantId, { noteId: note.id, field: 'row' });
+};
+
+// Back to the origin of the last jump, else to `fallback`.
+app.back = async (fallback = null) => {
+  if (await app.nav.back()) return true;
+  if (fallback && app.s) { app.ui.view = fallback; app.syncHash(); render(); if (fallback === 'live') focusNoteEditor(app); }
+  return false;
+};
+
+app.editKeyText = name => (EDIT_COMMANDS[name] ? bindingText(EDIT_COMMANDS[name].binding) : '');
 
 // Badges of a roster row / the station head: NCS, open responses, flags.
 app.rowBadges = (p, long = false) => {
@@ -243,7 +312,10 @@ app.rowBadges = (p, long = false) => {
   return out;
 };
 
-app.helpEditRows = () => [];
+app.helpEditRows = () => [
+  el('tr', {}, el('td', {}, el('kbd', {}, 'Enter')), el('td', {}, t('keys.enterSaves'))),
+  el('tr', {}, el('td', {}, el('kbd', {}, 'Shift+Enter')), el('td', {}, t('keys.shiftEnter'))),
+];
 
 // ---------- read-only (another tab writes this session) ----------
 
@@ -280,9 +352,13 @@ function render() {
   renderHeader();
   if (inSession) {
     renderRoster(app);
-    if (view === 'live') renderStation(app);
+    if (view === 'live') { renderStation(app); renderNotes(app); }
+    if (view === 'turn') renderTurn(app);
     if (view === 'control') renderControl(app);
+    const open = openQueueCount(app.sd.items, app.sd.notes);
+    setText($('#tab-turn-count'), open ? ` · ${open}` : '');
   }
+  $('#btn-new-round').hidden = !inSession;
   if (view === 'series') renderSessions(app);
   renderKeysLine();
 }
@@ -301,12 +377,15 @@ function renderHeader() {
 function renderSaveChip() {
   const [key, vars, cls] = saveState.view();
   const chip = $('#st-save');
-  setText(chip, t(key, vars));
+  const text = t(key, vars);
+  setText(chip, text);
+  chip.title = text; // the chip has a fixed width; the whole text on hover
   chip.className = `chip${cls ? ` ${cls}` : ''}`;
 }
 
 function renderKeysLine() {
-  setText($('#keys-line'), t(app.ui.view === 'live' ? 'keysLine.live' : 'keysLine.other'));
+  const v = app.ui.view;
+  setText($('#keys-line'), t(v === 'live' ? 'keysLine.live' : v === 'turn' ? 'keysLine.turn' : 'keysLine.other'));
 }
 
 function renderMode(mode) {
@@ -317,8 +396,14 @@ function renderMode(mode) {
 
 // ---------- keyboard ----------
 
+// The rows j/k move through: in Live Notes the notes when the focus is in
+// them, else the roster; in My Turn the checklist and the summary notes.
 function navList() {
-  // the roster: the station rows in order
+  const a = document.activeElement;
+  if (app.ui.view === 'turn') return turnRows();
+  if (app.ui.view === 'live' && a && a.closest && a.closest('#station-rounds')) {
+    return [...$('#station-rounds').querySelectorAll('.round-body:not([hidden]) li.note')];
+  }
   return [...$('#roster').querySelectorAll('button.person')];
 }
 
@@ -329,7 +414,40 @@ function moveFocus(dir) {
   const cur = i >= 0 ? i : list.findIndex(b => b.getAttribute('aria-current') === 'true');
   const next = list[Math.max(0, Math.min(list.length - 1, (cur < 0 ? (dir > 0 ? -1 : list.length) : cur) + dir))];
   next.focus();
+  next.scrollIntoView({ block: 'nearest' });
   return true;
+}
+
+// The note a command acts on: the focused note row (Live Notes) or summary
+// note (My Turn).
+function focusedNoteId() {
+  const a = document.activeElement;
+  const li = a && a.closest && a.closest('li.note, li.sum-note');
+  if (li) return li.dataset.key;
+  const ti = a && a.closest && a.closest('#turn-items > li');
+  if (ti) { const it = app.sd.items.find(i => i.id === ti.dataset.key); return it && it.noteId; }
+  return null;
+}
+
+// Enter on a row that is not a button: edit the note, open the source.
+function openFocused() {
+  const a = document.activeElement;
+  if (!a || !a.closest) return false;
+  const note = a.closest('li.note');
+  if (note && a === note) { note.querySelector('textarea.note-text')?.focus(); return true; }
+  const ti = a.closest('#turn-items > li');
+  if (ti && a === ti) {
+    const it = app.sd.items.find(i => i.id === ti.dataset.key);
+    if (it && it.noteId) app.openSource(it.id); else ti.querySelector('textarea')?.focus();
+    return true;
+  }
+  const sn = a.closest('li.sum-note');
+  if (sn && a === sn) {
+    const n = app.sd.notes.find(x => x.id === sn.dataset.key);
+    if (n) app.openFrom(n.participantId, { noteId: n.id, field: 'row' });
+    return true;
+  }
+  return false;
 }
 
 function initKeyboard(help) {
@@ -339,8 +457,38 @@ function initKeyboard(help) {
     commands: {
       next: ev => (ev.target.closest('select, [role=radiogroup]') ? false : (app.s && !$('#sidebar').hidden ? moveFocus(1) : false)),
       prev: ev => (ev.target.closest('select, [role=radiogroup]') ? false : (app.s && !$('#sidebar').hidden ? moveFocus(-1) : false)),
-      open: () => false,
+      open: () => openFocused(),
       help: () => { help.open(); return true; },
+      newNote: () => {
+        if (!app.s || app.readOnly) return false;
+        if (!app.ui.selected) { $('#checkin-call').focus(); return true; }
+        app.openStation(app.ui.selected);
+        return true;
+      },
+      flag: () => {
+        const id = focusedNoteId();
+        if (!id || app.readOnly) return false;
+        flagNote(app, id);
+        return true;
+      },
+      myTurn: () => {
+        if (!app.s) return false;
+        if (app.ui.view !== 'turn') { app.nav.push(); app.setView('turn'); }
+        return true;
+      },
+      previous: () => {
+        if (app.ui.view !== 'turn') return false;
+        setSummary(app, app.ui.summary === 'previous' ? 'current' : 'previous');
+        return true;
+      },
+      complete: () => {
+        if (app.ui.view !== 'turn' || app.readOnly) return false;
+        const id = focusedTurnItem();
+        if (!id) return false;
+        completeItem(app, id, null);
+        return true;
+      },
+      back: () => { app.back(app.ui.view === 'turn' ? 'live' : null); return true; },
       escape: () => false,
       // Esc in a field: leave editing, the input stays (drafts)
       leaveEditing: ev => {
@@ -354,15 +502,31 @@ function initKeyboard(help) {
         return true;
       },
     },
-    edit: {},
+    edit: {
+      // in a note: toggle its on-air flag; in the composer: save the next
+      // note flagged
+      flag: ev => {
+        const ta = ev.target;
+        const li = ta.closest && ta.closest('li.note');
+        if (li && !app.readOnly) { flagNote(app, li.dataset.key); return true; }
+        if (ta.classList && ta.classList.contains('composer-text')) {
+          app.ui.composeFlag = !app.ui.composeFlag;
+          renderNotes(app);
+          app.announce(t(app.ui.composeFlag ? 'note.willFlag' : 'note.willNotFlag'));
+          return true;
+        }
+        return false;
+      },
+    },
   });
 }
+registerEditCommand('flag', 'Ctrl+Shift+Enter', 'keys.flagEdit');
 
 // ---------- saving before leaving / updating ----------
 
 // Commit what is being typed (detail fields; later the note editors).
 // Resolves true when nothing typed is at risk.
-app.flushers = [() => flushDetails(app)];
+app.flushers = [() => flushDetails(app), () => app.drafts.flush()];
 app.flush = async () => {
   let ok = true;
   for (const f of app.flushers) {
@@ -468,6 +632,9 @@ async function main() {
   initRoster(app);
   initSessions(app);
   initControl(app);
+  initNotes(app);
+  initTurn(app);
+  $('#btn-spoke').addEventListener('click', () => recordSpoke(app));
   const help = initHelp(app);
   initKeyboard(help);
   globalThis.addEventListener('hashchange', () => route().catch(e => console.error(e)));

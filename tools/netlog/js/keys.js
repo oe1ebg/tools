@@ -12,6 +12,12 @@ export const NAV_KEYS = [
   ['j', 'ArrowDown', 'next', 'keys.next'],
   ['k', 'ArrowUp', 'prev', 'keys.prev'],
   ['Enter', '', 'open', 'keys.open'],
+  ['n', '', 'newNote', 'keys.newNote'],
+  ['r', '', 'flag', 'keys.flag'],
+  ['m', '', 'myTurn', 'keys.myTurn'],
+  ['p', '', 'previous', 'keys.previous'],
+  ['x', '', 'complete', 'keys.complete'],
+  ['b', '', 'back', 'keys.back'],
   ['?', '', 'help', 'keys.help'],
   ['Escape', '', 'escape', 'keys.escape'],
 ];

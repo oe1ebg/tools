@@ -13,6 +13,7 @@ import { NETLOG_STORES } from './db.js';
 import {
   normCall, baseCall, isUnresolved, timeOf, changeStatus, nextOrder, moveInOrder,
   rosterSorted, nextSessionNumber, seriesDefaults, live, FLAGS,
+  nextSeq, nextRoundNumber, latestContribution, responseOf, queueItems, openTurn, QUEUE_KINDS,
 } from './model.js';
 
 export const ALL_STORES = Object.keys(NETLOG_STORES);
@@ -381,6 +382,244 @@ export function moveParticipant(store, ctx, id, dir, field = 'rosterOrder') {
 export function deleteParticipant(store, ctx, id, restore = false) {
   return runOp(store, { ...ctx, label: restore ? 'undo.restoreParticipant' : 'undo.deleteParticipant' },
     w => w.update('participants', id, p => ({ ...p, deleted: restore ? null : w.now })));
+}
+
+// ---------- rounds ----------
+
+// A new round, made the current one: only ever by this explicit action
+// (a note, a reorder or a return to the NCS never starts one).
+export function createRound(store, ctx, { number, topic = '' } = {}) {
+  return runOp(store, { ...ctx, label: 'undo.newRound' }, async w => {
+    const session = await w.get('sessions', ctx.sessionId);
+    const rounds = await w.all('rounds');
+    const no = Number.isInteger(number) && number > 0 ? number : nextRoundNumber(rounds);
+    const order = Math.max(0, ...rounds.filter(live).map(r => r.order ?? 0)) + 1;
+    const round = w.create('rounds', { number: no, order, topic: String(topic || '').trim(), start: timeOf(w.now), deleted: null });
+    w.create('events', { type: 'round', kind: 'new', from: session.currentRoundId, to: round.id, time: timeOf(w.now), deleted: null });
+    w.put('sessions', { ...session, currentRoundId: round.id }, session);
+    return round;
+  });
+}
+
+// Select another round as the current one (a correction, or going back).
+export function setCurrentRound(store, ctx, roundId) {
+  return runOp(store, { ...ctx, label: 'undo.currentRound' }, async w => {
+    const session = await w.get('sessions', ctx.sessionId);
+    if (session.currentRoundId === roundId) return session;
+    w.create('events', { type: 'round', kind: 'select', from: session.currentRoundId, to: roundId, time: timeOf(w.now), deleted: null });
+    return w.put('sessions', { ...session, currentRoundId: roundId }, session);
+  });
+}
+
+// Correct a round's number or topic (its notes stay where they are).
+export function updateRound(store, ctx, id, patch) {
+  return runOp(store, { ...ctx, label: 'undo.editRound' }, w => w.update('rounds', id, r => {
+    const next = { ...r };
+    if ('topic' in patch) next.topic = String(patch.topic || '').trim();
+    if ('number' in patch && Number.isInteger(patch.number) && patch.number > 0) next.number = patch.number;
+    return next;
+  }));
+}
+
+// ---------- contributions (who spoke, in which order) ----------
+
+// Record that a station spoke now (repeated and interrupted turns are just
+// more contributions). Optional: notes never need one.
+export function addContribution(store, ctx, participantId, { roundId = null, time = null } = {}) {
+  return runOp(store, { ...ctx, label: 'undo.spoke' }, async w => {
+    const session = await w.get('sessions', ctx.sessionId);
+    const [notes, contributions] = await Promise.all([w.all('notes'), w.all('contributions')]);
+    return w.create('contributions', {
+      participantId, roundId: roundId || session.currentRoundId, seq: nextSeq(notes, contributions),
+      time: time || timeOf(w.now), deleted: null,
+    });
+  });
+}
+
+// ---------- notes ----------
+
+// A new observation of a station in a round (default: the current one),
+// at the end of the recorded order. flagged: also an on-air reminder.
+export function createNote(store, ctx, { participantId, roundId = null, text, flagged = false, id = null, draftKey = null }) {
+  return runOp(store, { ...ctx, label: 'undo.newNote' }, async w => {
+    dropDraft(w, draftKey);
+    // the editor's id makes a retried save idempotent
+    if (id) {
+      const done = await w.get('notes', id);
+      if (done) return done;
+    }
+    const session = await w.get('sessions', ctx.sessionId);
+    const [notes, contributions] = await Promise.all([w.all('notes'), w.all('contributions')]);
+    const rid = roundId || session.currentRoundId;
+    const c = latestContribution(contributions, participantId, rid);
+    const note = w.put('notes', {
+      id: id || newId(), eventId: ctx.sessionId, participantId, roundId: rid, contributionId: c ? c.id : null,
+      text: String(text), seq: nextSeq(notes, contributions), time: timeOf(w.now), deleted: null,
+    }, null);
+    if (flagged) await flagNote(w, note, true);
+    return note;
+  });
+}
+
+export function updateNote(store, ctx, id, text, draftKey = null) {
+  return runOp(store, { ...ctx, label: 'undo.editNote' }, w => {
+    dropDraft(w, draftKey);
+    return w.update('notes', id, n => (n.text === text ? null : { ...n, text }));
+  });
+}
+
+export function deleteNote(store, ctx, id, restore = false) {
+  return runOp(store, { ...ctx, label: restore ? 'undo.restoreNote' : 'undo.deleteNote' },
+    w => w.update('notes', id, n => ({ ...n, deleted: restore ? null : w.now })));
+}
+
+// A saved record replaces its draft in the same transaction, so a reload
+// never shows the saved text again as unsaved input.
+function dropDraft(w, key) {
+  if (key && w.sessionId) w.raw.del('drafts', `${w.sessionId}|${key}`);
+}
+
+// ---------- on-air responses, talking points, after-net tasks ----------
+
+async function nextItemOrder(w) {
+  const items = await w.all('items');
+  return Math.max(0, ...items.filter(i => live(i) && QUEUE_KINDS.includes(i.kind)).map(i => i.order ?? 0)) + 1;
+}
+
+function stateChange(item, state, at, turnId) {
+  return {
+    ...item,
+    state,
+    doneTurnId: state === 'done' ? turnId || null : null,
+    history: [...(item.history || []), { state, at, turnId: turnId || null }],
+  };
+}
+
+// Flag (on) or unflag a note for an on-air response. One response item per
+// note: reflagging reactivates it (with its prepared text), never a
+// duplicate; unflagging only takes it out of the queue.
+async function flagNote(w, note, on) {
+  const items = await w.all('items');
+  const cur = responseOf(items, note.id);
+  if (on) {
+    if (cur && cur.active !== false && cur.state !== 'done') return cur;
+    const order = await nextItemOrder(w);
+    if (cur) {
+      const reopened = cur.state === 'done' ? stateChange(cur, 'open', w.now, null) : cur;
+      return w.put('items', { ...reopened, active: true, order }, cur);
+    }
+    return w.create('items', { kind: 'response', noteId: note.id, text: '', state: 'open', active: true, order, history: [{ state: 'open', at: w.now, turnId: null }], doneTurnId: null, deleted: null });
+  }
+  if (!cur || cur.active === false) return cur;
+  return w.put('items', { ...cur, active: false }, cur);
+}
+
+// Toggle the on-air flag of a note; resolves to the response item.
+export function toggleResponse(store, ctx, noteId, on = null) {
+  return runOp(store, { ...ctx, label: 'undo.flagNote' }, async w => {
+    const note = await w.get('notes', noteId);
+    const cur = responseOf(await w.all('items'), noteId);
+    const want = on === null ? !(cur && cur.active !== false && cur.state !== 'done') : on;
+    return flagNote(w, note, want);
+  });
+}
+
+// The prepared reply / point text / task text.
+export function setItemText(store, ctx, id, text, draftKey = null) {
+  return runOp(store, { ...ctx, label: 'undo.editReply' }, w => {
+    dropDraft(w, draftKey);
+    return w.update('items', id, i => (i.text === text ? null : { ...i, text }));
+  });
+}
+
+// Complete or reopen an item; the history keeps every change. Completion
+// during an open My Turn cycle belongs to it (shown subdued until End
+// Turn). Never advances the round.
+// done null: toggle, decided on the stored state (not a stale copy).
+export function setItemDone(store, ctx, id, done) {
+  return runOp(store, { ...ctx, label: done === false ? 'undo.reopen' : 'undo.complete' }, async w => {
+    const item = await w.get('items', id);
+    const state = done === null ? (item.state === 'done' ? 'open' : 'done') : (done ? 'done' : 'open');
+    if (item.state === state) return item;
+    const turn = openTurn(await w.all('turns'));
+    return w.put('items', stateChange(item, state, w.now, turn ? turn.id : null), item);
+  });
+}
+
+// A personal talking point: no station, no note needed.
+export function addPoint(store, ctx, text, draftKey = null) {
+  return runOp(store, { ...ctx, label: 'undo.addPoint' }, async w => {
+    dropDraft(w, draftKey);
+    return w.create('items', {
+      kind: 'point', noteId: null, text: String(text), state: 'open', active: true, order: await nextItemOrder(w),
+      history: [{ state: 'open', at: w.now, turnId: null }], doneTurnId: null, deleted: null,
+    });
+  });
+}
+
+export function deleteItem(store, ctx, id, restore = false) {
+  return runOp(store, { ...ctx, label: restore ? 'undo.restoreItem' : 'undo.deleteItem' },
+    w => w.update('items', id, i => ({ ...i, deleted: restore ? null : w.now })));
+}
+
+// Move an item up/down in the My Turn checklist (manual order).
+export function moveItem(store, ctx, id, dir) {
+  return runOp(store, { ...ctx, label: 'undo.reorderItems' }, async w => {
+    const [items, notes, turns] = await Promise.all([w.all('items'), w.all('notes'), w.all('turns')]);
+    const turn = openTurn(turns);
+    const queue = queueItems(items, notes, turn ? turn.id : null);
+    const changes = moveInOrder(queue, id, dir, 'order');
+    for (const c of changes) {
+      const it = items.find(x => x.id === c.id);
+      w.put('items', { ...it, order: c.order }, it);
+    }
+    return changes.length > 0;
+  });
+}
+
+// An after-net follow-up task for a note (separate from its on-air
+// response; completing one never completes the other), toggled like the
+// flag. Without a note: a task of its own.
+export function toggleTask(store, ctx, noteId, on = null) {
+  return runOp(store, { ...ctx, label: 'undo.task' }, async w => {
+    const cur = responseOf(await w.all('items'), noteId, 'task');
+    const want = on === null ? !(cur && cur.active !== false) : on;
+    if (want) {
+      if (cur && cur.active !== false) return cur;
+      if (cur) return w.put('items', { ...cur, active: true }, cur);
+      return w.create('items', { kind: 'task', noteId, text: '', state: 'open', active: true, order: 0, history: [{ state: 'open', at: w.now, turnId: null }], doneTurnId: null, deleted: null });
+    }
+    if (!cur || cur.active === false) return cur;
+    return w.put('items', { ...cur, active: false }, cur);
+  });
+}
+
+export function addTask(store, ctx, text) {
+  return runOp(store, { ...ctx, label: 'undo.task' }, w => w.create('items', {
+    kind: 'task', noteId: null, text: String(text), state: 'open', active: true, order: 0,
+    history: [{ state: 'open', at: w.now, turnId: null }], doneTurnId: null, deleted: null,
+  }));
+}
+
+// ---------- My Turn review cycles ----------
+
+// The open cycle, started when My Turn is opened and none is open; it
+// survives navigation and reloads until End Turn.
+export function startTurn(store, ctx) {
+  return runOp(store, { ...ctx, label: null }, async w => {
+    const cur = openTurn(await w.all('turns'));
+    return cur || w.create('turns', { started: w.now, ended: null, deleted: null });
+  });
+}
+
+// End Turn: completed items leave the checklist (their history stays),
+// open ones carry over. The round does not change.
+export function endTurn(store, ctx) {
+  return runOp(store, { ...ctx, label: 'undo.endTurn' }, async w => {
+    const cur = openTurn(await w.all('turns'));
+    if (!cur) return null;
+    return w.put('turns', { ...cur, ended: w.now }, cur);
+  });
 }
 
 // ---------- drafts ----------

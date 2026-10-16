@@ -11,12 +11,13 @@ The specification and acceptance criteria are issue
 there (a guide, not a contract). The MVP is delivered in four stacked pull
 requests:
 
-1. **Foundation** (this part): the app shell, both languages and the help,
-   storage with versioned schema, one writing tab per session, sessions and
+1. **Foundation**: the app shell, both languages and the help, storage
+   with versioned schema, one writing tab per session, sessions and
    series, participants with partial callsigns, status, flags, presence and
    roster order.
-2. Live logging: rounds, contributions, the note editor and drafts, on-air
-   response reminders, personal talking points, after-net tasks, My Turn.
+2. **Live logging**: rounds, contributions, the note editor and drafts,
+   on-air response reminders, personal talking points, after-net tasks,
+   My Turn.
 3. NCS and navigation: handovers, Continuous Log, search, correction and
    undo in the UI, return navigation.
 4. Release readiness: JSON backup/restore, privacy and deletion, station
@@ -57,6 +58,49 @@ yet (a follow-up).
 - **Order.** ↑/↓ in the sidebar change the roster order; Net Control has
   the planned speaking order. Neither ever changes the actual speaking
   history or starts a round.
+- **Notes** (Live Notes, below the station): one item per observation, in
+  the round sections of the station (newest round first; the current and
+  the previous one expanded, how many is set in Net Control; a collapsed
+  heading shows its notes and open responses). The composer sits at the end
+  of the current round: Enter saves and keeps the composer ready for the
+  next note (the field empties at once), Shift+Enter is a new line, an
+  empty Enter saves nothing, an Enter that confirms an IME composition is
+  no save. A saved note is edited in place; Enter or leaving the field
+  saves the correction, which never moves the note (its position is a
+  sequence number, its time stays). An emptied note is not saved (× deletes
+  it). Unfinished text is a draft: kept per station and editor, restored
+  with its caret after a switch or a reload.
+- **Rounds** start only with "+ New round" (a dialog with the next number
+  and an optional topic) or in Net Control, never by a note, a reorder or a
+  return to the NCS. Net Control corrects round numbers and topics and can
+  make another round the current one. "Spoke now" records a speaking turn
+  (contribution) of the selected station; it is optional and may repeat.
+  A new note belongs to its station's latest contribution in the round, if
+  there is one.
+- **On-air responses.** "○ response" (or `r` on a focused note, or
+  Ctrl+Shift+Enter while typing it) flags a note for an answer on air; the
+  observation stays as it is and an optional prepared reply goes in its own
+  field. Unflagging only takes it out of the queue; flagging again brings
+  back the same item with its reply (never a duplicate), also after it was
+  completed. **After-net tasks** ("☐ after net", and a list with free
+  tasks in Net Control) are separate: completing one never completes the
+  response, and they never show in My Turn.
+- **My Turn** (`m`): one page, responses first. *Open Responses*: every
+  open response of this session (from any round) and the personal talking
+  points, in your order (↑/↓), each with its station, observation, reply
+  and a checkbox (or `x`). *Round Notes*: every note of the current round
+  (`p` or the toggle: the previous round, also an empty one; in the first
+  logged round there is none), grouped by station in speaking order,
+  responses marked, replies not repeated. Opening My Turn starts a review
+  cycle (a "turn") that survives navigation and reloads: completed items
+  stay visible, subdued, until **End Turn**, which clears them (they stay
+  in "Completed earlier") and keeps the open ones. Neither changes the
+  round.
+- **Going to a station and back.** A station or note link in My Turn (or
+  Enter on a focused item) opens Live Notes at the source: the station, its
+  round expanded, the note focused and highlighted. `b` (or "Back to Live
+  Notes" / Back) returns to exactly where you were: workspace, summary
+  round, scroll and focus; edits made meanwhile stay.
 - **Second tab.** Only one tab or window edits a session; another one shows
   it read-only with "Edit here" (which takes over; the first one turns
   read-only).
@@ -70,21 +114,30 @@ mode is shown in the toolbar ("Navigation" / "Editing").
 
 | Key | Action |
 | --- | --- |
-| `j` / `k`, ↓ / ↑ | next / previous station (more lists in later parts) |
-| `Enter` | open the focused station or item (native button activation) |
+| `j` / `k`, ↓ / ↑ | next / previous station; in the notes and in My Turn: next / previous item |
+| `Enter` | open the focused station (its composer), edit the focused note, open the source of a My Turn item |
+| `n` | new note for the selected station |
+| `r` | flag / unflag the focused note for an on-air response |
+| `m` | My Turn |
+| `p` | My Turn: current / previous round notes |
+| `x` | My Turn: complete / reopen the focused item |
+| `b` | back to where you came from |
 | `?` | help |
 | `Esc` | close a popup first; in a field: leave editing, the text stays |
 
-The full table of issue #68 (`n`, `r`, `m`, `/`, `p`, `x`, `b`) arrives with
-the workspaces it belongs to. Editing-mode commands are configurable in the
+Search (`/`) comes with part 3. While typing: Enter saves a note or reply
+and goes on, Shift+Enter is a new line, Ctrl+Shift+Enter (configurable)
+flags the note. Editing-mode commands are configurable in the
 help dialog (`js/keys.js`, pref `oe1ebg-netlog-keys`); a binding needs Ctrl
 or ⌘, and Option/Alt combinations (they type characters on macOS), function
 keys and the browser's own Ctrl/⌘ shortcuts are refused.
 
 Row focus model: each roster row is one button, the station's navigation
 surface (click or Enter opens it, `aria-current` marks the selected one,
-only it is in the Tab order); `j`/`k` move between rows. Nested controls
-(status, flags, reorder) are separate buttons and never navigate.
+only it is in the Tab order); `j`/`k` move between rows (and select, while
+a pointer selects on its click). A note row, a My Turn item and a summary
+note are `li` rows with `tabindex="-1"` that `j`/`k` focus; their text
+fields, checkboxes and buttons act on their own and never navigate.
 
 ## Languages
 
@@ -118,7 +171,10 @@ shared `eventId` index).
 | `profiles` | reusable station identity (`call`, `name`, `qth`, `locator`, `echolink`, `member`); a session never changes through a profile edit |
 | `participants` | session-specific snapshot: `call` (as typed), `base` (matching identity), `unresolved`, `profileId`, `name`, `qth`, `locator`, `rst`, `echolink`, `member`, `status`, `flags { speak, short, reception, priority }`, `presence [{ from, to }]`, `rosterOrder`, `plannedOrder`, `checkinRoundId` |
 | `rounds` | `number`, `order`, `topic`, `start` |
-| `contributions`, `notes`, `items`, `turns` | used from part 2 (speaking turns, observations, responses/points/tasks, My Turn cycles) |
+| `contributions` | a speaking turn: `participantId`, `roundId`, `seq`, `time` |
+| `notes` | one observation: `participantId`, `roundId`, `contributionId` or null, `text`, `seq`, `time` |
+| `items` | `kind`: `response` (a note's on-air reminder, `noteId`, prepared reply in `text`), `point` (personal talking point, no note) or `task` (after-net follow-up); `state` `open`/`done`, `active` (flagged), `order` (My Turn order), `history [{ state, at, turnId }]`, `doneTurnId` |
+| `turns` | My Turn review cycles: `started`, `ended` |
 | `events` | timestamped facts: check-ins (`type: 'presence'`), status changes (`'status'`, `from`/`to`), later NCS handovers and round changes |
 | `revisions` | every replaced version of a record (`store`, `recordId`, `record`, `at`) |
 | `undo` | the undo history (below) |
@@ -135,9 +191,16 @@ kept); `base` is the callsign part used for matching (`OE/DL0QXA/P` →
 such; each run of placeholders stands for one or more unknown characters
 when suggesting candidates (`model.js`, `callPattern()`).
 
-**Orders** are separate fields: roster order, planned order, and (part 2)
-the actual contribution order. Changing one never touches the others,
+**Orders** are separate fields: roster order, planned order, the My Turn
+order of items, and the actual history, `seq`: one sequence per session
+for notes and contributions (the next number is one above the highest,
+deleted ones included). It is the chronological tie-breaker and never
+changes with an edit. Changing a display order never touches it, the
 timestamps or round assignments.
+
+**Round summary** (`roundSummary()`): stations in the order of their first
+contribution in the round (a station without one at its first note's
+position), each once; notes by their contribution's position, then `seq`.
 
 Schema changes bump `NETLOG_SCHEMA.version` and extend `upgrade()`; older
 stores and migration branches stay (data-preserving migrations).
@@ -226,6 +289,10 @@ Never rename (root `README.md`, "Stable identifiers"):
 | `js/control.js` | Net Control |
 | `js/sessions.js` | sessions & series |
 | `js/help.js` | help dialog |
+| `js/notes.js` | Live Notes: round sections, note rows, the composer |
+| `js/drafts.js` | drafts of every editor: debounced writes, restore, commit chain |
+| `js/myturn.js` | My Turn |
+| `js/nav.js` | return navigation (origin stack, focus restore) |
 
 Plain ES modules following the bundler rules of `scripts/single_file.py`
 (named imports, no `as`, no default exports, unique top-level names), so a
@@ -237,7 +304,11 @@ single-file version stays possible.
   `tests/netlog-i18n.test.mjs`, `tests/netlog-offline.test.mjs` (`just test`).
 - `tests/e2e/netlog.spec.mjs`: languages, a session joined mid-net with a
   partial callsign resolved later and a series assigned afterwards,
-  keyboard-only check-in and roster, the read-only second tab. Also in the
+  keyboard-only check-in and roster, the read-only second tab, the note
+  editor (Enter, Shift+Enter, empty and IME Enter, order through
+  corrections, switches, collapse and reload), drafts, My Turn (queue
+  contents and order, summary rounds, the first round, an empty round,
+  source navigation and Back, completion through a reload, End Turn). Also in the
   shared specs: `offline-update.spec.mjs` (a failed save holds the update
   back), `pwa-identity.spec.mjs`, `header.spec.mjs`, `deploy.spec.mjs`.
 - All examples and fixtures use synthetic callsigns (`OE0QX…`) and
