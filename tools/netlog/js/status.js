@@ -2,6 +2,10 @@
 // kept or not kept, a failed save, read-only, or a store that is not
 // durable at all. No DOM; app.js renders text() into #st-save.
 
+import { hms, zone } from './clock.js';
+
+const stampText = iso => (iso ? `${hms(iso)} ${zone(iso)}` : '');
+
 export function createSaveState(onChange) {
   const st = {
     pending: 0,
@@ -47,8 +51,8 @@ export function createSaveState(onChange) {
       if (st.draft === 'unsaved') return ['save.draftUnsaved', {}, 'err'];
       if (st.readOnly) return ['save.readOnly', {}, 'warn'];
       if (st.pending || st.draft === 'saving') return ['save.saving', {}, ''];
-      if (st.draft === 'saved') return ['save.draftSaved', { time: (st.draftAt || '').slice(11, 19) }, 'ok'];
-      if (st.savedAt) return ['save.saved', { time: st.savedAt.slice(11, 19) }, 'ok'];
+      if (st.draft === 'saved') return ['save.draftSaved', { time: stampText(st.draftAt) }, 'ok'];
+      if (st.savedAt) return ['save.saved', { time: stampText(st.savedAt) }, 'ok'];
       return ['save.idle', {}, ''];
     },
   };

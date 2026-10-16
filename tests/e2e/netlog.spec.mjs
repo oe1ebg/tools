@@ -552,7 +552,8 @@ test('backup: export, erase everything, import back; the same file again changes
   await oneNote(page);
   await page.locator('#tab-series').click();
   const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#btn-export-all').click()]);
-  await expect(page.locator('#data-msg')).toContainText('Check that the file arrived');
+  await expect(page.locator('#data-msg')).toContainText('Download of the backup (JSON) started');
+  expect(dl.suggestedFilename()).toMatch(/^\d{4}-\d{2}-\d{2}_netlog_backup\.json$/);
   const file = await dl.path();
   page.on('dialog', d => d.accept());
   await page.locator('#btn-erase-all').click();
@@ -691,4 +692,161 @@ test('privacy: remove and restore a station, erase it for good; lookup links onl
   await page.getByRole('button', { name: 'Erase OE0QXB and everything recorded about it permanently' }).click();
   await expect(page.locator('#removed-list')).toHaveText('No removed stations.');
   expect(await page.evaluate(async () => (await globalThis.NETLOG_APP.store.getAll('notes')).length)).toBe(0);
+});
+
+// ---------- time display, callsign list ----------
+
+test('times in UTC or local time, always labelled; a handover typed in local time is stored in UTC', async ({ page }) => {
+  await open(page, { lang: 'en' });
+  await oneNote(page);
+  const noteTime = page.locator('#station-rounds li.note .note-lead .time').first();
+  await expect(noteTime).toHaveText(/^\d{2}:\d{2} UTC$/);
+  await expect(page.locator('#clock-zone')).toHaveText('UTC');
+  await page.locator('#time-toggle button[data-time=local]').click();
+  await expect(page.locator('#time-toggle button[data-time=local]')).toHaveAttribute('aria-pressed', 'true');
+  // the test browsers run in Europe/Vienna
+  await expect(noteTime).toHaveText(/^\d{2}:\d{2} UTC\+[12]$/);
+  await expect(page.locator('#clock-zone')).toHaveText(/^UTC\+[12]$/);
+  await expect(page.locator('#st-save')).toHaveText(/UTC\+[12]$/);
+  // a handover time typed in local time
+  await page.locator('#btn-ncs').click();
+  await page.locator('#tab-control').click();
+  const time = page.locator('#ncs-history li input.ev-time');
+  await expect(page.locator('#ncs-history li .inline-field span')).toHaveText(/^Time \(UTC\+[12]\)$/);
+  await time.fill('21:05');
+  await time.press('Enter');
+  await expect.poll(() => page.evaluate(() => globalThis.NETLOG_APP.sd.events.find(e => e.type === 'ncs').time.iso.slice(11, 16))).toMatch(/^(19|20):05$/);
+  // the choice is kept; back to UTC shows the stored time
+  await page.reload();
+  await ready(page);
+  await expect(page.locator('#ncs-history li input.ev-time')).toHaveValue('21:05');
+  await page.locator('#time-toggle button[data-time=utc]').click();
+  await expect(page.locator('#ncs-history li input.ev-time')).toHaveValue(/^(19|20):05$/);
+});
+
+// A synthetic stand-in for the shared callsign list (no real people).
+const CALLBOOK = { stand: '2026-09-10', source: 'test', fields: ['call', 'name', 'location'], calls: [['OE0QXB', 'Jonas Test', 'Musterdorf'], ['OE0QXC', 'Lea Probe', 'Beispielstadt']] };
+
+test('the callsign list fills name and QTH at check-in and when a partial callsign is resolved', async ({ page }) => {
+  // a page route (it takes precedence over the fixture's catch-all)
+  await page.route('**/shared/data/callsigns-oe.json', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(CALLBOOK) }));
+  await open(page, { lang: 'en' });
+  await expect(page.locator('#st-callbook')).toContainText('as of 2026-09-10, 2 callsigns');
+  await startSession(page);
+  await page.locator('#checkin-call').fill('OE0QXB');
+  await expect(page.locator('#checkin-info')).toHaveText('Callsign list: Jonas Test · Musterdorf');
+  await page.locator('#checkin-call').press('Enter');
+  await page.locator('#checkin-name').press('Enter');
+  await expect(page.locator('#roster li', { hasText: 'OE0QXB' })).toContainText('Jonas Test');
+  await page.locator('#roster button.person', { hasText: 'OE0QXB' }).click();
+  await page.locator('#btn-details').click();
+  await expect(page.locator('#det-qth')).toHaveValue('Musterdorf');
+  // a name typed by hand is kept
+  await page.locator('#checkin-call').fill('OE0QXC');
+  await page.locator('#checkin-name').fill('Lea');
+  await page.locator('#checkin-name').press('Enter');
+  await expect(page.locator('#roster li', { hasText: 'OE0QXC' })).toContainText('Lea');
+  await expect(page.locator('#roster li', { hasText: 'OE0QXC' })).not.toContainText('Probe');
+  // a partial callsign: the list suggests what fits; resolving fills the rest
+  await page.locator('#checkin-call').fill('OE0QX?');
+  await expect(page.locator('#checkin-pop')).toContainText('callsign list');
+  await page.locator('#checkin-name').press('Enter');
+  await page.locator('#roster button.person', { hasText: 'OE0QX?' }).click();
+  await page.locator('#btn-edit-identity').click();
+  await page.locator('#identity-call').fill('OE0QXD');
+  await expect(page.locator('#identity-info')).toHaveText('');
+  // searching by name
+  await page.locator('#identity-call').fill('probe');
+  await expect(page.locator('#identity-pop button')).toContainText(['OE0QXC']);
+});
+
+test('Net Control: check stations out and in, pause them, from the list; presence follows', async ({ page }) => {
+  await open(page, { lang: 'en' });
+  await startSession(page);
+  await checkIn(page, 'OE0QXA');
+  await checkIn(page, 'OE0QXB');
+  await page.locator('#tab-control').click();
+  const sel = page.getByRole('combobox', { name: 'Status of OE0QXB' });
+  await expect(sel).toHaveValue('active');
+  await sel.selectOption('paused');
+  await expect(page.locator('#roster li', { hasText: 'OE0QXB' }).locator('.dot')).toHaveClass(/paused/);
+  await sel.selectOption('out');
+  await expect(page.locator('#order-list li', { hasText: 'OE0QXB' })).toHaveClass(/out/);
+  await sel.selectOption('active');
+  await expect(sel).toHaveValue('active');
+  // checkout closed the interval, coming back opened a new one
+  await page.locator('#tab-live').click();
+  await page.locator('#roster button.person', { hasText: 'OE0QXB' }).click();
+  await page.locator('#btn-details').click();
+  await expect(page.locator('#presence-list li')).toHaveCount(2);
+  const events = await page.evaluate(() => globalThis.NETLOG_APP.sd.events.filter(e => e.type === 'status').sort((a, b) => (a.created < b.created ? -1 : 1)).map(e => e.to));
+  expect(events).toEqual(['paused', 'out', 'active']);
+});
+
+test('my own callsign: changed in Net Control, marked "me" in the lists; the backup chip', async ({ page }) => {
+  await open(page, { lang: 'en' });
+  await startSession(page, { own: '' });
+  await checkIn(page, 'OE0QXB');
+  await page.locator('#tab-control').click();
+  await expect(page.locator('#btn-checkin-own')).toBeHidden();
+  await page.locator('#se-own').fill('oe0qxa');
+  await page.locator('#se-own').press('Enter');
+  await expect(page.locator('#session-line')).toContainText('me: OE0QXA');
+  await page.locator('#btn-checkin-own').click();
+  await expect(page.locator('#roster li', { hasText: 'OE0QXA' }).locator('.pill.own')).toHaveText('me');
+  await expect(page.locator('#roster li', { hasText: 'OE0QXB' }).locator('.pill.own')).toHaveCount(0);
+  await expect(page.locator('#order-list li.own')).toContainText('OE0QXA (me)');
+  await expect(page.locator('#btn-checkin-own')).toBeHidden();
+  // the backup chip: notes not in a backup yet, a click downloads one
+  await openStation(page, 'OE0QXB');
+  await page.keyboard.type('One note.');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#st-backup')).toHaveText('no backup yet · 1 note');
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#st-backup').click()]);
+  expect(dl.suggestedFilename()).toMatch(/_backup\.json$/);
+  await expect(page.locator('#st-backup')).toHaveText(/^backup started \d{2}:\d{2} UTC · nothing new since$/);
+  await composer(page).focus();
+  await page.keyboard.type('Another.');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#st-backup')).toHaveText(/· 1 note not in it$/);
+});
+
+test('series and session fields: repeater search and callsign completion', async ({ page }) => {
+  const repeaters = { source: 'test', retrieved: '2026-10-01', repeaters: [
+    { call: 'OE0XRA', site: 'Testberg', city: 'Musterdorf', lat: 48.2, lon: 16.4, locator: 'JN88EF', alt: 500, band: '2m', out: 145.6, in: 145.0, shift: -0.6, ctcss: 88.5, modes: ['FM'], status: 'active', comment: '' },
+  ] };
+  await page.route('**/shared/data/repeaters-at.json', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(repeaters) }));
+  await page.route('**/shared/data/callsigns-oe.json', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(CALLBOOK) }));
+  await open(page, { lang: 'en' });
+  await page.locator('#btn-new-series').click();
+  await page.locator('#srf-repeater').fill('testberg');
+  await expect(page.locator('#srf-repeater').locator('xpath=..').locator('.ac-pop button')).toContainText(['OE0XRA']);
+  await page.locator('#srf-repeater').press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#srf-repeater')).toHaveValue('OE0XRA 145.600');
+  await page.locator('#srf-ncs').fill('OE0QX');
+  const pop = page.locator('#srf-ncs').locator('xpath=..').locator('.ac-pop');
+  await expect(pop.locator('button')).toContainText(['OE0QXB', 'OE0QXC']);
+  await pop.locator('button', { hasText: 'OE0QXC' }).click();
+  await expect(page.locator('#srf-ncs')).toHaveValue('OE0QXC');
+  // Enter in the field keeps what was typed (no suggestion swapped in)
+  await page.locator('#srf-name').fill('Evening net');
+  await page.locator('#series-form button[type=submit]').click();
+  await expect(page.locator('#series-list')).toContainText('Evening net');
+  await expect(page.locator('#series-list')).toContainText('OE0XRA 145.600');
+});
+
+test('j/k and the arrow keys wrap around at the ends of the roster', async ({ page }) => {
+  await open(page, { lang: 'en' });
+  await startSession(page);
+  for (const c of ['OE0QXA', 'OE0QXB', 'OE0QXC']) await checkIn(page, c);
+  await page.locator('#roster button.person', { hasText: 'OE0QXC' }).focus();
+  await page.keyboard.press('j');
+  await expect(page.locator('#roster button.person', { hasText: 'OE0QXA' })).toBeFocused();
+  await page.keyboard.press('ArrowUp');
+  await expect(page.locator('#roster button.person', { hasText: 'OE0QXC' })).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(page.locator('#roster button.person', { hasText: 'OE0QXA' })).toBeFocused();
+  await page.keyboard.press('k');
+  await expect(page.locator('#roster li.active .call')).toHaveText('OE0QXC');
 });

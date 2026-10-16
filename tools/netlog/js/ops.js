@@ -279,8 +279,13 @@ export function updateSession(store, ctx, id, patch) {
 export function assignSeries(store, ctx, id, seriesId, number) {
   return runOp(store, { ...ctx, sessionId: id, label: 'undo.assignSeries' }, async w => {
     const all = await w.all('sessions');
+    const cur = await w.get('sessions', id);
+    // out of a series into ad hoc: an unnamed session keeps the series'
+    // name as its title (it would be just "Session" otherwise)
+    const old = cur && cur.seriesId && !seriesId ? await w.get('series', cur.seriesId) : null;
     return w.update('sessions', id, s => ({
       ...s,
+      name: old && !s.name ? old.name : s.name,
       seriesId: seriesId || null,
       number: number !== undefined ? (number === '' || number == null ? null : Number(number))
         : (seriesId ? (s.seriesId === seriesId ? s.number : nextSessionNumber(all, seriesId)) : s.number),
@@ -766,6 +771,17 @@ export function readAll(store) {
     const out = {};
     for (const s of BACKUP_STORES) out[s] = await api.getAll(s);
     return out;
+  });
+}
+
+// When a backup download of a session was last started (Notfunk-like
+// chip): a `meta` record `backup:<session id>`, so it never changes the
+// session (or its undo history). Not proof the file was kept.
+export const backupKey = sessionId => `backup:${sessionId}`;
+export function markBackup(store, sessionIds, at = nowIso()) {
+  return store.atomic(['meta'], async api => {
+    for (const id of sessionIds) api.put('meta', { id: backupKey(id), at });
+    return at;
   });
 }
 

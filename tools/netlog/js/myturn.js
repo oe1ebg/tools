@@ -19,6 +19,7 @@ import { queueItems, openTurn, previousRound, roundSummary, responseOf, liveOf, 
 import { setItemDone, moveItem, addPoint, startTurn, endTurn, setItemText, deleteItem } from './ops.js';
 import { callText } from './roster.js';
 import { autosize, replyKey } from './notes.js';
+import { hmz } from './clock.js';
 
 const POINT_DRAFT = 'point:new';
 
@@ -167,7 +168,7 @@ export function renderTurn(app) {
       setText(head.firstChild, who);
       if (i.kind !== 'point') setAttr(head.firstChild, 'aria-label', t('turn.openSource', { call: p ? callText(p) : '?' }));
       const r = note ? rounds.get(note.roundId) : null;
-      setText(head.lastChild, note ? t('turn.source', { n: r ? r.number : '?', time: note.time && note.time.iso ? note.time.iso.slice(11, 16) : '—' }) : '');
+      setText(head.lastChild, note ? t('turn.source', { n: r ? r.number : '?', time: note.time && note.time.iso ? hmz(note.time.iso) : '—' }) : '');
       setText(obs, note ? t('turn.observation', { text: note.text }) : '');
       obs.hidden = !note;
       const ta = replyField.lastChild;
@@ -265,7 +266,7 @@ export function renderTurn(app) {
   $('#sum-empty').hidden = groups.length > 0;
   setText($('#sum-empty'), t('turn.noRoundNotes'));
   $('#btn-end-turn').disabled = app.readOnly || !turn;
-  setText($('#turn-cycle'), turn ? t('turn.cycleSince', { time: turn.started.slice(11, 16) }) : '');
+  setText($('#turn-cycle'), turn ? t('turn.cycleSince', { time: hmz(turn.started) }) : '');
 }
 
 // The rows j/k move through in My Turn.

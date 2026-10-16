@@ -5,10 +5,15 @@
 import { $, el, fill } from '../../shared/js/dom.js';
 import { t } from './i18n.js';
 import { keyedList, setText, setAttr, setValue } from './keyed.js';
-import { rosterSorted, roundsSorted, nextRoundNumber, liveOf, cmp, timeOf, baseCall } from './model.js';
-import { moveParticipant, createRound, setCurrentRound, updateRound, setItemDone, addTask, setItemText, setNcs, setEventTime, deleteParticipant, eraseParticipant } from './ops.js';
+import { rosterSorted, roundsSorted, nextRoundNumber, liveOf, cmp, timeOf, baseCall, STATUSES } from './model.js';
+import { updateSession, addParticipant, setStatus, moveParticipant, createRound, setCurrentRound, updateRound, setItemDone, addTask, setItemText, setNcs, setEventTime, deleteParticipant, eraseParticipant } from './ops.js';
 import { callText, statusLabel } from './roster.js';
 import { expandedCount, setExpandedCount } from './notes.js';
+import { hm, zone, parseHm } from './clock.js';
+import { prefSet } from '../../shared/js/prefs.js';
+import { OWN_PREF } from './sessions.js';
+import { isOwn } from './roster.js';
+import { attachRepeaterField, attachCallField } from './fieldsearch.js';
 
 // Planned order first (stations without one after them, in roster order).
 export function plannedOrder(participants) {
@@ -74,23 +79,45 @@ export function initControl(app) {
     if (ev.key === 'Enter' && ev.target.matches('input')) { ev.preventDefault(); ev.target.dispatchEvent(new Event('change', { bubbles: true })); }
   });
 
+  // the session's own facts, changed in place: my callsign (marked "me"),
+  // name, repeater
+  const se = $('#session-edit');
+  attachRepeaterField(app, $('#se-repeater'));
+  attachCallField(app, $('#se-own'));
+  se.addEventListener('submit', ev => ev.preventDefault());
+  se.addEventListener('keydown', ev => { if (ev.key === 'Enter' && ev.target.matches('input')) { ev.preventDefault(); ev.target.dispatchEvent(new Event('change', { bubbles: true })); } });
+  se.addEventListener('change', async ev => {
+    const f = ev.target;
+    if (f.id === 'se-own') {
+      const r = await app.act(store => updateSession(store, app.ctx(), app.s.id, { own: f.value }));
+      if (r && r.own.call) prefSet(OWN_PREF, r.own.call);
+      if (r) app.announce(t('control.ownSaved', { call: r.own.call || '—' }));
+    }
+    if (f.id === 'se-name') await app.act(store => updateSession(store, app.ctx(), app.s.id, { name: f.value.trim() }));
+    if (f.id === 'se-repeater') await app.act(store => updateSession(store, app.ctx(), app.s.id, { radio: { ...app.s.radio, repeater: f.value.trim() } }));
+  });
+  $('#btn-checkin-own').addEventListener('click', async () => {
+    const r = await app.act(store => addParticipant(store, app.ctx(), { call: app.s.own.call }));
+    if (r) app.announce(t('checkin.done', { call: callText(r) }));
+  });
   $('#ncs-suggest').addEventListener('click', async ev => {
     const b = ev.target.closest('button[data-pid]');
     if (b) await app.act(store => setNcs(store, app.ctx(), b.dataset.pid));
   });
-  // a handover's time: HH:MM (UTC, on the event's date) and whether it is
-  // an estimate; a correction keeps a revision and can be undone
+  // a handover's time: HH:MM in the shown zone (UTC or local, on the
+  // event's date there) and whether it is an estimate; a correction keeps
+  // a revision and can be undone
   $('#ncs-history').addEventListener('change', async ev => {
     const li = ev.target.closest('li');
     if (!li) return;
     const ev0 = app.sd.events.find(e => e.id === li.dataset.key);
     const tf = li.querySelector('input.ev-time');
     const est = li.querySelector('input.ev-est');
-    const m = /^(\d{1,2}):(\d{2})$/.exec(tf.value.trim());
-    if (tf.value.trim() && (!m || Number(m[1]) > 23 || Number(m[2]) > 59)) { tf.setAttribute('aria-invalid', 'true'); app.announce(t('ncs.badTime')); return; }
+    const base = ev0.time && ev0.time.iso ? ev0.time.iso : ev0.created;
+    const typed = tf.value.trim();
+    const iso = typed ? (/^\d{1,2}:\d{2}$/.test(typed) ? parseHm(typed, base) : null) : null;
+    if (typed && !iso) { tf.setAttribute('aria-invalid', 'true'); app.announce(t('ncs.badTime', { zone: zone(base) })); return; }
     tf.removeAttribute('aria-invalid');
-    const date = (ev0.time && ev0.time.iso ? ev0.time.iso : ev0.created).slice(0, 10);
-    const iso = m ? `${date}T${m[1].padStart(2, '0')}:${m[2]}:00.000Z` : null;
     await app.act(store => setEventTime(store, app.ctx(), ev0.id, timeOf(iso, est.checked ? 'estimated' : 'exact')));
   });
   $('#removed-list').addEventListener('click', async ev => {
@@ -127,6 +154,14 @@ export function initControl(app) {
     if (!r && !f.value) f.value = text;
   });
 
+  $('#order-list').addEventListener('change', async ev => {
+    const sel = ev.target.closest('select.status-sel');
+    if (!sel) return;
+    const id = sel.closest('li').dataset.key;
+    const p = app.participant(id);
+    const r = await app.act(store => setStatus(store, app.ctx(), id, sel.value));
+    if (r && p) app.announce(t('control.statusChanged', { call: callText(p), status: statusLabel(sel.value) }));
+  });
   $('#order-list').addEventListener('click', async ev => {
     const b = ev.target.closest('button[data-act]');
     if (!b) return;
@@ -157,7 +192,7 @@ export function renderControl(app) {
     key: p => p.id,
     create: () => el('li', { class: 'order-row' },
       el('button', { type: 'button', class: 'link open', 'data-act': 'open' }),
-      el('span', { class: 'pill status' }),
+      el('label', { class: 'inline-field status-field' }, el('span', { class: 'sr-only' }), el('select', { class: 'status-sel' })),
       el('span', { class: 'spacer' }),
       el('button', { type: 'button', class: 'mini', 'data-act': 'ncs' }),
       el('button', { type: 'button', class: 'mini', 'data-act': 'up' }, '↑'),
@@ -165,14 +200,25 @@ export function renderControl(app) {
     update: (li, p) => {
       const [open, status, , ncsB, up, down] = li.children;
       const isNcs = app.s.ncsId === p.id;
+      li.classList.toggle('own', isOwn(app, p));
       setText(ncsB, isNcs ? '★ NCS' : '☆ NCS');
       setAttr(ncsB, 'aria-pressed', String(isNcs));
       setAttr(ncsB, 'aria-label', t('ncs.assignLabel', { call: callText(p) }));
       ncsB.disabled = app.readOnly;
       const i = list.indexOf(p);
-      setText(open, `${i + 1}. ${callText(p)}${p.name ? ` · ${p.name}` : ''}`);
+      setText(open, `${i + 1}. ${callText(p)}${p.name ? ` · ${p.name}` : ''}${isOwn(app, p) ? ` (${t('own.badge')})` : ''}`);
       setAttr(open, 'aria-label', t('control.openLabel', { call: callText(p) }));
-      setText(status, statusLabel(p.status));
+      // the station's state, switched here like in its head: checking out
+      // closes its presence, coming back opens a new interval
+      const [lab, sel] = status.children;
+      setText(lab, t('control.statusLabel', { call: callText(p) }));
+      if (sel.options.length !== STATUSES.length || sel.dataset.lang !== app.lang()) {
+        fill(sel, STATUSES.map(st => el('option', { value: st }, statusLabel(st))));
+        sel.dataset.lang = app.lang();
+      }
+      if (document.activeElement !== sel) sel.value = p.status;
+      sel.disabled = app.readOnly;
+      li.classList.toggle('out', p.status === 'out');
       setAttr(up, 'aria-label', t('roster.upLabel', { call: callText(p) }));
       setAttr(down, 'aria-label', t('roster.downLabel', { call: callText(p) }));
       up.disabled = i === 0 || app.readOnly;
@@ -180,6 +226,16 @@ export function renderControl(app) {
     },
   });
   if (!list.length) fill($('#order-list'), el('li', { class: 'empty', 'data-key': '' }, t('control.empty')));
+
+  setValue($('#se-own'), app.s.own.call || '');
+  setValue($('#se-name'), app.s.name || '');
+  setValue($('#se-repeater'), (app.s.radio && app.s.radio.repeater) || '');
+  for (const f of $('#session-edit').elements) f.disabled = app.readOnly;
+  const ownIn = app.s.own.base && app.sd.participants.some(p => !p.deleted && p.base === app.s.own.base);
+  const ob = $('#btn-checkin-own');
+  ob.hidden = !app.s.own.call || ownIn;
+  setText(ob, t('control.checkinOwn', { call: app.s.own.call || '' }));
+  ob.disabled = app.readOnly;
 
   // net control: current, the series' suggestion, the handovers
   const ncs = app.participant(app.s.ncsId);
@@ -205,8 +261,8 @@ export function renderControl(app) {
       el('span', { class: 'ev-what' })),
     update: (li, e) => {
       const [tl, el2, what] = li.children;
-      setText(tl.firstChild, t('ncs.time'));
-      setValue(tl.lastChild, e.time && e.time.iso ? e.time.iso.slice(11, 16) : '');
+      setText(tl.firstChild, t('ncs.time', { zone: zone(e.time && e.time.iso) }));
+      setValue(tl.lastChild, e.time && e.time.iso ? hm(e.time.iso) : '');
       tl.lastChild.disabled = app.readOnly;
       el2.firstChild.checked = !!(e.time && e.time.quality === 'estimated');
       el2.firstChild.disabled = app.readOnly;

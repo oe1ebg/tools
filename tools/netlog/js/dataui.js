@@ -8,7 +8,7 @@ import { $, el, fill } from '../../shared/js/dom.js';
 import { t } from './i18n.js';
 import { keyedList, setText, setValue } from './keyed.js';
 import { toBackup, backupText, checkBackup, BACKUP_MAX_BYTES } from './backup.js';
-import { readAll, importBackup, eraseSession, eraseProfile, eraseAll } from './ops.js';
+import { readAll, importBackup, eraseSession, eraseProfile, eraseAll, markBackup } from './ops.js';
 import { liveOf, cmp, sessionLabel } from './model.js';
 import { getWavelog, setWavelog } from './links.js';
 
@@ -29,6 +29,12 @@ function download(text, name) {
 
 const stamp = () => new Date().toISOString().slice(0, 10);
 
+// File names like Confirm's: <date>_<name>_<backup>.json
+function slug(text) {
+  return String(text || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/ß/g, 'ss')
+    .replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
+}
+
 // Export everything, or one session. Refused (nothing downloaded) beyond
 // the restore limits.
 export async function exportBackup(app, sessionId = null) {
@@ -47,9 +53,18 @@ export async function exportBackup(app, sessionId = null) {
     return false;
   }
   const s = sessionId ? all.sessions.find(x => x.id === sessionId) : null;
-  const name = s ? `netlog-${(s.date || stamp())}-${(sessionLabel(s, null) || 'session').replace(/[^A-Za-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'session'}.json` : `netlog-backup-${stamp()}.json`;
+  const series = s && s.seriesId ? all.series.find(x => x.id === s.seriesId) : null;
+  const word = t('data.fileWord');
+  const name = s ? `${s.date || stamp()}_${slug(sessionLabel(s, series)) || 'netlog'}_${word}.json` : `${stamp()}_netlog_${word}.json`;
   download(r.text, name);
   say(t('data.exported', { name }), 'ok');
+  // when it was started (not that it arrived): the header chip
+  try {
+    await markBackup(app.store, sessionId ? [sessionId] : all.sessions.filter(x => !x.deleted).map(x => x.id));
+    await app.reload();
+  } catch (e) {
+    console.warn(e);
+  }
   return true;
 }
 

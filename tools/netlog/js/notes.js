@@ -19,6 +19,7 @@ import { keyedList, setText, setAttr, setValue } from './keyed.js';
 import { roundsSorted, notesOf, responseOf, roundCounts, live, rosterSorted } from './model.js';
 import { createNote, updateNote, deleteNote, toggleResponse, toggleTask, setItemText, setItemDone, addContribution, moveNotes } from './ops.js';
 import { callText } from './roster.js';
+import { hm, zone } from './clock.js';
 
 export const EXPANDED_PREF = 'oe1ebg-netlog-expanded';
 
@@ -44,13 +45,24 @@ export const composerKey = pid => `new:${pid}`;
 export const noteKey = id => `note:${id}`;
 export const replyKey = id => `item:${id}`;
 
-// Grow a text field with its content (CSSOM, allowed by the policy).
+// Grow a text field with its content (CSSOM, allowed by the policy). A
+// field not on the page (or hidden) has no height to measure yet: it is
+// measured once it is shown, never collapsed to nothing.
 export function autosize(ta) {
+  if (!ta.isConnected || !ta.offsetParent) {
+    ta.style.height = '';
+    if (!ta.dataset.sizePending) {
+      ta.dataset.sizePending = '1';
+      requestAnimationFrame(() => { delete ta.dataset.sizePending; if (ta.isConnected && ta.offsetParent) autosize(ta); });
+    }
+    return;
+  }
   ta.style.height = 'auto';
-  ta.style.height = `${ta.scrollHeight + 2}px`;
+  ta.style.height = `${Math.max(ta.scrollHeight + 2, 0)}px`;
 }
 
-const fmtTime = time => (time && time.iso ? `${time.iso.slice(11, 16)}${time.quality === 'estimated' ? '~' : ''}` : '—');
+// "19:42 UTC", "~19:42 UTC" (estimated), "—" (unknown)
+const fmtTime = time => (time && time.iso ? `${time.quality === 'estimated' ? '~' : ''}${hm(time.iso)} ${zone(time.iso)}` : '—');
 
 export function initNotes(app) {
   // the composer's own id per station: a retried save never doubles a note
@@ -205,8 +217,11 @@ export async function recordSpoke(app) {
 export function noteRow() {
   return el('li', { class: 'note', tabindex: '-1' },
     el('div', { class: 'note-main' },
+      // the time (and in the log the station) in front of the note, the
+      // badges after it: no extra line for them
+      el('div', { class: 'note-lead' }, el('span', { class: 'time mono' }), el('button', { type: 'button', class: 'link station', 'data-act': 'station', hidden: true })),
       el('textarea', { class: 'note-text', rows: 1, spellcheck: 'true' }),
-      el('div', { class: 'note-meta' }, el('span', { class: 'time mono' }), el('button', { type: 'button', class: 'link station', 'data-act': 'station', hidden: true }), el('span', { class: 'badges' }), el('span', { class: 'draft-mark hint' }))),
+      el('div', { class: 'note-meta' }, el('span', { class: 'badges' }), el('span', { class: 'draft-mark hint' }))),
     el('div', { class: 'note-tools' },
       el('input', { type: 'checkbox', class: 'note-select', hidden: true }),
       el('button', { type: 'button', class: 'mini flag', 'data-act': 'flag' }),
@@ -220,8 +235,9 @@ export function noteRow() {
 // selection checkbox (bulk move), with opts.selected.
 export function updateNoteRow(app, li, n, p, round, opts = {}) {
   const [main, tools, reply] = li.children;
-  const [ta, meta] = main.children;
-  const [time, stationB, badges, draftMark] = meta.children;
+  const [lead, ta, meta] = main.children;
+  const [time, stationB] = lead.children;
+  const [badges, draftMark] = meta.children;
   stationB.hidden = !opts.station;
   if (opts.station) {
     stationB.dataset.pid = p.id;
@@ -237,7 +253,7 @@ export function updateNoteRow(app, li, n, p, round, opts = {}) {
   ta.readOnly = app.readOnly;
   const label = t('note.label', { call: callText(p), round: round.number });
   setAttr(ta, 'aria-label', label);
-  setText(time, `${fmtTime(n.time)} UTC`);
+  setText(time, fmtTime(n.time));
   setText(draftMark, draft ? t('note.draft') : '');
   const resp = responseOf(app.sd.items, n.id);
   const task = responseOf(app.sd.items, n.id, 'task');
@@ -249,6 +265,7 @@ export function updateNoteRow(app, li, n, p, round, opts = {}) {
   if (taskOn) marks.push({ text: t(task.state === 'done' ? 'note.taskDone' : 'note.taskOpen'), cls: task.state === 'done' ? 'ok' : '' });
   const sig = marks.map(m => m.text).join('|');
   if (badges.dataset.sig !== sig) { badges.dataset.sig = sig; fill(badges, marks.map(m => el('span', { class: `pill ${m.cls}` }, m.text))); }
+  meta.hidden = !marks.length && !draft;
   li.classList.toggle('flagged', flagged && !respDone);
   setAttr(li, 'aria-label', `${label}: ${n.text}${flagged ? `, ${marks[0].text}` : ''}`);
   setAttr(li, 'data-nav', 'note');
