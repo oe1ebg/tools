@@ -12,7 +12,7 @@ import {
   signallingText, REPEATER_KEYS, parseMHz, liveSorted, stats, isComment, COMMENT_CATEGORIES, newComment,
   headerChangeMarkers, headerFromRepeater,
 } from './model.js';
-import { newId, nowIso, laterIso, splitUtc, splitTime, zoneLabel, parseTimeInput, isoUtc } from '../../shared/js/time.js';
+import { newId, nowIso, laterIso, splitUtc, splitTime, zoneLabel, parseTimeInput, isoUtc, localZoneText } from '../../shared/js/time.js';
 import { LOC_ORIGINS, locOrigin, locHints } from '../../shared/js/locmeta.js';
 import { TEMPLATES, templateFor, fieldVisible, fieldDisplay, fieldOptions, currentOptions, shortSummary, exampleValues } from './templates.js';
 import { toCSV, toADIF, adifIssues, ADIF_MIME, toKML, KML_MIME, toSummary } from './export.js';
@@ -107,7 +107,10 @@ function applyTimeMode() {
     b.classList.toggle('active', b.dataset.timeMode === mode);
     b.setAttribute('aria-pressed', String(b.dataset.timeMode === mode));
   });
-  $('#time-label').textContent = mode === 'local' ? `Zeit lokal (${zoneLabel(nowIso(), 'local')})` : 'Zeit UTC';
+  // the local choice names the device's zone and its offset now
+  const local = document.querySelector('#time-toggle button[data-time-mode="local"]');
+  if (local) local.textContent = localZoneText('Lokal', nowIso());
+  $('#time-label').textContent = mode === 'local' ? `Zeit ${localZoneText('lokal', nowIso())}` : 'Zeit UTC';
   $('#f-time').title = `Leer lassen = Zeitpunkt des Speicherns. Korrektur: HH:MM oder JJJJ-MM-TT HH:MM (${mode === 'local' ? 'Lokalzeit' : 'UTC'}). Gespeichert wird immer ein ISO-Zeitstempel.`;
   $('#time-help').textContent = $('#f-time').title;
   tickClock();
