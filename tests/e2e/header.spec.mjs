@@ -10,6 +10,7 @@ import { test, expect, offlineSettled } from './fixtures.mjs';
 const TOOLS = {
   confirm: 'tools/confirm/',
   notfunk: 'tools/notfunk/',
+  netlog: 'tools/netlog/',
 };
 
 for (const [tool, path] of Object.entries(TOOLS)) {

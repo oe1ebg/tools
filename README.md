@@ -9,6 +9,7 @@ including servers without internet access. Source code, issues and releases:
 | --- | --- | --- |
 | Bestätigungsverkehr: offline logbook for check-in nets (PWA) | `tools/confirm/` | no (after the first load) |
 | Notfunk-Meldebuch: offline emergency message log (PWA, draft) | `tools/notfunk/` | no (after the first load) |
+| Netlog: notes for radio nets, keyboard-first, German/English (PWA) | `tools/netlog/` | no (after the first load) |
 | ADIF editor: view, validate, edit and convert `.adi` / `.adx` logs | `tools/adif/` | no |
 | SOTA Alerts Map | `tools/sota-alerts/` | **yes** (SOTA API, map tiles) |
 
@@ -53,7 +54,7 @@ again after they are installed (see *Why it matters* below).
 
 - **Links are all relative.** The bundle works under any URL prefix, and
   `shared/` must stay next to the tool directories. The PWAs (confirm,
-  notfunk) need a secure context, which means HTTPS or `localhost`.
+  notfunk, netlog) need a secure context, which means HTTPS or `localhost`.
 - **Serve pages, scripts, styles and data with revalidation.** `*.html`,
   `*.js`, `*.mjs`, `*.css`, `*.json` and `*.webmanifest` need
   `Cache-Control: no-cache`, and `.webmanifest` must be served as
@@ -63,7 +64,7 @@ again after they are installed (see *Why it matters* below).
   versioned cache. See `deploy/nginx.conf.example` and
   `deploy/htaccess.example`.
 - **Security headers.** The examples send a Content-Security-Policy per
-  location (bundle files only; the two inline load-failure scripts by
+  location (bundle files only; the three inline load-failure scripts by
   sha256; the SOTA Alerts Map's API and tile hosts; `'unsafe-inline'` only
   for the three single-file versions), `frame-ancestors 'none'` and
   `X-Frame-Options: DENY` (framing can only be refused by a header),
@@ -79,7 +80,8 @@ again after they are installed (see *Why it matters* below).
   server, deploy a newer tarball.
 - **Single-file versions for `file://` use** (USB stick, no webserver) are
   in the bundle: `confirm/confirm-offline.html`,
-  `notfunk/notfunk-offline.html` and `adif/adif-editor.html`.
+  `notfunk/notfunk-offline.html` and `adif/adif-editor.html`. Netlog has
+  none yet (a follow-up): it works offline once installed from a server.
 
 ### Updating a deployment (atomically)
 
@@ -171,7 +173,9 @@ These names are kept across releases and deployments so that saved
 logbooks and settings survive updates. Do not rename them:
 
 - the `oe1ebg-*` IndexedDB databases, localStorage keys and
-  BroadcastChannel names;
+  BroadcastChannel names (Netlog: database `oe1ebg-netlog`, prefs
+  `oe1ebg-netlog-*`, channel `oe1ebg-netlog`, Web Locks
+  `oe1ebg-netlog-session-<id>`; `tools/netlog/README.md`);
 - the `OE1EBG_DATA` and `OE1EBG_SW` globals;
 - the `APP_OE1EBG_*` ADIF fields in exports.
 
@@ -395,7 +399,7 @@ channel names), so every preview, `main` and the releases read and write the
 read it. Use a separate browser profile and test data only, never real logs.
 The service workers of different entries have their own scopes
 (`<base>/pr/12/confirm/`), but the Cache Storage is per origin, and a worker
-deletes every cache named `tools-confirm-*` (`tools-notfunk-*`) other than its
+deletes every cache named `tools-confirm-*` (`tools-notfunk-*`, `tools-netlog-*`) other than its
 own when it activates. Two entries with different builds therefore evict each
 other's offline copy: only the entry whose worker activated last stays
 offline-ready, the others fall back to the network. Try one entry at a time

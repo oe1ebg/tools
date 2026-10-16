@@ -54,6 +54,7 @@ MANUALS = {
 TOOLS = {
     "confirm": ("Bestätigungsverkehr", "Offline-Logbuch für Bestätigungs- und Check-in-Runden."),
     "notfunk": ("Notfunk-Meldebuch", "Offline-Meldebuch für den Notfunk (Entwurf)."),
+    "netlog": ("Netlog", "Notizen für Funkrunden: Stationen, Live-Notizen, „Ich bin dran“, Runden und Rundenleitung (Deutsch/English)."),
     "adif": ("ADIF-Editor", "ADIF-Logs (.adi) ansehen, prüfen und bearbeiten."),
     "sota-alerts": ("SOTA Alerts Map", "SOTA-Alerts auf der Karte (braucht Internet)."),
 }

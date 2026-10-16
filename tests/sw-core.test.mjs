@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
-import { offlineStatus, saveSucceeded, runSaveHook } from '../tools/shared/js/offline.js';
+import { offlineStatus, saveSucceeded, runSaveHook, setOfflineText, OFFLINE_TEXT_DE } from '../tools/shared/js/offline.js';
 
 const SRC = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'tools', 'shared', 'js', 'sw-core.js'), 'utf8');
 
@@ -144,6 +144,19 @@ test('status chip texts distinguish ready / not ready / dev / failed', () => {
   // a worker from before replies had a mode
   assert.equal(offlineStatus({ version: 'a' }).text, 'offline bereit ✓');
   assert.equal(offlineStatus({ version: null }).cls, 'warn');
+});
+
+test('a tool in another language passes its own texts; the rest stay German (Netlog)', () => {
+  setOfflineText({ ready: 'offline ready ✓', dev: 'development mode (not offline)' });
+  try {
+    assert.equal(offlineStatus({ version: 'a', mode: 'production', ready: true }).text, 'offline ready ✓');
+    assert.equal(offlineStatus({ version: null, mode: 'dev' }).text, 'development mode (not offline)');
+    assert.equal(offlineStatus({ version: 'a', mode: 'production', ready: false }).text, 'offline nicht bereit');
+  } finally {
+    setOfflineText(null);
+  }
+  assert.equal(offlineStatus({ version: 'a', mode: 'production', ready: true }).text, OFFLINE_TEXT_DE.ready);
+  assert.equal(OFFLINE_TEXT_DE.notDone('Update'), 'Update nicht ausgeführt: ');
 });
 
 test('save hook contract: only true is success', async () => {

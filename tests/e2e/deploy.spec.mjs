@@ -12,6 +12,10 @@ const NO_CACHE = [
   'tools/confirm/precache.js',
   'tools/confirm/manifest.webmanifest',
   'tools/notfunk/',
+  'tools/netlog/',
+  'tools/netlog/sw.js',
+  'tools/netlog/precache.js',
+  'tools/netlog/manifest.webmanifest',
   'tools/shared/js/sw-core.js',
   'tools/shared/css/tools.css',
   'tools/adif/',
@@ -84,11 +88,12 @@ test('adif-editor.html can be embedded by a page of the same origin', { tag: '@a
   await expect(frame.locator('#drop tbody tr[data-ri]')).toHaveCount(1);
 });
 
-// The inline load-failure script of confirm/ and notfunk/ runs (its hash is
+// The inline load-failure script of confirm/, notfunk/ and netlog/ runs (its hash is
 // in the policy), and the pages start without a violation.
 for (const [tool, fn, started] of [
   ['confirm', 'confirmLoadFailed', 'CONFIRM_STARTED'],
   ['notfunk', 'notfunkLoadFailed', 'NOTFUNK_STARTED'],
+  ['netlog', 'netlogLoadFailed', 'NETLOG_STARTED'],
 ]) {
   test(`${tool}: inline boot script allowed by the policy`, async ({ page }) => {
     await page.goto(`tools/${tool}/`);

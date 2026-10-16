@@ -261,6 +261,16 @@ test('compare-and-set: getUnchanged() in atomic(), ConflictError, nothing writte
   assert.equal(assertUnchanged('s', 'k', { id: 1 }, null).id, 1, 'a record without `updated` matches null');
 });
 
+test('fallback: false (Netlog): no localStorage; null, and the reason reported', async () => {
+  let reason = null;
+  const store = await openToolStorage(SCHEMA, { locks: lockManager(), fallback: false, onUnavailable: e => { reason = e; } });
+  assert.equal(store, null);
+  assert.ok(reason instanceof Error);
+  assert.deepEqual(ls.dump(), {}, 'nothing written to localStorage');
+  // without the option the fallback is used as before
+  assert.equal((await open()).kind, 'localstorage');
+});
+
 test('the fallback has no fallback data to move', async () => {
   const s = await open();
   assert.equal(s.kind, 'localstorage');

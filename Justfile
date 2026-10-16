@@ -111,6 +111,11 @@ build-confirm: fetch-callsigns fetch-repeaters build-location build-areas build-
 build-notfunk: fetch-callsigns fetch-repeaters build-location build-areas
     GIT_SHA={{git_sha}} uv run python scripts/build_notfunk.py
 
+# Netlog's service-worker files (no single-file bundle, no data).
+[doc("Build Netlog's service-worker precache list + build-info.js")]
+build-netlog:
+    GIT_SHA={{git_sha}} uv run python scripts/build_netlog.py
+
 # The ADIF editor's single-file version (tools/adif/adif-editor.html) and
 # build-info.js (commit, CI run, cross-check tool versions).
 [doc("Build the ADIF editor's single-file adif-editor.html + build-info.js")]
@@ -126,7 +131,7 @@ stage:
 
 # Everything: data, generated files, site/tools/.
 [doc("Build the whole bundle (data + offline files + site/tools/)")]
-build: fetch-summits build-confirm build-notfunk build-adif stage
+build: fetch-summits build-confirm build-notfunk build-adif build-netlog stage
 
 # Release tarball of site/tools/ (top directory oe1ebg-tools-<version>/) and
 # its SHA-256, in dist/. Untar it anywhere on a static webserver.
@@ -293,7 +298,7 @@ vnu:
 # Remove generated files (keeps .cache/, so the data steps stay cheap).
 [doc("Remove generated files and the bundle (keeps .cache/)")]
 clean:
-    rm -rf site dist tools/sota-alerts/data tools/shared/data tools/confirm/precache.js tools/confirm/confirm-offline.html tools/confirm/build-info.js tools/notfunk/precache.js tools/notfunk/notfunk-offline.html tools/notfunk/build-info.js tools/adif/adif-editor.html tools/adif/build-info.js tests/e2e/report tests/e2e/test-results tests/e2e/test-results.json
+    rm -rf site dist tools/sota-alerts/data tools/shared/data tools/confirm/precache.js tools/confirm/confirm-offline.html tools/confirm/build-info.js tools/notfunk/precache.js tools/notfunk/notfunk-offline.html tools/notfunk/build-info.js tools/netlog/precache.js tools/netlog/build-info.js tools/adif/adif-editor.html tools/adif/build-info.js tests/e2e/report tests/e2e/test-results tests/e2e/test-results.json
 
 # Without a build the tools have no precache.js, and their service worker
 # (rightly) fails to install. For serving tools/ directly during development
@@ -303,3 +308,4 @@ clean:
 dev-precache:
     printf 'self.CONFIRM_PRECACHE = { dev: true };\n' > tools/confirm/precache.js
     printf 'self.NOTFUNK_PRECACHE = { dev: true };\n' > tools/notfunk/precache.js
+    printf 'self.NETLOG_PRECACHE = { dev: true };\n' > tools/netlog/precache.js

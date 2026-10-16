@@ -1,5 +1,5 @@
-// Service worker installation and updates (issue #13), for both offline
-// tools. Chromium only, like the other service worker tests. The tools'
+// Service worker installation and updates (issue #13), for the offline
+// tools (confirm, notfunk, netlog). Chromium only, like the other service worker tests. The tools'
 // precache.js is replaced through context.route(), which also intercepts
 // the worker's own importScripts().
 //   - a broken or missing manifest fails the install (first install: not
@@ -37,6 +37,22 @@ const TOOLS = {
       await page.getByRole('button', { name: 'Einsatz anlegen' }).click();
       await expect(page.locator('#view-book')).toBeVisible();
       await page.locator('#m-text').fill('Halb getippte Meldung');
+    },
+  },
+  netlog: {
+    path: 'tools/netlog/',
+    ready: () => globalThis.NETLOG_READY === true,
+    input: '#det-qth',
+    // a station detail being typed (committed when the field is left)
+    async typeInput(page) {
+      await page.locator('#btn-new-session').click();
+      await page.locator('#session-form button[type=submit]').click();
+      await expect(page.locator('#view-live')).toBeVisible();
+      await page.locator('#checkin-call').fill('OE0QXA');
+      await page.locator('#checkin-name').press('Enter');
+      await expect(page.locator('#station-call')).toHaveText('OE0QXA');
+      await page.locator('#btn-details').click();
+      await page.locator('#det-qth').fill('Halb getippter QTH');
     },
   },
 };
