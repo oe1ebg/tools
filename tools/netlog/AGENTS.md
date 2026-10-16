@@ -14,7 +14,7 @@ repository root.
 - Every write goes through an op in `tools/netlog/js/ops.js` (`runOp()`):
   one `store.atomic()` transaction that reads what it changes, writes
   revisions of the replaced versions and the undo step. Never write stores
-  from the UI directly. Session writes check `session.lease`; keep that
+  from the UI directly. Session writes check the lease (`meta`, `lease:<id>`); keep that
   check inside the transaction.
 - `updated` comes from `laterIso()` (writer `put()`); undo relies on it as
   the compare token. Undo/redo refuse when a record changed since and then

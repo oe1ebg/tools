@@ -3,10 +3,12 @@
 // and the undo step, all or nothing. "Saved" in the UI means this promise
 // resolved (the transaction committed). No DOM.
 //
-// A writing tab holds its session's lease (session.lease = the tab's id,
-// claimSession()): every write of that session first checks it, so a tab
-// that lost the session to another one (Web Locks steal, or a tab without
-// Web Locks) gets a LeaseError and goes read-only instead of overwriting.
+// A writing tab holds its session's lease (a `meta` record
+// `lease:<session id>` with the tab's id, claimSession()): every write of
+// that session first checks it, so a tab that lost the session to another
+// one (Web Locks steal, or a tab without Web Locks) gets a LeaseError and
+// goes read-only instead of overwriting. The lease is a record of its own,
+// so claiming it never changes the session (and never breaks an undo).
 
 import { newId, nowIso, laterIso } from '../../shared/js/time.js';
 import { NETLOG_STORES } from './db.js';
@@ -96,10 +98,7 @@ function writer(api, sessionId, now) {
 export async function runOp(store, { sessionId = null, tab = null, label = null } = {}, fn) {
   return store.atomic(ALL_STORES, async api => {
     const now = nowIso();
-    if (sessionId && tab) {
-      const s = await api.get('sessions', sessionId);
-      if (s && s.lease && s.lease !== tab) throw new LeaseError(sessionId);
-    }
+    if (sessionId && tab) await checkLease(api, sessionId, tab);
     const w = writer(api, sessionId, now);
     const result = await fn(w);
     if (label && w.changes().length) await pushUndo(api, sessionId, label, w, now);
@@ -134,10 +133,7 @@ export async function undoStep(store, sessionId, redo = false) {
 export async function undo(store, { sessionId, tab = null, redo = false }) {
   return store.atomic(ALL_STORES, async api => {
     const now = nowIso();
-    if (sessionId && tab) {
-      const s = await api.get('sessions', sessionId);
-      if (s && s.lease && s.lease !== tab) throw new LeaseError(sessionId);
-    }
+    if (sessionId && tab) await checkLease(api, sessionId, tab);
     const steps = (await api.getByEvent('undo', sessionId || '')).filter(s => !!s.undone === redo).sort((a, b) => a.seq - b.seq);
     if (!steps.length) return null;
     const step = redo ? steps[0] : steps[steps.length - 1];
@@ -187,12 +183,21 @@ export async function undo(store, { sessionId, tab = null, redo = false }) {
 
 // ---------- lease (one writing tab per session) ----------
 
+export const leaseKey = sessionId => `lease:${sessionId}`;
+
+async function checkLease(api, sessionId, tab) {
+  const l = await api.get('meta', leaseKey(sessionId));
+  if (l && l.tab !== tab) throw new LeaseError(sessionId);
+}
+
 // Make this tab the session's writer (opening it, or "Edit here").
 export function claimSession(store, sessionId, tab) {
-  return runOp(store, {}, async w => {
-    const s = await w.get('sessions', sessionId);
-    if (!s || s.lease === tab) return s;
-    return w.put('sessions', { ...s, lease: tab }, s, { revise: false });
+  return store.atomic(['meta'], async api => {
+    const l = await api.get('meta', leaseKey(sessionId));
+    if (l && l.tab === tab) return l;
+    const rec = { id: leaseKey(sessionId), tab, at: nowIso() };
+    api.put('meta', rec);
+    return rec;
   });
 }
 
@@ -246,9 +251,9 @@ export function createSession(store, ctx, fields) {
       joinedLate: !!fields.joined,
       currentRoundId: round.id,
       ncsId: null,
-      lease: ctx.tab || null,
       deleted: null,
     }, null);
+    if (ctx.tab) w.raw.put('meta', { id: leaseKey(id), tab: ctx.tab, at: w.now });
     return session;
   });
 }
@@ -619,6 +624,106 @@ export function endTurn(store, ctx) {
     const cur = openTurn(await w.all('turns'));
     if (!cur) return null;
     return w.put('turns', { ...cur, ended: w.now }, cur);
+  });
+}
+
+// ---------- net control ----------
+
+// Make a participant the net control (null: none). At most one current
+// NCS; the event keeps the old and new participant ids. The first
+// assignment has no predecessor; nothing earlier is invented.
+export function setNcs(store, ctx, participantId, { time = null } = {}) {
+  return runOp(store, { ...ctx, label: 'undo.ncs' }, async w => {
+    const session = await w.get('sessions', ctx.sessionId);
+    if ((session.ncsId || null) === (participantId || null)) return session;
+    w.create('events', { type: 'ncs', from: session.ncsId || null, to: participantId || null, roundId: session.currentRoundId, time: time || timeOf(w.now), deleted: null });
+    return w.put('sessions', { ...session, ncsId: participantId || null }, session);
+  });
+}
+
+// Correct the time of an event (a handover heard late, an estimate).
+export function setEventTime(store, ctx, id, time) {
+  return runOp(store, { ...ctx, label: 'undo.eventTime' }, w => w.update('events', id, e => ({ ...e, time })));
+}
+
+// ---------- identity: merge, profiles ----------
+
+// What merging `fromId` into `intoId` would change (a preview; nothing is
+// written): the records that would point to the other participant.
+export async function mergePreview(store, sessionId, fromId) {
+  const [notes, contributions, events] = await Promise.all(['notes', 'contributions', 'events'].map(s => store.getByEvent(s, sessionId)));
+  const mine = r => live(r) && r.participantId === fromId;
+  return {
+    notes: notes.filter(mine).length,
+    contributions: contributions.filter(mine).length,
+    events: events.filter(e => live(e) && (e.participantId === fromId || e.from === fromId || e.to === fromId)).length,
+  };
+}
+
+// Merge a participant into another of the same session (an unresolved
+// "OE0QX?" that turned out to be OE0QXB): its notes, contributions, events
+// and presence intervals move over with their ids, times and order; it is
+// soft-deleted with `mergedInto`. One undo step restores both.
+export function mergeParticipants(store, ctx, fromId, intoId) {
+  return runOp(store, { ...ctx, label: 'undo.merge' }, async w => {
+    if (fromId === intoId) throw new Error('merge into itself');
+    const [from, into, session] = await Promise.all([w.get('participants', fromId), w.get('participants', intoId), w.get('sessions', ctx.sessionId)]);
+    for (const n of await w.all('notes')) if (n.participantId === fromId) w.put('notes', { ...n, participantId: intoId }, n);
+    for (const c of await w.all('contributions')) if (c.participantId === fromId) w.put('contributions', { ...c, participantId: intoId }, c);
+    for (const e of await w.all('events')) {
+      if (e.participantId !== fromId && e.from !== fromId && e.to !== fromId) continue;
+      const m = { ...e };
+      if (m.participantId === fromId) m.participantId = intoId;
+      if (m.type === 'ncs') { if (m.from === fromId) m.from = intoId; if (m.to === fromId) m.to = intoId; }
+      w.put('events', m, e);
+    }
+    const presence = [...(into.presence || []), ...(from.presence || [])]
+      .sort((a, b) => String(a.from && a.from.iso || '').localeCompare(String(b.from && b.from.iso || '')));
+    const merged = { ...into, presence };
+    for (const k of ['name', 'qth', 'locator', 'rst', 'member']) if (!merged[k] && from[k]) merged[k] = from[k];
+    w.put('participants', merged, into);
+    w.put('participants', { ...from, deleted: w.now, mergedInto: intoId }, from);
+    if (session.ncsId === fromId) w.put('sessions', { ...session, ncsId: intoId }, session);
+    return merged;
+  });
+}
+
+// Save a participant's identity and details as a reusable station profile
+// (new, or updating the linked one). Explicit only; sessions keep their
+// own snapshot, so editing a profile never changes history.
+export function saveProfile(store, ctx, participantId) {
+  return runOp(store, { ...ctx, label: 'undo.profile' }, async w => {
+    const p = await w.get('participants', participantId);
+    const fields = { call: p.call, base: p.base, name: p.name, qth: p.qth, locator: p.locator, echolink: p.echolink, member: p.member };
+    const prof = p.profileId ? await w.get('profiles', p.profileId) : null;
+    let saved;
+    if (prof && live(prof)) saved = w.put('profiles', { ...prof, ...fields }, prof);
+    else saved = w.create('profiles', { ...fields, deleted: null });
+    if (p.profileId !== saved.id) w.put('participants', { ...p, profileId: saved.id }, p);
+    return saved;
+  });
+}
+
+// ---------- correction: moving notes ----------
+
+// Move notes to another participant and/or round. Ids, times, the
+// recorded order and the response/task items stay (their station and
+// round follow the note). A note keeps its contribution only if that
+// still matches the new participant and round.
+export function moveNotes(store, ctx, ids, { participantId = null, roundId = null }) {
+  return runOp(store, { ...ctx, label: ids.length > 1 ? 'undo.moveNotes' : 'undo.moveNote' }, async w => {
+    const contributions = await w.all('contributions');
+    const out = [];
+    for (const id of ids) {
+      const n = await w.get('notes', id);
+      if (!n) continue;
+      const next = { ...n, participantId: participantId || n.participantId, roundId: roundId || n.roundId };
+      if (next.participantId === n.participantId && next.roundId === n.roundId) continue;
+      const c = n.contributionId && contributions.find(x => x.id === n.contributionId);
+      if (!c || c.participantId !== next.participantId || c.roundId !== next.roundId) next.contributionId = null;
+      out.push(w.put('notes', next, n));
+    }
+    return out;
   });
 }
 

@@ -27,8 +27,11 @@ import { createDrafts } from './drafts.js';
 import { initNotes, renderNotes, focusNoteEditor, flagNote, recordSpoke } from './notes.js';
 import { initTurn, renderTurn, enterTurn, turnRows, focusedTurnItem, completeItem, setSummary } from './myturn.js';
 import { createNav } from './nav.js';
+import { initLog, renderLog, logRows } from './clog.js';
+import { initSearch } from './searchui.js';
+import { undo, undoStep } from './ops.js';
 
-const VIEWS = ['live', 'turn', 'control', 'series'];
+const VIEWS = ['live', 'turn', 'log', 'control', 'series'];
 const UI_PREF = 'oe1ebg-netlog-ui';
 
 const app = {
@@ -81,7 +84,8 @@ app.act = async (op, { global = false, quiet = false } = {}) => {
 app.writeFailed = (e, quiet) => handleWriteError(e, quiet);
 
 function handleWriteError(e, quiet) {
-  console.error(e);
+  // an undo refused on purpose is no error of the page
+  if (e instanceof UndoConflictError) console.warn(e); else console.error(e);
   if (e instanceof LeaseError) {
     setReadOnly(true, 'taken');
     showBanner(t('lock.lostWrite'), 'warn');
@@ -89,6 +93,7 @@ function handleWriteError(e, quiet) {
   }
   if (e instanceof UndoConflictError) {
     app.announce(t('undo.conflict'));
+    showBanner(t('undo.conflict'), 'warn');
     return;
   }
   if (e instanceof StorageClosedError) {
@@ -307,6 +312,10 @@ app.rowBadges = (p, long = false) => {
   for (const f of ['speak', 'priority', 'short', 'reception']) {
     if (p.flags && p.flags[f]) out.push({ text: t(`flag.${f}.short`), title: t(`flag.${f}`), cls: f === 'priority' ? 'warn' : '' });
   }
+  if (app.s && app.s.ncsId === p.id) out.unshift({ text: 'NCS', title: t('ncs.current'), cls: 'ncs' });
+  const notes = new Set(app.sd.notes.filter(n => live(n) && n.participantId === p.id).map(n => n.id));
+  const open = app.sd.items.filter(i => live(i) && i.kind === 'response' && i.active !== false && i.state !== 'done' && notes.has(i.noteId)).length;
+  if (open) out.push({ text: `↩ ${open}`, title: t('roster.openResponses', { n: open }) });
   if (isUnresolved(p.call)) out.push({ text: '?', title: t('station.unresolved'), cls: 'warn' });
   if (long && p.status !== 'active') out.push({ text: t(`status.${p.status}`), title: t(`status.${p.status}`) });
   return out;
@@ -354,11 +363,13 @@ function render() {
     renderRoster(app);
     if (view === 'live') { renderStation(app); renderNotes(app); }
     if (view === 'turn') renderTurn(app);
+    if (view === 'log') renderLog(app);
     if (view === 'control') renderControl(app);
     const open = openQueueCount(app.sd.items, app.sd.notes);
     setText($('#tab-turn-count'), open ? ` · ${open}` : '');
   }
   $('#btn-new-round').hidden = !inSession;
+  renderUndo();
   if (view === 'series') renderSessions(app);
   renderKeysLine();
 }
@@ -383,9 +394,37 @@ function renderSaveChip() {
   chip.className = `chip${cls ? ` ${cls}` : ''}`;
 }
 
+// The undo/redo buttons name the step they would undo (async: the
+// history is in the store).
+let undoSeq = 0;
+async function renderUndo() {
+  const seq = ++undoSeq;
+  const sid = app.sessionId();
+  const [u, r] = sid ? await Promise.all([undoStep(app.store, sid), undoStep(app.store, sid, true)]) : [null, null];
+  if (seq !== undoSeq) return;
+  for (const [b, step, key] of [[$('#btn-undo'), u, 'undo.buttonLabel'], [$('#btn-redo'), r, 'undo.redoLabel']]) {
+    b.disabled = !step || app.readOnly;
+    b.hidden = !sid;
+    const label = step ? t(key, { what: t(step.label) }) : t(key === 'undo.buttonLabel' ? 'undo.button' : 'undo.redoButton');
+    setAttr(b, 'aria-label', label);
+    b.title = label;
+  }
+}
+
+// Undo (or redo) the last step of this session: refused, with nothing
+// changed, when a record it touched was changed since.
+app.undo = async (redo = false) => {
+  if (!app.s || app.readOnly) return false;
+  await app.flush();
+  const step = await app.act(store => undo(store, { sessionId: app.s.id, tab: app.tab, redo }));
+  if (step) app.announce(t(redo ? 'undo.redone' : 'undo.undone', { what: t(step.label) }));
+  else if (step === null) app.announce(t(redo ? 'undo.nothingRedo' : 'undo.nothing'));
+  return !!step;
+};
+
 function renderKeysLine() {
   const v = app.ui.view;
-  setText($('#keys-line'), t(v === 'live' ? 'keysLine.live' : v === 'turn' ? 'keysLine.turn' : 'keysLine.other'));
+  setText($('#keys-line'), t(v === 'live' ? 'keysLine.live' : v === 'turn' ? 'keysLine.turn' : v === 'log' ? 'keysLine.log' : 'keysLine.other'));
 }
 
 function renderMode(mode) {
@@ -401,6 +440,7 @@ function renderMode(mode) {
 function navList() {
   const a = document.activeElement;
   if (app.ui.view === 'turn') return turnRows();
+  if (app.ui.view === 'log') return logRows();
   if (app.ui.view === 'live' && a && a.closest && a.closest('#station-rounds')) {
     return [...$('#station-rounds').querySelectorAll('.round-body:not([hidden]) li.note')];
   }
@@ -489,6 +529,14 @@ function initKeyboard(help) {
         return true;
       },
       back: () => { app.back(app.ui.view === 'turn' ? 'live' : null); return true; },
+      search: () => { app.openSearch(); return true; },
+      // Ctrl/⌘+Z undo, Ctrl/⌘+Shift+Z (or Ctrl+Y) redo, outside text fields
+      modified: ev => {
+        const k = ev.key.toLowerCase();
+        if ((ev.ctrlKey || ev.metaKey) && !ev.altKey && k === 'z') { app.undo(ev.shiftKey); return true; }
+        if (ev.ctrlKey && !ev.metaKey && !ev.altKey && !ev.shiftKey && k === 'y') { app.undo(true); return true; }
+        return false;
+      },
       escape: () => false,
       // Esc in a field: leave editing, the input stays (drafts)
       leaveEditing: ev => {
@@ -634,6 +682,10 @@ async function main() {
   initControl(app);
   initNotes(app);
   initTurn(app);
+  initLog(app);
+  initSearch(app);
+  $('#btn-undo').addEventListener('click', () => app.undo(false));
+  $('#btn-redo').addEventListener('click', () => app.undo(true));
   $('#btn-spoke').addEventListener('click', () => recordSpoke(app));
   const help = initHelp(app);
   initKeyboard(help);

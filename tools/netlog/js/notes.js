@@ -16,8 +16,8 @@ import { prefGet, prefSet } from '../../shared/js/prefs.js';
 import { newId } from '../../shared/js/time.js';
 import { t } from './i18n.js';
 import { keyedList, setText, setAttr, setValue } from './keyed.js';
-import { roundsSorted, notesOf, responseOf, roundCounts, live } from './model.js';
-import { createNote, updateNote, deleteNote, toggleResponse, toggleTask, setItemText, setItemDone, addContribution } from './ops.js';
+import { roundsSorted, notesOf, responseOf, roundCounts, live, rosterSorted } from './model.js';
+import { createNote, updateNote, deleteNote, toggleResponse, toggleTask, setItemText, setItemDone, addContribution, moveNotes } from './ops.js';
 import { callText } from './roster.js';
 
 export const EXPANDED_PREF = 'oe1ebg-netlog-expanded';
@@ -53,14 +53,19 @@ export function autosize(ta) {
 const fmtTime = time => (time && time.iso ? `${time.iso.slice(11, 16)}${time.quality === 'estimated' ? '~' : ''}` : '—');
 
 export function initNotes(app) {
-  const box = $('#station-rounds');
   // the composer's own id per station: a retried save never doubles a note
   const composerIds = {};
   app.composerId = pid => (composerIds[pid] ||= newId());
   app.resetComposerId = pid => { delete composerIds[pid]; };
+  initNoteList(app, $('#station-rounds'));
+  initMoveDialog(app);
+}
 
+// The note editing of a list of note rows (Live Notes, Continuous Log):
+// the same handlers on the same note objects.
+export function initNoteList(app, box) {
   box.addEventListener('click', ev => {
-    const toggle = ev.target.closest('button.round-toggle');
+    const toggle = ev.target.closest('button.round-toggle:not(.log-toggle)');
     if (toggle) {
       const rid = toggle.closest('section.round').dataset.key;
       const open = toggle.getAttribute('aria-expanded') !== 'true';
@@ -75,6 +80,8 @@ export function initNotes(app) {
     if (b.dataset.act === 'flag') flagNote(app, id);
     if (b.dataset.act === 'task') app.act(store => toggleTask(store, app.ctx(), id));
     if (b.dataset.act === 'delete') deleteWithUndo(app, id, li);
+    if (b.dataset.act === 'move') openMoveDialog(app, [id]);
+    if (b.dataset.act === 'station') app.openFrom(b.dataset.pid, { noteId: id, field: 'row' });
     if (b.dataset.act === 'flag-new') {
       app.ui.composeFlag = !app.ui.composeFlag;
       renderNotes(app);
@@ -166,8 +173,10 @@ async function saveNoteText(app, ta, moveOn) {
     await app.drafts.discard(key);
   }
   if (moveOn) {
-    const c = $('#station-rounds .composer-text');
+    // Live Notes: on to the composer; elsewhere (the log): the row
+    const c = ta.closest('#station-rounds') && $('#station-rounds .composer-text');
     if (c) c.focus();
+    else if (ta.closest('li.note')) ta.closest('li.note').focus();
   }
 }
 
@@ -193,22 +202,32 @@ export async function recordSpoke(app) {
   if (c) app.announce(t('station.spokeDone', { call: callText(p) }));
 }
 
-function noteRow() {
+export function noteRow() {
   return el('li', { class: 'note', tabindex: '-1' },
     el('div', { class: 'note-main' },
       el('textarea', { class: 'note-text', rows: 1, spellcheck: 'true' }),
-      el('div', { class: 'note-meta' }, el('span', { class: 'time mono' }), el('span', { class: 'badges' }), el('span', { class: 'draft-mark hint' }))),
+      el('div', { class: 'note-meta' }, el('span', { class: 'time mono' }), el('button', { type: 'button', class: 'link station', 'data-act': 'station', hidden: true }), el('span', { class: 'badges' }), el('span', { class: 'draft-mark hint' }))),
     el('div', { class: 'note-tools' },
+      el('input', { type: 'checkbox', class: 'note-select', hidden: true }),
       el('button', { type: 'button', class: 'mini flag', 'data-act': 'flag' }),
       el('button', { type: 'button', class: 'mini task', 'data-act': 'task' }),
+      el('button', { type: 'button', class: 'mini', 'data-act': 'move', 'aria-haspopup': 'dialog' }),
       el('button', { type: 'button', class: 'mini danger', 'data-act': 'delete' }, '×')),
     el('div', { class: 'reply' }));
 }
 
-function updateNoteRow(app, li, n, p, round) {
+// opts.station: show the station link (the log); opts.select: the
+// selection checkbox (bulk move), with opts.selected.
+export function updateNoteRow(app, li, n, p, round, opts = {}) {
   const [main, tools, reply] = li.children;
   const [ta, meta] = main.children;
-  const [time, badges, draftMark] = meta.children;
+  const [time, stationB, badges, draftMark] = meta.children;
+  stationB.hidden = !opts.station;
+  if (opts.station) {
+    stationB.dataset.pid = p.id;
+    setText(stationB, `${callText(p)}${p.name ? ` · ${p.name}` : ''}`);
+    setAttr(stationB, 'aria-label', t('log.openStation', { call: callText(p) }));
+  }
   const key = noteKey(n.id);
   const draft = app.drafts.get(key);
   ta.dataset.draft = key;
@@ -233,7 +252,12 @@ function updateNoteRow(app, li, n, p, round) {
   li.classList.toggle('flagged', flagged && !respDone);
   setAttr(li, 'aria-label', `${label}: ${n.text}${flagged ? `, ${marks[0].text}` : ''}`);
   setAttr(li, 'data-nav', 'note');
-  const [flagB, taskB, delB] = tools.children;
+  const [sel, flagB, taskB, moveB, delB] = tools.children;
+  sel.hidden = !opts.select;
+  sel.checked = !!opts.selected;
+  setAttr(sel, 'aria-label', t('log.selectLabel', { what: `${callText(p)}: ${n.text}` }));
+  setText(moveB, t('note.moveShort'));
+  setAttr(moveB, 'aria-label', t('note.moveLabel'));
   setText(flagB, flagged && !respDone ? t('note.unflagShort') : t('note.flagShort'));
   setAttr(flagB, 'aria-pressed', String(flagged && !respDone));
   setAttr(flagB, 'aria-label', t('note.flagLabel', { call: callText(p) }));
@@ -378,4 +402,48 @@ export function focusNoteEditor(app, noteId = null, { field = 'text', select = f
 export function noteFlagged(app, noteId) {
   const r = responseOf(app.sd.items, noteId);
   return !!r && r.active !== false && r.state !== 'done' && live(r);
+}
+
+// ---------- moving notes (correction) ----------
+
+let moveIds = [];
+
+function initMoveDialog(app) {
+  const dlg = $('#move-dlg');
+  let back = null;
+  app.openMoveDialog = ids => {
+    if (app.readOnly || !ids.length) return;
+    moveIds = ids;
+    back = document.activeElement;
+    const notes = ids.map(id => app.sd.notes.find(n => n.id === id)).filter(Boolean);
+    const first = notes[0];
+    setText($('#move-what'), notes.length === 1 ? t('move.one', { text: first.text }) : t('move.many', { n: notes.length }));
+    const allSame = k => notes.every(n => n[k] === first[k]);
+    fill($('#move-station'), rosterSorted(app.sd.participants).map(p => el('option', { value: p.id }, `${callText(p)}${p.name ? ` · ${p.name}` : ''}`)));
+    $('#move-station').value = allSame('participantId') ? first.participantId : '';
+    if (!allSame('participantId')) $('#move-station').prepend(el('option', { value: '', selected: true }, t('move.keepStation')));
+    fill($('#move-round'), roundsSorted(app.sd.rounds).map(r => el('option', { value: r.id }, [t('round.indicator', { n: r.number }), r.topic].filter(Boolean).join(' · '))));
+    $('#move-round').value = allSame('roundId') ? first.roundId : '';
+    if (!allSame('roundId')) $('#move-round').prepend(el('option', { value: '', selected: true }, t('move.keepRound')));
+    dlg.returnValue = '';
+    dlg.showModal();
+    $('#move-station').focus();
+  };
+  dlg.addEventListener('close', async () => {
+    const ids = moveIds;
+    moveIds = [];
+    if (dlg.returnValue === 'ok') {
+      const target = { participantId: $('#move-station').value || null, roundId: $('#move-round').value || null };
+      const moved = await app.act(store => moveNotes(store, app.ctx(), ids, target));
+      if (moved) {
+        app.announce(t('move.done', { n: moved.length }));
+        app.onMoved && app.onMoved(ids);
+      }
+    }
+    if (back && back.isConnected) back.focus();
+  });
+}
+
+export function openMoveDialog(app, ids) {
+  app.openMoveDialog(ids);
 }

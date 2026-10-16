@@ -18,6 +18,7 @@ export const NAV_KEYS = [
   ['p', '', 'previous', 'keys.previous'],
   ['x', '', 'complete', 'keys.complete'],
   ['b', '', 'back', 'keys.back'],
+  ['/', '', 'search', 'keys.search'],
   ['?', '', 'help', 'keys.help'],
   ['Escape', '', 'escape', 'keys.escape'],
 ];

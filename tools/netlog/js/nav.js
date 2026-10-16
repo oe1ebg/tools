@@ -64,6 +64,10 @@ export function createNav(app) {
       stack.push(capture());
       if (stack.length > MAX) stack.shift();
     },
+    // forget the last origin (a jump that did not happen)
+    drop() {
+      stack.pop();
+    },
     canBack: () => stack.length > 0,
     peek: () => stack[stack.length - 1] || null,
     async back() {
