@@ -69,6 +69,22 @@ export function zoneLabel(iso, mode = 'utc') {
   return `UTC${off < 0 ? '−' : '+'}${h}${m ? ':' + pad2(m) : ''}`;
 }
 
+// The device's time zone ("Europe/Vienna"), or '' when the browser does
+// not tell. Only the zone's name: no time is formatted by Intl.
+export function localZoneName() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+  } catch {
+    return '';
+  }
+}
+
+// The local choice of a UTC/local switch: "Europe/Vienna (UTC+2)", or
+// `fallback (UTC+2)` without a zone name.
+export function localZoneText(fallback, iso) {
+  return `${localZoneName() || fallback} (${zoneLabel(iso || new Date().toISOString(), 'local')})`;
+}
+
 // ISO 8601 without milliseconds: "2026-10-04T10:00:05Z".
 export function isoUtc(iso) {
   const d = new Date(iso);

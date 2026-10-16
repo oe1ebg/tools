@@ -44,8 +44,12 @@ yet (a follow-up).
   in the list); its identity, notes and history stay.
 - **Check-in** in the sidebar: callsign (also partial: `OE0QX?`, `?QXB`,
   or just `?`) and an optional name. Known identities from station
-  profiles and earlier sessions are suggested; nothing is merged by
-  itself. Enter in the callsign field goes to the name, Enter there checks
+  profiles, earlier sessions and the shared Austrian callsign list
+  (`../shared/data/callsigns-oe.json`, offline) are suggested, also by
+  name or place; nothing is merged by itself. A callsign the list knows
+  shows its name and place under the field and fills name and QTH when
+  they were left empty (typed values are kept); resolving a partial
+  callsign later does the same. Enter in the callsign field goes to the name, Enter there checks
   in; the fields empty at once, so the next station can be typed while the
   first one saves.
 - **The selected station** (Live Notes): status (active, paused/away,
@@ -158,6 +162,21 @@ yet (a follow-up).
   instance only, no deep link, no credentials). They open in a new tab; Netlog
   never fetches from them and never overwrites a station with what they
   show.
+- **My own station.** The session's own callsign ("My callsign" when it is
+  created, later in Net Control, "This session") marks that station "me"
+  in the roster and the Net Control list; "+ Check me in" adds it.
+- **Net Control's station list** switches each station's status (active,
+  paused/away, listening, unconfirmed, checked out) like the station head.
+- **Fields with completion**: the repeater fields (series, session) search
+  the offline ÖVSV repeater list (`repeaters-at.json`); my callsign and
+  the usual net control complete from the callsign sources above.
+- **Time display**: the switch next to the clock shows UTC (the default)
+  or the device's local time, named with its zone and offset ("Europe/
+  Vienna (UTC+2)"); every time carries its zone. Stored is always UTC; a
+  handover time is typed in the shown zone.
+- **Backup chip** (header, like Notfunk's): when the last backup download
+  of the session started and how many notes changed since; a click
+  downloads a new one. Not proof the file arrived.
 - **Second tab.** Only one tab or window edits a session; another one shows
   it read-only with "Edit here" (which takes over; the first one turns
   read-only).
@@ -171,7 +190,7 @@ mode is shown in the toolbar ("Navigation" / "Editing").
 
 | Key | Action |
 | --- | --- |
-| `j` / `k`, ↓ / ↑ | next / previous station; in the notes and in My Turn: next / previous item |
+| `j` / `k`, ↓ / ↑ | next / previous station; in the notes and in My Turn: next / previous item (past the last one: the first again) |
 | `Enter` | open the focused station (its composer), edit the focused note, open the source of a My Turn item |
 | `n` | new note for the selected station |
 | `r` | flag / unflag the focused note for an on-air response |
@@ -238,7 +257,7 @@ shared `eventId` index).
 | `revisions` | every replaced version of a record (`store`, `recordId`, `record`, `at`) |
 | `undo` | the undo history (below) |
 | `drafts` | unfinished editor text: `id` = `<session>|<editor key>`, `text`, selection |
-| `meta` | `lease:<session id>`: the writing tab of a session (`tab`, `at`); a record of its own, so claiming it never changes the session |
+| `meta` | `lease:<session id>`: the writing tab of a session (`tab`, `at`); `backup:<session id>`: when its last backup download started (`at`); records of their own, so they never change the session or its undo history |
 
 **Times** are `{ iso, quality }`: `exact`, `estimated`, or `unknown` (then
 `iso` is null). Nothing invents precision: a session joined late has an
@@ -367,7 +386,7 @@ Never rename (root `README.md`, "Stable identifiers"):
 | What | Name |
 | --- | --- |
 | IndexedDB database | `oe1ebg-netlog` |
-| prefs (localStorage) | `oe1ebg-netlog-lang`, `oe1ebg-netlog-own-call`, `oe1ebg-netlog-ui`, `oe1ebg-netlog-keys` |
+| prefs (localStorage) | `oe1ebg-netlog-lang`, `oe1ebg-netlog-own-call`, `oe1ebg-netlog-ui`, `oe1ebg-netlog-keys`, `oe1ebg-netlog-time`, `oe1ebg-netlog-expanded`, `oe1ebg-netlog-wavelog` |
 | BroadcastChannel | `oe1ebg-netlog` |
 | Web Locks | `oe1ebg-netlog-session-<session id>` |
 | service worker | `self.OE1EBG_SW = { prefix: 'tools-netlog', precache: 'NETLOG_PRECACHE' }` |
@@ -401,6 +420,8 @@ Never rename (root `README.md`, "Stable identifiers"):
 | `js/backup.js` | backup format, checks, import plan (pure, node-tested) |
 | `js/dataui.js` | backup and data: export, import, profiles, Wavelog address, erasure |
 | `js/links.js` | station lookup links (the only module with external URLs) |
+| `js/clock.js` | time display mode (UTC/local), formatting with the zone |
+| `js/fieldsearch.js` | repeater and callsign completion for single fields |
 | `js/search.js` | offline search (pure, node-tested) |
 | `js/searchui.js` | the search dialog and opening a result |
 

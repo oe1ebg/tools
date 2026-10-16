@@ -11,6 +11,7 @@ import { keyedList, setText } from './keyed.js';
 import { liveOf, nextSessionNumber, sessionLabel, sessionsOf, normCall, cmp } from './model.js';
 import { createSession, createSeries, updateSeries, assignSeries, deleteSession } from './ops.js';
 import { sessionAction } from './dataui.js';
+import { attachRepeaterField, attachCallField } from './fieldsearch.js';
 
 export const OWN_PREF = 'oe1ebg-netlog-own-call';
 
@@ -43,7 +44,7 @@ export function initSessions(app) {
     srBtn.setAttribute('aria-expanded', String(on && !series));
     editingSeries = on ? series : null;
     if (!on) return;
-    setText($('#series-form-title'), t(series ? 'series.edit' : 'series.new'));
+    setText($('#series-form-title'), t(series ? 'series.edit' : 'series.newTitle'));
     $('#srf-name').value = series ? series.name : '';
     $('#srf-description').value = series ? series.description || '' : '';
     $('#srf-schedule').value = series ? series.schedule || '' : '';
@@ -66,6 +67,10 @@ export function initSessions(app) {
     });
   }
   $('#sf-series').addEventListener('change', () => suggestNumber(app));
+  attachRepeaterField(app, $('#sf-repeater'));
+  attachRepeaterField(app, $('#srf-repeater'));
+  attachCallField(app, $('#srf-ncs'));
+  attachCallField(app, $('#sf-own'));
 
   sForm.addEventListener('submit', async ev => {
     ev.preventDefault();

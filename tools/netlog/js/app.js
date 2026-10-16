@@ -8,7 +8,10 @@ import { initOffline, setOfflineText } from '../../shared/js/offline.js';
 import { prefGet, prefSet } from '../../shared/js/prefs.js';
 import { openStorageWithNotices } from '../../shared/js/storageui.js';
 import { requestPersistence, StorageClosedError } from '../../shared/js/storage.js';
-import { repoLink, trackOnline } from '../../shared/js/sources.js';
+import { repoLink, trackOnline, extLink, DATA_SOURCES } from '../../shared/js/sources.js';
+import { loadDataFile } from '../../shared/js/data.js';
+import { buildCallbook } from '../../shared/js/callbook.js';
+import { loadRepeaterIndex } from '../../shared/js/repeaterui.js';
 import { newId } from '../../shared/js/time.js';
 import { t, initLang, setLang, lang, applyI18n } from './i18n.js';
 import { openNetlogStorage, NETLOG_STORES, SESSION_STORES } from './db.js';
@@ -24,6 +27,7 @@ import { initControl, renderControl } from './control.js';
 import { initKeys, loadEditBindings, registerEditCommand, EDIT_COMMANDS } from './keys.js';
 import { initHelp, bindingText } from './help.js';
 import { createDrafts } from './drafts.js';
+import { timeMode, setTimeMode, hm, zone, localChoiceText } from './clock.js';
 import { initNotes, renderNotes, focusNoteEditor, flagNote, recordSpoke } from './notes.js';
 import { initTurn, renderTurn, enterTurn, turnRows, focusedTurnItem, completeItem, setSummary } from './myturn.js';
 import { createNav } from './nav.js';
@@ -130,8 +134,9 @@ app.announce = text => {
 // ---------- loading ----------
 
 async function loadGlobal() {
-  const [series, sessions, profiles, participants] = await Promise.all(
-    ['series', 'sessions', 'profiles', 'participants'].map(s => app.store.getAll(s)));
+  const [series, sessions, profiles, participants, meta] = await Promise.all(
+    ['series', 'sessions', 'profiles', 'participants', 'meta'].map(s => app.store.getAll(s)));
+  app.data.backups = new Map(meta.filter(m => m.id.startsWith('backup:')).map(m => [m.id.slice(7), m.at]));
   app.data.series = series;
   app.data.sessions = sessions;
   app.data.profiles = profiles;
@@ -326,6 +331,7 @@ app.rowBadges = (p, long = false) => {
     if (p.flags && p.flags[f]) out.push({ text: t(`flag.${f}.short`), title: t(`flag.${f}`), cls: f === 'priority' ? 'warn' : '' });
   }
   if (app.s && app.s.ncsId === p.id) out.unshift({ text: 'NCS', title: t('ncs.current'), cls: 'ncs' });
+  if (app.s && app.s.own && app.s.own.base && p.base === app.s.own.base) out.unshift({ text: t('own.badge'), title: t('own.title'), cls: 'own' });
   const notes = new Set(app.sd.notes.filter(n => live(n) && n.participantId === p.id).map(n => n.id));
   const open = app.sd.items.filter(i => live(i) && i.kind === 'response' && i.active !== false && i.state !== 'done' && notes.has(i.noteId)).length;
   if (open) out.push({ text: `↩ ${open}`, title: t('roster.openResponses', { n: open }) });
@@ -393,9 +399,28 @@ function renderHeader() {
   const series = s && s.seriesId ? app.data.series.find(x => x.id === s.seriesId) : null;
   setText($('#session-line'), s ? [sessionLabel(s, series) || t('session.untitled'), s.date, s.own.call ? t('session.ownShort', { call: s.own.call }) : ''].filter(Boolean).join(' · ') : '');
   for (const b of $('#lang-toggle').querySelectorAll('button')) setAttr(b, 'aria-pressed', String(b.dataset.lang === lang()));
+  for (const b of $('#time-toggle').querySelectorAll('button')) setAttr(b, 'aria-pressed', String(b.dataset.time === timeMode()));
+  tick();
   const round = s && app.sd.rounds.find(r => r.id === s.currentRoundId);
   setText($('#round-indicator'), round ? t('round.indicator', { n: round.number }) : '');
   renderSaveChip();
+  renderBackupChip();
+}
+
+// How current the last backup (JSON) of the open session is, like
+// Notfunk's chip: notes saved or changed since its download started. No
+// green "ok": a started download is no verified backup. A click downloads
+// a new one.
+function renderBackupChip() {
+  const chip = $('#st-backup');
+  if (!app.s) { chip.hidden = true; return; }
+  const at = app.data.backups && app.data.backups.get(app.s.id);
+  const since = app.sd.notes.filter(n => !at || n.updated > at).length;
+  chip.hidden = !at && !since;
+  chip.className = `chip chip-btn${since ? ' warn' : ''}`;
+  setText(chip, at
+    ? `${t('backup.started', { time: hm(at) + ' ' + zone(at) })} · ${since ? t('backup.since', { n: since }) : t('backup.nothingSince')}`
+    : t('backup.none', { n: since }));
 }
 
 function renderSaveChip() {
@@ -465,7 +490,9 @@ function moveFocus(dir) {
   if (!list.length) return false;
   const i = list.indexOf(document.activeElement);
   const cur = i >= 0 ? i : list.findIndex(b => b.getAttribute('aria-current') === 'true');
-  const next = list[Math.max(0, Math.min(list.length - 1, (cur < 0 ? (dir > 0 ? -1 : list.length) : cur) + dir))];
+  // past the last one: the first again, and the other way round
+  const n = list.length;
+  const next = list[cur < 0 ? (dir > 0 ? 0 : n - 1) : (cur + dir + n) % n];
   next.focus();
   next.scrollIntoView({ block: 'nearest' });
   return true;
@@ -626,10 +653,30 @@ function initHeader() {
     b.focus();
     app.announce(t('header.langChanged'));
   });
-  const tick = () => setText($('#clock-utc'), new Date().toISOString().slice(11, 16));
+  $('#time-toggle').addEventListener('click', ev => {
+    const b = ev.target.closest('button[data-time]');
+    if (!b) return;
+    setTimeMode(b.dataset.time);
+    render();
+    b.focus();
+    app.announce(t('header.timeChanged', { zone: zone() }));
+  });
   tick();
   setInterval(tick, 5000);
 }
+// The header clock in the chosen mode, with its zone.
+function tick() {
+  const now = new Date().toISOString();
+  setText($('#clock-utc'), hm(now));
+  setText($('#clock-zone'), zone(now));
+  setAttr($('#clock'), 'aria-label', t('header.clockLabel', { zone: zone(now) }));
+  // the switch names the device's zone and its offset now
+  const local = $('#time-toggle button[data-time=local]');
+  const text = localChoiceText(t('header.local'), now);
+  setText(local, text);
+  setAttr(local, 'aria-label', t('header.localLabel', { zone: text }));
+}
+
 const isEditableActive = () => {
   const a = document.activeElement;
   return !!a && (a.tagName === 'TEXTAREA' || a.tagName === 'SELECT' || (a.tagName === 'INPUT' && a.type !== 'checkbox'));
@@ -705,6 +752,7 @@ async function main() {
   initSearch(app);
   initData(app);
   $('#btn-undo').addEventListener('click', () => app.undo(false));
+  $('#st-backup').addEventListener('click', () => { if (app.s) exportBackup(app, app.s.id); });
   $('#btn-redo').addEventListener('click', () => app.undo(true));
   $('#btn-spoke').addEventListener('click', () => recordSpoke(app));
   const help = initHelp(app);
@@ -719,11 +767,29 @@ async function main() {
     strings: offlineStrings(),
   });
   fill($('#st-source'), ' · ', repoLink(t('footer.source'), 'tools/netlog'));
+  loadCallbook();
+  loadRepeaterIndex(); // ready before the first search
   await loadGlobal();
   await route();
   // everything is wired: the browser tests (and nothing else) wait for this
   globalThis.NETLOG_READY = true;
 }
+
+// The Austrian callsign list (shared data, offline, precached): fills
+// name and QTH at check-in and suggests callsigns.
+async function loadCallbook() {
+  app.data.callbook = buildCallbook(await loadDataFile('callsigns-oe.json'));
+  renderCallbookSource();
+  if (app.onCallbook) app.onCallbook();
+}
+function renderCallbookSource() {
+  const book = app.data.callbook;
+  const src = DATA_SOURCES.callsigns;
+  fill($('#st-callbook'), book
+    ? [t('footer.callbook', { n: book.calls.length, stand: book.stand || '?' }), ' (', extLink(src.url, t('footer.callbookSource')), ')']
+    : t('footer.noCallbook'));
+}
+app.onLang(() => renderCallbookSource());
 
 // The offline/update chips show a text of the old language: the same
 // message in the new one.

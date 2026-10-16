@@ -8,13 +8,20 @@
 import { $, el, fill, popover, isComposing } from '../../shared/js/dom.js';
 import { t } from './i18n.js';
 import { keyedList, setText, setAttr, setValue } from './keyed.js';
-import { rosterSorted, rosterStats, isUnresolved, callCandidates, normCall, baseCall, STATUSES, FLAGS, live } from './model.js';
+import { rosterSorted, rosterStats, isUnresolved, callCandidates, callPattern, normCall, baseCall, STATUSES, FLAGS, live } from './model.js';
 import { addParticipant, updateParticipant, setStatus, setFlag, moveParticipant, setNcs, mergePreview, mergeParticipants, saveProfile, deleteParticipant } from './ops.js';
 import { stationLinks } from './links.js';
+import { hm, hmz, zone } from './clock.js';
+import { lookupCall, searchCallbook } from '../../shared/js/callbook.js';
 
 // "OE0QXA" or the provisional "?" marked as unresolved.
 export function callText(p) {
   return p.call || '?';
+}
+
+// Is this participant me (the session's own callsign)?
+export function isOwn(app, p) {
+  return !!(app.s && app.s.own && app.s.own.base && p && p.base === app.s.own.base);
 }
 
 export function statusLabel(status) {
@@ -31,15 +38,52 @@ function candidatePool(app) {
   return pool;
 }
 
-function candidateButtons(app, input, onPick) {
+// The Austrian callsign list (shared data, offline) for a complete
+// callsign: { call, name, qth } or null.
+export function callbookEntry(app, call) {
+  if (!app.data.callbook || !call || isUnresolved(call)) return null;
+  const e = lookupCall(app.data.callbook, call).entry;
+  return e ? { call: e[0], name: e[1] || '', qth: e[2] || '' } : null;
+}
+
+// Callbook entries for what is typed: part of a callsign, a name or a
+// place; for a partial callsign (OE0QX?) those its pattern fits.
+function callbookCandidates(app, text, limit = 6) {
+  const book = app.data.callbook;
+  if (!book) return [];
+  const call = normCall(text);
+  let rows;
+  if (isUnresolved(call)) {
+    const re = callPattern(call);
+    rows = re ? book.calls.filter(c => re.test(c[0])).slice(0, limit) : [];
+  } else {
+    rows = searchCallbook(book, text, limit);
+  }
+  return rows.map(c => ({ call: c[0], name: c[1] || '', qth: c[2] || '', from: 'callbook' }));
+}
+
+const FROM_KEY = { profile: 'checkin.fromProfile', history: 'checkin.fromHistory', callbook: 'checkin.fromCallbook' };
+
+export function candidateButtons(app, input, onPick) {
   const call = normCall(input.value);
   if (!call) return [];
   const exact = c => normCall(c.call) === call;
-  return callCandidates(call, candidatePool(app)).filter(c => !exact(c) || isUnresolved(call)).map(c => el('button', {
+  const local = callCandidates(call, candidatePool(app)).filter(c => !exact(c) || isUnresolved(call));
+  const seen = new Set(local.map(c => baseCall(c.call)));
+  const book = callbookCandidates(app, input.value).filter(c => !seen.has(c.call) && (!exact(c) || isUnresolved(call)));
+  return [...local, ...book].map(c => el('button', {
     type: 'button',
     class: 'ac-item',
     onclick: () => onPick(c),
-  }, el('b', {}, c.call), c.name ? el('small', {}, c.name) : null, el('small', { class: 'alt' }, t(c.from === 'profile' ? 'checkin.fromProfile' : 'checkin.fromHistory'))));
+  }, el('b', {}, c.call), c.name ? el('small', {}, c.name) : null, c.qth ? el('small', {}, c.qth) : null,
+  el('small', { class: 'alt' }, t(FROM_KEY[c.from]))));
+}
+
+// The info line under a callsign field: what the callsign list says.
+function callbookInfo(app, field, info) {
+  const e = callbookEntry(app, normCall(field.value));
+  setText(info, e ? t('checkin.inCallbook', { name: [e.name, e.qth].filter(Boolean).join(' · ') || e.call }) : '');
+  info.className = `ac-info${e ? ' known' : ''}`;
 }
 
 export function initRoster(app) {
@@ -51,17 +95,20 @@ export function initRoster(app) {
   // a suggestion only fills the fields; Enter never replaces typed input with one
   const ac = popover(call, pop, { enterPicksFirst: false, label: t('checkin.suggestions') });
   app.onLang(() => pop.setAttribute('aria-label', t('checkin.suggestions')));
+  const info = $('#checkin-info');
   const suggest = () => {
     fill(pop, candidateButtons(app, call, c => {
       call.value = c.call;
       name.value = c.name || name.value;
-      picked = c.profileId || null;
+      picked = { profileId: c.profileId || null, qth: c.qth || '' };
       ac.hide();
+      callbookInfo(app, call, info);
       name.focus();
     }));
     ac.update();
   };
-  call.addEventListener('input', () => { picked = null; suggest(); });
+  call.addEventListener('input', () => { picked = null; suggest(); callbookInfo(app, call, info); });
+  app.onCallbook = () => { if (document.activeElement === call) suggest(); callbookInfo(app, call, info); };
   call.addEventListener('keydown', ev => {
     if (ev.key === 'Enter' && !isComposing(ev) && !ev.shiftKey) {
       ev.preventDefault();
@@ -78,11 +125,20 @@ export function initRoster(app) {
     name.value = '';
     picked = null;
     ac.hide();
+    setText(info, '');
     call.focus();
-    const rec = await app.act(store => addParticipant(store, app.ctx(), { call: c, name: typed.name.trim(), profileId: typed.picked }));
+    // what the callsign list knows fills what was left empty (a profile's
+    // details come in through the profile)
+    const fields = { call: c, name: typed.name.trim(), profileId: typed.picked && typed.picked.profileId, qth: typed.picked ? typed.picked.qth : '' };
+    const e = !fields.profileId && callbookEntry(app, c);
+    if (e) {
+      if (!fields.name) fields.name = e.name;
+      if (!fields.qth) fields.qth = e.qth;
+    }
+    const rec = await app.act(store => addParticipant(store, app.ctx(), fields));
     if (!rec) {
       // not saved: the input comes back (unless something new was typed)
-      if (!call.value && !name.value) { call.value = typed.call; name.value = typed.name; picked = typed.picked; }
+      if (!call.value && !name.value) { call.value = typed.call; name.value = typed.name; picked = typed.picked; callbookInfo(app, call, info); }
       return;
     }
     app.announce(t('checkin.done', { call: callText(rec) }));
@@ -172,6 +228,7 @@ export function renderRoster(app) {
       }
       const selected = p.id === app.ui.selected;
       li.classList.toggle('active', selected);
+      li.classList.toggle('own', isOwn(app, p));
       setAttr(b, 'aria-current', selected ? 'true' : null);
       setAttr(b, 'aria-label', [callText(p), p.name, statusLabel(p.status), isUnresolved(p.call) ? t('station.unresolved') : '', ...marks.map(m => m.title || m.text)].filter(Boolean).join(', '));
       b.tabIndex = selected || (!app.ui.selected && p === list[0]) ? 0 : -1;
@@ -221,9 +278,11 @@ function initStation(app) {
   idBtn.addEventListener('click', () => openIdentity(idForm.hidden));
   $('#btn-identity-cancel').addEventListener('click', () => { openIdentity(false); idBtn.focus(); });
   idCall.addEventListener('input', () => {
+    callbookInfo(app, idCall, $('#identity-info'));
     fill(idPop, candidateButtons(app, idCall, c => {
       idCall.value = c.call;
       if (c.name && !idName.value) idName.value = c.name;
+      callbookInfo(app, idCall, $('#identity-info'));
       idAc.hide();
       idName.focus();
     }));
@@ -255,7 +314,14 @@ function initStation(app) {
         return;
       }
     }
-    const r = await app.act(store => updateParticipant(store, app.ctx(), p.id, { call, name: idName.value.trim() }));
+    // a resolved callsign: the list fills what is still empty
+    const patch = { call, name: idName.value.trim() };
+    const e = callbookEntry(app, call);
+    if (e) {
+      if (!patch.name) patch.name = e.name;
+      if (!p.qth && e.qth) patch.qth = e.qth;
+    }
+    const r = await app.act(store => updateParticipant(store, app.ctx(), p.id, patch));
     if (r) {
       openIdentity(false);
       app.announce(t('station.corrected', { call: callText(r) }));
@@ -394,7 +460,7 @@ export function renderStation(app) {
   const first = (p.presence || [])[0];
   const sub = [
     isUnresolved(p.call) ? t('station.unresolvedHint') : '',
-    first && first.from.iso ? t('station.checkedIn', { time: first.from.iso.slice(11, 16) }) : '',
+    first && first.from.iso ? t('station.checkedIn', { time: hmz(first.from.iso) }) : '',
     p.call !== p.base && p.base ? t('station.base', { base: p.base }) : '',
   ].filter(Boolean).join(' · ');
   setText($('#station-sub'), sub);
@@ -418,7 +484,7 @@ export function renderStation(app) {
 
   const flags = $('#station-flags');
   if (flags.childElementCount !== FLAGS.length || flags.dataset.lang !== app.lang()) {
-    fill(flags, FLAGS.map(f => el('button', { type: 'button', class: 'mini flag', 'data-flag': f }, t(`flag.${f}`))));
+    fill(flags, FLAGS.map(f => el('button', { type: 'button', class: 'flag', 'data-flag': f }, t(`flag.${f}`))));
     flags.dataset.lang = app.lang();
   }
   for (const b of flags.children) {
@@ -451,8 +517,9 @@ export function renderStation(app) {
     key: iv => String(iv.i),
     create: () => el('li', {}),
     update: (li, iv) => setText(li, t('station.interval', {
-      from: iv.from && iv.from.iso ? iv.from.iso.slice(11, 16) : '?',
-      to: iv.to ? (iv.to.iso ? iv.to.iso.slice(11, 16) : '?') : t('station.now'),
+      from: iv.from && iv.from.iso ? hm(iv.from.iso) : '?',
+      to: iv.to ? (iv.to.iso ? hm(iv.to.iso) : '?') : t('station.now'),
+      zone: zone(iv.from && iv.from.iso),
     })),
   });
 }

@@ -111,9 +111,10 @@ build-confirm: fetch-callsigns fetch-repeaters build-location build-areas build-
 build-notfunk: fetch-callsigns fetch-repeaters build-location build-areas
     GIT_SHA={{git_sha}} uv run python scripts/build_notfunk.py
 
-# Netlog's service-worker files (no single-file bundle, no data).
+# Netlog's service-worker files (no single-file bundle); it uses the
+# callsign list.
 [doc("Build Netlog's service-worker precache list + build-info.js")]
-build-netlog:
+build-netlog: fetch-callsigns fetch-repeaters
     GIT_SHA={{git_sha}} uv run python scripts/build_netlog.py
 
 # The ADIF editor's single-file version (tools/adif/adif-editor.html) and

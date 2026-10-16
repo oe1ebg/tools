@@ -21,6 +21,9 @@ button.mini{ font-size:13.5px; padding:.15em .55em; }
 .pill{ font-size:12.5px; padding:.05em .45em; border-radius:5px; background:var(--bg-raised); border:1px solid var(--line); white-space:nowrap; }
 .pill.warn{ color:var(--warn); border-color:currentColor; background:var(--warn-soft); }
 .pill.ok{ color:var(--ok); border-color:currentColor; }
+.pill.own{ color:#fff; background:var(--accent); border-color:var(--accent); font-weight:600; }
+.person-row.own button.person .call, .order-row.own .open{ color:var(--accent-text); }
+.person-row.own{ box-shadow:inset -4px 0 var(--accent); }
 .pill.ncs{ color:var(--accent-text); border-color:currentColor; background:var(--accent-soft); font-weight:600; }
 .empty{ color:var(--text-dim); padding:1.5em; font-style:italic; }
 .unresolved{ text-decoration:underline dotted; text-underline-offset:.2em; }
@@ -50,6 +53,8 @@ button.mini{ font-size:13.5px; padding:.15em .55em; }
 .toggle button + button{ border-left:1px solid var(--line); }
 .toggle button[aria-pressed="true"], #theme-toggle button.active{ background:var(--accent-soft); color:var(--accent-text); }
 #btn-help{ font-size:13.5px; padding:.15em .6em; }
+.chip-btn{ cursor:pointer; font:inherit; font-size:12.5px; background:none; }
+.chip-btn.warn{ color:var(--warn); border-color:var(--warn); background:var(--warn-soft); }
 
 main{ max-width:1500px; margin:0 auto; padding:1em; }
 footer{ max-width:1500px; margin:0 auto; padding:.5em 1em 2em; color:var(--text-dim); font-size:13.5px; }
@@ -57,8 +62,11 @@ footer a{ color:var(--accent-text); }
 .keys-line{ margin:.6em 0 0; }
 
 /* ---------- workspace ---------- */
-.workspace{ display:flex; gap:0; border:1px solid var(--line); border-radius:8px; min-height:60vh; background:var(--bg); }
-.sidebar{ width:270px; flex-shrink:0; border-right:1px solid var(--line); display:flex; flex-direction:column; background:var(--bg-raised); border-radius:8px 0 0 8px; }
+/* the tab bar spans the whole workspace, above the roster and the views,
+   so it stays in place whether the roster is shown or not */
+.workspace{ display:flex; flex-direction:column; border:1px solid var(--line); border-radius:8px; min-height:60vh; background:var(--bg); }
+.workspace-body{ display:flex; flex:1; min-height:0; }
+.sidebar{ width:270px; flex-shrink:0; border-right:1px solid var(--line); display:flex; flex-direction:column; background:var(--bg-raised); border-radius:0 0 0 8px; }
 .sidehead{ padding:.8em; border-bottom:1px solid var(--line); }
 .sidehead h2{ font-size:16px; margin:0; }
 .sidehead .hint{ margin:.2em 0 .6em; }
@@ -128,14 +136,20 @@ li.note:first-child{ border-top:0; }
 li.note.flagged{ border-left-color:var(--warn); background:var(--warn-soft); }
 li.note.highlight, li.sum-note.highlight{ outline:2px solid var(--accent); outline-offset:-2px; }
 li.note:focus, li.turn-item:focus, li.sum-note:focus{ outline:2px solid var(--accent); outline-offset:-2px; }
-.note-main{ flex:1 1 20em; min-width:0; }
+.note-main{ flex:1 1 20em; min-width:0; display:grid; grid-template-columns:auto 1fr; column-gap:.6em; align-items:start; }
+.note-lead{ grid-column:1; display:flex; flex-direction:column; gap:.1em; padding-top:.45em; font-size:13.5px; color:var(--text-dim); white-space:nowrap; }
+.note-main > textarea.note-text{ grid-column:2; }
+.note-main > .note-meta{ grid-column:2; }
 textarea.note-text, textarea.composer-text, textarea.reply-text, textarea.ti-reply, #point-text{
   width:100%; resize:vertical; line-height:1.45; overflow:hidden; white-space:pre-wrap;
 }
-textarea.note-text{ border-color:transparent; background:transparent; }
+textarea.note-text{ border-color:transparent; background:transparent; min-height:2.3em; }
+textarea.composer-text{ min-height:4.2em; }
+textarea.reply-text, textarea.ti-reply, #point-text{ min-height:2.3em; }
 textarea.note-text:hover{ border-color:var(--line); }
 textarea.note-text:focus{ background:var(--bg); border-color:var(--line-strong); }
 .note-meta{ display:flex; gap:.5em; align-items:center; flex-wrap:wrap; font-size:13.5px; color:var(--text-dim); margin-top:.15em; }
+.note-lead .station{ font-weight:600; text-align:left; }
 .note-meta .draft-mark:empty{ display:none; }
 .note-tools{ display:flex; gap:.3em; flex-wrap:wrap; }
 .note-tools button[aria-pressed="true"]{ background:var(--accent-soft); border-color:var(--accent); color:var(--accent-text); }
@@ -192,10 +206,13 @@ li.sum-note.flagged{ border-left-color:var(--warn); }
 .task-row .task-note, .task-row .task-text{ flex:1; }
 .control-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(20em, 1fr)); gap:1em; }
 .order-list{ list-style:none; margin:0; padding:0; }
-.order-row{ display:flex; align-items:center; gap:.5em; padding:.35em 0; border-top:1px solid var(--line); }
+.order-card{ grid-column:1 / -1; }
+.order-row{ display:flex; align-items:center; flex-wrap:wrap; gap:.5em; padding:.35em 0; border-top:1px solid var(--line); }
 .order-row:first-child{ border-top:0; }
 .order-row button.open{ font-weight:600; text-align:left; }
 .order-row button.mini{ white-space:nowrap; }
+.order-row select.status-sel{ font-size:14px; padding:.15em .3em; }
+.order-row.out .open{ color:var(--text-dim); text-decoration:line-through; }
 button.icon{ font-size:18px; line-height:1; padding:.3em .55em; }
 #st-save{ width:15em; }
 
@@ -209,7 +226,7 @@ button.icon{ font-size:18px; line-height:1; padding:.3em .55em; }
 .empty-small{ margin:.3em 0; }
 
 /* ---------- log, search, net control ---------- */
-.note-meta .station{ font-weight:600; }
+
 input.note-select{ width:1.2em; height:1.2em; margin:.3em .2em 0 0; }
 .search-dlg{ width:min(48em, 94vw); }
 .search-q{ width:100%; font-size:18px; padding:.5em .6em; }
@@ -257,8 +274,8 @@ table.keys th, table.keys td{ text-align:left; padding:.3em .6em .3em 0; border-
 /* ---------- narrow screens: roster above the workspace ---------- */
 @media (max-width: 760px){
   main{ padding:.5em; }
-  .workspace{ flex-direction:column; }
-  .sidebar{ width:auto; border-right:0; border-bottom:1px solid var(--line); border-radius:8px 8px 0 0; }
+  .workspace-body{ flex-direction:column; }
+  .sidebar{ width:auto; border-right:0; border-bottom:1px solid var(--line); border-radius:0; }
   .roster{ max-height:40vh; }
   .view{ padding:.8em; }
   .session-line{ flex-basis:100%; order:5; }
@@ -272,8 +289,53 @@ table.keys th, table.keys td{ text-align:left; padding:.3em .6em .3em 0; border-
   .tabs a{ min-height:44px; display:inline-flex; align-items:center; }
 }
 
-/* wide screens: one header line; the session line gives way (ellipsis) */
-@media (min-width: 1100px){
-  #site-header{ flex-wrap:nowrap; }
-  #site-header > :not(.session-line):not(.spacer){ flex-shrink:0; }
+
+/* ---------- one size scale for every control ----------
+   Regular: actions, fields, selects, toggles in toolbars and forms, all
+   one height. Mini: the tools inside list rows (notes, rounds, sessions,
+   My Turn), one smaller height. Header toggles and chips keep their own
+   compact size. */
+input[type=url]{
+  font:inherit; font-size:15px; color:var(--text); background:var(--bg);
+  border:1px solid var(--line-strong); border-radius:4px; padding:.35em .5em;
+}
+button, select, input[type=text], input[type=url], input[type=search], input:not([type]){
+  box-sizing:border-box; min-height:2.3rem; line-height:1.25; vertical-align:middle;
+}
+button.mini, .round-row input, .session-row select, select.status-sel{
+  min-height:1.95rem; font-size:13.5px; padding:.15em .55em;
+}
+.toggle button, #btn-help, .chip, button.link, button.result, button.person, .round-toggle, .ac-item{ min-height:0; }
+button.icon{ min-width:2.3rem; }
+.form-grid input, .form-grid select{ width:100%; }
+.field-ac{ display:block; width:100%; }
+.form-grid label.check{ align-self:center; }
+.toolbar > *{ margin:0; }
+.station-tools{ gap:.4em; }
+.inline-field select{ min-width:10em; }
+/* the round list: number, count and "current" on one line, the topic below */
+.round-row{ display:grid; grid-template-columns:auto 1fr auto; grid-template-areas:"no count cur" "topic topic topic"; gap:.4em .6em; align-items:center; }
+.round-row > :nth-child(1){ grid-area:no; }
+.round-row > :nth-child(2){ grid-area:topic; display:grid; grid-template-columns:auto 1fr; }
+.round-row > :nth-child(3){ grid-area:count; }
+.round-row > :nth-child(4){ grid-area:cur; }
+.round-row .inline-field{ gap:.3em; }
+.round-row .round-no{ width:3.5em; }
+.round-row .grow input{ width:100%; }
+/* the help: both key tables with the same key column */
+table.keys{ table-layout:fixed; }
+table.keys th:first-child, table.keys td:first-child{ width:12.5rem; }
+@media (max-width: 760px){
+  /* phones: the header scrolls away (it would cover a third of the screen),
+     the workspace tabs stay one row that scrolls sideways */
+  #site-header{ position:static; }
+  .viewbar .tabs{ flex-wrap:nowrap; overflow-x:auto; max-width:100%; }
+  .viewbar .tabs a{ white-space:nowrap; }
+  .details-form .field{ flex:1 1 10em; }
+  .details-form .field input{ width:100%; }
+  table.keys th:first-child, table.keys td:first-child{ width:8.5rem; }
+}
+@media (pointer: coarse){
+  button, select, input[type=text], input[type=url], input:not([type]){ min-height:44px; }
+  button.mini, select.status-sel, .session-row select, .round-row input{ min-height:44px; }
 }

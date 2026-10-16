@@ -418,3 +418,16 @@ test('a station profile is explicit and never rewrites a session', async () => {
   assert.equal((await store.get('profiles', prof.id)).name, 'Mira K.');
   assert.equal((await store.get('participants', a.id)).name, 'Mira');
 });
+
+test('a session moved out of its series into ad hoc keeps the series name as its title', async () => {
+  const store = memoryStore(NETLOG_STORES);
+  const series = await createSeries(store, { tab: TAB }, { name: 'Evening net' });
+  const s = await createSession(store, { tab: TAB }, { seriesId: series.id });
+  const moved = await assignSeries(store, { tab: TAB, sessionId: s.id }, s.id, null);
+  assert.equal(moved.seriesId, null);
+  assert.equal(moved.name, 'Evening net');
+  assert.equal(moved.number, 1);
+  // a session with its own name keeps it
+  const named = await createSession(store, { tab: TAB }, { seriesId: series.id, name: 'Special' });
+  assert.equal((await assignSeries(store, { tab: TAB, sessionId: named.id }, named.id, null)).name, 'Special');
+});
