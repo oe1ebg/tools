@@ -29,7 +29,7 @@ test('every literal key in the code and the page exists', () => {
     const src = readFileSync(join(DIR, 'js', f), 'utf8');
     // t('key') and keys handed around as 'area.name' literals of known areas
     for (const m of src.matchAll(/\bt\('([\w.]+)'/g)) if (!has(m[1])) missing.push(`${f}: ${m[1]}`);
-    for (const m of src.matchAll(/'((?:undo|save|keys|storage|mode|keysLine|help|lock|status|flag)\.[\w.]+)'/g)) if (!has(m[1])) missing.push(`${f}: ${m[1]}`);
+    for (const m of src.matchAll(/'((?:undo|save|keys|storage|mode|keysLine|help|lock|status|flag|note|turn|round|station|control|checkin|session|series|views|common|header|footer|roster|update|live|offline)\.[\w.]+)'/g)) if (!has(m[1])) missing.push(`${f}: ${m[1]}`);
   }
   const html = readFileSync(join(DIR, 'index.html'), 'utf8');
   for (const m of html.matchAll(/data-i18n="([\w.]+)"/g)) if (!has(m[1])) missing.push(`index.html: ${m[1]}`);

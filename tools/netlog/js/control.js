@@ -4,10 +4,11 @@
 
 import { $, el, fill } from '../../shared/js/dom.js';
 import { t } from './i18n.js';
-import { keyedList, setText, setAttr } from './keyed.js';
-import { rosterSorted } from './model.js';
-import { moveParticipant } from './ops.js';
+import { keyedList, setText, setAttr, setValue } from './keyed.js';
+import { rosterSorted, roundsSorted, nextRoundNumber, liveOf, cmp } from './model.js';
+import { moveParticipant, createRound, setCurrentRound, updateRound, setItemDone, addTask, setItemText } from './ops.js';
 import { callText, statusLabel } from './roster.js';
+import { expandedCount, setExpandedCount } from './notes.js';
 
 // Planned order first (stations without one after them, in roster order).
 export function plannedOrder(participants) {
@@ -16,7 +17,83 @@ export function plannedOrder(participants) {
     .map(x => x.p);
 }
 
+// "+ New round": a dialog asks for the number (next one suggested) and an
+// optional topic. Only this (or a correction in the list) changes rounds.
+export function openRoundDialog(app) {
+  if (!app.s || app.readOnly) return;
+  const dlg = $('#round-dlg');
+  const back = document.activeElement;
+  $('#round-number').value = String(nextRoundNumber(app.sd.rounds));
+  $('#round-topic').value = '';
+  setText($('#round-error'), '');
+  dlg.returnValue = '';
+  dlg.showModal();
+  $('#round-topic').focus();
+  dlg.onclose = async () => {
+    if (back && back.isConnected) back.focus();
+    if (dlg.returnValue !== 'ok') return;
+    const n = Number($('#round-number').value.trim());
+    const r = await app.act(store => createRound(store, app.ctx(), { number: Number.isInteger(n) && n > 0 ? n : undefined, topic: $('#round-topic').value }));
+    if (r) app.announce(t('round.started', { n: r.number }));
+  };
+}
+
 export function initControl(app) {
+  $('#btn-new-round').addEventListener('click', () => openRoundDialog(app));
+  $('#round-form').addEventListener('submit', ev => {
+    if (ev.submitter && ev.submitter.value !== 'ok') return;
+    const n = $('#round-number').value.trim();
+    if (n && !/^\d{1,3}$/.test(n)) { ev.preventDefault(); setText($('#round-error'), t('round.badNumber')); }
+  });
+  const sel = $('#expanded-count');
+  sel.value = String(expandedCount());
+  sel.addEventListener('change', () => { setExpandedCount(Number(sel.value)); app.ui.roundOpen = {}; app.render(); });
+
+  $('#round-list').addEventListener('click', async ev => {
+    const b = ev.target.closest('button[data-act]');
+    if (!b) return;
+    const id = b.closest('li').dataset.key;
+    if (b.dataset.act === 'current') {
+      const r = await app.act(store => setCurrentRound(store, app.ctx(), id));
+      if (r) app.announce(t('round.nowCurrent', { n: app.sd.rounds.find(x => x.id === id).number }));
+    }
+  });
+  $('#round-list').addEventListener('change', async ev => {
+    const f = ev.target;
+    const id = f.closest('li') && f.closest('li').dataset.key;
+    if (!id) return;
+    if (f.classList.contains('round-topic')) await app.act(store => updateRound(store, app.ctx(), id, { topic: f.value }));
+    if (f.classList.contains('round-no')) {
+      const n = Number(f.value.trim());
+      if (!Number.isInteger(n) || n < 1 || n > 999) { f.setAttribute('aria-invalid', 'true'); app.announce(t('round.badNumber')); return; }
+      f.removeAttribute('aria-invalid');
+      await app.act(store => updateRound(store, app.ctx(), id, { number: n }));
+    }
+  });
+  $('#round-list').addEventListener('keydown', ev => {
+    if (ev.key === 'Enter' && ev.target.matches('input')) { ev.preventDefault(); ev.target.dispatchEvent(new Event('change', { bubbles: true })); }
+  });
+
+  $('#task-list').addEventListener('change', ev => {
+    const cb = ev.target.closest('input.item-done');
+    if (cb) app.act(store => setItemDone(store, app.ctx(), cb.closest('li').dataset.key, cb.checked));
+    const tx = ev.target.closest('input.task-text');
+    if (tx) app.act(store => setItemText(store, app.ctx(), tx.closest('li').dataset.key, tx.value.trim()));
+  });
+  $('#task-list').addEventListener('click', ev => {
+    const b = ev.target.closest('button[data-act=open]');
+    if (b) app.openFrom(b.dataset.pid, { noteId: b.dataset.note });
+  });
+  $('#task-form').addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const f = $('#task-text');
+    const text = f.value.trim();
+    if (!text) return;
+    f.value = '';
+    const r = await app.act(store => addTask(store, app.ctx(), text));
+    if (!r && !f.value) f.value = text;
+  });
+
   $('#order-list').addEventListener('click', async ev => {
     const b = ev.target.closest('button[data-act]');
     if (!b) return;
@@ -57,4 +134,57 @@ export function renderControl(app) {
     },
   });
   if (!list.length) fill($('#order-list'), el('li', { class: 'empty', 'data-key': '' }, t('control.empty')));
+
+  const rounds = roundsSorted(app.sd.rounds);
+  const counts = new Map();
+  for (const n of liveOf(app.sd.notes)) counts.set(n.roundId, (counts.get(n.roundId) || 0) + 1);
+  keyedList($('#round-list'), rounds, {
+    key: r => r.id,
+    create: () => el('li', { class: 'round-row' },
+      el('label', { class: 'inline-field' }, el('span', {}), el('input', { class: 'round-no mono', inputmode: 'numeric', size: 3, autocorrect: 'off' })),
+      el('label', { class: 'inline-field grow' }, el('span', {}), el('input', { class: 'round-topic', autocorrect: 'off' })),
+      el('span', { class: 'hint count' }),
+      el('button', { type: 'button', class: 'mini', 'data-act': 'current' })),
+    update: (li, r) => {
+      const [noL, topicL, count, cur] = li.children;
+      setText(noL.firstChild, t('round.number'));
+      setText(topicL.firstChild, t('round.topic'));
+      setValue(noL.lastChild, String(r.number));
+      setValue(topicL.lastChild, r.topic || '');
+      noL.lastChild.disabled = topicL.lastChild.disabled = app.readOnly;
+      setText(count, t('round.notesCount', { n: counts.get(r.id) || 0 }));
+      const isCur = r.id === app.s.currentRoundId;
+      li.classList.toggle('current', isCur);
+      setText(cur, isCur ? t('round.current') : t('round.makeCurrent'));
+      setAttr(cur, 'aria-pressed', String(isCur));
+      setAttr(cur, 'aria-label', isCur ? t('round.isCurrentLabel', { n: r.number }) : t('round.makeCurrentLabel', { n: r.number }));
+      cur.disabled = app.readOnly || isCur;
+    },
+  });
+
+  const notes = new Map(app.sd.notes.map(n => [n.id, n]));
+  const tasks = liveOf(app.sd.items).filter(i => i.kind === 'task' && i.active !== false && (!i.noteId || (notes.get(i.noteId) && !notes.get(i.noteId).deleted)))
+    .sort((a, b) => (a.state === 'done') - (b.state === 'done') || cmp(a.created, b.created));
+  keyedList($('#task-list'), tasks, {
+    key: i => i.id,
+    create: i => el('li', { class: 'task-row' },
+      el('input', { type: 'checkbox', class: 'item-done' }),
+      i.noteId ? el('span', { class: 'task-note' }) : el('input', { class: 'task-text', autocorrect: 'off' }),
+      i.noteId ? el('button', { type: 'button', class: 'mini link', 'data-act': 'open' }) : null),
+    update: (li, i) => {
+      const [cb, body, open] = li.children;
+      const n = i.noteId ? notes.get(i.noteId) : null;
+      const p = n ? app.sd.participants.find(x => x.id === n.participantId) : null;
+      const what = n ? `${p ? callText(p) : '?'}: ${n.text}` : i.text;
+      cb.checked = i.state === 'done';
+      cb.disabled = app.readOnly;
+      setAttr(cb, 'aria-label', t('control.taskDone', { what }));
+      li.classList.toggle('done', i.state === 'done');
+      if (n) setText(body, what); else { setValue(body, i.text); setAttr(body, 'aria-label', t('control.taskText')); body.disabled = app.readOnly; }
+      if (open) { open.dataset.pid = p ? p.id : ''; open.dataset.note = n.id; setText(open, t('turn.toNote')); setAttr(open, 'aria-label', t('turn.toNoteLabel', { call: p ? callText(p) : '?' })); }
+    },
+  });
+  if (!tasks.length) fill($('#task-list'), el('li', { class: 'empty', 'data-key': '' }, t('control.noTasks')));
+  for (const f of $('#task-form').elements) f.disabled = app.readOnly;
+  $('#btn-new-round').disabled = app.readOnly;
 }

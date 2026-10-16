@@ -181,3 +181,130 @@ export function presenceOpen(p) {
   const iv = p.presence || [];
   return iv.length > 0 && !iv[iv.length - 1].to;
 }
+
+// ---------- rounds ----------
+
+// Rounds in session order (explicit order, then number).
+export function roundsSorted(rounds) {
+  return liveOf(rounds).sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || (a.number ?? 0) - (b.number ?? 0) || cmp(a.created, b.created));
+}
+
+// The immediately preceding round in session order (also an empty one),
+// or null in the first logged round: nothing earlier is made up.
+export function previousRound(rounds, roundId) {
+  const list = roundsSorted(rounds);
+  const i = list.findIndex(r => r.id === roundId);
+  return i > 0 ? list[i - 1] : null;
+}
+
+export function nextRoundNumber(rounds) {
+  let max = 0;
+  for (const r of liveOf(rounds)) if (Number.isFinite(r.number) && r.number > max) max = r.number;
+  return max + 1;
+}
+
+// ---------- chronology ----------
+
+// Notes and contributions share one sequence per session: the stable
+// chronological tie-breaker (equal or missing times), never changed by an
+// edit. Deleted records keep their number.
+export function nextSeq(...lists) {
+  let max = 0;
+  for (const list of lists) for (const r of list || []) if (Number.isFinite(r.seq) && r.seq > max) max = r.seq;
+  return max + 1;
+}
+
+export const bySeq = (a, b) => (a.seq ?? 0) - (b.seq ?? 0) || cmp(a.created, b.created) || cmp(a.id, b.id);
+
+// A participant's notes in a round, in recorded order.
+export function notesOf(notes, participantId, roundId) {
+  return liveOf(notes).filter(n => n.participantId === participantId && n.roundId === roundId).sort(bySeq);
+}
+
+// The contribution a new note belongs to: the participant's latest one
+// in that round, or none (a note never needs a recorded speaking turn).
+export function latestContribution(contributions, participantId, roundId) {
+  return liveOf(contributions).filter(c => c.participantId === participantId && c.roundId === roundId).sort(bySeq).pop() || null;
+}
+
+// ---------- responses, points, tasks ----------
+
+export const QUEUE_KINDS = ['response', 'point'];
+
+// The response item of a note (the active one, else the last one), or null.
+export function responseOf(items, noteId, kind = 'response') {
+  const list = liveOf(items).filter(i => i.kind === kind && i.noteId === noteId);
+  return list.find(i => i.active !== false) || list.sort((a, b) => cmp(a.updated, b.updated)).pop() || null;
+}
+
+// In the My Turn checklist: open responses and talking points of the
+// session (whatever round they came from), plus those completed during
+// the open turn (shown subdued until End Turn). A response whose note was
+// deleted is not listed (the item stays, restorable with the note).
+export function inQueue(item, notesById, turnId) {
+  if (!live(item) || !QUEUE_KINDS.includes(item.kind) || item.active === false) return false;
+  if (item.kind === 'response' && !live(notesById.get(item.noteId))) return false;
+  return item.state !== 'done' || (!!turnId && item.doneTurnId === turnId);
+}
+
+export function queueItems(items, notes, turnId) {
+  const byId = new Map(notes.map(n => [n.id, n]));
+  return items.filter(i => inQueue(i, byId, turnId)).sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || cmp(a.created, b.created) || cmp(a.id, b.id));
+}
+
+export function openQueueCount(items, notes) {
+  const byId = new Map(notes.map(n => [n.id, n]));
+  return items.filter(i => inQueue(i, byId, null)).length;
+}
+
+// Per round: { notes, open } (open = outstanding on-air responses), for
+// one participant (or all with participantId null).
+export function roundCounts(notes, items, participantId = null) {
+  const out = new Map();
+  const byId = new Map();
+  for (const n of liveOf(notes)) {
+    if (participantId && n.participantId !== participantId) continue;
+    byId.set(n.id, n);
+    const c = out.get(n.roundId) || { notes: 0, open: 0 };
+    c.notes++;
+    out.set(n.roundId, c);
+  }
+  for (const i of liveOf(items)) {
+    if (i.kind !== 'response' || i.active === false || i.state === 'done') continue;
+    const n = byId.get(i.noteId);
+    if (n) out.get(n.roundId).open++;
+  }
+  return out;
+}
+
+// The open My Turn review cycle, or null.
+export function openTurn(turns) {
+  return liveOf(turns).filter(t => !t.ended).sort((a, b) => cmp(a.started, b.started)).pop() || null;
+}
+
+// ---------- round summary (My Turn) ----------
+
+// Every note of a round, grouped by station: stations in first-contribution
+// order (a station without a recorded contribution at its first note's
+// position), each once; notes by their contribution's position, then in
+// recorded order. Stations without notes are left out.
+export function roundSummary({ notes, contributions, participants, roundId }) {
+  const contrib = new Map(liveOf(contributions).filter(c => c.roundId === roundId).map(c => [c.id, c]));
+  const first = new Map();
+  for (const c of contrib.values()) {
+    if (!first.has(c.participantId) || c.seq < first.get(c.participantId)) first.set(c.participantId, c.seq);
+  }
+  const groups = new Map();
+  for (const n of liveOf(notes).filter(n => n.roundId === roundId)) {
+    if (!groups.has(n.participantId)) groups.set(n.participantId, []);
+    groups.get(n.participantId).push(n);
+  }
+  const pos = n => (n.contributionId && contrib.has(n.contributionId) ? contrib.get(n.contributionId).seq : n.seq);
+  const out = [];
+  for (const [pid, list] of groups) {
+    list.sort((a, b) => pos(a) - pos(b) || bySeq(a, b));
+    const at = first.has(pid) ? first.get(pid) : Math.min(...list.map(n => n.seq));
+    out.push({ participant: participants.find(p => p.id === pid) || { id: pid, call: '?' }, notes: list, at });
+  }
+  return out.sort((a, b) => a.at - b.at || cmp(a.participant.id, b.participant.id));
+}

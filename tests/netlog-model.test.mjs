@@ -97,3 +97,63 @@ test('times: unknown has no instant, never invented precision', () => {
   assert.deepEqual(timeOf('2026-10-16T19:00:00Z', 'estimated'), { iso: '2026-10-16T19:00:00Z', quality: 'estimated' });
   assert.deepEqual(timeOf('2026-10-16T19:00:00Z', 'unknown'), { iso: '2026-10-16T19:00:00Z', quality: 'exact' });
 });
+
+import { roundsSorted, previousRound, nextRoundNumber, nextSeq, roundSummary, queueItems, roundCounts, openTurn, responseOf } from '../tools/netlog/js/model.js';
+
+test('rounds: session order, previous is the immediately preceding one (also empty), none in the first', () => {
+  const rounds = [{ id: 'r4', number: 4, order: 4 }, { id: 'r2', number: 2, order: 2 }, { id: 'r3', number: 3, order: 3 }, { id: 'rx', number: 9, order: 9, deleted: 'x' }];
+  assert.deepEqual(roundsSorted(rounds).map(r => r.id), ['r2', 'r3', 'r4']);
+  assert.equal(previousRound(rounds, 'r4').id, 'r3');
+  assert.equal(previousRound(rounds, 'r2'), null);
+  assert.equal(nextRoundNumber(rounds), 5);
+  assert.equal(nextRoundNumber([]), 1);
+});
+
+test('one sequence for notes and contributions, deleted ones keep their number', () => {
+  assert.equal(nextSeq([{ seq: 3 }, { seq: 7, deleted: 'x' }], [{ seq: 5 }]), 8);
+  assert.equal(nextSeq([], []), 1);
+});
+
+test('round summary: stations in first-contribution order, notes by contribution then recorded order', () => {
+  const participants = [{ id: 'A', call: 'OE0QXA' }, { id: 'B', call: 'OE0QXB' }, { id: 'C', call: 'OE0QXC' }, { id: 'D', call: 'OE0QXD' }];
+  const contributions = [
+    { id: 'cB1', participantId: 'B', roundId: 'r', seq: 1 },
+    { id: 'cA1', participantId: 'A', roundId: 'r', seq: 4 },
+    { id: 'cB2', participantId: 'B', roundId: 'r', seq: 6 }, // B again (repeated contribution)
+    { id: 'cD', participantId: 'D', roundId: 'r', seq: 20 }, // D spoke, no note
+  ];
+  const notes = [
+    { id: 'n1', participantId: 'C', roundId: 'r', seq: 2, text: 'C, no contribution recorded' },
+    { id: 'n2', participantId: 'B', roundId: 'r', seq: 7, contributionId: 'cB2', text: 'B second turn' },
+    { id: 'n3', participantId: 'B', roundId: 'r', seq: 3, contributionId: 'cB1', text: 'B first turn' },
+    { id: 'n4', participantId: 'A', roundId: 'r', seq: 5, contributionId: 'cA1', text: 'A' },
+    { id: 'n5', participantId: 'A', roundId: 'other', seq: 8, text: 'other round' },
+    { id: 'n6', participantId: 'B', roundId: 'r', seq: 9, text: 'B deleted', deleted: 'x' },
+  ];
+  const s = roundSummary({ notes, contributions, participants, roundId: 'r' });
+  assert.deepEqual(s.map(g => g.participant.id), ['B', 'C', 'A'], 'B once, D (no notes) left out');
+  assert.deepEqual(s[0].notes.map(n => n.id), ['n3', 'n2']);
+  assert.deepEqual(roundSummary({ notes, contributions, participants, roundId: 'empty' }), []);
+});
+
+test('My Turn queue: open responses of any round and points, in manual order; tasks, unflagged and deleted sources out', () => {
+  const notes = [{ id: 'n1', roundId: 'r1' }, { id: 'n2', roundId: 'r4' }, { id: 'n3', roundId: 'r4', deleted: 'x' }, { id: 'n4', roundId: 'r2' }];
+  const items = [
+    { id: 'a', kind: 'response', noteId: 'n1', state: 'open', active: true, order: 2 },
+    { id: 'b', kind: 'point', state: 'open', active: true, order: 1 },
+    { id: 'c', kind: 'task', noteId: 'n2', state: 'open', active: true, order: 0 },
+    { id: 'd', kind: 'response', noteId: 'n2', state: 'open', active: false, order: 3 },
+    { id: 'e', kind: 'response', noteId: 'n3', state: 'open', active: true, order: 4 },
+    { id: 'f', kind: 'response', noteId: 'n4', state: 'done', doneTurnId: 'T', active: true, order: 5 },
+    { id: 'g', kind: 'response', noteId: 'n4', state: 'done', doneTurnId: 'old', active: true, order: 6 },
+  ];
+  assert.deepEqual(queueItems(items, notes, 'T').map(i => i.id), ['b', 'a', 'f'], 'done in this turn stays visible');
+  assert.deepEqual(queueItems(items, notes, null).map(i => i.id), ['b', 'a']);
+  const counts = roundCounts(notes, items);
+  assert.deepEqual(counts.get('r1'), { notes: 1, open: 1 });
+  assert.deepEqual(counts.get('r4'), { notes: 1, open: 0 });
+  assert.equal(openTurn([{ id: 'x', started: '1', ended: '2' }, { id: 'y', started: '3', ended: null }]).id, 'y');
+  assert.equal(openTurn([{ id: 'x', started: '1', ended: '2' }]), null);
+  assert.equal(responseOf(items, 'n2').id, 'd');
+  assert.equal(responseOf(items, 'n2', 'task').id, 'c');
+});
