@@ -195,6 +195,9 @@ li.sum-note.flagged{ border-left-color:var(--warn); }
 .order-row{ display:flex; align-items:center; gap:.5em; padding:.35em 0; border-top:1px solid var(--line); }
 .order-row:first-child{ border-top:0; }
 .order-row button.open{ font-weight:600; text-align:left; }
+.order-row button.mini{ white-space:nowrap; }
+button.icon{ font-size:18px; line-height:1; padding:.3em .55em; }
+#st-save{ width:15em; }
 
 /* ---------- sessions & series ---------- */
 .series-card .toolbar{ margin-bottom:.3em; }
@@ -204,6 +207,26 @@ li.sum-note.flagged{ border-left-color:var(--warn); }
 .session-row{ display:flex; flex-wrap:wrap; gap:.5em; align-items:center; padding:.45em 0; border-top:1px solid var(--line); }
 .session-main{ flex:1 1 18em; }
 .empty-small{ margin:.3em 0; }
+
+/* ---------- log, search, net control ---------- */
+.note-meta .station{ font-weight:600; }
+input.note-select{ width:1.2em; height:1.2em; margin:.3em .2em 0 0; }
+.search-dlg{ width:min(48em, 94vw); }
+.search-q{ width:100%; font-size:18px; padding:.5em .6em; }
+.search-filters{ margin:.6em 0; }
+.search-results{ list-style:none; margin:0; padding:0; max-height:55vh; overflow:auto; border-top:1px solid var(--line); }
+.search-results li{ border-bottom:1px solid var(--line); }
+button.result{ display:block; width:100%; text-align:left; border:0; border-radius:0; background:none; padding:.55em .4em; }
+button.result:focus{ background:var(--accent-soft); outline:none; }
+button.result .r-text{ display:block; white-space:pre-wrap; overflow-wrap:anywhere; }
+button.result small{ display:block; margin-top:.2em; }
+mark{ background:var(--warn-soft); color:inherit; border-bottom:2px solid var(--warn); }
+.ncs-current{ font-weight:600; }
+.ncs-history{ list-style:none; margin:0; padding:0; }
+.ncs-row{ display:flex; gap:.6em; align-items:center; flex-wrap:wrap; padding:.3em 0; border-top:1px solid var(--line); }
+.ncs-row:first-child{ border-top:0; }
+.card h4{ font-size:14px; margin:.8em 0 .3em; color:var(--text-dim); font-weight:500; }
+input[aria-invalid="true"]{ border-color:var(--err); }
 
 /* ---------- dialogs ---------- */
 dialog{ border:1px solid var(--line-strong); border-radius:8px; background:var(--bg); color:var(--text); max-width:min(48em, 94vw); padding:1.2em 1.4em; }
@@ -231,4 +254,10 @@ table.keys th, table.keys td{ text-align:left; padding:.3em .6em .3em 0; border-
   .toggle button, #btn-help{ min-height:0; }
   button.person{ min-height:44px; }
   .tabs a{ min-height:44px; display:inline-flex; align-items:center; }
+}
+
+/* wide screens: one header line; the session line gives way (ellipsis) */
+@media (min-width: 1100px){
+  #site-header{ flex-wrap:nowrap; }
+  #site-header > :not(.session-line):not(.spacer){ flex-shrink:0; }
 }

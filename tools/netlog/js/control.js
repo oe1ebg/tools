@@ -5,8 +5,8 @@
 import { $, el, fill } from '../../shared/js/dom.js';
 import { t } from './i18n.js';
 import { keyedList, setText, setAttr, setValue } from './keyed.js';
-import { rosterSorted, roundsSorted, nextRoundNumber, liveOf, cmp } from './model.js';
-import { moveParticipant, createRound, setCurrentRound, updateRound, setItemDone, addTask, setItemText } from './ops.js';
+import { rosterSorted, roundsSorted, nextRoundNumber, liveOf, cmp, timeOf, baseCall } from './model.js';
+import { moveParticipant, createRound, setCurrentRound, updateRound, setItemDone, addTask, setItemText, setNcs, setEventTime } from './ops.js';
 import { callText, statusLabel } from './roster.js';
 import { expandedCount, setExpandedCount } from './notes.js';
 
@@ -74,6 +74,25 @@ export function initControl(app) {
     if (ev.key === 'Enter' && ev.target.matches('input')) { ev.preventDefault(); ev.target.dispatchEvent(new Event('change', { bubbles: true })); }
   });
 
+  $('#ncs-suggest').addEventListener('click', async ev => {
+    const b = ev.target.closest('button[data-pid]');
+    if (b) await app.act(store => setNcs(store, app.ctx(), b.dataset.pid));
+  });
+  // a handover's time: HH:MM (UTC, on the event's date) and whether it is
+  // an estimate; a correction keeps a revision and can be undone
+  $('#ncs-history').addEventListener('change', async ev => {
+    const li = ev.target.closest('li');
+    if (!li) return;
+    const ev0 = app.sd.events.find(e => e.id === li.dataset.key);
+    const tf = li.querySelector('input.ev-time');
+    const est = li.querySelector('input.ev-est');
+    const m = /^(\d{1,2}):(\d{2})$/.exec(tf.value.trim());
+    if (tf.value.trim() && (!m || Number(m[1]) > 23 || Number(m[2]) > 59)) { tf.setAttribute('aria-invalid', 'true'); app.announce(t('ncs.badTime')); return; }
+    tf.removeAttribute('aria-invalid');
+    const date = (ev0.time && ev0.time.iso ? ev0.time.iso : ev0.created).slice(0, 10);
+    const iso = m ? `${date}T${m[1].padStart(2, '0')}:${m[2]}:00.000Z` : null;
+    await app.act(store => setEventTime(store, app.ctx(), ev0.id, timeOf(iso, est.checked ? 'estimated' : 'exact')));
+  });
   $('#task-list').addEventListener('change', ev => {
     const cb = ev.target.closest('input.item-done');
     if (cb) app.act(store => setItemDone(store, app.ctx(), cb.closest('li').dataset.key, cb.checked));
@@ -99,6 +118,13 @@ export function initControl(app) {
     if (!b) return;
     const id = b.closest('li').dataset.key;
     if (b.dataset.act === 'open') { app.openStation(id); return; }
+    if (b.dataset.act === 'ncs') {
+      const on = app.s.ncsId !== id;
+      const r = await app.act(store => setNcs(store, app.ctx(), on ? id : null));
+      if (r) app.announce(t(on ? 'ncs.assigned' : 'ncs.cleared', { call: callText(app.participant(id)) }));
+      $('#order-list').querySelector(`li[data-key="${CSS.escape(id)}"] button[data-act="ncs"]`)?.focus();
+      return;
+    }
     const dir = b.dataset.act === 'up' ? -1 : 1;
     const moved = await app.act(store => moveParticipant(store, app.ctx(), id, dir, 'plannedOrder'));
     if (moved) {
@@ -119,10 +145,16 @@ export function renderControl(app) {
       el('button', { type: 'button', class: 'link open', 'data-act': 'open' }),
       el('span', { class: 'pill status' }),
       el('span', { class: 'spacer' }),
+      el('button', { type: 'button', class: 'mini', 'data-act': 'ncs' }),
       el('button', { type: 'button', class: 'mini', 'data-act': 'up' }, '↑'),
       el('button', { type: 'button', class: 'mini', 'data-act': 'down' }, '↓')),
     update: (li, p) => {
-      const [open, status, , up, down] = li.children;
+      const [open, status, , ncsB, up, down] = li.children;
+      const isNcs = app.s.ncsId === p.id;
+      setText(ncsB, isNcs ? '★ NCS' : '☆ NCS');
+      setAttr(ncsB, 'aria-pressed', String(isNcs));
+      setAttr(ncsB, 'aria-label', t('ncs.assignLabel', { call: callText(p) }));
+      ncsB.disabled = app.readOnly;
       const i = list.indexOf(p);
       setText(open, `${i + 1}. ${callText(p)}${p.name ? ` · ${p.name}` : ''}`);
       setAttr(open, 'aria-label', t('control.openLabel', { call: callText(p) }));
@@ -134,6 +166,42 @@ export function renderControl(app) {
     },
   });
   if (!list.length) fill($('#order-list'), el('li', { class: 'empty', 'data-key': '' }, t('control.empty')));
+
+  // net control: current, the series' suggestion, the handovers
+  const ncs = app.participant(app.s.ncsId);
+  setText($('#ncs-current'), ncs ? t('ncs.is', { call: `${callText(ncs)}${ncs.name ? ` · ${ncs.name}` : ''}` }) : t('ncs.none'));
+  const sug = app.s.suggestedNcs;
+  const sugP = sug && app.sd.participants.find(p => p.base === baseCall(sug) && !p.deleted);
+  const sugBox = $('#ncs-suggest');
+  sugBox.hidden = !sug || (sugP && sugP.id === app.s.ncsId);
+  if (!sugBox.hidden) {
+    const sig = `${sug}|${sugP ? sugP.id : ''}|${app.lang()}|${app.readOnly}`;
+    if (sugBox.dataset.sig !== sig) {
+      sugBox.dataset.sig = sig;
+      fill(sugBox, t('ncs.suggestion', { call: sug }), ' ', sugP ? el('button', { type: 'button', class: 'mini', 'data-pid': sugP.id, disabled: app.readOnly }, t('ncs.assignSuggested', { call: callText(sugP) })) : t('ncs.notCheckedIn'));
+    }
+  }
+  const handovers = liveOf(app.sd.events).filter(e => e.type === 'ncs').sort((a, b) => cmp(a.created, b.created));
+  const byId = new Map(app.sd.participants.map(p => [p.id, p]));
+  keyedList($('#ncs-history'), handovers, {
+    key: e => e.id,
+    create: () => el('li', { class: 'ncs-row' },
+      el('label', { class: 'inline-field' }, el('span', {}), el('input', { class: 'ev-time mono', inputmode: 'numeric', size: 5, autocorrect: 'off', placeholder: 'HH:MM' })),
+      el('label', { class: 'check' }, el('input', { type: 'checkbox', class: 'ev-est' }), el('span', {})),
+      el('span', { class: 'ev-what' })),
+    update: (li, e) => {
+      const [tl, el2, what] = li.children;
+      setText(tl.firstChild, t('ncs.time'));
+      setValue(tl.lastChild, e.time && e.time.iso ? e.time.iso.slice(11, 16) : '');
+      tl.lastChild.disabled = app.readOnly;
+      el2.firstChild.checked = !!(e.time && e.time.quality === 'estimated');
+      el2.firstChild.disabled = app.readOnly;
+      setText(el2.lastChild, t('ncs.estimated'));
+      const name = id => (id && byId.get(id) ? callText(byId.get(id)) : '—');
+      setText(what, `${name(e.from)} → ${name(e.to)}`);
+    },
+  });
+  if (!handovers.length) fill($('#ncs-history'), el('li', { class: 'empty', 'data-key': '' }, t('ncs.noHandovers')));
 
   const rounds = roundsSorted(app.sd.rounds);
   const counts = new Map();

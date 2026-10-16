@@ -140,6 +140,8 @@ test('a second tab is read-only until "Edit here"', async ({ page, context }) =>
 
 const notesOf = page => page.locator('#station-rounds section.round.current li.note textarea.note-text');
 const values = loc => loc.evaluateAll(els => els.map(e => e.value));
+// the caret to the end of a field (End does not do that in WebKit)
+const toEnd = loc => loc.evaluate(ta => { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); });
 const composer = page => page.locator('#station-rounds .composer-text');
 const ready = page => expect.poll(() => page.evaluate(() => globalThis.NETLOG_READY === true)).toBe(true);
 async function openStation(page, call) {
@@ -148,8 +150,10 @@ async function openStation(page, call) {
   await expect(composer(page)).toBeFocused();
 }
 async function newRound(page) {
+  const before = await page.locator('#round-indicator').textContent();
   await page.locator('#btn-new-round').click();
   await page.locator('#round-form button[value=ok]').click();
+  await expect(page.locator('#round-indicator')).not.toHaveText(before);
 }
 
 test('notes: Enter saves and goes on, Shift+Enter new line, empty and IME Enter save nothing; order stays', async ({ page }) => {
@@ -178,7 +182,7 @@ test('notes: Enter saves and goes on, Shift+Enter new line, empty and IME Enter 
   await page.keyboard.press('Enter');
   // correcting a note keeps its place
   await notesOf(page).first().click();
-  await page.keyboard.press('End');
+  await toEnd(notesOf(page).first());
   await page.keyboard.type(' (corrected)');
   await page.keyboard.press('Enter');
   await expect(composer(page)).toBeFocused();
@@ -349,4 +353,176 @@ test('My Turn: Enter opens the source, b comes back to the same place; x complet
   await expect(queue(page)).toHaveCount(0);
   await expect(page.locator('#turn-history-summary')).toHaveText('Completed earlier (1)');
   await expect(page.locator('#round-indicator')).toHaveText('Round 4');
+});
+
+// ---------- NCS, log, search, correction, undo ----------
+
+test('net control: keyboard handover, history with old/new, time correction, undo; no round from it', async ({ page }) => {
+  await open(page, { lang: 'en' });
+  await startSession(page);
+  await checkIn(page, 'OE0QXA', 'Mira');
+  await checkIn(page, 'OE0QXB', 'Jonas');
+  await openStation(page, 'OE0QXA');
+  await page.locator('#btn-ncs').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#btn-ncs')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#roster li', { hasText: 'OE0QXA' }).locator('.pill.ncs')).toHaveText('NCS');
+  await page.locator('#tab-control').click();
+  await page.getByRole('button', { name: 'Net control: OE0QXB' }).press('Enter');
+  await expect(page.locator('#ncs-current')).toHaveText('Net control: OE0QXB · Jonas');
+  await expect(page.locator('#roster .pill.ncs')).toHaveCount(1);
+  await expect(page.locator('#ncs-history li .ev-what')).toHaveText(['— → OE0QXA', 'OE0QXA → OE0QXB']);
+  const time = page.locator('#ncs-history li').nth(1).locator('input.ev-time');
+  await time.fill('19:05');
+  await page.locator('#ncs-history li').nth(1).locator('input.ev-est').check();
+  await expect(page.locator('#st-save')).toContainText('saved');
+  await page.reload();
+  await ready(page);
+  await expect(page.locator('#ncs-history li').nth(1).locator('input.ev-time')).toHaveValue('19:05');
+  await expect(page.locator('#ncs-history li').nth(1).locator('input.ev-est')).toBeChecked();
+  // undo the estimate flag and the time correction, then the handover
+  await page.locator('#btn-undo').click();
+  await expect(page.locator('#ncs-history li').nth(1).locator('input.ev-est')).not.toBeChecked();
+  await page.locator('#tab-control').focus();
+  await page.keyboard.press('Control+z');
+  await expect(page.locator('#ncs-history li').nth(1).locator('input.ev-time')).not.toHaveValue('19:05');
+  await page.keyboard.press('Control+z');
+  await expect(page.locator('#ncs-current')).toHaveText('Net control: OE0QXA · Mira');
+  await page.keyboard.press('Control+Shift+z');
+  await expect(page.locator('#ncs-current')).toHaveText('Net control: OE0QXB · Jonas');
+  await expect(page.locator('#round-list li')).toHaveCount(1);
+});
+
+test('presence: late check-in, pause, checkout, reentry; reorders keep the speaking history', async ({ page }) => {
+  await open(page, { lang: 'en' });
+  await startSession(page, { round: 2 });
+  await checkIn(page, 'OE0QXA');
+  await checkIn(page, 'OE0QXB');
+  await openStation(page, 'OE0QXB');
+  await page.locator('#btn-spoke').click();
+  await page.keyboard.press('Escape');
+  await page.locator('#station-status').selectOption('paused');
+  await page.locator('#station-status').selectOption('out');
+  await page.locator('#station-status').selectOption('active');
+  await page.locator('#btn-details').click();
+  await expect(page.locator('#presence-list li')).toHaveCount(2);
+  const before = await page.evaluate(() => JSON.stringify(globalThis.NETLOG_APP.sd.contributions.map(c => [c.id, c.participantId, c.roundId, c.seq])));
+  await page.getByRole('button', { name: 'Move OE0QXB up' }).click();
+  await page.locator('#tab-control').click();
+  await page.locator('#order-list li').nth(1).getByRole('button', { name: 'Move OE0QXA up' }).click();
+  await page.getByRole('button', { name: 'Net control: OE0QXA' }).click();
+  expect(await page.evaluate(() => JSON.stringify(globalThis.NETLOG_APP.sd.contributions.map(c => [c.id, c.participantId, c.roundId, c.seq])))).toBe(before);
+  await expect(page.locator('#round-list li')).toHaveCount(1);
+  // a late arrival in round 3
+  await newRound(page);
+  await checkIn(page, 'OE0QXC');
+  expect(await page.evaluate(() => { const a = globalThis.NETLOG_APP; const p = a.sd.participants.find(x => x.call === 'OE0QXC'); return p.checkinRoundId === a.s.currentRoundId; })).toBe(true);
+});
+
+test('Continuous Log: the same notes, in order; edits show in Live Notes; bulk move and undo', async ({ page }) => {
+  await open(page, { lang: 'en' });
+  await startSession(page);
+  for (const c of ['OE0QXA', 'OE0QXB', 'OE0QXC']) await checkIn(page, c);
+  for (const [c, text] of [['OE0QXA', 'first'], ['OE0QXB', 'second'], ['OE0QXA', 'third']]) {
+    await openStation(page, c);
+    await page.keyboard.type(text);
+    await page.keyboard.press('Enter');
+  }
+  await page.locator('#tab-log').click();
+  const rows = page.locator('#log-rounds li.note textarea.note-text');
+  await expect.poll(() => values(rows)).toEqual(['first', 'second', 'third']);
+  await expect(page.locator('#log-rounds li.note .station')).toHaveText(['OE0QXA', 'OE0QXB', 'OE0QXA']);
+  // edit in the log
+  await rows.nth(1).click();
+  await toEnd(rows.nth(1));
+  await page.keyboard.type(' (log edit)');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#log-rounds li.note').nth(1)).toBeFocused();
+  // the station link opens Live Notes at the note; b comes back
+  await page.locator('#log-rounds li.note').nth(1).locator('.station').click();
+  await expect(page.locator('#station-call')).toHaveText('OE0QXB');
+  await expect.poll(() => values(notesOf(page))).toEqual(['second (log edit)']);
+  await page.keyboard.press('b');
+  await expect(page.locator('#view-log')).toBeVisible();
+  // select two notes and move them to OE0QXC
+  await page.locator('#btn-log-select').click();
+  await page.locator('#log-rounds li.note').nth(0).locator('input.note-select').check();
+  await page.locator('#log-rounds li.note').nth(2).locator('input.note-select').check();
+  await expect(page.locator('#log-selected')).toHaveText('2 notes selected');
+  await page.locator('#btn-log-move').click();
+  await page.locator('#move-station').selectOption({ label: 'OE0QXC' });
+  await page.locator('#move-form button[value=ok]').click();
+  await expect(page.locator('#log-rounds li.note .station')).toHaveText(['OE0QXC', 'OE0QXB', 'OE0QXC']);
+  await expect.poll(() => values(rows)).toEqual(['first', 'second (log edit)', 'third']);
+  await page.locator('#btn-undo').click();
+  await expect(page.locator('#log-rounds li.note .station')).toHaveText(['OE0QXA', 'OE0QXB', 'OE0QXA']);
+});
+
+test('search: history and collapsed rounds, Enter opens the exact match, b returns with the draft', async ({ page }) => {
+  await open(page, { lang: 'en' });
+  // an earlier session with the text to find
+  await startSession(page);
+  await checkIn(page, 'OE0QXC', 'Lea');
+  await openStation(page, 'OE0QXC');
+  await page.keyboard.type('Plans a portable test on the Kahlenberg.');
+  await page.keyboard.press('Enter');
+  await page.locator('#tab-series').click();
+  // the current one: a note in a round that will be collapsed, and a draft
+  await startSession(page);
+  await checkIn(page, 'OE0QXB');
+  await openStation(page, 'OE0QXB');
+  await page.keyboard.type('Interference with the beam antenna.');
+  await page.keyboard.press('Enter');
+  await newRound(page);
+  await newRound(page);
+  await newRound(page);
+  await openStation(page, 'OE0QXB');
+  await page.keyboard.type('unfinished draft');
+  const session = await page.evaluate(() => globalThis.NETLOG_APP.s.id);
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('/');
+  await expect(page.locator('#search-dlg')).toBeVisible();
+  await page.keyboard.type('beam');
+  await expect(page.locator('#search-results li')).toHaveCount(1);
+  await expect(page.locator('#search-results li')).toContainText('Round 1 · OE0QXB · note');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#station-rounds li.note.highlight textarea.note-text')).toBeFocused();
+  await expect(page.locator('#station-rounds li.note.highlight textarea.note-text')).toHaveValue('Interference with the beam antenna.');
+  // history: in all sessions
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('/');
+  await page.locator('#search-scope').selectOption('all');
+  await page.locator('#search-q').fill('kahlenberg');
+  await expect(page.locator('#search-results li')).toHaveCount(1);
+  await page.locator('#search-results button').first().click();
+  await expect(page.locator('#station-call')).toHaveText('OE0QXC');
+  expect(await page.evaluate(() => globalThis.NETLOG_APP.s.id)).not.toBe(session);
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('b');
+  await expect(page.locator('#station-call')).toHaveText('OE0QXB');
+  expect(await page.evaluate(() => globalThis.NETLOG_APP.s.id)).toBe(session);
+  await page.keyboard.press('b');
+  await expect(composer(page)).toHaveValue('unfinished draft');
+});
+
+test('a partial callsign resolved to a station already checked in: preview, merge, undo', async ({ page }) => {
+  await open(page, { lang: 'en' });
+  await startSession(page);
+  await checkIn(page, 'OE0QXB', 'Jonas');
+  await checkIn(page, 'OE0QX?');
+  await openStation(page, 'OE0QX?');
+  await page.keyboard.type('heard only partly');
+  await page.keyboard.press('Enter');
+  await page.locator('#btn-edit-identity').click();
+  await page.locator('#identity-call').fill('OE0QXB');
+  await page.locator('#identity-call').press('Enter');
+  await expect(page.locator('#merge-dlg')).toBeVisible();
+  await expect(page.locator('#merge-preview')).toContainText('notes moving over: 1');
+  await page.locator('#merge-form button[value=merge]').click();
+  await expect(roster(page)).toHaveText(['OE0QXB']);
+  await expect(page.locator('#station-call')).toHaveText('OE0QXB');
+  await expect.poll(() => values(notesOf(page))).toEqual(['heard only partly']);
+  await page.locator('#btn-undo').click();
+  await expect(roster(page)).toHaveText(['OE0QXB', 'OE0QX?']);
 });

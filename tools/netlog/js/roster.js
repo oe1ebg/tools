@@ -8,8 +8,8 @@
 import { $, el, fill, popover, isComposing } from '../../shared/js/dom.js';
 import { t } from './i18n.js';
 import { keyedList, setText, setAttr, setValue } from './keyed.js';
-import { rosterSorted, rosterStats, isUnresolved, callCandidates, normCall, STATUSES, FLAGS, live } from './model.js';
-import { addParticipant, updateParticipant, setStatus, setFlag, moveParticipant } from './ops.js';
+import { rosterSorted, rosterStats, isUnresolved, callCandidates, normCall, baseCall, STATUSES, FLAGS, live } from './model.js';
+import { addParticipant, updateParticipant, setStatus, setFlag, moveParticipant, setNcs, mergePreview, mergeParticipants, saveProfile } from './ops.js';
 
 // "OE0QXA" or the provisional "?" marked as unresolved.
 export function callText(p) {
@@ -110,6 +110,27 @@ export function initRoster(app) {
   $('#btn-roster-down').addEventListener('click', () => moveSelected(app, 1));
 
   initStation(app);
+}
+
+function focusRosterButton(id) {
+  $('#roster').querySelector(`li[data-key="${CSS.escape(id)}"] button.person`)?.focus();
+}
+
+// The merge question with a preview of what would move.
+async function askMerge(app, from, into) {
+  const dlg = $('#merge-dlg');
+  const pv = await mergePreview(app.store, app.sessionId(), from.id);
+  setText($('#merge-text'), t('merge.text', { from: callText(from), into: `${callText(into)}${into.name ? ` (${into.name})` : ''}` }));
+  fill($('#merge-preview'),
+    el('li', {}, t('merge.notes', { n: pv.notes })),
+    el('li', {}, t('merge.contributions', { n: pv.contributions })),
+    el('li', {}, t('merge.events', { n: pv.events })),
+    el('li', {}, t('merge.presence', { n: (from.presence || []).length })));
+  dlg.returnValue = '';
+  dlg.showModal();
+  return new Promise(resolve => {
+    dlg.addEventListener('close', () => resolve(dlg.returnValue || 'cancel'), { once: true });
+  });
 }
 
 async function moveSelected(app, dir) {
@@ -214,12 +235,46 @@ function initStation(app) {
     ev.preventDefault();
     const p = app.participant(app.ui.selected);
     if (!p) return;
-    const r = await app.act(store => updateParticipant(store, app.ctx(), p.id, { call: normCall(idCall.value) || '?', name: idName.value.trim() }));
+    const call = normCall(idCall.value) || '?';
+    // the corrected callsign is another station of this session: offer
+    // to merge (preview, explicit), never merge by itself
+    const twin = !isUnresolved(call) && app.sd.participants.find(x => live(x) && x.id !== p.id && x.base === baseCall(call));
+    if (twin) {
+      const choice = await askMerge(app, p, twin);
+      if (choice === 'cancel') { idCall.focus(); return; }
+      if (choice === 'merge') {
+        const r = await app.act(store => mergeParticipants(store, app.ctx(), p.id, twin.id));
+        if (r) {
+          openIdentity(false);
+          app.ui.selected = twin.id;
+          app.render();
+          app.announce(t('merge.done', { call: callText(twin) }));
+          focusRosterButton(twin.id);
+        }
+        return;
+      }
+    }
+    const r = await app.act(store => updateParticipant(store, app.ctx(), p.id, { call, name: idName.value.trim() }));
     if (r) {
       openIdentity(false);
       app.announce(t('station.corrected', { call: callText(r) }));
       idBtn.focus();
     }
+  });
+
+  $('#btn-ncs').addEventListener('click', async () => {
+    const p = app.participant(app.ui.selected);
+    if (!p) return;
+    const on = app.s.ncsId !== p.id;
+    const r = await app.act(store => setNcs(store, app.ctx(), on ? p.id : null));
+    if (r) app.announce(t(on ? 'ncs.assigned' : 'ncs.cleared', { call: callText(p) }));
+  });
+  $('#btn-profile').addEventListener('click', async () => {
+    const p = app.participant(app.ui.selected);
+    if (!p) return;
+    await flushDetails(app);
+    const r = await app.act(store => saveProfile(store, app.ctx(), p.id));
+    if (r) app.announce(t('station.profileSaved', { call: callText(p) }));
   });
 
   const details = $('#station-details');
@@ -349,6 +404,13 @@ export function renderStation(app) {
     b.disabled = app.readOnly;
   }
   $('#btn-edit-identity').disabled = app.readOnly;
+  const isNcs = app.s && app.s.ncsId === p.id;
+  setAttr($('#btn-ncs'), 'aria-pressed', String(!!isNcs));
+  setText($('#btn-ncs'), t(isNcs ? 'station.isNcs' : 'station.ncs'));
+  $('#btn-ncs').disabled = app.readOnly;
+  $('#btn-profile').disabled = app.readOnly;
+  const prof = p.profileId && app.data.profiles.find(x => x.id === p.profileId && live(x));
+  setText($('#profile-state'), prof ? t('station.profileLinked') : '');
   $('#btn-spoke').disabled = app.readOnly;
 
   const details = $('#station-details');

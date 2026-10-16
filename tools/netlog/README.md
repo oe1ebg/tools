@@ -18,8 +18,8 @@ requests:
 2. **Live logging**: rounds, contributions, the note editor and drafts,
    on-air response reminders, personal talking points, after-net tasks,
    My Turn.
-3. NCS and navigation: handovers, Continuous Log, search, correction and
-   undo in the UI, return navigation.
+3. **NCS and navigation**: handovers, Continuous Log, search, merging and
+   moving notes, undo/redo in the UI, return navigation across sessions.
 4. Release readiness: JSON backup/restore, privacy and deletion, station
    lookup links, the full acceptance suite.
 
@@ -101,6 +101,41 @@ yet (a follow-up).
   round expanded, the note focused and highlighted. `b` (or "Back to Live
   Notes" / Back) returns to exactly where you were: workspace, summary
   round, scroll and focus; edits made meanwhile stay.
+- **Net control.** "Make net control" in the station head, or ☆ NCS in
+  Net Control, designates the current NCS (at most one; marked "NCS" in the
+  roster). Every change is an event with the old and the new station (the
+  first one has none; nothing earlier is invented). Net Control lists the
+  handovers with their time (UTC `HH:MM`, "estimated" if heard late), which
+  can be corrected (a revision, undoable). A series' usual net control is
+  shown as a suggestion with a button, never assigned by itself.
+- **Continuous Log**: all notes of the session in recorded order, by round
+  (older rounds collapsed), each with its station. They are the same notes
+  as in Live Notes: edit, flag, task, move, delete work the same, and the
+  station link opens the note in Live Notes (Back returns). "Select notes"
+  adds checkboxes for moving several at once.
+- **Moving notes** ("Move…" on a note, or several from the log): to another
+  station and/or round. Ids, times, the recorded order and the on-air
+  responses and tasks stay with the notes (their station and round follow
+  the note); counters and summaries follow at once. One undo step.
+- **Correcting an identity into a station that is already checked in**
+  (an `OE0QX?` that turned out to be OE0QXB) asks first, with a preview of
+  what would move: merge (notes, speaking turns, events, presence intervals
+  move over; the unresolved one is soft-deleted, `mergedInto`; undoable), or
+  keep both separate. Nothing is ever merged without that confirmation.
+- **Station profiles**: "Save as station profile" in the details keeps the
+  identity and details for later sessions (suggested at check-in). A
+  session keeps its own copy; editing a profile never changes a session.
+- **Search** (`/`): offline, this session or all sessions, in everything or
+  one field (callsigns also partial, names, QTH/locator, notes, prepared
+  replies, talking points, after-net tasks). Each result names session,
+  date, round and station. Enter (or a click) opens the exact match ready
+  to edit (a collapsed round is expanded, the match highlighted); `b` goes
+  back, also to the other session, with the unfinished input as it was.
+- **Undo / Redo** (↶ ↷ in the toolbar, or Ctrl/⌘+Z and Ctrl/⌘+Shift+Z /
+  Ctrl+Y outside text fields; inside a field the browser's own text undo
+  applies): every change of the session, including note edits and moves,
+  merges, round and status changes, flags and completions. The buttons name
+  the step. See "Undo" below for its limits.
 - **Second tab.** Only one tab or window edits a session; another one shows
   it read-only with "Edit here" (which takes over; the first one turns
   read-only).
@@ -122,10 +157,12 @@ mode is shown in the toolbar ("Navigation" / "Editing").
 | `p` | My Turn: current / previous round notes |
 | `x` | My Turn: complete / reopen the focused item |
 | `b` | back to where you came from |
+| `/` | search |
 | `?` | help |
 | `Esc` | close a popup first; in a field: leave editing, the text stays |
 
-Search (`/`) comes with part 3. While typing: Enter saves a note or reply
+Outside text fields Ctrl/⌘+Z undoes and Ctrl/⌘+Shift+Z (Ctrl+Y) redoes
+(the toolbar buttons do the same). While typing: Enter saves a note or reply
 and goes on, Shift+Enter is a new line, Ctrl+Shift+Enter (configurable)
 flags the note. Editing-mode commands are configurable in the
 help dialog (`js/keys.js`, pref `oe1ebg-netlog-keys`); a binding needs Ctrl
@@ -167,7 +204,7 @@ shared `eventId` index).
 | Store | Record |
 | --- | --- |
 | `series` | `name`, `description`, `schedule`, `defaults { repeater, freq, mode, ncs }`, `numbering` (`sequential` / `none`) |
-| `sessions` | `seriesId` or null, `number` or null, `name`, `date` (UTC), `own { call, base }`, `radio { repeater, freq, mode }`, `suggestedNcs` (copied), `start` / `end` (times, below), `joinedLate`, `currentRoundId`, `ncsId`, `lease` (the writing tab) |
+| `sessions` | `seriesId` or null, `number` or null, `name`, `date` (UTC), `own { call, base }`, `radio { repeater, freq, mode }`, `suggestedNcs` (copied), `start` / `end` (times, below), `joinedLate`, `currentRoundId`, `ncsId` |
 | `profiles` | reusable station identity (`call`, `name`, `qth`, `locator`, `echolink`, `member`); a session never changes through a profile edit |
 | `participants` | session-specific snapshot: `call` (as typed), `base` (matching identity), `unresolved`, `profileId`, `name`, `qth`, `locator`, `rst`, `echolink`, `member`, `status`, `flags { speak, short, reception, priority }`, `presence [{ from, to }]`, `rosterOrder`, `plannedOrder`, `checkinRoundId` |
 | `rounds` | `number`, `order`, `topic`, `start` |
@@ -179,7 +216,7 @@ shared `eventId` index).
 | `revisions` | every replaced version of a record (`store`, `recordId`, `record`, `at`) |
 | `undo` | the undo history (below) |
 | `drafts` | unfinished editor text: `id` = `<session>|<editor key>`, `text`, selection |
-| `meta` | reserved |
+| `meta` | `lease:<session id>`: the writing tab of a session (`tab`, `at`); a record of its own, so claiming it never changes the session |
 
 **Times** are `{ iso, quality }`: `exact`, `estimated`, or `unknown` (then
 `iso` is null). Nothing invents precision: a session joined late has an
@@ -232,7 +269,8 @@ stores and migration branches stay (data-preserving migrations).
   session holds `oe1ebg-netlog-session-<id>`; others are read-only until
   "Edit here" (steal). Without Web Locks a BroadcastChannel claim
   (`oe1ebg-netlog`) does the same between tabs that can hear each other.
-  In both cases the writing tab stores its id in `session.lease`, and every
+  In both cases the writing tab stores its id in the lease record
+  (`meta`, `lease:<session id>`), and every
   write of the session checks it in the same transaction: a tab that
   missed the handover gets a `LeaseError` and turns read-only instead of
   overwriting (`js/lock.js`).
@@ -245,7 +283,12 @@ stores and migration branches stay (data-preserving migrations).
   history. The history is stored per session (at most 200 steps,
   `UNDO_MAX`), so it survives reloads; series edits have their own
   history. Drafts, the lease and the creation of a session are not undo
-  steps. The undo commands in the UI come with part 3.
+  steps. Boundaries: the history belongs to the session (series edits to
+  the series list), survives reloads and is shared by whichever tab writes
+  the session; a step that touched a record changed since (in another
+  way) is refused with a message; text being typed is not a step until it
+  is saved (the field's own undo applies until then); a later permanent
+  erasure (part 4) also removes the history.
 
 ## App identity
 
@@ -293,6 +336,9 @@ Never rename (root `README.md`, "Stable identifiers"):
 | `js/drafts.js` | drafts of every editor: debounced writes, restore, commit chain |
 | `js/myturn.js` | My Turn |
 | `js/nav.js` | return navigation (origin stack, focus restore) |
+| `js/clog.js` | Continuous Log |
+| `js/search.js` | offline search (pure, node-tested) |
+| `js/searchui.js` | the search dialog and opening a result |
 
 Plain ES modules following the bundler rules of `scripts/single_file.py`
 (named imports, no `as`, no default exports, unique top-level names), so a
@@ -308,7 +354,12 @@ single-file version stays possible.
   editor (Enter, Shift+Enter, empty and IME Enter, order through
   corrections, switches, collapse and reload), drafts, My Turn (queue
   contents and order, summary rounds, the first round, an empty round,
-  source navigation and Back, completion through a reload, End Turn). Also in the
+  source navigation and Back, completion through a reload, End Turn), net
+  control handovers with time correction and undo/redo, presence and
+  reorders that keep the speaking history, the Continuous Log with a bulk
+  move and undo, search across sessions and back, the merge with preview
+  and undo.
+- `tests/netlog-search.test.mjs`: the search. Also in the
   shared specs: `offline-update.spec.mjs` (a failed save holds the update
   back), `pwa-identity.spec.mjs`, `header.spec.mjs`, `deploy.spec.mjs`.
 - All examples and fixtures use synthetic callsigns (`OE0QX…`) and

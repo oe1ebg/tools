@@ -82,10 +82,14 @@
         <nav id="view-tabs" class="tabs" data-i18n-attr="aria-label:views.label" aria-label="Workspaces">
           <a id="tab-live" href="#/" data-view="live" data-i18n="views.live">Live Notes</a>
           <a id="tab-turn" href="#/" data-view="turn"><span data-i18n="views.turn">My Turn</span><span id="tab-turn-count" class="tab-count"></span></a>
+          <a id="tab-log" href="#/" data-view="log" data-i18n="views.log">Continuous Log</a>
           <a id="tab-control" href="#/" data-view="control" data-i18n="views.control">Net Control</a>
           <a id="tab-series" href="#/" data-view="series" data-i18n="views.series">Sessions &amp; series</a>
         </nav>
         <span class="spacer"></span>
+        <button type="button" id="btn-search" aria-haspopup="dialog" data-i18n="search.open">/ Search</button>
+        <button type="button" id="btn-undo" class="icon" disabled data-i18n-attr="aria-label:undo.button" aria-label="Undo">↶</button>
+        <button type="button" id="btn-redo" class="icon" disabled data-i18n-attr="aria-label:undo.redoButton" aria-label="Redo">↷</button>
         <span id="mode-indicator" class="chip mode" role="status"></span>
         <span id="round-indicator" class="round-indicator"></span>
         <button type="button" id="btn-new-round" aria-haspopup="dialog" data-i18n="round.new">+ New round</button>
@@ -105,6 +109,7 @@
             <label class="inline-field"><span data-i18n="station.status">Status</span>
               <select id="station-status"></select></label>
             <span id="station-flags" class="flag-group" role="group" data-i18n-attr="aria-label:station.flags" aria-label="Flags"></span>
+            <button type="button" id="btn-ncs" aria-pressed="false" data-i18n="station.ncs">Net control</button>
             <button type="button" id="btn-spoke" data-i18n="station.spoke" data-i18n-attr="title:station.spokeTitle" title="Record that this station spoke now (optional; notes never need it)">Spoke now</button>
             <button type="button" id="btn-edit-identity" aria-expanded="false" aria-controls="identity-form" data-i18n="station.correct">Correct callsign / name</button>
             <button type="button" id="btn-details" aria-expanded="false" aria-controls="station-details" data-i18n="station.details">Details</button>
@@ -127,6 +132,10 @@
             <label class="field"><span data-i18n="station.rst">RST</span><input id="det-rst" data-field="rst" class="mono" inputmode="numeric" autocorrect="off"></label>
             <label class="field"><span data-i18n="station.member">Member no.</span><input id="det-member" data-field="member" autocorrect="off"></label>
             <label class="check"><input id="det-echolink" type="checkbox" data-field="echolink"> <span data-i18n="station.echolink">via EchoLink</span></label>
+            <div class="form-buttons">
+              <button type="button" id="btn-profile" data-i18n="station.saveProfile">Save as station profile</button>
+              <span id="profile-state" class="hint"></span>
+            </div>
             <div class="presence">
               <h3 data-i18n="station.presence">Presence (UTC)</h3>
               <ul id="presence-list" class="presence-list"></ul>
@@ -176,10 +185,30 @@
         </div>
       </section>
 
+      <!-- ===== Continuous Log ===== -->
+      <section id="view-log" class="view" aria-labelledby="log-title" hidden>
+        <div class="toolbar">
+          <h2 id="log-title" tabindex="-1" data-i18n="log.title">Continuous Log</h2>
+          <span class="spacer"></span>
+          <button type="button" id="btn-log-select" aria-pressed="false" data-i18n="log.select">Select notes</button>
+          <button type="button" id="btn-log-move" aria-haspopup="dialog" hidden data-i18n="log.moveSelected">Move selected…</button>
+          <span id="log-selected" class="hint" role="status"></span>
+        </div>
+        <p class="hint" data-i18n="log.hint">All notes of this session in recorded order, by round. The same notes as in Live Notes: an edit here is an edit there.</p>
+        <div id="log-rounds" class="rounds"></div>
+      </section>
+
       <!-- ===== Net Control ===== -->
       <section id="view-control" class="view" aria-labelledby="tab-control" hidden>
         <h2 data-i18n="control.title">Net Control</h2>
         <div class="control-grid">
+          <section class="card" aria-labelledby="ncs-title">
+            <h3 id="ncs-title" data-i18n="control.ncs">Net control station</h3>
+            <p id="ncs-current" class="ncs-current"></p>
+            <p id="ncs-suggest" class="hint" hidden></p>
+            <h4 data-i18n="control.handovers">Handovers (UTC)</h4>
+            <ol id="ncs-history" class="ncs-history"></ol>
+          </section>
           <section class="card" aria-labelledby="rounds-title">
             <h3 id="rounds-title" data-i18n="control.rounds">Rounds</h3>
             <p class="hint" data-i18n="control.roundsHint">Rounds start only here or with "+ New round"; the current round is where new notes go.</p>
@@ -276,6 +305,57 @@
     <div class="form-buttons">
       <button type="submit" value="ok" class="primary" data-i18n="round.start">Start round</button>
       <button type="submit" value="cancel" formnovalidate data-i18n="common.cancel">Cancel</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="search-dlg" class="search-dlg" aria-labelledby="search-title">
+  <form method="dialog" id="search-form" autocomplete="off">
+    <h2 id="search-title" data-i18n="search.title">Search</h2>
+    <label for="search-q" class="sr-only" data-i18n="search.label">Search callsigns, names, places, notes, replies, points and tasks</label>
+    <input id="search-q" type="search" class="search-q" spellcheck="false" autocorrect="off" data-i18n-attr="placeholder:search.placeholder" placeholder="Callsign, name, place or any text…">
+    <div class="toolbar search-filters">
+      <label class="inline-field"><span data-i18n="search.scope">In</span>
+        <select id="search-scope">
+          <option value="session" data-i18n="search.thisSession">this session</option>
+          <option value="all" data-i18n="search.allSessions">all sessions</option>
+        </select></label>
+      <label class="inline-field"><span data-i18n="search.field">Field</span>
+        <select id="search-field"></select></label>
+      <span id="search-count" class="hint" role="status"></span>
+    </div>
+    <ul id="search-results" class="search-results" data-i18n-attr="aria-label:search.results" aria-label="Results"></ul>
+    <p class="hint" data-i18n="search.hint">Offline: only what is stored on this device. ↓/↑ move, Enter opens the match, Esc closes.</p>
+    <div class="form-buttons"><button type="submit" value="cancel" data-i18n="common.close">Close</button></div>
+  </form>
+</dialog>
+
+<dialog id="move-dlg" aria-labelledby="move-title">
+  <form method="dialog" id="move-form" autocomplete="off">
+    <h2 id="move-title" data-i18n="move.title">Move notes</h2>
+    <p id="move-what"></p>
+    <div class="form-grid">
+      <label class="field"><span data-i18n="move.station">To station</span><select id="move-station"></select></label>
+      <label class="field"><span data-i18n="move.round">To round</span><select id="move-round"></select></label>
+    </div>
+    <p class="hint" data-i18n="move.hint">Times, the recorded order and on-air responses stay with the notes.</p>
+    <div class="form-buttons">
+      <button type="submit" value="ok" class="primary" data-i18n="move.ok">Move</button>
+      <button type="submit" value="cancel" data-i18n="common.cancel">Cancel</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="merge-dlg" aria-labelledby="merge-title">
+  <form method="dialog" id="merge-form">
+    <h2 id="merge-title" data-i18n="merge.title">Same station?</h2>
+    <p id="merge-text"></p>
+    <ul id="merge-preview"></ul>
+    <p class="hint" data-i18n="merge.hint">Merging keeps every note, time and response; Undo separates them again. Nothing is merged without this confirmation.</p>
+    <div class="form-buttons">
+      <button type="submit" value="merge" class="primary" data-i18n="merge.ok">Merge</button>
+      <button type="submit" value="separate" data-i18n="merge.separate">Keep separate (only correct the callsign)</button>
+      <button type="submit" value="cancel" data-i18n="common.cancel">Cancel</button>
     </div>
   </form>
 </dialog>

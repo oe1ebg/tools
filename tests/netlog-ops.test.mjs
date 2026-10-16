@@ -43,7 +43,7 @@ test('a session joined in round 4 starts there, without invented earlier rounds 
   assert.equal(s.currentRoundId, rounds[0].id);
   assert.deepEqual(s.start, { iso: null, quality: 'unknown' });
   assert.deepEqual(s.own, { call: 'OE0QXA/P', base: 'OE0QXA' });
-  assert.equal(s.lease, TAB);
+  assert.equal((await store.get('meta', `lease:${s.id}`)).tab, TAB);
 });
 
 test('series: number suggested, defaults copied; an ad-hoc session joins later unchanged', async () => {
@@ -146,6 +146,18 @@ test('undo and redo restore the previous state; a changed record refuses', async
   await store.tx([{ store: 'participants', put: { ...raw, name: 'changed elsewhere', updated: '2099-01-01T00:00:00.000Z' } }]);
   await assert.rejects(undo(store, ctx), UndoConflictError);
   assert.equal((await store.get('participants', q.id)).flags.priority, true, 'nothing changed');
+});
+
+test('claiming the lease never changes the session: an undo after a reopen still works', async () => {
+  const { store, s, ctx, } = await fresh();
+  const p = await addParticipant(store, ctx, { call: 'OE0QXB' });
+  await setFlag(store, ctx, p.id, 'speak', true);
+  const before = await store.get('sessions', s.id);
+  await claimSession(store, s.id, 'tab-2');
+  await claimSession(store, s.id, TAB);
+  assert.deepEqual(await store.get('sessions', s.id), before);
+  await undo(store, ctx);
+  assert.equal((await store.get('participants', p.id)).flags.speak, false);
 });
 
 test('undo history is capped per session', async () => {
@@ -321,4 +333,88 @@ test('deleting a note takes its response out of the queue; restoring brings it b
   await deleteNote(store, ctx, n.id, true);
   items = await get(store, ctx, 'items');
   assert.equal(queueItems(items, await get(store, ctx, 'notes'), null).length, 1);
+});
+
+import { setNcs, setEventTime, mergeParticipants, mergePreview, moveNotes, saveProfile } from '../tools/netlog/js/ops.js';
+
+test('net control: at most one, handovers with old and new ids, first without predecessor, time correctable', async () => {
+  const { store, s, ctx, a, b } = await withStations();
+  await setNcs(store, ctx, a.id);
+  await setNcs(store, ctx, b.id);
+  const sess = await store.get('sessions', s.id);
+  assert.equal(sess.ncsId, b.id);
+  const ev = (await get(store, ctx, 'events')).filter(e => e.type === 'ncs').sort((x, y) => (x.created < y.created ? -1 : 1));
+  assert.deepEqual(ev.map(e => [e.from, e.to]), [[null, a.id], [a.id, b.id]]);
+  const fixed = await setEventTime(store, ctx, ev[1].id, { iso: '2026-10-16T19:05:00.000Z', quality: 'estimated' });
+  assert.equal(fixed.time.quality, 'estimated');
+  await undo(store, ctx);
+  assert.notEqual((await store.get('events', ev[1].id)).time.quality, 'estimated');
+  assert.equal((await get(store, ctx, 'rounds')).length, 1, 'no round from a handover');
+});
+
+test('merge: an unresolved station into its real one, everything kept; undo separates', async () => {
+  const { store, s, ctx, b } = await withStations();
+  const q = await addParticipant(store, ctx, { call: 'OE0QX?' });
+  const n = await createNote(store, ctx, { participantId: q.id, text: 'heard partially', flagged: true });
+  await addContribution(store, ctx, q.id);
+  await setNcs(store, ctx, q.id);
+  assert.deepEqual(await mergePreview(store, s.id, q.id), { notes: 1, contributions: 1, events: 2 });
+  await mergeParticipants(store, ctx, q.id, b.id);
+  const note = await store.get('notes', n.id);
+  assert.equal(note.participantId, b.id);
+  assert.equal(note.seq, n.seq);
+  assert.equal(note.time.iso, n.time.iso);
+  const gone = await store.get('participants', q.id);
+  assert.ok(gone.deleted);
+  assert.equal(gone.mergedInto, b.id);
+  assert.equal((await store.get('sessions', s.id)).ncsId, b.id);
+  assert.equal((await store.get('participants', b.id)).presence.length, 2);
+  const items = await get(store, ctx, 'items');
+  assert.equal(items.length, 1, 'the response follows its note');
+  await undo(store, ctx);
+  assert.equal((await store.get('notes', n.id)).participantId, q.id);
+  assert.equal((await store.get('participants', q.id)).deleted, null);
+  assert.equal((await store.get('sessions', s.id)).ncsId, q.id);
+});
+
+test('moving notes keeps ids, times, order and responses; contributions only where they still fit; undo', async () => {
+  const { store, s, ctx, a, b } = await withStations();
+  await addContribution(store, ctx, a.id);
+  const n1 = await createNote(store, ctx, { participantId: a.id, text: 'one', flagged: true });
+  const n2 = await createNote(store, ctx, { participantId: a.id, text: 'two' });
+  const r2 = await createRound(store, ctx, {});
+  const moved = await moveNotes(store, ctx, [n1.id, n2.id], { participantId: b.id, roundId: s.currentRoundId });
+  assert.equal(moved.length, 2);
+  const m1 = await store.get('notes', n1.id);
+  assert.equal(m1.participantId, b.id);
+  assert.equal(m1.roundId, s.currentRoundId);
+  assert.equal(m1.contributionId, null, "a's turn does not fit b");
+  assert.equal(m1.seq, n1.seq);
+  assert.equal(m1.time.iso, n1.time.iso);
+  const resp = (await get(store, ctx, 'items')).find(i => i.noteId === n1.id);
+  assert.equal(resp.state, 'open', 'the response stays');
+  await moveNotes(store, ctx, [n2.id], { roundId: r2.id });
+  assert.equal((await store.get('notes', n2.id)).roundId, r2.id);
+  await undo(store, ctx);
+  assert.equal((await store.get('notes', n2.id)).roundId, s.currentRoundId);
+  await undo(store, ctx);
+  assert.equal((await store.get('notes', n1.id)).participantId, a.id);
+});
+
+test('a station profile is explicit and never rewrites a session', async () => {
+  const { store, ctx, a } = await withStations();
+  await updateParticipant(store, ctx, a.id, { name: 'Mira', qth: 'Wien' });
+  const prof = await saveProfile(store, ctx, a.id);
+  assert.equal(prof.name, 'Mira');
+  assert.equal((await store.get('participants', a.id)).profileId, prof.id);
+  // a second session checks in from the profile: a copy (snapshot)
+  const s2 = await createSession(store, { tab: TAB }, {});
+  const ctx2 = { sessionId: s2.id, tab: TAB };
+  const p2 = await addParticipant(store, ctx2, { profileId: prof.id });
+  assert.equal(p2.name, 'Mira');
+  // the profile changes later (from session 2): session 1 stays as it was
+  await updateParticipant(store, ctx2, p2.id, { name: 'Mira K.' });
+  await saveProfile(store, ctx2, p2.id);
+  assert.equal((await store.get('profiles', prof.id)).name, 'Mira K.');
+  assert.equal((await store.get('participants', a.id)).name, 'Mira');
 });
