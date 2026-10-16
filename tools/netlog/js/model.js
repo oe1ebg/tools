@@ -107,6 +107,7 @@ export function seriesDefaults(series) {
   return {
     radio: { repeater: d.repeater || '', freq: d.freq || '', mode: d.mode || '' },
     suggestedNcs: d.ncs || '',
+    style: d.style === 'circle' ? 'circle' : 'star',
   };
 }
 
@@ -307,4 +308,56 @@ export function roundSummary({ notes, contributions, participants, roundId }) {
     out.push({ participant: participants.find(p => p.id === pid) || { id: pid, call: '?' }, notes: list, at });
   }
   return out.sort((a, b) => a.at - b.at || cmp(a.participant.id, b.participant.id));
+}
+
+// ---------- net style and speaking order ----------
+
+// How a net runs: 'star' (every station gives back to the NCS: directed
+// net) or 'circle' (stations hand over in turn: round-robin).
+export const NET_STYLES = ['star', 'circle'];
+export const netStyle = session => (session && session.style === 'circle' ? 'circle' : 'star');
+
+// Who may speak in turn: checked in and not paused, listening or out.
+const SPEAKS = new Set(['active', 'unconfirmed']);
+
+// The roster with the NCS first (then the roster order).
+export function ncsFirst(list, ncsId) {
+  const i = list.findIndex(p => p.id === ncsId);
+  return i <= 0 ? list : [list[i], ...list.slice(0, i), ...list.slice(i + 1)];
+}
+
+// The speaking order: the roster order (one order for the list, j/k,
+// "Next" and Net Control; the actual speaking history is kept apart).
+// Star: without the NCS (it speaks in between); circle: the NCS first,
+// then the others.
+export function speakingOrder(participants, session) {
+  const roster = rosterSorted(participants);
+  const ncs = session && session.ncsId;
+  const others = roster.filter(p => p.id !== ncs);
+  const nc = roster.find(p => p.id === ncs);
+  return netStyle(session) === 'circle' && nc ? [nc, ...others] : others;
+}
+
+// Where the current round stands: { onAir: the last speaker (or null),
+// next: who is next (or null), complete: everyone in the order who may
+// speak has spoken this round, spoken: Set of ids }. A suggestion only:
+// rounds still start by the user's decision.
+export function speakingState({ session, participants, contributions }) {
+  const rid = session.currentRoundId;
+  const turns = liveOf(contributions).filter(c => c.roundId === rid).sort(bySeq);
+  const spoken = new Set(turns.map(c => c.participantId));
+  const order = speakingOrder(participants, session).filter(p => SPEAKS.has(p.status));
+  const last = turns.length ? turns[turns.length - 1].participantId : null;
+  const onAir = last ? participants.find(p => p.id === last) || null : null;
+  const complete = order.length > 0 && order.every(p => spoken.has(p.id));
+  let next = null;
+  if (!complete) {
+    // after the last speaker in the order, the first who has not spoken yet
+    const at = order.findIndex(p => p.id === last);
+    for (let k = 1; k <= order.length; k++) {
+      const p = order[(at + k + order.length) % order.length];
+      if (!spoken.has(p.id)) { next = p; break; }
+    }
+  }
+  return { onAir, next, complete, spoken, order };
 }

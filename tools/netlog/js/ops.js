@@ -209,7 +209,7 @@ export function createSeries(store, ctx, fields) {
     name: String(fields.name || '').trim(),
     description: fields.description || '',
     schedule: fields.schedule || '',
-    defaults: { repeater: '', freq: '', mode: '', ncs: '', ...(fields.defaults || {}) },
+    defaults: { repeater: '', freq: '', mode: '', ncs: '', style: 'star', ...(fields.defaults || {}) },
     numbering: fields.numbering === 'none' ? 'none' : 'sequential',
     deleted: null,
   }));
@@ -247,6 +247,7 @@ export function createSession(store, ctx, fields) {
       own: { call: own, base: baseCall(own) },
       radio: { ...defs.radio, ...(fields.radio || {}) },
       suggestedNcs: defs.suggestedNcs,
+      style: fields.style === 'circle' || fields.style === 'star' ? fields.style : defs.style,
       start: fields.joined ? timeOf(null) : timeOf(w.now),
       end: timeOf(null),
       joinedLate: !!fields.joined,
@@ -259,7 +260,7 @@ export function createSession(store, ctx, fields) {
   });
 }
 
-const SESSION_FIELDS = ['name', 'date', 'number', 'radio', 'own', 'start', 'end', 'seriesId'];
+const SESSION_FIELDS = ['name', 'date', 'number', 'radio', 'own', 'start', 'end', 'seriesId', 'style'];
 
 export function updateSession(store, ctx, id, patch) {
   return runOp(store, { ...ctx, sessionId: id, label: 'undo.editSession' }, w => w.update('sessions', id, s => {
@@ -376,11 +377,16 @@ export function setFlag(store, ctx, id, flag, on) {
 
 // Move a station up/down in the roster (field 'rosterOrder') or the
 // planned speaking order ('plannedOrder'). Never touches contributions.
+// The NCS is listed first (and stays there): the others move among
+// themselves, as shown.
 export function moveParticipant(store, ctx, id, dir, field = 'rosterOrder') {
   return runOp(store, { ...ctx, label: 'undo.reorder' }, async w => {
+    const session = await w.get('sessions', ctx.sessionId);
+    const ncs = session && session.ncsId;
+    if (id === ncs) return false;
     const list = await w.all('participants');
-    const sorted = field === 'rosterOrder' ? rosterSorted(list)
-      : rosterSorted(list).sort((a, b) => (a.plannedOrder ?? Infinity) - (b.plannedOrder ?? Infinity));
+    const sorted = (field === 'rosterOrder' ? rosterSorted(list)
+      : rosterSorted(list).sort((a, b) => (a.plannedOrder ?? Infinity) - (b.plannedOrder ?? Infinity))).filter(p => p.id !== ncs);
     const changes = moveInOrder(sorted.map(p => ({ ...p, order: p[field] })), id, dir, 'order');
     for (const c of changes) {
       const p = list.find(x => x.id === c.id);

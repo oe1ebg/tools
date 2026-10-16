@@ -157,3 +157,37 @@ test('My Turn queue: open responses of any round and points, in manual order; ta
   assert.equal(responseOf(items, 'n2').id, 'd');
   assert.equal(responseOf(items, 'n2', 'task').id, 'c');
 });
+
+import { speakingState, speakingOrder, ncsFirst, netStyle } from '../tools/netlog/js/model.js';
+
+test('speaking order: star without the NCS, circle with it first; paused and checked-out ones skipped', () => {
+  const ps = [
+    { id: 'n', call: 'OE0QXN', status: 'active', rosterOrder: 3 },
+    { id: 'a', call: 'OE0QXA', status: 'active', rosterOrder: 1 },
+    { id: 'b', call: 'OE0QXB', status: 'paused', rosterOrder: 2 },
+    { id: 'c', call: 'OE0QXC', status: 'active', rosterOrder: 4, plannedOrder: null },
+  ];
+  const star = { ncsId: 'n', style: 'star', currentRoundId: 'r' };
+  const circle = { ...star, style: 'circle' };
+  assert.equal(netStyle({}), 'star');
+  assert.deepEqual(speakingOrder(ps, star).map(p => p.id), ['a', 'b', 'c']);
+  assert.deepEqual(speakingOrder(ps, circle).map(p => p.id), ['n', 'a', 'b', 'c']);
+  assert.deepEqual(ncsFirst(ps, 'c').map(p => p.id), ['c', 'n', 'a', 'b']);
+  let st = speakingState({ session: star, participants: ps, contributions: [] });
+  assert.equal(st.next.id, 'a');
+  assert.equal(st.onAir, null);
+  st = speakingState({ session: star, participants: ps, contributions: [{ id: 'x', participantId: 'a', roundId: 'r', seq: 1 }] });
+  assert.equal(st.onAir.id, 'a');
+  assert.equal(st.next.id, 'c', 'b is paused');
+  st = speakingState({ session: star, participants: ps, contributions: [{ id: 'x', participantId: 'a', roundId: 'r', seq: 1 }, { id: 'y', participantId: 'c', roundId: 'r', seq: 2 }] });
+  assert.equal(st.complete, true);
+  assert.equal(st.next, null);
+  // circle: the NCS takes part, the order goes on after the last speaker
+  st = speakingState({ session: circle, participants: ps, contributions: [{ id: 'x', participantId: 'a', roundId: 'r', seq: 1 }] });
+  assert.equal(st.next.id, 'c');
+  st = speakingState({ session: circle, participants: ps, contributions: [{ id: 'x', participantId: 'c', roundId: 'r', seq: 1 }] });
+  assert.equal(st.next.id, 'n', 'wraps around to the first');
+  // other rounds do not count
+  st = speakingState({ session: star, participants: ps, contributions: [{ id: 'x', participantId: 'a', roundId: 'old', seq: 1 }] });
+  assert.equal(st.next.id, 'a');
+});

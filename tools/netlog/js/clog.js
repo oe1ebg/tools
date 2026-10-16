@@ -8,7 +8,7 @@ import { $, el } from '../../shared/js/dom.js';
 import { t } from './i18n.js';
 import { keyedList, setText, setAttr } from './keyed.js';
 import { roundsSorted, liveOf, bySeq } from './model.js';
-import { initNoteList, noteRow, updateNoteRow, roundOpen, openMoveDialog } from './notes.js';
+import { initNoteList, noteRow, updateNoteRow, roundOpen, openMoveDialog, timeline, stationEvents, eventRow, updateEventRow } from './notes.js';
 import { deleteNote } from './ops.js';
 import { callText } from './roster.js';
 
@@ -85,12 +85,14 @@ export function renderLog(app) {
       body.hidden = !open;
       const [ol, empty] = body.children;
       if (open) {
-        keyedList(ol, list, {
-          key: n => n.id,
-          create: noteRow,
-          update: (li, n) => updateNoteRow(app, li, n, parts.get(n.participantId) || { id: n.participantId, call: '?' }, r, {
-            station: true, select: app.ui.logSelect, selected: app.ui.logSelected.has(n.id),
-          }),
+        keyedList(ol, timeline(list, stationEvents(app, r.id)), {
+          key: x => (x.kind === 'note' ? x.n.id : `ev:${x.e.id}`),
+          create: x => (x.kind === 'note' ? noteRow() : eventRow()),
+          update: (li, x) => (x.kind === 'note'
+            ? updateNoteRow(app, li, x.n, parts.get(x.n.participantId) || { id: x.n.participantId, call: '?' }, r, {
+              station: true, select: app.ui.logSelect, selected: app.ui.logSelected.has(x.n.id),
+            })
+            : updateEventRow(app, li, x.e, true)),
         });
       }
       empty.hidden = !open || list.length > 0;

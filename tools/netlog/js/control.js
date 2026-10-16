@@ -5,51 +5,27 @@
 import { $, el, fill } from '../../shared/js/dom.js';
 import { t } from './i18n.js';
 import { keyedList, setText, setAttr, setValue } from './keyed.js';
-import { rosterSorted, roundsSorted, nextRoundNumber, liveOf, cmp, timeOf, baseCall, STATUSES } from './model.js';
-import { updateSession, addParticipant, setStatus, moveParticipant, createRound, setCurrentRound, updateRound, setItemDone, addTask, setItemText, setNcs, setEventTime, deleteParticipant, eraseParticipant } from './ops.js';
+import { rosterSorted, roundsSorted, liveOf, cmp, timeOf, baseCall, STATUSES, netStyle, ncsFirst } from './model.js';
+import { updateSession, addParticipant, setStatus, moveParticipant, setCurrentRound, updateRound, setItemDone, addTask, setItemText, setNcs, setEventTime, deleteParticipant, eraseParticipant } from './ops.js';
 import { callText, statusLabel } from './roster.js';
 import { expandedCount, setExpandedCount } from './notes.js';
 import { hm, zone, parseHm } from './clock.js';
+import { startNextRound } from './speak.js';
 import { prefSet } from '../../shared/js/prefs.js';
 import { OWN_PREF } from './sessions.js';
 import { isOwn } from './roster.js';
 import { attachRepeaterField, attachCallField } from './fieldsearch.js';
 
 // Planned order first (stations without one after them, in roster order).
-export function plannedOrder(participants) {
-  return rosterSorted(participants).map((p, i) => ({ p, i }))
-    .sort((a, b) => (a.p.plannedOrder ?? Infinity) - (b.p.plannedOrder ?? Infinity) || a.i - b.i)
-    .map(x => x.p);
-}
-
-// "+ New round": a dialog asks for the number (next one suggested) and an
-// optional topic. Only this (or a correction in the list) changes rounds.
-export function openRoundDialog(app) {
-  if (!app.s || app.readOnly) return;
-  const dlg = $('#round-dlg');
-  const back = document.activeElement;
-  $('#round-number').value = String(nextRoundNumber(app.sd.rounds));
-  $('#round-topic').value = '';
-  setText($('#round-error'), '');
-  dlg.returnValue = '';
-  dlg.showModal();
-  $('#round-topic').focus();
-  dlg.onclose = async () => {
-    if (back && back.isConnected) back.focus();
-    if (dlg.returnValue !== 'ok') return;
-    const n = Number($('#round-number').value.trim());
-    const r = await app.act(store => createRound(store, app.ctx(), { number: Number.isInteger(n) && n > 0 ? n : undefined, topic: $('#round-topic').value }));
-    if (r) app.announce(t('round.started', { n: r.number }));
-  };
+// The list in Net Control: the roster (= speaking) order, the NCS first.
+export function plannedOrder(participants, ncsId = null) {
+  return ncsFirst(rosterSorted(participants), ncsId);
 }
 
 export function initControl(app) {
-  $('#btn-new-round').addEventListener('click', () => openRoundDialog(app));
-  $('#round-form').addEventListener('submit', ev => {
-    if (ev.submitter && ev.submitter.value !== 'ok') return;
-    const n = $('#round-number').value.trim();
-    if (n && !/^\d{1,3}$/.test(n)) { ev.preventDefault(); setText($('#round-error'), t('round.badNumber')); }
-  });
+  // one click: the next round starts (number and topic are corrected in
+  // the round list; undo takes it back)
+  $('#btn-new-round').addEventListener('click', () => startNextRound(app));
   const sel = $('#expanded-count');
   sel.value = String(expandedCount());
   sel.addEventListener('change', () => { setExpandedCount(Number(sel.value)); app.ui.roundOpen = {}; app.render(); });
@@ -94,6 +70,10 @@ export function initControl(app) {
       if (r) app.announce(t('control.ownSaved', { call: r.own.call || '—' }));
     }
     if (f.id === 'se-name') await app.act(store => updateSession(store, app.ctx(), app.s.id, { name: f.value.trim() }));
+    if (f.id === 'se-style') {
+      const r = await app.act(store => updateSession(store, app.ctx(), app.s.id, { style: f.value }));
+      if (r) app.announce(t(`style.${r.style}`));
+    }
     if (f.id === 'se-repeater') await app.act(store => updateSession(store, app.ctx(), app.s.id, { radio: { ...app.s.radio, repeater: f.value.trim() } }));
   });
   $('#btn-checkin-own').addEventListener('click', async () => {
@@ -175,7 +155,7 @@ export function initControl(app) {
       return;
     }
     const dir = b.dataset.act === 'up' ? -1 : 1;
-    const moved = await app.act(store => moveParticipant(store, app.ctx(), id, dir, 'plannedOrder'));
+    const moved = await app.act(store => moveParticipant(store, app.ctx(), id, dir, 'rosterOrder'));
     if (moved) {
       app.announce(t(dir < 0 ? 'roster.movedUp' : 'roster.movedDown', { call: callText(app.participant(id)) }));
       // keep the keyboard on the same button of the moved row
@@ -187,7 +167,7 @@ export function initControl(app) {
 }
 
 export function renderControl(app) {
-  const list = plannedOrder(app.sd.participants);
+  const list = plannedOrder(app.sd.participants, app.s.ncsId);
   keyedList($('#order-list'), list, {
     key: p => p.id,
     create: () => el('li', { class: 'order-row' },
@@ -201,6 +181,7 @@ export function renderControl(app) {
       const [open, status, , ncsB, up, down] = li.children;
       const isNcs = app.s.ncsId === p.id;
       li.classList.toggle('own', isOwn(app, p));
+      li.classList.toggle('ncs', isNcs);
       setText(ncsB, isNcs ? '★ NCS' : '☆ NCS');
       setAttr(ncsB, 'aria-pressed', String(isNcs));
       setAttr(ncsB, 'aria-label', t('ncs.assignLabel', { call: callText(p) }));
@@ -221,8 +202,10 @@ export function renderControl(app) {
       li.classList.toggle('out', p.status === 'out');
       setAttr(up, 'aria-label', t('roster.upLabel', { call: callText(p) }));
       setAttr(down, 'aria-label', t('roster.downLabel', { call: callText(p) }));
-      up.disabled = i === 0 || app.readOnly;
-      down.disabled = i === list.length - 1 || app.readOnly;
+      // the NCS stays first
+      const ncsTop = list[0] && list[0].id === app.s.ncsId ? 1 : 0;
+      up.disabled = isNcs || i <= ncsTop || app.readOnly;
+      down.disabled = isNcs || i === list.length - 1 || app.readOnly;
     },
   });
   if (!list.length) fill($('#order-list'), el('li', { class: 'empty', 'data-key': '' }, t('control.empty')));
@@ -230,6 +213,7 @@ export function renderControl(app) {
   setValue($('#se-own'), app.s.own.call || '');
   setValue($('#se-name'), app.s.name || '');
   setValue($('#se-repeater'), (app.s.radio && app.s.radio.repeater) || '');
+  if (document.activeElement !== $('#se-style')) $('#se-style').value = netStyle(app.s);
   for (const f of $('#session-edit').elements) f.disabled = app.readOnly;
   const ownIn = app.s.own.base && app.sd.participants.some(p => !p.deleted && p.base === app.s.own.base);
   const ob = $('#btn-checkin-own');

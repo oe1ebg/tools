@@ -33,21 +33,26 @@
     <button type="button" data-time="utc" aria-pressed="true" data-i18n="header.utc">UTC</button>
     <button type="button" data-time="local" aria-pressed="false" data-i18n="header.local">local</button>
   </div>
-  <span id="st-save" class="chip" role="status" aria-live="polite"></span>
-  <span id="st-offline" class="chip">offline: …</span>
-  <span id="st-storage" class="chip">…</span>
-  <button type="button" id="st-backup" class="chip chip-btn" hidden data-i18n-attr="title:backup.chipTitle" title="Start the download of this session's backup (JSON) now; whether the file arrived, the browser does not say"></button>
-  <button id="btn-update" type="button" class="primary" hidden data-i18n="header.update">Update available</button>
-  <div id="lang-toggle" class="toggle" role="group" data-i18n-attr="aria-label:header.language" aria-label="Language">
-    <button type="button" data-lang="de" lang="de" aria-pressed="false">DE</button>
-    <button type="button" data-lang="en" lang="en" aria-pressed="false">EN</button>
+  <div class="header-tools">
+    <div id="lang-toggle" class="toggle" role="group" data-i18n-attr="aria-label:header.language" aria-label="Language">
+      <button type="button" data-lang="de" lang="de" aria-pressed="false">DE</button>
+      <button type="button" data-lang="en" lang="en" aria-pressed="false">EN</button>
+    </div>
+    <div id="theme-toggle" class="toggle" role="group" data-i18n-attr="aria-label:header.theme" aria-label="Colour scheme">
+      <button type="button" data-theme-choice="light" aria-pressed="false" data-i18n="header.light">light</button>
+      <button type="button" data-theme-choice="auto" aria-pressed="false" data-i18n="header.auto">auto</button>
+      <button type="button" data-theme-choice="dark" aria-pressed="false" data-i18n="header.dark">dark</button>
+    </div>
+    <button id="btn-help" type="button" aria-haspopup="dialog" data-i18n-attr="aria-label:help.open" aria-label="Help and keyboard shortcuts">?</button>
   </div>
-  <div id="theme-toggle" class="toggle" role="group" data-i18n-attr="aria-label:header.theme" aria-label="Colour scheme">
-    <button type="button" data-theme-choice="light" aria-pressed="false" data-i18n="header.light">light</button>
-    <button type="button" data-theme-choice="auto" aria-pressed="false" data-i18n="header.auto">auto</button>
-    <button type="button" data-theme-choice="dark" aria-pressed="false" data-i18n="header.dark">dark</button>
+  <div class="status-bar">
+    <span id="mode-indicator" class="chip mode" role="status"></span>
+    <span id="st-save" class="chip" role="status" aria-live="polite"></span>
+    <span id="st-offline" class="chip">offline: …</span>
+    <span id="st-storage" class="chip">…</span>
+    <button type="button" id="st-backup" class="chip chip-btn" hidden data-i18n-attr="title:backup.chipTitle" title="Start the download of this session's backup (JSON) now; whether the file arrived, the browser does not say"></button>
+    <button id="btn-update" type="button" class="primary" hidden data-i18n="header.update">Update available</button>
   </div>
-  <button id="btn-help" type="button" aria-haspopup="dialog" data-i18n-attr="aria-label:help.open" aria-label="Help and keyboard shortcuts">?</button>
 </header>
 
 <main>
@@ -72,28 +77,35 @@
       <button type="button" id="btn-search" aria-haspopup="dialog" data-i18n="search.open">/ Search</button>
       <button type="button" id="btn-undo" class="icon" disabled data-i18n-attr="aria-label:undo.button" aria-label="Undo">↶</button>
       <button type="button" id="btn-redo" class="icon" disabled data-i18n-attr="aria-label:undo.redoButton" aria-label="Redo">↷</button>
-      <span id="mode-indicator" class="chip mode" role="status"></span>
+
       <span id="round-indicator" class="round-indicator"></span>
-      <button type="button" id="btn-new-round" aria-haspopup="dialog" data-i18n="round.new">+ New round</button>
+      <button type="button" id="btn-new-round" data-i18n="round.new">+ New round</button>
     </div>
     <div class="workspace-body">
     <aside id="sidebar" class="sidebar" aria-labelledby="roster-title" hidden>
       <div class="sidehead">
         <h2 id="roster-title" data-i18n="roster.title">Participants</h2>
         <p id="roster-stats" class="hint"></p>
-        <form id="checkin-form" class="checkin" autocomplete="off">
-          <div class="ac-wrap">
-            <label for="checkin-call" class="sr-only" data-i18n="checkin.callLabel">Callsign (also partial: OE0QX?, ?)</label>
-            <input id="checkin-call" class="call-input mono" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" data-i18n-attr="placeholder:checkin.callPlaceholder" placeholder="Callsign / OE0QX? / ?">
-            <div id="checkin-pop" class="ac-pop" hidden></div>
-            <p id="checkin-info" class="ac-info" aria-live="polite"></p>
-          </div>
-          <label for="checkin-name" class="sr-only" data-i18n="checkin.nameLabel">Name (optional)</label>
-          <input id="checkin-name" autocorrect="off" enterkeyhint="done" data-i18n-attr="placeholder:checkin.namePlaceholder" placeholder="Name (optional)">
-          <button type="submit" class="primary" data-i18n="checkin.add">+ Check in</button>
-        </form>
+      </div>
+      <div id="speak-panel" class="speak-panel" hidden>
+        <p class="speak-style"><span id="speak-style" class="pill"></span></p>
+        <p id="speak-state" class="speak-state" aria-live="polite"></p>
+        <button type="button" id="btn-next" class="primary next-btn"></button>
       </div>
       <ul id="roster" class="roster" data-i18n-attr="aria-label:roster.listLabel" aria-label="Participants (j/k or arrow keys, Enter opens)"></ul>
+      <div class="sidecheckin">
+          <form id="checkin-form" class="checkin" autocomplete="off">
+            <div class="ac-wrap">
+              <label for="checkin-call" class="sr-only" data-i18n="checkin.callLabel">Callsign (also partial: OE0QX?, ?)</label>
+              <input id="checkin-call" class="call-input mono" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" data-i18n-attr="placeholder:checkin.callPlaceholder" placeholder="Callsign / OE0QX? / ?">
+              <div id="checkin-pop" class="ac-pop" hidden></div>
+              <p id="checkin-info" class="ac-info" aria-live="polite"></p>
+            </div>
+            <label for="checkin-name" class="sr-only" data-i18n="checkin.nameLabel">Name (optional)</label>
+            <input id="checkin-name" autocorrect="off" enterkeyhint="done" data-i18n-attr="placeholder:checkin.namePlaceholder" placeholder="Name (optional)">
+            <button type="submit" class="primary" data-i18n="checkin.add">+ Check in</button>
+          </form>
+      </div>
       <div class="sidefoot">
         <button type="button" id="btn-roster-up" data-i18n="roster.up">↑ Up</button>
         <button type="button" id="btn-roster-down" data-i18n="roster.down">↓ Down</button>
@@ -113,6 +125,7 @@
           </div>
           <p id="station-sub" class="hint"></p>
           <p id="station-links" class="station-links online-only"></p>
+          <p id="own-turn" class="own-turn" hidden><button type="button" id="btn-own-turn" class="primary" data-i18n="own.myTurn">This is you: open My Turn</button></p>
           <div class="toolbar station-tools">
             <label class="inline-field"><span data-i18n="station.status">Status</span>
               <select id="station-status"></select></label>
@@ -228,6 +241,11 @@
               <label class="field"><span data-i18n="session.own">My callsign</span><input id="se-own" class="call-input mono" autocapitalize="characters" autocorrect="off" spellcheck="false"></label>
               <label class="field"><span data-i18n="session.name">Name (optional)</span><input id="se-name" autocorrect="off"></label>
               <label class="field"><span data-i18n="session.repeater">Repeater / frequency</span><input id="se-repeater" autocorrect="off"></label>
+              <label class="field"><span data-i18n="style.label">Net style</span>
+                <select id="se-style">
+                  <option value="star" data-i18n="style.star">Star: every station gives back to the NCS</option>
+                  <option value="circle" data-i18n="style.circle">Circle: stations hand over in turn</option>
+                </select></label>
             </form>
             <p class="hint" data-i18n="control.ownHint">Your own station is marked "me" in the lists; My Turn is yours.</p>
             <button type="button" id="btn-checkin-own" hidden></button>
@@ -284,6 +302,11 @@
               <span class="date-field"><input id="sf-date" class="mono" inputmode="numeric" autocorrect="off" spellcheck="false" placeholder="YYYY-MM-DD"><button type="button" id="sf-date-pick" class="mini" data-i18n-attr="aria-label:common.pickDate" aria-label="Pick a date">📅</button></span></div>
             <label class="field"><span data-i18n="session.own">My callsign</span><input id="sf-own" class="call-input mono" autocapitalize="characters" autocorrect="off" spellcheck="false"></label>
             <label class="field"><span data-i18n="session.repeater">Repeater / frequency</span><input id="sf-repeater" autocorrect="off"></label>
+            <label class="field"><span data-i18n="style.label">Net style</span>
+              <select id="sf-style">
+                <option value="star" data-i18n="style.star">Star: every station gives back to the NCS</option>
+                <option value="circle" data-i18n="style.circle">Circle: stations hand over in turn</option>
+              </select></label>
             <label class="field"><span data-i18n="session.round">Starting round</span><input id="sf-round" class="mono" inputmode="numeric" autocorrect="off" value="1"></label>
             <label class="check"><input id="sf-joined" type="checkbox"> <span data-i18n="session.joined">Joining a net that is already running (start time unknown)</span></label>
           </div>
@@ -302,6 +325,11 @@
             <label class="field"><span data-i18n="series.schedule">Usual schedule (optional)</span><input id="srf-schedule" autocorrect="off"></label>
             <label class="field"><span data-i18n="session.repeater">Repeater / frequency</span><input id="srf-repeater" autocorrect="off"></label>
             <label class="field"><span data-i18n="series.ncs">Usual net control (suggestion)</span><input id="srf-ncs" class="call-input mono" autocapitalize="characters" autocorrect="off" spellcheck="false"></label>
+            <label class="field"><span data-i18n="style.label">Net style</span>
+              <select id="srf-style">
+                <option value="star" data-i18n="style.star">Star: every station gives back to the NCS</option>
+                <option value="circle" data-i18n="style.circle">Circle: stations hand over in turn</option>
+              </select></label>
             <label class="field"><span data-i18n="series.numbering">Session numbers</span>
               <select id="srf-numbering">
                 <option value="sequential" data-i18n="series.numberingSeq">suggest the next number</option>
@@ -342,22 +370,6 @@
   </div>
   <p id="keys-line" class="keys-line hint"></p>
 </main>
-
-<dialog id="round-dlg" aria-labelledby="round-dlg-title">
-  <form method="dialog" id="round-form" autocomplete="off">
-    <h2 id="round-dlg-title" data-i18n="round.startTitle">Start a new round?</h2>
-    <p data-i18n="round.startHint">A round boundary is your explicit decision: notes, reorders or a return to the net control never start one.</p>
-    <div class="form-grid">
-      <label class="field"><span data-i18n="round.number">Number</span><input id="round-number" class="mono" inputmode="numeric" autocorrect="off"></label>
-      <label class="field"><span data-i18n="round.topic">Topic (optional)</span><input id="round-topic" autocorrect="off"></label>
-    </div>
-    <p id="round-error" class="err-text" role="alert"></p>
-    <div class="form-buttons">
-      <button type="submit" value="ok" class="primary" data-i18n="round.start">Start round</button>
-      <button type="submit" value="cancel" formnovalidate data-i18n="common.cancel">Cancel</button>
-    </div>
-  </form>
-</dialog>
 
 <dialog id="search-dlg" class="search-dlg" aria-labelledby="search-title">
   <form method="dialog" id="search-form" autocomplete="off">
