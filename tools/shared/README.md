@@ -203,7 +203,7 @@ and `checkOldInstall()`. The redirects stay.
   `oe1ebg/tests/` can import them (`location-*.test.mjs`, `adif.test.mjs`, `adif-validate.test.mjs`, `geo.test.mjs`,
   `utm.test.mjs`, `callbook.test.mjs`, `repeaters.test.mjs`).
 - **Bundler-compatible** (`scripts/single_file.py`): the single-file
-  versions (`confirm-offline.html`, `notfunk-offline.html`, `adif-editor.html`) concatenate these
+  versions (`confirm-offline.html`, `notfunk-offline.html`, `netlog-offline.html`, `adif-editor.html`) concatenate these
   modules with the tool's own. Use only `import { … } from './x.js';` /
   `'../x.js'` (no `as`, no default exports), only `export function|const|let|class`,
   and keep top-level names unique across everything one tool loads.

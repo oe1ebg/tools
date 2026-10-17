@@ -8,7 +8,7 @@
 import { $, el, fill, popover, isComposing } from '../../shared/js/dom.js';
 import { t } from './i18n.js';
 import { keyedList, setText, setAttr, setValue } from './keyed.js';
-import { rosterSorted, rosterStats, isUnresolved, callCandidates, callPattern, normCall, baseCall, STATUSES, FLAGS, live, ncsFirst } from './model.js';
+import { rosterSorted, rosterStats, isUnresolved, callCandidates, callPattern, normCall, callBase, STATUSES, FLAGS, live, ncsFirst } from './model.js';
 import { addParticipant, updateParticipant, setStatus, setFlag, moveParticipant, setNcs, mergePreview, mergeParticipants, saveProfile, deleteParticipant } from './ops.js';
 import { stationLinks } from './links.js';
 import { hm, hmz, zone } from './clock.js';
@@ -74,7 +74,7 @@ export function candidateButtons(app, input, onPick) {
   if (!call) return [];
   const exact = c => normCall(c.call) === call;
   const local = callCandidates(call, candidatePool(app)).filter(c => !exact(c) || isUnresolved(call));
-  const seen = new Set(local.map(c => baseCall(c.call)));
+  const seen = new Set(local.map(c => callBase(c.call)));
   const book = callbookCandidates(app, input.value).filter(c => !seen.has(c.call) && (!exact(c) || isUnresolved(call)));
   return [...local, ...book].map(c => el('button', {
     type: 'button',
@@ -317,7 +317,7 @@ function initStation(app) {
     const call = normCall(idCall.value) || '?';
     // the corrected callsign is another station of this session: offer
     // to merge (preview, explicit), never merge by itself
-    const twin = !isUnresolved(call) && app.sd.participants.find(x => live(x) && x.id !== p.id && x.base === baseCall(call));
+    const twin = !isUnresolved(call) && app.sd.participants.find(x => live(x) && x.id !== p.id && x.base === callBase(call));
     if (twin) {
       const choice = await askMerge(app, p, twin);
       if (choice === 'cancel') { idCall.focus(); return; }

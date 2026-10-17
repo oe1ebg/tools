@@ -80,8 +80,8 @@ again after they are installed (see *Why it matters* below).
   server, deploy a newer tarball.
 - **Single-file versions for `file://` use** (USB stick, no webserver) are
   in the bundle: `confirm/confirm-offline.html`,
-  `notfunk/notfunk-offline.html` and `adif/adif-editor.html`. Netlog has
-  none yet (a follow-up): it works offline once installed from a server.
+  `notfunk/notfunk-offline.html`, `netlog/netlog-offline.html` and
+  `adif/adif-editor.html`.
 
 ### Updating a deployment (atomically)
 

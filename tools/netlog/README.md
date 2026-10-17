@@ -28,8 +28,18 @@ requests:
 Open `tools/netlog/` from a server (HTTPS or `localhost`; the service worker
 needs a secure context). After the first complete load it works offline,
 including reloads (the chip says "offline bereit ✓" / "offline ready ✓"
-only when every file is cached). There is no single-file `file://` version
-yet (a follow-up).
+only when every file is cached).
+
+**Offline file.** `netlog-offline.html` (download card at the end of
+Sessions & series, link in the footer) is the whole app in one HTML file
+with the callsign and repeater lists inlined, about 1 MB, for a USB stick
+or a laptop without a server: open it via `file://`. It has no service
+worker, no update flow and no "← All tools" link; the chip says "Offline-
+Datei" / "offline file". The browser keeps its data per file location,
+apart from the installed version: move sessions between the two with a
+backup (JSON export, import). Where a browser offers no IndexedDB for
+local files, Netlog says that nothing is saved durably (memory mode) and
+offers the export, as on any other page without IndexedDB.
 
 - **Sessions & series.** "+ New session" starts at once: no series, number
   or reconstruction of earlier activity needed. Joining a running net:
@@ -458,8 +468,10 @@ Never rename (root `README.md`, "Stable identifiers"):
 | `js/searchui.js` | the search dialog and opening a result |
 
 Plain ES modules following the bundler rules of `scripts/single_file.py`
-(named imports, no `as`, no default exports, unique top-level names), so a
-single-file version stays possible.
+(named imports, no `as`, no default exports, unique top-level names):
+`scripts/build_netlog.py` concatenates them into `netlog-offline.html`.
+`model.js`'s `callBase()` (partial callsigns with `?`) differs from the
+shared `callbook.js` `baseCall()` on purpose; the names must stay apart.
 
 ## Tests
 

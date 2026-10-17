@@ -8,7 +8,7 @@
 // URLs (tests/netlog-offline.test.mjs).
 
 import { prefGet, prefSet } from '../../shared/js/prefs.js';
-import { baseCall, isUnresolved } from './model.js';
+import { callBase, isUnresolved } from './model.js';
 
 export const WAVELOG_PREF = 'oe1ebg-netlog-wavelog';
 
@@ -46,7 +46,7 @@ export function setWavelog(text) {
 // one (no lookup of a guess).
 export function stationLinks(call, wavelog = getWavelog()) {
   if (!call || isUnresolved(call)) return wavelog ? [{ label: 'Wavelog', href: wavelog }] : [];
-  const base = baseCall(call);
+  const base = callBase(call);
   const out = LOOKUPS.map(([label, url]) => ({ label, href: url(base) }));
   if (wavelog) out.push({ label: 'Wavelog', href: wavelog });
   return out;

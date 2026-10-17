@@ -368,6 +368,15 @@
           <p class="hint" data-i18n="data.eraseHint">Deleting a session, station or note is reversible (restore, undo). Erasing removes it from this device for good, with its history and drafts.</p>
           <button type="button" id="btn-erase-all" class="danger" data-i18n="data.eraseAll">Erase all Netlog data on this device…</button>
         </section>
+        <!-- Hidden in the file:// bundle (it is the offline file). -->
+        <aside id="offline-card" class="offline-card" aria-labelledby="offline-card-title">
+          <span class="icon" aria-hidden="true">⬇</span>
+          <div class="txt">
+            <h3 id="offline-card-title" data-i18n="offlineFile.title">Work without a server</h3>
+            <p data-i18n="offlineFile.text">Netlog as one HTML file with the callsign and repeater lists, about 1 MB, for a USB stick or laptop: runs without a server and without internet. Its data is stored by the browser for that file, separately from this installed version; move data between them with a backup (JSON).</p>
+          </div>
+          <a class="btn" href="netlog-offline.html" download="netlog-offline.html" data-i18n="offlineFile.download">Download the offline file</a>
+        </aside>
       </section>
     </section>
     </div>
@@ -440,8 +449,12 @@
   <span data-i18n="footer.local">Runs in the browser; all data stays on this device</span> (<span id="st-backend">?</span>).
   <span data-i18n="footer.backupHint">Export a backup (JSON) regularly.</span>
   · <span data-i18n="footer.version">Version</span>: <span id="st-version">dev</span>
+  <span id="offline-file-link"> · <a href="netlog-offline.html" download="netlog-offline.html" data-i18n="offlineFile.link">Offline file</a></span>
   <span id="st-source" class="online-only"></span>
   · <span id="st-callbook"></span>
+  <!-- Replaced in netlog-offline.html by the licence texts of inlined
+       third-party code, if any (scripts/build_netlog.py). -->
+  <!-- NETLOG-LICENSES -->
 </footer>
 
 <script>

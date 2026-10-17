@@ -107,6 +107,7 @@ for (const [tool, fn, started] of [
 for (const [bundle, ready, tag] of [
   ['confirm/confirm-offline.html', 'CONFIRM_READY', ''],
   ['notfunk/notfunk-offline.html', 'NOTFUNK_STARTED', ''],
+  ['netlog/netlog-offline.html', 'NETLOG_READY', ''],
   ['adif/adif-editor.html', '', '@adif'],
 ]) {
   test(`${bundle} runs from the server`, { tag: tag ? [tag] : [] }, async ({ page }) => {

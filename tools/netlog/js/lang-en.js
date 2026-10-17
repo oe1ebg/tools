@@ -180,6 +180,10 @@ export const LANG_EN = {
   'speak.progress': 'Round {n}: {done} of {all} have spoken',
   'turn.short.onAir': '● ON AIR',
   'turn.short.next': '▶ next',
+  'offlineFile.title': 'Work without a server',
+  'offlineFile.text': 'Netlog as one HTML file with the callsign and repeater lists, about 1 MB, for a USB stick or laptop: runs without a server and without internet. Its data is stored by the browser for that file, separately from this installed version; move data between them with a backup (JSON).',
+  'offlineFile.download': 'Download the offline file',
+  'offlineFile.link': 'Offline file',
   'control.empty': 'No stations checked in yet.',
 
   'series.title': 'Sessions & series',

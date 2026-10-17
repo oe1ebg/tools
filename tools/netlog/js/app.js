@@ -799,6 +799,7 @@ async function main() {
     build: globalThis.NETLOG_BUILD,
     beforeReload,
     strings: offlineStrings(),
+    fileHidden: ['#offline-file-link', '#offline-card', '#home-link'],
   });
   fill($('#st-source'), ' · ', repoLink(t('footer.source'), 'tools/netlog'));
   loadCallbook();
