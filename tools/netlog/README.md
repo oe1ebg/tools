@@ -191,7 +191,8 @@ offers the export, as on any other page without IndexedDB.
   - *Check-ins (ADIF)*: ADIF 3.1.7 `.adi`, one QSO per checked-in station
     at its first check-in time: `STATION_CALLSIGN`/`OPERATOR` (my
     callsign), `FREQ`/`BAND` (and `FREQ_RX`/`BAND_RX` via a repeater: the
-    offline repeater list gives its input and output), `MODE`/`SUBMODE`,
+    offline repeater list gives its input and output; a band alone, e.g.
+    "2m" for a direct SSB net, gives `BAND` without `FREQ`), `MODE`/`SUBMODE`,
     `PROP_MODE RPT`, `NAME`, `QTH`, `GRIDSQUARE(_EXT)`, `COMMENT` (net,
     NCS, "check-in time estimated") and `APP_OE1EBG_NET` /
     `APP_OE1EBG_REPEATER`. Left out: my own station, partial callsigns and
@@ -315,7 +316,7 @@ shared `eventId` index).
 | Store | Record |
 | --- | --- |
 | `series` | `name`, `description`, `schedule`, `defaults { repeater, freq, mode, ncs }`, `numbering` (`sequential` / `none`) |
-| `sessions` | `seriesId` or null, `number` or null, `name`, `date` (UTC), `own { call, base }`, `radio { repeater, freq, mode }` (each saved on its own, merged in the transaction; `mode` a key of `NET_MODES` in `js/export.js` or empty), `suggestedNcs` (copied), `start` / `end` (times, below), `joinedLate`, `currentRoundId`, `ncsId` |
+| `sessions` | `seriesId` or null, `number` or null, `name`, `date` (UTC), `own { call, base }`, `radio { repeater, freq, mode }` (repeater optional; `freq` MHz or an ADIF band name such as `2m`; sessions from before v0.5 may have the frequency in `repeater`, still read; each saved on its own, merged in the transaction; `mode` a key of `NET_MODES` in `js/export.js` or empty), `suggestedNcs` (copied), `start` / `end` (times, below), `joinedLate`, `currentRoundId`, `ncsId` |
 | `profiles` | reusable station identity (`call`, `name`, `qth`, `locator`, `echolink`, `member`); a session never changes through a profile edit |
 | `participants` | session-specific snapshot: `call` (as typed), `base` (matching identity), `unresolved`, `profileId`, `name`, `qth`, `locator`, `rst`, `echolink`, `member`, `status`, `flags { reception }` (records from before v0.5 may also carry `speak`, `short`, `priority`; kept, no longer shown), `presence [{ from, to }]`, `rosterOrder`, `plannedOrder`, `checkinRoundId` |
 | `rounds` | `number`, `order`, `topic`, `start` |

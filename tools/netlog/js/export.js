@@ -47,14 +47,30 @@ export function parseRadioText(text) {
   return { call: call ? call.toUpperCase() : null, mhz: mhz && mhz >= 0.1 ? mhz : null };
 }
 
-// The radio facts of a session for ADIF. repeaters: the offline repeater
-// list (tools/shared/data/repeaters-at.json `repeaters`, optional): a
-// repeater found there by its call (and output frequency, if typed) gives
-// the input/output frequencies and its modes.
-// { repeater: call|null, txMHz, rxMHz, modes: [], fromList, mode: [MODE, SUBMODE]|null, modeFromList }
+// The frequency field: "145.500" / "3,650 MHz" (MHz) or a band ("2m",
+// "70cm": an ADIF band name). { mhz, band }
+export function parseFreqText(text) {
+  const s = String(text || '').trim();
+  const band = Object.keys(ADIF_SPEC_ENUMS.Band.ranges).find(b => b.toLowerCase() === s.toLowerCase());
+  if (band) return { mhz: null, band };
+  const { mhz } = parseRadioText(s.replace(EXPORT_CALL_RE, ' '));
+  return { mhz, band: adifBand(mhz) };
+}
+
+// The radio facts of a session for ADIF: the repeater (optional), the
+// frequency or band, the mode. Sessions from before the separate frequency
+// field may have both in the repeater field ("OE1XUU 438.950", "3.650"):
+// still read. repeaters: the offline repeater list (tools/shared/data/
+// repeaters-at.json `repeaters`, optional): a repeater found there by its
+// call (and output frequency, if typed) gives the input/output frequencies
+// and its modes; via a repeater I transmit on its input.
+// { repeater: call|null, txMHz, rxMHz, band, modes: [], fromList, mode: [MODE, SUBMODE]|null, modeFromList }
 export function radioInfo(session, repeaters = null) {
   const radio = (session && session.radio) || {};
-  const { call, mhz } = parseRadioText(radio.repeater);
+  const rpt = parseRadioText(radio.repeater);
+  const call = rpt.call;
+  const f = parseFreqText(radio.freq);
+  const mhz = f.mhz ?? rpt.mhz;
   let hit = null;
   if (call && Array.isArray(repeaters)) {
     const same = repeaters.filter(r => r.call === call);
@@ -64,6 +80,7 @@ export function radioInfo(session, repeaters = null) {
     repeater: call, fromList: !!hit, modes: hit ? hit.modes || [] : [],
     // via a repeater I transmit on its input and listen on its output
     txMHz: hit ? hit.in : mhz, rxMHz: hit ? hit.out : mhz,
+    band: hit ? adifBand(hit.in) : (f.band || adifBand(mhz)),
     mode: null, modeFromList: false,
   };
   if (NET_MODES[radio.mode]) info.mode = NET_MODES[radio.mode];
@@ -116,7 +133,7 @@ export function netAdifIssues({ session, participants }, repeaters = null) {
   const info = radioInfo(session, repeaters);
   const problems = [];
   if (!info.mode) problems.push('noMode');
-  if (!adifBand(info.txMHz) && !adifBand(info.rxMHz)) problems.push('noBand');
+  if (!info.band && !adifBand(info.rxMHz)) problems.push('noBand');
   if (!(session.own && session.own.call && EXPORT_ADIF_CALL_RE.test(session.own.call))) problems.push('noOwn');
   return { skipped, problems, info };
 }
@@ -151,6 +168,8 @@ export function netAdif({ session, participants }, opts = {}) {
     if (txBand) {
       rec += adifAsciiField('FREQ', exportMHz(info.txMHz));
       rec += adifAsciiField('BAND', txBand);
+    } else if (info.band) {
+      rec += adifAsciiField('BAND', info.band); // a band without a frequency ("2m")
     }
     if (rxBand && info.rxMHz !== info.txMHz) {
       rec += adifAsciiField('FREQ_RX', exportMHz(info.rxMHz));
