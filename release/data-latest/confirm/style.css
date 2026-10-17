@@ -1,0 +1,381 @@
+/* Confirmation log (Bestätigungsverkehr). Colour tokens, color-scheme,
+   [hidden] and .sr-only come from the shared tools.css. */
+
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-ui);
+  font-size:15px;
+  line-height:1.4;
+}
+#site-header{
+  position:sticky; top:0; z-index:10;
+  display:flex; align-items:center; gap:.6em; flex-wrap:wrap;
+  padding:.5em 1em;
+  background:var(--header-bg);
+  -webkit-backdrop-filter:blur(8px); /* Safari < 18 */
+  backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--line);
+}
+#site-header a{ color:var(--text-dim); text-decoration:none; }
+#site-header a:hover{ color:var(--accent-text); }
+#site-header #manual-link{ border:1px solid var(--line); border-radius:4px; padding:.1em .5em; }
+/* the page title (h1), as small caps text in the header bar */
+#site-header .title{ font-size:inherit; margin:0; font-weight:600; letter-spacing:.04em; text-transform:uppercase; }
+#time-toggle{ display:inline-flex; border:1px solid var(--line); border-radius:4px; overflow:hidden; }
+#time-toggle button{ background:none; border:none; border-radius:0; color:var(--text-dim); font-size:12.5px; padding:.2em .6em; }
+#time-toggle button + button{ border-left:1px solid var(--line); }
+#time-toggle button.active{ background:var(--accent-soft); color:var(--accent-text); }
+table.log td .date{ font-size:12.5px; color:var(--text-dim); }
+#theme-toggle{ display:inline-flex; border:1px solid var(--line); border-radius:4px; overflow:hidden; }
+#theme-toggle button{
+  background:none; border:none; color:var(--text-dim); font:inherit; font-size:12.5px;
+  padding:.2em .6em; cursor:pointer;
+}
+#theme-toggle button:not(:first-child){ border-left:1px solid var(--line); }
+#theme-toggle button.active{ background:var(--accent-soft); color:var(--accent-text); }
+
+main{ max-width:1200px; margin:0 auto; padding:1em; }
+/* view titles (Logs, Standortsuche) */
+.toolbar h2{ font-size:18px; margin:0; letter-spacing:.03em; }
+.toolbar.tight{ margin-bottom:.5em; }
+.toolbar.form-foot{ margin:1em 0 0; }
+.grow{ flex:1; min-width:16em; }
+.grow-sm{ flex:1; min-width:10em; }
+.grid-form.spaced{ margin-top:.6em; }
+#loc-q{ width:100%; font-size:16px; }
+
+.ac-info button.link{ font-size:13.5px; }
+.ac-info.prefilled{ color:var(--accent-text); font-style:italic; }
+/* fixed-height slot for the info lines in the entry form: appearing or
+   changing hints never move any input (full text in the title) */
+.ac-hints{ width:0; min-width:100%; height:calc(2 * 1.35 * 13.5px); overflow:hidden; font-size:13.5px; line-height:1.35; }
+.ac-hints .ac-info{ display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; overflow-wrap:anywhere; }
+.ac-hints .ac-info:empty{ display:none; }
+#call-info, #call-warn{ -webkit-line-clamp:1; }
+
+
+/* ---------- events view ---------- */
+.tabs{ display:inline-flex; border:1px solid var(--line); border-radius:4px; overflow:hidden; }
+.tabs button{ border:none; border-radius:0; background:none; }
+.tabs button.active{ background:var(--accent-soft); color:var(--accent-text); }
+#event-list{ list-style:none; margin:0; padding:0; display:grid; gap:.6em; }
+.event-card{
+  border:1px solid var(--line); border-radius:6px; padding:.7em 1em;
+  display:flex; gap:1em; align-items:center; flex-wrap:wrap;
+  background:var(--bg-raised);
+}
+.event-card .info{ flex:1; min-width:16em; }
+.event-card.clickable{ cursor:pointer; }
+.event-card.clickable:hover, .event-card.clickable:focus-visible{ border-color:var(--accent); outline:none; }
+.event-card .t{ font-weight:600; font-size:17px; }
+.event-card .meta{ color:var(--text-dim); font-size:13.5px; }
+.event-card .actions{ display:flex; gap:.4em; flex-wrap:wrap; }
+.empty{ color:var(--text-dim); padding:2em; text-align:center; }
+.panel{
+  border:1px solid var(--line); border-radius:6px; padding:1em; margin-bottom:1em;
+  background:var(--bg-raised);
+}
+.grid-form{ display:flex; flex-wrap:wrap; gap:.6em 1em; align-items:flex-end; }
+/* Long option texts ("Vorlage") must not widen the page at phone widths. */
+.grid-form > .field{ max-width:100%; }
+.grid-form select{ max-width:100%; }
+/* Header forms: a grid of equal columns instead of free wrapping, so the
+   groups (Station / Betriebsart / Verbindung) line up. A column (13.5em)
+   holds a 20-character locator at the 15px field size; callsigns, MHz,
+   CTCSS/DCS take one, QTH, Relais
+   and Weg two (`span` in HEADER_FIELDS), headings and the mode chips the
+   whole row. Inputs fill their cell; the info line wraps to it. Top-aligned
+   like the entry form: hints never move inputs. */
+#log-header, #new-header{ display:grid; grid-template-columns:repeat(auto-fill, minmax(13.5em, 1fr)); align-items:start; }
+#log-header > *, #new-header > *{ min-width:0; }
+#log-header > .sub, #new-header > .sub, #log-header > .wide, #new-header > .wide{ grid-column:1 / -1; }
+#log-header > .span-2, #new-header > .span-2{ grid-column:span 2; }
+#log-header input:not([type]), #new-header input:not([type]){ width:100%; box-sizing:border-box; }
+/* phones: two columns; the locator gets a whole row (narrowSpan) */
+@media (max-width: 640px){
+  #log-header, #new-header{ grid-template-columns:repeat(2, minmax(0, 1fr)); }
+  #log-header > .nspan-2, #new-header > .nspan-2{ grid-column:span 2; }
+}
+/* "+ Neues Log": title and template side by side, stacked on phones */
+.grid-form.new-meta{ display:grid; grid-template-columns:minmax(0, 3fr) minmax(0, 2fr); }
+.new-meta > .field{ min-width:0; }
+.new-meta input, .new-meta select{ width:100%; box-sizing:border-box; }
+@media (max-width: 640px){ .grid-form.new-meta{ grid-template-columns:minmax(0, 1fr); } }
+/* "+ Neues Log": sample line of the chosen template, same columns as the log */
+.tpl-preview{ margin-top:.8em; border:1px dashed var(--line); border-radius:4px; padding:.5em .7em; background:var(--bg); }
+.tpl-preview > summary{ cursor:pointer; font-size:13.5px; color:var(--text-dim); }
+.tpl-preview[open] > summary{ margin-bottom:.4em; }
+.tpl-preview .scroll{ overflow-x:auto; }
+.tpl-preview table{ border-collapse:collapse; font-size:13.5px; }
+.tpl-preview th{ text-align:left; font-weight:500; font-size:12.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-dim); padding:.15em .8em .25em 0; white-space:nowrap; border-bottom:1px solid var(--line); }
+.tpl-preview td{ padding:.25em .8em .1em 0; white-space:nowrap; color:var(--text-dim); }
+.tpl-preview .tpl{ color:var(--accent-text); }
+.call-input, .grid-input{ font-family:var(--font-mono); }
+.call-input{ text-transform:uppercase; }
+.grid-form .sub{ width:100%; font-size:12.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.06em; margin-top:.4em; }
+.grid-form .sub .sub-note{ text-transform:none; letter-spacing:0; }
+.grid-form .field.wide{ width:100%; }
+.hint.adif-mode{ font-family:var(--font-mono); font-size:12.5px; margin-top:.2em; text-transform:none; letter-spacing:0; min-height:1.35em; }
+
+/* ---------- log view ---------- */
+/* title row: the title takes the room the buttons used to take */
+#log-title{ font-size:18px; font-weight:600; border:1px solid transparent; background:none; min-width:10em; flex:1; text-overflow:ellipsis; }
+/* "Exportieren" menu */
+.menu{ position:relative; }
+.menu-list{ position:absolute; right:0; top:calc(100% + 4px); z-index:20; min-width:17em; display:flex; flex-direction:column; gap:1px;
+  padding:.35em; background:var(--bg); border:1px solid var(--line-strong); border-radius:6px; box-shadow:0 6px 18px #0003; }
+.menu-list > button{ text-align:left; border:none; background:none; padding:.45em .6em; }
+.menu-list > button:hover:not(:disabled), .menu-list > button:focus-visible{ background:var(--accent-soft); }
+.menu-list hr{ border:none; border-top:1px solid var(--line); margin:.25em 0; width:100%; }
+.menu-csv{ display:flex; flex-wrap:wrap; gap:.3em .8em; align-items:center; padding:.3em .3em .45em; border-bottom:1px solid var(--line); margin-bottom:.2em; }
+.menu-csv label.check{ font-size:13.5px; color:var(--text-dim); }
+#log-title:hover{ border-color:var(--line); }
+.stat{ font-family:var(--font-mono); font-size:14.5px; color:var(--text-dim); }
+.stat b{ color:var(--text); font-size:17px; }
+details.hdr{ margin-bottom:1em; border:1px solid var(--line); border-radius:6px; background:var(--bg-raised); }
+details.hdr > summary{ cursor:pointer; padding:.55em 1em; list-style:none; display:flex; gap:.6em; align-items:center; flex-wrap:wrap; }
+details.hdr > summary::-webkit-details-marker{ display:none; }
+details.hdr > summary::before{ content:"▸"; color:var(--text-dim); }
+details.hdr[open] > summary::before{ content:"▾"; }
+details.hdr .body{ padding:0 1em 1em; }
+.hdr-sum{ font-family:var(--font-mono); font-size:14.5px; }
+
+#entry-form{
+  border:2px solid var(--accent); border-radius:8px; padding:.8em 1em; margin-bottom:1em;
+  background:var(--bg-raised);
+}
+#entry-form.editing{ border-color:var(--warn); }
+/* top-aligned: hints under one field never shift the inputs next to it */
+/* bottom-aligned: every field ends in the same fixed-height hint slot, so
+   all inputs sit on one line (the callsign field is just taller) */
+#entry-form .row{ display:flex; flex-wrap:wrap; gap:.6em 1em; align-items:flex-end; }
+#entry-form .ac-hints:empty{ display:block; }
+.entry-actions{ display:flex; flex-wrap:wrap; gap:.4em .6em; align-items:center; margin-top:.5em; padding-top:.6em; border-top:1px solid var(--line); }
+.entry-actions .kbd-hint{ flex:1 1 24em; margin:0; }
+.entry-actions #form-status{ margin:0; min-height:0; }
+.entry-actions #form-status:empty{ display:none; }
+.help-btn{ margin-left:auto; }
+.help-btn[aria-expanded="true"]{ border-color:var(--accent); color:var(--accent-text); background:var(--accent-soft); }
+.entry-help{ margin-top:.6em; border:1px solid var(--line-strong); border-radius:6px; background:var(--bg); padding:.6em .9em; font-size:14.5px; }
+.entry-help h2{ font-size:14.5px; margin:0 0 .4em; }
+.entry-help dl{ display:grid; grid-template-columns:max-content 1fr; gap:.3em 1em; margin:0; }
+.entry-help dt{ white-space:nowrap; }
+.entry-help dd{ margin:0; color:var(--text-dim); }
+@media (max-width: 640px){ .entry-help dl{ grid-template-columns:1fr; } .entry-help dd{ margin-bottom:.3em; } }
+kbd{ font:12.5px var(--font-mono); border:1px solid var(--line-strong); border-bottom-width:2px; border-radius:3px; padding:0 .3em; }
+/* last action ("gespeichert", "gelöscht" …), always in the same place above the log */
+.log-status{ min-height:1.7em; margin:0 0 .4em; font-size:14.5px; display:flex; flex-wrap:wrap; gap:.3em; align-items:center; }
+.log-status .ok-mark{ color:var(--ok); font-weight:700; }
+.log-status button.link{ font-size:14.5px; }
+/* the row just saved/restored, for a moment */
+table.log tr.fresh td{ background:var(--accent-soft); }
+table.log tr.fresh td:first-child{ box-shadow:inset 3px 0 0 var(--ok); }
+@media (prefers-reduced-motion: no-preference){ table.log tr td{ transition:background-color 1.2s; } }
+#entry-form .field > span, #entry-form div.field > label{ white-space:nowrap; }
+.form-actions .rpt-line-row{ gap:.6em; }
+/* operator comment mode ("!" in the callsign field): check-in fields hidden */
+#entry-form.comment-mode .ci-only, #entry-form:not(.comment-mode) .c-only{ display:none; }
+#entry-form.comment-mode:not(.editing){ border-style:dashed; }
+#f-ctext{ width:100%; font-size:16px; padding:.25em .4em; }
+.c-text{ flex:1; min-width:16em; }
+#f-call{
+  font-family:var(--font-mono); font-size:24px; font-weight:600;
+  text-transform:uppercase; width:9em; padding:.2em .4em;
+}
+#f-call::placeholder{ font-family:var(--font-ui); font-size:14.5px; font-weight:400; text-transform:none; color:var(--text-dim); }
+#f-time{ font-family:var(--font-mono); width:12em; }
+.clock{ font-family:var(--font-mono); font-size:13.5px; color:var(--text-dim); }
+.radio-group.grade label{ min-width:2.1em; text-align:center; font-family:var(--font-mono); font-weight:600; }
+#form-status{ font-size:14.5px; }
+#form-status.ok{ color:var(--ok); }
+#form-status.err{ color:var(--err); font-weight:600; }
+.cb-name{ font-family:var(--font-ui); font-weight:400; font-size:12.5px; color:var(--text-dim); white-space:normal; }
+#repeat-box{
+  margin-top:.7em; padding:.6em .8em; border-radius:6px;
+  border:2px solid var(--warn); background:var(--warn-soft);
+}
+#repeat-box .head{ font-weight:700; color:var(--warn); margin-bottom:.3em; }
+#repeat-box ul{ margin:.2em 0 .4em; padding-left:1.2em; font-size:14.5px; }
+.edit-tag{ font-weight:700; color:var(--warn); }
+
+.table-wrap{ overflow-x:auto; border:1px solid var(--line); border-radius:6px; }
+table.log{ width:100%; border-collapse:collapse; font-size:14.5px; }
+table.log th, table.log td{ padding:.35em .6em; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
+table.log th{ font-size:12.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-dim); background:var(--bg-raised); position:sticky; top:0; }
+table.log td.mono{ font-family:var(--font-mono); white-space:nowrap; }
+table.log td.call{ font-family:var(--font-mono); font-weight:600; font-size:14px; white-space:nowrap; }
+table.log tr.match td{ background:var(--warn-soft); }
+table.log tr.editing td{ background:var(--accent-soft); }
+table.log td.act{ white-space:nowrap; text-align:right; }
+/* location source: own fixed-width column, so labels never shift the text */
+table.log th.origin, table.log td.origin{ width:4.5em; padding-right:0; }
+.src{ display:inline-block; min-width:3.8em; text-align:center; font-size:12.5px; line-height:1.5; padding:0 .3em; border-radius:3px; border:1px solid var(--line); color:var(--text-dim); white-space:nowrap; }
+.src.src-search{ color:var(--ok); border-color:currentColor; }
+.src.src-callbook{ color:var(--warn); border-color:currentColor; border-style:dashed; }
+.src.src-previous{ color:var(--accent-dim); border-color:currentColor; }
+table.log td.act button{ padding:.1em .45em; font-size:13.5px; }
+/* operator comments / log markers: full-width banner rows */
+table.log tr.marker td{
+  background:var(--accent-soft); border-top:2px solid var(--accent); border-bottom:2px solid var(--accent);
+  border-left:6px solid var(--accent); padding:.45em .6em;
+}
+table.log tr.marker.editing td{ border-color:var(--warn); }
+.marker-row{ display:flex; flex-wrap:wrap; gap:.3em .9em; align-items:baseline; }
+.marker-time{ font-family:var(--font-mono); white-space:nowrap; }
+.marker-cat{ font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--accent-text);
+  border:1px solid var(--accent); border-radius:4px; padding:0 .4em; white-space:nowrap; }
+.marker-text{ flex:1; min-width:12em; font-weight:600; }
+.marker-op{ font-family:var(--font-mono); font-size:13.5px; color:var(--text-dim); white-space:nowrap; }
+.marker-row .act{ white-space:nowrap; }
+.marker-row .act button{ padding:.1em .45em; font-size:13.5px; }
+.badge{
+  display:inline-block; margin-left:.35em; padding:0 .4em; border-radius:999px;
+  font-size:12.5px; font-weight:700; background:var(--warn); color:var(--bg);
+}
+.rpt{ font-size:12.5px; color:var(--accent-text); }
+
+/* ---------- location lookup ---------- */
+#loc-examples button{ margin-right:.7em; font-size:13.5px; }
+#loc-results{ display:grid; gap:.5em; margin-top:.7em; }
+.hint.ok{ color:var(--ok); }
+.hint.err{ color:var(--err); font-weight:600; }
+.loc-cand{ border:1px solid var(--line); border-left:4px solid var(--line); border-radius:6px; padding:.5em .8em; background:var(--bg); }
+.loc-cand.conf-exact, .loc-cand.conf-high{ border-left-color:var(--ok); }
+.loc-cand.conf-likely{ border-left-color:var(--accent); }
+.loc-cand.conf-ambiguous, .loc-cand.conf-low{ border-left-color:var(--warn); }
+.loc-cand.auto{ box-shadow:0 0 0 2px var(--ok) inset; }
+.lc-head{ display:flex; gap:.5em; align-items:baseline; flex-wrap:wrap; }
+.lc-type{ font-size:12.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-dim); }
+.lc-conf{ font-size:12.5px; padding:0 .45em; border-radius:999px; border:1px solid currentColor; }
+.conf-exact .lc-conf, .conf-high .lc-conf{ color:var(--ok); }
+.conf-likely .lc-conf{ color:var(--accent-text); }
+.conf-ambiguous .lc-conf, .conf-low .lc-conf{ color:var(--warn); }
+.lc-meta{ font-family:var(--font-mono); font-size:14.5px; margin:.15em 0; }
+.lc-why, .lc-detail{ font-size:13.5px; color:var(--text-dim); }
+.lc-note{ font-size:13.5px; color:var(--warn); }
+.lc-name{ font-size:13.5px; }
+.lc-name q{ font-weight:600; quotes:"„" "“"; }
+.nt, .lc-outside{ font-size:12.5px; padding:0 .45em; border-radius:999px; border:1px solid var(--line); color:var(--text-dim); white-space:nowrap; }
+.nt{ background:var(--bg-raised); }
+.nt.hist{ border-style:dashed; }
+.lc-actions{ display:flex; gap:.35em; flex-wrap:wrap; margin-top:.35em; }
+button.mini{ font-size:13.5px; padding:.15em .55em; }
+.map-links{ display:inline-flex; gap:.6em; align-items:center; font-size:13.5px; margin-left:.3em; }
+.pin-tip-body .map-links{ display:flex; margin:.3em 0 0; }
+/* External map links lead nowhere offline: hidden (js/sources.js trackOnline()). */
+:root.offline .online-only{ display:none !important; }
+.rpt-line-row{ display:flex; gap:.4em; align-items:center; }
+#f-rpt-q{ font-family:var(--font-mono); text-transform:uppercase; }
+#f-rpt-q.override{ border-color:var(--warn); color:var(--warn); font-weight:600; }
+.rpt.override{ color:var(--warn); font-weight:600; }
+.ac-info.conf-exact, .ac-info.conf-high{ color:var(--ok); }
+.ac-info.conf-likely{ color:var(--accent-text); }
+.ac-info.conf-ambiguous, .ac-info.conf-low, .ac-info.unresolved{ color:var(--warn); }
+.loc-sub{ font-size:12.5px; color:var(--text-dim); }
+.loc-sub.unresolved{ color:var(--warn); }
+details.misc{ margin-top:1.2em; }
+details.misc summary{ cursor:pointer; color:var(--text-dim); }
+details.misc ul{ font-size:14.5px; }
+
+dialog{ border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--text); max-width:min(48em, 95vw); width:100%; }
+dialog::backdrop{ background:#0006; }
+dialog h2{ margin-top:0; font-size:1.17em; }
+dialog .toolbar.form-foot{ margin-top:.8em; }
+dialog textarea{ width:100%; height:18em; font-family:var(--font-mono); font-size:13.5px; }
+
+footer{ max-width:1200px; margin:2em auto 1em; padding:0 1em; font-size:12.5px; color:var(--text-dim); }
+footer a{ color:inherit; }
+footer .sources{ margin-top:.5em; }
+footer .sources > summary{ cursor:pointer; width:max-content; max-width:100%; }
+footer .sources dl{ display:grid; grid-template-columns:max-content 1fr; gap:.3em 1em; margin:.5em 0 0; }
+footer .sources dt{ color:var(--text); white-space:nowrap; }
+footer .sources dd{ margin:0; }
+footer .src-list > span:not(:empty) ~ span:not(:empty)::before{ content:" · "; }
+@media (max-width: 640px){ footer .sources dl{ grid-template-columns:1fr; } footer .sources dd{ margin-bottom:.4em; } }
+/* "Ohne Internet arbeiten" on the log overview: about the tool, not a log,
+   so nothing like a log card (no grey card, no primary button): set off
+   from the list by a rule, dashed accent frame, tinted, download icon. */
+.offline-card{ display:flex; flex-wrap:wrap; gap:.6em 1em; align-items:center; margin-top:1.6em;
+  border:1px dashed var(--accent-dim); border-radius:6px; padding:.7em 1em; background:var(--accent-soft);
+  position:relative; }
+.offline-card::before{ content:""; position:absolute; left:0; right:0; top:calc(-.8em - 1px); border-top:1px solid var(--line); }
+.offline-card .icon{ flex:none; width:2em; height:2em; border-radius:50%; display:grid; place-items:center;
+  background:var(--accent); color:#fff; font-size:15px; }
+.offline-card .txt{ flex:1 1 20em; min-width:0; }
+.offline-card h2{ font-size:14px; margin:0 0 .15em; color:var(--accent-text); }
+.offline-card p{ margin:0; font-size:13.5px; color:var(--text-dim); }
+.offline-card .btn{ text-decoration:none; display:inline-flex; gap:.4em; align-items:center;
+  background:var(--bg); border-color:var(--accent-dim); color:var(--accent-text); }
+.offline-card .btn:hover{ border-color:var(--accent); }
+.source{ white-space:normal; }
+footer details.vendor-license{ margin-top:.4em; }
+footer details.vendor-license pre{ white-space:pre-wrap; }
+
+/* ---------- map ---------- */
+#map-panel{ margin-bottom:1em; }
+/* isolation: keep Leaflet's internal z-indices (400-1000) below the sticky header */
+#map{ height:60vh; min-height:320px; border:1px solid var(--line); border-radius:6px; background:var(--bg); position:relative; z-index:0; isolation:isolate; }
+#map-unplaced{ margin-top:.3em; }
+.leaflet-container{ font-family:var(--font-ui); background:var(--bg); }
+.leaflet-control-layers-toggle{ background-image:none !important; } /* never request Leaflet's PNG */
+.leaflet-control-layers-toggle::after{ content:"Ebenen"; display:flex; height:100%; align-items:center; justify-content:center; font-size:12px; color:var(--text); }
+.leaflet-touch .leaflet-control-layers-toggle{ width:64px; }
+.leaflet-control-layers, .leaflet-bar a, .leaflet-control-attribution{ background:var(--bg-raised) !important; color:var(--text) !important; }
+.leaflet-control-attribution{ font-size:10px; }
+.leaflet-tooltip.map-district{ background:none; border:none; box-shadow:none; color:var(--text-dim); font-weight:700; font-size:13px; }
+.leaflet-tooltip.map-grid-label{ background:none; border:none; box-shadow:none; color:var(--accent-text); font-family:var(--font-mono); font-size:10px; opacity:.8; }
+.leaflet-tooltip.map-district::before, .leaflet-tooltip.map-grid-label::before{ display:none; }
+.map-pin{ border-radius:50%; background:var(--accent); border:2px solid var(--bg); box-shadow:0 0 0 1px var(--accent);
+  display:flex !important; align-items:center; justify-content:center; color:#fff; font:700 10px var(--font-ui); }
+.map-pin.weak{ background:var(--bg); border:2px dashed var(--warn); box-shadow:none; color:var(--warn); }
+.map-own{ border-radius:50%; background:var(--warn); border:3px solid var(--bg); box-shadow:0 0 0 3px var(--warn), 0 2px 8px #0006;
+  display:flex !important; align-items:center; justify-content:center; color:#fff; font-size:15px; }
+.leaflet-tooltip.pin-tip, .pin-tip .leaflet-popup-content-wrapper{ background:var(--bg); color:var(--text); border:1px solid var(--accent); }
+.pin-tip-body{ font-size:12px; width:max-content; max-width:260px; white-space:normal; }
+.pin-tip-head{ font-size:13px; }
+.pin-tip-loc{ color:var(--text-dim); }
+.pin-tip-body b{ font-family:var(--font-mono); }
+.pin-tip-body ul{ margin:.25em 0 0; padding:0; list-style:none; }
+.pin-tip-body li + li{ margin-top:.1em; }
+.pin-tip-more{ color:var(--text-dim); }
+.pin-tip-warn{ color:var(--warn); }
+#btn-map.active{ border-color:var(--accent); color:var(--accent-text); }
+.csv-group{ display:inline-flex; }
+.csv-group button{ border-top-right-radius:0; border-bottom-right-radius:0; }
+.csv-group select{ border-top-left-radius:0; border-bottom-left-radius:0; border-left:none; font-family:var(--font-mono); padding:.3em .3em; }
+
+/* iOS Safari zooms into focused fields with text under 16px. */
+@media (pointer: coarse){
+  /* :root for the specificity of input:not([type]) etc.; #f-call keeps its 24px */
+  :root input, :root select, :root textarea{ font-size:16px; }
+}
+
+@media (max-width: 640px){
+  main{ padding:.6em; }
+  #f-call{ width:100%; }
+  #site-header .title{ display:none; }
+  /* entry form: one field per row, full width (easy to hit, easy to read) */
+  #entry-form .row > .field, #entry-form #f-fields > .field{ flex:1 1 100%; min-width:0; }
+  #entry-form .row input:not([type=checkbox]):not([type=radio]){ width:100%; box-sizing:border-box; }
+  #entry-form .rpt-line-row .ac-wrap{ flex:1; }
+  #entry-form .row > #f-fields{ flex:1 1 100%; }
+  #entry-form .field .ac-wrap{ width:100%; }
+  /* the export menu opens to the right of its button (which wraps to the
+     left here) and never wider than the screen */
+  .menu-list{ left:0; right:auto; max-width:calc(100vw - 1.5em); box-sizing:border-box; }
+}
+@media print{
+  #site-header, .toolbar button, #entry-form, details.hdr > summary::before, .no-print, footer, table.log td.act, table.log th.act, .marker-row .act{ display:none !important; }
+  /* markers stay visible on paper without background colours */
+  table.log tr.marker td{ background:none; border:2px solid #000; border-left-width:6px; break-inside:avoid; }
+  .marker-cat{ color:#000; border-color:#000; }
+  .marker-op{ color:#000; }
+  details.hdr .body{ display:none; }
+  body{ background:#fff; color:#000; font-size:11px; }
+  .table-wrap{ border:none; }
+  table.log th{ position:static; }
+}
+.entry-help p.hint{ margin:.5em 0 0; }
+.entry-help p.hint a{ color:var(--accent-text); }

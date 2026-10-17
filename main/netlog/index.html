@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Netlog</title>
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#526cfe">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<!-- iOS ignores SVG and manifest icons for the home screen -->
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<!-- Theme first (sets data-theme before anything paints), then the styles;
+     all precached (scripts/build_netlog.py). -->
+<!-- NETLOG-VENDOR-BEGIN -->
+<script src="../shared/js/theme.js"></script>
+<link rel="stylesheet" href="../shared/css/tools.css">
+<link rel="stylesheet" href="../shared/css/forms.css">
+<link rel="stylesheet" href="style.css">
+<!-- NETLOG-VENDOR-END -->
+</head>
+<body>
+
+<!-- The static text is English; js/i18n.js sets every data-i18n text and
+     data-i18n-attr attribute in the chosen language (German or English). -->
+<header id="site-header">
+  <a id="home-link" href="../" data-i18n="header.allTools">← All tools</a>
+  <h1 class="title">Netlog</h1>
+  <span id="session-line" class="session-line"></span>
+  <span class="spacer"></span>
+  <span id="clock" class="clock" role="timer" aria-label="Time (UTC)"><b id="clock-utc">--:--</b> <span id="clock-zone">UTC</span></span>
+  <div id="time-toggle" class="toggle" role="group" data-i18n-attr="aria-label:header.timeMode; title:header.timeTitle" aria-label="Time display" title="Show times in UTC or local time; storage is always UTC.">
+    <button type="button" data-time="utc" aria-pressed="true" data-i18n="header.utc">UTC</button>
+    <button type="button" data-time="local" aria-pressed="false" data-i18n="header.local">local</button>
+  </div>
+  <div class="header-tools">
+    <div id="lang-toggle" class="toggle" role="group" data-i18n-attr="aria-label:header.language" aria-label="Language">
+      <button type="button" data-lang="de" lang="de" aria-pressed="false">DE</button>
+      <button type="button" data-lang="en" lang="en" aria-pressed="false">EN</button>
+    </div>
+    <div id="theme-toggle" class="toggle" role="group" data-i18n-attr="aria-label:header.theme" aria-label="Colour scheme">
+      <button type="button" data-theme-choice="light" aria-pressed="false" data-i18n="header.light">light</button>
+      <button type="button" data-theme-choice="auto" aria-pressed="false" data-i18n="header.auto">auto</button>
+      <button type="button" data-theme-choice="dark" aria-pressed="false" data-i18n="header.dark">dark</button>
+    </div>
+    <button id="btn-help" type="button" aria-haspopup="dialog" data-i18n-attr="aria-label:help.open" aria-label="Help and keyboard shortcuts">?</button>
+  </div>
+  <div class="status-bar">
+    <span id="mode-indicator" class="chip mode" role="status"></span>
+    <span id="st-save" class="chip" role="status" aria-live="polite"></span>
+    <span id="st-offline" class="chip">offline: …</span>
+    <span id="st-storage" class="chip">…</span>
+    <button type="button" id="st-backup" class="chip chip-btn" hidden data-i18n-attr="title:backup.chipTitle" title="Start the download of this session's backup (JSON) now; whether the file arrived, the browser does not say"></button>
+    <button id="btn-update" type="button" class="primary" hidden data-i18n="header.update">Update available</button>
+  </div>
+</header>
+
+<main>
+  <div id="banner" class="banner err" role="alert" hidden></div>
+  <noscript><div class="banner err">Netlog needs JavaScript. · Netlog benötigt JavaScript.</div></noscript>
+  <div id="storage-banner" class="banner warn" role="status" hidden></div>
+  <div id="lock-banner" class="banner warn move" role="status" hidden>
+    <p id="lock-text"></p>
+    <button type="button" id="btn-edit-here" data-i18n="lock.editHere">Edit here</button>
+  </div>
+
+  <div id="workspace" class="workspace">
+    <div class="toolbar viewbar">
+      <nav id="view-tabs" class="tabs" data-i18n-attr="aria-label:views.label" aria-label="Workspaces">
+        <a id="tab-live" href="#/" data-view="live" data-i18n="views.live">Live Notes</a>
+        <a id="tab-turn" href="#/" data-view="turn"><span data-i18n="views.turn">My Turn</span><span id="tab-turn-count" class="tab-count"></span></a>
+        <a id="tab-log" href="#/" data-view="log" data-i18n="views.log">Continuous Log</a>
+        <a id="tab-control" href="#/" data-view="control" data-i18n="views.control">Net Control</a>
+        <a id="tab-series" href="#/" data-view="series" data-i18n="views.series">Sessions &amp; series</a>
+      </nav>
+      <span class="spacer"></span>
+      <button type="button" id="btn-search" aria-haspopup="dialog" data-i18n="search.open">/ Search</button>
+      <button type="button" id="btn-undo" class="icon" disabled data-i18n-attr="aria-label:undo.button" aria-label="Undo">↶</button>
+      <button type="button" id="btn-redo" class="icon" disabled data-i18n-attr="aria-label:undo.redoButton" aria-label="Redo">↷</button>
+
+      <span id="round-indicator" class="round-indicator"></span>
+      <button type="button" id="btn-new-round" data-i18n="round.new">+ New round</button>
+    </div>
+    <div class="workspace-body">
+    <aside id="sidebar" class="sidebar" aria-labelledby="roster-title" hidden>
+      <div class="sidehead">
+        <h2 id="roster-title" data-i18n="roster.title">Participants</h2>
+        <p id="roster-stats" class="hint"></p>
+      </div>
+      <div id="speak-panel" class="speak-panel" hidden>
+        <p id="speak-me" class="speak-me" role="status"></p>
+        <p class="speak-style"><span id="speak-style" class="topo-label"></span></p>
+        <ol id="speak-strip" class="speak-strip" data-i18n-attr="aria-label:speak.stripLabel" aria-label="Speaking order of this round"></ol>
+        <p id="speak-then" class="speak-then" aria-hidden="true"></p>
+        <p id="speak-state" class="sr-only" aria-live="polite"></p>
+        <button type="button" id="btn-next" class="primary next-btn"></button>
+      </div>
+      <ul id="roster" class="roster" data-i18n-attr="aria-label:roster.listLabel" aria-label="Participants (j/k or arrow keys, Enter opens)"></ul>
+      <p id="topo-hint" class="topo-hint hint" hidden></p>
+      <!-- moves the selected station in the list (= the speaking order) -->
+      <div class="roster-move" role="group" data-i18n-attr="aria-label:roster.moveGroup" aria-label="Move the selected station">
+        <button type="button" id="btn-roster-up" data-i18n="roster.up">↑ Up</button>
+        <button type="button" id="btn-roster-down" data-i18n="roster.down">↓ Down</button>
+      </div>
+      <div class="sidecheckin">
+          <form id="checkin-form" class="checkin" autocomplete="off">
+            <div class="ac-wrap">
+              <label for="checkin-call" class="sr-only" data-i18n="checkin.callLabel">Callsign (also partial: OE0QX?, ?)</label>
+              <input id="checkin-call" class="call-input mono" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" data-i18n-attr="placeholder:checkin.callPlaceholder" placeholder="Callsign / OE0QX? / ?">
+              <div id="checkin-pop" class="ac-pop" hidden></div>
+              <p id="checkin-info" class="ac-info" aria-live="polite"></p>
+            </div>
+            <label for="checkin-name" class="sr-only" data-i18n="checkin.nameLabel">Name (optional)</label>
+            <input id="checkin-name" autocorrect="off" enterkeyhint="done" data-i18n-attr="placeholder:checkin.namePlaceholder" placeholder="Name (optional)">
+            <button type="submit" class="primary" data-i18n="checkin.add">+ Check in</button>
+          </form>
+      </div>
+    </aside>
+
+    <section id="content" class="content">
+
+      <!-- ===== Live Notes ===== -->
+      <section id="view-live" class="view" aria-labelledby="tab-live" hidden>
+        <div id="station-empty" class="empty" data-i18n="live.noStation">Check in a station or pick one from the list.</div>
+        <article id="station" class="station" hidden>
+          <div class="station-head">
+            <h2 id="station-call" class="station-call mono"></h2>
+            <span id="station-name" class="station-name"></span>
+            <button type="button" id="btn-edit-identity" class="icon edit-id" aria-expanded="false" aria-controls="station-edit" data-i18n-attr="aria-label:station.edit; title:station.edit" aria-label="Edit callsign, name and details" title="Edit callsign, name and details">✎</button>
+            <span id="station-badges" class="badges"></span>
+            <div class="station-tools">
+              <label class="inline-field"><span class="sr-only" data-i18n="station.status">Status</span>
+                <select id="station-status" data-i18n-attr="title:station.status" title="Status"></select></label>
+              <span id="station-flags" class="flag-group" role="group" data-i18n-attr="aria-label:station.flags" aria-label="Flags"></span>
+              <button type="button" id="btn-ncs" aria-pressed="false" data-i18n="station.ncs">Net control</button>
+            </div>
+          </div>
+          <div id="station-edit" class="station-edit" hidden>
+          <form id="identity-form" class="identity-form" autocomplete="off">
+            <div class="ac-wrap">
+              <label class="field"><span data-i18n="checkin.callLabelShort">Callsign</span>
+                <input id="identity-call" class="call-input mono" autocapitalize="characters" autocorrect="off" spellcheck="false"></label>
+              <div id="identity-pop" class="ac-pop" hidden></div>
+              <p id="identity-info" class="ac-info" aria-live="polite"></p>
+            </div>
+            <label class="field"><span data-i18n="station.name">Name</span><input id="identity-name" autocorrect="off"></label>
+            <div class="form-buttons">
+              <button type="submit" class="primary" data-i18n="common.save">Save</button>
+              <button type="button" id="btn-identity-cancel" data-i18n="common.cancel">Cancel</button>
+            </div>
+          </form>
+          <form id="station-details" class="details-form" autocomplete="off">
+            <label class="field"><span data-i18n="station.qth">QTH</span><input id="det-qth" data-field="qth" autocorrect="off"></label>
+            <label class="field"><span data-i18n="station.locator">Locator</span><input id="det-locator" data-field="locator" class="mono" autocapitalize="characters" autocorrect="off" spellcheck="false"></label>
+            <label class="field"><span data-i18n="station.rst">RST</span><input id="det-rst" data-field="rst" class="mono" inputmode="numeric" autocorrect="off"></label>
+            <label class="field"><span data-i18n="station.member">Member no.</span><input id="det-member" data-field="member" autocorrect="off"></label>
+            <label class="check"><input id="det-echolink" type="checkbox" data-field="echolink"> <span data-i18n="station.echolink">via EchoLink</span></label>
+            <div class="form-buttons">
+              <button type="button" id="btn-profile" data-i18n="station.saveProfile">Save as station profile</button>
+              <button type="button" id="btn-remove-station" class="danger" data-i18n="station.remove">Remove from this session</button>
+              <span id="profile-state" class="hint"></span>
+            </div>
+            <div class="presence">
+              <h3 data-i18n="station.presence">Presence</h3>
+              <ul id="presence-list" class="presence-list"></ul>
+            </div>
+          </form>
+          </div>
+          <p class="station-meta"><span id="station-sub" class="hint"></span><span id="station-links" class="station-links online-only"></span><button type="button" id="btn-history" class="history-toggle" aria-expanded="false" aria-controls="history-body" hidden></button></p>
+          <section id="station-history" class="station-history" data-i18n-attr="aria-label:history.label" aria-label="History of this station" hidden>
+            <div id="history-body" class="history-body" hidden>
+              <ul id="history-open-list" class="history-open-list"></ul>
+              <ul id="history-matches" class="history-matches"></ul>
+              <ol id="history-list" class="history-list"></ol>
+            </div>
+          </section>
+          <p id="own-turn" class="own-turn" hidden><button type="button" id="btn-own-turn" class="primary" data-i18n="own.myTurn">This is you: open My Turn</button></p>
+          <div id="station-rounds" class="rounds"></div>
+        </article>
+      </section>
+
+      <!-- ===== My Turn ===== -->
+      <section id="view-turn" class="view" aria-labelledby="turn-title" hidden>
+        <h2 id="turn-title" tabindex="-1">My Turn</h2>
+        <p id="turn-cycle" class="hint"></p>
+        <section class="turn-resp" aria-labelledby="resp-title">
+          <div class="toolbar">
+            <h3 id="resp-title" tabindex="-1" data-i18n="turn.responses">Open Responses</h3>
+            <span id="resp-count" class="pill"></span>
+          </div>
+          <ol id="turn-items" class="turn-items" data-i18n-attr="aria-label:turn.itemsLabel" aria-label="Open responses and talking points"></ol>
+          <p id="turn-empty" class="empty" hidden></p>
+          <form id="point-form" class="point-form" autocomplete="off">
+            <label for="point-text" data-i18n="turn.addPoint">Personal talking point</label>
+            <textarea id="point-text" rows="1" data-i18n-attr="placeholder:turn.pointPlaceholder" placeholder="Something to mention (Enter adds it)"></textarea>
+            <button type="submit" data-i18n="turn.add">Add</button>
+          </form>
+          <details id="turn-history" class="turn-history" hidden>
+            <summary id="turn-history-summary"></summary>
+            <ul id="turn-history-list"></ul>
+          </details>
+        </section>
+        <section class="turn-summary" aria-labelledby="sum-title">
+          <div class="toolbar">
+            <h3 id="sum-title" tabindex="-1" data-i18n="turn.roundNotes">Round Notes</h3>
+            <span id="sum-topic" class="sum-rounds"></span>
+          </div>
+          <div id="sum-groups" class="sum-groups"></div>
+          <p id="sum-empty" class="empty" hidden></p>
+        </section>
+        <div class="toolbar turn-foot">
+          <button type="button" id="btn-end-turn" class="primary" data-i18n="turn.end">End Turn</button>
+          <button type="button" id="btn-turn-back" data-i18n="turn.back">Back to Live Notes</button>
+        </div>
+      </section>
+
+      <!-- ===== Continuous Log ===== -->
+      <section id="view-log" class="view" aria-labelledby="log-title" hidden>
+        <div class="toolbar">
+          <h2 id="log-title" tabindex="-1" data-i18n="log.title">Continuous Log</h2>
+          <span class="spacer"></span>
+          <button type="button" id="btn-log-select" aria-pressed="false" data-i18n="log.select">Select notes</button>
+          <button type="button" id="btn-log-move" aria-haspopup="dialog" hidden data-i18n="log.moveSelected">Move selected…</button>
+          <span id="log-selected" class="hint" role="status"></span>
+        </div>
+        <p class="hint" data-i18n="log.hint">All notes of this session in recorded order, by round. The same notes as in Live Notes: an edit here is an edit there.</p>
+        <div id="log-rounds" class="rounds"></div>
+        <details id="log-deleted" class="turn-history" hidden>
+          <summary id="log-deleted-summary"></summary>
+          <ul id="log-deleted-list"></ul>
+        </details>
+      </section>
+
+      <!-- ===== Net Control ===== -->
+      <section id="view-control" class="view" aria-labelledby="tab-control" hidden>
+        <h2 data-i18n="control.title">Net Control</h2>
+        <div class="control-grid">
+          <section class="card order-card" aria-labelledby="order-title">
+            <h3 id="order-title" data-i18n="control.order">Roster and planned order</h3>
+            <p class="hint" data-i18n="control.statusHint">Check stations in and out, pause or mark them away right here; each change is recorded with its time.</p>
+            <p class="hint" data-i18n="control.orderHint">The order is for display and planning only; it never changes who actually spoke or creates a round.</p>
+            <ol id="order-list" class="order-list"></ol>
+          </section>
+          <section class="card" aria-labelledby="sess-title">
+            <h3 id="sess-title" data-i18n="control.session">This session</h3>
+            <form id="session-edit" class="form-grid" autocomplete="off">
+              <label class="field"><span data-i18n="session.own">My callsign</span><input id="se-own" class="call-input mono" autocapitalize="characters" autocorrect="off" spellcheck="false"></label>
+              <label class="field"><span data-i18n="session.name">Name (optional)</span><input id="se-name" autocorrect="off"></label>
+              <label class="field"><span data-i18n="session.repeater">Repeater (optional)</span><input id="se-repeater" autocorrect="off"></label>
+              <label class="field"><span data-i18n="session.freq">Frequency (MHz or band)</span><input id="se-freq" class="mono" autocorrect="off" spellcheck="false" data-i18n-attr="placeholder:session.freqPlaceholder" placeholder="e.g. 145.500 or 2m"></label>
+              <label class="field"><span data-i18n="session.mode">Mode</span>
+                <select id="se-mode">
+                  <option value="" data-i18n="session.modeNone">(not set)</option>
+                  <option value="FM">FM</option><option value="SSB">SSB</option><option value="AM">AM</option><option value="CW">CW</option>
+                  <option value="DMR">DMR</option><option value="DSTAR">D-STAR</option><option value="C4FM">C4FM (Fusion)</option>
+                  <option value="M17">M17</option><option value="FREEDV">FreeDV</option>
+                </select><small id="se-mode-hint" class="field-hint" aria-live="polite"></small></label>
+              <label class="field"><span data-i18n="style.label">Speaking order</span>
+                <select id="se-style">
+                  <option value="star" data-i18n="style.star">Central control: every station gives back to net control, which calls the next</option>
+                  <option value="circle" data-i18n="style.circle">Round-robin: each station passes to the next in the sequence</option>
+                <option value="free" data-i18n="style.free">Free-form: stations speak spontaneously, no fixed order, no net control needed</option>
+                </select></label>
+            </form>
+            <p class="hint" data-i18n="control.ownHint">Your own station is marked "me" in the lists; My Turn is yours.</p>
+            <button type="button" id="btn-checkin-own" hidden></button>
+          </section>
+          <section class="card" aria-labelledby="export-title">
+            <h3 id="export-title" data-i18n="export.title">Export this session</h3>
+            <div class="toolbar">
+              <button type="button" id="btn-export-stations" data-i18n="export.stations">Stations (CSV)</button>
+              <button type="button" id="btn-export-notes" data-i18n="export.notes">Notes (CSV)</button>
+              <button type="button" id="btn-export-adif" data-i18n="export.adif">Check-ins (ADIF)</button>
+              <button type="button" id="btn-export-print" data-i18n="export.print">Print report…</button>
+              <label class="check"><input type="checkbox" id="export-report-notes"> <span data-i18n="export.reportNotes">with notes and replies</span></label>
+            </div>
+            <ul id="export-issues" class="export-issues" data-i18n-attr="aria-label:export.issuesLabel" aria-label="ADIF: left out or missing" hidden></ul>
+            <p class="hint" data-i18n="export.hint">ADIF: one QSO per checked-in station at its check-in time (UTC), with the session\'s repeater, frequency and mode; notes stay out. The notes CSV contains your notes and replies (plaintext, like a backup); the report only when "with notes and replies" is ticked.</p>
+          </section>
+          <section class="card" aria-labelledby="ncs-title">
+            <h3 id="ncs-title" data-i18n="control.ncs">Net control station</h3>
+            <p id="ncs-current" class="ncs-current"></p>
+            <p id="ncs-suggest" class="hint" hidden></p>
+            <h4 data-i18n="control.handovers">Handovers</h4>
+            <ol id="ncs-history" class="ncs-history"></ol>
+          </section>
+          <section class="card" aria-labelledby="rounds-title">
+            <h3 id="rounds-title" data-i18n="control.rounds">Rounds</h3>
+            <p class="hint" data-i18n="control.roundsHint">Rounds start only here or with "+ New round"; the current round is where new notes go.</p>
+            <ol id="round-list" class="round-list"></ol>
+            <label class="inline-field"><span data-i18n="control.expanded">Rounds expanded in Live Notes</span>
+              <select id="expanded-count">
+                <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="5">5</option><option value="99" data-i18n="control.expandedAll">all</option>
+              </select></label>
+          </section>
+          <section class="card" aria-labelledby="removed-title">
+            <h3 id="removed-title" data-i18n="control.removed">Removed stations</h3>
+            <ul id="removed-list" class="task-list"></ul>
+          </section>
+          <section class="card" aria-labelledby="tasks-title">
+            <h3 id="tasks-title" data-i18n="control.tasks">After-net tasks</h3>
+            <p class="hint" data-i18n="control.tasksHint">Follow-ups for after the net; they do not appear in My Turn.</p>
+            <ul id="task-list" class="task-list"></ul>
+            <form id="task-form" class="point-form" autocomplete="off">
+              <label for="task-text" class="sr-only" data-i18n="control.newTask">New task</label>
+              <input id="task-text" data-i18n-attr="placeholder:control.newTask" placeholder="New task">
+              <button type="submit" data-i18n="turn.add">Add</button>
+            </form>
+          </section>
+        </div>
+      </section>
+
+      <!-- ===== Sessions and series ===== -->
+      <section id="view-series" class="view" aria-labelledby="tab-series" hidden>
+        <div class="toolbar">
+          <h2 data-i18n="series.title">Sessions &amp; series</h2>
+          <button type="button" id="btn-new-session" class="primary" aria-expanded="false" aria-controls="session-form" data-i18n="session.new">+ New session</button>
+          <button type="button" id="btn-new-series" aria-expanded="false" aria-controls="series-form" data-i18n="series.new">+ New series</button>
+        </div>
+        <p class="hint" data-i18n="series.hint">Start a session right away, with or without a series. Session numbers are suggested, never counted from missed dates, and stay editable.</p>
+
+        <form id="session-form" class="panel session-form" hidden autocomplete="off">
+          <h3 id="session-form-title" data-i18n="session.newTitle">New session</h3>
+          <div class="form-grid">
+            <label class="field"><span data-i18n="session.series">Series</span><select id="sf-series"></select></label>
+            <label class="field"><span data-i18n="session.number">Number</span><input id="sf-number" class="mono" inputmode="numeric" autocorrect="off"></label>
+            <label class="field"><span data-i18n="session.name">Name (optional)</span><input id="sf-name" autocorrect="off"></label>
+            <div class="field"><label for="sf-date" data-i18n="session.date">Date (UTC, YYYY-MM-DD)</label>
+              <span class="date-field"><input id="sf-date" class="mono" inputmode="numeric" autocorrect="off" spellcheck="false" placeholder="YYYY-MM-DD"><button type="button" id="sf-date-pick" class="mini" data-i18n-attr="aria-label:common.pickDate" aria-label="Pick a date">📅</button></span></div>
+            <label class="field"><span data-i18n="session.own">My callsign</span><input id="sf-own" class="call-input mono" autocapitalize="characters" autocorrect="off" spellcheck="false"></label>
+            <label class="field"><span data-i18n="session.repeater">Repeater (optional)</span><input id="sf-repeater" autocorrect="off"></label>
+            <label class="field"><span data-i18n="session.freq">Frequency (MHz or band)</span><input id="sf-freq" class="mono" autocorrect="off" spellcheck="false" data-i18n-attr="placeholder:session.freqPlaceholder" placeholder="e.g. 145.500 or 2m"></label>
+            <label class="field"><span data-i18n="session.mode">Mode</span>
+                <select id="sf-mode">
+                  <option value="" data-i18n="session.modeNone">(not set)</option>
+                  <option value="FM">FM</option><option value="SSB">SSB</option><option value="AM">AM</option><option value="CW">CW</option>
+                  <option value="DMR">DMR</option><option value="DSTAR">D-STAR</option><option value="C4FM">C4FM (Fusion)</option>
+                  <option value="M17">M17</option><option value="FREEDV">FreeDV</option>
+                </select><small id="sf-mode-hint" class="field-hint" aria-live="polite"></small></label>
+            <label class="field"><span data-i18n="style.label">Speaking order</span>
+              <select id="sf-style">
+                <option value="star" data-i18n="style.star">Central control: every station gives back to net control, which calls the next</option>
+                <option value="circle" data-i18n="style.circle">Round-robin: each station passes to the next in the sequence</option>
+                <option value="free" data-i18n="style.free">Free-form: stations speak spontaneously, no fixed order, no net control needed</option>
+              </select></label>
+            <label class="field"><span data-i18n="session.round">Starting round</span><input id="sf-round" class="mono" inputmode="numeric" autocorrect="off" value="1"></label>
+            <label class="check"><input id="sf-joined" type="checkbox"> <span data-i18n="session.joined">Joining a net that is already running (start time unknown)</span></label>
+          </div>
+          <p id="sf-error" class="err-text" role="alert"></p>
+          <div class="form-buttons">
+            <button type="submit" class="primary" data-i18n="session.start">Start session</button>
+            <button type="button" id="btn-session-cancel" data-i18n="common.cancel">Cancel</button>
+          </div>
+        </form>
+
+        <form id="series-form" class="panel series-form" hidden autocomplete="off">
+          <h3 id="series-form-title" data-i18n="series.newTitle">New series</h3>
+          <div class="form-grid">
+            <label class="field"><span data-i18n="series.name">Name</span><input id="srf-name" autocorrect="off"></label>
+            <label class="field"><span data-i18n="series.description">Description</span><input id="srf-description" autocorrect="off"></label>
+            <label class="field"><span data-i18n="series.schedule">Usual schedule (optional)</span><input id="srf-schedule" autocorrect="off"></label>
+            <label class="field"><span data-i18n="session.repeater">Repeater (optional)</span><input id="srf-repeater" autocorrect="off"></label>
+            <label class="field"><span data-i18n="session.freq">Frequency (MHz or band)</span><input id="srf-freq" class="mono" autocorrect="off" spellcheck="false" data-i18n-attr="placeholder:session.freqPlaceholder" placeholder="e.g. 145.500 or 2m"></label>
+            <label class="field"><span data-i18n="session.mode">Mode</span>
+                <select id="srf-mode">
+                  <option value="" data-i18n="session.modeNone">(not set)</option>
+                  <option value="FM">FM</option><option value="SSB">SSB</option><option value="AM">AM</option><option value="CW">CW</option>
+                  <option value="DMR">DMR</option><option value="DSTAR">D-STAR</option><option value="C4FM">C4FM (Fusion)</option>
+                  <option value="M17">M17</option><option value="FREEDV">FreeDV</option>
+                </select><small id="srf-mode-hint" class="field-hint" aria-live="polite"></small></label>
+            <label class="field"><span data-i18n="series.ncs">Usual net control (suggestion)</span><input id="srf-ncs" class="call-input mono" autocapitalize="characters" autocorrect="off" spellcheck="false"></label>
+            <label class="field"><span data-i18n="style.label">Speaking order</span>
+              <select id="srf-style">
+                <option value="star" data-i18n="style.star">Central control: every station gives back to net control, which calls the next</option>
+                <option value="circle" data-i18n="style.circle">Round-robin: each station passes to the next in the sequence</option>
+                <option value="free" data-i18n="style.free">Free-form: stations speak spontaneously, no fixed order, no net control needed</option>
+              </select></label>
+            <label class="field"><span data-i18n="series.numbering">Session numbers</span>
+              <select id="srf-numbering">
+                <option value="sequential" data-i18n="series.numberingSeq">suggest the next number</option>
+                <option value="none" data-i18n="series.numberingNone">no numbers</option>
+              </select></label>
+          </div>
+          <p id="srf-error" class="err-text" role="alert"></p>
+          <div class="form-buttons">
+            <button type="submit" class="primary" data-i18n="common.save">Save</button>
+            <button type="button" id="btn-series-cancel" data-i18n="common.cancel">Cancel</button>
+          </div>
+        </form>
+
+        <div id="series-list" class="series-list"></div>
+        <input type="file" id="series-import-file" accept=".json,application/json" hidden>
+
+        <section class="card data-card" aria-labelledby="data-title">
+          <h3 id="data-title" data-i18n="data.title">Backup and data</h3>
+          <p class="hint" data-i18n="data.plaintext">A backup is a plain JSON file: anyone with the file can read it. Deleting something here does not delete copies already exported.</p>
+          <div class="toolbar">
+            <button type="button" id="btn-export-all" data-i18n="data.exportAll">Export everything (JSON)</button>
+            <button type="button" id="btn-import" data-i18n="data.import">Import a backup…</button>
+            <input type="file" id="import-file" accept=".json,application/json" hidden>
+          </div>
+          <p id="data-msg" class="data-msg" role="status"></p>
+          <h4 data-i18n="data.profiles">Station profiles</h4>
+          <ul id="profile-list" class="profile-list"></ul>
+          <h4 data-i18n="data.links">Station lookup links</h4>
+          <label class="field wavelog-field"><span data-i18n="data.wavelog">My Wavelog address (optional)</span>
+            <input id="wavelog-url" type="url" inputmode="url" autocorrect="off" spellcheck="false" placeholder="https://…"></label>
+          <p class="hint" data-i18n="data.linksHint">Netlog only offers links to QRZ.com, HamQTH, QRZCQ, APRS.fi and your Wavelog; they need internet and are opened only by you. Nothing is looked up or sent by itself.</p>
+          <h4 data-i18n="data.erase">Erase permanently</h4>
+          <p class="hint" data-i18n="data.eraseHint">Deleting a session, station or note is reversible (restore, undo). Erasing removes it from this device for good, with its history and drafts.</p>
+          <button type="button" id="btn-erase-all" class="danger" data-i18n="data.eraseAll">Erase all Netlog data on this device…</button>
+        </section>
+        <!-- Hidden in the file:// bundle (it is the offline file). -->
+        <aside id="offline-card" class="offline-card" aria-labelledby="offline-card-title">
+          <span class="icon" aria-hidden="true">⬇</span>
+          <div class="txt">
+            <h3 id="offline-card-title" data-i18n="offlineFile.title">Work without a server</h3>
+            <p data-i18n="offlineFile.text">Netlog as one HTML file with the callsign and repeater lists, about 1 MB, for a USB stick or laptop: runs without a server and without internet. Its data is stored by the browser for that file, separately from this installed version; move data between them with a backup (JSON).</p>
+          </div>
+          <a class="btn" href="netlog-offline.html" download="netlog-offline.html" data-i18n="offlineFile.download">Download the offline file</a>
+        </aside>
+      </section>
+    </section>
+    </div>
+  </div>
+  <p id="keys-line" class="keys-line hint"></p>
+</main>
+
+<dialog id="search-dlg" class="search-dlg" aria-labelledby="search-title">
+  <form method="dialog" id="search-form" autocomplete="off">
+    <h2 id="search-title" data-i18n="search.title">Search</h2>
+    <label for="search-q" class="sr-only" data-i18n="search.label">Search callsigns, names, places, notes, replies, points and tasks</label>
+    <input id="search-q" type="search" class="search-q" spellcheck="false" autocorrect="off" data-i18n-attr="placeholder:search.placeholder" placeholder="Callsign, name, place or any text…">
+    <div class="toolbar search-filters">
+      <label class="inline-field"><span data-i18n="search.scope">In</span>
+        <select id="search-scope">
+          <option value="session" data-i18n="search.thisSession">this session</option>
+          <option value="all" data-i18n="search.allSessions">all sessions</option>
+        </select></label>
+      <label class="inline-field"><span data-i18n="search.field">Field</span>
+        <select id="search-field"></select></label>
+      <label class="inline-field"><span data-i18n="search.series">Series</span>
+        <select id="search-series"></select></label>
+      <label class="check" id="search-station-wrap" hidden><input type="checkbox" id="search-station"> <span id="search-station-label"></span></label>
+      <span id="search-count" class="hint" role="status"></span>
+    </div>
+    <ul id="search-results" class="search-results" data-i18n-attr="aria-label:search.results" aria-label="Results"></ul>
+    <p class="hint" data-i18n="search.hint">Offline: only what is stored on this device. ↓/↑ move, Enter opens the match, Esc closes.</p>
+    <div class="form-buttons"><button type="submit" value="cancel" data-i18n="common.close">Close</button></div>
+  </form>
+</dialog>
+
+<dialog id="move-dlg" aria-labelledby="move-title">
+  <form method="dialog" id="move-form" autocomplete="off">
+    <h2 id="move-title" data-i18n="move.title">Move notes</h2>
+    <p id="move-what"></p>
+    <div class="form-grid">
+      <label class="field"><span data-i18n="move.station">To station</span><select id="move-station"></select></label>
+      <label class="field"><span data-i18n="move.round">To round</span><select id="move-round"></select></label>
+    </div>
+    <p class="hint" data-i18n="move.hint">Times, the recorded order and on-air responses stay with the notes.</p>
+    <div class="form-buttons">
+      <button type="submit" value="ok" class="primary" data-i18n="move.ok">Move</button>
+      <button type="submit" value="cancel" data-i18n="common.cancel">Cancel</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="merge-dlg" aria-labelledby="merge-title">
+  <form method="dialog" id="merge-form">
+    <h2 id="merge-title" data-i18n="merge.title">Same station?</h2>
+    <p id="merge-text"></p>
+    <ul id="merge-preview"></ul>
+    <p class="hint" data-i18n="merge.hint">Merging keeps every note, time and response; Undo separates them again. Nothing is merged without this confirmation.</p>
+    <div class="form-buttons">
+      <button type="submit" value="merge" class="primary" data-i18n="merge.ok">Merge</button>
+      <button type="submit" value="separate" data-i18n="merge.separate">Keep separate (only correct the callsign)</button>
+      <button type="submit" value="cancel" data-i18n="common.cancel">Cancel</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="help-dlg" aria-labelledby="help-title">
+  <form method="dialog">
+    <h2 id="help-title" tabindex="-1" data-i18n="help.title">Help</h2>
+    <div id="help-body"></div>
+    <div class="form-buttons">
+      <button type="submit" class="primary" data-i18n="common.close">Close</button>
+    </div>
+  </form>
+</dialog>
+
+<footer>
+  <span data-i18n="footer.local">Runs in the browser; all data stays on this device</span> (<span id="st-backend">?</span>).
+  <span data-i18n="footer.backupHint">Export a backup (JSON) regularly.</span>
+  · <span data-i18n="footer.version">Version</span>: <span id="st-version">dev</span>
+  <span id="offline-file-link"> · <a href="netlog-offline.html" download="netlog-offline.html" data-i18n="offlineFile.link">Offline file</a></span>
+  <span id="st-source" class="online-only"></span>
+  · <span id="st-callbook"></span>
+  <!-- Replaced in netlog-offline.html by the licence texts of inlined
+       third-party code, if any (scripts/build_netlog.py). -->
+  <!-- NETLOG-LICENSES -->
+</footer>
+
+<!-- The printed report (Net Control, "Print report…"), filled on demand. -->
+<section id="print-report" class="print-report" hidden></section>
+
+<script>
+  // If the app code fails to load (flaky connection on the very first
+  // visit, before it is cached), say so instead of showing a dead page.
+  function netlogLoadFailed() {
+    if (window.NETLOG_STARTED) return;
+    var b = document.getElementById('banner');
+    var de = /^de\b/i.test((navigator.languages && navigator.languages[0]) || navigator.language || '');
+    b.textContent = de
+      ? 'Netlog konnte nicht vollständig geladen werden (Verbindung?). Bitte die Seite neu laden – danach ist es offline verfügbar.'
+      : 'Netlog could not be loaded completely (connection?). Please reload the page; afterwards it works offline.';
+    b.hidden = false;
+  }
+  setTimeout(netlogLoadFailed, 8000);
+  window.addEventListener('error', function (e) {
+    if (e.target && e.target.tagName === 'SCRIPT') netlogLoadFailed();
+  }, true);
+</script>
+<!-- NETLOG-SCRIPT-BEGIN -->
+<!-- build-info.js (generated by scripts/build_netlog.py): commit + content
+     hash for the footer; missing on a dev server without a build = "dev". -->
+<script src="build-info.js"></script>
+<script type="module" src="js/app.js"></script>
+<!-- NETLOG-SCRIPT-END -->
+</body>
+</html>

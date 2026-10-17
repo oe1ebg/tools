@@ -1,0 +1,63 @@
+{
+  "entries": [
+    {
+      "kind": "data",
+      "name": "data-latest",
+      "published": "2026-10-12T12:09:32Z",
+      "sha": "33d5664d08040e9dc071a498ac76873cedf0cf59",
+      "sha256": "e4d97d1d842233a39f37c5a4c95e2c0e7dba0828c0eced3620e826fa9a2b3d0c",
+      "title": "data-latest",
+      "updated": "2026-10-12T12:02:31Z",
+      "version": "v0.3.0"
+    },
+    {
+      "branch": "main",
+      "kind": "main",
+      "name": "main",
+      "published": "2026-10-17T15:18:37Z",
+      "sha": "f947d6887418d3484eb42453b15fe4d78eb05403",
+      "title": "main",
+      "tools": [
+        "netlog"
+      ],
+      "updated": "2026-10-17T15:18:16Z",
+      "version": "main"
+    },
+    {
+      "kind": "release",
+      "name": "v0.3.0",
+      "published": "2026-10-12T05:37:08Z",
+      "sha": "33d5664d08040e9dc071a498ac76873cedf0cf59",
+      "sha256": "b912532885ea6e4dc57739fe57e78b4374f83573592e14f0ebb59b72667324d3",
+      "title": "v0.3.0",
+      "updated": "2026-10-12T05:31:09Z",
+      "version": "v0.3.0"
+    },
+    {
+      "kind": "release",
+      "name": "v0.4.0",
+      "published": "2026-10-15T05:33:54Z",
+      "sha": "5df2db10455a830779f23649a7e7338c5d311f5a",
+      "sha256": "3588d1b877fb14ff8b67bde4fd3bd3e28b954f2e0a7b603fd3e78c6c044f1755",
+      "title": "v0.4.0",
+      "updated": "2026-10-15T05:27:14Z",
+      "version": "v0.4.0"
+    },
+    {
+      "kind": "release",
+      "name": "v0.5.0",
+      "published": "2026-10-17T09:39:29Z",
+      "sha": "02d1f6bf68d936cebac1bb24274d72283a862d63",
+      "sha256": "d22f8b81393902d7d1418fc56724090560edd980a39b04fd188720fedd8e8aa0",
+      "title": "v0.5.0",
+      "tools": [
+        "netlog"
+      ],
+      "updated": "2026-10-17T09:32:12Z",
+      "version": "v0.5.0"
+    }
+  ],
+  "generated": "2026-10-17T15:18:37Z",
+  "repo": "oe1ebg/tools",
+  "schema": 1
+}

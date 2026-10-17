@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bestätigungsverkehr</title>
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#526cfe">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<!-- iOS ignores SVG and manifest icons for the home screen -->
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<!-- Theme first (sets data-theme before anything paints), then the styles.
+     Inlined into confirm-offline.html and precached like the rest. -->
+<!-- CONFIRM-VENDOR-BEGIN -->
+<script src="../shared/js/theme.js"></script>
+<link rel="stylesheet" href="../shared/css/tools.css">
+<link rel="stylesheet" href="../shared/css/forms.css">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="../shared/vendor/leaflet/leaflet.css">
+<script src="../shared/vendor/leaflet/leaflet.js"></script>
+<!-- CONFIRM-VENDOR-END -->
+</head>
+<body>
+
+<header id="site-header">
+  <a id="home-link" href="../">← Alle Tools</a>
+  <h1 class="title">Bestätigungsverkehr</h1>
+  <a id="manual-link" href="../confirm-anleitung/" target="_blank" rel="noopener" title="Ausführliche Anleitung mit Bildern (online)">Anleitung</a>
+  <span class="spacer"></span>
+  <span id="st-offline" class="chip">offline: prüfe…</span>
+  <span id="st-storage" class="chip">Speicher: prüfe…</span>
+  <span id="st-tabs" class="chip warn" hidden title="Dieser Browser kann nicht verhindern, dass zwei Tabs oder Fenster dasselbe Log bearbeiten (fehlt z. B. bei http:// im Heimnetz oder in Safari vor 15.4). Jedes Log nur in einem Tab öffnen.">nur ein Tab pro Log!</span>
+  <button id="btn-loc" type="button" aria-expanded="false" aria-controls="loc-panel" title="Offline-Standortsuche Wien: Adresse, Ort, PLZ, Koordinaten, Locator, UTMREF"><span aria-hidden="true">📍</span> Standort</button>
+  <button id="btn-update" type="button" class="primary" hidden title="Neue Version installieren (gespeicherte Daten bleiben erhalten; unfertige Eingaben vorher sichern oder kopieren)">Update verfügbar</button>
+  <div id="time-toggle" class="seg" role="group" aria-label="Zeitanzeige" title="Anzeige und Eingabe der Zeit. Gespeichert wird immer ein ISO-8601-Zeitstempel (UTC).">
+    <button type="button" data-time-mode="utc" aria-pressed="false">UTC</button>
+    <button type="button" data-time-mode="local" aria-pressed="false">Lokal</button>
+  </div>
+  <div id="theme-toggle" role="group" aria-label="Farbschema">
+    <button type="button" data-theme-choice="light" aria-pressed="false">hell</button>
+    <button type="button" data-theme-choice="auto" aria-pressed="false">auto</button>
+    <button type="button" data-theme-choice="dark" aria-pressed="false">dunkel</button>
+  </div>
+</header>
+
+<main>
+  <div id="banner" class="banner err" role="alert" hidden></div>
+  <noscript><div class="banner err">Dieses Werkzeug benötigt JavaScript.</div></noscript>
+  <!-- Install from before the move to /tools/ (checkOldInstall in offline.js) -->
+  <div id="old-install" class="banner warn move" role="status" hidden>
+    <p id="old-install-text">Diese App hat eine neue Adresse: <strong>oe1ebg.at/tools/confirm/</strong>. Es geht nichts verloren, alle Logs sind auch hier da. Bitte die App von hier neu zum Startbildschirm hinzufügen und dann die alte Installation entfernen.</p>
+    <button type="button" id="btn-old-remove">Alte Installation entfernen</button>
+    <button type="button" id="btn-old-later">Später</button>
+  </div>
+
+  <!-- ===== Standortsuche (offline, Wien) ===== -->
+  <section id="loc-panel" class="panel no-print" hidden>
+    <div class="toolbar tight">
+      <h2>Standortsuche Wien</h2>
+      <span id="loc-status" class="hint"></span>
+      <span class="spacer"></span>
+      <label class="check">Locator
+        <select id="loc-prec"><option value="4">4</option><option value="6">6</option><option value="8">8</option><option value="10">10</option></select> Zeichen
+      </label>
+      <label class="check" title="Genauigkeit der UTM-Gitterreferenz (UTMREF/MGRS) in der Anzeige; Exporte immer auf 1 m">UTMREF
+        <select id="loc-utm-prec"><option value="10">1 m</option><option value="8">10 m</option><option value="6">100 m</option></select>
+      </label>
+      <label class="check" title="UTMREF auch in der Info-Zeile des Standortfelds und in der Log-Tabelle zeigen"><input type="checkbox" id="loc-utm-log"> UTMREF im Log zeigen</label>
+      <label class="check" title="Ab welcher Sicherheit das Standortfeld im Log den besten Treffer selbst übernimmt">Im Log automatisch übernehmen ab
+        <select id="loc-auto"><option value="exact">exakt</option><option value="high">hoch</option><option value="likely">wahrscheinlich</option><option value="never">nie</option></select>
+      </label>
+      <button type="button" id="loc-close">schließen</button>
+    </div>
+    <input id="loc-q" type="search" aria-label="Standort suchen" placeholder="Adresse, Ort, PLZ, Koordinaten, Locator oder UTMREF" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search">
+    <div class="hint" id="loc-examples-wrap">Beispiele: <span id="loc-examples"></span></div>
+    <div id="loc-results"></div>
+  </section>
+
+  <!-- ===== Logs ===== -->
+  <section id="view-events" hidden>
+    <div class="toolbar">
+      <h2>Logs</h2>
+      <div class="tabs" id="event-tabs" role="group" aria-label="Logs anzeigen">
+        <button type="button" data-tab="active" class="active" aria-pressed="true">Aktiv</button>
+        <button type="button" data-tab="archived" aria-pressed="false">Archiv</button>
+        <button type="button" data-tab="deleted" aria-pressed="false">Papierkorb</button>
+      </div>
+      <span class="spacer"></span>
+      <button type="button" id="btn-new-event" class="primary" aria-expanded="false" aria-controls="new-event">+ Neues Log</button>
+      <button type="button" id="btn-import">Sicherung importieren…</button>
+      <input type="file" id="import-file" accept=".json,application/json" multiple hidden>
+      <button type="button" id="btn-backup-all">Alle sichern (JSON)</button>
+    </div>
+
+    <div id="import-msg" class="banner warn" role="status" hidden></div>
+
+    <form id="new-event" class="panel" hidden autocomplete="off">
+      <div class="grid-form new-meta">
+        <label class="field grow"><span>Titel</span>
+          <input name="title" required enterkeyhint="next" placeholder="z. B. Rundspruch OE1 – Bestätigungsverkehr">
+        </label>
+        <label class="field"><span>Vorlage</span><select name="template" id="new-template"></select></label>
+      </div>
+      <details id="new-template-preview" class="tpl-preview">
+        <summary>So sieht eine Logzeile mit dieser Vorlage aus</summary>
+        <div id="new-template-sample"></div>
+      </details>
+      <div id="new-header" class="grid-form spaced"></div>
+      <div class="toolbar form-foot">
+        <button type="submit" class="primary" aria-keyshortcuts="Shift+Enter" title="Log anlegen (Shift+Enter, aus jedem Feld)">Log anlegen <span aria-hidden="true">⇧⏎</span></button>
+        <button type="button" id="btn-cancel-new">Abbrechen (Esc)</button>
+        <span class="hint">Tab/Enter nächstes Feld · ↓ Vorschläge, Enter übernimmt</span>
+      </div>
+    </form>
+
+    <ul id="event-list"></ul>
+
+    <!-- Hidden in the file:// bundle (it is the offline file). -->
+    <aside id="offline-card" class="offline-card" aria-labelledby="offline-card-title">
+      <span class="icon" aria-hidden="true">⬇</span>
+      <div class="txt">
+        <h2 id="offline-card-title">Ohne Internet arbeiten</h2>
+        <p>Das Werkzeug als eine HTML-Datei mit allen Daten, ~7 MB, für USB-Stick oder Laptop: läuft ohne Server und ohne Internet. Vor dem Einsatz herunterladen (nur online möglich).</p>
+      </div>
+      <a class="btn" href="confirm-offline.html" download="bestaetigungsverkehr-offline.html">Offline-Datei herunterladen</a>
+    </aside>
+  </section>
+
+  <!-- ===== Log ===== -->
+  <section id="view-log" hidden>
+    <div class="toolbar log-bar">
+      <button type="button" id="btn-back">← Logs</button>
+      <input id="log-title" aria-label="Titel des Logs">
+      <span class="stat"><b id="st-unique">0</b> Stationen · <b id="st-total">0</b> Check-ins</span>
+      <span id="export-nudge" class="chip warn" hidden></span>
+      <button type="button" id="btn-map" aria-pressed="false" aria-controls="map-panel" title="Karte mit allen Stationen (offline)">Karte</button>
+      <div class="menu no-print" id="export-menu">
+        <button type="button" id="btn-export-menu" aria-expanded="false" aria-controls="export-list">Exportieren <span aria-hidden="true">▾</span></button>
+        <div id="export-list" class="menu-list" hidden>
+          <div class="menu-csv">
+            <button type="button" data-export="csv">CSV</button>
+            <label class="check" title="; für Excel mit deutschen Ländereinstellungen, , für Excel mit englischen">Trennzeichen
+              <select id="csv-sep"><option value=";">;</option><option value=",">,</option></select></label>
+            <label class="check" title="Eigene Zeilen im CSV, Spalten typ (checkin/kommentar) und kategorie. ADIF und KML enthalten nie Kommentare."><input type="checkbox" id="csv-comments"> mit Operator-Kommentaren</label>
+          </div>
+          <button type="button" data-export="adif">ADIF (.adi)</button>
+          <button type="button" data-export="kml" title="Stationen mit Standort (Google Earth, Google My Maps)">KML (Karte)</button>
+          <button type="button" data-export="summary">Zusammenfassung</button>
+          <hr>
+          <button type="button" data-export="json" title="Vollständige Sicherung dieses Logs">Sicherung (JSON)</button>
+          <button type="button" data-export="print">Drucken</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="lock-banner" class="banner warn" role="status" hidden></div>
+    <div id="export-msg" class="banner warn" hidden role="status"></div>
+
+    <details class="hdr" id="hdr-panel">
+      <summary><b>Kopfdaten</b> <span class="hdr-sum" id="hdr-sum"></span></summary>
+      <div class="body">
+        <div id="log-header" class="grid-form"></div>
+        <p class="hint">Änderungen an den Kopfdaten gelten für neue Zeilen. Bereits geloggte Zeilen behalten Operator, Station, Frequenz und Relais vom Zeitpunkt des Eintrags.
+          Ein Wechsel von Operator oder Relais/Frequenz schreibt automatisch einen Marker ins Log (Text ergänzbar).<br>
+          Tastatur: Tab/Enter nächstes Feld · ↓ Vorschläge, Enter übernimmt · Ziffern bei Betriebsart</p>
+      </div>
+    </details>
+
+    <form id="entry-form" autocomplete="off">
+      <div class="row">
+        <label class="field"><span><span id="time-label">Zeit UTC</span> <span class="clock" id="clock" aria-hidden="true"></span></span>
+          <input id="f-time" placeholder="jetzt" aria-describedby="time-help" autocomplete="off" enterkeyhint="next">
+          <span id="time-help" class="sr-only"></span>
+          <span class="ac-hints" aria-hidden="true"></span>
+        </label>
+        <div class="field ac-field ci-only"><label for="f-call">Rufzeichen Gegenstation</label>
+          <div class="ac-wrap">
+            <input id="f-call" autocapitalize="characters" autocorrect="off" spellcheck="false" autocomplete="off" enterkeyhint="next" aria-describedby="call-info call-warn" title="Rufzeichen der Station, die sich meldet. Mit ! beginnen = Operator-Kommentar (Frequenzwechsel, Übergabe, Unterbrechung …)">
+            <div id="call-suggest" class="ac-pop"></div>
+          </div>
+          <div class="ac-hints">
+            <div id="call-info" class="ac-info" aria-live="polite"></div>
+            <div id="call-warn" class="ac-info warn"></div>
+          </div>
+        </div>
+        <div class="field c-only c-text"><label for="f-ctext">Operator-Kommentar</label>
+          <input id="f-ctext" autocomplete="off" enterkeyhint="done" placeholder="z. B. Wechsel auf 145.500, Netz pausiert, Relais ausgefallen …">
+          <span class="ac-hints" aria-hidden="true"></span>
+        </div>
+        <div class="field c-only"><span id="c-cat-label">Kategorie (Ziffer, ⌫ leert)</span>
+          <div id="c-cat" class="radio-group" role="radiogroup" aria-labelledby="c-cat-label"></div>
+          <span class="ac-hints" aria-hidden="true"></span>
+        </div>
+        <div id="f-fields" class="row ci-only"></div>
+        <div class="field rpt-line ci-only"><span id="f-rpt-label">Relais (Standard: Kopfdaten)</span>
+          <div class="rpt-line-row">
+            <label class="check" title="Diese Station kommt über ein Relais"><input type="checkbox" id="f-rpt"> über</label>
+            <div class="ac-wrap">
+              <input id="f-rpt-q" size="11" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" enterkeyhint="next" aria-labelledby="f-rpt-label" title="Leer = Relais aus den Kopfdaten. Anderes Relais: Rufzeichen, Ort oder Frequenz eingeben.">
+              <div id="f-rpt-sug" class="ac-pop"></div>
+            </div>
+          </div>
+          <span class="ac-hints" aria-hidden="true"></span>
+        </div>
+        <label class="field ci-only grow-sm"><span>Notiz</span><input id="f-note" autocomplete="off" enterkeyhint="done">
+          <span class="ac-hints" aria-hidden="true"></span></label>
+      </div>
+      <div id="repeat-box" hidden></div>
+      <div class="entry-actions">
+        <button type="submit" class="primary" id="btn-save" aria-keyshortcuts="Shift+Enter" title="Zeile speichern (Shift+Enter, aus jedem Feld)">Speichern <span aria-hidden="true">⇧⏎</span></button>
+        <button type="button" id="btn-discard" aria-keyshortcuts="Escape" title="Alle Eingaben dieser Zeile verwerfen (mit Rückgängig)">Verwerfen (Esc)</button>
+        <div id="form-status" role="status"></div>
+        <div class="hint kbd-hint"><kbd>⇧</kbd>+<kbd>Enter</kbd> speichert · <strong>!</strong> am Anfang des Rufzeichens = Kommentar</div>
+        <button type="button" id="btn-help" class="help-btn" aria-expanded="false" aria-controls="entry-help" aria-keyshortcuts="?" title="Tastatur und Eingabe (Taste ?, außerhalb von Textfeldern)"><span aria-hidden="true">?</span> Hilfe</button>
+      </div>
+      <section id="entry-help" class="entry-help" aria-labelledby="entry-help-title" hidden>
+        <h2 id="entry-help-title">Tastatur und Eingabe</h2>
+        <dl>
+          <dt><kbd>Tab</kbd> / <kbd>Enter</kbd></dt><dd>nächstes Feld</dd>
+          <dt><kbd>↓</kbd>, dann <kbd>Enter</kbd></dt><dd>Vorschlag aus der Liste übernehmen (Rufzeichen, Standort, Relais)</dd>
+          <dt><kbd>1</kbd>–<kbd>5</kbd>, <kbd>⌫</kbd></dt><dd>Auswahlfelder (z. B. Sirene, Kategorie) setzen bzw. leeren</dd>
+          <dt><kbd>⇧</kbd>+<kbd>Enter</kbd></dt><dd>Zeile speichern, aus jedem Feld</dd>
+          <dt><kbd>Esc</kbd></dt><dd>Zeile verwerfen (mit „Rückgängig“)</dd>
+          <dt><strong>!</strong> im Rufzeichen</dt><dd>Operator-Kommentar statt Check-in (Frequenzwechsel, Übergabe, Unterbrechung …); zählt nicht als Station</dd>
+          <dt>Zeit</dt><dd>leer = Zeitpunkt des Speicherns; Korrektur als HH:MM oder JJJJ-MM-TT HH:MM (in der oben gewählten Zeitzone)</dd>
+          <dt>Relais</dt><dd>„über“ angehakt = die Station kommt über ein Relais (Vorgabe aus den Kopfdaten); Feld leer = Relais aus den Kopfdaten, sonst Rufzeichen, Ort oder Frequenz eines anderen Relais</dd>
+          <dt><kbd>?</kbd></dt><dd>diese Hilfe ein- und ausblenden (außerhalb von Textfeldern)</dd>
+        </dl>
+        <p id="help-manual" class="hint"><a href="../confirm-anleitung/" target="_blank" rel="noopener">Ausführliche Anleitung mit Bildern (online)</a></p>
+      </section>
+    </form>
+
+    <section id="map-panel" class="no-print" hidden>
+      <div id="map" role="region" aria-label="Karte der Stationen"></div>
+      <div id="map-unplaced" class="hint"></div>
+    </section>
+
+    <div id="log-status" class="log-status" role="status" aria-live="polite"></div>
+    <div class="table-wrap">
+      <table class="log">
+        <caption class="sr-only">Log-Zeilen</caption>
+        <thead id="log-head"></thead>
+        <tbody id="log-body"></tbody>
+      </table>
+    </div>
+
+    <details class="misc no-print" id="trash-panel">
+      <summary>Gelöschte Zeilen und automatische Sicherungen</summary>
+      <ul id="trash-list"></ul>
+      <ul id="snapshot-list"></ul>
+    </details>
+  </section>
+</main>
+
+<dialog id="dlg" aria-labelledby="dlg-title">
+  <form method="dialog">
+    <h2 id="dlg-title"></h2>
+    <textarea id="dlg-text" readonly aria-labelledby="dlg-title"></textarea>
+    <div class="toolbar form-foot">
+      <button type="button" id="dlg-copy" class="primary">In Zwischenablage kopieren</button>
+      <button type="submit" value="close">Schließen</button>
+      <span id="dlg-status" class="hint" role="status"></span>
+    </div>
+  </form>
+</dialog>
+
+<footer>
+  Läuft vollständig offline im Browser; alle Daten bleiben auf diesem Gerät (<span id="st-backend">?</span>).
+  Regelmäßig als CSV/ADIF/JSON sichern. · Version: <span id="st-version">dev</span>
+  <!-- Filled by js/app.js with the link to the source code (repoLink()). -->
+  <span id="st-source" class="online-only"></span>
+  <span id="offline-file-link"> · <a href="confirm-offline.html" download="bestaetigungsverkehr-offline.html">Offline-Datei</a></span>
+  <details class="sources">
+    <summary>Datenquellen und Lizenzen (alle offline enthalten)</summary>
+    <!-- Grouped by origin; the spans are filled by js/app.js and
+         js/locationui.js with sourceItem() entries. -->
+    <dl>
+      <dt>Funk</dt>
+      <dd class="src-list"><span id="st-callbook">Rufzeichenliste wird geladen…</span><span id="st-repeaters">Relaisliste wird geladen…</span></dd>
+      <dt>Stadt Wien</dt>
+      <dd class="src-list"><span id="st-location-wien">Wien-Daten werden geladen…</span><span id="st-map-wien"></span></dd>
+      <dt>Österreich</dt>
+      <dd class="src-list"><span id="st-location-at"></span></dd>
+      <dt>Orte und Karte</dt>
+      <dd class="src-list"><span id="st-location-osm"></span><span id="st-map-lib"></span></dd>
+      <!-- Relative link to the site's data-sources page (/data-sources/ next to
+           /confirm/); adjust if this tool moves (e.g. to /tools/confirm/).
+           Hidden in the file:// bundle, where it would not resolve. -->
+      <dt id="data-sources-term"></dt>
+      <dd id="data-sources-link"><a href="../data-sources/">Alle Datenquellen und Lizenzen</a> (online)</dd>
+    </dl>
+  </details>
+  <!-- Replaced in confirm-offline.html by the licence texts of the inlined
+       third-party code (scripts/build_confirm.py); the file must not need a
+       connection for them. -->
+  <!-- CONFIRM-LICENSES -->
+</footer>
+
+<script>
+  // If the app code fails to load (flaky connection on the very first
+  // visit, before it is cached), say so instead of showing a dead page:
+  // after 8 s, or at once when a script fails to load (load errors don't
+  // bubble, but reach window in the capture phase).
+  function confirmLoadFailed() {
+    if (window.CONFIRM_STARTED) return;
+    var b = document.getElementById('banner');
+    b.textContent = 'Das Werkzeug konnte nicht vollständig geladen werden (Verbindung?). Bitte die Seite neu laden – danach ist es offline verfügbar.';
+    b.hidden = false;
+  }
+  setTimeout(confirmLoadFailed, 8000);
+  window.addEventListener('error', function (e) {
+    if (e.target && e.target.tagName === 'SCRIPT') confirmLoadFailed();
+  }, true);
+</script>
+<!-- CONFIRM-SCRIPT-BEGIN -->
+<!-- build-info.js (generated by scripts/build_confirm.py): commit + content
+     hash for the footer; missing on a dev server without a build = "dev". -->
+<script src="build-info.js"></script>
+<script type="module" src="js/app.js"></script>
+<!-- CONFIRM-SCRIPT-END -->
+</body>
+</html>

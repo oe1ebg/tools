@@ -1,0 +1,662 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notfunk-Meldebuch: Anleitung</title>
+<script src="../shared/js/theme.js"></script>
+<link rel="stylesheet" href="../shared/css/tools.css">
+<link rel="stylesheet" href="../shared/css/docs.css">
+</head>
+<body>
+<main class="doc">
+<p class="doc-nav"><a href="../">← Alle Tools</a></p>
+<h1 id="notfunk-meldebuch-anleitung">Notfunk-Meldebuch: Anleitung</h1>
+<p class="tool-actions"><a class="tool-launch" href="../notfunk/index.html">Notfunk-Meldebuch öffnen <span aria-hidden="true">→</span></a>
+<a href="../">Alle Tools</a> ·
+<a download="notfunk-meldebuch-offline.html" href="../notfunk/notfunk-offline.html">Offline-Datei</a> ·
+<a href="../data-sources/#notfunk-meldebuch">Datenquellen</a> ·
+<a href="https://github.com/oe1ebg/tools/tree/main/tools/notfunk">Quellcode</a></p>
+<p>Das <a href="../notfunk/index.html">Notfunk-Meldebuch</a> ist ein Meldebuch für den
+Notfunk: Meldungen aufnehmen, lückenlos nummerieren, an die
+Meldesammelstelle übergeben, übertragen und ausdrucken. Es läuft vollständig
+im Browser und ohne Internet; alle Daten bleiben auf dem Gerät.</p>
+<div class="admonition warning">
+<p class="admonition-title">Entwurf</p>
+<p>Das Meldungsformat ist noch nicht mit dem Notfunkreferat Wien und der
+Meldesammelstelle abgestimmt. Felder, Bezeichnungen und die
+Dringlichkeitsstufen können sich ändern. Für Übungen gedacht.</p>
+</div>
+<p>Die Kurzfassung steht im Werkzeug selbst: <strong>„? Hilfe“</strong> oben im Formular oder
+<kbd>F1</kbd>.</p>
+<h2 id="kurz-so-gehts-los">Kurz: so geht's los</h2>
+<ol>
+<li><a href="../notfunk/index.html">Notfunk-Meldebuch öffnen</a>, einmal mit Internet;
+   danach läuft es auch offline (<a href="#vorbereitung">Vorbereitung</a>).</li>
+<li>„+ Neuer Einsatz“: Name und Stationskürzel eintragen
+   (<a href="#einen-einsatz-anlegen">Einen Einsatz anlegen</a>).</li>
+<li>Die erste Meldung aufnehmen und speichern; dabei wird die Nummer vergeben
+   (<a href="#eine-meldung-aufnehmen">Eine Meldung aufnehmen</a>).</li>
+<li>Regelmäßig eine Sicherung (JSON) herunterladen
+   (<a href="#exporte-und-sicherung">Exporte und Sicherung</a>).</li>
+</ol>
+<h2 id="vorbereitung">Vorbereitung</h2>
+<p><strong>Offline verwenden.</strong> Beim ersten Öffnen mit Internet lädt das Meldebuch
+alles, was es braucht (Rufzeichenliste, Relaisliste, Wiener Adressen). Danach
+funktioniert es ohne Verbindung. „offline bereit ✓“ oben rechts zeigt das an.
+Steht dort „offline nicht bereit“, hat der Browser die Offline-Kopie
+gelöscht; mit Internet geöffnet, repariert sie sich selbst („Offline-Kopie
+wird repariert…“). Gibt es auf dem Server inzwischen eine neue Version,
+steht „Neue Version auf dem Server – bitte aktualisieren“; dann über „Update
+verfügbar“ aktualisieren. Bei „Offline-Einrichtung fehlgeschlagen“ oder
+„Reparatur fehlgeschlagen“ die Seite mit Internet neu laden.
+Am Handy oder Tablet über „Zum Startbildschirm hinzufügen“ als App ablegen.
+Für Laptops ohne Internet gibt es die <strong>Offline-Datei</strong> (eine HTML-Datei,
+etwa 6 MB, unten auf der Startseite des Werkzeugs), etwa für einen
+USB-Stick.</p>
+<p><strong>Daten sichern.</strong> „Speicher dauerhaft ✓“ heißt, der Browser löscht die Daten
+nicht von selbst. Steht dort „nicht dauerhaft“, ist eine regelmäßige
+Sicherung umso wichtiger. Der Sicherungsstand steht oben rechts
+(„Sicherung gestartet 14:40 · 3 Meldungen ungesichert“ oder „Sicherung
+gestartet 14:40 · nichts ungesichert“, vorher „Noch keine Sicherung“); ein
+Klick darauf lädt eine neue Sicherung (JSON) herunter. Die Zeit ist der
+Moment, in dem das Meldebuch den Download <strong>gestartet</strong> hat; „ungesichert“
+zählt die Meldungen, die seitdem neu oder geändert sind. Auch „nichts
+ungesichert“ heißt nur: seit dem Start des Downloads ist nichts dazugekommen.
+Ob die Datei vollständig angekommen ist und noch irgendwo liegt, kann das
+Meldebuch nicht wissen; siehe
+<a href="#gespeichert-entwurf-und-sicherung">Gespeichert, Entwurf und Sicherung</a>.</p>
+<p><strong>Neue Version.</strong> Erscheint „Update verfügbar“, ist eine neue Version
+geladen. Sie wird erst nach einem Klick darauf aktiv, nicht von selbst. Der
+Klick lädt aber <strong>alle</strong> offenen Tabs und Fenster des Meldebuchs neu; einen
+Aufschub, den man je Tab wählen kann, gibt es nicht. Gespeicherte Meldungen
+und die vergebenen Nummern bleiben unverändert. Vor dem Neuladen sichert
+jeder Tab den halb ausgefüllten Entwurf und holt ihn danach zurück. Gelingt
+das Sichern in einem Tab nicht (zum Beispiel bei vollem Speicher), wird
+dieser Tab <strong>nicht</strong> neu geladen: die Eingabe bleibt stehen, der Knopf heißt
+„Update wartet: Eingabe klären“, und eine rote Meldung unter der Kopfzeile
+erklärt warum. Haben zwei Fenster verschiedene Entwürfe (ein Entwurf ist
+eine noch nicht gespeicherte Meldung) oder wartet ein älterer Entwurf auf
+Prüfung, bietet die Meldung die Wahl gleich an: „Meinen Text sichern“
+ersetzt den Entwurf des anderen Fensters, „Entwurf des anderen Fensters
+laden“ ersetzt den Text in diesem Fenster; bei einem älteren Entwurf
+„anwenden“ (Ihr Text wird gesichert) oder „verwerfen“ (die gespeicherte
+Fassung wird geladen). Danach läuft das Update von selbst weiter. „Erneut
+versuchen“ und, mit Rückfrage (sie nennt, was verloren geht), „Trotzdem
+aktualisieren“ gibt es immer. Hat ein anderer Tab das Update schon
+installiert, steht dieselbe Meldung in dem Tab („Neuladen nicht
+ausgeführt“); die Seite läuft bis zum Neuladen mit der alten Version.
+<strong>Trotzdem vor jedem Update:</strong> fertige Meldungen speichern und wichtige
+unfertige Eingaben außerhalb des Meldebuchs kopieren. Ein Entwurf ist keine
+gespeicherte Meldung, und die Sicherung (JSON) enthält keine unfertigen
+Eingaben. Im Einsatz lieber erst nach einer ruhigen Phase aktualisieren.</p>
+<p><img alt="Update wartet: Eingabe klären" src="../img/notfunk-update-wartet.png"></p>
+<h2 id="einen-einsatz-anlegen">Einen Einsatz anlegen</h2>
+<p><img alt="Neuer Einsatz" src="../img/notfunk-einsatz-neu.png"></p>
+<table>
+<thead>
+<tr>
+<th>Feld</th>
+<th>Bedeutung</th>
+<th>Beispiel</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Einsatz / Übung</td>
+<td>Name des Einsatzes</td>
+<td>Übung Blackout Wien</td>
+</tr>
+<tr>
+<td>Stationskürzel</td>
+<td>steht vor jeder Nummer; jedes Gerät bzw. jede Station eines Einsatzes bekommt ein eigenes</td>
+<td>W1</td>
+</tr>
+<tr>
+<td><strong>Eigene Station:</strong></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Stationsrufzeichen</td>
+<td>Rufzeichen der eigenen Funkstation, z. B. die Klubstation; kann vom Rufzeichen des Operators abweichen</td>
+<td>OE1XKS</td>
+</tr>
+<tr>
+<td>Standort der Station (Adresse)</td>
+<td>wo das eigene Funkgerät steht; steht oben im Ausdruck</td>
+<td>Lichtinsel 12 Floridsdorf</td>
+</tr>
+<tr>
+<td>Für Stelle</td>
+<td>für wen die Station arbeitet: Adressat eingehender und Absender ausgehender Meldungen, solange nichts anderes eingetragen ist</td>
+<td>Stab</td>
+</tr>
+<tr>
+<td>Frequenz, Relais</td>
+<td>Vorgabe für neue Meldungen</td>
+<td>145,500 · OE1XUU</td>
+</tr>
+<tr>
+<td><strong>Am Gerät:</strong></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Operator</td>
+<td>wer am Gerät aufnimmt; beim Schichtwechsel ändern</td>
+<td>OE1EBG</td>
+</tr>
+</tbody>
+</table>
+<p>Stationsrufzeichen und Operator werden bei jeder Meldung mitgespeichert: Im
+Ausdruck steht „Aufgenommen von OE1EBG, an Station OE1XKS“, im Geschäftsbuch
+(CSV) gibt es eine Spalte „Stationsrufzeichen“.</p>
+<p>Alles außer dem Stationskürzel lässt sich später im aufklappbaren Feld
+<strong>„Einsatz“</strong> über dem Formular ändern; Änderungen gelten für neue Meldungen.
+Das Stationskürzel bleibt fest, sobald die erste Meldung gespeichert ist.</p>
+<p><strong>Schichtwechsel:</strong> im Feld „Einsatz“ den Operator ändern (oder oben im
+Formular auf „Aufnahme OE1EBG“ klicken). Gespeicherte Meldungen behalten den
+Operator, der sie aufgenommen hat.</p>
+<h2 id="der-ablauf-einer-meldung">Der Ablauf einer Meldung</h2>
+<ol>
+<li><strong>Wortlaut aufnehmen:</strong> den Inhalt wörtlich, wie übermittelt.</li>
+<li><strong>Rücklesen bestätigen:</strong> beim Eingang zurücklesen, der Absender bestätigt.
+   Beim Ausgang liest die Funkstelle zurück.</li>
+<li><strong>Meldung sichern:</strong> Speichern vergibt die Notfunk-Nummer.</li>
+<li><strong>Übergabe bzw. Übertragung dokumentieren:</strong> bei der Meldung „übergeben“
+   (Eingang) bzw. „übertragen“ (Ausgang) eintragen, danach die Bestätigung.</li>
+<li><strong>Externe Referenz ergänzen:</strong> die Nummer, die die Meldesammelstelle
+   zurückmeldet.</li>
+</ol>
+<p>„Übergeben“ oder „übertragen“ heißt nie, dass ein Auftrag im Inhalt erledigt
+ist.</p>
+<h2 id="eine-meldung-aufnehmen">Eine Meldung aufnehmen</h2>
+<p><img alt="Formular „Neue Meldung“" src="../img/notfunk-meldung.png"></p>
+<p>Das Formular steht im Meldebuch ganz oben. Die nächste Nummer wird angezeigt
+(„→ W1-008“), aber erst beim Speichern vergeben.</p>
+<h3 id="die-felder">Die Felder</h3>
+<table>
+<thead>
+<tr>
+<th>Feld</th>
+<th>Bedeutung</th>
+<th>Beispiel</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Richtung</td>
+<td>Eingang (↓) oder Ausgang (↑)</td>
+<td></td>
+</tr>
+<tr>
+<td>Empfangen am / Gesendet am</td>
+<td>wann die Meldung übermittelt wurde: Datum (JJJJ-MM-TT) und Uhrzeit (HH:MM, 24 Stunden) in zwei Feldern, Ortszeit. Zeigt von Anfang an jetzt und läuft mit der Uhr mit (grau), bis die Meldung begonnen wird; dann bleibt die Zeit stehen und kann korrigiert werden. <code>20261008</code> und <code>1405</code> gehen auch. Ein Klick ins Feld (oder 📅 / 🕒) öffnet einen Kalender bzw. eine Uhrzeit-Auswahl (Stunde, dann Minute), beide mit „Heute“ bzw. „Jetzt“.</td>
+<td>2026-10-08 · 14:05</td>
+</tr>
+<tr>
+<td>Übermittlung</td>
+<td>Funk, Telefon, mündlich, Melder, E-Mail, Fax, anders</td>
+<td>Funk</td>
+</tr>
+<tr>
+<td>Funkstelle</td>
+<td>die Funkstation, von der die Meldung gehört wurde (Eingang) bzw. an die sie gesendet wird (Ausgang); nur bei Funk</td>
+<td>OE1ABC</td>
+</tr>
+<tr>
+<td>Frequenz MHz, Relais</td>
+<td>Vorgabe aus dem Einsatz; Komma oder Punkt</td>
+<td>145,500 · OE1XUU</td>
+</tr>
+<tr>
+<td>Von (Absender)</td>
+<td>wer die Meldung fachlich aufgibt</td>
+<td>FF Floridsdorf, Einsatzleiter</td>
+</tr>
+<tr>
+<td>An (Adressat)</td>
+<td>für wen sie bestimmt ist</td>
+<td>Stab, S4</td>
+</tr>
+<tr>
+<td>Meldungsart</td>
+<td>Meldung, Auftrag, Frage, Anforderung, Lagemeldung</td>
+<td></td>
+</tr>
+<tr>
+<td>Dringlichkeit</td>
+<td>Routine, Dringend, Notfall (siehe unten)</td>
+<td></td>
+</tr>
+<tr>
+<td>Betreff</td>
+<td>kurzer Betreff</td>
+<td>Stromausfall Pflegeheim</td>
+</tr>
+<tr>
+<td>Ort</td>
+<td>wo das gemeldete Ereignis ist; Adresse, Ort, Locator oder UTMREF</td>
+<td>Brünner Straße 68</td>
+</tr>
+<tr>
+<td>Inhalt – wörtlich</td>
+<td>der Wortlaut; <kbd>Enter</kbd> macht eine neue Zeile</td>
+<td></td>
+</tr>
+<tr>
+<td>Rücklesen</td>
+<td>„Rücklesen erfolgt und vom Absender als richtig bestätigt“</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>Pflichtfelder sind mit * markiert: Empfangen/Gesendet am, Von, An, Betreff
+und Inhalt. Fehlt eines, steht der Hinweis direkt am Feld und der Cursor
+springt dorthin.</p>
+<p>Unter <strong>„Weitere Felder“</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Feld</th>
+<th>Bedeutung</th>
+<th>Beispiel</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Bezug</td>
+<td>Antwort, Korrektur oder Ergänzung zu einer anderen Meldung, mit deren Nummer</td>
+<td>Antwort auf W1-003</td>
+</tr>
+<tr>
+<td>Verteiler</td>
+<td>wer die Meldung noch bekommt</td>
+<td>S3, S4</td>
+</tr>
+<tr>
+<td>Ursprungsstation</td>
+<td>Station, bei der die Meldung ursprünglich aufgegeben wurde (bei Weitergaben)</td>
+<td>OE3XYZ</td>
+</tr>
+<tr>
+<td>Ursprungsort</td>
+<td>Ort der ursprünglichen Aufgabe</td>
+<td>Wolkersdorf</td>
+</tr>
+<tr>
+<td>Aufgabezeit</td>
+<td>wann die Meldung dort aufgegeben wurde (nur Uhrzeit)</td>
+<td>13:50</td>
+</tr>
+<tr>
+<td>Stichzeit</td>
+<td>nur bei Lagemeldungen: auf welche Uhrzeit sich die Lage bezieht</td>
+<td>14:00</td>
+</tr>
+<tr>
+<td>Anmerkungen / weitere Veranlassung</td>
+<td>eigene Notizen</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="wer-ist-wer">Wer ist wer</h3>
+<ul>
+<li><strong>Von / An</strong> sind Absender und Adressat der Meldung selbst, etwa
+  „FF Floridsdorf, Einsatzleiter“ an „Stab“.</li>
+<li>Die <strong>Funkstelle</strong> ist die Funkstation, über die die Meldung kam oder an
+  die sie geht. Bei Weitergaben ist sie oft nicht die
+  <strong>Ursprungsstation</strong>.</li>
+<li>Der <strong>Operator</strong> ist, wer hier am Gerät aufnimmt.</li>
+</ul>
+<h3 id="orte">Orte</h3>
+<ul>
+<li><strong>Ort:</strong> wo das Ereignis ist.</li>
+<li><strong>Ursprungsort:</strong> wo die Meldung aufgegeben wurde.</li>
+<li><strong>Standort der Station (Adresse):</strong> wo das eigene Funkgerät steht; wird im Einsatz
+  eingetragen, nicht bei der Meldung.</li>
+</ul>
+<p>Die Ortssuche schlägt Wiener Adressen, Orte, Plätze und Haltestellen vor und
+für ganz Österreich Postleitzahlen, Gemeinden und Bezirke. Ein Vorschlag
+ergänzt Postleitzahl und Locator. Der eingetippte Text bleibt, wenn nichts
+passt, und der <strong>Inhalt der Meldung wird nie verändert</strong>.</p>
+<h3 id="zeiten">Zeiten</h3>
+<ul>
+<li><strong>Empfangen am / Gesendet am:</strong> wann die Meldung übermittelt wurde.</li>
+<li><strong>Erfasst am:</strong> wann sie hier gespeichert wurde (automatisch).</li>
+<li><strong>Aufgabezeit:</strong> wann sie bei der Ursprungsstation aufgegeben wurde.</li>
+<li><strong>Stichzeit:</strong> worauf sich eine Lagemeldung bezieht.</li>
+</ul>
+<p>Alle Zeiten sind <strong>Ortszeit</strong> (Sommer- und Winterzeit wie die Uhr an der
+Wand), auf dem Bildschirm, im Ausdruck und im CSV. Aufgabezeit, Stichzeit
+und die Zeitpunkte im Ablauf sind nur Uhrzeiten: gemeint ist die letzte
+solche Uhrzeit vor der Meldung, nach Mitternacht also auch eine vom Vortag.</p>
+<p><strong>Nachtrag vom Papier:</strong> das tatsächliche Datum und die Uhrzeit eintragen.
+Liegt die Zeit mehr als eine Stunde zurück, fragt das Formular beim
+Speichern nach. Weil die Zeit mit Datum vorbelegt wird, bleibt auch eine
+Meldung richtig, die vor Mitternacht begonnen und danach gespeichert wird.</p>
+<p><strong>Zeitumstellung:</strong> In der Nacht, in der im Oktober die Uhren zurückgestellt
+werden, gibt es 02:00–02:59 zweimal. Fällt die Uhrzeit in diese Stunde,
+erscheint neben ihr eine Auswahl „1. Mal (MESZ)“ / „2. Mal (MEZ)“,
+vorbelegt mit dem, was jetzt näher liegt. Nur in dieser Stunde stehen MESZ
+oder MEZ auch im Meldebuch und im Ausdruck. Im März gibt es 02:00–02:59
+nicht; so eine Uhrzeit nimmt das Formular nicht an.</p>
+<h3 id="speichern-hinweise-verwerfen">Speichern, Hinweise, Verwerfen</h3>
+<p><img alt="Hinweis vor dem Speichern" src="../img/notfunk-hinweis.png"></p>
+<ul>
+<li><kbd>⇧</kbd>+<kbd>Enter</kbd> oder <kbd>Strg</kbd>+<kbd>Enter</kbd> (am Mac auch <kbd>⌘</kbd>+<kbd>Enter</kbd>) speichert,
+  aus jedem Feld.</li>
+<li>Fehlt nur etwas, das nicht zwingend ist (die Funkstelle), oder liegt
+  die Zeit weit zurück oder in der Zukunft, erscheint <strong>„Vor dem Speichern
+  prüfen“</strong>, und das betroffene Feld ist orange markiert. Noch einmal
+  <kbd>⇧</kbd>+<kbd>Enter</kbd> oder „Trotzdem speichern“ speichert.</li>
+<li><kbd>Esc</kbd> schließt zuerst offene Vorschläge. Bei ausgefülltem Formular fragt
+  es dann <strong>„Eingabe verwerfen?“</strong>; ein zweites <kbd>Esc</kbd> heißt „weiter
+  erfassen“. Nach dem Verwerfen holt „Rückgängig“ alles zurück.</li>
+<li>Der halb ausgefüllte <strong>Entwurf</strong> wird laufend zwischengesichert („✓ Entwurf
+  gesichert“) und ist auch nach einem Neuladen noch da. Er ist <strong>keine
+  gespeicherte Meldung</strong>: Eine Nummer gibt es erst beim Speichern, und ein
+  Entwurf kann verloren gehen (siehe unten). Steht dort „Entwurf nicht
+  gesichert!“, ist er gerade nicht im Speicher.</li>
+<li><strong>Gespeichert</strong> heißt: Meldung und Nummer sind in einem Schritt im Speicher
+  abgeschlossen. Erst dann erscheint die Meldung im Meldebuch. Schlägt das
+  Speichern fehl („SPEICHERN FEHLGESCHLAGEN“), ist nichts vergeben, die Eingabe
+  steht noch im Formular, und es sollte sofort eine Sicherung (JSON)
+  heruntergeladen werden.</li>
+</ul>
+<h3 id="wenn-ein-anderer-tab-etwas-geandert-hat">Wenn ein anderer Tab etwas geändert hat</h3>
+<p>Ein Einsatz sollte nur in einem Tab oder Fenster bearbeitet werden. Passiert
+es doch, überschreibt das Meldebuch nichts stillschweigend:</p>
+<ul>
+<li>
+<p><strong>„NICHT GESPEICHERT – … wurde inzwischen geändert (z. B. in einem anderen
+  Tab oder Fenster)“:</strong> Die Meldung (oder der Einsatz) wurde zwischen dem
+  Öffnen und dem Speichern woanders geändert. Es wurde <strong>nichts</strong>
+  geschrieben, die aktuelle Fassung ist geladen, Ihre Eingabe steht noch im
+  Formular. Prüfen und erneut speichern; übernommen werden dann nur die
+  Felder, die Sie selbst geändert haben.</p>
+<p><img alt="Hinweis NICHT GESPEICHERT" src="../img/notfunk-nicht-gespeichert.png"></p>
+</li>
+<li>
+<p><strong>„ENTWURF NICHT GESICHERT – In einem anderen Tab oder Fenster liegt ein
+  anderer Entwurf für diesen Einsatz“:</strong> Zwei Tabs haben je einen Entwurf.
+  Wählen Sie „Meinen Entwurf sichern (ersetzt den anderen)“ oder „Den
+  anderen Entwurf laden (ersetzt meine Eingabe)“. Es gibt immer nur einen
+  Entwurf je Einsatz.</p>
+<p><img alt="Hinweis ENTWURF NICHT GESICHERT" src="../img/notfunk-entwurf-nicht-gesichert.png"></p>
+</li>
+<li>
+<p><strong>„ENTWURF PRÜFEN – Dieser Entwurf stammt aus einer älteren Version des
+  Werkzeugs …“:</strong> Ein Entwurf, der eine gespeicherte Meldung bearbeitet, wurde
+  vor einem Update angelegt; es ist nicht bekannt, auf welcher Fassung er
+  beruht. Das Hinweisfeld nennt die abweichenden Felder. Mit „Entwurf auf die
+  aktuelle Fassung anwenden“ bleibt Ihre Eingabe im Formular, mit „Entwurf
+  verwerfen (gespeicherte Fassung laden)“ gilt die gespeicherte Fassung.
+  Bis zur Wahl wird nichts gespeichert.</p>
+<p><img alt="Hinweis ENTWURF PRÜFEN" src="../img/notfunk-entwurf-pruefen.png"></p>
+</li>
+<li>
+<p><strong>„ENTWURF – Die Meldung, die dieser Entwurf bearbeitet, gibt es in diesem
+  Einsatz nicht mehr“:</strong> Der Entwurf steht im Formular und würde als <strong>neue</strong>
+  Meldung gespeichert, mit einer neuen Nummer.</p>
+</li>
+</ul>
+<h3 id="dringlichkeit">Dringlichkeit</h3>
+<table>
+<thead>
+<tr>
+<th>Stufe</th>
+<th>Bedeutung (vorläufig)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Routine</td>
+<td>alles, was in der normalen Reihenfolge bearbeitet wird</td>
+</tr>
+<tr>
+<td>Dringend</td>
+<td>vor Routine-Meldungen übermitteln und bearbeiten</td>
+</tr>
+<tr>
+<td>Notfall</td>
+<td>Gefahr für Leib und Leben oder unmittelbar drohender großer Schaden: sofort</td>
+</tr>
+</tbody>
+</table>
+<h2 id="das-meldebuch">Das Meldebuch</h2>
+<p><img alt="Meldebuch" src="../img/notfunk-meldebuch.png"></p>
+<p>Die Meldungen stehen neueste zuerst. Oben die Zusammenfassung: offene
+Notfälle, noch nicht bestätigte Meldungen, die Nummern und ob sie lückenlos
+sind. Filter: alle, offen, Eingang, Ausgang, Notfall + Dringend, dazu die
+Suche (Nummer, Referenz, Betreff, Station, Text).</p>
+<p>Der <strong>Status</strong> hängt von der Richtung ab:</p>
+<table>
+<thead>
+<tr>
+<th>Richtung</th>
+<th>1</th>
+<th>2</th>
+<th>3</th>
+<th>danach</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>↓ Eingang</td>
+<td>erfasst</td>
+<td>übergeben</td>
+<td>übernommen</td>
+<td>beantwortet</td>
+</tr>
+<tr>
+<td>↑ Ausgang</td>
+<td>zur Übertragung</td>
+<td>übertragen</td>
+<td>Empfang bestätigt</td>
+<td>beantwortet</td>
+</tr>
+</tbody>
+</table>
+<p>Der Knopf in der Zeile trägt den nächsten Schritt mit der aktuellen Zeit ein
+(„übergeben“, „Übernahme bestätigt“, „übertragen“, „Empfang bestätigt“). Mit
+Angaben (an wen, durch wen, wann) geht es bei der Meldung selbst.
+„Beantwortet“ entsteht von selbst, wenn eine Antwort mit Bezug gespeichert
+wird.</p>
+<h2 id="eine-meldung-im-detail">Eine Meldung im Detail</h2>
+<p><img alt="Meldung im Detail" src="../img/notfunk-meldung-detail.png"></p>
+<p>Ein Klick auf die Zeile (oder die Nummer) öffnet die Meldung: Wortlaut, alle Angaben und
+rechts der <strong>Ablauf</strong>.</p>
+<ul>
+<li><strong>Eingang:</strong> „Übergeben an“ (z. B. Meldesammelstelle) mit Zeitpunkt, dann
+  „Übernommen durch“ mit Zeitpunkt.</li>
+<li><strong>Ausgang:</strong> „Übertragen an“ (die Funkstelle) mit Zeitpunkt und ob sie
+  zurückgelesen hat, dann „Empfang bestätigt durch“. Klappt eine Übertragung
+  nicht oder gibt es eine Rückfrage: „Fehlversuch / Rückfrage eintragen“.</li>
+<li>Zeitpunkt leer = jetzt; sonst die Uhrzeit, z. B. <code>14:10</code>.</li>
+</ul>
+<p><strong>Referenz der Meldesammelstelle:</strong> die Nummer, unter der die
+Meldesammelstelle die Meldung führt (Geschäftsbuch). Sie wird hier
+eingetragen, sobald sie zurückgemeldet wird, und steht dann im Meldebuch, in
+der CSV und auf dem Ausdruck neben der Notfunk-Nummer. So lassen sich die
+beiden Listen zuordnen. Die Notfunk-Nummer (<code>W1-007</code>) ist <strong>nicht</strong> die
+Geschäftsbuchnummer.</p>
+<p>Weiter bei der Meldung: <strong>Antwort erfassen</strong> (Richtung, Absender und Adressat
+vertauscht, Bezug gesetzt), <strong>Bearbeiten</strong> (die vorige Fassung bleibt
+gespeichert), <strong>Ausdruck / PDF</strong>, <strong>Löschen</strong> (die Nummer bleibt vergeben und wird <strong>nie
+wieder verwendet</strong>; wiederherstellbar unter „Gelöschte Meldungen“).</p>
+<h2 id="ausdruck-und-pdf">Ausdruck und PDF</h2>
+<p><img alt="Ausdruck einer Meldung" src="../img/notfunk-ausdruck.png"></p>
+<p>Eine Meldung wird auf <strong>eine A4-Seite</strong> gedruckt: weißes Papier, dünne
+Linien, keine schwarzen Flächen, auch aus der dunklen Ansicht.</p>
+<ul>
+<li>Oben die Richtung (<strong>↓ EINGANG</strong> oder <strong>↑ AUSGANG</strong>, die gewählte mit
+  dickem Rahmen und ✕) und die Notfunk-Nummer.</li>
+<li>Darunter der Block <strong>„Nur von der Meldesammelstelle
+  auszufüllen“</strong>: Referenz / Geschäftsbuch-Nr. (vorbelegt, wenn schon
+  bekannt), Federführend, Mitwirkend, Zur Kenntnis.</li>
+<li>Datum und Uhrzeit (Ortszeit) in einem Feld: „2026-10-08 · 14:05“, dazu
+  die Erfassungszeit.</li>
+<li>Unten die Übergabe (Eingang) bzw. Übertragung (Ausgang).</li>
+</ul>
+<p><img alt="Druckhinweis" src="../img/notfunk-druckhinweis.png"></p>
+<p><strong>Druckeinstellungen.</strong> Vor dem ersten Druck erinnert ein Hinweis daran, im
+Druckdialog <strong>„Kopf- und Fußzeilen“ auszuschalten</strong>, A4 und 100 % zu wählen.
+Chrome und Edge lassen Kopf- und Fußzeilen bei diesem Blatt ohnehin weg.
+Als PDF: Ziel „Als PDF sichern“ bzw. „Als PDF speichern“.</p>
+<p><strong>Lange Meldungen.</strong> Passt der Text nicht, werden zuerst die Abstände kleiner,
+dann die Schrift (höchstens bis 10 pt). Reicht auch das nicht (etwa ab 2.500
+Zeichen), sagt das Werkzeug vor dem Druck, wie viele Seiten es werden; jede
+Seite trägt die Nummer. Es wird nie etwas abgeschnitten.</p>
+<p><strong>Leere Formulare</strong> für die Arbeit ohne Gerät: „Leeres Formular drucken /
+PDF“ auf der Startseite (bzw. „Leeres Formular“ im Meldebuch), die Anzahl im
+Druckdialog wählen. Das leere Formular hat dieselben Felder und Begriffe.</p>
+<p><strong>Das Meldebuch drucken:</strong> „Drucken / PDF…“ im Meldebuch, optional mit
+Zeitraum (Von/Bis je Datum und Uhrzeit; nur ein Datum = der ganze Tag).</p>
+<h2 id="exporte-und-sicherung">Exporte und Sicherung</h2>
+<ul>
+<li><strong>Geschäftsbuch (CSV):</strong> eine Zeile pro Meldung, für Excel. Spalten u. a.
+  Notfunk-Nr., Referenz Meldesammelstelle, Datum, Uhrzeit (Ortszeit),
+  Zeitstempel (ISO 8601 mit Zeitzone, z. B. <code>2026-10-08T14:05:00+02:00</code>, für
+  Programme), Ein/Aus, Betreff, Inhalt, Dringlichkeit, Funkstelle, Status,
+  Übergabe, Bezug. Werte, die mit <code>=</code>, <code>+</code>, <code>-</code> oder <code>@</code> beginnen, bekommen
+  ein <code>'</code> vorangestellt, damit Excel sie nicht als Formel ausführt (Zahlen
+  wie <code>-10</code> bleiben unverändert); die Meldung nach dem Herunterladen sagt,
+  wie viele. Die Sicherung (JSON) enthält die Werte unverändert.</li>
+<li><strong>Sicherung (JSON):</strong> der ganze Einsatz mit gelöschten Meldungen, allen
+  Fassungen und den Nummernzählern, <strong>unverschlüsselt</strong>. Sie wird aus dem
+  gespeicherten Stand gelesen, also aus dem, was abgeschlossen ist (nicht
+  aus dem Entwurf). Kann der Speicher nicht gelesen werden, steht beim
+  Download „der Speicher war nicht lesbar, sie enthält den Stand dieses
+  Tabs“. Auf der Startseite mit „Sicherung importieren…“ wieder einspielen,
+  auch auf einem anderen Gerät. Bücher mehrerer Geräte lassen sich so
+  zusammenführen, wenn jedes Gerät ein eigenes Stationskürzel hat.
+  Ist die Sicherung sehr groß (über 50 MB oder 200000 Meldungen und
+  Fassungen), wird sie beim Herunterladen automatisch in mehrere Dateien
+  „…_teil-1-von-3.json“ usw. geteilt, nichts geht verloren. Beim Importieren
+  <strong>alle Teile gemeinsam auswählen</strong> (mehrere Dateien markieren): sie werden
+  wie eine einzige Sicherung, ganz oder gar nicht, übernommen. Fehlt ein Teil,
+  wird nichts importiert und die Meldung nennt den fehlenden Teil.
+  Der Browser fragt dabei eventuell, ob mehrere Downloads erlaubt sind; die
+  Meldung sagt nur, dass N Dateien gestartet wurden – <strong>prüfen Sie, dass alle
+  N angekommen sind</strong> („Sicherung gestartet“ im Sicherungsstand wird dann nicht gesetzt). Die Teile
+  lassen sich nur im Notfunk-Meldebuch importieren, und nur mit einer
+  aktuellen Version: eine ältere Version könnte einen einzelnen Teil als
+  unvollständige Sicherung einspielen. Alle Teile zusammen dürfen höchstens
+  12 Dateien, 480 MB und 1000000 Meldungen und Fassungen umfassen. Ist
+  ein Einsatz dafür zu groß, meldet das Meldebuch „Zu groß für eine einzige
+  Sicherung“ <strong>bevor</strong> etwas heruntergeladen wird; dann das Geschäftsbuch
+  (CSV) exportieren und für weitere Meldungen einen neuen Einsatz anlegen.
+  Auch ein einzelner sehr langer Inhalt (über 50 MB) wird auf mehrere Teile
+  verteilt und beim Import wieder zusammengesetzt; fehlt ein Stück, wird
+  nichts importiert. Eine einzelne Datei darf höchstens 50 MB und 200000 Meldungen und
+  Fassungen enthalten.</li>
+</ul>
+<h3 id="gespeichert-entwurf-und-sicherung">Gespeichert, Entwurf und Sicherung</h3>
+<ul>
+<li><strong>Gespeichert</strong> (im Speicher abgeschlossen) und <strong>Entwurf</strong> (kann verloren
+  gehen): siehe <a href="#speichern-hinweise-verwerfen">Speichern, Hinweise, Verwerfen</a>.</li>
+<li><strong>Download gestartet ist nicht Sicherung aufbewahrt.</strong> „Download der
+  Sicherung (JSON) gestartet“ und die Zeit im Sicherungsstand heißen: Das
+  Meldebuch hat den Download angestoßen. Ob die Datei vollständig ist und
+  wo sie liegt, weiß das Meldebuch nicht. Legen Sie die Datei an einen Ort, den Sie kontrollieren
+  (anderer Datenträger, USB-Stick, anderer Rechner), und probieren Sie den
+  Import aus.</li>
+<li><strong>Import:</strong> Die Datei wird vollständig geprüft, bevor etwas geschrieben
+  wird; ist sie als Ganzes unbrauchbar („Nicht importiert“), ändert sich
+  nichts. Einzelne fehlerhafte Datensätze werden <strong>ausgelassen</strong> und mit
+  Grund aufgelistet („Aus der Datei ausgelassen“); die übrigen werden
+  übernommen. Das Ergebnis nennt, wie viele Meldungen neu und wie viele
+  aktualisiert wurden (eine Meldung wird nur durch eine neuere Fassung
+  derselben Meldung ersetzt). Meldungen, deren Nummer oder ID schon mit
+  einer anderen Meldung belegt ist, erscheinen unter „Nicht übernommen
+  (Nummer oder ID schon mit anderer Meldung belegt)“, Antworten auf eine
+  fehlende oder nicht übernommene Meldung unter „Nicht übernommen (Bezug …)“,
+  jeweils mit der Nummer. Die Nummernzähler gehen durch einen Import nie
+  zurück.</li>
+<li><strong>Ersatzspeicher.</strong> Steht in der Fußzeile „localStorage (Ersatzspeicher)“,
+  war IndexedDB nicht verfügbar. Der Ersatzspeicher ist klein (rund 5 MB) und
+  hat bei einer Adresse mit <code>http://</code> (statt HTTPS oder <code>localhost</code>) keine
+  Sperre zwischen Tabs: <strong>zwei Tabs könnten dieselbe Nummer vergeben.</strong> Das
+  ist eine bekannte Einschränkung; in diesem Fall nur einen Tab verwenden und
+  häufig sichern. Mit IndexedDB wird eine Nummer nie doppelt vergeben. Läuft
+  das Meldebuch später wieder mit IndexedDB, bietet es an, Datensätze aus
+  dem Ersatzspeicher zu übernehmen („In IndexedDB übernehmen“); dabei wird
+  nichts Vorhandenes überschrieben, Nummernzähler behalten den höheren Wert,
+  und was sich nicht übernehmen lässt (zum Beispiel „Nummer bereits
+  vergeben“), bleibt im Ersatzspeicher, wird mit Grund genannt und lässt
+  sich mit „Als JSON sichern“ herunterladen.</li>
+<li><strong>Daten schützen.</strong> Der Browser speichert die Daten und die Sicherungen
+  unverschlüsselt; der Verlauf der Fassungen schützt vor Versehen, nicht vor
+  Manipulation (es gibt keine Signatur). Festplattenverschlüsselung,
+  Sperrbildschirm und kein gemeinsames Benutzerkonto auf geteilten Geräten
+  sind Sache des Geräts. Der Browser trennt die Daten nach Adresse
+  (Rechnername und Port), nicht nach Verzeichnis: Andere Seiten derselben
+  Adresse können sie lesen. Für echte Einsätze das Meldebuch auf einer
+  eigenen Adresse bereitstellen. Die Offline-Datei und die Seite im Netz
+  haben getrennte Speicher; zum Umziehen die Sicherung verwenden.</li>
+</ul>
+<h2 id="tastatur">Tastatur</h2>
+<table>
+<thead>
+<tr>
+<th>Taste</th>
+<th>Wirkung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><kbd>Tab</kbd> / <kbd>Enter</kbd></td>
+<td>nächstes Feld (im Inhalt: <kbd>Enter</kbd> = neue Zeile)</td>
+</tr>
+<tr>
+<td><kbd>⇧</kbd>+<kbd>Tab</kbd></td>
+<td>vorheriges Feld</td>
+</tr>
+<tr>
+<td><kbd>1</kbd> – <kbd>7</kbd>, <kbd>←</kbd> <kbd>→</kbd></td>
+<td>Auswahl in Richtung, Übermittlung, Dringlichkeit</td>
+</tr>
+<tr>
+<td><kbd>↓</kbd> <kbd>↑</kbd>, <kbd>Enter</kbd></td>
+<td>Vorschläge durchgehen und übernehmen (Funkstelle, Relais, Orte, Ursprung)</td>
+</tr>
+<tr>
+<td><kbd>Leertaste</kbd></td>
+<td>Kästchen setzen (Rücklesen)</td>
+</tr>
+<tr>
+<td><kbd>⇧</kbd>+<kbd>Enter</kbd>, <kbd>Strg</kbd>+<kbd>Enter</kbd></td>
+<td>speichern</td>
+</tr>
+<tr>
+<td><kbd>Esc</kbd></td>
+<td>Vorschläge schließen, dann „Eingabe verwerfen?“; noch einmal = weiter erfassen</td>
+</tr>
+<tr>
+<td><kbd>F1</kbd>, <kbd>?</kbd></td>
+<td>Hilfe (<kbd>?</kbd> nur außerhalb von Textfeldern); <kbd>Esc</kbd> schließt sie</td>
+</tr>
+</tbody>
+</table>
+<h2 id="hilfe-im-werkzeug">Hilfe im Werkzeug</h2>
+<p><img alt="Hilfe" src="../img/notfunk-hilfe.png"></p>
+<p>„? Hilfe“ oder <kbd>F1</kbd> öffnet die Kurzhilfe über dem Formular. Die Eingabe
+bleibt, wie sie ist; nach dem Schließen ist der Cursor wieder im vorigen
+Feld.</p>
+<h2 id="offene-abstimmungen">Offene Abstimmungen</h2>
+<p>Mit der Meldesammelstelle bzw. dem Stab abzustimmen:</p>
+<ul>
+<li>Bezeichnung und Nummernschema der externen Referenz.</li>
+<li>Dringlichkeitsstufen und ihre Bedeutung.</li>
+<li>Welche Übergabe- und Empfangsbestätigungen nötig sind.</li>
+<li>Umgang mit Meldungen, die nicht lesbar auf eine Seite passen.</li>
+</ul>
+<hr>
+<p class="tool-actions"><a class="tool-launch" href="../notfunk/index.html">Notfunk-Meldebuch öffnen <span aria-hidden="true">→</span></a></p>
+<footer class="doc-footer">Quellcode: <a href="https://github.com/oe1ebg/tools">github.com/oe1ebg/tools</a> · Version v0.3.0 (commit <a href="https://github.com/oe1ebg/tools/commit/33d5664d08040e9dc071a498ac76873cedf0cf59">33d5664</a>)</footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ADIF Editor</title>
+<meta name="color-scheme" content="light dark">
+<!-- Theme first (sets data-theme before anything paints), then the styles;
+     inlined into adif-editor.html by scripts/build_adif.py. -->
+<!-- ADIF-VENDOR-BEGIN -->
+<script src="../shared/js/theme.js"></script>
+<link rel="stylesheet" href="../shared/css/tools.css">
+<link rel="stylesheet" href="style.css">
+<!-- ADIF-VENDOR-END -->
+</head>
+<body>
+
+<header id="site-header">
+  <a id="back-link" href="../">
+    <svg class="icon-arrow-left" aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    Alle Tools
+  </a>
+  <span class="spacer"></span>
+  <div id="theme-toggle" role="group" aria-label="color theme">
+    <button type="button" data-theme-choice="light" aria-pressed="false" title="light theme">light</button>
+    <button type="button" data-theme-choice="auto" aria-pressed="false" title="match system theme">auto</button>
+    <button type="button" data-theme-choice="dark" aria-pressed="false" title="dark theme">dark</button>
+  </div>
+  <a class="badge" href="adif-editor.html" download="adif-editor.html" title="the whole editor in one HTML file: save it and open it without a server">single file ↓</a>
+  <a class="badge" href="https://www.adif.org/317/ADIF_317.htm" target="_blank" rel="noopener">targets ADIF 3.1.7 <span aria-hidden="true">↗</span><span class="sr-only">(opens in a new tab)</span></a>
+  <a class="badge" href="https://github.com/oe1ebg/tools/tree/main/tools/adif" target="_blank" rel="noopener" title="source code on GitHub">source <span aria-hidden="true">↗</span><span class="sr-only">(opens in a new tab)</span></a>
+</header>
+
+<div id="toolbar">
+  <h1>ADIF editor</h1>
+  <span class="sep" aria-hidden="true">/</span>
+  <button type="button" id="btn-open">add file(s)…</button>
+  <input id="file-input" type="file" accept=".adi,.adif,.txt" multiple hidden>
+  <span id="stats"></span>
+  <div class="spacer"></div>
+  <input id="filename-input" type="text" value="export.adi" title="export filename" aria-label="export filename" autocomplete="off" spellcheck="false">
+  <button type="button" id="btn-export" disabled>export .adi</button>
+  <button type="button" id="btn-export-csv" disabled>export .csv</button>
+  <span class="sep" aria-hidden="true">/</span>
+  <select id="sota-mode" title="SOTA CSV mode" aria-label="SOTA CSV mode">
+    <option value="activator">activator</option>
+    <option value="chaser">chaser</option>
+  </select>
+  <button type="button" id="btn-export-sota" disabled>export SOTA csv</button>
+  <span class="sep" aria-hidden="true">/</span>
+  <button type="button" id="btn-toggle-tools" aria-expanded="false" aria-controls="tools-panel">tools <span aria-hidden="true">▾</span></button>
+</div>
+
+<div id="tools-panel">
+  <label for="tpl-input">fill blank COMMENT:</label>
+  <input type="text" id="tpl-input" placeholder="{RST_SENT} {RST_RCVD} thx">
+  <button type="button" id="btn-apply-tpl">apply</button>
+  <span class="hint">only fills rows where COMMENT is currently empty — placeholders like {RST_SENT} pull from that record's field</span>
+</div>
+
+<!-- Search & filter (js/filter-ui.js, js/filter.js): only the table's view
+     changes, every export writes the whole log. -->
+<div id="filter-bar" role="search" aria-label="filter QSOs" hidden>
+  <div class="flt-line">
+    <label for="flt-text">search</label>
+    <input type="search" id="flt-text" placeholder="call, comment, …" autocomplete="off" spellcheck="false" enterkeyhint="search">
+    <select id="flt-text-field" aria-label="search in">
+      <option value="">all fields</option>
+    </select>
+    <label for="flt-status">status</label>
+    <select id="flt-status">
+      <option value="any">any</option>
+      <option value="errors">with errors</option>
+      <option value="warnings">with warnings</option>
+      <option value="info">with info</option>
+      <option value="clean">issue-free</option>
+    </select>
+    <span id="flt-file-wrap" hidden>
+      <label for="flt-file">file</label>
+      <select id="flt-file">
+        <option value="">all files</option>
+      </select>
+    </span>
+    <label for="flt-from">QSO_DATE from</label>
+    <input type="date" id="flt-from">
+    <label for="flt-to">to</label>
+    <input type="date" id="flt-to">
+    <button type="button" id="flt-add-cond">+ condition</button>
+    <button type="button" id="flt-clear">clear filters</button>
+    <span id="flt-count" role="status"></span>
+    <span id="flt-note" class="hint" hidden>exports include all QSOs</span>
+  </div>
+  <div id="flt-conds"></div>
+</div>
+
+<div id="file-info"></div>
+
+<div id="warnings" role="status"></div>
+
+<!-- A running import (js/app.js, js/load.js): progress and Cancel. The bar and
+     the line are for the eyes; the status region speaks every 10 %. -->
+<div id="import-progress" class="import-progress" role="group" aria-labelledby="import-title" hidden>
+  <strong id="import-title">Loading file(s)</strong>
+  <progress id="import-bar" max="100" value="0" aria-labelledby="import-title"></progress>
+  <span id="import-text"></span>
+  <button type="button" id="btn-cancel-import">Cancel</button>
+  <span id="import-live" class="sr-only" role="status"></span>
+</div>
+
+<!-- ADIF validation (../shared/js/adif-validate.js): summary, then the issue list on demand. -->
+<div id="validation" class="validation" hidden>
+  <span id="validation-summary" role="status"></span>
+  <span class="spacer"></span>
+  <button type="button" id="btn-issues" aria-expanded="false" aria-controls="validation-issues">show issues <span aria-hidden="true">▾</span></button>
+</div>
+<div id="validation-issues" hidden></div>
+
+<!-- What the validation covers, how the editor is verified, and this build's
+     commit / CI run (js/compliance.js, from build-info.js). -->
+<details id="compliance">
+  <summary>About ADIF compliance &amp; validation</summary>
+  <div id="compliance-body"></div>
+</details>
+
+<main id="drop" class="empty">
+  <div id="empty-msg">
+    drag &amp; drop .adi file(s) here<br>
+    <span class="hint">or click "add file(s)…" — files are added to the current log; nothing leaves the browser</span>
+  </div>
+</main>
+
+<datalist id="adif-field-list"></datalist>
+
+<!-- ADIF-SCRIPT-BEGIN -->
+<!-- build-info.js (generated by scripts/build_adif.py): commit, CI run and
+     cross-check tool versions for the compliance panel; missing on a dev
+     server without a build = "development build".
+     ES modules; scripts/build_adif.py bundles them into the single-file
+     adif-editor.html (works from file://, no server). -->
+<script src="build-info.js"></script>
+<script type="module" src="js/app.js"></script>
+<!-- ADIF-SCRIPT-END -->
+</body>
+</html>
