@@ -504,3 +504,19 @@ li.event-line .time{ min-width:5.5em; }
 .station-history button.mini{ min-height:0; padding:.15em .5em; font-size:12.5px; }
 .history-item{ display:inline-flex; gap:.35em; align-items:center; }
 @media (pointer: coarse){ .station-history button.mini{ min-height:36px; } }
+
+/* ---------- compact station heading (Live Notes) ---------- */
+.station-head{ align-items:center; gap:.4em .7em; }
+.station-head .station-call{ font-size:22px; line-height:1.2; }
+.station-head .station-tools{ margin:0 0 0 auto; display:flex; flex-wrap:wrap; gap:.35em; align-items:center; }
+.station-head .station-tools select, .station-head .station-tools button{ min-height:0; padding:.25em .55em; font-size:13.5px; }
+.station-meta{ margin:.25em 0 .35em; display:flex; flex-wrap:wrap; gap:.15em 1em; align-items:baseline; font-size:13px; }
+.station-meta .station-links{ margin:0; font-size:13px; }
+.station-history{ margin:0 0 .5em; }
+.station-history .history-toggle{ padding:.15em .55em; font-size:13px; }
+.own-turn{ margin:.2em 0 .5em; }
+@media (max-width: 700px){ .station-head .station-tools{ margin-left:0; flex-basis:100%; } }
+@media (pointer: coarse){ .station-head .station-tools select, .station-head .station-tools button{ min-height:40px; } }
+
+.station-meta .history-toggle{ margin-left:auto; }
+@media (max-width: 700px){ .station-meta .history-toggle{ margin-left:0; } }
