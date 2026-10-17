@@ -200,7 +200,7 @@ table.log tr.fresh td:first-child{ box-shadow:inset 3px 0 0 var(--ok); }
 #repeat-box ul{ margin:.2em 0 .4em; padding-left:1.2em; font-size:14.5px; }
 .edit-tag{ font-weight:700; color:var(--warn); }
 
-.table-wrap{ overflow-x:auto; border:1px solid var(--line); border-radius:6px; }
+.table-wrap{ overflow-x:auto; border:1px solid var(--line); border-radius:6px; position:relative; } /* positioned: hidden button texts (.sr-only) stay inside the scrolling */
 table.log{ width:100%; border-collapse:collapse; font-size:14.5px; }
 table.log th, table.log td{ padding:.35em .6em; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
 table.log th{ font-size:12.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-dim); background:var(--bg-raised); position:sticky; top:0; }

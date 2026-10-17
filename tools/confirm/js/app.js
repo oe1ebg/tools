@@ -1735,7 +1735,8 @@ function buildLogRow(e, { tpl, n, showDate, cols }) {
       timeMode() === 'local' && zoneLabel(e.ts, 'local') !== zoneLabel(nowIso(), 'local') ? el('span', { class: 'date' }, ' ' + zoneLabel(e.ts, 'local')) : null];
     const what = isComment(e) ? `Kommentar ${time}` : `Nr. ${e.seq} ${e.call}`;
     const actions = [
-      el('button', { type: 'button', disabled: state.readOnly, 'aria-label': `${what} bearbeiten`, onclick: () => startEdit(e.id) }, 'Bearb.'),
+      // the name starts with the visible "Bearb." (WCAG 2.5.3), the rest is for screen readers
+      el('button', { type: 'button', disabled: state.readOnly, onclick: () => startEdit(e.id) }, 'Bearb.', el('span', { class: 'sr-only' }, ` – ${what} bearbeiten`)),
       ' ',
       el('button', { type: 'button', class: 'danger', disabled: state.readOnly, 'aria-label': `${what} löschen`, title: 'Löschen',
         onclick: () => setDeleted(e.id, true) }, '✕'),
