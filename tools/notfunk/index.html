@@ -25,6 +25,7 @@
   <a id="home-link" href="../">← Alle Tools</a>
   <h1 class="title">Notfunk-Meldebuch</h1>
   <a id="manual-link" class="hdr-link" href="../notfunk-anleitung/" target="_blank" rel="noopener" title="Ausführliche Anleitung mit Bildern (online)">Anleitung</a>
+  <button id="btn-loc" type="button" aria-expanded="false" aria-controls="loc-panel" title="Offline-Standortsuche Wien: Adresse, Ort, PLZ, Koordinaten, Locator, UTMREF"><span aria-hidden="true">📍</span> Standort</button>
   <div class="hdr-status">
     <span id="st-offline" class="chip">offline: prüfe…</span>
     <span id="st-storage" class="chip">Speicher: prüfe…</span>
@@ -54,6 +55,29 @@
   <p class="banner draft no-print"><strong>Entwurf.</strong> Das Meldungsformat ist noch nicht mit dem Notfunkreferat Wien und dem Krisenstab abgestimmt; Felder und Bezeichnungen können sich ändern. Für Übungen gedacht.</p>
 
   <!-- ===== Einsätze ===== -->
+  <!-- ===== Standortsuche (offline, Wien; shared js/locationui.js, as in Confirm) ===== -->
+  <section id="loc-panel" class="panel no-print" hidden>
+    <div class="toolbar tight">
+      <h2>Standortsuche Wien</h2>
+      <span id="loc-status" class="hint"></span>
+      <span class="spacer"></span>
+      <label class="check">Locator
+        <select id="loc-prec"><option value="4">4</option><option value="6">6</option><option value="8">8</option><option value="10">10</option></select> Zeichen
+      </label>
+      <label class="check" title="Genauigkeit der UTM-Gitterreferenz (UTMREF/MGRS) in der Anzeige; Exporte immer auf 1 m">UTMREF
+        <select id="loc-utm-prec"><option value="10">1 m</option><option value="8">10 m</option><option value="6">100 m</option></select>
+      </label>
+      <label class="check" title="UTMREF auch in der Info-Zeile der Ortsfelder zeigen (gilt auch im Bestätigungsverkehr)"><input type="checkbox" id="loc-utm-log"> UTMREF bei Orten zeigen</label>
+      <label class="check" title="Ab welcher Sicherheit ein Ortsfeld den besten Treffer selbst übernimmt (gilt auch im Bestätigungsverkehr)">Automatisch übernehmen ab
+        <select id="loc-auto"><option value="exact">exakt</option><option value="high">hoch</option><option value="likely">wahrscheinlich</option><option value="never">nie</option></select>
+      </label>
+      <button type="button" id="loc-close">schließen</button>
+    </div>
+    <input id="loc-q" type="search" aria-label="Standort suchen" placeholder="Adresse, Ort, PLZ, Koordinaten, Locator oder UTMREF" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search">
+    <div class="hint" id="loc-examples-wrap">Beispiele: <span id="loc-examples"></span></div>
+    <div id="loc-results"></div>
+  </section>
+
   <section id="view-ops" class="no-print" aria-labelledby="ops-title">
     <div class="toolbar">
       <h2 id="ops-title">Einsätze</h2>
@@ -404,6 +428,7 @@
         <dl class="kb">
           <dt>Ort</dt><dd>wo das gemeldete Ereignis ist. <span class="ex">Brünner Straße 68</span> <span class="ex">JN88EG</span> Ein Vorschlag ergänzt Postleitzahl und Locator; der Inhalt der Meldung bleibt unverändert.</dd>
           <dt>Ursprungsort</dt><dd>wo die Meldung ursprünglich aufgegeben wurde; kann vom Ereignisort abweichen.</dd>
+          <dt>📍 Standort</dt><dd>oben in der Kopfzeile: die Offline-Standortsuche Wien (Adresse, Ort, PLZ, Koordinaten, Locator, UTMREF), zum Prüfen oder Umrechnen einer Ortsangabe; das Formular bleibt, wie es ist.</dd>
           <dt>Standort der Station (Adresse)</dt><dd>wo das eigene Funkgerät steht <span class="ex">Lichtinsel 12 Floridsdorf</span>; im Einsatz eingetragen, gilt für alle Meldungen.</dd>
         </dl>
       </section>

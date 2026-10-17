@@ -161,6 +161,9 @@ name, and a distribution list ("Verteiler").
   callsign search); Funkstelle/Ursprungsstation complete from the
   stations heard in this operation and the callsign list, Relais from the ÖVSV list, Ort and Ursprungsort
   from the offline location lookup (which never changes the text).
+  "📍 Standort" in the header opens the same offline location search as
+  in Confirm (`initLocationPanel()`, shared `locationui.js`; the panel's
+  settings are the shared location prefs, so they apply in both tools).
   Frequencies take a comma or a point and are shown as `145,500`. The
   half-typed message is kept as a draft ("✓ Entwurf gesichert").
 - **Saved / draft / backup wording.** Same contract as the confirmation log

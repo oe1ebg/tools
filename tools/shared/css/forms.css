@@ -124,3 +124,31 @@ div.field > label.check{ text-transform:none; letter-spacing:0; color:var(--text
 /* A status chip never pushes a narrow page sideways (WCAG 1.4.10): its
    text wraps instead. */
 @media (max-width: 480px){ .chip{ white-space:normal; max-width:100%; } }
+
+/* ---------- location lookup (../js/locationui.js): the search panel
+   ("📍 Standort") and the candidates, also in the location fields ---------- */
+#loc-q{ width:100%; font-size:16px; }
+#loc-status.ok{ color:var(--ok); }
+#loc-status.err{ color:var(--err); font-weight:600; }
+#loc-examples button{ margin-right:.7em; font-size:13.5px; }
+#loc-results{ display:grid; gap:.5em; margin-top:.7em; }
+.loc-cand{ border:1px solid var(--line); border-left:4px solid var(--line); border-radius:6px; padding:.5em .8em; background:var(--bg); }
+.loc-cand.conf-exact, .loc-cand.conf-high{ border-left-color:var(--ok); }
+.loc-cand.conf-likely{ border-left-color:var(--accent); }
+.loc-cand.conf-ambiguous, .loc-cand.conf-low{ border-left-color:var(--warn); }
+.loc-cand.auto{ box-shadow:0 0 0 2px var(--ok) inset; }
+.lc-head{ display:flex; gap:.5em; align-items:baseline; flex-wrap:wrap; }
+.lc-type{ font-size:12.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-dim); }
+.lc-conf{ font-size:12.5px; padding:0 .45em; border-radius:999px; border:1px solid currentColor; }
+.conf-exact .lc-conf, .conf-high .lc-conf{ color:var(--ok); }
+.conf-likely .lc-conf{ color:var(--accent-text); }
+.conf-ambiguous .lc-conf, .conf-low .lc-conf{ color:var(--warn); }
+.lc-meta{ font-family:var(--font-mono); font-size:14.5px; margin:.15em 0; }
+.lc-why, .lc-detail{ font-size:13.5px; color:var(--text-dim); }
+.lc-note{ font-size:13.5px; color:var(--warn); }
+.lc-name{ font-size:13.5px; }
+.lc-name q{ font-weight:600; quotes:"„" "“"; }
+.nt, .lc-outside{ font-size:12.5px; padding:0 .45em; border-radius:999px; border:1px solid var(--line); color:var(--text-dim); white-space:nowrap; }
+.nt{ background:var(--bg-raised); }
+.nt.hist{ border-style:dashed; }
+.lc-actions{ display:flex; gap:.35em; flex-wrap:wrap; margin-top:.35em; }

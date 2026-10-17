@@ -626,3 +626,31 @@ test('a backup beyond the import limit is exported in parts and restored from th
     await ctx.close();
   }
 });
+
+// "📍 Standort" in the header, as in Confirm: the offline location search
+// (Vienna), on the start page and inside an operation; the form keeps its
+// input.
+test('offline location search: Standort in the header finds a landmark', async ({ page }) => {
+  await page.goto('tools/notfunk/');
+  await expect.poll(() => page.evaluate(() => globalThis.NOTFUNK_READY === true)).toBe(true);
+  const btn = page.getByRole('button', { name: /Standort/ });
+  await expect(btn).toHaveAttribute('aria-expanded', 'false');
+  await btn.click();
+  await expect(page.locator('#loc-panel')).toBeVisible();
+  await expect(btn).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.locator('#loc-q')).toBeFocused();
+  await page.locator('#loc-q').fill('Donauturm');
+  await expect(page.locator('#loc-results .loc-cand').first()).toContainText('Donauturm', { timeout: 30_000 });
+  await expect(page.locator('#loc-status')).toHaveClass(/ok/);
+  await page.locator('#loc-close').click();
+  await expect(page.locator('#loc-panel')).toBeHidden();
+
+  await openNewOp(page, 'E2E Standort', 's1');
+  await page.locator('#m-text').fill('Halb getippt');
+  await btn.click();
+  await page.locator('#loc-q').fill('Stephansplatz');
+  await expect(page.locator('#loc-results .loc-cand').first()).toContainText('Stephansplatz', { timeout: 30_000 });
+  await btn.click();
+  await expect(page.locator('#loc-panel')).toBeHidden();
+  await expect(page.locator('#m-text')).toHaveValue('Halb getippt');
+});

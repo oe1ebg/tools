@@ -39,6 +39,10 @@ test('notfunk-offline.html runs from file://', async ({ page, request }, testInf
   // the file is the offline copy: no download card, no links out of it
   await expect(page.locator('#offline-card')).toBeHidden();
   await expect(page.locator('#st-offline')).toHaveText('Offline-Datei');
+  // the location search too (#108): its data is inlined
+  await page.getByRole('button', { name: /Standort/ }).click();
+  await page.locator('#loc-q').fill('Donauturm');
+  await expect(page.locator('#loc-results .loc-cand').first()).toContainText('Donauturm', { timeout: 30_000 });
   expect(requests.filter(u => u !== url && !u.startsWith('blob:') && !u.startsWith('data:'))).toEqual([]);
 });
 
