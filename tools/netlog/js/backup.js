@@ -1,10 +1,14 @@
-// Netlog's JSON backup: everything (or one session with its series and
-// the station profiles it uses), plaintext, restorable as a whole. Pure:
+// Netlog's JSON backup: everything, one series with all its sessions, or
+// one session (each with its series and the station profiles it uses),
+// plaintext, restorable as a whole. Pure:
 // building, checking and planning an import; ops.js importBackup() applies
 // the plan in one transaction. Format and limits: ../README.md, "Backup".
 //
 //   { format: 'oe1ebg-netlog-backup', version: 1, schema: 1, exported,
-//     scope: 'all' | 'session', sessionId?, stores: { <store>: [records] } }
+//     scope: 'all' | 'series' | 'session', seriesId?, sessionId?,
+//     stores: { <store>: [records] } }
+// The import does not depend on the scope (older versions read a series
+// backup like any other).
 //
 // The leases (meta) are not part of a backup. Deleted records are (soft
 // deletes stay restorable).
@@ -33,8 +37,21 @@ export function utf8Bytes(text) {
 
 // all: { store: [records] } as read from storage. sessionId: only that
 // session (with its series and the profiles its participants link to).
-export function toBackup(all, { sessionId = null, now = new Date().toISOString() } = {}) {
+// seriesId: the series with all its sessions (deleted ones too: soft
+// deletes stay restorable) and the profiles they link to.
+export function toBackup(all, { sessionId = null, seriesId = null, now = new Date().toISOString() } = {}) {
   const stores = {};
+  if (seriesId && !sessionId) {
+    const series = (all.series || []).find(s => s.id === seriesId);
+    if (!series) throw new Error('series not found');
+    stores.series = [series];
+    stores.sessions = (all.sessions || []).filter(s => s.seriesId === seriesId);
+    const ids = new Set(stores.sessions.map(s => s.id));
+    for (const s of SESSION_STORES) stores[s] = (all[s] || []).filter(r => ids.has(r.eventId));
+    const profileIds = new Set(stores.participants.map(p => p.profileId).filter(Boolean));
+    stores.profiles = (all.profiles || []).filter(p => profileIds.has(p.id));
+    return { format: BACKUP_FORMAT, version: BACKUP_VERSION, schema: NETLOG_SCHEMA.version, exported: now, scope: 'series', seriesId, stores };
+  }
   if (sessionId) {
     const session = (all.sessions || []).find(s => s.id === sessionId);
     if (!session) throw new Error('session not found');

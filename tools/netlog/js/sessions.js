@@ -10,13 +10,17 @@ import { t } from './i18n.js';
 import { keyedList, setText } from './keyed.js';
 import { liveOf, nextSessionNumber, sessionLabel, sessionsOf, normCall, cmp, NET_STYLES } from './model.js';
 import { createSession, createSeries, updateSeries, assignSeries, deleteSession } from './ops.js';
-import { sessionAction } from './dataui.js';
+import { sessionAction, exportBackup, importFile } from './dataui.js';
+import { historyData } from './historyui.js';
+import { seriesStats } from './history.js';
 import { attachRepeaterField, attachCallField } from './fieldsearch.js';
 
 export const OWN_PREF = 'oe1ebg-netlog-own-call';
 
 // A series' default speaking order for the select.
 const styleOf = series => (series && NET_STYLES.includes(series.defaults.style) ? series.defaults.style : 'star');
+
+let importTarget = null; // { seriesId, msg } of the card whose restore was clicked
 
 export function initSessions(app) {
   const sForm = $('#session-form');
@@ -145,6 +149,24 @@ export function initSessions(app) {
     }
     if (b.dataset.act === 'restore') await app.act(store => deleteSession(store, { tab: null }, id, true), { global: true });
     if (b.dataset.act === 'export' || b.dataset.act === 'erase') await sessionAction(app, b.dataset.act, id);
+    if (b.dataset.act === 'toggle-card') {
+      const sec = b.closest('section');
+      const open = b.getAttribute('aria-expanded') !== 'true';
+      setCardOpen(sec.dataset.key, open);
+      renderSessions(app);
+    }
+    if (b.dataset.act === 'export-series') await exportBackup(app, null, { seriesId: id, msg: b.closest('section').querySelector('.card-msg') });
+    if (b.dataset.act === 'restore-series') {
+      importTarget = { seriesId: id, msg: b.closest('section').querySelector('.card-msg') };
+      $('#series-import-file').click();
+    }
+  });
+  $('#series-import-file').addEventListener('change', async ev => {
+    const f = ev.target.files[0];
+    ev.target.value = '';
+    const target = importTarget;
+    importTarget = null;
+    if (f && target) await importFile(app, f, target);
   });
   $('#series-list').addEventListener('change', async ev => {
     const sel = ev.target.closest('select[data-assign]');
@@ -153,6 +175,29 @@ export function initSessions(app) {
     const r = await app.act(store => assignSeries(store, { tab: null }, id, sel.value || null), { global: true });
     if (r) app.announce(t('session.assigned', { name: sessionLabel(r, seriesOf(app, r)) }));
   });
+}
+
+// Which series cards are open (per device): { <key>: true|false }; by
+// default the one with the open session and the ad-hoc sessions are open.
+const OPEN_PREF = 'oe1ebg-netlog-series-open';
+function openState() {
+  try {
+    const v = JSON.parse(prefGet(OPEN_PREF, '{}'));
+    return v && typeof v === 'object' ? v : {};
+  } catch {
+    return {};
+  }
+}
+function cardOpen(app, g) {
+  const saved = openState()[g.key];
+  if (typeof saved === 'boolean') return saved;
+  if (g.deleted) return false;
+  return !g.series || g.sessions.some(s => s.id === app.sessionId());
+}
+function setCardOpen(key, open) {
+  const all = openState();
+  all[key] = open;
+  prefSet(OPEN_PREF, JSON.stringify(all));
 }
 
 function seriesOf(app, s) {
@@ -191,13 +236,32 @@ export function renderSessions(app) {
   keyedList(box, groups, {
     key: g => g.key,
     create: g => el('section', { class: 'card series-card' },
-      el('div', { class: 'toolbar' }, el('h3', {}), el('span', { class: 'spacer' }), el('span', { class: 'tools' })),
-      el('p', { class: 'hint sub' }),
-      el('ul', { class: 'session-rows' })),
+      el('div', { class: 'toolbar' },
+        el('h3', {}, el('button', { type: 'button', class: 'card-toggle', 'data-act': 'toggle-card', 'aria-controls': `series-body-${g.key}` })),
+        el('span', { class: 'spacer' }), el('span', { class: 'tools' })),
+      el('p', { class: 'series-stats' }),
+      el('p', { class: 'card-msg data-msg', role: 'status' }),
+      el('div', { class: 'series-body', id: `series-body-${g.key}` }, el('p', { class: 'hint sub' }), el('ul', { class: 'session-rows' }))),
     update: (sec, g) => {
-      const [bar, sub, ul] = sec.children;
+      const [bar, stats, , body] = sec.children;
+      const [sub, ul] = body.children;
       const [h, , tools] = bar.children;
-      setText(h, g.series ? g.series.name : t(g.deleted ? 'session.deletedGroup' : 'session.adHocGroup'));
+      const open = cardOpen(app, g);
+      const title = g.series ? g.series.name : t(g.deleted ? 'session.deletedGroup' : 'session.adHocGroup');
+      setText(h.firstChild, `${open ? '▾' : '▸'} ${title}`);
+      h.firstChild.setAttribute('aria-expanded', String(open));
+      body.hidden = !open;
+      sec.classList.toggle('collapsed', !open);
+      // the summary line: filled once all sessions' records are read
+      if (!g.deleted) {
+        historyData(app).then(recs => {
+          const st = seriesStats(recs, g.series ? g.series.id : null);
+          setText(stats, st.sessions ? t('series.stats', {
+            n: st.sessions, range: st.first === st.last ? st.first : `${st.first} – ${st.last}`, avg: String(st.avgStations).replace('.', t('number.decimal')),
+            stations: st.stations, notes: st.notes, open: st.open,
+          }) : '');
+        }, () => setText(stats, ''));
+      } else setText(stats, t('series.statsDeleted', { n: g.sessions.length }));
       setText(sub, g.series ? [g.series.description, g.series.schedule, g.series.defaults.repeater, g.series.defaults.freq, g.series.defaults.mode].filter(Boolean).join(' · ') : '');
       const toolSig = `${g.key}|${app.lang()}`;
       if (tools.dataset.sig !== toolSig) {
@@ -205,6 +269,8 @@ export function renderSessions(app) {
         fill(tools, g.series ? [
           el('button', { type: 'button', class: 'mini', 'data-act': 'new-in', 'data-id': g.series.id, 'aria-label': t('series.newInLabel', { name: g.series.name }) }, t('series.newIn')),
           el('button', { type: 'button', class: 'mini', 'data-act': 'edit-series', 'data-id': g.series.id, 'aria-label': t('series.editLabel', { name: g.series.name }) }, t('common.edit')),
+          el('button', { type: 'button', class: 'mini', 'data-act': 'export-series', 'data-id': g.series.id, 'aria-label': t('series.exportLabel', { name: g.series.name }) }, t('series.export')),
+          el('button', { type: 'button', class: 'mini', 'data-act': 'restore-series', 'data-id': g.series.id, 'aria-label': t('series.restoreLabel', { name: g.series.name }) }, t('series.restore')),
         ] : []);
       }
       keyedList(ul, g.sessions, {
@@ -238,6 +304,7 @@ export function renderSessions(app) {
               ]);
         },
       });
+      if (!open) return;
       if (!g.sessions.length && !ul.nextElementSibling) ul.after(el('p', { class: 'hint empty-small' }, t('session.none')));
       else if (g.sessions.length && ul.nextElementSibling) ul.nextElementSibling.remove();
       else if (ul.nextElementSibling) setText(ul.nextElementSibling, t('session.none'));

@@ -12,9 +12,10 @@ import { readAll, importBackup, eraseSession, eraseProfile, eraseAll, markBackup
 import { liveOf, cmp, sessionLabel } from './model.js';
 import { getWavelog, setWavelog } from './links.js';
 
-function say(text, kind = '') {
-  const m = $('#data-msg');
-  m.className = `data-msg ${kind}`;
+// msg: where to say it (a series card's own line), else the data section.
+function say(text, kind = '', msg = null) {
+  const m = msg || $('#data-msg');
+  m.className = `${msg ? 'card-msg ' : ''}data-msg ${kind}`;
   setText(m, text);
 }
 
@@ -35,32 +36,35 @@ function slug(text) {
     .replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
 }
 
-// Export everything, or one session. Refused (nothing downloaded) beyond
-// the restore limits.
-export async function exportBackup(app, sessionId = null) {
+// Export everything, one series (opts.seriesId) or one session. Refused
+// (nothing downloaded) beyond the restore limits.
+export async function exportBackup(app, sessionId = null, { seriesId = null, msg = null } = {}) {
   await app.flush();
   let all;
   try {
     all = await readAll(app.store);
   } catch (e) {
-    say(t('data.readFailed', { error: String(e.message || e) }), 'err');
+    say(t('data.readFailed', { error: String(e.message || e) }), 'err', msg);
     return false;
   }
-  const data = toBackup(all, { sessionId });
+  const data = toBackup(all, { sessionId, seriesId });
   const r = backupText(data);
   if (r.error) {
-    say(t(`data.${r.error}`, { mb: Math.round(BACKUP_MAX_BYTES / 1048576) }), 'err');
+    say(t(`data.${r.error}`, { mb: Math.round(BACKUP_MAX_BYTES / 1048576) }), 'err', msg);
     return false;
   }
   const s = sessionId ? all.sessions.find(x => x.id === sessionId) : null;
   const series = s && s.seriesId ? all.series.find(x => x.id === s.seriesId) : null;
+  const ser = !s && seriesId ? all.series.find(x => x.id === seriesId) : null;
   const word = t('data.fileWord');
-  const name = s ? `${s.date || stamp()}_${slug(sessionLabel(s, series)) || 'netlog'}_${word}.json` : `${stamp()}_netlog_${word}.json`;
+  const name = s ? `${s.date || stamp()}_${slug(sessionLabel(s, series)) || 'netlog'}_${word}.json`
+    : ser ? `${stamp()}_${slug(ser.name) || 'serie'}_${t('data.seriesWord')}_${word}.json`
+      : `${stamp()}_netlog_${word}.json`;
   download(r.text, name);
-  say(t('data.exported', { name }), 'ok');
+  say(t('data.exported', { name }), 'ok', msg);
   // when it was started (not that it arrived): the header chip
   try {
-    await markBackup(app.store, sessionId ? [sessionId] : all.sessions.filter(x => !x.deleted).map(x => x.id));
+    await markBackup(app.store, sessionId ? [sessionId] : (data.stores.sessions || all.sessions).filter(x => !x.deleted).map(x => x.id));
     await app.reload();
   } catch (e) {
     console.warn(e);
@@ -68,21 +72,29 @@ export async function exportBackup(app, sessionId = null) {
   return true;
 }
 
-async function importFile(app, file) {
+// Restore a backup file. seriesId: from a series card, only a backup of
+// that series is accepted (anything else is refused before any write).
+export async function importFile(app, file, { seriesId = null, msg = null } = {}) {
   if (!file) return;
-  if (file.size > BACKUP_MAX_BYTES) { say(t('data.tooLargeImport', { mb: Math.round(BACKUP_MAX_BYTES / 1048576) }), 'err'); return; }
+  if (file.size > BACKUP_MAX_BYTES) { say(t('data.tooLargeImport', { mb: Math.round(BACKUP_MAX_BYTES / 1048576) }), 'err', msg); return; }
   let data;
   try {
     data = JSON.parse(await file.text());
   } catch {
-    say(t('data.notJson'), 'err');
+    say(t('data.notJson'), 'err', msg);
     return;
   }
   const chk = checkBackup(data);
-  if (!chk.ok) { say(t(`data.bad.${chk.error}`, { detail: chk.detail }), 'err'); return; }
+  if (!chk.ok) { say(t(`data.bad.${chk.error}`, { detail: chk.detail }), 'err', msg); return; }
+  if (seriesId) {
+    const st = data.stores || {};
+    const ok = data.scope === 'series' && data.seriesId === seriesId
+      && (st.series || []).some(s => s.id === seriesId) && (st.sessions || []).every(s => s.seriesId === seriesId);
+    if (!ok) { say(t('data.notThisSeries'), 'err', msg); return; }
+  }
   const report = await app.act(store => importBackup(store, data, { copySuffix: t('data.copySuffix') }), { global: true });
-  if (!report) { say(t('data.importFailed'), 'err'); return; }
-  say(t('data.imported', report), 'ok');
+  if (!report) { say(t('data.importFailed'), 'err', msg); return; }
+  say(t('data.imported', report), 'ok', msg);
 }
 
 export function initData(app) {

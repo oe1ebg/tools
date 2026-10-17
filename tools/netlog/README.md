@@ -52,6 +52,18 @@ offers the export, as on any other page without IndexedDB.
   copied into the session, so later series edits never rewrite history.
   An ad-hoc session can be put into a series later (the select next to it
   in the list); its identity, notes and history stay.
+- **Series cards** (Sessions & series) are collapsible, the state kept per
+  device (`oe1ebg-netlog-series-open`; by default the series of the open
+  session and the ad-hoc sessions are open). A summary line is always
+  shown: sessions, date range, ⌀ stations per session, different stations
+  (by station profile, else complete base callsign; partial calls not
+  counted separately), notes and open follow-ups (`seriesStats()` in
+  `js/history.js`). "Back up" exports the series with all its sessions
+  (deleted ones too) and the profiles they use as one JSON backup (scope
+  `series`); "Restore…" on its card accepts only a backup of that series
+  and imports it like any backup (checked first, one transaction,
+  identical sessions skipped, differing ones as copies). Messages appear
+  on the card.
 - **Check-in** in the sidebar: callsign (also partial: `OE0QX?`, `?QXB`,
   or just `?`) and an optional name. Known identities from station
   profiles, earlier sessions and the shared Austrian callsign list
@@ -461,12 +473,13 @@ stores and migration branches stay (data-preserving migrations).
 
 ```
 { format: 'oe1ebg-netlog-backup', version: 1, schema: 1, exported: <ISO UTC>,
-  scope: 'all' | 'session', sessionId?, stores: { series, sessions, profiles,
+  scope: 'all' | 'series' | 'session', seriesId?, sessionId?, stores: { series, sessions, profiles,
   participants, rounds, contributions, notes, items, events, turns,
   revisions, undo, drafts } }
 ```
 
-- Everything, or one session with its series and the profiles its stations
+- Everything, one series with all its sessions, or one session; a series
+  or session backup carries its series and the profiles its stations
   link to. Deleted (soft-deleted) records are included; the leases (`meta`)
   are not. Read in one transaction: the committed state.
 - **Limits**: 50 MB (UTF-8 bytes of the JSON) and 200,000 records. Beyond
