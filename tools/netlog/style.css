@@ -480,3 +480,22 @@ li.event-line .time{ min-width:5.5em; }
 
 .field-hint{ display:block; min-height:0; font-size:12.5px; color:var(--warn); }
 .field-hint:empty{ display:none; }
+
+/* ---------- station history (Live Notes) ---------- */
+.station-history{ margin:.2em 0 .6em; }
+.history-toggle{ min-height:0; padding:.3em .6em; font-size:13.5px; background:var(--bg); }
+.history-body{ margin-top:.4em; padding:.6em .8em; border:1px solid var(--line); border-radius:6px; background:var(--bg-raised); max-height:22em; overflow:auto; }
+.history-list, .history-matches, .history-notes{ list-style:none; margin:0; padding:0; }
+.history-session{ padding:.3em 0; border-bottom:1px solid var(--line); }
+.history-session:last-child{ border-bottom:0; }
+.history-head{ display:flex; gap:.6em; align-items:baseline; flex-wrap:wrap; font-weight:600; }
+.history-notes{ margin:.2em 0 0 1em; }
+.history-note{ display:flex; flex-wrap:wrap; gap:.2em .6em; align-items:baseline; font-size:13.5px; }
+.history-open{ display:inline-flex; gap:.5em; text-align:left; }
+.history-when{ color:var(--text-dim); }
+.history-where{ color:var(--text-dim); white-space:nowrap; }
+.history-text{ white-space:pre-wrap; }
+.history-item{ font-size:12.5px; color:var(--text-dim); }
+.history-sub{ font-size:13px; color:var(--text-dim); margin-bottom:.2em; }
+.history-match{ display:flex; flex-wrap:wrap; gap:.3em .8em; align-items:center; font-size:13.5px; padding:.2em 0; }
+.history-match-acts{ display:inline-flex; gap:.3em; }

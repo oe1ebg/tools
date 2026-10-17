@@ -137,6 +137,8 @@ export function remapRecord(store, rec, map) {
   for (const [f, s] of Object.entries(REFS[store] || {})) if (f in r) r[f] = m(s, r[f]);
   if (store === 'events' && EVENT_FT[r.type]) { r.from = m(EVENT_FT[r.type], r.from); r.to = m(EVENT_FT[r.type], r.to); }
   if (store === 'items' && Array.isArray(r.history)) r.history = r.history.map(h => ({ ...h, turnId: m('turns', h.turnId) }));
+  // "not the same station" decisions: participants of other sessions
+  if (store === 'participants' && Array.isArray(r.notSame)) r.notSame = r.notSame.map(id => m('participants', id));
   if (store === 'revisions') {
     r.recordId = m(r.store, r.recordId);
     if (r.record) r.record = remapRecord(r.store, r.record, map);

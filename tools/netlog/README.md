@@ -180,6 +180,26 @@ offers the export, as on any other page without IndexedDB.
 - **Station profiles**: "Save as station profile" in the details keeps the
   identity and details for later sessions (suggested at check-in). A
   session keeps its own copy; editing a profile never changes a session.
+- **Station history** ("History" / "Verlauf", under the station's heading
+  in Live Notes; collapsed, the heading counts earlier sessions, open
+  follow-ups and possible matches): the station's earlier sessions on this
+  device, newest first, across series and ad-hoc nets, each with date, net,
+  the identity as recorded then (if it differs), and its notes with round
+  and topic, reply and task state. Every entry opens its exact source in
+  that session (drafts are saved first; `b` / Back returns with focus,
+  selection and drafts).
+  - The same station automatically: the same station profile, or the same
+    complete base callsign (`OE1ABC` = `OE1ABC/P` = `HB9/OE1ABC`). Never
+    automatic: partial callsigns (`OE1AB?`) and different callsigns; those
+    are offered as "possibly the same station" (a partial call that fits,
+    or the same name) with "Same station" (both participants then share a
+    station profile: the current one's, else the other's, else a new one;
+    the recorded snapshots are not changed) or "Not the same" (not offered
+    again, `notSame` on the participant). Both are undoable.
+  - Deleted sessions and notes are left out until restored. Nothing is
+    looked up or sent; history is read from the local database.
+  Code: `js/history.js` (pure), `js/historyui.js`; tests:
+  `tests/netlog-history.test.mjs`, e2e "station history: …".
 - **Search** (`/`): offline, this session or all sessions, in everything or
   one field (callsigns also partial, names, QTH/locator, notes, prepared
   replies, talking points, after-net tasks). Each result names session,
@@ -333,7 +353,7 @@ shared `eventId` index).
 | `series` | `name`, `description`, `schedule`, `defaults { repeater, freq, mode, ncs }`, `numbering` (`sequential` / `none`) |
 | `sessions` | `seriesId` or null, `number` or null, `name`, `date` (UTC), `own { call, base }`, `radio { repeater, freq, mode }` (repeater optional; picking a listed repeater fills its call and output frequency and sets the mode: its only usable mode, or with several the current one if the repeater has it, otherwise cleared with a hint naming the choices (also for none usable, e.g. TETRA); `freq` MHz or an ADIF band name such as `2m`; sessions from before v0.5 may have the frequency in `repeater`, still read; each saved on its own, merged in the transaction; `mode` a key of `NET_MODES` in `js/export.js` or empty), `suggestedNcs` (copied), `start` / `end` (times, below), `joinedLate`, `currentRoundId`, `ncsId` |
 | `profiles` | reusable station identity (`call`, `name`, `qth`, `locator`, `echolink`, `member`); a session never changes through a profile edit |
-| `participants` | session-specific snapshot: `call` (as typed), `base` (matching identity), `unresolved`, `profileId`, `name`, `qth`, `locator`, `rst`, `echolink`, `member`, `status`, `flags { reception }` (records from before v0.5 may also carry `speak`, `short`, `priority`; kept, no longer shown), `presence [{ from, to }]`, `rosterOrder`, `plannedOrder`, `checkinRoundId` |
+| `participants` | session-specific snapshot: `call` (as typed), `base` (matching identity), `unresolved`, `profileId`, `name`, `qth`, `locator`, `rst`, `echolink`, `member`, `status`, `flags { reception }` (records from before v0.5 may also carry `speak`, `short`, `priority`; kept, no longer shown), `notSame` (optional: ids of other sessions' participants this is not, remapped on import), `presence [{ from, to }]`, `rosterOrder`, `plannedOrder`, `checkinRoundId` |
 | `rounds` | `number`, `order`, `topic`, `start` |
 | `contributions` | a speaking turn: `participantId`, `roundId`, `seq`, `time` |
 | `notes` | one observation: `participantId`, `roundId`, `contributionId` or null, `text`, `seq`, `time` |

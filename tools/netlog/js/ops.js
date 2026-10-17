@@ -719,6 +719,34 @@ export function saveProfile(store, ctx, participantId) {
   });
 }
 
+// ---------- identity across sessions (station history) ----------
+
+// "This is the same station": the current participant and one of another
+// session share a station profile from now on (the current one's, else the
+// other's, else a new one from the current snapshot). Only the profile
+// links change: neither snapshot (call, name, ... as recorded) is touched.
+export function linkSameStation(store, ctx, participantId, otherId) {
+  return runOp(store, { ...ctx, label: 'undo.linkStation' }, async w => {
+    const p = await w.get('participants', participantId);
+    const o = await w.get('participants', otherId);
+    let profileId = p.profileId || o.profileId;
+    if (!profileId) {
+      const prof = w.create('profiles', { call: p.call, base: p.base, name: p.name, qth: p.qth, locator: p.locator, echolink: p.echolink, member: p.member, deleted: null });
+      profileId = prof.id;
+    }
+    if (p.profileId !== profileId) w.put('participants', { ...p, profileId }, p);
+    if (o.profileId !== profileId) w.put('participants', { ...o, profileId }, o);
+    return profileId;
+  });
+}
+
+// "Not the same station": the suggestion is not offered again for this
+// participant (p.notSame); undoable like any edit.
+export function markNotSame(store, ctx, participantId, otherId) {
+  return runOp(store, { ...ctx, label: 'undo.notSame' }, w => w.update('participants', participantId, p => (
+    (p.notSame || []).includes(otherId) ? null : { ...p, notSame: [...(p.notSame || []), otherId] })));
+}
+
 // ---------- correction: moving notes ----------
 
 // Move notes to another participant and/or round. Ids, times, the

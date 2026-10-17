@@ -109,7 +109,7 @@ export function initSearch(app) {
     const r = results[Number(b.dataset.i)];
     opened = true;
     dlg.close();
-    app.navigate(() => openResult(app, r));
+    app.navigate(() => openSource(app, r));
   });
   dlg.addEventListener('close', () => {
     // closed without opening a result: nothing to go back to
@@ -118,8 +118,9 @@ export function initSearch(app) {
   });
 }
 
-// Go to a result and focus it for editing.
-async function openResult(app, r) {
+// Go to a result and focus it for editing (also used by the station
+// history: { kind, field, sessionId, participantId, noteId, roundId, itemId }).
+export async function openSource(app, r) {
   if (r.sessionId !== app.sessionId()) await app.openSessionNow(r.sessionId, 'live');
   const flash = n => { if (!n) return; n.classList.add('highlight'); setTimeout(() => n.classList.remove('highlight'), 2500); };
   if (r.kind === 'participant') {

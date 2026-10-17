@@ -161,6 +161,13 @@
           </div>
           <p id="station-sub" class="hint"></p>
           <p id="station-links" class="station-links online-only"></p>
+          <section id="station-history" class="station-history" data-i18n-attr="aria-label:history.label" aria-label="History of this station" hidden>
+            <button type="button" id="btn-history" class="history-toggle" aria-expanded="false" aria-controls="history-body"></button>
+            <div id="history-body" class="history-body" hidden>
+              <ul id="history-matches" class="history-matches"></ul>
+              <ol id="history-list" class="history-list"></ol>
+            </div>
+          </section>
           <p id="own-turn" class="own-turn" hidden><button type="button" id="btn-own-turn" class="primary" data-i18n="own.myTurn">This is you: open My Turn</button></p>
           <div class="toolbar station-tools">
             <label class="inline-field"><span data-i18n="station.status">Status</span>
