@@ -1159,3 +1159,64 @@ test('a pointer released outside the list does not stop j/k from opening station
   await page.keyboard.press('j');
   await expect(page.locator('#station-call')).toHaveText('OE0QXB');
 });
+
+test('station history: earlier sessions with notes and open follow-ups, the exact source and back, explicit "same station"', async ({ page }) => {
+  await open(page, { lang: 'en' });
+  // two earlier sessions, seeded with the app's own ops (same store, same tab)
+  await page.evaluate(async () => {
+    const ops = await import('./js/ops.js');
+    const app = globalThis.NETLOG_APP;
+    const store = app.store;
+    const tab = app.tab;
+    const series = await ops.createSeries(store, { tab }, { name: 'Wiener Runde' });
+    const s1 = await ops.createSession(store, { tab }, { own: 'OE0QXZ', round: 1, seriesId: series.id, date: '2026-10-02' });
+    let ctx = { sessionId: s1.id, tab };
+    await ops.claimSession(store, s1.id, tab);
+    const a = await ops.addParticipant(store, ctx, { call: 'OE0QXA', name: 'Anna' });
+    const n = await ops.createNote(store, ctx, { participantId: a.id, text: 'new antenna, 7 el yagi' });
+    await ops.toggleTask(store, ctx, n.id, true);
+    const s2 = await ops.createSession(store, { tab }, { own: 'OE0QXZ', round: 1, date: '2026-10-05' });
+    ctx = { sessionId: s2.id, tab };
+    await ops.claimSession(store, s2.id, tab);
+    await ops.addParticipant(store, ctx, { call: 'OE0QX?', name: '' });
+    await app.reload();
+  });
+  await startSession(page);
+  await checkIn(page, 'OE0QXA', 'Anna');
+  await page.locator('#roster button.person', { hasText: 'OE0QXA' }).click();
+  const toggle = page.locator('#btn-history');
+  await expect(toggle).toHaveText('▸ History: 1 earlier session · 1 open · 1 possible');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  // a draft that must survive the trip
+  await page.locator('#station-rounds .composer-text').fill('half typed');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  const list = page.locator('#history-list');
+  await expect(list).toContainText('2026-10-02 · Wiener Runde #1');
+  await expect(list).toContainText('new antenna, 7 el yagi');
+  await expect(list).toContainText('☐ task open');
+  await expect(page.locator('#history-matches')).toContainText('OE0QX? — 2026-10-05 (callsign fits)');
+  // the exact source in the other session, then back
+  await list.locator('button.history-open', { hasText: 'new antenna' }).click();
+  await expect(page.locator('#session-line')).toContainText('Wiener Runde');
+  await expect(page.locator('#station-rounds textarea.note-text').first()).toBeFocused();
+  await expect(page.locator('#station-rounds textarea.note-text').first()).toHaveValue('new antenna, 7 el yagi');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('b');
+  await expect(page.locator('#station-call')).toHaveText('OE0QXA');
+  await expect(page.locator('#session-line')).not.toContainText('Wiener Runde');
+  await expect(page.locator('#station-rounds .composer-text')).toHaveValue('half typed');
+  // the explicit decision: the ad-hoc OE0QX? is the same station
+  await page.locator('#history-matches').getByRole('button', { name: 'Same station' }).click();
+  await expect(toggle).toHaveText('▾ History: 2 earlier sessions · 1 open');
+  await expect(page.locator('#history-list')).toContainText('then: OE0QX?');
+  // undo takes the link back
+  await page.keyboard.press('Escape');
+  await page.locator('#btn-undo').click();
+  await expect(toggle).toHaveText(/1 earlier session · 1 open · 1 possible/);
+  // a station seen nowhere else (OE0QX? could be OE0QXN, so another call)
+  await checkIn(page, 'OE0QYN');
+  await page.locator('#roster button.person', { hasText: 'OE0QYN' }).click();
+  await expect(toggle).toHaveText('▸ History: no earlier sessions on this device');
+  await expect(toggle).toBeDisabled();
+});

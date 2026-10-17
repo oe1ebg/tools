@@ -34,6 +34,7 @@ import { createNav } from './nav.js';
 import { initLog, renderLog, logRows } from './clog.js';
 import { initSearch } from './searchui.js';
 import { initSpeak, renderSpeak, nextSpeaker } from './speak.js';
+import { initHistory, renderHistory, historyStale } from './historyui.js';
 import { initData, renderData, exportBackup } from './dataui.js';
 import { undo, undoStep } from './ops.js';
 
@@ -159,6 +160,7 @@ async function loadSession(id) {
 }
 
 async function reload() {
+  historyStale();
   await loadGlobal();
   if (app.s) await loadSession(app.s.id);
   render();
@@ -261,7 +263,7 @@ app.select = (id, { focus = false } = {}) => {
     else if (!own && app.ui.view === 'turn') switchView('live');
     renderRoster(app);
     renderSpeak(app); // free-form: the button names the selected station
-    if (app.ui.view === 'live') { renderStation(app); renderNotes(app); }
+    if (app.ui.view === 'live') { renderStation(app); renderHistory(app); renderNotes(app); }
     saveUi();
   }
   if (focus) focusRosterRow(id);
@@ -406,7 +408,7 @@ function render() {
   if (inSession) {
     renderSpeak(app);
     renderRoster(app);
-    if (view === 'live') { renderStation(app); renderNotes(app); }
+    if (view === 'live') { renderStation(app); renderHistory(app); renderNotes(app); }
     if (view === 'turn') renderTurn(app);
     if (view === 'log') renderLog(app);
     if (view === 'control') renderControl(app);
@@ -786,6 +788,7 @@ async function main() {
   initLog(app);
   initSpeak(app);
   initSearch(app);
+  initHistory(app);
   initData(app);
   $('#btn-undo').addEventListener('click', () => app.undo(false));
   $('#st-backup').addEventListener('click', () => { if (app.s) exportBackup(app, app.s.id); });
