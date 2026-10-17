@@ -258,8 +258,10 @@ export function renderRoster(app) {
   const isNcs = sel && sel.id === (app.s && app.s.ncsId);
   $('#btn-roster-up').disabled = !sel || isNcs || i <= ncsTop || app.readOnly;
   $('#btn-roster-down').disabled = !sel || isNcs || i < 0 || i >= list.length - 1 || app.readOnly;
-  setAttr($('#btn-roster-up'), 'aria-label', sel ? t('roster.upLabel', { call: callText(sel) }) : null);
-  setAttr($('#btn-roster-down'), 'aria-label', sel ? t('roster.downLabel', { call: callText(sel) }) : null);
+  for (const [id, key] of [['#btn-roster-up', 'roster.upLabel'], ['#btn-roster-down', 'roster.downLabel']]) {
+    setAttr($(id), 'aria-label', sel ? t(key, { call: callText(sel) }) : null);
+    setAttr($(id), 'title', sel ? t(key, { call: callText(sel) }) : null);
+  }
   for (const n of $('#checkin-form').elements) n.disabled = app.readOnly;
 }
 

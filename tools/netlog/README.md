@@ -64,6 +64,9 @@ offers the export, as on any other page without IndexedDB.
   and imports it like any backup (checked first, one transaction,
   identical sessions skipped, differing ones as copies). Messages appear
   on the card.
+- **Session rows** in a series card: the date and the title (with "›")
+  are the link that opens the session; the station count follows; backup,
+  series assignment and delete (last) sit quietly on the right.
 - **Check-in** in the sidebar: callsign (also partial: `OE0QX?`, `?QXB`,
   or just `?`) and an optional name. Known identities from station
   profiles, earlier sessions and the shared Austrian callsign list
@@ -82,9 +85,11 @@ offers the export, as on any other page without IndexedDB.
   selected. Checking out closes the presence interval; coming back opens
   a new one (a reentry). Correcting a callsign keeps the station's id, so
   everything recorded for it stays with it.
-- **Order.** ↑/↓ in the sidebar change the roster order; Net Control has
-  the planned speaking order. Neither ever changes the actual speaking
-  history or starts a round.
+- **Order.** "↑ Nach oben" / "↓ Nach unten" (two equal buttons right
+  under the participant list, above the check-in form) move the selected
+  station one place in the list, which is also the speaking order and
+  Net Control's order; the NCS stays on top. It never changes the actual
+  speaking history or starts a round.
 - **Notes** (Live Notes, below the station): one item per observation, in
   the round sections of the station (newest round first; the current and
   the previous one expanded, how many is set in Net Control; a collapsed
@@ -155,10 +160,15 @@ offers the export, as on any other page without IndexedDB.
 - **My Turn** (`m`): one page, responses first. *Open Responses*: every
   open response of this session (from any round) and the personal talking
   points, in your order (↑/↓), each with its station, observation, reply
-  and a checkbox (or `x`). *Round Notes*: every note of the current round
-  (`p` or the toggle: the previous round, also an empty one; in the first
-  logged round there is none), grouped by station in speaking order,
-  responses marked, replies not repeated. Opening My Turn starts a review
+  and a checkbox (or `x`). *Round Notes*: the current and the previous
+  round together, compact, grouped by station (stations of the current
+  round first, in speaking order, then those only in the previous one);
+  each note is tagged with its round (R4 highlighted = current, R3 muted =
+  previous; the full wording in its tooltip and for screen readers),
+  responses marked, replies not repeated. The heading names both rounds
+  and their topics ("Runde 4 (aktuell) · Runde 3 (vorige)"); in the first
+  round "noch keine vorige Runde". There is nothing to switch (the former
+  `p` toggle is gone). Opening My Turn starts a review
   cycle (a "turn") that survives navigation and reloads: completed items
   stay visible, subdued, until **End Turn**, which clears them (they stay
   in "Completed earlier") and keeps the open ones. Neither changes the
@@ -329,7 +339,6 @@ mode is shown in the toolbar ("Navigation" / "Editing").
 | `r` | flag / unflag the focused note for an on-air response |
 | `m` | My Turn |
 | `.` | Next in the net (like the ▶ button) |
-| `p` | My Turn: current / previous round notes |
 | `x` | My Turn: complete / reopen the focused item |
 | `b` | back to where you came from |
 | `/` | search |
@@ -602,8 +611,8 @@ shared `callbook.js` `baseCall()` on purpose; the names must stay apart.
 | Ad-hoc session mid-round, partial identity resolved later, series assigned later | e2e "ad-hoc session mid-net…", "a partial callsign resolved…", ops tests |
 | Keyboard only: roster, status, NCS, notes, flags, My Turn, completion, back to editing; typing never runs commands | e2e "keyboard only…", "notes: Enter saves…", "net control: keyboard handover…", "My Turn: Enter opens the source…" |
 | Notes adjacent and stable through autosave, switches, collapse, reload, correction; IME Enter | e2e "notes: Enter saves…" |
-| Round 4 queue: round 1 response, points; no tasks, no other sessions; summary switch keeps the queue | e2e "My Turn: round 1 response above…", model tests |
-| Summary: current by default, previous by one key, grouping, no duplicated replies, empty round, no previous in the first | same e2e test, `roundSummary()` tests |
+| Round 4 queue: round 1 response, points; no tasks, no other sessions; the summary leaves the queue as it is | e2e "My Turn: round 1 response above…", model tests |
+| Summary: current and previous round together (changed after the MVP at the user's request: no switching), grouped by station, round tags, no duplicated replies, no previous in the first | same e2e test, `turnSummary()` / `roundSummary()` tests |
 | Station navigation from every view and Back | e2e My Turn, Continuous Log, search tests |
 | Complete/undo/reopen consistent; the cycle survives reloads; End Turn | e2e "My Turn: … x completes, End Turn clears", ops tests |
 | Late check-in, pause, checkout, reentry, handover keep history; no rounds from reorders | e2e "presence…", "net control…" |

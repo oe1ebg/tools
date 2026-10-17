@@ -16,7 +16,7 @@ import { $, el, fill, isComposing } from '../../shared/js/dom.js';
 import { t } from './i18n.js';
 import { keyedList, setText, setAttr, setValue } from './keyed.js';
 import { provenanceButton, renderProvenance, openProvenance } from './historyui.js';
-import { queueItems, openTurn, previousRound, roundSummary, responseOf, liveOf, cmp } from './model.js';
+import { queueItems, openTurn, previousRound, turnSummary, responseOf, liveOf, cmp } from './model.js';
 import { setItemDone, moveItem, addPoint, startTurn, endTurn, setItemText, deleteItem } from './ops.js';
 import { callText } from './roster.js';
 import { autosize, replyKey } from './notes.js';
@@ -80,8 +80,6 @@ export function initTurn(app) {
   });
   form.addEventListener('submit', ev => { ev.preventDefault(); submit(); });
 
-  $('#sum-current').addEventListener('click', () => setSummary(app, 'current'));
-  $('#sum-prev').addEventListener('click', () => setSummary(app, 'previous'));
   $('#sum-groups').addEventListener('click', ev => {
     const b = ev.target.closest('button[data-act]');
     if (!b) return;
@@ -115,16 +113,6 @@ export async function completeItem(app, id, done) {
   return r;
 }
 
-export function setSummary(app, which) {
-  if (which === 'previous' && !previousRound(app.sd.rounds, app.s.currentRoundId)) {
-    app.announce(t('turn.noPrevious'));
-    return false;
-  }
-  app.ui.summary = which;
-  renderTurn(app);
-  app.announce(t(which === 'previous' ? 'turn.showingPrevious' : 'turn.showingCurrent'));
-  return true;
-}
 
 // Open the workspace: start (or resume) the review cycle.
 export async function enterTurn(app) {
@@ -132,11 +120,6 @@ export async function enterTurn(app) {
   await app.act(store => startTurn(store, app.ctx()), { quiet: true });
 }
 
-function summaryRound(app) {
-  const cur = app.sd.rounds.find(r => r.id === app.s.currentRoundId);
-  if (app.ui.summary === 'previous') return previousRound(app.sd.rounds, cur && cur.id) || cur;
-  return cur;
-}
 
 export function renderTurn(app) {
   const s = app.s;
@@ -220,19 +203,13 @@ export function renderTurn(app) {
     },
   });
 
-  // round notes
+  // round notes: the current and the previous round together, by station
   const prev = previousRound(app.sd.rounds, cur && cur.id);
-  if (app.ui.summary === 'previous' && !prev) app.ui.summary = 'current';
-  const sr = summaryRound(app);
-  setText($('#sum-current'), t('turn.current', { n: cur ? cur.number : '?' }));
-  setAttr($('#sum-current'), 'aria-pressed', String(app.ui.summary !== 'previous'));
-  setText($('#sum-prev'), prev ? t('turn.previous', { n: prev.number }) : t('turn.previousNone'));
-  setAttr($('#sum-prev'), 'aria-pressed', String(app.ui.summary === 'previous'));
-  // disabled but focusable, with the reason
-  setAttr($('#sum-prev'), 'aria-disabled', prev ? null : 'true');
-  setText($('#sum-prev-why'), prev ? '' : t('turn.firstRound'));
-  setText($('#sum-topic'), sr ? [t('round.indicator', { n: sr.number }), sr.topic].filter(Boolean).join(' · ') : '');
-  const groups = sr ? roundSummary({ notes: app.sd.notes, contributions: app.sd.contributions, participants: app.sd.participants, roundId: sr.id }) : [];
+  const roundText = (r, which) => `${t(`turn.roundTag.${which}`, { n: r.number })}${r.topic ? ` (${r.topic})` : ''}`;
+  setText($('#sum-topic'), cur
+    ? [roundText(cur, 'current'), prev ? roundText(prev, 'previous') : t('turn.noPreviousRound')].join(' · ')
+    : '');
+  const groups = cur ? turnSummary({ notes: app.sd.notes, contributions: app.sd.contributions, participants: app.sd.participants, current: cur, previous: prev }) : [];
   keyedList($('#sum-groups'), groups, {
     key: g => g.participant.id,
     create: () => el('section', { class: 'sum-group' },
@@ -243,31 +220,38 @@ export function renderTurn(app) {
       const b = h.firstChild;
       const p = g.participant;
       b.dataset.pid = p.id;
-      b.dataset.round = sr.id;
+      b.dataset.round = cur.id;
       setText(b, `${callText(p)}${p.name ? ` · ${p.name}` : ''}`);
       setAttr(b, 'aria-label', t('turn.stationNotes', { call: callText(p) }));
       if (!ul.id) ul.id = `sum-${p.id}`;
-      keyedList(ul, g.notes, {
-        key: n => n.id,
-        create: () => el('li', { class: 'sum-note', tabindex: '-1' }, el('span', { class: 'sum-text' }), ' ', el('span', { class: 'badges' }), ' ', el('button', { type: 'button', class: 'mini link', 'data-act': 'note' })),
-        update: (li, n) => {
-          const [text, badges, open] = [li.children[0], li.children[1], li.children[2]];
+      keyedList(ul, g.entries, {
+        key: e => e.note.id,
+        create: () => el('li', { class: 'sum-note', tabindex: '-1' },
+          el('span', { class: 'sum-round mono' }), el('span', { class: 'sum-text' }), el('span', { class: 'badges' }),
+          el('button', { type: 'button', class: 'mini link', 'data-act': 'note' })),
+        update: (li, e) => {
+          const n = e.note;
+          const [tag, text, badges, open] = li.children;
+          const which = t(`turn.roundWhich.${e.which}`, { n: e.round.number });
+          setText(tag, `R${e.round.number}`);
+          setAttr(tag, 'title', which);
+          li.classList.toggle('previous', e.which === 'previous');
           setText(text, n.text);
           const resp = responseOf(app.sd.items, n.id);
           const flagged = resp && resp.active !== false;
           const label = flagged ? t(resp.state === 'done' ? 'note.respDone' : 'note.respOpen') : '';
           if (badges.dataset.sig !== label) { badges.dataset.sig = label; fill(badges, label ? el('span', { class: `pill ${resp.state === 'done' ? 'ok' : 'warn'}` }, label) : null); }
           li.classList.toggle('flagged', !!flagged && resp.state !== 'done');
-          setAttr(li, 'aria-label', `${callText(p)}: ${n.text}${label ? `, ${label}` : ''}`);
+          setAttr(li, 'aria-label', `${callText(p)}, ${which}: ${n.text}${label ? `, ${label}` : ''}`);
           open.dataset.pid = p.id;
-          setText(open, t('turn.toNote'));
+          setText(open, '→');
           setAttr(open, 'aria-label', t('turn.toNoteLabel', { call: callText(p) }));
         },
       });
     },
   });
   $('#sum-empty').hidden = groups.length > 0;
-  setText($('#sum-empty'), t('turn.noRoundNotes'));
+  setText($('#sum-empty'), t('turn.noRoundNotes2'));
   $('#btn-end-turn').disabled = app.readOnly || !turn;
   setText($('#turn-cycle'), turn ? t('turn.cycleSince', { time: hmz(turn.started) }) : '');
 }

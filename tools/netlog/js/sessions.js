@@ -290,26 +290,30 @@ export function renderSessions(app) {
           const sig = [s.updated, app.lang(), count, s.id === app.sessionId(), series.map(x => x.id + x.name).join()].join('|');
           if (li.dataset.sig === sig) return;
           li.dataset.sig = sig;
+          // the title is the open link (the primary action, where the eye
+          // starts); the secondary actions follow quietly, delete last
+          const main = s.deleted
+            ? el('span', { class: 'session-main' }, el('span', { class: 'session-title' }, el('span', { class: 'mono session-date' }, s.date || ''), ' ', label))
+            : el('button', { type: 'button', class: 'session-main session-open', 'data-act': 'open', 'data-id': s.id, 'aria-label': t('session.openLabel', { name: label }) },
+              el('span', { class: 'session-title' }, el('span', { class: 'mono session-date' }, s.date || ''), ' ', label, ' ›'));
           fill(li,
-            el('span', { class: 'session-main' },
-              el('b', {}, label),
-              ' ', el('span', { class: 'mono' }, s.date || ''),
+            main,
+            el('span', { class: 'session-info' },
               s.id === app.sessionId() ? el('span', { class: 'pill' }, t('session.current')) : null,
-              ' ', el('small', { class: 'hint' }, t('session.participants', { n: count }))),
-            s.deleted
+              el('small', { class: 'hint' }, t('session.participants', { n: count }))),
+            el('span', { class: 'session-acts' }, s.deleted
               ? [
                 el('button', { type: 'button', class: 'mini', 'data-act': 'restore', 'data-id': s.id, 'aria-label': t('session.restoreLabel', { name: label }) }, t('common.restore')),
                 el('button', { type: 'button', class: 'mini danger', 'data-act': 'erase', 'data-id': s.id, 'aria-label': t('session.eraseLabel', { name: label }) }, t('session.erase')),
               ]
               : [
                 el('button', { type: 'button', class: 'mini', 'data-act': 'export', 'data-id': s.id, 'aria-label': t('session.exportLabel', { name: label }) }, t('session.export')),
-                el('button', { type: 'button', class: 'mini primary', 'data-act': 'open', 'data-id': s.id, 'aria-label': t('session.openLabel', { name: label }) }, t('session.open')),
                 el('label', { class: 'inline-field' }, el('span', { class: 'sr-only' }, t('session.assignLabel', { name: label })),
                   el('select', { 'data-assign': s.id },
                     el('option', { value: '' }, t('session.adHoc')),
                     series.map(x => el('option', { value: x.id, selected: x.id === s.seriesId }, x.name)))),
                 el('button', { type: 'button', class: 'mini danger', 'data-act': 'delete', 'data-id': s.id, 'aria-label': t('session.deleteLabel', { name: label }) }, t('common.delete')),
-              ]);
+              ]));
         },
       });
       if (!open) return;
