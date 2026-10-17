@@ -15,7 +15,7 @@ import { NETLOG_STORES, SESSION_STORES } from './db.js';
 import { BACKUP_STORES, planImport } from './backup.js';
 import {
   normCall, callBase, isUnresolved, timeOf, changeStatus, nextOrder, moveInOrder,
-  rosterSorted, nextSessionNumber, seriesDefaults, live, FLAGS,
+  rosterSorted, nextSessionNumber, seriesDefaults, live, FLAGS, NET_STYLES,
   nextSeq, nextRoundNumber, latestContribution, responseOf, queueItems, openTurn, QUEUE_KINDS,
 } from './model.js';
 
@@ -247,7 +247,7 @@ export function createSession(store, ctx, fields) {
       own: { call: own, base: callBase(own) },
       radio: { ...defs.radio, ...(fields.radio || {}) },
       suggestedNcs: defs.suggestedNcs,
-      style: fields.style === 'circle' || fields.style === 'star' ? fields.style : defs.style,
+      style: NET_STYLES.includes(fields.style) ? fields.style : defs.style,
       start: fields.joined ? timeOf(null) : timeOf(w.now),
       end: timeOf(null),
       joinedLate: !!fields.joined,

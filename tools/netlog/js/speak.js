@@ -1,10 +1,15 @@
 // Running the round: above the roster, who is on air and who is next, and
-// one button that moves on. Star (directed net): every station gives back
-// to the NCS, the button calls the next station in the planned order (the
-// NCS speaks in between, not recorded). Circle (round-robin): the button
-// passes to the next station, the NCS included. Both skip stations that
-// are paused, listening or checked out. When everyone has spoken the same
-// button offers the next round: a suggestion, the user decides.
+// one button that moves on (also `.`). The speaking order (session.style):
+//   star   central control / Sternverkehr: every station gives back to the
+//          NCS, who calls the next one (NCS -> A -> NCS -> B ...); without
+//          an NCS nothing is predicted and the panel asks for one;
+//   circle round-robin / Reihum: the button passes to the next station,
+//          the NCS included;
+//   free   free-form / Freie Runde: no order, no prediction, no NCS needed;
+//          the button records that the selected station speaks (optional).
+// Paused, monitoring and checked-out stations are skipped. When everyone
+// has spoken (star, circle) the button offers the next round: a
+// suggestion, the user decides. Selecting a station never records anything.
 
 import { $, el, fill } from '../../shared/js/dom.js';
 import { t } from './i18n.js';
@@ -60,6 +65,15 @@ export async function startNextRound(app) {
 export async function nextSpeaker(app) {
   if (!app.s || app.readOnly) return;
   const st = speakingState({ session: app.s, participants: app.sd.participants, contributions: app.sd.contributions });
+  if (st.free) {
+    // free-form: the selected station speaks (recorded on request only)
+    const p = app.participant(app.ui.selected);
+    if (!p) return;
+    const c = await app.act(store => addContribution(store, app.ctx(), p.id));
+    if (c) app.announce(t('speak.nowOnAir', { call: callText(p) }));
+    return;
+  }
+  if (st.needsNcs) return;
   if (st.complete || !st.next) { await startNextRound(app); return; }
   const p = st.next;
   const c = await app.act(store => addContribution(store, app.ctx(), p.id));
@@ -87,6 +101,11 @@ export function topologyIcon(style) {
   if (style === 'star') {
     for (const [x, y] of pts) root.append(svg('line', { x1: 12, y1: 12, x2: x.toFixed(1), y2: y.toFixed(1), class: 'spoke' }));
     root.append(svg('circle', { cx: 12, cy: 12, r: 3.2, class: 'hub' }));
+  } else if (style === 'free') {
+    // anyone with anyone: a few loose links, no centre, no ring
+    for (const [a, b] of [[0, 2], [1, 3], [2, 4], [3, 0], [4, 1]]) {
+      root.append(svg('line', { x1: pts[a][0].toFixed(1), y1: pts[a][1].toFixed(1), x2: pts[b][0].toFixed(1), y2: pts[b][1].toFixed(1), class: 'mesh' }));
+    }
   } else {
     root.append(svg('circle', { cx: 12, cy: 12, r: 9, class: 'ring' }));
   }
@@ -115,8 +134,9 @@ export function renderSpeak(app) {
   ul.classList.toggle('topo-star', style === 'star' && !!st.ncs);
   ul.classList.toggle('topo-circle', style === 'circle');
   const hint = $('#topo-hint');
-  hint.hidden = !st.order.length;
-  setText(hint, t(style === 'circle' ? 'topo.circleHint' : 'topo.starHint', { ncs: st.ncs ? callText(st.ncs) : t('ncs.short') }));
+  hint.hidden = !app.sd.participants.some(p => !p.deleted);
+  setText(hint, st.free ? t('topo.freeHint') : st.needsNcs ? t('topo.needsNcs')
+    : t(style === 'circle' ? 'topo.circleHint' : 'topo.starHint', { ncs: st.ncs ? callText(st.ncs) : t('ncs.short') }));
   const round = app.sd.rounds.find(r => r.id === app.s.currentRoundId);
   const name = p => `${callText(p)}${isOwn(app, p) ? ` (${t('own.badge')})` : ''}`;
   const icon = $('#speak-style');
@@ -137,12 +157,29 @@ export function renderSpeak(app) {
   // always there (no jumping): about me, or how far the round is
   const meP = $('#speak-me');
   const doneN = st.order.filter(p => st.spoken.has(p.id)).length;
-  setText(meP, meState ? t(`speak.me.${meState}`) : st.order.length ? t('speak.progress', { n: round ? round.number : '?', done: doneN, all: st.order.length }) : '');
+  setText(meP, meState ? t(`speak.me.${meState}`)
+    : st.free ? t('speak.freeLine')
+      : st.needsNcs ? t('speak.needsNcsLine')
+        : st.order.length ? t('speak.progress', { n: round ? round.number : '?', done: doneN, all: st.order.length }) : '');
   for (const k of ['onAir', 'next', 'soon']) {
     $('#speak-panel').classList.toggle(`me-${k}`, meState === k);
     $('#tab-turn').classList.toggle(`me-${k}`, meState === k);
   }
   const b = $('#btn-next');
+  b.classList.toggle('suggest-round', !!st.complete);
+  if (st.free) {
+    const sel = app.participant(app.ui.selected);
+    setText(b, sel ? t('speak.freeBtn', { call: name(sel) }) : t('speak.freePick'));
+    setAttr(b, 'aria-label', sel ? t('speak.freeLabel', { call: callText(sel) }) : t('speak.freePick'));
+    b.disabled = app.readOnly || !sel;
+    return;
+  }
+  if (st.needsNcs) {
+    setText(b, t('speak.needsNcsBtn'));
+    setAttr(b, 'aria-label', t('speak.needsNcsBtn'));
+    b.disabled = true;
+    return;
+  }
   const nextNo = Math.max(0, ...roundsSorted(app.sd.rounds).map(r => r.number || 0)) + 1;
   setText(b, st.complete || !st.next ? t('speak.newRound', { n: nextNo }) : t('speak.nextBtn', { call: name(st.next) }));
   setAttr(b, 'aria-label', st.complete || !st.next ? t('speak.newRoundLabel', { n: nextNo }) : t('speak.nextLabel', { call: callText(st.next) }));

@@ -260,6 +260,7 @@ app.select = (id, { focus = false } = {}) => {
     if (own && app.ui.view === 'live') switchView('turn');
     else if (!own && app.ui.view === 'turn') switchView('live');
     renderRoster(app);
+    renderSpeak(app); // free-form: the button names the selected station
     if (app.ui.view === 'live') { renderStation(app); renderNotes(app); }
     saveUi();
   }

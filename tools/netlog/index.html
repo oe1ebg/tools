@@ -253,10 +253,11 @@
                   <option value="DMR">DMR</option><option value="DSTAR">D-STAR</option><option value="C4FM">C4FM (Fusion)</option>
                   <option value="M17">M17</option><option value="FREEDV">FreeDV</option>
                 </select><small id="se-mode-hint" class="field-hint" aria-live="polite"></small></label>
-              <label class="field"><span data-i18n="style.label">Net style</span>
+              <label class="field"><span data-i18n="style.label">Speaking order</span>
                 <select id="se-style">
-                  <option value="star" data-i18n="style.star">Star: every station gives back to the NCS</option>
-                  <option value="circle" data-i18n="style.circle">Circle: stations hand over in turn</option>
+                  <option value="star" data-i18n="style.star">Central control: every station gives back to net control, which calls the next</option>
+                  <option value="circle" data-i18n="style.circle">Round-robin: each station passes to the next in the sequence</option>
+                <option value="free" data-i18n="style.free">Free-form: stations speak spontaneously, no fixed order, no net control needed</option>
                 </select></label>
             </form>
             <p class="hint" data-i18n="control.ownHint">Your own station is marked "me" in the lists; My Turn is yours.</p>
@@ -333,10 +334,11 @@
                   <option value="DMR">DMR</option><option value="DSTAR">D-STAR</option><option value="C4FM">C4FM (Fusion)</option>
                   <option value="M17">M17</option><option value="FREEDV">FreeDV</option>
                 </select><small id="sf-mode-hint" class="field-hint" aria-live="polite"></small></label>
-            <label class="field"><span data-i18n="style.label">Net style</span>
+            <label class="field"><span data-i18n="style.label">Speaking order</span>
               <select id="sf-style">
-                <option value="star" data-i18n="style.star">Star: every station gives back to the NCS</option>
-                <option value="circle" data-i18n="style.circle">Circle: stations hand over in turn</option>
+                <option value="star" data-i18n="style.star">Central control: every station gives back to net control, which calls the next</option>
+                <option value="circle" data-i18n="style.circle">Round-robin: each station passes to the next in the sequence</option>
+                <option value="free" data-i18n="style.free">Free-form: stations speak spontaneously, no fixed order, no net control needed</option>
               </select></label>
             <label class="field"><span data-i18n="session.round">Starting round</span><input id="sf-round" class="mono" inputmode="numeric" autocorrect="off" value="1"></label>
             <label class="check"><input id="sf-joined" type="checkbox"> <span data-i18n="session.joined">Joining a net that is already running (start time unknown)</span></label>
@@ -364,10 +366,11 @@
                   <option value="M17">M17</option><option value="FREEDV">FreeDV</option>
                 </select><small id="srf-mode-hint" class="field-hint" aria-live="polite"></small></label>
             <label class="field"><span data-i18n="series.ncs">Usual net control (suggestion)</span><input id="srf-ncs" class="call-input mono" autocapitalize="characters" autocorrect="off" spellcheck="false"></label>
-            <label class="field"><span data-i18n="style.label">Net style</span>
+            <label class="field"><span data-i18n="style.label">Speaking order</span>
               <select id="srf-style">
-                <option value="star" data-i18n="style.star">Star: every station gives back to the NCS</option>
-                <option value="circle" data-i18n="style.circle">Circle: stations hand over in turn</option>
+                <option value="star" data-i18n="style.star">Central control: every station gives back to net control, which calls the next</option>
+                <option value="circle" data-i18n="style.circle">Round-robin: each station passes to the next in the sequence</option>
+                <option value="free" data-i18n="style.free">Free-form: stations speak spontaneously, no fixed order, no net control needed</option>
               </select></label>
             <label class="field"><span data-i18n="series.numbering">Session numbers</span>
               <select id="srf-numbering">

@@ -221,3 +221,26 @@ test('star net: after each station the turn goes back to the NCS; complete when 
   assert.equal(st.complete, true);
   assert.equal(st.next, null);
 });
+
+test('free-form: no prediction, no completion, no NCS needed; central control without an NCS predicts nothing', () => {
+  const ps = [
+    { id: 'a', call: 'OE0QXA', status: 'active', rosterOrder: 1 },
+    { id: 'b', call: 'OE0QXB', status: 'active', rosterOrder: 2 },
+  ];
+  const turns = [{ id: 'c1', participantId: 'b', roundId: 'r', seq: 1 }, { id: 'c2', participantId: 'b', roundId: 'r', seq: 2 }];
+  let st = speakingState({ session: { style: 'free', currentRoundId: 'r' }, participants: ps, contributions: turns });
+  assert.equal(st.free, true);
+  assert.equal(st.onAir.id, 'b', 'the last recorded speaker, also repeated');
+  assert.equal(st.next, null);
+  assert.equal(st.complete, false);
+  assert.deepEqual(st.order, []);
+  st = speakingState({ session: { style: 'free', currentRoundId: 'r' }, participants: ps, contributions: [] });
+  assert.equal(st.onAir, null, 'no NCS is invented as the opener');
+  st = speakingState({ session: { style: 'star', currentRoundId: 'r' }, participants: ps, contributions: turns.slice(0, 1) });
+  assert.equal(st.needsNcs, true);
+  assert.equal(st.next, null, 'never a quiet round-robin');
+  assert.equal(st.complete, false);
+  assert.equal(netStyle({ style: 'free' }), 'free');
+  assert.equal(netStyle({ style: 'nonsense' }), 'star');
+  assert.equal(seriesDefaults({ defaults: { style: 'free' } }).style, 'free');
+});

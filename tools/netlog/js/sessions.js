@@ -8,12 +8,15 @@ import { isoBindDateField, isoDateFromText } from '../../shared/js/isodate.js';
 import { prefGet, prefSet } from '../../shared/js/prefs.js';
 import { t } from './i18n.js';
 import { keyedList, setText } from './keyed.js';
-import { liveOf, nextSessionNumber, sessionLabel, sessionsOf, normCall, cmp } from './model.js';
+import { liveOf, nextSessionNumber, sessionLabel, sessionsOf, normCall, cmp, NET_STYLES } from './model.js';
 import { createSession, createSeries, updateSeries, assignSeries, deleteSession } from './ops.js';
 import { sessionAction } from './dataui.js';
 import { attachRepeaterField, attachCallField } from './fieldsearch.js';
 
 export const OWN_PREF = 'oe1ebg-netlog-own-call';
+
+// A series' default speaking order for the select.
+const styleOf = series => (series && NET_STYLES.includes(series.defaults.style) ? series.defaults.style : 'star');
 
 export function initSessions(app) {
   const sForm = $('#session-form');
@@ -34,7 +37,7 @@ export function initSessions(app) {
     $('#sf-name').value = '';
     $('#sf-round').value = '1';
     $('#sf-joined').checked = false;
-    { const sr = app.data.series.find(s => s.id === seriesId); $('#sf-style').value = sr && sr.defaults.style === 'circle' ? 'circle' : 'star'; }
+    { const sr = app.data.series.find(s => s.id === seriesId); $('#sf-style').value = styleOf(sr); }
     setText($('#sf-error'), '');
     suggestNumber(app);
     $('#sf-series').focus();
@@ -54,7 +57,7 @@ export function initSessions(app) {
     $('#srf-mode').value = series ? series.defaults.mode || '' : '';
     $('#srf-ncs').value = series ? series.defaults.ncs || '' : '';
     $('#srf-numbering').value = series ? series.numbering : 'sequential';
-    $('#srf-style').value = series && series.defaults.style === 'circle' ? 'circle' : 'star';
+    $('#srf-style').value = styleOf(series);
     setText($('#srf-error'), '');
     $('#srf-name').focus();
   };
@@ -170,7 +173,7 @@ function suggestNumber(app) {
   $('#sf-repeater').value = series ? series.defaults.repeater || '' : '';
   $('#sf-freq').value = series ? series.defaults.freq || '' : '';
   $('#sf-mode').value = series ? series.defaults.mode || '' : '';
-  $('#sf-style').value = series && series.defaults.style === 'circle' ? 'circle' : 'star';
+  $('#sf-style').value = styleOf(series);
   $('#sf-repeater').placeholder = '';
 }
 

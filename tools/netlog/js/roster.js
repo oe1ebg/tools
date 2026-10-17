@@ -160,9 +160,15 @@ export function initRoster(app) {
   // Keyboard focus (j/k, Tab) selects at once; a pointer selects on its
   // click: re-rendering on pointer-down would change the page height
   // under the pointer, and the release would land elsewhere.
+  // The release may land outside the roster (a tap that shifts the layout
+  // on a phone): it is caught document-wide, and any key ends pointer mode,
+  // or j/k would only move the focus from then on.
   let pointer = false;
+  const pointerDone = () => { setTimeout(() => { pointer = false; }, 0); };
   $('#roster').addEventListener('pointerdown', () => { pointer = true; });
-  $('#roster').addEventListener('pointerup', () => { setTimeout(() => { pointer = false; }, 0); });
+  document.addEventListener('pointerup', pointerDone, true);
+  document.addEventListener('pointercancel', pointerDone, true);
+  document.addEventListener('keydown', () => { pointer = false; }, true);
   $('#roster').addEventListener('focusin', ev => {
     const li = ev.target.closest('li');
     if (pointer) return;
