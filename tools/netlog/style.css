@@ -576,3 +576,14 @@ li.event-line .time{ min-width:5.5em; }
 @media (pointer: coarse){ .roster-move button{ min-height:40px; } }
 /* history entries: targets of at least 24 px (WCAG 2.5.8) */
 .station-history button.history-open{ min-height:24px; align-items:center; }
+/* history entries on narrow screens: time and round on one line, the text
+   below it in the full width (not squeezed into a narrow column) */
+@media (max-width: 700px){
+  .station-history .history-note{ display:block; margin-bottom:.45em; }
+  .station-history button.history-open{ display:grid; grid-template-columns:auto 1fr; gap:.1em .5em; width:100%; }
+  .station-history .history-text{ grid-column:1 / -1; }
+  .station-history .history-where{ white-space:normal; }
+  .station-history .history-notes{ margin-left:.3em; }
+  .station-history button.history-open{ width:auto; max-width:100%; }
+  .station-history .history-item{ margin:.1em 0 .3em; }
+}

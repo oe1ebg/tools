@@ -453,3 +453,6 @@ input.iso-date[aria-invalid="true"]{ color:var(--err); }
    instead of pushing a narrow page sideways (1.4.10) */
 .badge{ display:inline-flex; align-items:center; min-height:24px; }
 #site-header{ flex-wrap:wrap; }
+
+/* calendar buttons next to ISO date fields: at least 24x24 px (WCAG 2.5.8) */
+.date-pick{ min-width:24px; min-height:24px; justify-content:center; }

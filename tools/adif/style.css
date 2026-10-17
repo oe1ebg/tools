@@ -567,3 +567,16 @@ body.compact #toolbar{ column-gap:.6em; }
    instead of pushing a narrow page sideways (1.4.10) */
 .badge{ display:inline-flex; align-items:center; min-height:24px; }
 #site-header{ flex-wrap:wrap; }
+
+/* "×" (remove column / delete row): at least 24×24 CSS px (WCAG 2.5.8);
+   the row keeps its height (negative margins), the virtual table measures
+   it from the first row */
+thead th .rmcol{ display:inline-flex; align-items:center; justify-content:center; min-width:24px; min-height:24px; }
+td.rownum .del{ display:inline-flex; align-items:center; justify-content:center; min-width:24px; min-height:24px; margin:-.35em -.2em -.35em .4em; }
+
+/* calendar buttons next to ISO date fields: at least 24x24 px (WCAG 2.5.8) */
+.date-pick{ min-width:24px; min-height:24px; justify-content:center; }
+
+/* filter selects never wider than the screen (WCAG 1.4.10): long field names are cut in the closed select */
+.flt-line select{ max-width:100%; min-width:0; }
+#filter-bar{ grid-template-columns:minmax(0, 1fr); }
