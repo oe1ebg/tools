@@ -6,6 +6,7 @@ import { readADI } from '../adif-spec.mjs';
 import { validateAdif } from '../../tools/shared/js/adif-validate.js';
 import { parseADIFAuto } from '../../tools/shared/js/adif.js';
 import { serializeADIF } from '../../tools/adif/js/export.js';
+import { ADIF_CORE_COLUMNS } from '../../tools/adif/js/columns.js';
 import { readFileSync } from 'node:fs';
 
 const SAMPLE = fileURLToPath(new URL('fixtures/sample.adi', import.meta.url));
@@ -883,4 +884,41 @@ test('the QSO_DATE range is typed as ISO dates', { tag: '@adif' }, async ({ page
   await page.locator('#flt-clear').click();
   await expect(page.locator('#flt-to')).not.toHaveAttribute('aria-invalid', /.*/);
   await expect(rows).toHaveCount(4);
+});
+
+// #108 B4: the table shows the core fields first; "file order" shows the
+// file's order, remembered on this device. Exports keep the file's order
+// either way.
+test('core fields first in the table, file order on request; the export order stays the file order', async ({ page }) => {
+  await page.goto('tools/adif/');
+  await page.locator('#file-input').setInputFiles(OFFICIAL);
+  await expect(page.locator('#drop table')).toBeVisible();
+  const heads = () => page.locator('#drop thead th[data-col]').evaluateAll(ths => ths.map(th => th.dataset.col));
+  const fileOrder = Object.keys(parseADIFAuto(readFileSync(OFFICIAL, 'utf8'), []).reduce((o, r) => Object.assign(o, r), {}));
+  const core = await heads();
+  const coreHere = ADIF_CORE_COLUMNS.filter(c => fileOrder.includes(c));
+  expect(coreHere.slice(0, 3)).toEqual(['CALL', 'QSO_DATE', 'TIME_ON']);
+  expect(core.slice(0, coreHere.length)).toEqual(coreHere);
+  await expect(page.locator('#col-order button[data-col-order="core"]')).toHaveAttribute('aria-pressed', 'true');
+
+  const exportFields = async () => {
+    const dl = page.waitForEvent('download');
+    await page.locator('#btn-export').click();
+    const text = await downloadText(await dl);
+    return [...text.slice(text.indexOf('<EOH>')).matchAll(/<([A-Z_0-9]+):/gi)].map(m => m[1].toUpperCase());
+  };
+  const before = await exportFields();
+
+  await page.locator('#col-order button[data-col-order="file"]').click();
+  await expect(page.locator('#col-order button[data-col-order="file"]')).toHaveAttribute('aria-pressed', 'true');
+  const file = await heads();
+  expect(file).toEqual(fileOrder.filter(c => file.includes(c)));
+  expect(new Set(file)).toEqual(new Set(core));
+  expect(await exportFields()).toEqual(before);
+
+  // remembered after a reload
+  await page.reload();
+  await page.locator('#file-input').setInputFiles(OFFICIAL);
+  await expect(page.locator('#drop table')).toBeVisible();
+  expect(await heads()).toEqual(file);
 });

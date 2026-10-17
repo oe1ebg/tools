@@ -733,6 +733,19 @@ The tool targets and declares **ADIF 3.1.8** (https://www.adif.org/318/ADIF_318.
   hand-typed from memory, so it stays accurate to the spec. Re-run that
   transform against the new export if/when the target version changes.
 
+## Column order
+
+The table shows the core fields of a QSO first (`js/columns.js`:
+CALL, QSO_DATE, TIME_ON, TIME_OFF, BAND, FREQ, MODE, SUBMODE, RST_SENT,
+RST_RCVD, NAME, QTH, GRIDSQUARE, as far as the log has them), then the other
+fields in the order of the file. Otherwise a log such as the official test
+QSOs would start with REMOTE_STATION_LAT, QSO_TRANSCRIPT and MY_AMP, with
+CALL and the date far to the right (#108 B4). The toolbar's "core fields
+first / file order" switch shows the file's order instead; the choice is
+kept on this device (`oe1ebg-adif-column-order`). **Exports always write
+the file's order** (fields in order of first appearance, added fields last),
+whatever the table shows, so an export does not change with the view.
+
 ## Exports
 
 Besides `.adi` and `.adx`, the toolbar offers:

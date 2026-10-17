@@ -36,6 +36,10 @@
   <button type="button" id="btn-new" title="start an empty log">new</button>
   <button type="button" id="btn-clear" title="remove the whole log from the editor" disabled>clear…</button>
   <input id="file-input" type="file" accept=".adi,.adif,.adx,.txt" multiple hidden>
+  <div id="col-order" class="toggle" role="group" aria-label="column order" title="the order of the table's columns; exports keep the file's order">
+    <button type="button" data-col-order="core" aria-pressed="true">core fields first</button>
+    <button type="button" data-col-order="file" aria-pressed="false">file order</button>
+  </div>
   <span id="stats"></span>
   <div class="spacer"></div>
   <input id="filename-input" type="text" value="export.adi" title="export filename" aria-label="export filename" autocomplete="off" spellcheck="false">
@@ -183,6 +187,7 @@
           <dt><kbd>Alt</kbd>+<kbd>↓</kbd></dt><dd>in a date field: open the calendar</dd>
           <dt><kbd>?</kbd></dt><dd>this help (outside table cells and fields)</dd>
         </dl>
+        <p>The table shows the core fields (CALL, date, time, band, mode …) first; "file order" in the toolbar shows the file's order. Exports always keep the file's order.</p>
         <p>Fields with a fixed list in ADIF (BAND, MODE, DXCC, QSL status …) are drop-downs; the empty choice removes the field. A value is never changed by showing it. Dates are shown as YYYY-MM-DD, times as HH:MM or HH:MM:SS (UTC); the file keeps the ADIF format. Edits that were not exported make the browser ask before the tab closes.</p>
       </section>
       <section id="h-check" aria-labelledby="h-check-t">
