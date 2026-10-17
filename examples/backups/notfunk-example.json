@@ -1,0 +1,471 @@
+{
+ "format": "oe1ebg-notfunk-backup",
+ "version": 1,
+ "exported": "2026-10-17T12:00:00.000Z",
+ "operation": {
+  "id": "demo-notfunk-lindenhain-2026-example",
+  "name": "DEMO / ÜBUNG · Modellpark Lindenhain · Kurzbeispiel",
+  "prefix": "D1",
+  "call": "OE0QXA",
+  "station": "Übungsleitstelle Lindenhain (fiktiv)",
+  "operator": "OE0QXA",
+  "home": "Übungsleitung",
+  "freq": "145.500",
+  "via": "",
+  "created": "2026-07-18T08:00:00.000Z",
+  "updated": "2026-07-18T10:30:00.000Z",
+  "archived": false
+ },
+ "messages": [
+  {
+   "id": "demo-notfunk-message-1-example",
+   "eventId": "demo-notfunk-lindenhain-2026-example",
+   "prefix": "D1",
+   "seq": 1,
+   "number": "D1-001",
+   "direction": "in",
+   "ts": "2026-07-18T08:00:00.000Z",
+   "channel": "funk",
+   "radio": {
+    "freq": "145.500",
+    "via": ""
+   },
+   "peer": "OE0QXB",
+   "type": "meldung",
+   "priority": "routine",
+   "from": {
+    "name": "Jona / Übungsstation",
+    "call": "OE0QXB",
+    "contact": ""
+   },
+   "to": {
+    "name": "Mira / Übungsstation",
+    "call": "OE0QXA",
+    "contact": ""
+   },
+   "distribution": [
+    "Übungsleitung"
+   ],
+   "subject": "ÜBUNG: Funkbereitschaft",
+   "text": "ÜBUNG – KEIN REALEINSATZ.\nStation Modellbrücke meldet Funkbereitschaft. Drei Übungsteilnehmer sind am markierten Platz.\nENDE DER ÜBUNGSMELDUNG.",
+   "stichzeit": null,
+   "origin": {
+    "station": "OE0QXB",
+    "place": "Modellpark Lindenhain (fiktiv)",
+    "filed": "2026-07-18T08:00:00.000Z",
+    "placeLoc": null
+   },
+   "readBack": false,
+   "location": null,
+   "replyTo": null,
+   "refKind": null,
+   "refNumber": "",
+   "staffRef": "DEMO-100",
+   "remarks": "Vollständig erfundene Übungsmeldung.",
+   "operator": "OE0QXA",
+   "stationCall": "OE0QXA",
+   "status": [
+    {
+     "state": "logged",
+     "at": "2026-07-18T08:00:00.000Z",
+     "by": "OE0QXA",
+     "note": ""
+    },
+    {
+     "state": "forwarded",
+     "at": "2026-07-18T08:00:30.000Z",
+     "recorded": "2026-07-18T08:00:30.000Z",
+     "by": "OE0QXA",
+     "to": "Übungsleitung",
+     "who": "",
+     "note": ""
+    },
+    {
+     "state": "acknowledged",
+     "at": "2026-07-18T08:01:00.000Z",
+     "recorded": "2026-07-18T08:01:00.000Z",
+     "by": "OE0QXA",
+     "to": "",
+     "who": "OE0QXA",
+     "note": ""
+    }
+   ],
+   "attempts": [],
+   "created": "2026-07-18T08:00:00.000Z",
+   "updated": "2026-07-18T08:01:00.000Z",
+   "deleted": null
+  },
+  {
+   "id": "demo-notfunk-message-2-example",
+   "eventId": "demo-notfunk-lindenhain-2026-example",
+   "prefix": "D1",
+   "seq": 2,
+   "number": "D1-002",
+   "direction": "out",
+   "ts": "2026-07-18T08:04:00.000Z",
+   "channel": "funk",
+   "radio": {
+    "freq": "145.500",
+    "via": ""
+   },
+   "peer": "OE0QXB",
+   "type": "meldung",
+   "priority": "routine",
+   "from": {
+    "name": "Mira / Übungsstation",
+    "call": "OE0QXA",
+    "contact": ""
+   },
+   "to": {
+    "name": "Jona / Übungsstation",
+    "call": "OE0QXB",
+    "contact": ""
+   },
+   "distribution": [
+    "Übungsleitung"
+   ],
+   "subject": "ÜBUNG: Funkbereitschaft – Antwort",
+   "text": "ÜBUNG – KEIN REALEINSATZ.\nBezug D1-001: Auftrag beziehungsweise Anfrage erhalten. Die Übungsgruppe übernimmt die Abstimmung für „Funkbereitschaft“. Rückmeldung erbeten.\nENDE DER ÜBUNGSMELDUNG.",
+   "stichzeit": null,
+   "origin": {
+    "station": "OE0QXA",
+    "place": "Modellpark Lindenhain (fiktiv)",
+    "filed": "2026-07-18T08:04:00.000Z",
+    "placeLoc": null
+   },
+   "readBack": true,
+   "location": null,
+   "replyTo": "demo-notfunk-message-1-example",
+   "refKind": "antwort",
+   "refNumber": "D1-001",
+   "staffRef": "DEMO-100",
+   "remarks": "Vollständig erfundene Übungsmeldung.",
+   "operator": "OE0QXA",
+   "stationCall": "OE0QXA",
+   "status": [
+    {
+     "state": "logged",
+     "at": "2026-07-18T08:04:00.000Z",
+     "by": "OE0QXA",
+     "note": ""
+    },
+    {
+     "state": "forwarded",
+     "at": "2026-07-18T08:04:30.000Z",
+     "recorded": "2026-07-18T08:04:30.000Z",
+     "by": "OE0QXA",
+     "to": "Übungsleitung",
+     "who": "",
+     "note": ""
+    },
+    {
+     "state": "acknowledged",
+     "at": "2026-07-18T08:05:00.000Z",
+     "recorded": "2026-07-18T08:05:00.000Z",
+     "by": "OE0QXA",
+     "to": "",
+     "who": "OE0QXB",
+     "note": ""
+    }
+   ],
+   "attempts": [],
+   "created": "2026-07-18T08:04:00.000Z",
+   "updated": "2026-07-18T08:05:00.000Z",
+   "deleted": null
+  },
+  {
+   "id": "demo-notfunk-message-3-example",
+   "eventId": "demo-notfunk-lindenhain-2026-example",
+   "prefix": "D1",
+   "seq": 3,
+   "number": "D1-003",
+   "direction": "in",
+   "ts": "2026-07-18T08:08:00.000Z",
+   "channel": "funk",
+   "radio": {
+    "freq": "145.500",
+    "via": ""
+   },
+   "peer": "OE0QXB",
+   "type": "meldung",
+   "priority": "routine",
+   "from": {
+    "name": "Jona / Übungsstation",
+    "call": "OE0QXB",
+    "contact": ""
+   },
+   "to": {
+    "name": "Mira / Übungsstation",
+    "call": "OE0QXA",
+    "contact": ""
+   },
+   "distribution": [
+    "Übungsleitung"
+   ],
+   "subject": "ÜBUNG: Funkbereitschaft – Rückmeldung",
+   "text": "ÜBUNG – KEIN REALEINSATZ.\nBezug D1-001: Rückmeldung der Übungsgruppe zu „Funkbereitschaft“ eingetroffen. Vorgang für die Abschlussbesprechung dokumentiert.\nENDE DER ÜBUNGSMELDUNG.",
+   "stichzeit": null,
+   "origin": {
+    "station": "OE0QXB",
+    "place": "Modellpark Lindenhain (fiktiv)",
+    "filed": "2026-07-18T08:08:00.000Z",
+    "placeLoc": null
+   },
+   "readBack": true,
+   "location": null,
+   "replyTo": "demo-notfunk-message-1-example",
+   "refKind": "antwort",
+   "refNumber": "D1-001",
+   "staffRef": "DEMO-100",
+   "remarks": "Vollständig erfundene Übungsmeldung.",
+   "operator": "OE0QXA",
+   "stationCall": "OE0QXA",
+   "status": [
+    {
+     "state": "logged",
+     "at": "2026-07-18T08:08:00.000Z",
+     "by": "OE0QXA",
+     "note": ""
+    },
+    {
+     "state": "forwarded",
+     "at": "2026-07-18T08:08:30.000Z",
+     "recorded": "2026-07-18T08:08:30.000Z",
+     "by": "OE0QXA",
+     "to": "Übungsleitung",
+     "who": "",
+     "note": ""
+    }
+   ],
+   "attempts": [],
+   "created": "2026-07-18T08:08:00.000Z",
+   "updated": "2026-07-18T08:08:30.000Z",
+   "deleted": null
+  },
+  {
+   "id": "demo-notfunk-message-4-example",
+   "eventId": "demo-notfunk-lindenhain-2026-example",
+   "prefix": "D1",
+   "seq": 4,
+   "number": "D1-004",
+   "direction": "in",
+   "ts": "2026-07-18T08:12:00.000Z",
+   "channel": "funk",
+   "radio": {
+    "freq": "145.500",
+    "via": ""
+   },
+   "peer": "OE0QXC",
+   "type": "anforderung",
+   "priority": "routine",
+   "from": {
+    "name": "Nele / Übungsstation",
+    "call": "OE0QXC",
+    "contact": ""
+   },
+   "to": {
+    "name": "Mira / Übungsstation",
+    "call": "OE0QXA",
+    "contact": ""
+   },
+   "distribution": [
+    "Übungsleitung"
+   ],
+   "subject": "ÜBUNG: Material anfordern",
+   "text": "ÜBUNG – KEIN REALEINSATZ.\nFür die Vorführung werden zwei leere Transportkisten und eine Rolle Beschriftungsband benötigt.\nENDE DER ÜBUNGSMELDUNG.",
+   "stichzeit": null,
+   "origin": {
+    "station": "OE0QXC",
+    "place": "Modellpark Lindenhain (fiktiv)",
+    "filed": "2026-07-18T08:12:00.000Z",
+    "placeLoc": null
+   },
+   "readBack": false,
+   "location": null,
+   "replyTo": null,
+   "refKind": null,
+   "refNumber": "",
+   "staffRef": "DEMO-101",
+   "remarks": "Vollständig erfundene Übungsmeldung.",
+   "operator": "OE0QXA",
+   "stationCall": "OE0QXA",
+   "status": [
+    {
+     "state": "logged",
+     "at": "2026-07-18T08:12:00.000Z",
+     "by": "OE0QXA",
+     "note": ""
+    }
+   ],
+   "attempts": [],
+   "created": "2026-07-18T08:12:00.000Z",
+   "updated": "2026-07-18T08:12:00.000Z",
+   "deleted": null
+  },
+  {
+   "id": "demo-notfunk-message-5-example",
+   "eventId": "demo-notfunk-lindenhain-2026-example",
+   "prefix": "D1",
+   "seq": 5,
+   "number": "D1-005",
+   "direction": "out",
+   "ts": "2026-07-18T08:16:00.000Z",
+   "channel": "funk",
+   "radio": {
+    "freq": "145.500",
+    "via": ""
+   },
+   "peer": "OE0QXC",
+   "type": "meldung",
+   "priority": "routine",
+   "from": {
+    "name": "Mira / Übungsstation",
+    "call": "OE0QXA",
+    "contact": ""
+   },
+   "to": {
+    "name": "Nele / Übungsstation",
+    "call": "OE0QXC",
+    "contact": ""
+   },
+   "distribution": [
+    "Übungsleitung"
+   ],
+   "subject": "ÜBUNG: Material anfordern – Antwort",
+   "text": "ÜBUNG – KEIN REALEINSATZ.\nBezug D1-004: Auftrag beziehungsweise Anfrage erhalten. Die Übungsgruppe übernimmt die Abstimmung für „Material anfordern“. Rückmeldung erbeten.\nENDE DER ÜBUNGSMELDUNG.",
+   "stichzeit": null,
+   "origin": {
+    "station": "OE0QXA",
+    "place": "Modellpark Lindenhain (fiktiv)",
+    "filed": "2026-07-18T08:16:00.000Z",
+    "placeLoc": null
+   },
+   "readBack": true,
+   "location": null,
+   "replyTo": "demo-notfunk-message-4-example",
+   "refKind": "antwort",
+   "refNumber": "D1-004",
+   "staffRef": "DEMO-101",
+   "remarks": "Vollständig erfundene Übungsmeldung.",
+   "operator": "OE0QXA",
+   "stationCall": "OE0QXA",
+   "status": [
+    {
+     "state": "logged",
+     "at": "2026-07-18T08:16:00.000Z",
+     "by": "OE0QXA",
+     "note": ""
+    },
+    {
+     "state": "forwarded",
+     "at": "2026-07-18T08:16:30.000Z",
+     "recorded": "2026-07-18T08:16:30.000Z",
+     "by": "OE0QXA",
+     "to": "Übungsleitung",
+     "who": "",
+     "note": ""
+    },
+    {
+     "state": "acknowledged",
+     "at": "2026-07-18T08:17:00.000Z",
+     "recorded": "2026-07-18T08:17:00.000Z",
+     "by": "OE0QXA",
+     "to": "",
+     "who": "OE0QXC",
+     "note": ""
+    }
+   ],
+   "attempts": [],
+   "created": "2026-07-18T08:16:00.000Z",
+   "updated": "2026-07-18T08:17:00.000Z",
+   "deleted": null
+  },
+  {
+   "id": "demo-notfunk-message-6-example",
+   "eventId": "demo-notfunk-lindenhain-2026-example",
+   "prefix": "D1",
+   "seq": 6,
+   "number": "D1-006",
+   "direction": "in",
+   "ts": "2026-07-18T08:20:00.000Z",
+   "channel": "funk",
+   "radio": {
+    "freq": "145.500",
+    "via": ""
+   },
+   "peer": "OE0QXC",
+   "type": "meldung",
+   "priority": "routine",
+   "from": {
+    "name": "Nele / Übungsstation",
+    "call": "OE0QXC",
+    "contact": ""
+   },
+   "to": {
+    "name": "Mira / Übungsstation",
+    "call": "OE0QXA",
+    "contact": ""
+   },
+   "distribution": [
+    "Übungsleitung"
+   ],
+   "subject": "ÜBUNG: Material anfordern – Rückmeldung",
+   "text": "ÜBUNG – KEIN REALEINSATZ.\nBezug D1-004: Rückmeldung der Übungsgruppe zu „Material anfordern“ eingetroffen. Vorgang für die Abschlussbesprechung dokumentiert.\nENDE DER ÜBUNGSMELDUNG.",
+   "stichzeit": null,
+   "origin": {
+    "station": "OE0QXC",
+    "place": "Modellpark Lindenhain (fiktiv)",
+    "filed": "2026-07-18T08:20:00.000Z",
+    "placeLoc": null
+   },
+   "readBack": true,
+   "location": null,
+   "replyTo": "demo-notfunk-message-4-example",
+   "refKind": "antwort",
+   "refNumber": "D1-004",
+   "staffRef": "DEMO-101",
+   "remarks": "Vollständig erfundene Übungsmeldung.",
+   "operator": "OE0QXA",
+   "stationCall": "OE0QXA",
+   "status": [
+    {
+     "state": "logged",
+     "at": "2026-07-18T08:20:00.000Z",
+     "by": "OE0QXA",
+     "note": ""
+    },
+    {
+     "state": "forwarded",
+     "at": "2026-07-18T08:20:30.000Z",
+     "recorded": "2026-07-18T08:20:30.000Z",
+     "by": "OE0QXA",
+     "to": "Übungsleitung",
+     "who": "",
+     "note": ""
+    },
+    {
+     "state": "acknowledged",
+     "at": "2026-07-18T08:21:00.000Z",
+     "recorded": "2026-07-18T08:21:00.000Z",
+     "by": "OE0QXA",
+     "to": "",
+     "who": "OE0QXA",
+     "note": ""
+    }
+   ],
+   "attempts": [],
+   "created": "2026-07-18T08:20:00.000Z",
+   "updated": "2026-07-18T08:21:00.000Z",
+   "deleted": null
+  }
+ ],
+ "revisions": [],
+ "counters": [
+  {
+   "id": "demo-notfunk-lindenhain-2026-example:D1",
+   "eventId": "demo-notfunk-lindenhain-2026-example",
+   "prefix": "D1",
+   "last": 6
+  }
+ ]
+}
