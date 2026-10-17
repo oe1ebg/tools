@@ -1087,6 +1087,12 @@ test('export: stations and notes as CSV, check-ins as ADIF (what is left out lis
   expect(adi.text).not.toContain('antenna');
   // the report: print is stubbed, the content checked
   await page.evaluate(() => { window.print = () => { globalThis.__printed = true; }; });
+  // notes only when chosen
+  await page.locator('#btn-export-print').click();
+  await expect(page.locator('#print-report')).toContainText('Without notes and replies');
+  await expect(page.locator('#print-report')).not.toContainText('asks about the antenna');
+  await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
+  await page.locator('#export-report-notes').check();
   await page.locator('#btn-export-print').click();
   await expect.poll(() => page.evaluate(() => globalThis.__printed === true)).toBe(true);
   await expect(page.locator('#print-report h1')).toHaveText('Netlog · ad-hoc session');
@@ -1278,4 +1284,52 @@ test('open follow-ups from earlier sessions: done in place, carried into My Turn
   await page.locator('#roster button.person', { hasText: 'OE0QXA' }).click();
   await page.locator('#history-list li.history-note', { hasText: 'lend a power supply' }).getByRole('button', { name: 'reopen' }).click();
   await expect(page.locator('#btn-history')).toHaveText(/1 earlier session · 1 open/);
+});
+
+test('search across nets: limited to a series, to the selected station, round topics open in Net Control', async ({ page }) => {
+  await open(page, { lang: 'en' });
+  await page.evaluate(async () => {
+    const ops = await import('./js/ops.js');
+    const app = globalThis.NETLOG_APP;
+    const store = app.store;
+    const tab = app.tab;
+    const series = await ops.createSeries(store, { tab }, { name: 'Wiener Runde' });
+    const s1 = await ops.createSession(store, { tab }, { own: 'OE0QXZ', round: 1, seriesId: series.id, date: '2026-10-02' });
+    let ctx = { sessionId: s1.id, tab };
+    await ops.claimSession(store, s1.id, tab);
+    const a = await ops.addParticipant(store, ctx, { call: 'OE0QXA' });
+    await ops.createNote(store, ctx, { participantId: a.id, text: 'antenna on the roof' });
+    const s = await store.get('sessions', s1.id);
+    await ops.updateRound(store, ctx, s.currentRoundId, { topic: 'Antenna day' });
+    const s2 = await ops.createSession(store, { tab }, { own: 'OE0QXZ', round: 1, date: '2026-10-05' });
+    ctx = { sessionId: s2.id, tab };
+    await ops.claimSession(store, s2.id, tab);
+    const b = await ops.addParticipant(store, ctx, { call: 'OE0QXB' });
+    await ops.createNote(store, ctx, { participantId: b.id, text: 'antenna tuner' });
+    await app.reload();
+  });
+  await startSession(page);
+  await checkIn(page, 'OE0QXA');
+  await page.locator('#roster button.person', { hasText: 'OE0QXA' }).focus();
+  await page.keyboard.press('/');
+  await page.keyboard.type('antenna');
+  await page.locator('#search-scope').selectOption('all');
+  const results = page.locator('#search-results li');
+  await expect(results).toHaveCount(3);
+  await page.locator('#search-series').selectOption({ label: 'without a series (ad hoc)' });
+  await expect(results).toHaveCount(1);
+  await expect(results).toContainText('antenna tuner');
+  await page.locator('#search-series').selectOption('any');
+  await expect(page.locator('#search-station-label')).toHaveText('only OE0QXA (also earlier sessions)');
+  await page.locator('#search-station').check();
+  await expect(results).toHaveCount(1);
+  await expect(results).toContainText('antenna on the roof');
+  await page.locator('#search-station').uncheck();
+  await page.locator('#search-field').selectOption('topic');
+  await expect(results).toHaveCount(1);
+  await expect(results).toContainText('round topic');
+  await results.locator('button').click();
+  await expect(page.locator('#view-control')).toBeVisible();
+  await expect(page.locator('#round-list input.round-topic').first()).toBeFocused();
+  await expect(page.locator('#round-list input.round-topic').first()).toHaveValue('Antenna day');
 });

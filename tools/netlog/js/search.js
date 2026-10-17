@@ -1,10 +1,13 @@
 // Offline search over every session on this device: callsigns (also
 // partial), names, QTH and locators, notes, prepared replies, talking
-// points and after-net tasks. Pure (no DOM, no storage, no network):
+// points, after-net tasks and round topics; filtered by series or to one
+// station if wanted. Pure (no DOM, no storage, no network):
 // app.js hands in the records. Case and accents are ignored; deleted
 // records are left out.
 
-export const SEARCH_FIELDS = ['all', 'call', 'name', 'place', 'note', 'reply', 'point', 'task'];
+import { sameStation } from './history.js';
+
+export const SEARCH_FIELDS = ['all', 'call', 'name', 'place', 'note', 'reply', 'point', 'task', 'topic'];
 const MAX_RESULTS = 200;
 
 // Lower case, without accents (NFD minus combining marks), for matching.
@@ -22,14 +25,18 @@ export function findMatch(text, query) {
 }
 
 // records: { sessions, series, participants, notes, items, rounds } (all
-// sessions). opts: { query, scope: 'session' | 'all', sessionId, field }.
+// sessions). opts: { query, scope: 'session' | 'all', sessionId, field,
+// series: 'any' | 'adhoc' | <series id>, station: a participant or null
+// (only what belongs to that station, matched like the station history:
+// sameStation() of history.js) }.
 // Results, best first: { kind, field, sessionId, participantId, noteId,
 // itemId, roundId, text, match, session, round, participant }.
-export function search(records, { query, scope = 'all', sessionId = null, field = 'all' }) {
+export function search(records, { query, scope = 'all', sessionId = null, field = 'all', series = 'any', station = null }) {
   const q = String(query || '').trim();
   if (!q) return [];
   const live = r => r && !r.deleted;
-  const sessions = new Map(records.sessions.filter(live).map(s => [s.id, s]));
+  const inSeries = s => series === 'any' || (series === 'adhoc' ? !s.seriesId : s.seriesId === series);
+  const sessions = new Map(records.sessions.filter(s => live(s) && inSeries(s)).map(s => [s.id, s]));
   const inScope = sid => sessions.has(sid) && (scope !== 'session' || sid === sessionId);
   const parts = new Map(records.participants.map(p => [p.id, p]));
   const rounds = new Map(records.rounds.map(r => [r.id, r]));
@@ -68,6 +75,18 @@ export function search(records, { query, scope = 'all', sessionId = null, field 
     if (i.kind === 'response' && want('reply')) add(base, i.text, 'reply', 3);
     if (i.kind === 'point' && want('point')) add(base, i.text, 'point', 3);
     if (i.kind === 'task' && want('task')) add(base, i.text || (n ? n.text : ''), 'task', 3);
+  }
+  for (const r of records.rounds) {
+    if (!live(r) || !inScope(r.eventId) || !want('topic') || !r.topic) continue;
+    add({ kind: 'round', sessionId: r.eventId, roundId: r.id, participantId: null }, r.topic, 'topic', 3);
+  }
+  // only the station's own records (a talking point or a round topic has
+  // no station)
+  if (station) {
+    for (let i = out.length - 1; i >= 0; i--) {
+      const p = out[i].participant;
+      if (!p || !(p.id === station.id || sameStation(station, p))) out.splice(i, 1);
+    }
   }
   // this session first, then newer sessions, then the rank, then the
   // later records of a session
