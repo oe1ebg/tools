@@ -80,3 +80,19 @@ Netlog and Notfunk are restored through their operations into an isolated
 in-memory store; Confirm's import plan is applied to the same test storage
 API. No existing browser storage is accessed. These checks do not replace
 a browser test of the import controls.
+
+## Tests
+
+- `tests/demo-backups.test.mjs` (Node, `just test`): each file passes its
+  tool's validator and restores losslessly in memory; repeated imports
+  change nothing.
+- `tests/e2e/examples.spec.mjs` (browsers, `just e2e`): each file goes
+  through the real import dialog into an empty browser profile and shows
+  what is described above (counts, series summaries, the next Notfunk
+  number). It is then exported with the tool's own backup and restored into
+  another empty profile with the same result. For Netlog, one series is
+  also backed up and restored alone.
+
+Both run in CI for every change to these files (`ci.yml`, `site` filter)
+and against the release tarball (`validate-dist.yml`).
+
