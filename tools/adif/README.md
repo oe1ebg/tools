@@ -335,7 +335,8 @@ Inputs: the fixtures, the official test QSOs (whole and per group), the
 ADIF editor's export of them (with their USERDEF declarations and typed
 `APP_` fields), the editor's export of the fixtures with typed/multiline
 user-defined fields and tag-shaped text in values, the confirmation log's
-exports (every template), and single invalid values per data type plus
+exports (every template), Netlog's check-in exports (repeater, frequency
+only, DMR, no radio data), and single invalid values per data type plus
 valid edge cases (`NOTES` holding `<EOR>`/`<EOH>`, `COMMENT` holding
 `<CALL:4>…`: both tools read the declared length, as we do).
 Both tools are pinned in `oe1ebg/tests/tools/go.mod` (Dependabot) and built

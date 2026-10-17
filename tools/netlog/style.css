@@ -454,3 +454,25 @@ li.event-line .time{ min-width:5.5em; }
 .offline-card .txt{ flex:1 1 20em; }
 .offline-card h3{ margin:0 0 .2em; }
 .offline-card p{ margin:0; color:var(--text-dim); font-size:13.5px; }
+
+/* ---------- export card ---------- */
+.export-issues{ margin:.6em 0 0; padding-left:1.2em; font-size:13.5px; color:var(--warn); }
+.export-issues li.ok{ color:var(--text-dim); }
+
+/* ---------- printed report (Net Control, "Print report…") ---------- */
+.print-report{ padding:1em; }
+.print-report h1{ font-size:20px; margin:0 0 .3em; }
+.print-report h2{ font-size:16px; margin:1.2em 0 .4em; }
+.print-report h3{ font-size:14.5px; margin:1em 0 .3em; }
+.print-report h4{ font-size:13.5px; margin:.6em 0 .2em; }
+.print-report ul{ margin:0; padding-left:1.2em; }
+.rp-meta{ color:var(--text-dim); margin:0; }
+.rp-table{ border-collapse:collapse; width:100%; font-size:13px; }
+.rp-table th, .rp-table td{ border-bottom:1px solid var(--line); padding:.2em .5em; text-align:left; }
+.rp-time{ color:var(--text-dim); }
+.rp-round{ break-inside:avoid-page; }
+@media print{
+  body.printing > :not(#print-report){ display:none !important; }
+  body.printing{ background:#fff; color:#000; }
+  .print-report{ padding:0; }
+}
