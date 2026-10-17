@@ -178,6 +178,9 @@ test('Bestätigungsverkehr', async ({ page }) => {
   await page.locator('#f-call').fill('');
   await page.locator('#f-call').press('Escape');
 
+  // the highlight of new rows fades after 2.5 s: how many still have it
+  // would depend on the machine's speed
+  await expect(page.locator('#log-body tr.fresh')).toHaveCount(0);
   await shotAround(page, ['#view-log .table-wrap'], 'confirm-log');
   await page.locator('#hdr-panel > summary').click();
   await shotAround(page, ['#hdr-panel'], 'confirm-kopfdaten');
