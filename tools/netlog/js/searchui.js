@@ -38,9 +38,25 @@ export function initSearch(app) {
   fillFields();
   app.onLang(fillFields);
 
+  // series: any, each live series, without a series (ad hoc)
+  const seriesSel = $('#search-series');
+  const fillSeries = () => {
+    const cur = seriesSel.value || 'any';
+    const list = (app.data.series || []).filter(s => !s.deleted).sort((a, b) => (a.name < b.name ? -1 : 1));
+    fill(seriesSel, el('option', { value: 'any' }, t('search.seriesAny')), list.map(s => el('option', { value: s.id }, s.name)),
+      el('option', { value: 'adhoc' }, t('search.seriesAdhoc')));
+    seriesSel.value = [...seriesSel.options].some(o => o.value === cur) ? cur : 'any';
+  };
+  // only the selected station (matched like its history)
+  const stationOf = () => (app.s ? app.participant(app.ui.selected) : null);
+
   const run = () => {
     if (!records) return;
-    results = search(records, { query: q.value, scope: $('#search-scope').value, sessionId: app.sessionId(), field: fieldSel.value });
+    const station = $('#search-station').checked ? stationOf() : null;
+    results = search(records, {
+      query: q.value, scope: $('#search-scope').value, sessionId: app.sessionId(), field: fieldSel.value,
+      series: seriesSel.value || 'any', station,
+    });
     const seriesById = new Map(records.series.map(s => [s.id, s]));
     fill($('#search-results'), results.map((r, i) => {
       const s = r.session;
@@ -71,6 +87,11 @@ export function initSearch(app) {
   app.openSearch = async () => {
     if (dlg.open) return;
     if (!app.s) $('#search-scope').value = 'all';
+    fillSeries();
+    const st = stationOf();
+    $('#search-station-wrap').hidden = !st;
+    if (!st) $('#search-station').checked = false;
+    else setText($('#search-station-label'), t('search.onlyStation', { call: callText(st) }));
     // the origin for Back, if a result is opened
     app.nav.push();
     pushed = true;
@@ -86,6 +107,8 @@ export function initSearch(app) {
   $('#btn-search').addEventListener('click', () => app.openSearch());
   q.addEventListener('input', run);
   $('#search-scope').addEventListener('change', run);
+  seriesSel.addEventListener('change', run);
+  $('#search-station').addEventListener('change', run);
   fieldSel.addEventListener('change', run);
   q.addEventListener('keydown', ev => {
     // Esc closes at once (in a search field it would only clear the text)
@@ -131,6 +154,15 @@ export async function openSource(app, r) {
     app.render();
     const f = r.field === 'qth' ? $('#det-qth') : r.field === 'locator' ? $('#det-locator') : null;
     if (f) { f.focus(); flash(f); } else { $('#station-rounds .composer-text')?.focus(); flash($('#station-call')); }
+    return;
+  }
+  if (r.kind === 'round') {
+    // a round topic: Net Control's round list, the topic focused
+    app.ui.view = 'control';
+    app.syncHash();
+    app.render();
+    const li = $('#round-list').querySelector(`li[data-key="${CSS.escape(r.roundId)}"]`);
+    if (li) { flash(li); li.querySelector('input.round-topic')?.focus(); }
     return;
   }
   if (r.kind === 'point') {

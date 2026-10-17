@@ -96,8 +96,8 @@ function printSessionReport(app) {
     el('table', { class: 'rp-table' },
       el('thead', {}, el('tr', {}, ['call', 'name', 'qth', 'status', 'checkinTime'].map(k => el('th', { scope: 'col' }, t(`export.col.${k}`))))),
       el('tbody', {}, stationRows)),
-    el('h2', {}, t('report.rounds')),
-    rounds);
+    // notes and replies only when chosen (they are private by default)
+    $('#export-report-notes').checked ? [el('h2', {}, t('report.rounds')), rounds] : el('p', { class: 'hint' }, t('report.noNotes')));
   $('#print-report').hidden = false;
   document.body.classList.add('printing');
   window.print();

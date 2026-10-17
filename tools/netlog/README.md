@@ -212,7 +212,12 @@ offers the export, as on any other page without IndexedDB.
   `tests/netlog-history.test.mjs`, e2e "station history: …".
 - **Search** (`/`): offline, this session or all sessions, in everything or
   one field (callsigns also partial, names, QTH/locator, notes, prepared
-  replies, talking points, after-net tasks). Each result names session,
+  replies, talking points, after-net tasks, round topics), limited to a
+  series or to sessions without one ("Series"), and to the selected
+  station if wanted ("only OE1ABC": its records in all sessions, matched
+  like the station history, so a partial call linked by "Same station"
+  counts; points and topics have no station). A round topic opens Net
+  Control's round list with the topic focused. Each result names session,
   date, round and station. Enter (or a click) opens the exact match ready
   to edit (a collapsed round is expanded, the match highlighted); `b` goes
   back, also to the other session, with the unfinished input as it was.
@@ -248,8 +253,9 @@ offers the export, as on any other page without IndexedDB.
     repeater whose list entry has exactly one of these modes gives it
     (and the card says so).
   - *Print report…*: session, date, NCS, repeater, mode; the stations; the
-    rounds with their notes by station (times UTC, "~" estimated); only
-    the report is printed.
+    rounds with their notes by station (times UTC, "~" estimated) only
+    when "with notes and replies" is ticked (unticked by default: notes are
+    private until you choose to include them); only the report is printed.
 
   CSV cells are spreadsheet-safe (`tools/shared/js/csv.js`). The CSVs and
   the report contain notes: plaintext, like a backup. Code:

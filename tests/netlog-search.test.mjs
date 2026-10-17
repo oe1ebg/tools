@@ -61,3 +61,27 @@ test('replies, points, tasks; unflagged replies out; scope and field filters', (
   assert.deepEqual(search(records, { query: 'jonas', scope: 'all', field: 'call' }), []);
   assert.deepEqual(search(records, { query: 'jonas', scope: 'all', field: 'name', sessionId: 'S2' }).map(x => x.sessionId), ['S2', 'S1']);
 });
+
+test('search filters: a series, ad-hoc sessions, one station (also partial calls linked by profile), round topics', () => {
+  const S = (id, seriesId, date) => ({ id, seriesId, date, name: id });
+  const P = (id, eventId, call, extra = {}) => ({ id, eventId, call, base: call.replace(/\/P$/, ''), name: '', ...extra });
+  const records = {
+    series: [{ id: 'w', name: 'Wiener Runde' }],
+    sessions: [S('s1', 'w', '2026-10-02'), S('s2', null, '2026-10-05'), S('now', 'w', '2026-10-16')],
+    participants: [P('a1', 's1', 'OE0QXA'), P('q2', 's2', 'OE0QX?', { profileId: 'pa' }), P('b2', 's2', 'OE0QXB'), P('a', 'now', 'OE0QXA', { profileId: 'pa' })],
+    notes: [
+      { id: 'n1', eventId: 's1', participantId: 'a1', roundId: 'r1', text: 'antenna on the roof', seq: 1 },
+      { id: 'n2', eventId: 's2', participantId: 'q2', roundId: 'r2', text: 'antenna, weak signal', seq: 1 },
+      { id: 'n3', eventId: 's2', participantId: 'b2', roundId: 'r2', text: 'antenna tuner', seq: 2 },
+    ],
+    items: [],
+    rounds: [{ id: 'r1', eventId: 's1', number: 1, topic: 'Antenna day' }, { id: 'r2', eventId: 's2', number: 1, topic: '' }],
+  };
+  const q = opts => search(records, { query: 'antenna', scope: 'all', sessionId: 'now', ...opts }).map(r => `${r.sessionId}:${r.field}:${r.participantId || '-'}`);
+  assert.deepEqual(q({}).sort(), ['s1:note:a1', 's1:topic:-', 's2:note:b2', 's2:note:q2'].sort());
+  assert.deepEqual(q({ series: 'w' }).sort(), ['s1:note:a1', 's1:topic:-'].sort());
+  assert.deepEqual(q({ series: 'adhoc' }).sort(), ['s2:note:b2', 's2:note:q2'].sort());
+  const station = records.participants.find(p => p.id === 'a');
+  assert.deepEqual(q({ station }).sort(), ['s1:note:a1', 's2:note:q2'].sort(), 'by call and by the shared profile; not OE0QXB, not the topic');
+  assert.deepEqual(q({ field: 'topic' }), ['s1:topic:-']);
+});

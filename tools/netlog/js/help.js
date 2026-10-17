@@ -57,6 +57,8 @@ function helpContent(app) {
     el('h3', {}, t('style.label')),
     el('ul', {}, ['star', 'circle', 'free'].map(s => el('li', {}, t(`style.${s}`)))),
     el('p', {}, t('help.speaking')),
+    el('h3', {}, t('help.historyTitle')),
+    el('p', {}, t('help.history')),
     el('h3', {}, t('help.dataTitle')),
     el('p', {}, t('help.data')),
     el('p', {}, t('help.tabs')),

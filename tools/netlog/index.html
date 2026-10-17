@@ -278,9 +278,10 @@
               <button type="button" id="btn-export-notes" data-i18n="export.notes">Notes (CSV)</button>
               <button type="button" id="btn-export-adif" data-i18n="export.adif">Check-ins (ADIF)</button>
               <button type="button" id="btn-export-print" data-i18n="export.print">Print report…</button>
+              <label class="check"><input type="checkbox" id="export-report-notes"> <span data-i18n="export.reportNotes">with notes and replies</span></label>
             </div>
             <ul id="export-issues" class="export-issues" data-i18n-attr="aria-label:export.issuesLabel" aria-label="ADIF: left out or missing" hidden></ul>
-            <p class="hint" data-i18n="export.hint">ADIF: one QSO per checked-in station at its check-in time (UTC), with the session's repeater, frequency and mode; notes stay out. The CSV files and the report contain your notes: plaintext, like a backup.</p>
+            <p class="hint" data-i18n="export.hint">ADIF: one QSO per checked-in station at its check-in time (UTC), with the session\'s repeater, frequency and mode; notes stay out. The notes CSV contains your notes and replies (plaintext, like a backup); the report only when "with notes and replies" is ticked.</p>
           </section>
           <section class="card" aria-labelledby="ncs-title">
             <h3 id="ncs-title" data-i18n="control.ncs">Net control station</h3>
@@ -443,6 +444,9 @@
         </select></label>
       <label class="inline-field"><span data-i18n="search.field">Field</span>
         <select id="search-field"></select></label>
+      <label class="inline-field"><span data-i18n="search.series">Series</span>
+        <select id="search-series"></select></label>
+      <label class="check" id="search-station-wrap" hidden><input type="checkbox" id="search-station"> <span id="search-station-label"></span></label>
       <span id="search-count" class="hint" role="status"></span>
     </div>
     <ul id="search-results" class="search-results" data-i18n-attr="aria-label:search.results" aria-label="Results"></ul>
