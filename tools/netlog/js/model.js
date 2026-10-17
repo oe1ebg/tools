@@ -342,8 +342,9 @@ export function speakingOrder(participants, session) {
 // next: who is next (or null), then: in a star net, the station after the
 // NCS (or null), complete: the round is through, spoken: Set of ids,
 // order }. A suggestion only: rounds still start by the user's decision.
-//   star:   NCS -> A -> NCS -> B -> NCS ...: after a station the turn goes
-//           back to the NCS; the round is complete when every station has
+//   star:   NCS -> A -> NCS -> B -> NCS ...: the NCS opens the round (it
+//           has the turn before anyone is recorded), after a station the
+//           turn goes back to the NCS; the round is complete when every station has
 //           spoken and the NCS has the turn again.
 //   circle: A -> B -> C (the NCS in the order): complete when everyone in
 //           the order has spoken.
@@ -372,7 +373,10 @@ export function speakingState({ session, participants, contributions }) {
       // a station spoke: back to the NCS, then the next station
       return { onAir, next: ncs, then: stationsDone ? null : nextStation, complete: false, spoken, order, ncs };
     }
-    return { onAir, next: stationsDone ? null : nextStation, then: null, complete: stationsDone, spoken, order, ncs };
+    // the NCS opens every round: before any station has spoken it has the
+    // turn (not recorded), and the first station is next
+    const opening = !turns.length;
+    return { onAir: opening ? ncs : onAir, next: stationsDone ? null : nextStation, then: null, complete: stationsDone, spoken, order, ncs };
   }
   const complete = order.length > 0 && order.every(p => spoken.has(p.id));
   return { onAir, next: complete ? null : after(last, order), then: null, complete, spoken, order, ncs };

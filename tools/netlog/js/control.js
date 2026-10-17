@@ -195,7 +195,7 @@ export function renderControl(app) {
       const me = isOwn(app, p);
       // the same marks as the roster: status, speaking now, next
       const turn = turnMark(app, p);
-      setText(mark, turn === 'on-air' ? '🎙' : turn === 'next' ? '▶' : STATUS_MARK[p.status] || '');
+      setText(mark, turn === 'on-air' ? '●' : turn === 'next' ? '▶' : STATUS_MARK[p.status] || '');
       li.classList.toggle('on-air', turn === 'on-air');
       li.classList.toggle('up-next', turn === 'next');
       setText(meB, me ? `★ ${t('own.badge')}` : `☆ ${t('own.badge')}`);
