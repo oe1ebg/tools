@@ -238,7 +238,11 @@ Neueste Zeile oben. Oben stehen die Zahlen: Stationen und Check-ins.
 löscht sie (wiederherstellbar unter „Gelöschte Zeilen und automatische
 Sicherungen“). Die Spalte **Quelle** sagt, woher der Standort kommt: *Suche*
 (Ortssuche), *früher* (aus einem früheren Check-in), *Call* (Lizenzadresse
-aus der Rufzeichenliste), *Text* (keinem Ort zugeordnet).
+aus der Rufzeichenliste), *Text* (keinem Ort zugeordnet; darunter steht
+dann grau „nicht zugeordnet“).
+
+Am Handy ist jede Zeile eine Karte: oben Zeit, Nummer, Rufzeichen und die
+Knöpfe, darunter die übrigen Spalten mit ihrem Namen (leere fehlen).
 
 ## Standort
 

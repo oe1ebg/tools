@@ -294,6 +294,10 @@ Notfälle, noch nicht bestätigte Meldungen, die Nummern und ob sie lückenlos
 sind. Filter: alle, offen, Eingang, Ausgang, Notfall + Dringend, dazu die
 Suche (Nummer, Referenz, Betreff, Station, Text).
 
+Am Handy ist jede Meldung eine Karte: oben Nummer, Zeit, Richtung und
+Status, darunter Von → An, Betreff und Inhalt, unten Art und die Knöpfe.
+Seitlich schieben ist nicht nötig.
+
 Der **Status** hängt von der Richtung ab:
 
 | Richtung | 1 | 2 | 3 | danach |

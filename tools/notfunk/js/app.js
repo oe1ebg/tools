@@ -17,7 +17,7 @@
 import { openNotfunkStorage } from './db.js';
 import { requestPersistence, ConflictError } from '../../shared/js/storage.js';
 import { openStorageWithNotices, offerFallbackMigration } from '../../shared/js/storageui.js';
-import { $, el, fill, focusNext, submitForm, isComposing, trackExpanded } from '../../shared/js/dom.js';
+import { $, el, fill, focusNext, submitForm, isComposing, trackExpanded, rowRoles, tableRoles } from '../../shared/js/dom.js';
 import { prefGet, prefSet } from '../../shared/js/prefs.js';
 import { loadDataFile } from '../../shared/js/data.js';
 import { buildCallbook, lookupCall, normalizeCall } from '../../shared/js/callbook.js';
@@ -1243,7 +1243,7 @@ function renderBook() {
   const body = $('#book-body');
   if (!list.length) {
     resetRows(bookRows);
-    fill(body, el('tr', {}, el('td', { colspan: '8', class: 'empty' }, state.msgs.some(m => !m.deleted) ? 'Keine Meldung passt zum Filter.' : 'Noch keine Meldungen. Die erste oben eintragen.')));
+    fill(body, rowRoles(el('tr', {}, el('td', { colspan: '8', class: 'empty' }, state.msgs.some(m => !m.deleted) ? 'Keine Meldung passt zum Filter.' : 'Noch keine Meldungen. Die erste oben eintragen.'))));
   } else {
     // Rows are kept between renders (keyed by message id, signature = the
     // message's `updated` token): a new or changed message builds one row,
@@ -1252,7 +1252,7 @@ function renderBook() {
     syncRows(body, bookRows, list, { key: m => m.id, sig: m => `${m.updated}|${m.deleted || ''}|${m.status.length}`, build: m => {
       const step = nextStep(m);
       const last = m.status[m.status.length - 1];
-      return el('tr', { 'data-id': m.id, class: m.priority === 'emergency' ? 'urgent' : null },
+      return rowRoles(el('tr', { 'data-id': m.id, class: m.priority === 'emergency' ? 'urgent' : null },
         el('td', { class: 'num' }, el('a', { href: `#/e/${state.op.id}/m/${m.id}` }, m.number),
           m.staffRef ? el('div', { class: 'sub', title: 'Referenz der Meldesammelstelle' }, `Ref. ${m.staffRef}`) : null),
         el('td', { class: 'mono' }, viennaTime(m.ts)),
@@ -1267,7 +1267,7 @@ function renderBook() {
         el('td', { class: 'nowrap' }, statusPill(m), el('div', { class: 'sub mono' }, `${viennaTime(last.at)} ${last.by}`)),
         el('td', { class: 'act' },
           step ? el('button', { type: 'button', class: 'mini', onclick: () => advance(m, step.state), 'aria-label': `${m.number} ${step.label}` }, step.label) : null,
-          el('button', { type: 'button', class: 'mini', onclick: () => printForm(m), 'aria-label': `Ausdruck ${m.number} (Meldeaufnahmeformular)` }, 'Ausdruck')));
+          el('button', { type: 'button', class: 'mini', onclick: () => printForm(m), 'aria-label': `Ausdruck ${m.number} (Meldeaufnahmeformular)` }, 'Ausdruck'))));
     } });
   }
   renderTrash();
@@ -1792,6 +1792,7 @@ async function main() {
     offerFallbackMigration(state.store, $('#banner'));
   }
   wire();
+  tableRoles($('table.book')); // cards on phones (style.css)
   initForm();
   trackOnline();
   tick();

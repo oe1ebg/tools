@@ -348,6 +348,14 @@ service workers are missing on plain `http://` and `file://`.
   (`trackExpanded()`); every field has a `<label>` or `aria-label`;
   decorative glyphs are `aria-hidden`; status lines are `role="status"` /
   `aria-live` and only rewritten when their text changes.
+- **Tables on phones:** a log table that would need sideways scrolling
+  becomes cards below 640 px (Confirm's log, Notfunk's message book): the
+  key fields and the row's buttons on the first line, the rest below, with
+  the column name (`data-label`) where the value alone is unclear. Rows
+  with `display` other than `table-row` lose their table semantics in
+  WebKit, so such tables get explicit roles: `tableRoles()` once,
+  `rowRoles()` for every row built (`dom.js`). The column heads stay in
+  the accessibility tree, visually hidden.
 - **Readable in a hurry, at any age** (the tools with log forms load
   `css/forms.css`): fields, buttons and option chips 15px, field labels
   12.5px, hints and info lines 13.5px, page text 15px; nothing under 12px
