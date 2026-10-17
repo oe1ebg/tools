@@ -5,7 +5,10 @@
 
 // Participation states and independent flags of a session participant.
 export const STATUSES = ['active', 'paused', 'listening', 'unconfirmed', 'out'];
-export const FLAGS = ['speak', 'short', 'reception', 'priority'];
+// The flag offered per station. Records from earlier versions may still
+// carry speak/short/priority; they are kept (and backed up) as they are,
+// just no longer shown or set.
+export const FLAGS = ['reception'];
 // How sure a time is: typed or taken from the clock, estimated afterwards,
 // or not known at all (then `iso` is null).
 export const QUALITIES = ['exact', 'estimated', 'unknown'];

@@ -118,11 +118,11 @@ test('undo and redo restore the previous state; a changed record refuses', async
   const { store, ctx } = await fresh();
   const p = await addParticipant(store, ctx, { call: 'OE0QXB' });
   await updateParticipant(store, ctx, p.id, { name: 'Jonas' });
-  await setFlag(store, ctx, p.id, 'speak', true);
+  await setFlag(store, ctx, p.id, 'reception', true);
   assert.equal((await undoStep(store, ctx.sessionId)).label, 'undo.flag');
   await undo(store, ctx);
   let cur = await store.get('participants', p.id);
-  assert.equal(cur.flags.speak, false);
+  assert.equal(cur.flags.reception, false);
   assert.equal(cur.name, 'Jonas');
   await undo(store, ctx);
   cur = await store.get('participants', p.id);
@@ -141,29 +141,29 @@ test('undo and redo restore the previous state; a changed record refuses', async
   // a new change ends redo; a record changed outside the step refuses undo
   const q = await addParticipant(store, ctx, { call: 'OE0QXC' });
   assert.equal(await undoStep(store, ctx.sessionId, true), null);
-  await setFlag(store, ctx, q.id, 'priority', true);
+  await setFlag(store, ctx, q.id, 'reception', true);
   const raw = await store.get('participants', q.id);
   await store.tx([{ store: 'participants', put: { ...raw, name: 'changed elsewhere', updated: '2099-01-01T00:00:00.000Z' } }]);
   await assert.rejects(undo(store, ctx), UndoConflictError);
-  assert.equal((await store.get('participants', q.id)).flags.priority, true, 'nothing changed');
+  assert.equal((await store.get('participants', q.id)).flags.reception, true, 'nothing changed');
 });
 
 test('claiming the lease never changes the session: an undo after a reopen still works', async () => {
   const { store, s, ctx, } = await fresh();
   const p = await addParticipant(store, ctx, { call: 'OE0QXB' });
-  await setFlag(store, ctx, p.id, 'speak', true);
+  await setFlag(store, ctx, p.id, 'reception', true);
   const before = await store.get('sessions', s.id);
   await claimSession(store, s.id, 'tab-2');
   await claimSession(store, s.id, TAB);
   assert.deepEqual(await store.get('sessions', s.id), before);
   await undo(store, ctx);
-  assert.equal((await store.get('participants', p.id)).flags.speak, false);
+  assert.equal((await store.get('participants', p.id)).flags.reception, false);
 });
 
 test('undo history is capped per session', async () => {
   const { store, ctx } = await fresh();
   const p = await addParticipant(store, ctx, { call: 'OE0QXB' });
-  for (let i = 0; i < UNDO_MAX + 5; i++) await setFlag(store, ctx, p.id, 'speak', i % 2 === 0);
+  for (let i = 0; i < UNDO_MAX + 5; i++) await setFlag(store, ctx, p.id, 'reception', i % 2 === 0);
   assert.equal((await store.getByEvent('undo', ctx.sessionId)).length, UNDO_MAX);
 });
 
@@ -430,4 +430,15 @@ test('a session moved out of its series into ad hoc keeps the series name as its
   // a session with its own name keeps it
   const named = await createSession(store, { tab: TAB }, { seriesId: series.id, name: 'Special' });
   assert.equal((await assignSeries(store, { tab: TAB, sessionId: named.id }, named.id, null)).name, 'Special');
+});
+
+test('flags from earlier versions (speak, short, priority) are kept but can no longer be set', async () => {
+  const { store, ctx } = await fresh();
+  const p = await addParticipant(store, ctx, { call: 'OE0QXB' });
+  assert.deepEqual(p.flags, { reception: false });
+  const raw = await store.get('participants', p.id);
+  await store.tx([{ store: 'participants', put: { ...raw, flags: { speak: true, short: false, reception: false, priority: true } } }]);
+  await setFlag(store, ctx, p.id, 'reception', true);
+  assert.deepEqual((await store.get('participants', p.id)).flags, { speak: true, short: false, reception: true, priority: true });
+  assert.throws(() => setFlag(store, ctx, p.id, 'priority', false), /flag priority/);
 });

@@ -103,14 +103,8 @@ export const LANG_DE = {
   'status.unconfirmed': 'unbestätigt',
   'status.out': 'abgemeldet',
 
-  'flag.speak': 'möchte sprechen',
-  'flag.short': 'nur kurz da',
   'flag.reception': 'Empfangsprobleme',
-  'flag.priority': 'Vorrang',
-  'flag.speak.short': '🗣',
-  'flag.short.short': '⏱',
   'flag.reception.short': '📶',
-  'flag.priority.short': '!',
 
   'live.noStation': 'Eine Station aufnehmen oder aus der Liste wählen.',
   'station.status': 'Status',
@@ -179,7 +173,6 @@ export const LANG_DE = {
   'speak.chip.then': 'nach der Rundenleitung',
   'speak.chip.spoken': 'war in dieser Runde dran',
   'speak.chip.waiting': 'noch nicht dran',
-  'station.moreFlags': 'Weitere Markierungen',
   'station.edit': 'Rufzeichen, Name und Details bearbeiten',
   'speak.me.onAir': '🎙 Du bist jetzt dran',
   'speak.me.next': '▶ Du bist als Nächstes dran',

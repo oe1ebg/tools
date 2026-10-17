@@ -312,7 +312,7 @@ function participantRecord(fields, w, order, roundId) {
     unresolved: isUnresolved(call),
     profileId: fields.profileId || null,
     status: 'active',
-    flags: { speak: false, short: false, reception: false, priority: false },
+    flags: { reception: false },
     presence: [{ from: timeOf(w.now), to: null }],
     rosterOrder: order,
     plannedOrder: null,

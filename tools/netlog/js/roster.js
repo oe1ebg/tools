@@ -28,8 +28,6 @@ export function isOwn(app, p) {
 // The status symbol shown in both lists (the words in the tooltip / for
 // screen readers): paused/away, monitoring, unconfirmed, checked out.
 export const STATUS_MARK = { paused: '⏸', listening: '🎧', unconfirmed: '?', out: '✕' };
-// the flag shown in the station head (the others are in its details)
-const HEAD_FLAGS = ['reception'];
 
 export function statusLabel(status) {
   return t(`status.${status}`);
@@ -267,8 +265,7 @@ function initStation(app) {
     const p = app.participant(app.ui.selected);
     if (p) app.act(store => setStatus(store, app.ctx(), p.id, status.value));
   });
-  // "reception problems" in the head, the other flags in the details
-  for (const box of [$('#station-flags'), $('#detail-flags')]) box.addEventListener('click', ev => {
+  for (const box of [$('#station-flags')]) box.addEventListener('click', ev => {
     const b = ev.target.closest('button[data-flag]');
     const p = app.participant(app.ui.selected);
     if (b && p) app.act(store => setFlag(store, app.ctx(), p.id, b.dataset.flag, !p.flags[b.dataset.flag]));
@@ -502,7 +499,7 @@ export function renderStation(app) {
   if (document.activeElement !== status) status.value = p.status;
   status.disabled = app.readOnly;
 
-  for (const [box, list] of [[$('#station-flags'), HEAD_FLAGS], [$('#detail-flags'), FLAGS.filter(f => !HEAD_FLAGS.includes(f))]]) {
+  for (const [box, list] of [[$('#station-flags'), FLAGS]]) {
     if (box.childElementCount !== list.length || box.dataset.lang !== app.lang()) {
       fill(box, list.map(f => el('button', { type: 'button', class: 'flag', 'data-flag': f }, t(`flag.${f}`))));
       box.dataset.lang = app.lang();

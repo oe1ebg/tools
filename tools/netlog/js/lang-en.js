@@ -102,14 +102,8 @@ export const LANG_EN = {
   'status.unconfirmed': 'unconfirmed',
   'status.out': 'checked out',
 
-  'flag.speak': 'wants to speak',
-  'flag.short': 'short time only',
   'flag.reception': 'reception problems',
-  'flag.priority': 'priority',
-  'flag.speak.short': '🗣',
-  'flag.short.short': '⏱',
   'flag.reception.short': '📶',
-  'flag.priority.short': '!',
 
   'live.noStation': 'Check in a station or pick one from the list.',
   'station.status': 'Status',
@@ -178,7 +172,6 @@ export const LANG_EN = {
   'speak.chip.then': 'after the NCS',
   'speak.chip.spoken': 'has spoken this round',
   'speak.chip.waiting': 'not yet this round',
-  'station.moreFlags': 'More flags',
   'station.edit': 'Edit callsign, name and details',
   'speak.me.onAir': '🎙 Your turn now',
   'speak.me.next': '▶ You are next',

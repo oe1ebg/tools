@@ -56,8 +56,7 @@ yet (a follow-up).
   monitoring ("im Hintergrund"), unconfirmed, checked out) and the
   "reception problems" flag in the head. ✎ next to the callsign opens one
   edit panel right under the heading: callsign and name, then the details
-  (QTH, locator, RST, member number, EchoLink, the other flags, presence
-  intervals); it belongs to that station and closes when another one is
+  (QTH, locator, RST, member number, EchoLink, presence intervals); it belongs to that station and closes when another one is
   selected. Checking out closes the presence interval; coming back opens
   a new one (a reentry). Correcting a callsign keeps the station's id, so
   everything recorded for it stays with it.
@@ -279,7 +278,7 @@ shared `eventId` index).
 | `series` | `name`, `description`, `schedule`, `defaults { repeater, freq, mode, ncs }`, `numbering` (`sequential` / `none`) |
 | `sessions` | `seriesId` or null, `number` or null, `name`, `date` (UTC), `own { call, base }`, `radio { repeater, freq, mode }`, `suggestedNcs` (copied), `start` / `end` (times, below), `joinedLate`, `currentRoundId`, `ncsId` |
 | `profiles` | reusable station identity (`call`, `name`, `qth`, `locator`, `echolink`, `member`); a session never changes through a profile edit |
-| `participants` | session-specific snapshot: `call` (as typed), `base` (matching identity), `unresolved`, `profileId`, `name`, `qth`, `locator`, `rst`, `echolink`, `member`, `status`, `flags { speak, short, reception, priority }`, `presence [{ from, to }]`, `rosterOrder`, `plannedOrder`, `checkinRoundId` |
+| `participants` | session-specific snapshot: `call` (as typed), `base` (matching identity), `unresolved`, `profileId`, `name`, `qth`, `locator`, `rst`, `echolink`, `member`, `status`, `flags { reception }` (records from before v0.5 may also carry `speak`, `short`, `priority`; kept, no longer shown), `presence [{ from, to }]`, `rosterOrder`, `plannedOrder`, `checkinRoundId` |
 | `rounds` | `number`, `order`, `topic`, `start` |
 | `contributions` | a speaking turn: `participantId`, `roundId`, `seq`, `time` |
 | `notes` | one observation: `participantId`, `roundId`, `contributionId` or null, `text`, `seq`, `time` |

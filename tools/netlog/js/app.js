@@ -20,7 +20,7 @@ import { LeaseError, UndoConflictError } from './ops.js';
 import { createSessionLock, CHANNEL_NAME } from './lock.js';
 import { createSaveState } from './status.js';
 import { setText, setAttr } from './keyed.js';
-import { sessionLabel, live, rosterSorted, isUnresolved, openQueueCount } from './model.js';
+import { sessionLabel, live, rosterSorted, isUnresolved, openQueueCount, FLAGS } from './model.js';
 import { initRoster, renderRoster, renderStation, flushDetails, callText, rosterRows, isOwn, STATUS_MARK } from './roster.js';
 import { initSessions, renderSessions } from './sessions.js';
 import { initControl, renderControl } from './control.js';
@@ -348,8 +348,8 @@ app.editKeyText = name => (EDIT_COMMANDS[name] ? bindingText(EDIT_COMMANDS[name]
 // Badges of a roster row / the station head: NCS, open responses, flags.
 app.rowBadges = (p, long = false) => {
   const out = [];
-  for (const f of ['speak', 'priority', 'short', 'reception']) {
-    if (p.flags && p.flags[f]) out.push({ text: t(`flag.${f}.short`), title: t(`flag.${f}`), cls: f === 'priority' ? 'warn' : '' });
+  for (const f of FLAGS) {
+    if (p.flags && p.flags[f]) out.push({ text: t(`flag.${f}.short`), title: t(`flag.${f}`), cls: '' });
   }
   if (app.s && app.s.ncsId === p.id) out.unshift({ text: 'NCS', title: t('ncs.current'), cls: 'ncs' });
   if (app.s && app.s.own && app.s.own.base && p.base === app.s.own.base) out.unshift({ text: t('own.badge'), title: t('own.title'), cls: 'own' });
