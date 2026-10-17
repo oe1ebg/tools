@@ -112,5 +112,34 @@ export function historySummary(history) {
   return { sessions: history.length, open: openFollowUps(history).length };
 }
 
+// Summary of a series (or of the sessions without one: seriesId null) for
+// its collapsed card: { sessions, first, last, avgStations, stations,
+// notes, open }. Live records only; stations counted once each (by station
+// profile, else by complete base callsign; partial calls not counted as
+// separate stations); open = on-air replies and after-net tasks still open.
+export function seriesStats(records, seriesId) {
+  const sessions = liveOf(records.sessions).filter(s => (s.seriesId || null) === (seriesId || null));
+  const ids = new Set(sessions.map(s => s.id));
+  const dates = sessions.map(s => s.date).filter(Boolean).sort();
+  const parts = liveOf(records.participants).filter(p => ids.has(p.eventId));
+  const keys = new Set();
+  for (const p of parts) {
+    if (p.profileId) keys.add(`p:${p.profileId}`);
+    else if (!isUnresolved(p.call) && p.base) keys.add(`c:${p.base}`);
+  }
+  const notes = liveOf(records.notes).filter(n => ids.has(n.eventId));
+  const liveNotes = new Set(notes.map(n => n.id));
+  const open = liveOf(records.items).filter(i => ids.has(i.eventId) && (i.kind === 'response' || i.kind === 'task')
+    && i.active !== false && i.state !== 'done' && (!i.noteId || liveNotes.has(i.noteId))).length;
+  return {
+    sessions: sessions.length,
+    first: dates[0] || '', last: dates[dates.length - 1] || '',
+    avgStations: sessions.length ? Math.round((parts.length / sessions.length) * 10) / 10 : 0,
+    stations: keys.size,
+    notes: notes.length,
+    open,
+  };
+}
+
 // The stores history reads (all sessions; the functions above filter).
 export const HISTORY_STORES = ['sessions', 'series', 'participants', 'rounds', 'notes', 'items'];

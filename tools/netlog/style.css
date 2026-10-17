@@ -520,3 +520,11 @@ li.event-line .time{ min-width:5.5em; }
 
 .station-meta .history-toggle{ margin-left:auto; }
 @media (max-width: 700px){ .station-meta .history-toggle{ margin-left:0; } }
+
+/* ---------- series cards: collapsible, with a summary line ---------- */
+.series-card h3{ margin:0; }
+.card-toggle{ background:none; border:0; padding:0; min-height:0; font:inherit; font-weight:700; color:inherit; text-align:left; cursor:pointer; }
+.card-toggle:hover{ color:var(--accent-text); }
+.series-stats{ margin:.2em 0 0; font-size:13px; color:var(--text-dim); }
+.series-card.collapsed{ padding-bottom:.6em; }
+.card-msg:empty{ display:none; }

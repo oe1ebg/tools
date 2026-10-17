@@ -23,7 +23,9 @@ export function historyStale() {
   historyRecords = null;
 }
 
-async function historyData(app) {
+// All sessions' records (cached until the next change), also for the series
+// summaries in Sessions & series.
+export async function historyData(app) {
   if (historyRecords) return historyRecords;
   if (!historyLoading) {
     historyLoading = Promise.all(HISTORY_STORES.map(s => app.store.getAll(s))).then(lists => {

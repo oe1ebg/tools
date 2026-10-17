@@ -218,3 +218,47 @@ test('erasure: a session with everything it owns (also the lease); all data', as
   await eraseAll(store);
   for (const st of Object.keys(NETLOG_STORES)) assert.equal((await store.getAll(st)).length, 0, st);
 });
+
+test('series backup: the series, all its sessions (also deleted ones) and their records and profiles; restores alone', async () => {
+  const { memoryStore } = await import('../tools/netlog/js/memstore.js');
+  const { NETLOG_STORES } = await import('../tools/netlog/js/db.js');
+  const ops = await import('../tools/netlog/js/ops.js');
+  const { toBackup, checkBackup } = await import('../tools/netlog/js/backup.js');
+  const store = memoryStore(NETLOG_STORES);
+  const tab = 't';
+  const sA = await ops.createSeries(store, { tab }, { name: 'A' });
+  const sB = await ops.createSeries(store, { tab }, { name: 'B' });
+  const mk = async (seriesId, date) => {
+    const s = await ops.createSession(store, { tab }, { own: 'OE0QXZ', round: 1, seriesId, date });
+    const ctx = { sessionId: s.id, tab };
+    const p = await ops.addParticipant(store, ctx, { call: 'OE0QXA', name: 'Anna' });
+    await ops.saveProfile(store, ctx, p.id);
+    await ops.createNote(store, ctx, { participantId: p.id, text: `note ${date}` });
+    return s;
+  };
+  const a1 = await mk(sA.id, '2026-06-01');
+  const a2 = await mk(sA.id, '2026-06-08');
+  await mk(sB.id, '2026-06-02');
+  await mk(null, '2026-06-03');
+  await ops.deleteSession(store, { tab }, a2.id);
+  const all = Object.fromEntries(await Promise.all(Object.keys(NETLOG_STORES).map(async s => [s, await store.getAll(s)])));
+  const b = toBackup(all, { seriesId: sA.id, now: '2026-10-17T00:00:00.000Z' });
+  assert.equal(b.scope, 'series');
+  assert.equal(b.seriesId, sA.id);
+  assert.deepEqual(b.stores.series.map(s => s.name), ['A']);
+  assert.deepEqual(b.stores.sessions.map(s => s.id).sort(), [a1.id, a2.id].sort(), 'the deleted one too');
+  assert.deepEqual([...new Set(b.stores.notes.map(n => n.eventId))].sort(), [a1.id, a2.id].sort());
+  assert.ok(b.stores.profiles.length >= 1);
+  assert.ok(b.stores.profiles.every(pr => b.stores.participants.some(p => p.profileId === pr.id)), 'only profiles in use');
+  assert.equal(checkBackup(JSON.parse(JSON.stringify(b))).ok, true);
+  // restored into an empty database: just that series
+  const fresh = memoryStore(NETLOG_STORES);
+  const report = await ops.importBackup(fresh, JSON.parse(JSON.stringify(b)), { copySuffix: ' (import)' });
+  assert.equal(report.sessions, 2);
+  assert.deepEqual((await fresh.getAll('series')).map(s => s.name), ['A']);
+  // again: identical, nothing doubled
+  const again = await ops.importBackup(fresh, JSON.parse(JSON.stringify(b)), { copySuffix: ' (import)' });
+  assert.equal(again.identical, 2);
+  assert.equal((await fresh.getAll('sessions')).length, 2);
+  assert.throws(() => toBackup(all, { seriesId: 'nope' }), /series not found/);
+});

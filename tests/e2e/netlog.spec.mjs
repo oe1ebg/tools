@@ -1354,3 +1354,60 @@ test('the station heading stays compact: status controls on the callsign line, m
   const rounds = await box('#station-rounds');
   expect(rounds.y - (call.y + call.height)).toBeLessThan(90);
 });
+
+test('series cards: collapsed with a summary, remembered; back up and restore one series', async ({ page }, testInfo) => {
+  await open(page, { lang: 'en' });
+  await page.evaluate(async () => {
+    const ops = await import('./js/ops.js');
+    const app = globalThis.NETLOG_APP;
+    const store = app.store;
+    const tab = app.tab;
+    for (const [name, dates] of [['Evening net', ['2026-06-03', '2026-06-10']], ['Workshop net', ['2026-06-05']]]) {
+      const sr = await ops.createSeries(store, { tab }, { name });
+      for (const date of dates) {
+        const s = await ops.createSession(store, { tab }, { own: 'OE0QXZ', round: 1, seriesId: sr.id, date });
+        const ctx = { sessionId: s.id, tab };
+        await ops.claimSession(store, s.id, tab);
+        const a = await ops.addParticipant(store, ctx, { call: 'OE0QXA' });
+        await ops.addParticipant(store, ctx, { call: date === '2026-06-10' ? 'OE0QXC' : 'OE0QXB' });
+        const n = await ops.createNote(store, ctx, { participantId: a.id, text: `note ${date}` });
+        await ops.toggleTask(store, ctx, n.id, true);
+      }
+    }
+    await app.reload();
+  });
+  const card = name => page.locator('#series-list section.series-card', { has: page.locator('.card-toggle', { hasText: name }) });
+  const evening = card('Evening net');
+  await expect(evening.locator('.card-toggle')).toHaveAttribute('aria-expanded', 'false');
+  await expect(evening.locator('.series-body')).toBeHidden();
+  await expect(evening.locator('.series-stats')).toHaveText('2 sessions · 2026-06-03 – 2026-06-10 · ⌀ 2 stations · 3 different stations · 2 notes · 2 open');
+  await expect(card('Workshop net').locator('.series-stats')).toHaveText('1 session · 2026-06-05 · ⌀ 2 stations · 2 different stations · 1 note · 1 open');
+  await evening.locator('.card-toggle').click();
+  await expect(evening.locator('.series-body')).toBeVisible();
+  await expect(evening.locator('li.session-row')).toHaveCount(2);
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => globalThis.NETLOG_READY === true)).toBe(true);
+  await expect(evening.locator('.card-toggle')).toHaveAttribute('aria-expanded', 'true');
+  // back up the series
+  const dl = page.waitForEvent('download');
+  await evening.getByRole('button', { name: 'Back up series Evening net with all its sessions (JSON)' }).click();
+  const d = await dl;
+  expect(d.suggestedFilename()).toMatch(/^\d{4}-\d\d-\d\d_Evening-net_series_backup\.json$/);
+  const file = testInfo.outputPath('series.json');
+  await d.saveAs(file);
+  const data = JSON.parse(await readFile(file, 'utf8'));
+  expect(data.scope).toBe('series');
+  expect(data.stores.sessions.map(s => s.date).sort()).toEqual(['2026-06-03', '2026-06-10']);
+  expect(data.stores.series.map(s => s.name)).toEqual(['Evening net']);
+  // restore it on its own card: already here, nothing doubled
+  await evening.getByRole('button', { name: 'Restore series Evening net from a backup file' }).click();
+  await page.locator('#series-import-file').setInputFiles(file);
+  await expect(evening.locator('.card-msg')).toContainText('2 already here');
+  await expect(evening.locator('li.session-row')).toHaveCount(2);
+  // on another series' card: refused, nothing written
+  const workshop = card('Workshop net');
+  await workshop.getByRole('button', { name: 'Restore series Workshop net from a backup file' }).click();
+  await page.locator('#series-import-file').setInputFiles(file);
+  await expect(workshop.locator('.card-msg')).toContainText('not a backup of this series');
+  expect(await page.evaluate(() => globalThis.NETLOG_APP.data.sessions.length)).toBe(3);
+});
