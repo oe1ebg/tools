@@ -15,7 +15,7 @@ import { $, el, fill, isComposing } from '../../shared/js/dom.js';
 import { prefGet, prefSet } from '../../shared/js/prefs.js';
 import { newId } from '../../shared/js/time.js';
 import { t } from './i18n.js';
-import { keyedList, setText, setAttr, setValue } from './keyed.js';
+import { keyedList, setText, setAttr, setValue, setNamed } from './keyed.js';
 import { roundsSorted, notesOf, responseOf, roundCounts, live, rosterSorted } from './model.js';
 import { createNote, updateNote, deleteNote, toggleResponse, toggleTask, setItemText, setItemDone, moveNotes } from './ops.js';
 import { callText } from './roster.js';
@@ -235,7 +235,7 @@ export function updateNoteRow(app, li, n, p, round, opts = {}) {
   if (opts.station) {
     stationB.dataset.pid = p.id;
     setText(stationB, `${callText(p)}${p.name ? ` · ${p.name}` : ''}`);
-    setAttr(stationB, 'aria-label', t('log.openStation', { call: callText(p) }));
+    setNamed(stationB, t('log.openStation', { call: callText(p) }));
   }
   const key = noteKey(n.id);
   const draft = app.drafts.get(key);
@@ -267,13 +267,13 @@ export function updateNoteRow(app, li, n, p, round, opts = {}) {
   sel.checked = !!opts.selected;
   setAttr(sel, 'aria-label', t('log.selectLabel', { what: `${callText(p)}: ${n.text}` }));
   setText(moveB, t('note.moveShort'));
-  setAttr(moveB, 'aria-label', t('note.moveLabel'));
+  setNamed(moveB, t('note.moveLabel'));
   setText(flagB, flagged && !respDone ? t('note.unflagShort') : t('note.flagShort'));
   setAttr(flagB, 'aria-pressed', String(flagged && !respDone));
-  setAttr(flagB, 'aria-label', t('note.flagLabel', { call: callText(p) }));
+  setNamed(flagB, t('note.flagLabel', { call: callText(p) }));
   setText(taskB, t('note.taskShort'));
   setAttr(taskB, 'aria-pressed', String(taskOn));
-  setAttr(taskB, 'aria-label', t('note.taskLabel'));
+  setNamed(taskB, t('note.taskLabel'));
   setAttr(delB, 'aria-label', t('note.deleteLabel'));
   for (const b of tools.children) b.disabled = app.readOnly;
   // the prepared reply and the completion of the response, and the task

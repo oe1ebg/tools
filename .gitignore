@@ -35,3 +35,4 @@ bench-ui.json
 
 bench-tests.json
 .bench/
+tests/e2e/a11y-survey/

@@ -76,16 +76,42 @@ export function trackExpanded(button, panel) {
 // enterPicksFirst: Enter in the input takes the first item; set it to false
 // where the items are only guesses that must not replace valid input, or
 // pass a function (first item's button -> boolean) to decide per Enter.
-// For screen readers the input says whether suggestions are open
-// (aria-expanded) and where they are (aria-controls).
+// For screen readers it is a combobox (WAI-ARIA APG): the input says
+// whether suggestions are open (aria-expanded) and where they are
+// (aria-controls); the dropdown is a listbox, its buttons are options
+// (aria-selected while focused), its heading lines ("Zuletzt verwendet:",
+// "Kein Treffer …") options that cannot be chosen (aria-disabled), so they
+// are still read.
 let popoverIds = 0;
+
+function popoverRoles(pop) {
+  for (const c of pop.children) {
+    if (c.tagName === 'BUTTON') {
+      c.setAttribute('role', 'option');
+      if (!c.hasAttribute('aria-selected')) c.setAttribute('aria-selected', 'false');
+    } else if (c.querySelector('button')) {
+      c.setAttribute('role', 'group');
+      for (const b of c.querySelectorAll('button')) {
+        b.setAttribute('role', 'option');
+        if (!b.hasAttribute('aria-selected')) b.setAttribute('aria-selected', 'false');
+      }
+    } else if (c.textContent.trim()) {
+      c.setAttribute('role', 'option');
+      c.setAttribute('aria-disabled', 'true');
+    }
+  }
+}
 
 export function popover(input, pop, { enterPicksFirst = true, label = 'Vorschläge' } = {}) {
   if (!pop.id) pop.id = `ac-pop-${++popoverIds}`;
-  pop.setAttribute('role', 'group');
+  pop.setAttribute('role', 'listbox');
   if (!pop.hasAttribute('aria-label')) pop.setAttribute('aria-label', label);
+  input.setAttribute('role', 'combobox');
+  input.setAttribute('aria-haspopup', 'listbox');
   input.setAttribute('aria-controls', pop.id);
   input.setAttribute('aria-autocomplete', 'list');
+  pop.addEventListener('focusin', ev => { const o = ev.target.closest('[role=option]'); if (o) o.setAttribute('aria-selected', 'true'); });
+  pop.addEventListener('focusout', ev => { const o = ev.target.closest('[role=option]'); if (o) o.setAttribute('aria-selected', 'false'); });
   const show = visible => {
     pop.hidden = !visible;
     input.setAttribute('aria-expanded', visible ? 'true' : 'false');
@@ -96,6 +122,7 @@ export function popover(input, pop, { enterPicksFirst = true, label = 'Vorschlä
     // Call after changing the dropdown's content.
     update() {
       pop.querySelectorAll('button').forEach(b => { b.tabIndex = -1; });
+      popoverRoles(pop);
       show(!!pop.childElementCount && focusInside());
     },
     hide() {
