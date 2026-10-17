@@ -5,6 +5,10 @@ import { test, expect, downloadText } from './fixtures.mjs';
 import { parseADIF } from '../../tools/shared/js/adif.js';
 import { calculateLogStatistics } from '../../tools/adif/js/statistics.js';
 
+// The editor follows the browser's language (de-AT here: German); these
+// tests read the English texts (adif-i18n.spec.mjs covers German).
+test.beforeEach(({ page }) => page.addInitScript(() => { try { localStorage.setItem('oe1ebg-adif-lang', 'en'); } catch { /* blocked */ } }));
+
 const XML_FIXTURE = fileURLToPath(new URL('../fixtures/adif-spec/test-qsos.adx', import.meta.url));
 const xml = fields => `<?xml version="1.0" encoding="UTF-8"?><ADX><HEADER><ADIF_VER>3.1.8</ADIF_VER></HEADER><RECORDS><RECORD><CALL>OE1AB</CALL><QSO_DATE>20261012</QSO_DATE><TIME_ON>1200</TIME_ON><BAND>20m</BAND><MODE>SSB</MODE>${fields}</RECORD></RECORDS></ADX>`;
 const input = (text, name = 'example.adx') => ({ name, mimeType: 'application/xml', buffer: Buffer.from(text) });

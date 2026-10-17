@@ -8,7 +8,7 @@ const TOOLS = [
   { path: 'tools/confirm/', flag: 'CONFIRM_READY', help: /Hilfe/ },
   { path: 'tools/notfunk/', flag: 'NOTFUNK_READY', help: /Hilfe/ },
   { path: 'tools/netlog/', flag: 'NETLOG_READY', help: /Help|Hilfe/ },
-  { path: 'tools/adif/', help: /Help/ },
+  { path: 'tools/adif/', help: /Help|Hilfe/ },
   { path: 'tools/sota-alerts/', help: /Help/, sota: true },
 ];
 

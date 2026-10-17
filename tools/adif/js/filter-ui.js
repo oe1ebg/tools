@@ -6,9 +6,10 @@
 import { el, fill } from '../../shared/js/dom.js';
 import { emptyFilter, isFilterActive } from './filter.js';
 import { isoBindDateField } from '../../shared/js/isodate.js';
+import { tx } from '../../shared/js/i18n.js';
 
-const FILTER_OP_LABELS = [
-  ['eq', 'equals'], ['starts', 'starts with'], ['contains', 'contains'], ['empty', 'is empty'], ['notempty', 'is not empty'],
+const filterOpLabels = () => [
+  ['eq', tx('equals', 'ist gleich')], ['starts', tx('starts with', 'beginnt mit')], ['contains', tx('contains', 'enthält')], ['empty', tx('is empty', 'ist leer')], ['notempty', tx('is not empty', 'ist nicht leer')],
 ];
 const FILTER_DEBOUNCE_MS = 150;
 
@@ -50,20 +51,20 @@ export function initFilterUI({ onChange }){
 
   function condRow(c = { field: '', op: 'eq', value: '' }){
     const n = ++condSeq;
-    const value = el('input', { type: 'text', class: 'flt-cond-value', 'aria-label': `condition ${n} value`,
-      placeholder: 'value…', autocomplete: 'off', spellcheck: 'false', oninput: fireLater });
+    const value = el('input', { type: 'text', class: 'flt-cond-value', 'aria-label': tx(`condition ${n} value`, `Bedingung ${n}: Wert`),
+      placeholder: tx('value…', 'Wert…'), autocomplete: 'off', spellcheck: 'false', oninput: fireLater });
     value.value = c.value || '';
-    const op = el('select', { class: 'flt-cond-op', 'aria-label': `condition ${n} operator` },
-      FILTER_OP_LABELS.map(([v, label]) => el('option', { value: v }, label)));
+    const op = el('select', { class: 'flt-cond-op', 'aria-label': tx(`condition ${n} operator`, `Bedingung ${n}: Vergleich`) },
+      filterOpLabels().map(([v, label]) => el('option', { value: v }, label)));
     op.value = c.op || 'eq';
     const syncValue = () => { value.hidden = op.value === 'empty' || op.value === 'notempty'; };
     syncValue();
     op.addEventListener('change', () => { syncValue(); fire(); });
-    const field = el('input', { type: 'text', class: 'flt-cond-field', list: 'adif-field-list', 'aria-label': `condition ${n} field`,
-      placeholder: 'field…', autocomplete: 'off', spellcheck: 'false', autocapitalize: 'characters', oninput: fireLater });
+    const field = el('input', { type: 'text', class: 'flt-cond-field', list: 'adif-field-list', 'aria-label': tx(`condition ${n} field`, `Bedingung ${n}: Feld`),
+      placeholder: tx('field…', 'Feld…'), autocomplete: 'off', spellcheck: 'false', autocapitalize: 'characters', oninput: fireLater });
     field.value = c.field || '';
     const row = el('div', { class: 'flt-cond' }, field, op, value);
-    row.append(el('button', { type: 'button', class: 'flt-cond-rm', 'aria-label': `remove condition ${n}`, title: 'remove condition',
+    row.append(el('button', { type: 'button', class: 'flt-cond-rm', 'aria-label': tx(`remove condition ${n}`, `Bedingung ${n} entfernen`), title: tx('remove condition', 'Bedingung entfernen'),
       onclick: () => { row.remove(); fire(); text.focus(); } }, '×'));
     return row;
   }
@@ -102,6 +103,8 @@ export function initFilterUI({ onChange }){
   return {
     getState: readState,
     setState,
+    // After a change of language: the built texts again, the filter as it is.
+    relabel(){ fieldsKey = null; filesKey = null; setState(readState()); },
     // Show the bar only when there is a log to filter.
     show(on){ bar.hidden = !on; },
     // The present columns for "search in"; a field no longer present is kept
@@ -112,7 +115,7 @@ export function initFilterUI({ onChange }){
       fieldsKey = key;
       const cur = textField.value;
       const names = columns.includes(cur) || !cur ? columns : [cur, ...columns];
-      fill(textField, el('option', { value: '' }, 'all fields'), names.map(c => el('option', { value: c }, c)));
+      fill(textField, el('option', { value: '' }, tx('all fields', 'alle Felder')), names.map(c => el('option', { value: c }, c)));
       textField.value = cur;
     },
     // The source file filter, only with more than one file.
@@ -121,14 +124,14 @@ export function initFilterUI({ onChange }){
       if (key === filesKey) return;
       filesKey = key;
       const cur = file.value;
-      fill(file, el('option', { value: '' }, 'all files'), names.map(n => el('option', { value: n }, n)));
+      fill(file, el('option', { value: '' }, tx('all files', 'alle Dateien')), names.map(n => el('option', { value: n }, n)));
       file.value = names.includes(cur) ? cur : '';
       fileWrap.hidden = names.length < 2;
     },
     // "n of N QSOs shown" (a status region: only rewritten when it changes).
     setCount(shown, total){
       const active = isFilterActive(readState());
-      const msg = active ? `${shown} of ${total} QSO${total === 1 ? '' : 's'} shown` : '';
+      const msg = active ? tx(`${shown} of ${total} QSO${total === 1 ? '' : 's'} shown`, `${shown} von ${total} QSO${total === 1 ? '' : 's'} angezeigt`) : '';
       if (count.textContent !== msg) count.textContent = msg;
       note.hidden = !active;
     },

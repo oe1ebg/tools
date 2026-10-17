@@ -5,6 +5,7 @@
 import { adifAscii, adifAsciiField, adifRunSteps } from '../../shared/js/adif.js';
 import { ADIF_SPEC_FIELDS, ADIF_SPEC_VERSION } from '../../shared/js/adif-spec-data.js';
 import { csvSafeRows } from '../../shared/js/csv.js';
+import { tx } from '../../shared/js/i18n.js';
 
 // No registered MIME type for ADIF; text/plain makes Safari save ".adi.txt".
 export const ADI_MIME = 'application/octet-stream';
@@ -69,23 +70,30 @@ export function mergeFieldDefs(target, defs, file){
     const have = target.userdefs.find(x => x.name === u.name);
     if (!have){ target.userdefs.push({ name: u.name, type: u.type || '', spec: u.spec, file }); continue; }
     if ((have.type || '') !== (u.type || '')){
-      msgs.push(`${file}: USERDEF ${u.name} has type ${u.type || '(none)'} here, but ${have.type || '(none)'} in ${have.file}; ` +
-        `the export keeps ${have.type || '(none)'}, so values from ${file} that don't fit it show up as issues.`);
+      const none = tx('(none)', '(keiner)');
+      msgs.push(tx(`${file}: USERDEF ${u.name} has type ${u.type || none} here, but ${have.type || none} in ${have.file}; ` +
+        `the export keeps ${have.type || none}, so values from ${file} that don't fit it show up as issues.`,
+      `${file}: USERDEF ${u.name} hat hier den Typ ${u.type || none}, in ${have.file} aber ${have.type || none}; ` +
+        `der Export behält ${have.type || none}, Werte aus ${file}, die nicht dazu passen, erscheinen daher als Befunde.`));
     } else if (userdefKey(have.spec) !== userdefKey(u.spec)){
       const wide = widenUserdef(have.spec, u.spec);
-      msgs.push(`${file}: USERDEF ${u.name} is declared as "${u.spec}" here, but "${have.spec}" in ${have.file}; ` +
-        `the export declares "${wide}", which accepts the values of both.`);
+      msgs.push(tx(`${file}: USERDEF ${u.name} is declared as "${u.spec}" here, but "${have.spec}" in ${have.file}; ` +
+        `the export declares "${wide}", which accepts the values of both.`,
+      `${file}: USERDEF ${u.name} ist hier als „${u.spec}“ deklariert, in ${have.file} aber als „${have.spec}“; ` +
+        `der Export deklariert „${wide}“, das die Werte beider annimmt.`));
       have.spec = wide;
     }
   }
   // '' = an APP_ field without indicator: MultilineString (IV.A.4)
   const effective = t => t || 'M';
-  const label = t => t || 'M (no indicator)';
+  const label = t => t || tx('M (no indicator)', 'M (keine Angabe)');
   for (const [name, t] of Object.entries(defs?.types || {})){
     if (!(name in target.types)){ target.types[name] = t; target.typeFiles[name] = file; }
     else if (effective(target.types[name]) !== effective(t) && !ADIF_SPEC_FIELDS[name] && !target.userdefs.some(u => u.name === name)){
-      msgs.push(`${file}: ${name} has data type ${label(t)} here, but ${label(target.types[name])} in ${target.typeFiles[name]}; ` +
-        `the export writes ${label(target.types[name])}, so values that don't fit it show up as issues.`);
+      msgs.push(tx(`${file}: ${name} has data type ${label(t)} here, but ${label(target.types[name])} in ${target.typeFiles[name]}; ` +
+        `the export writes ${label(target.types[name])}, so values that don't fit it show up as issues.`,
+      `${file}: ${name} hat hier den Typ ${label(t)}, in ${target.typeFiles[name]} aber ${label(target.types[name])}; ` +
+        `der Export schreibt ${label(target.types[name])}, Werte, die nicht dazu passen, erscheinen daher als Befunde.`));
     }
   }
   return msgs;

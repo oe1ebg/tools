@@ -3,6 +3,7 @@
 import { ADIF_SPEC_VERSION, ADIF_SPEC_FIELDS, ADIF_SPEC_DATATYPES } from '../../shared/js/adif-spec-data.js';
 import { adifRunSteps, AdifLimitError } from '../../shared/js/adif.js';
 import { validateAdifHeader, validateAdifRecordsSteps } from '../../shared/js/adif-validate.js';
+import { tx } from '../../shared/js/i18n.js';
 
 export const ADX_MIME = 'application/octet-stream'; // Safari keeps the .adx filename
 export class AdxImportError extends Error {
@@ -19,10 +20,10 @@ export function detectLogFormat(text, filename = '') {
   const xmlClosing = /<\/[A-Za-z][\w.:-]*\s*>/.test(start);
   if (!xmlPreamble && !xmlClosing && adiTags) return 'adi';
   if (/^<\?|^<!|^<\/?[\w.-]+(?=\s|\/?>)/.test(start)) {
-    throw new AdxImportError('ADX_STRUCTURE', 'XML content is not an ADX document.');
+    throw new AdxImportError('ADX_STRUCTURE', tx('XML content is not an ADX document.', 'Der XML-Inhalt ist kein ADX-Dokument.'));
   }
   if (/\.adx$/i.test(filename) && !/<(?:[A-Za-z][\w]*:\d|eoh>|eor>)/i.test(start)) {
-    throw new AdxImportError('ADX_STRUCTURE', 'The .adx file does not contain ADX XML or recognizable ADI.');
+    throw new AdxImportError('ADX_STRUCTURE', tx('The .adx file does not contain ADX XML or recognizable ADI.', 'Die .adx-Datei enthält weder ADX-XML noch erkennbares ADI.'));
   }
   return 'adi';
 }
@@ -30,18 +31,18 @@ export function detectLogFormat(text, filename = '') {
 function axName(node) { return node.localName; } // namespaces ignored (IV.B.1)
 function axChildren(node) { return Array.from(node.children); }
 function axAttributes(node, allowed = []) {
-  if (!/^[A-Z][A-Z0-9_]*$/.test(axName(node))) throw new AdxImportError('ADX_STRUCTURE', 'ADX element names must be uppercase.');
+  if (!/^[A-Z][A-Z0-9_]*$/.test(axName(node))) throw new AdxImportError('ADX_STRUCTURE', tx('ADX element names must be uppercase.', 'ADX-Elementnamen müssen großgeschrieben sein.'));
   const seen = new Set();
   for (const attr of Array.from(node.attributes)) {
     if (attr.namespaceURI === 'http://www.w3.org/2000/xmlns/') continue;
     if (attr.namespaceURI && !allowed.includes(attr.localName)) continue; // ignored namespace metadata
-    if (seen.has(attr.localName)) throw new AdxImportError('ADX_STRUCTURE', `${axName(node)} has duplicate attributes after namespace normalization.`);
+    if (seen.has(attr.localName)) throw new AdxImportError('ADX_STRUCTURE', tx(`${axName(node)} has duplicate attributes after namespace normalization.`, `${axName(node)} hat nach der Namensraum-Normalisierung doppelte Attribute.`));
     seen.add(attr.localName);
-    if (!allowed.includes(attr.localName)) throw new AdxImportError('ADX_STRUCTURE', `${axName(node)}: unexpected or non-uppercase attribute ${attr.localName}.`);
+    if (!allowed.includes(attr.localName)) throw new AdxImportError('ADX_STRUCTURE', tx(`${axName(node)}: unexpected or non-uppercase attribute ${attr.localName}.`, `${axName(node)}: unerwartetes oder nicht großgeschriebenes Attribut ${attr.localName}.`));
   }
 }
 function axContainer(node) {
-  if (Array.from(node.childNodes).some(n => (n.nodeType === 3 || n.nodeType === 4) && n.textContent.trim())) throw new AdxImportError('ADX_STRUCTURE', `${axName(node)} contains text outside fields.`);
+  if (Array.from(node.childNodes).some(n => (n.nodeType === 3 || n.nodeType === 4) && n.textContent.trim())) throw new AdxImportError('ADX_STRUCTURE', tx(`${axName(node)} contains text outside fields.`, `${axName(node)} enthält Text außerhalb von Feldern.`));
 }
 function axEscape(value, attribute = false) {
   let s = String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\r/g, '&#13;');
@@ -55,7 +56,7 @@ function axAttribute(node, name) {
 }
 function axText(node) {
   if (axChildren(node).length || Array.from(node.childNodes).some(n => n.nodeType === 4)) {
-    throw new AdxImportError('ADX_FIELD_CONTENT', `${axName(node)}: field elements cannot contain nested elements or CDATA.`);
+    throw new AdxImportError('ADX_FIELD_CONTENT', tx(`${axName(node)}: field elements cannot contain nested elements or CDATA.`, `${axName(node)}: Feldelemente dürfen keine verschachtelten Elemente oder CDATA enthalten.`));
   }
   return node.textContent;
 }
@@ -64,22 +65,22 @@ function axType(indicator) { return Object.values(ADIF_SPEC_DATATYPES).some(d =>
 export function parseADX(source, options = {}) { return adifRunSteps(parseADXSteps(source, options)); }
 export function* parseADXSteps(source, { parser = null, limits = {}, name = '' } = {}) {
   const clean = source.replace(/<\x21--[^]*?-->|<\?[^]*?\?>/g, '');
-  if (/<!DOCTYPE|<!ENTITY/i.test(clean)) throw new AdxImportError('ADX_PROHIBITED_XML', 'ADX does not allow DOCTYPE declarations or custom entities.');
+  if (/<!DOCTYPE|<!ENTITY/i.test(clean)) throw new AdxImportError('ADX_PROHIBITED_XML', tx('ADX does not allow DOCTYPE declarations or custom entities.', 'ADX erlaubt keine DOCTYPE-Deklarationen und keine eigenen Entities.'));
   const encoding = /^\ufeff?\s*<\?xml[^?]*\bencoding\s*=\s*['"]([^'"]+)['"]/i.exec(source);
-  if (encoding && !/^utf-8$/i.test(encoding[1])) throw new AdxImportError('ADX_ENCODING', 'ADX must use UTF-8 encoding.');
+  if (encoding && !/^utf-8$/i.test(encoding[1])) throw new AdxImportError('ADX_ENCODING', tx('ADX must use UTF-8 encoding.', 'ADX muss UTF-8 verwenden.'));
   yield { phase: 'parse', pos: 0, total: source.length, records: 0 };
   // Remove ignored PIs before native parsing, including stylesheet PIs.
   // Comments/CDATA are opaque so tag-shaped text in them is not rewritten.
   const parseSource = source.replace(/^\ufeff/, '').replace(/<\x21--[^]*?-->|<\x21\[CDATA\[[^]*?\]\]>|<\?[^]*?\?>/g, token => token.startsWith('<?') && !/^<\?xml(?:\s|\?>)/i.test(token) ? '' : token);
   const doc = (parser || new DOMParser()).parseFromString(parseSource, 'application/xml');
   if (!doc.documentElement || axName(doc.documentElement) === 'parsererror' || doc.getElementsByTagNameNS('*', 'parsererror').length) {
-    throw new AdxImportError('ADX_XML_SYNTAX', 'Malformed or truncated XML; no records from this file were loaded.');
+    throw new AdxImportError('ADX_XML_SYNTAX', tx('Malformed or truncated XML; no records from this file were loaded.', 'Fehlerhaftes oder abgeschnittenes XML; aus dieser Datei wurden keine QSOs geladen.'));
   }
   const root = doc.documentElement;
   axAttributes(root); axContainer(root);
   const children = axChildren(root);
   if (axName(root) !== 'ADX' || children.length !== 2 || axName(children[0]) !== 'HEADER' || axName(children[1]) !== 'RECORDS') {
-    throw new AdxImportError('ADX_STRUCTURE', 'ADX requires one HEADER followed by one RECORDS element.');
+    throw new AdxImportError('ADX_STRUCTURE', tx('ADX requires one HEADER followed by one RECORDS element.', 'ADX braucht ein HEADER-Element, gefolgt von einem RECORDS-Element.'));
   }
   axAttributes(children[0]); axContainer(children[0]);
   axAttributes(children[1]); axContainer(children[1]);
@@ -99,15 +100,15 @@ export function* parseADXSteps(source, { parser = null, limits = {}, name = '' }
       const enumValue = axAttribute(node, 'ENUM'), range = axAttribute(node, 'RANGE');
       const fieldName = value.toUpperCase();
       if (!/^\d+$/.test(id) || +id <= 0 || seenUserIds.has(+id) || seenUserNames.has(fieldName) || (enumValue && range) || !axType(type)) {
-        diagnostic('INVALID_USERDEF', 'USERDEF needs a unique positive FIELDID/name, valid TYPE and at most one ENUM or RANGE.', { recordType: 'header', field: fieldName });
+        diagnostic('INVALID_USERDEF', tx('USERDEF needs a unique positive FIELDID/name, valid TYPE and at most one ENUM or RANGE.', 'USERDEF braucht eine eindeutige positive FIELDID und einen eindeutigen Namen, einen gültigen TYPE und höchstens ein ENUM oder RANGE.'), { recordType: 'header', field: fieldName });
       }
       seenUserIds.add(+id); seenUserNames.add(fieldName);
       const spec = value + (enumValue || range ? ',' + (enumValue || range) : '');
       defs.userdefs.push({ name: fieldName, type, spec, file: name });
     } else if (field === 'APP') {
-      throw new AdxImportError('ADX_STRUCTURE', 'APP fields belong in RECORD, not HEADER.');
+      throw new AdxImportError('ADX_STRUCTURE', tx('APP fields belong in RECORD, not HEADER.', 'APP-Felder gehören in RECORD, nicht in HEADER.'));
     } else {
-      if (field in headerInfo) diagnostic('DUPLICATE_FIELD', `${field} appears twice in HEADER.`, { recordType: 'header', field });
+      if (field in headerInfo) diagnostic('DUPLICATE_FIELD', tx(`${field} appears twice in HEADER.`, `${field} kommt im HEADER zweimal vor.`), { recordType: 'header', field });
       headerInfo[field] = value;
     }
   }
@@ -138,31 +139,31 @@ export function* parseADXSteps(source, { parser = null, limits = {}, name = '' }
   }
   const recordNodes = axChildren(children[1]);
   for (const node of recordNodes) {
-    if (axName(node) !== 'RECORD') throw new AdxImportError('ADX_STRUCTURE', 'RECORDS may contain only RECORD elements.');
+    if (axName(node) !== 'RECORD') throw new AdxImportError('ADX_STRUCTURE', tx('RECORDS may contain only RECORD elements.', 'RECORDS darf nur RECORD-Elemente enthalten.'));
     axAttributes(node);
     const rec = {}, types = {}, appInfo = {};
     const index = parsed.length;
-    if (limits.maxRecords && index >= limits.maxRecords) throw new AdifLimitError('RECORDS', 'too many records', { at: index + 1, limit: limits.maxRecords });
+    if (limits.maxRecords && index >= limits.maxRecords) throw new AdifLimitError('RECORDS', tx('too many records', 'zu viele QSOs'), { at: index + 1, limit: limits.maxRecords });
     let fieldCount = 0;
     for (const fieldNode of axChildren(node)) {
       const element = axName(fieldNode);
       axAttributes(fieldNode, element === 'APP' ? ['PROGRAMID', 'FIELDNAME', 'TYPE'] : element === 'USERDEF' ? ['FIELDNAME', 'TYPE'] : []);
       let field = element;
-      if (!/^[A-Z][A-Z0-9_]*$/.test(element)) throw new AdxImportError('ADX_STRUCTURE', 'ADX element names must be uppercase.');
+      if (!/^[A-Z][A-Z0-9_]*$/.test(element)) throw new AdxImportError('ADX_STRUCTURE', tx('ADX element names must be uppercase.', 'ADX-Elementnamen müssen großgeschrieben sein.'));
       if (element === 'APP') {
         const programId = axAttribute(fieldNode, 'PROGRAMID'), fieldName = axAttribute(fieldNode, 'FIELDNAME');
         field = appKeys.get(JSON.stringify([programId.toUpperCase(), fieldName.toUpperCase()])) || `APP_${programId}_${fieldName}`.toUpperCase();
         const identity = { programId, fieldName, type: axAttribute(fieldNode, 'TYPE').toUpperCase() || 'M' };
-        if (!programId || !fieldName || /[^\x20-\x7e]/.test(programId + fieldName)) diagnostic('INVALID_APPLICATION_FIELD', 'APP needs nonempty ASCII PROGRAMID and FIELDNAME attributes.', { recordType: 'qso', recordIndex: index, field });
+        if (!programId || !fieldName || /[^\x20-\x7e]/.test(programId + fieldName)) diagnostic('INVALID_APPLICATION_FIELD', tx('APP needs nonempty ASCII PROGRAMID and FIELDNAME attributes.', 'APP braucht nicht leere ASCII-Attribute PROGRAMID und FIELDNAME.'), { recordType: 'qso', recordIndex: index, field });
         appInfo[field] = identity;
         if (!defs.apps[field]) defs.apps[field] = identity;
         const explicitType = Array.from(fieldNode.attributes).some(a => a.namespaceURI !== 'http://www.w3.org/2000/xmlns/' && a.localName === 'TYPE');
-        if (explicitType && !axType(axAttribute(fieldNode, 'TYPE').toUpperCase())) diagnostic('INVALID_DATATYPE_INDICATOR', 'APP TYPE must be a recognized ADIF indicator when present.', { recordType: 'qso', recordIndex: index, field });
+        if (explicitType && !axType(axAttribute(fieldNode, 'TYPE').toUpperCase())) diagnostic('INVALID_DATATYPE_INDICATOR', tx('APP TYPE must be a recognized ADIF indicator when present.', 'APP TYPE muss, wenn vorhanden, eine bekannte ADIF-Typangabe sein.'), { recordType: 'qso', recordIndex: index, field });
       }
       if (element === 'USERDEF') field = axAttribute(fieldNode, 'FIELDNAME').toUpperCase();
       const value = axText(fieldNode);
-      if (field in rec) diagnostic('DUPLICATE_FIELD', `${field} appears twice in this QSO; the last value is used.`, { recordType: 'qso', recordIndex: index, field, value });
-      if (element === 'USERDEF' && !seenUserNames.has(field)) diagnostic('INVALID_USERDEF', `${field} has no declaration in HEADER.`, { recordType: 'qso', recordIndex: index, field, value });
+      if (field in rec) diagnostic('DUPLICATE_FIELD', tx(`${field} appears twice in this QSO; the last value is used.`, `${field} kommt in diesem QSO zweimal vor; der letzte Wert gilt.`), { recordType: 'qso', recordIndex: index, field, value });
+      if (element === 'USERDEF' && !seenUserNames.has(field)) diagnostic('INVALID_USERDEF', tx(`${field} has no declaration in HEADER.`, `${field} ist im HEADER nicht deklariert.`), { recordType: 'qso', recordIndex: index, field, value });
       rec[field] = value;
       if (element === 'APP') {
         types[field] = axAttribute(fieldNode, 'TYPE').toUpperCase();
@@ -170,10 +171,10 @@ export function* parseADXSteps(source, { parser = null, limits = {}, name = '' }
       }
       columnsRead.add(field); allColumns.add(field);
       fieldCount++; fieldsRead++;
-      if (limits.maxValueChars && value.length > limits.maxValueChars) throw new AdifLimitError('VALUE', 'value too long', { at: index + 1, field, length: value.length, limit: limits.maxValueChars });
-      if (limits.maxFieldsPerRecord && fieldCount > limits.maxFieldsPerRecord) throw new AdifLimitError('FIELDS', 'too many fields', { at: index + 1, limit: limits.maxFieldsPerRecord });
-      if (limits.maxFields && fieldsRead > limits.maxFields) throw new AdifLimitError('FIELDS_TOTAL', 'too many fields', { at: index + 1, limit: limits.maxFields });
-      if (limits.maxColumns && allColumns.size > limits.maxColumns) throw new AdifLimitError('COLUMNS', 'too many columns', { at: index + 1, limit: limits.maxColumns });
+      if (limits.maxValueChars && value.length > limits.maxValueChars) throw new AdifLimitError('VALUE', tx('value too long', 'Wert zu lang'), { at: index + 1, field, length: value.length, limit: limits.maxValueChars });
+      if (limits.maxFieldsPerRecord && fieldCount > limits.maxFieldsPerRecord) throw new AdifLimitError('FIELDS', tx('too many fields', 'zu viele Felder'), { at: index + 1, limit: limits.maxFieldsPerRecord });
+      if (limits.maxFields && fieldsRead > limits.maxFields) throw new AdifLimitError('FIELDS_TOTAL', tx('too many fields', 'zu viele Felder'), { at: index + 1, limit: limits.maxFields });
+      if (limits.maxColumns && allColumns.size > limits.maxColumns) throw new AdifLimitError('COLUMNS', tx('too many columns', 'zu viele Spalten'), { at: index + 1, limit: limits.maxColumns });
       if (fieldsRead % 1024 === 0) yield { phase: 'parse', records: index, pos: index, total: recordNodes.length };
     }
     defs.adxRecords.add(rec);
@@ -227,7 +228,7 @@ export function* serializeADXSteps(log, columns, createdIso = new Date().toISOSt
         out.push(axApp(field, defs.typeOverrides?.has(field) ? defs.types?.[field] || 'M' : identity?.type || defs.types?.[field] || 'M', value, identity));
       }
       else if (ADIF_SPEC_FIELDS[field]) out.push(`<${field}>${axEscape(value)}</${field}>`);
-      else throw new Error(`${field}: declare an unknown field as USERDEF before ADX export.`);
+      else throw new Error(tx(`${field}: declare an unknown field as USERDEF before ADX export.`, `${field}: Ein unbekanntes Feld vor dem ADX-Export als USERDEF deklarieren.`));
     }
     out.push('</RECORD>\n');
     if ((i & 255) === 255) yield { phase: 'export', done: i + 1, total: log.length };
@@ -237,6 +238,6 @@ export function* serializeADXSteps(log, columns, createdIso = new Date().toISOSt
 }
 function axApp(field, type, value, identity = null) {
   const match = /^APP_([^_]+)_(.+)$/.exec(field);
-  if (!match) throw new Error(`${field}: invalid application-defined field name.`);
+  if (!match) throw new Error(tx(`${field}: invalid application-defined field name.`, `${field}: ungültiger Name eines Anwendungsfelds.`));
   return `<APP PROGRAMID="${axEscape(identity?.programId || match[1], true)}" FIELDNAME="${axEscape(identity?.fieldName || match[2], true)}" TYPE="${axEscape(type, true)}">${axEscape(value)}</APP>`;
 }

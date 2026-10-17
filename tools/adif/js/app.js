@@ -10,6 +10,7 @@ import { serializeADIF, serializeADIFSteps, serializeCSV, serializeSotaCsv, adif
 import { el, fill, isComposing, trackExpanded } from '../../shared/js/dom.js';
 import { initHelpDialog } from '../../shared/js/helpdialog.js';
 import { prefGet, prefSet } from '../../shared/js/prefs.js';
+import { tx, i18nInit, i18nApply, i18nToggle } from '../../shared/js/i18n.js';
 import { adifDisplayColumns, ADIF_COLUMN_ORDERS } from './columns.js';
 import { validateAdifSteps } from '../../shared/js/adif-validate.js';
 import { ChunkedSlot, chunkedIsAbort } from '../../shared/js/chunked.js';
@@ -23,13 +24,20 @@ import { exportLogWithDecisions } from './export-ui.js';
 import { validateAdifRecordsSteps } from '../../shared/js/adif-validate.js';
 import { initLogStatistics } from './statistics-ui.js';
 import { VirtualBody } from './table.js';
-import { eoColumnKind, eoScopedKey, eoScopeCtx, eoCurrent, eoSuggestions, eoDependents } from './enum-options.js';
+import { eoColumnKind, eoScopedKey, eoScopeCtx, eoCurrent, eoSuggestions, eoDependents, eoClearLists } from './enum-options.js';
 import { dtColumnKind, dtShow, dtParse } from './datetime.js';
 import { isoOpenPicker, isoPickerSupported } from '../../shared/js/isodate.js';
 import { ceSelectCell, ceTextCell, ceSetCurrent, ceFill, ceClearCache, initCellSuggest } from './cell-editors.js';
 
+// German or English (#108 C3): the saved choice, else the browser's
+// language. Set before anything below builds text.
+const LANG_PREF = 'oe1ebg-adif-lang';
+i18nInit(LANG_PREF);
+i18nApply();
+
 function populateFieldDatalist(){
   const dl = document.getElementById('adif-field-list');
+  dl.replaceChildren(); // built again after a change of language
   // Commonly-used fields first, and visibly marked — the <option>'s `value`
   // (what actually fills the input on selection) stays the plain field name;
   // only the displayed label carries the "★ commonly used" marking.
@@ -37,7 +45,7 @@ function populateFieldDatalist(){
   for (const f of ordered){
     const opt = document.createElement('option');
     opt.value = f.name;
-    if (f.common) opt.textContent = `★ ${f.name} — commonly used`;
+    if (f.common) opt.textContent = tx(`★ ${f.name} — commonly used`, `★ ${f.name} — häufig verwendet`);
     dl.appendChild(opt);
   }
 }
@@ -106,11 +114,13 @@ let fileResultsObsolete = false;
 let issuesByRec = new Map();
 const SEVERITY_RANK = { error: 3, warning: 2, info: 1 };
 const SEVERITY_GLYPH = { error: '✕', warning: '⚠', info: 'ⓘ' };
+const SEVERITY_LABEL = s => ({ error: tx('error', 'Fehler'), warning: tx('warning', 'Warnung'), info: tx('info', 'Hinweis') })[s] || s;
 const MAX_LISTED_ISSUES = 500;
 const MAX_SHOWN_WARNINGS = 50; // per file, in the warnings box
 
 function showFileValidations(){
-  const scope = fileValidations.length === 1 ? fileValidations[0].label : `${fileValidations.length} files`;
+  // a function: the text follows a change of language
+  const scope = fileValidations.length === 1 ? (() => fileValidations[0].label) : (() => tx(`${fileValidations.length} files`, `${fileValidations.length} Dateien`));
   validationView = { scope, results: fileValidations };
   indexValidation();
 }
@@ -120,11 +130,11 @@ function setChecking(on, pct){
   const box = document.getElementById('validation');
   let note = document.getElementById('validation-checking');
   if (!note){
-    note = el('span', { id: 'validation-checking', class: 'v-checking', hidden: true }, 'checking…');
+    note = el('span', { id: 'validation-checking', class: 'v-checking', hidden: true }, tx('checking…', 'prüfe…'));
     document.getElementById('validation-summary').after(note);
   }
   note.hidden = !on;
-  const text = on && pct ? `checking… ${pct} %` : 'checking…';
+  const text = on && pct ? tx(`checking… ${pct} %`, `prüfe… ${pct} %`) : tx('checking…', 'prüfe…');
   if (note.textContent !== text) note.textContent = text;
   box.classList.toggle('is-checking', on);
   if (on) document.getElementById('validation-summary').setAttribute('aria-busy', 'true');
@@ -166,7 +176,7 @@ function recheckPct(p){
 
 function* recheckMixedSteps(filled) {
   const groups = new Map();
-  const newSource = { name: 'new records', format: 'adx', defs: fieldDefs };
+  const newSource = { name: tx('new records', 'neue QSOs'), format: 'adx', defs: fieldDefs };
   for (const rec of filled) {
     const source = recordOrigins.get(rec) || newSource;
     if (!groups.has(source)) groups.set(source, []);
@@ -196,7 +206,7 @@ async function revalidate(){
     return; // cancelled: the edit that did it has scheduled the next check
   }
   if (seq !== recheckSeq) return;
-  validationView = { scope: mixed ? 'current log, ADI/ADX record semantics' : 'current log, as it would be exported', results: mixed ? result : [{ label: 'current log', result, recs: filled }] };
+  validationView = { scope: () => (mixed ? tx('current log, ADI/ADX record semantics', 'aktuelles Log, ADI/ADX-Bedeutung der QSOs') : tx('current log, as it would be exported', 'aktuelles Log, wie es exportiert würde')), results: mixed ? result : [{ label: tx('current log', 'aktuelles Log'), result, recs: filled }] };
   indexValidation();
   body?.forEachRow((tr, ri) => applyFlags(tr, ri));
   setChecking(false);
@@ -283,11 +293,12 @@ function applyFlags(tr, ri){
 
 function updateIssuesButton(){
   const panel = document.getElementById('validation-issues');
-  fill(document.getElementById('btn-issues'), panel.hidden ? 'show issues ' : 'hide issues ',
+  fill(document.getElementById('btn-issues'), panel.hidden ? tx('show issues ', 'Befunde zeigen ') : tx('hide issues ', 'Befunde ausblenden '),
     el('span', { 'aria-hidden': 'true' }, panel.hidden ? '▾' : '▴'));
 }
 
-function plural(n, word){ return `${n} ${word}${n === 1 ? '' : 's'}`; }
+// "3 errors" / "3 Fehler": [singular, plural] per language
+function plural(n, en, de){ return `${n} ${tx(en, de)[n === 1 ? 0 : 1]}`; }
 
 let issuesStale = true; // the issue list needs a rebuild before it's shown
 
@@ -304,7 +315,7 @@ function renderValidation(){
   for (const { result } of results) for (const k of Object.keys(n)) n[k] += result[k];
   const dropped = results.reduce((sum, r) => sum + (r.result.issuesDropped || 0), 0);
   const state = n.errors ? 'invalid' : n.warnings ? 'warn' : 'valid';
-  const [glyph, verdict] = { valid: ['✓', 'ADIF valid'], warn: ['⚠', 'ADIF valid with warnings'], invalid: ['✕', 'Invalid ADIF'] }[state];
+  const [glyph, verdict] = { valid: ['✓', tx('ADIF valid', 'ADIF gültig')], warn: ['⚠', tx('ADIF valid with warnings', 'ADIF gültig, mit Warnungen')], invalid: ['✕', tx('Invalid ADIF', 'Ungültiges ADIF')] }[state];
   box.classList.remove('is-valid', 'is-warn', 'is-invalid');
   box.classList.add(`is-${state}`);
   box.hidden = false;
@@ -313,11 +324,11 @@ function renderValidation(){
   const summary = el('span', {},
     el('span', { class: 'verdict' }, el('span', { 'aria-hidden': 'true' }, glyph), ' ', verdict),
     el('span', { class: 'v-counts' },
-      el('span', { class: n.errors ? 'n-error' : null }, plural(n.errors, 'error')),
-      el('span', { class: n.warnings ? 'n-warning' : null }, plural(n.warnings, 'warning')),
-      el('span', { class: n.infos ? 'n-info' : null }, plural(n.infos, 'info'))),
-    el('span', { class: 'v-scope' }, `${validationView.scope}${perFile} · checked against ADIF ${ADIF_SPEC_VERSION}`),
-    dropped ? el('span', { class: 'v-scope' }, `${adifFormatCount(dropped)} issue(s) are counted but not listed or flagged (the first ${adifFormatCount(ADIF_LIMITS.maxIssues)} per file are kept)`) : null);
+      el('span', { class: n.errors ? 'n-error' : null }, plural(n.errors, ['error', 'errors'], ['Fehler', 'Fehler'])),
+      el('span', { class: n.warnings ? 'n-warning' : null }, plural(n.warnings, ['warning', 'warnings'], ['Warnung', 'Warnungen'])),
+      el('span', { class: n.infos ? 'n-info' : null }, plural(n.infos, ['info', 'infos'], ['Hinweis', 'Hinweise']))),
+    el('span', { class: 'v-scope' }, tx(`${validationView.scope()}${perFile} · checked against ADIF ${ADIF_SPEC_VERSION}`, `${validationView.scope()}${perFile} · geprüft gegen ADIF ${ADIF_SPEC_VERSION}`)),
+    dropped ? el('span', { class: 'v-scope' }, tx(`${adifFormatCount(dropped)} issue(s) are counted but not listed or flagged (the first ${adifFormatCount(ADIF_LIMITS.maxIssues)} per file are kept)`, `${adifFormatCount(dropped)} Befund(e) gezählt, aber nicht aufgelistet oder markiert (die ersten ${adifFormatCount(ADIF_LIMITS.maxIssues)} pro Datei bleiben)`)) : null);
   // a status region: only rewritten when its text changes
   const status = document.getElementById('validation-summary');
   if (summary.textContent !== status.textContent) fill(status, [...summary.childNodes]);
@@ -347,17 +358,18 @@ function issueGroups(results){
   // current table row of a record object (only the flagged ones are needed)
   const rowOf = new Map();
   for (const ri of issuesByIndex.keys()) rowOf.set(records[ri], ri);
-  const fieldLabel = i => (i.field ? i.field.replace('/', ' / ') : i.recordType === 'qso' ? '(QSO)' : `(${i.recordType})`);
+  const recordTypeLabel = t => ({ file: tx('file', 'Datei'), header: 'Header' })[t] || t;
+  const fieldLabel = i => (i.field ? i.field.replace('/', ' / ') : i.recordType === 'qso' ? '(QSO)' : `(${recordTypeLabel(i.recordType)})`);
   const items = issues => {
     const out = [];
     for (const issue of issues){
       if (full()) break;
       listed++;
       out.push(el('li', {},
-        el('span', { class: `sev-${issue.severity}`, role: 'img', 'aria-label': issue.severity }, SEVERITY_GLYPH[issue.severity]),
+        el('span', { class: `sev-${issue.severity}`, role: 'img', 'aria-label': SEVERITY_LABEL(issue.severity) }, SEVERITY_GLYPH[issue.severity]),
         el('span', { class: 'v-field' }, fieldLabel(issue)),
         el('span', {}, issue.message, el('span', { class: 'v-code' }, issue.code),
-          issue.line ? el('span', { class: 'v-loc' }, `line ${issue.line}:${issue.column}`) : null)));
+          issue.line ? el('span', { class: 'v-loc' }, tx(`line ${issue.line}:${issue.column}`, `Zeile ${issue.line}:${issue.column}`)) : null)));
     }
     return out;
   };
@@ -373,21 +385,21 @@ function issueGroups(results){
       if (!list) byRec.set(rec, list = []);
       list.push(i);
     }
-    if (general.length) groups.push(el('div', { class: 'v-group' }, el('h2', {}, `${prefix}File`), el('ul', {}, items(general))));
+    if (general.length) groups.push(el('div', { class: 'v-group' }, el('h2', {}, `${prefix}${tx('File', 'Datei')}`), el('ul', {}, items(general))));
     for (const [rec, issues] of byRec){
       if (full()) break;
       const ri = rowOf.get(rec);
-      const where = [rec.CALL, ri !== undefined ? null : 'removed from the table'].filter(Boolean).join(' · ');
+      const where = [rec.CALL, ri !== undefined ? null : tx('removed from the table', 'aus der Tabelle entfernt')].filter(Boolean).join(' · ');
       // "row N" shows the QSO: clears the filters that hide it, scrolls to it
-      const goto = ri !== undefined ? el('button', { type: 'button', class: 'v-goto', 'aria-label': `show row ${ri + 1} in the table`,
-        onclick: () => revealRecord(rec) }, `row ${ri + 1}`) : null;
+      const goto = ri !== undefined ? el('button', { type: 'button', class: 'v-goto', 'aria-label': tx(`show row ${ri + 1} in the table`, `Zeile ${ri + 1} in der Tabelle zeigen`),
+        onclick: () => revealRecord(rec) }, tx(`row ${ri + 1}`, `Zeile ${ri + 1}`)) : null;
       groups.push(el('div', { class: 'v-group' },
         el('h2', {}, `${prefix}QSO #${issues[0].recordIndex + 1} `, el('span', { class: 'dim' }, where, where && goto ? ' · ' : ''), goto),
         el('ul', {}, items(issues))));
     }
   }
   const skipped = total - listed;
-  if (skipped > 0) groups.push(el('p', { class: 'v-more' }, `… and ${skipped} more (the first ${MAX_LISTED_ISSUES} are listed).`));
+  if (skipped > 0) groups.push(el('p', { class: 'v-more' }, tx(`… and ${skipped} more (the first ${MAX_LISTED_ISSUES} are listed).`, `… und ${skipped} weitere (die ersten ${MAX_LISTED_ISSUES} sind aufgelistet).`)));
   return groups;
 }
 
@@ -506,7 +518,7 @@ function widenColumn(col, value){
 
 function buildProtoRow(){
   const tr = document.createElement('tr');
-  tr.appendChild(el('td', { class: 'rownum' }, '', el('button', { type: 'button', class: 'del', title: 'delete row' }, '×')));
+  tr.appendChild(el('td', { class: 'rownum' }, '', el('button', { type: 'button', class: 'del', title: tx('delete row', 'Zeile löschen') }, '×')));
   shown.forEach((col, ci) => {
     const td = document.createElement('td');
     td.setAttribute('contenteditable', EDITABLE);
@@ -543,7 +555,7 @@ function renderCell(td, rec, col, ri, kind){
     if (key && !isSelect) ceSelectCell(td);
     else if (!key && isSelect) ceTextCell(td, EDITABLE);
   }
-  if (key) ceSetCurrent(td.firstElementChild, raw, eoCurrent(key, raw, eoScopeCtx(kind, rec)).label, `${col}, row ${ri + 1}`);
+  if (key) ceSetCurrent(td.firstElementChild, raw, eoCurrent(key, raw, eoScopeCtx(kind, rec)).label, tx(`${col}, row ${ri + 1}`, `${col}, Zeile ${ri + 1}`));
   else if (td.textContent !== cellShown(kind, raw)) td.textContent = cellShown(kind, raw);
 }
 
@@ -562,7 +574,7 @@ function renderRow(ri){
   tr.dataset.ri = String(ri);
   const num = tr.firstChild;
   num.firstChild.data = String(ri + 1);
-  num.lastChild.setAttribute('aria-label', `delete row ${ri + 1}`);
+  num.lastChild.setAttribute('aria-label', tx(`delete row ${ri + 1}`, `Zeile ${ri + 1} löschen`));
   const rec = records[ri];
   let td = num.nextSibling;
   for (let ci = 0; ci < shown.length; ci++){
@@ -635,8 +647,8 @@ function render(){
   if (records.length === 0){
     dropEl.classList.add('empty');
     document.body.classList.remove('compact');
-    fill(dropEl, el('div', { id: 'empty-msg' }, 'drag & drop .adi / .adx file(s) here', el('br'),
-      el('span', { class: 'hint' }, 'or click "add file(s)…" — files are added to the current log; nothing leaves the browser')));
+    fill(dropEl, el('div', { id: 'empty-msg' }, tx('drag & drop .adi / .adx file(s) here', '.adi- / .adx-Datei(en) hierher ziehen'), el('br'),
+      el('span', { class: 'hint' }, tx('or click "add file(s)…" — files are added to the current log; nothing leaves the browser', 'oder „Datei(en) hinzufügen…“ klicken — Dateien kommen zum aktuellen Log dazu; nichts verlässt den Browser'))));
     updateStats();
     updateFileInfo();
     setExportButtonsDisabled(true);
@@ -658,12 +670,12 @@ function render(){
       el('span', { class: 'colhead' },
         el('button', {
           type: 'button', class: 'sortcol',
-          title: 'click to sort' + (fieldDef
+          title: tx('click to sort', 'zum Sortieren klicken') + (fieldDef
             ? ` — ${fieldDef.type}: ${fieldDef.desc}`
-            : userdef ? ` — user-defined field (USERDEF ${userdef.spec}, type ${userdef.type || 'none'})`
-            : ` — no ADIF definition (custom/application field${indicator ? `, type ${indicator}` : ''})`),
+            : userdef ? tx(` — user-defined field (USERDEF ${userdef.spec}, type ${userdef.type || 'none'})`, ` — eigenes Feld (USERDEF ${userdef.spec}, Typ ${userdef.type || 'keiner'})`)
+            : tx(` — no ADIF definition (custom/application field${indicator ? `, type ${indicator}` : ''})`, ` — keine ADIF-Definition (eigenes oder Anwendungsfeld${indicator ? `, Typ ${indicator}` : ''})`)),
         }, col),
-        el('button', { type: 'button', class: 'rmcol', title: 'remove column', 'aria-label': `remove column ${col}` }, '×'))));
+        el('button', { type: 'button', class: 'rmcol', title: tx('remove column', 'Spalte entfernen'), 'aria-label': tx(`remove column ${col}`, `Spalte ${col} entfernen`) }, '×'))));
   }
   const thead = el('thead', {}, htr);
   thead.addEventListener('click', e => {
@@ -683,17 +695,17 @@ function render(){
   fill(dropEl, table);
 
   const addRowDiv = el('div', { class: 'add-row' });
-  addRowDiv.appendChild(el('button', { type: 'button', onclick: addRow }, '+ row'));
+  addRowDiv.appendChild(el('button', { type: 'button', onclick: addRow }, tx('+ row', '+ Zeile')));
 
-  const newFieldInput = el('input', { type: 'text', list: 'adif-field-list', placeholder: 'field name…',
-    'aria-label': 'new field name', autocomplete: 'off', spellcheck: 'false', autocapitalize: 'characters', enterkeyhint: 'done' });
+  const newFieldInput = el('input', { type: 'text', list: 'adif-field-list', placeholder: tx('field name…', 'Feldname…'),
+    'aria-label': tx('new field name', 'neuer Feldname'), autocomplete: 'off', spellcheck: 'false', autocapitalize: 'characters', enterkeyhint: 'done' });
   addRowDiv.appendChild(newFieldInput);
 
-  const addColBtn = el('button', { type: 'button', class: 'add-col' }, '+ field');
+  const addColBtn = el('button', { type: 'button', class: 'add-col' }, tx('+ field', '+ Feld'));
   addColBtn.addEventListener('click', () => {
     const name = newFieldInput.value.trim().toUpperCase();
     if (/^[A-Z][A-Z0-9_]*$/.test(name)) addColumn(name);
-    else if (name) addWarning(`"${name}" is no valid ADIF field name (letters, digits and _ only).`);
+    else if (name) addWarning(tx(`"${name}" is no valid ADIF field name (letters, digits and _ only).`, `„${name}“ ist kein gültiger ADIF-Feldname (nur Buchstaben, Ziffern und _).`));
     newFieldInput.value = '';
   });
   newFieldInput.addEventListener('keydown', (e) => {
@@ -937,7 +949,7 @@ function updateStats(){
 function updateFileInfo(){
   const el = document.getElementById('file-info');
   if (!fileMeta.length){ el.textContent = ''; return; }
-  el.textContent = fileMeta.map(f => `${f.name}: ADIF ${f.adifVer || 'version not declared'}${f.format === 'adx' ? ' (ADX)' : ''}`).join(' · ');
+  el.textContent = fileMeta.map(f => `${f.name}: ADIF ${f.adifVer || tx('version not declared', 'Version nicht angegeben')}${f.format === 'adx' ? ' (ADX)' : ''}`).join(' · ');
 }
 
 /* ---------- editing ops ---------- */
@@ -1141,7 +1153,7 @@ function setImportProgress(p, announce){
   const key = `${p.file}:${Math.floor(p.pct / 10)}`;
   if (announce || key !== setImportProgress.lastKey){
     setImportProgress.lastKey = key;
-    document.getElementById('import-live').textContent = `${p.text}, ${p.pct} percent`;
+    document.getElementById('import-live').textContent = tx(`${p.text}, ${p.pct} percent`, `${p.text}, ${p.pct} Prozent`);
   }
 }
 
@@ -1153,10 +1165,10 @@ function showImportProgress(on){
   document.getElementById('btn-new').disabled = on;
   const cancel = document.getElementById('btn-cancel-import');
   cancel.disabled = false;
-  cancel.textContent = 'Cancel';
+  cancel.textContent = tx('Cancel', 'Abbrechen');
   if (on){
     setImportProgress.lastKey = '';
-    setImportProgress({ pct: 0, text: 'Starting', file: 1, files: 1 }, true);
+    setImportProgress({ pct: 0, text: tx('Starting', 'Beginne'), file: 1, files: 1 }, true);
     cancel.focus();
   } else {
     document.getElementById('import-live').textContent = '';
@@ -1169,15 +1181,15 @@ function cancelImport(){
   importing.signal.aborted = true;
   const cancel = document.getElementById('btn-cancel-import');
   cancel.disabled = true;
-  cancel.textContent = 'Cancelling…';
+  cancel.textContent = tx('Cancelling…', 'Breche ab…');
 }
 
 async function loadFiles(fileList){
   const files = Array.from(fileList);
   if (!files.length) return;
-  if (exporting) { addWarning('Finish or cancel the export before adding more files.'); return; }
+  if (exporting) { addWarning(tx('Finish or cancel the export before adding more files.', 'Den Export erst abschließen oder abbrechen, dann weitere Dateien hinzufügen.')); return; }
   if (importing){
-    addWarning('An import is already running: wait for it, or cancel it, before adding more files.');
+    addWarning(tx('An import is already running: wait for it, or cancel it, before adding more files.', 'Ein Import läuft schon: abwarten oder abbrechen, dann weitere Dateien hinzufügen.'));
     return;
   }
   const signal = { aborted: false };
@@ -1194,8 +1206,8 @@ async function loadFiles(fileList){
       onProgress: p => setImportProgress(p),
     });
   } catch (e){
-    if (chunkedIsAbort(e)) addWarning('Import cancelled; the log is unchanged.');
-    else { console.error(e); addWarning(`Import failed (${e && e.message ? e.message : e}); the log is unchanged.`); }
+    if (chunkedIsAbort(e)) addWarning(tx('Import cancelled; the log is unchanged.', 'Import abgebrochen; das Log ist unverändert.'));
+    else { console.error(e); addWarning(tx(`Import failed (${e && e.message ? e.message : e}); the log is unchanged.`, `Import fehlgeschlagen (${e && e.message ? e.message : e}); das Log ist unverändert.`)); }
   } finally {
     importing = null;
     showImportProgress(false);
@@ -1233,8 +1245,8 @@ function applyLoaded(loaded, skipped, files){
       programVersion: f.headerInfo.PROGRAMVERSION || null,
     });
     f.warnings.slice(0, MAX_SHOWN_WARNINGS).forEach(addWarning);
-    if (f.warnings.length > MAX_SHOWN_WARNINGS) addWarning(`${f.name}: ${adifFormatCount(f.warnings.length - MAX_SHOWN_WARNINGS)} more warning(s) not shown.`);
-    if (f.result?.issuesDropped) addWarning(`${f.name}: ${adifFormatCount(f.result.issuesDropped)} further issue(s) are counted in the summary but not listed or flagged (the first ${adifFormatCount(ADIF_LIMITS.maxIssues)} are kept).`);
+    if (f.warnings.length > MAX_SHOWN_WARNINGS) addWarning(tx(`${f.name}: ${adifFormatCount(f.warnings.length - MAX_SHOWN_WARNINGS)} more warning(s) not shown.`, `${f.name}: ${adifFormatCount(f.warnings.length - MAX_SHOWN_WARNINGS)} weitere Warnung(en) nicht angezeigt.`));
+    if (f.result?.issuesDropped) addWarning(tx(`${f.name}: ${adifFormatCount(f.result.issuesDropped)} further issue(s) are counted in the summary but not listed or flagged (the first ${adifFormatCount(ADIF_LIMITS.maxIssues)} are kept).`, `${f.name}: ${adifFormatCount(f.result.issuesDropped)} weitere(r) Befund(e) in der Übersicht gezählt, aber nicht aufgelistet oder markiert (die ersten ${adifFormatCount(ADIF_LIMITS.maxIssues)} bleiben).`));
   }
   if (files.length === 1) document.getElementById('filename-input').value = files[0].name.replace(/\.[^.]+$/, '') + '.adi';
   rebuildColumns();
@@ -1320,9 +1332,9 @@ async function newLog(){
   if (importing) return;
   commitFocusedCell();
   if (dirty && records.length && !await askConfirm({
-    title: 'Start a new log?',
-    message: 'The current log has edits that have not been exported. A new log discards them.',
-    ok: 'Discard and start new',
+    title: tx('Start a new log?', 'Neues Log beginnen?'),
+    message: tx('The current log has edits that have not been exported. A new log discards them.', 'Das aktuelle Log hat Änderungen, die nicht exportiert sind. Ein neues Log verwirft sie.'),
+    ok: tx('Discard and start new', 'Verwerfen und neu beginnen'),
     opener: document.getElementById('btn-new'),
   })) return;
   if (importing) return;
@@ -1341,10 +1353,10 @@ async function clearEditor(){
   commitFocusedCell();
   const n = records.length;
   if (!await askConfirm({
-    title: 'Clear the editor?',
-    message: (dirty ? 'The log has edits that have not been exported; they will be lost. ' : '') +
-      `This removes all ${adifFormatCount(n)} QSO${n === 1 ? '' : 's'} from the editor. Files on your disk are not changed.`,
-    ok: 'Clear',
+    title: tx('Clear the editor?', 'Editor leeren?'),
+    message: (dirty ? tx('The log has edits that have not been exported; they will be lost. ', 'Das Log hat Änderungen, die nicht exportiert sind; sie gehen verloren. ') : '') +
+      tx(`This removes all ${adifFormatCount(n)} QSO${n === 1 ? '' : 's'} from the editor. Files on your disk are not changed.`, `Das entfernt alle ${adifFormatCount(n)} QSO${n === 1 ? '' : 's'} aus dem Editor. Dateien auf dem Datenträger bleiben unverändert.`),
+    ok: tx('Clear', 'Leeren'),
     opener: document.getElementById('btn-clear'),
   })) return;
   if (importing) return;
@@ -1456,7 +1468,7 @@ document.getElementById('btn-export-csv').addEventListener('click', () => {
   const name = swapExt(document.getElementById('filename-input').value, 'csv');
   const stats = { guarded: 0 };
   downloadText(serializeCSV(records, columns, stats), 'text/csv', name);
-  if (stats.guarded) addWarning(`CSV: ${stats.guarded} value(s) start with =, +, -, @ or a control character; written with a leading ' so spreadsheets don't run them as formulas (numbers like -10 stay as they are; the .adi export is unchanged).`);
+  if (stats.guarded) addWarning(tx(`CSV: ${stats.guarded} value(s) start with =, +, -, @ or a control character; written with a leading ' so spreadsheets don't run them as formulas (numbers like -10 stay as they are; the .adi export is unchanged).`, `CSV: ${stats.guarded} Wert(e) beginnen mit =, +, -, @ oder einem Steuerzeichen; mit vorangestelltem ' geschrieben, damit Tabellenprogramme sie nicht als Formel ausführen (Zahlen wie -10 bleiben; der .adi-Export ist unverändert).`));
   dirty = false;
 });
 
@@ -1465,7 +1477,7 @@ document.getElementById('btn-export-sota').addEventListener('click', () => {
   const mode = document.getElementById('sota-mode').value;
   const stats = { flattened: 0 };
   downloadText(serializeSotaCsv(records, mode, stats), 'text/csv', `sota-${mode}.csv`);
-  if (stats.flattened) addWarning(`SOTA CSV: ${stats.flattened} value(s) changed for SOTA's importer, which has no quoting: comma → ";", line break → blank (one QSO per line).`);
+  if (stats.flattened) addWarning(tx(`SOTA CSV: ${stats.flattened} value(s) changed for SOTA's importer, which has no quoting: comma → ";", line break → blank (one QSO per line).`, `SOTA-CSV: ${stats.flattened} Wert(e) für den Import bei SOTA geändert, der keine Anführungszeichen kennt: Komma → „;“, Zeilenumbruch → Leerzeichen (ein QSO pro Zeile).`));
 });
 
 document.getElementById('btn-toggle-tools').addEventListener('click', e => {
@@ -1509,6 +1521,25 @@ document.getElementById('col-order').addEventListener('click', e => {
 });
 syncColOrder();
 
+// The language switch: every text built here again; the log, the view,
+// the filter and the focus stay. Messages of a check already made keep
+// their language until the next check (help, "Checks").
+function relabel(){
+  commitFocusedCell();
+  i18nApply();
+  eoClearLists();
+  ceClearCache();
+  populateFieldDatalist();
+  renderCompliance(document.getElementById('compliance-body'), globalThis.ADIF_BUILD);
+  filterUI.relabel();
+  syncFilterBar();
+  updateFileInfo();
+  render();
+  updateIssuesButton();
+}
+i18nToggle(LANG_PREF, relabel);
+
 populateFieldDatalist();
+renderCompliance(document.getElementById('compliance-body'), globalThis.ADIF_BUILD);
 initHelpDialog(); // "? Help" in the header, ? outside cells and fields
 render();
