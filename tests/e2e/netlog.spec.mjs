@@ -1385,6 +1385,11 @@ test('series cards: collapsed with a summary, remembered; back up and restore on
   await evening.locator('.card-toggle').click();
   await expect(evening.locator('.series-body')).toBeVisible();
   await expect(evening.locator('li.session-row')).toHaveCount(2);
+  // a click on the band (not only the title) toggles too; its buttons don't
+  await evening.locator('.series-stats').click();
+  await expect(evening.locator('.series-body')).toBeHidden();
+  await evening.locator('.series-head').click({ position: { x: 3, y: 3 } });
+  await expect(evening.locator('.series-body')).toBeVisible();
   await page.reload();
   await expect.poll(() => page.evaluate(() => globalThis.NETLOG_READY === true)).toBe(true);
   await expect(evening.locator('.card-toggle')).toHaveAttribute('aria-expanded', 'true');
