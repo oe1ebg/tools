@@ -80,7 +80,7 @@ footer a{ color:var(--accent-text); }
 .person-row{ border-bottom:1px solid var(--line); }
 button.person{
   display:flex; gap:.5em; align-items:center; width:100%; text-align:left;
-  border:0; border-radius:0; background:transparent; padding:.5em .75em; font-size:15px;
+  border:2px solid transparent; border-radius:0; background:transparent; padding:calc(.5em - 2px) calc(.75em - 2px); font-size:15px;
 }
 .person-row.active button.person{ background:var(--accent-soft); box-shadow:inset 4px 0 var(--accent); }
 button.person .call{ min-width:5.5em; font-weight:700; }
@@ -380,10 +380,15 @@ li.event-line .time{ min-width:5.5em; }
 .roster.topo-circle .person-row:last-child::before{ content:"↺"; }
 .topo-hint{ margin:.2em .8em .4em; }
 /* whose turn it is */
-.person-row.on-air button.person{ background:var(--accent-soft); background:color-mix(in srgb, var(--ok) 16%, var(--bg)); box-shadow:inset 5px 0 var(--ok); }
-.person-row.up-next button.person{ background:var(--warn-soft); box-shadow:inset 5px 0 var(--warn); }
-.pill.on-air{ color:var(--ok); border-color:currentColor; font-weight:600; }
-.pill.next{ color:var(--warn); border-color:currentColor; }
+/* speaking now: a solid green row; next: only a dashed outline. Different
+   in shape and words, not just colour; the selection keeps its blue bar */
+.person-row.on-air button.person, .person-row.on-air.active button.person{ background:var(--ok); border-color:var(--ok); }
+.person-row.on-air button.person .call, .person-row.on-air button.person .pname{ color:#fff; }
+.person-row.on-air .dot{ background:#fff; }
+.person-row.up-next button.person{ border:2px dashed var(--warn); border-radius:6px; }
+.pill.on-air{ color:#fff; background:var(--ok); border-color:var(--ok); font-weight:700; white-space:nowrap; }
+.person-row.on-air .pill{ color:var(--ok); background:#fff; border-color:#fff; }
+.pill.next{ color:var(--warn); background:var(--warn-soft); border-color:var(--warn); font-weight:700; white-space:nowrap; }
 
 /* ---------- the same status look in the roster and in Net Control ---------- */
 .person-row.st-out .call, .person-row.st-out .pname, .order-row.st-out .open{ text-decoration:line-through; }
@@ -399,14 +404,15 @@ li.event-line .time{ min-width:5.5em; }
 .sp-chip.hub button{ border-radius:6px; border-width:2px; border-color:var(--accent); background:var(--accent-soft); }
 .sp-chip.spoken button{ opacity:.55; }
 .sp-chip.on-air button{ background:var(--ok); border-color:var(--ok); color:#fff; }
-.sp-chip.next button{ border-color:var(--warn); color:var(--warn); background:var(--warn-soft); }
+.sp-chip.next button{ border:2px dashed var(--warn); color:var(--warn); background:var(--bg); }
 .sp-chip.then button{ border-style:dashed; border-color:var(--warn); }
 .sp-chip.own button .c::after{ content:" ★"; }
 .sp-link{ color:var(--text-dim); font-size:13px; }
 .speak-strip.star .sp-link{ font-size:16px; color:var(--accent-dim); }
 
-.order-row.on-air{ box-shadow:inset 4px 0 var(--ok); background:var(--accent-soft); }
-.order-row.up-next{ box-shadow:inset 4px 0 var(--warn); }
+.order-row.on-air{ background:var(--ok); }
+.order-row.on-air .open, .order-row.on-air .st-mark{ color:#fff; }
+.order-row.up-next{ outline:2px dashed var(--warn); outline-offset:-2px; border-radius:6px; }
 
 .station-head .edit-id{ font-size:16px; min-width:0; min-height:0; padding:.15em .45em; align-self:center; }
 .details-form .flag-group{ flex-basis:100%; }

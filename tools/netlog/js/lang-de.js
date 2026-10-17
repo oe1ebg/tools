@@ -186,6 +186,8 @@ export const LANG_DE = {
   'speak.me.soon': 'Du kommst nach der Rundenleitung',
   'speak.thenLine': 'danach: {call}',
   'speak.progress': 'Runde {n}: {done} von {all} waren dran',
+  'turn.short.onAir': '🎙 spricht',
+  'turn.short.next': '▶ nächste',
   'control.empty': 'Noch keine Stationen aufgenommen.',
 
   'series.title': 'Sitzungen & Serien',
