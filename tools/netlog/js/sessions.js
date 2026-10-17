@@ -236,14 +236,16 @@ export function renderSessions(app) {
   keyedList(box, groups, {
     key: g => g.key,
     create: g => el('section', { class: 'card series-card' },
-      el('div', { class: 'toolbar' },
-        el('h3', {}, el('button', { type: 'button', class: 'card-toggle', 'data-act': 'toggle-card', 'aria-controls': `series-body-${g.key}` })),
-        el('span', { class: 'spacer' }), el('span', { class: 'tools' })),
-      el('p', { class: 'series-stats' }),
+      el('header', { class: 'series-head' },
+        el('div', { class: 'toolbar' },
+          el('h3', {}, el('button', { type: 'button', class: 'card-toggle', 'data-act': 'toggle-card', 'aria-controls': `series-body-${g.key}` })),
+          el('span', { class: 'spacer' }), el('span', { class: 'tools' })),
+        el('p', { class: 'series-stats' })),
       el('p', { class: 'card-msg data-msg', role: 'status' }),
       el('div', { class: 'series-body', id: `series-body-${g.key}` }, el('p', { class: 'hint sub' }), el('ul', { class: 'session-rows' }))),
     update: (sec, g) => {
-      const [bar, stats, , body] = sec.children;
+      const [head, , body] = sec.children;
+      const [bar, stats] = head.children;
       const [sub, ul] = body.children;
       const [h, , tools] = bar.children;
       const open = cardOpen(app, g);

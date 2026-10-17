@@ -528,3 +528,16 @@ li.event-line .time{ min-width:5.5em; }
 .series-stats{ margin:.2em 0 0; font-size:13px; color:var(--text-dim); }
 .series-card.collapsed{ padding-bottom:.6em; }
 .card-msg:empty{ display:none; }
+
+/* the series heading as a band; its sessions indented below it */
+.series-card{ padding:0; overflow:hidden; }
+.series-head{ background:var(--accent-soft); border-left:5px solid var(--accent); padding:.6em .9em .55em; }
+.series-head .toolbar{ margin:0; }
+.series-head h3{ font-size:17px; }
+.series-head .series-stats{ color:var(--text); opacity:.8; }
+.series-card.collapsed .series-head{ background:var(--bg-raised); border-left-color:var(--accent-dim); }
+.series-card .card-msg{ margin:.4em .9em 0; }
+.series-body{ padding:.3em .9em .6em 1.6em; }
+.series-body .sub{ margin:.3em 0 .2em; }
+.session-row .session-main b{ font-weight:600; font-size:14.5px; }
+.series-card.collapsed{ padding-bottom:0; }
