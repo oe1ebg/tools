@@ -406,7 +406,8 @@ export const LANG_DE = {
   'keys.taken': '{keys} ist schon einem anderen Befehl zugeordnet.',
 
   'help.title': 'Hilfe',
-  'help.open': 'Hilfe und Tastenkürzel',
+  'help.open': 'Hilfe und Tastenkürzel (?)',
+  'header.help': 'Hilfe',
   'help.intro': 'Netlog ist ein Notizblock für Funkrunden: Stationen aufnehmen, Gehörtes notieren, Antworten vorbereiten und Rundenleitung und Runden im Blick behalten. Alles funktioniert offline und bleibt auf diesem Gerät.',
   'help.navCaption': 'Navigation (Fokus außerhalb von Textfeldern)',
   'help.editCaption': 'Beim Tippen in einem Feld',

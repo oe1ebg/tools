@@ -17,6 +17,7 @@
 import { openNotfunkStorage } from './db.js';
 import { requestPersistence, ConflictError } from '../../shared/js/storage.js';
 import { openStorageWithNotices, offerFallbackMigration } from '../../shared/js/storageui.js';
+import { initHelpDialog } from '../../shared/js/helpdialog.js';
 import { $, el, fill, focusNext, submitForm, isComposing, trackExpanded, rowRoles, tableRoles } from '../../shared/js/dom.js';
 import { prefGet, prefSet } from '../../shared/js/prefs.js';
 import { loadDataFile } from '../../shared/js/data.js';
@@ -1134,42 +1135,10 @@ function initForm() {
   state.origLocField = createLocationField({
     input: $('#m-orig-place'), chip: $('#m-orig-place-info'), results: $('#m-orig-place-pop'), onChange: onFormChange,
   });
-  initHelp();
+  initHelpDialog({ keys: ['F1'] }); // "? Hilfe" in the header, F1, ? outside text fields
 }
 
 /* ---------------------------------------------------------------- help */
-
-// The help dialog: "? Hilfe", F1, or ? outside text fields. Closing it
-// (Esc, "Schließen") puts the focus back where it was; the form is
-// untouched.
-function initHelp() {
-  const dlg = $('#help-dlg');
-  let back = null;
-  const open = () => {
-    if (dlg.open) return;
-    back = document.activeElement;
-    dlg.showModal();
-    $('#help-close').focus();
-  };
-  dlg.addEventListener('close', () => { if (back?.isConnected) back.focus(); back = null; });
-  $('#help-close').addEventListener('click', () => dlg.close());
-  $('#btn-help').addEventListener('click', open);
-  // the section links scroll inside the dialog, without changing the route
-  for (const a of dlg.querySelectorAll('.help-nav a')) {
-    a.addEventListener('click', ev => {
-      ev.preventDefault();
-      dlg.querySelector(a.getAttribute('href'))?.scrollIntoView({ block: 'start' });
-    });
-  }
-  document.addEventListener('keydown', ev => {
-    if (ev.ctrlKey || ev.metaKey || ev.altKey || isComposing(ev) || $('#view-book').hidden) return;
-    const typing = ev.target.closest?.('input, textarea, select, [contenteditable]');
-    if (ev.key === 'F1' || (ev.key === '?' && !typing)) {
-      ev.preventDefault();
-      open();
-    }
-  });
-}
 
 /* ---------------------------------------------------------------- the book */
 

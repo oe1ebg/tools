@@ -188,9 +188,9 @@ test('Bestätigungsverkehr', async ({ page }) => {
   await page.locator('#hdr-panel > summary').click();
 
   await page.getByRole('button', { name: 'Hilfe' }).click();
-  await expect(page.locator('#entry-help')).toBeVisible();
-  await shotAround(page, ['#entry-form'], 'confirm-hilfe');
-  await page.getByRole('button', { name: 'Hilfe' }).click();
+  await expect(page.locator('#help-dlg')).toBeVisible();
+  await shot(page.locator('#help-dlg'), 'confirm-hilfe');
+  await page.keyboard.press('Escape');
 
   await page.locator('#btn-export-menu').click();
   await shotAround(page, ['#view-log .log-bar', '#export-list'], 'confirm-export');
@@ -327,7 +327,7 @@ async function updateBanner(page, context, tool, typeInput, input, name) {
   await page.locator('#btn-update').click();
   await expect(page.locator('#update-problem')).toBeVisible();
   await expect(page.locator('#btn-update')).toHaveText('Update wartet: Eingabe klären');
-  await shotAround(page, ['#btn-update', '#update-problem'], name);
+  await shotAround(page, ['#site-header', '#update-problem'], name);
 }
 
 test('Notfunk-Meldebuch: Update wartet', async ({ page, context }) => {

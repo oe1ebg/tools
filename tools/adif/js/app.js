@@ -8,6 +8,7 @@
 import { ADIF_FIELDS, ADIF_FIELD_MAP } from './fields.js';
 import { serializeADIF, serializeADIFSteps, serializeCSV, serializeSotaCsv, adifChangedValues, ADI_MIME, emptyFieldDefs, mergeFieldDefs, forgetFieldDefs } from './export.js';
 import { el, fill, isComposing, trackExpanded } from '../../shared/js/dom.js';
+import { initHelpDialog } from '../../shared/js/helpdialog.js';
 import { validateAdifSteps } from '../../shared/js/adif-validate.js';
 import { ChunkedSlot, chunkedIsAbort } from '../../shared/js/chunked.js';
 import { loadLogFiles, ADIF_LIMITS, adifFormatCount } from './load.js';
@@ -1485,4 +1486,5 @@ document.getElementById('btn-issues').addEventListener('click', () => {
 });
 
 populateFieldDatalist();
+initHelpDialog(); // "? Help" in the header, ? outside cells and fields
 render();

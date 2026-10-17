@@ -1,5 +1,6 @@
-/* Shared base for the tool pages (confirm, adif, sota-alerts): colour
-   tokens, color-scheme and a few rules every page needs. Each tool's own
+/* Shared base for the tool pages (all five tools): colour tokens,
+   color-scheme, the common header, the help dialog and a few rules every
+   page needs. Each tool's own
    style.css builds on it.
 
    The shared theme.js always sets <html data-theme="light|dark"> (also for
@@ -82,3 +83,71 @@
 
 /* The way back to the overview: a target of at least 24 px too. */
 :root #back-link, :root #home-link{ display:inline-flex; align-items:center; min-height:24px; }
+
+/* ---------- the common header (#108 C1, C3) ----------
+   Every tool, in this order: the way back ("← Alle Tools"), the title and
+   links about the tool (manual, single file, source); then .hdr-status
+   (status chips, update button), which takes the room left and wraps
+   inside itself; then .hdr-controls (clock, time zone, language, theme
+   and "? Hilfe"), which stays together at the right, help always last.
+   On a phone the first line keeps the way back, the manual, the clock and
+   the help; status chips and settings flow together below. */
+#site-header{
+  position:sticky; top:0; z-index:10;
+  display:flex; align-items:center; gap:.4em .6em; flex-wrap:wrap;
+  padding:.45em 1em;
+  background:var(--header-bg);
+  -webkit-backdrop-filter:blur(8px); /* Safari < 18 */
+  backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--line);
+  font-size:14.5px;
+}
+#site-header a{ color:var(--text-dim); text-decoration:none; }
+#site-header a:hover{ color:var(--accent-text); }
+#site-header .title{ font-size:inherit; margin:0; font-weight:600; letter-spacing:.04em; text-transform:uppercase; }
+#site-header .hdr-link{ display:inline-flex; align-items:center; min-height:24px; border:1px solid var(--line); border-radius:4px; padding:.05em .5em; font-size:13.5px; }
+.hdr-status{ flex:1 1 0; min-width:0; display:flex; flex-wrap:wrap; justify-content:flex-end; align-items:center; gap:.4em .5em; }
+/* a chip never spills out of the group: its text wraps instead */
+#site-header .hdr-status > *{ max-width:100%; white-space:normal; text-align:center; }
+.hdr-controls{ margin-left:auto; display:flex; flex-wrap:wrap; justify-content:flex-end; align-items:center; gap:.4em .6em; }
+#btn-help{ order:99; font-size:13.5px; padding:.15em .6em; }
+/* segmented choices (time zone, language, theme) */
+.toggle{ display:inline-flex; flex-wrap:wrap; max-width:100%; border:1px solid var(--line); border-radius:4px; overflow:hidden; }
+.toggle button{ background:none; border:none; border-radius:0; color:var(--text-dim); font:inherit; font-size:12.5px; padding:.2em .6em; cursor:pointer; }
+.toggle button + button{ border-left:1px solid var(--line); }
+.toggle button.active, .toggle button[aria-pressed="true"]{ background:var(--accent-soft); color:var(--accent-text); }
+@media (max-width: 640px){
+  #site-header{ padding:.4em .6em; }
+  #site-header .title{ display:none; }
+  .hdr-controls, .hdr-status{ display:contents; }
+  #site-header > *, .hdr-controls > *, .hdr-status > *{ order:2; }
+  #site-header > #home-link, #site-header > #manual-link, .hdr-controls > .clock{ order:0; }
+  .hdr-controls > #btn-help{ order:1; margin-left:auto; }
+  #site-header::after{ content:""; order:1; flex-basis:100%; height:0; } /* status and settings flow on below */
+}
+
+/* ---------- the help dialog (js/helpdialog.js) ---------- */
+.help-dlg{ background:var(--bg); color:var(--text); border:1px solid var(--line-strong); border-radius:8px; padding:0; box-shadow:0 10px 40px rgba(0,0,0,.35); width:min(860px, calc(100vw - 2em)); max-width:none; max-height:calc(100vh - 2em); }
+.help-dlg::backdrop{ background:rgba(0,0,0,.35); }
+.help-dlg[open]{ display:flex; flex-direction:column; }
+.help-head{ display:flex; flex-wrap:wrap; align-items:center; gap:.5em 1em; padding:.7em 1em; border-bottom:1px solid var(--line); }
+.help-head h2{ margin:0; font-size:18px; flex:1; }
+.help-head a{ color:var(--accent-text); font-size:14.5px; }
+.help-body{ display:grid; grid-template-columns:11em minmax(0, 1fr); min-height:0; overflow:hidden; flex:1; }
+.help-nav{ border-right:1px solid var(--line); padding:.6em; display:flex; flex-direction:column; gap:.1em; overflow:auto; }
+.help-nav a{ color:var(--text); text-decoration:none; padding:.25em .5em; border-radius:4px; font-size:14.5px; }
+.help-nav a:hover, .help-nav a:focus-visible{ background:var(--accent-soft); color:var(--accent-text); }
+.help-content{ overflow:auto; padding:.2em 1.2em 1em; font-size:15px; line-height:1.45; }
+.help-content h3{ font-size:16px; margin:1em 0 .4em; }
+.help-content p{ margin:.4em 0; }
+dl.kb{ display:grid; grid-template-columns:max-content minmax(0, 1fr); gap:.4em 1em; margin:.3em 0; }
+dl.kb dt{ font-weight:600; }
+dl.kb dd{ margin:0; color:var(--text-dim); }
+.help-content kbd{ font:12.5px var(--font-mono); border:1px solid var(--line-strong); border-bottom-width:2px; border-radius:3px; padding:0 .3em; white-space:nowrap; }
+@media (max-width: 640px){
+  .help-body{ grid-template-columns:1fr; overflow:auto; }
+  .help-nav{ flex-direction:row; flex-wrap:wrap; border-right:none; border-bottom:1px solid var(--line); }
+  .help-content{ overflow:visible; }
+  dl.kb{ grid-template-columns:1fr; }
+  dl.kb dd{ margin-bottom:.4em; }
+}
