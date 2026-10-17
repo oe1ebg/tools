@@ -13,6 +13,7 @@ import { hm, zone, parseHm } from './clock.js';
 import { STATUS_MARK } from './roster.js';
 import { startNextRound, turnMark } from './speak.js';
 import { initExport, renderExport } from './exportui.js';
+import { provenanceButton, renderProvenance, openProvenance } from './historyui.js';
 import { prefSet } from '../../shared/js/prefs.js';
 import { OWN_PREF } from './sessions.js';
 import { isOwn } from './roster.js';
@@ -128,6 +129,8 @@ export function initControl(app) {
   $('#task-list').addEventListener('click', ev => {
     const b = ev.target.closest('button[data-act=open]');
     if (b) app.openFrom(b.dataset.pid, { noteId: b.dataset.note });
+    const f = ev.target.closest('button[data-act=from]');
+    if (f) openProvenance(app, app.sd.items.find(i => i.id === f.closest('li').dataset.key));
   });
   $('#task-form').addEventListener('submit', async ev => {
     ev.preventDefault();
@@ -350,7 +353,7 @@ export function renderControl(app) {
     create: i => el('li', { class: 'task-row' },
       el('input', { type: 'checkbox', class: 'item-done' }),
       i.noteId ? el('span', { class: 'task-note' }) : el('input', { class: 'task-text', autocorrect: 'off' }),
-      i.noteId ? el('button', { type: 'button', class: 'mini link', 'data-act': 'open' }) : null),
+      i.noteId ? el('button', { type: 'button', class: 'mini link', 'data-act': 'open' }) : provenanceButton(i)),
     update: (li, i) => {
       const [cb, body, open] = li.children;
       const n = i.noteId ? notes.get(i.noteId) : null;
@@ -361,7 +364,8 @@ export function renderControl(app) {
       setAttr(cb, 'aria-label', t('control.taskDone', { what }));
       li.classList.toggle('done', i.state === 'done');
       if (n) setText(body, what); else { setValue(body, i.text); setAttr(body, 'aria-label', t('control.taskText')); body.disabled = app.readOnly; }
-      if (open) { open.dataset.pid = p ? p.id : ''; open.dataset.note = n.id; setText(open, t('turn.toNote')); setAttr(open, 'aria-label', t('turn.toNoteLabel', { call: p ? callText(p) : '?' })); }
+      if (open && !n) renderProvenance(open, i);
+      if (open && n) { open.dataset.pid = p ? p.id : ''; open.dataset.note = n.id; setText(open, t('turn.toNote')); setAttr(open, 'aria-label', t('turn.toNoteLabel', { call: p ? callText(p) : '?' })); }
     },
   });
   if (!tasks.length) fill($('#task-list'), el('li', { class: 'empty', 'data-key': '' }, t('control.noTasks')));

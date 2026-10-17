@@ -499,3 +499,8 @@ li.event-line .time{ min-width:5.5em; }
 .history-sub{ font-size:13px; color:var(--text-dim); margin-bottom:.2em; }
 .history-match{ display:flex; flex-wrap:wrap; gap:.3em .8em; align-items:center; font-size:13.5px; padding:.2em 0; }
 .history-match-acts{ display:inline-flex; gap:.3em; }
+.history-open-list{ list-style:none; margin:0 0 .6em; padding:0; }
+.history-followup{ display:flex; flex-wrap:wrap; gap:.3em .6em; align-items:center; font-size:13.5px; padding:.25em 0; }
+.station-history button.mini{ min-height:0; padding:.15em .5em; font-size:12.5px; }
+.history-item{ display:inline-flex; gap:.35em; align-items:center; }
+@media (pointer: coarse){ .station-history button.mini{ min-height:36px; } }

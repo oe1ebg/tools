@@ -740,6 +740,47 @@ export function linkSameStation(store, ctx, participantId, otherId) {
   });
 }
 
+// A follow-up from an earlier session (a task or an on-air reply) done or
+// reopened in place, from the station history: its own session's My Turn
+// cycle is not touched (no doneTurnId).
+export function resolveFollowUp(store, ctx, itemId, done) {
+  return runOp(store, { ...ctx, label: done ? 'undo.complete' : 'undo.reopen' }, async w => {
+    const item = await w.get('items', itemId);
+    const state = done ? 'done' : 'open';
+    if (item.state === state) return item;
+    const next = stateChange(item, state, w.now, null);
+    if (!done) delete next.carriedTo;
+    return w.put('items', next, item);
+  });
+}
+
+// Carry an open follow-up of an earlier session into this one, as an
+// after-net task ('task') or a talking point for My Turn ('point'): a new
+// item with its source (`from`: ids and, as recorded, date, net and
+// station), and the original closed with a link to the copy (`carriedTo`).
+// One step: undo takes both back. Nothing reaches My Turn without this.
+// source: { date, label, call } of the original, as shown in the history.
+export function carryForward(store, ctx, itemId, as, source = {}) {
+  if (as !== 'task' && as !== 'point') throw new Error(`carry as ${as}`);
+  return runOp(store, { ...ctx, label: 'undo.carryForward' }, async w => {
+    const src = await w.get('items', itemId);
+    if (!src || src.deleted || src.state === 'done' || src.eventId === ctx.sessionId) return null;
+    const note = src.noteId ? await w.get('notes', src.noteId) : null;
+    const text = String(src.text || '').trim() || (note ? note.text : '');
+    const from = {
+      sessionId: src.eventId, itemId: src.id, noteId: src.noteId || null, roundId: note ? note.roundId : null,
+      participantId: note ? note.participantId : null, kind: src.kind,
+      date: source.date || '', label: source.label || '', call: source.call || '',
+    };
+    const copy = w.create('items', {
+      kind: as, noteId: null, text, state: 'open', active: true, order: as === 'point' ? await nextItemOrder(w) : 0,
+      history: [{ state: 'open', at: w.now, turnId: null }], doneTurnId: null, deleted: null, from,
+    });
+    w.put('items', { ...stateChange(src, 'done', w.now, null), carriedTo: { sessionId: ctx.sessionId, itemId: copy.id } }, src);
+    return copy;
+  });
+}
+
 // "Not the same station": the suggestion is not offered again for this
 // participant (p.notSame); undoable like any edit.
 export function markNotSame(store, ctx, participantId, otherId) {

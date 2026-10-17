@@ -139,6 +139,12 @@ export function remapRecord(store, rec, map) {
   if (store === 'items' && Array.isArray(r.history)) r.history = r.history.map(h => ({ ...h, turnId: m('turns', h.turnId) }));
   // "not the same station" decisions: participants of other sessions
   if (store === 'participants' && Array.isArray(r.notSame)) r.notSame = r.notSame.map(id => m('participants', id));
+  // carried-forward follow-ups: the source and the copy, in other sessions
+  if (store === 'items' && r.from) {
+    r.from = { ...r.from, sessionId: m('sessions', r.from.sessionId), itemId: m('items', r.from.itemId), noteId: m('notes', r.from.noteId),
+      roundId: m('rounds', r.from.roundId), participantId: m('participants', r.from.participantId) };
+  }
+  if (store === 'items' && r.carriedTo) r.carriedTo = { sessionId: m('sessions', r.carriedTo.sessionId), itemId: m('items', r.carriedTo.itemId) };
   if (store === 'revisions') {
     r.recordId = m(r.store, r.recordId);
     if (r.record) r.record = remapRecord(r.store, r.record, map);
