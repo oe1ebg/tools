@@ -9,7 +9,7 @@ import { memoryStore } from '../tools/netlog/js/memstore.js';
 import { NETLOG_STORES, NETLOG_SCHEMA } from '../tools/netlog/js/db.js';
 import {
   createSession, createSeries, assignSeries, addParticipant, updateParticipant, setStatus, setFlag,
-  moveParticipant, deleteParticipant, claimSession, undo, undoStep, LeaseError, UndoConflictError, UNDO_MAX, writeDraft,
+  moveParticipant, deleteParticipant, claimSession, undo, undoStep, LeaseError, UndoConflictError, UNDO_MAX, writeDraft, updateSession,
 } from '../tools/netlog/js/ops.js';
 
 const TAB = 'tab-1';
@@ -441,4 +441,15 @@ test('flags from earlier versions (speak, short, priority) are kept but can no l
   await setFlag(store, ctx, p.id, 'reception', true);
   assert.deepEqual((await store.get('participants', p.id)).flags, { speak: true, short: false, reception: true, priority: true });
   assert.throws(() => setFlag(store, ctx, p.id, 'priority', false), /flag priority/);
+});
+
+test('session radio fields merge: saving the mode keeps a repeater saved just before', async () => {
+  const { store, ctx, s } = await fresh();
+  await Promise.all([
+    updateSession(store, ctx, s.id, { radio: { repeater: 'OE0XQR 438.950' } }),
+    updateSession(store, ctx, s.id, { radio: { mode: 'FM' } }),
+  ]);
+  const cur = await store.get('sessions', s.id);
+  assert.equal(cur.radio.repeater, 'OE0XQR 438.950');
+  assert.equal(cur.radio.mode, 'FM');
 });

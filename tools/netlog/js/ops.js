@@ -271,6 +271,9 @@ export function updateSession(store, ctx, id, patch) {
       next.own = { call, base: callBase(call) };
     }
     if ('number' in patch) next.number = patch.number === '' || patch.number == null ? null : Number(patch.number);
+    // radio fields merge into the stored ones (repeater and mode are saved
+    // separately; the later save must not bring back an older repeater)
+    if ('radio' in patch) next.radio = { ...(s.radio || {}), ...(patch.radio || {}) };
     return next;
   }));
 }

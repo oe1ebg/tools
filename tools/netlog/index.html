@@ -245,6 +245,13 @@
               <label class="field"><span data-i18n="session.own">My callsign</span><input id="se-own" class="call-input mono" autocapitalize="characters" autocorrect="off" spellcheck="false"></label>
               <label class="field"><span data-i18n="session.name">Name (optional)</span><input id="se-name" autocorrect="off"></label>
               <label class="field"><span data-i18n="session.repeater">Repeater / frequency</span><input id="se-repeater" autocorrect="off"></label>
+              <label class="field"><span data-i18n="session.mode">Mode</span>
+                <select id="se-mode">
+                  <option value="" data-i18n="session.modeNone">(not set)</option>
+                  <option value="FM">FM</option><option value="SSB">SSB</option><option value="AM">AM</option><option value="CW">CW</option>
+                  <option value="DMR">DMR</option><option value="DSTAR">D-STAR</option><option value="C4FM">C4FM (Fusion)</option>
+                  <option value="M17">M17</option><option value="FREEDV">FreeDV</option>
+                </select></label>
               <label class="field"><span data-i18n="style.label">Net style</span>
                 <select id="se-style">
                   <option value="star" data-i18n="style.star">Star: every station gives back to the NCS</option>
@@ -253,6 +260,17 @@
             </form>
             <p class="hint" data-i18n="control.ownHint">Your own station is marked "me" in the lists; My Turn is yours.</p>
             <button type="button" id="btn-checkin-own" hidden></button>
+          </section>
+          <section class="card" aria-labelledby="export-title">
+            <h3 id="export-title" data-i18n="export.title">Export this session</h3>
+            <div class="toolbar">
+              <button type="button" id="btn-export-stations" data-i18n="export.stations">Stations (CSV)</button>
+              <button type="button" id="btn-export-notes" data-i18n="export.notes">Notes (CSV)</button>
+              <button type="button" id="btn-export-adif" data-i18n="export.adif">Check-ins (ADIF)</button>
+              <button type="button" id="btn-export-print" data-i18n="export.print">Print report…</button>
+            </div>
+            <ul id="export-issues" class="export-issues" data-i18n-attr="aria-label:export.issuesLabel" aria-label="ADIF: left out or missing" hidden></ul>
+            <p class="hint" data-i18n="export.hint">ADIF: one QSO per checked-in station at its check-in time (UTC), with the session's repeater/frequency and mode; notes stay out. The CSV files and the report contain your notes: plaintext, like a backup.</p>
           </section>
           <section class="card" aria-labelledby="ncs-title">
             <h3 id="ncs-title" data-i18n="control.ncs">Net control station</h3>
@@ -456,6 +474,9 @@
        third-party code, if any (scripts/build_netlog.py). -->
   <!-- NETLOG-LICENSES -->
 </footer>
+
+<!-- The printed report (Net Control, "Print report…"), filled on demand. -->
+<section id="print-report" class="print-report" hidden></section>
 
 <script>
   // If the app code fails to load (flaky connection on the very first
