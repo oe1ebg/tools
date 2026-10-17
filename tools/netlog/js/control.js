@@ -279,8 +279,14 @@ export function renderControl(app) {
       setText(tl.firstChild, t('ncs.time', { zone: zone(e.time && e.time.iso) }));
       setValue(tl.lastChild, e.time && e.time.iso ? hm(e.time.iso) : '');
       tl.lastChild.disabled = app.readOnly;
-      // never overwrite a control while it is being used
-      if (document.activeElement !== el2.firstChild) el2.firstChild.checked = !!(e.time && e.time.quality === 'estimated');
+      // set the box only when the stored value changed: a click waiting for
+      // its save is not undone by a re-render (Safari does not focus a
+      // clicked checkbox, so focus cannot tell)
+      const stored = String(!!(e.time && e.time.quality === 'estimated'));
+      if (el2.firstChild.dataset.stored !== stored) {
+        el2.firstChild.dataset.stored = stored;
+        el2.firstChild.checked = stored === 'true';
+      }
       el2.firstChild.disabled = app.readOnly;
       setText(el2.lastChild, t('ncs.estimated'));
       const name = id => (id && byId.get(id) ? callText(byId.get(id)) : '—');

@@ -367,6 +367,7 @@ li.event-line .time{ min-width:5.5em; }
 .topo-label{ display:inline-flex; align-items:center; gap:.4em; font-size:13.5px; font-weight:600; }
 .topo-icon line.spoke{ stroke:var(--accent-dim); stroke-width:1.6; }
 .topo-icon circle.hub{ fill:var(--accent); }
+.topo-icon line.mesh{ stroke:var(--accent-dim); stroke-width:1.4; stroke-dasharray:2 2; }
 .topo-icon circle.ring{ fill:none; stroke:var(--accent-dim); stroke-width:1.6; stroke-dasharray:3 2; }
 .topo-icon circle.node{ fill:var(--bg); stroke:var(--accent); stroke-width:1.6; }
 /* star: the NCS on top is the hub, every other station a spoke from it */

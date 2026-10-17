@@ -85,32 +85,47 @@ offers the export, as on any other page without IndexedDB.
   sequence number, its time stays). An emptied note is not saved (× deletes
   it). Unfinished text is a draft: kept per station and editor, restored
   with its caret after a switch or a reload.
-- **Net style** (per session, the usual one stored with the series):
-  **star** (a directed net: every station gives back to the NCS, typical
-  for local nets where not everyone hears everyone) or **circle** (a
-  round-table / round-robin net: stations hand over in turn). The NCS is
-  always listed first.
-- **Running the round** (above the roster): the topology as a small
-  picture and a turn strip, one chip per station in speaking order (✓
-  spoken, ● speaking now (a red tally bar on the left; the status dot keeps the status, the viewed station is tinted), ▶ next, dotted: after the NCS; a click opens the
-  station), the same marks in the roster and in Net Control. "▶ Next"
-  records the next speaker's turn and opens that station (My Turn when it
-  is me). Star: the NCS opens every round (it has the turn before anyone is
-  recorded, the first station is next); the turn goes back to the NCS after every station (NCS →
-  A → NCS → B …, the NCS's turns recorded too), the round is complete when
-  every station has spoken and the NCS has the turn again; the roster draws
-  the NCS as the hub with a spoke to every station. Circle: the stations
-  pass on in turn, the NCS included; the roster draws a chain with ↺ back
-  to the first. Stations that are paused, monitoring ("im Hintergrund") or
-  checked out are skipped; checked-out ones are struck through in both
-  lists and skipped by j/k. j/k only move in the list; `.` (like the ▶
-  button) moves the net on. The panel shows the station speaking now and
-  the next one (in a star also the one after the NCS), and a banner when I
-  am next or speaking; the panel and the tabs keep their size, so nothing
-  jumps while the turn moves. The NCS is a framed card on top, apart from
-  the list. When everyone has spoken,
-  the button offers "▶ Start round N+1": a suggestion, it starts only when
-  pressed.
+- **Speaking order / Sprechfolge** (per session, the usual one stored
+  with the series; stored as `style`):
+
+  | Shown (en / de) | `style` | Behaviour |
+  | --- | --- | --- |
+  | Central control / Sternverkehr | `star` | every station gives back to the net control, which calls the next one (typical for local nets where not everyone hears everyone) |
+  | Round-robin / Reihum | `circle` | each station passes directly to the next in the sequence |
+  | Free-form / Freie Runde | `free` | stations speak spontaneously: no fixed order, no prediction, no net control needed |
+
+  The ids stay as they were, so sessions and backups from before keep
+  working; "Kreisverkehr" is deliberately not used (it is broader than a
+  fixed sequence). The NCS, if there is one, is listed first.
+- **Running the round** (above the roster): the speaking order as a small
+  picture (hub with spokes, ring, loose links), the station speaking now
+  (● a red tally bar on the left of its row; the status dot keeps the
+  status, the viewed station is tinted) and the next one (▶ a dashed
+  outline), the same marks in the roster and in Net Control; a click on a
+  chip opens the station. "▶ Next" (or `.`) records the next speaker's
+  turn and opens that station (My Turn when it is me). Selecting a station
+  (j/k, a click) only opens it: it never records a turn, hands over or
+  starts a round.
+  - Central control: the NCS opens every round (it has the turn before
+    anyone is recorded, the first station is next); the turn goes back to
+    the NCS after every station (NCS → A → NCS → B …, the NCS's turns
+    recorded too); the round is complete when every station has spoken and
+    the NCS has the turn again; the roster draws the NCS as the hub with a
+    spoke to every station. Without a net control nothing is predicted and
+    the panel asks for one ("▶ assign a net control first").
+  - Round-robin: the stations pass on in turn, the NCS included; the roster
+    draws a chain with ↺ back to the first.
+  - Free-form: no next speaker, no "everyone has spoken", no NCS lines;
+    the button reads "🎙 <selected station> speaks" and records that turn
+    if wanted (optional, repeats allowed). Rounds stay manual.
+
+  Stations that are paused, monitoring ("im Hintergrund") or checked out
+  are skipped; checked-out ones are struck through in both lists and
+  skipped by j/k. The panel shows a banner when I am next or speaking; it
+  and the tabs keep their size, so nothing jumps while the turn moves. The
+  NCS is a framed card on top, apart from the list. When everyone has
+  spoken (central control, round-robin), the button offers "▶ Start round
+  N+1": a suggestion, it starts only when pressed.
 - **Rounds** start only by that button, "+ New round" (one click: the next
   number; number and topic can be corrected in Net Control; undo takes it
   back), never by a note, a reorder or a return to the NCS. Net Control corrects round numbers and topics and can

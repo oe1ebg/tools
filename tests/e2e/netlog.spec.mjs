@@ -404,6 +404,10 @@ test('presence: late check-in, pause, checkout, reentry; reorders keep the speak
   await startSession(page, { round: 2 });
   await checkIn(page, 'OE0QXA');
   await checkIn(page, 'OE0QXB');
+  // round-robin: no net control needed for the speaking turn below
+  await page.locator('#tab-control').click();
+  await page.locator('#se-style').selectOption('circle');
+  await page.locator('#tab-live').click();
   await openStation(page, 'OE0QXB');
   await page.locator('#btn-next').click(); // a speaking turn
   await page.keyboard.press('Escape');
@@ -904,9 +908,9 @@ test('running a round: NCS first, Next through the order, my turn opens My Turn,
   await page.locator('#roster button.person', { hasText: 'OE0QXN' }).click();
   await page.locator('#btn-ncs').click();
   await expect(roster(page)).toHaveText(['OE0QXN', 'OE0QXA', 'OE0QXB', 'OE0QXC']);
-  await expect(page.locator('#speak-style')).toHaveText('Star net (via the NCS)');
+  await expect(page.locator('#speak-style')).toHaveText('Central control');
   await expect(page.locator('#roster')).toHaveClass(/topo-star/);
-  await expect(page.locator('#topo-hint')).toHaveText('Star: every station gives back to OE0QXN.');
+  await expect(page.locator('#topo-hint')).toHaveText('Central control: every station gives back to OE0QXN.');
   // the NCS opens the round; I am next
   await expect(page.locator('#speak-state')).toHaveText('Speaking: OE0QXN · Next to speak: OE0QXA (me)');
   await expect(page.locator('#roster li.on-air .call')).toHaveText('OE0QXN');
@@ -983,7 +987,7 @@ test('circle net: stations pass on in turn, the NCS included; the roster draws a
   await page.locator('#btn-ncs').click();
   await page.locator('#tab-control').click();
   await page.locator('#se-style').selectOption('circle');
-  await expect(page.locator('#speak-style')).toHaveText('Circle net (in turn)');
+  await expect(page.locator('#speak-style')).toHaveText('Round-robin');
   await expect(page.locator('#roster')).toHaveClass(/topo-circle/);
   await expect(page.locator('#topo-hint')).toContainText('back to the first');
   for (const call of ['OE0QXN', 'OE0QXA', 'OE0QXB']) {
@@ -1090,4 +1094,68 @@ test('export: stations and notes as CSV, check-ins as ADIF (what is left out lis
   await expect(page.locator('#print-report .rp-round')).toContainText('asks about the antenna');
   await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
   await expect(page.locator('#print-report')).toBeHidden();
+});
+
+test('free-form: no net control needed, nothing predicted; selecting only opens; "." records the selected speaker', async ({ page }) => {
+  await open(page, { lang: 'en' });
+  await page.locator('#btn-new-session').click();
+  await page.locator('#sf-own').fill('OE0QXZ');
+  await page.locator('#sf-style').selectOption('free');
+  await page.locator('#session-form button[type=submit]').click();
+  await expect(page.locator('#view-live')).toBeVisible();
+  for (const c of ['OE0QXA', 'OE0QXB']) await checkIn(page, c);
+  await expect(page.locator('#speak-style')).toHaveText('Free-form');
+  await expect(page.locator('#topo-hint')).toContainText('anyone may speak');
+  await expect(page.locator('#speak-me')).toHaveText('No fixed order');
+  await expect(page.locator('#roster')).not.toHaveClass(/topo-star|topo-circle/);
+  await expect(page.locator('#roster li.ncs')).toHaveCount(0);
+  // a draft for OE0QXA; switching with j/k records nothing and keeps it
+  await page.locator('#roster button.person', { hasText: 'OE0QXA' }).click();
+  await page.locator('#station-rounds .composer-text').fill('half a thought');
+  await page.keyboard.press('Escape');
+  // Esc goes back to the station's row; j moves on
+  await expect(page.locator('#roster button.person', { hasText: 'OE0QXA' })).toBeFocused();
+  await page.keyboard.press('j');
+  await expect(page.locator('#station-call')).toHaveText('OE0QXB');
+  await expect(page.locator('#btn-next')).toHaveText('🎙 OE0QXB speaks');
+  expect(await page.evaluate(() => globalThis.NETLOG_APP.sd.contributions.length)).toBe(0);
+  await expect(page.locator('#roster li.on-air, #roster li.up-next')).toHaveCount(0);
+  // "." records the selected station, also twice in a row; never a "next"
+  await page.locator('#roster button.person', { hasText: 'OE0QXB' }).focus();
+  await page.keyboard.press('.');
+  await expect(page.locator('#roster li.on-air .call')).toHaveText('OE0QXB');
+  await page.locator('#roster button.person', { hasText: 'OE0QXB' }).focus();
+  await page.keyboard.press('.');
+  await expect.poll(() => page.evaluate(() => globalThis.NETLOG_APP.sd.contributions.length)).toBe(2);
+  await expect(page.locator('#roster li.up-next')).toHaveCount(0);
+  await expect(page.locator('#speak-then')).toHaveText('');
+  await expect(page.locator('#btn-next')).not.toContainText('Start round');
+  // a late arrival, then back to OE0QXA: the draft is still there
+  await checkIn(page, 'OE0QXC');
+  await page.locator('#roster button.person', { hasText: 'OE0QXA' }).click();
+  await expect(page.locator('#station-rounds .composer-text')).toHaveValue('half a thought');
+  // switching to central control without a net control asks for one
+  await page.locator('#tab-control').click();
+  await page.locator('#se-style').selectOption('star');
+  await expect(page.locator('#btn-next')).toHaveText('▶ assign a net control first');
+  await expect(page.locator('#btn-next')).toBeDisabled();
+  await expect(page.locator('#topo-hint')).toContainText('needs a net control');
+  // the notes and turns survived the switches
+  expect(await page.evaluate(() => globalThis.NETLOG_APP.sd.contributions.length)).toBe(2);
+});
+
+test('a pointer released outside the list does not stop j/k from opening stations', async ({ page }) => {
+  await open(page, { lang: 'en' });
+  await startSession(page);
+  for (const c of ['OE0QXA', 'OE0QXB']) await checkIn(page, c);
+  // press on a row, release elsewhere (a tap that shifted the layout)
+  await page.evaluate(() => {
+    const b = document.querySelector('#roster button.person');
+    b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    document.body.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+  });
+  await page.locator('#roster button.person', { hasText: 'OE0QXA' }).focus();
+  await expect(page.locator('#station-call')).toHaveText('OE0QXA');
+  await page.keyboard.press('j');
+  await expect(page.locator('#station-call')).toHaveText('OE0QXB');
 });

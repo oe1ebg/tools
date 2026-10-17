@@ -110,7 +110,7 @@ export function seriesDefaults(series) {
   return {
     radio: { repeater: d.repeater || '', freq: d.freq || '', mode: d.mode || '' },
     suggestedNcs: d.ncs || '',
-    style: d.style === 'circle' ? 'circle' : 'star',
+    style: NET_STYLES.includes(d.style) ? d.style : 'star',
   };
 }
 
@@ -317,8 +317,10 @@ export function roundSummary({ notes, contributions, participants, roundId }) {
 
 // How a net runs: 'star' (every station gives back to the NCS: directed
 // net) or 'circle' (stations hand over in turn: round-robin).
-export const NET_STYLES = ['star', 'circle'];
-export const netStyle = session => (session && session.style === 'circle' ? 'circle' : 'star');
+// The speaking order of a session (stored ids, shown as Central control /
+// Sternverkehr, Round-robin / Reihum, Free-form / Freie Runde).
+export const NET_STYLES = ['star', 'circle', 'free'];
+export const netStyle = session => (session && NET_STYLES.includes(session.style) ? session.style : 'star');
 
 // Who may speak in turn: checked in and not paused, listening or out.
 const SPEAKS = new Set(['active', 'unconfirmed']);
@@ -351,6 +353,8 @@ export function speakingOrder(participants, session) {
 //           spoken and the NCS has the turn again.
 //   circle: A -> B -> C (the NCS in the order): complete when everyone in
 //           the order has spoken.
+//   free:   no order, no prediction, no completion; `free: true`.
+//   star without an NCS: `needsNcs: true`, nothing predicted.
 export function speakingState({ session, participants, contributions }) {
   const rid = session.currentRoundId;
   const turns = liveOf(contributions).filter(c => c.roundId === rid).sort(bySeq);
@@ -367,6 +371,12 @@ export function speakingState({ session, participants, contributions }) {
     return null;
   };
   const ncs = session.ncsId ? participants.find(p => p.id === session.ncsId && !p.deleted) || null : null;
+  // free-form: nobody is predicted, nothing completes; only the last
+  // recorded speaker is known
+  if (netStyle(session) === 'free') return { onAir, next: null, then: null, complete: false, spoken, order: [], ncs, free: true };
+  // central control needs a net control to pick the next station: without
+  // one nothing is predicted (never a quiet round-robin)
+  if (netStyle(session) === 'star' && !ncs) return { onAir, next: null, then: null, complete: false, spoken, order, ncs: null, needsNcs: true };
   if (netStyle(session) === 'star' && ncs) {
     const stationsDone = order.length > 0 && order.every(p => spoken.has(p.id));
     // the last station that spoke (the NCS speaks in between)
