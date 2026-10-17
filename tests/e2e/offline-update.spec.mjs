@@ -9,7 +9,8 @@
 //     not clear it),
 //   - a failed draft save holds the update/reload back (local click, update
 //     from another tab), keeps the input, and "Erneut versuchen" /
-//     "Trotzdem aktualisieren" go on.
+//     "Trotzdem aktualisieren" go on,
+//   - an update the new worker never takes over reloads anyway (#97).
 import { test, expect } from './fixtures.mjs';
 
 const TOOLS = {
@@ -260,6 +261,30 @@ for (const tool of Object.keys(TOOLS)) {
       await expect.poll(() => page.evaluate(TOOLS[tool].ready)).toBe(true);
       await expect(page.locator(TOOLS[tool].input)).toHaveValue(typed);
       expectSaveErrors(problems);
+    });
+
+    // Chromium can leave the new worker waiting after skipWaiting
+    // (#97): a page request restarts the old worker in that moment. The test
+    // gets the same result by dropping the message: no controllerchange.
+    // (What follows the reload is not checked here: the reloaded page
+    // registers sw.js again, which replaces the test's sw.js?v2. A real
+    // update waits under the same URL, sw.js.)
+    test('an update the new worker never takes over reloads anyway and keeps the input', async ({ page, context }) => {
+      await openReady(page, tool);
+      await TOOLS[tool].typeInput(page);
+      const typed = await page.locator(TOOLS[tool].input).inputValue();
+      await stageUpdate(page, context, tool);
+      const oldController = await page.evaluate(() => navigator.serviceWorker.controller.scriptURL);
+      await page.evaluate(() => { globalThis.__marker = 'same page'; });
+      await page.evaluate(async () => { (await navigator.serviceWorker.getRegistration()).waiting.postMessage = () => {}; });
+      await page.locator('#btn-update').click();
+      // not at once: the page waits for the new worker first
+      await page.waitForTimeout(2000);
+      expect(await marker(page)).toBe('same page');
+      await expect.poll(() => marker(page), { timeout: 15_000 }).toBeUndefined(); // reloaded after the wait
+      await expect.poll(() => page.evaluate(TOOLS[tool].ready)).toBe(true);
+      await expect(page.locator(TOOLS[tool].input)).toHaveValue(typed);
+      expect(await page.evaluate(() => navigator.serviceWorker.controller.scriptURL)).toBe(oldController);
     });
 
     test('"Trotzdem aktualisieren" is the explicit way past a failing save', async ({ page, context, problems }) => {

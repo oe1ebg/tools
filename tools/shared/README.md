@@ -279,7 +279,14 @@ and `checkOldInstall()`. The redirects stay.
   "Trotzdem aktualisieren" (the explicit way out so that a permanently
   failing storage cannot block updates forever; it skips the hook for that
   one update only: its own controllerchange reloads directly, no time window). The update button looks up the waiting worker when the
-  action runs and just reloads if another tab already activated it. Hooks
+  action runs and just reloads if another tab already activated it. If no
+  controllerchange follows `skipWaiting` within 5 s, the page reloads anyway
+  (through the hook unless forced): Chromium can leave the new worker
+  waiting when a page request restarts the old worker in the moment of
+  activation (#97). Leaving the page usually lets the new worker take
+  over; Chromium may then drop that reload, so a controllerchange during a
+  reload reloads once more. If the new worker still waits, the reloaded page
+  offers the update again. Hooks
   are pure additions: they return their result, their other save semantics
   are unchanged.
 - **Cache repair** (`repair` message of `sw-core.js`). An emptied cache is
