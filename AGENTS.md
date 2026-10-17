@@ -14,6 +14,45 @@ Standalone browser tools for radio amateurs: Confirm (Bestätigungsverkehr), Not
 - **Deployment headers.** `deploy/nginx.conf.example` and `deploy/htaccess.example` define CSP per location: inline scripts by sha256, `'unsafe-inline'` only for single-file bundles, SOTA network hosts only under `sota-alerts/`. Changing an inline script or SOTA host requires updating both examples and checking `tests/deploy-headers.test.mjs`.
 - **Generated data and bundles.** `tools/shared/data/` and `tools/sota-alerts/data/` are generated, shipped with the bundle, and included where needed in offline bundles and precache hashes. Refreshing data requires a full rebuild. Follow `scripts/single_file.py`: named imports without aliases, no default exports, `export` only on function/const/let/class declarations, and unique top-level names across bundled modules. All four single-file outputs must remain supported: `confirm-offline.html`, `notfunk-offline.html`, `netlog-offline.html`, `adif-editor.html`.
 
+## UX and accessibility
+
+Baseline: [WCAG 2.2](https://www.w3.org/TR/WCAG22/) level AA (the basis of EN 301 549 and Austria's Web-Zugänglichkeits-Gesetz), the [WAI-ARIA Authoring Practices](https://www.w3.org/WAI/ARIA/apg/) for widget patterns, and [Nielsen's ten usability heuristics](https://www.nngroup.com/articles/ten-usability-heuristics/). Cite the success criterion (SC) or heuristic in findings.
+
+Context: the tools are used while operating: during a live net or exercise, often with headphones and one hand on the microphone, under time pressure and divided attention; in the field (sunlight, darkness, cold, small screens, no network); by operators of all ages, mostly in German (de-AT); in emergency exercises (Notfunk), where a wrong entry has consequences.
+
+- **Perceivable.**
+  - Text contrast at least 4.5:1, 3:1 for large text, UI components and focus indicators, in light and dark themes (SC 1.4.3, 1.4.11).
+  - State never by colour alone: add text, a symbol or a shape (SC 1.4.1).
+  - Reflow at 320 CSS px and text at 200 % without loss or two-way scrolling, except data tables and maps with their own scrolling (SC 1.4.4, 1.4.10).
+  - Data stays readable at arm's length: body text about 14 px or larger.
+- **Operable.**
+  - Everything works with the keyboard, in a logical order, without traps (SC 2.1.1, 2.1.2, 2.4.3).
+  - The focus is always visible and not hidden by sticky elements (SC 2.4.7, 2.4.11).
+  - Single-key shortcuts only outside text fields, documented in the help (SC 2.1.4).
+  - Targets at least 24×24 CSS px (SC 2.5.8); about 44 px on touch for frequent actions.
+  - No drag-only actions (SC 2.5.7); no time limits that lose input.
+- **Understandable.**
+  - Every control has a name, a visible label where there is room; a placeholder is not a label (SC 2.5.3, 3.3.2).
+  - The same words, symbols and places for the same actions in every tool, e.g. Sichern / Wiederherstellen / Exportieren / Löschen (SC 3.2.3, 3.2.4); help in the same place (SC 3.2.6).
+  - Errors say what is wrong and how to fix it, in text next to the cause (SC 3.3.1, 3.3.3).
+  - Irreversible actions are confirmed or undoable (SC 3.3.4); prefer undo. Never make users re-enter what they gave already (SC 3.3.7).
+- **Robust.**
+  - Native elements first; ARIA for names and states (`aria-expanded`, `aria-pressed`, `aria-current`), following the APG pattern of the widget (SC 4.1.2).
+  - Status messages through live regions, without moving focus (SC 4.1.3).
+- **For operating.**
+  - Live state (who is on air, saving, offline readiness) at a fixed place, glanceable; no layout shift while working.
+  - One obvious primary action per view; secondary actions quieter; destructive ones last and separated.
+  - Frequent tasks in few steps: Enter commits, Esc leaves a field, unfinished input survives switching, reloads and updates.
+  - Times with their zone, dates in ISO (invariant above).
+  - Dense but scannable lists; nothing essential only on hover; the phone layout keeps every workflow.
+- **Checks** for UI changes, in addition to "Verification":
+  - axe-core with the WCAG 2.2 A/AA rules on each affected view, with realistic data (`examples/backups/`);
+  - a keyboard-only walk-through;
+  - 320 px width and 200 % zoom;
+  - both themes and forced colours;
+  - for new widgets, a screen-reader spot check (VoiceOver or NVDA).
+  - Record unresolved findings in an issue with SC references.
+
 ## Read before changing an area
 
 Read applicable nested `AGENTS.md` files and the documents below before editing. Shared changes affect every consuming tool.
