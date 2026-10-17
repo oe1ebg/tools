@@ -11,6 +11,7 @@
 // Top-level names start with "ce" (one scope in the single-file bundle).
 
 import { el, isComposing } from '../../shared/js/dom.js';
+import { tx } from '../../shared/js/i18n.js';
 import { eoOptionList, eoCurrent } from './enum-options.js';
 
 // A text cell of the prototype row becomes a select cell.
@@ -107,7 +108,7 @@ export function initCellSuggest({ dropEl, onPick }){
     if (!o) return;
     o.setAttribute('aria-selected', 'true');
     o.scrollIntoView({ block: 'nearest' });
-    say(`${items[i]}, ${i + 1} of ${items.length}`);
+    say(tx(`${items[i]}, ${i + 1} of ${items.length}`, `${items[i]}, ${i + 1} von ${items.length}`));
   }
 
   function hide(){
@@ -127,10 +128,10 @@ export function initCellSuggest({ dropEl, onPick }){
     active = -1;
     const more = result.total - items.length;
     list.replaceChildren(...items.map((v, i) => el('li', { role: 'option', id: `cell-suggest-${i}`, 'aria-selected': 'false', 'data-i': String(i) }, v)),
-      more > 0 ? el('li', { role: 'option', class: 'more', 'aria-disabled': 'true' }, `… ${more} more`) : null);
+      more > 0 ? el('li', { role: 'option', class: 'more', 'aria-disabled': 'true' }, tx(`… ${more} more`, `… ${more} weitere`)) : null);
     list.hidden = false;
     place();
-    say(`${result.total} suggestion${result.total === 1 ? '' : 's'}`);
+    say(tx(`${result.total} suggestion${result.total === 1 ? '' : 's'}`, `${result.total} Vorschl${result.total === 1 ? 'ag' : 'äge'}`));
     if (first) highlight(0);
   }
 

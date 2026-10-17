@@ -2,6 +2,7 @@
 import { ADIF_SPEC_FIELDS, ADIF_SPEC_DATATYPES, ADIF_SPEC_ENUMS } from '../../shared/js/adif-spec-data.js';
 import { adifAscii, adifRunSteps } from '../../shared/js/adif.js';
 import { emptyFieldDefs, mergeFieldDefs } from './export.js';
+import { tx } from '../../shared/js/i18n.js';
 
 function cvMultiline(field, defs) {
   const type = ADIF_SPEC_FIELDS[field]?.type;
@@ -25,7 +26,7 @@ export function* prepareExportSteps(log, columns, target, sources = [], fallback
     return groups.get(key);
   }
   const keep = new Set(columns);
-  for (const source of sources.length ? sources : [{ name: 'current log', defs: fallbackDefs }]) {
+  for (const source of sources.length ? sources : [{ name: tx('current log', 'aktuelles Log'), defs: fallbackDefs }]) {
     const sourceDefs = cvCloneDefs(source.defs);
     sourceDefs.types = Object.fromEntries(Object.entries(sourceDefs.types).filter(([field]) => keep.has(field)));
     mergeFieldDefs(defs, sourceDefs, source.name);
@@ -55,8 +56,8 @@ export function* prepareExportSteps(log, columns, target, sources = [], fallback
     }
     const independentApps = target === 'adx' && kinds.size === 1 && kinds.has('app') && [...identities.values()].every(t => t.size === 1);
     if ((types.size > 1 && !independentApps) || kinds.size > 1) {
-      const g = group('definition:' + field, field, 'Custom field declarations conflict; select the combined export definition.', [
-        cvChoice('first', `Use first (${choices[0].type || 'unspecified'})`), cvChoice('last', `Use last (${choices.at(-1).type || 'unspecified'})`), cvChoice('text', 'Declare as multiline text'), cvChoice('drop', 'Omit this field')]);
+      const g = group('definition:' + field, field, tx('Custom field declarations conflict; select the combined export definition.', 'Eigene Felddeklarationen widersprechen sich; die gemeinsame Definition für den Export wählen.'), [
+        cvChoice('first', tx(`Use first (${choices[0].type || 'unspecified'})`, `Erste verwenden (${choices[0].type || 'ohne Angabe'})`)), cvChoice('last', tx(`Use last (${choices.at(-1).type || 'unspecified'})`, `Letzte verwenden (${choices.at(-1).type || 'ohne Angabe'})`)), cvChoice('text', tx('Declare as multiline text', 'Als mehrzeiligen Text deklarieren')), cvChoice('drop', tx('Omit this field', 'Dieses Feld weglassen'))]);
       g.candidates = choices;
       g.entries.push(...choices.map(c => ({ field, recordIndex: null, before: `${c.file}: ${c.kind} ${c.type} ${c.spec || ''}`, after: '' })));
     }
@@ -64,13 +65,13 @@ export function* prepareExportSteps(log, columns, target, sources = [], fallback
   if (target === 'adi') for (const u of defs.userdefs) {
     const after = adifAscii(u.spec, { keepBrackets: true });
     if (after !== u.spec) {
-      const g = group('restriction:' + u.name, u.name, 'The custom declaration itself changes when written as ADI ASCII.', [cvChoice('convert', 'Approve displayed declaration conversion'), cvChoice('drop', 'Omit this field and declaration')]);
+      const g = group('restriction:' + u.name, u.name, tx('The custom declaration itself changes when written as ADI ASCII.', 'Die eigene Deklaration selbst ändert sich, wenn sie als ADI-ASCII geschrieben wird.'), [cvChoice('convert', tx('Approve displayed declaration conversion', 'Angezeigte Umwandlung der Deklaration annehmen')), cvChoice('drop', tx('Omit this field and declaration', 'Feld und Deklaration weglassen'))]);
       g.entries.push({ recordIndex: null, field: u.name, before: u.spec, after });
     }
   }
   for (const u of defs.userdefs) if (!u.type || !Object.values(ADIF_SPEC_DATATYPES).some(d => d.indicator === u.type)) {
-    const g = group('type:' + u.name, u.name, 'This custom declaration has no usable ADIF type.', [cvChoice('text', 'Declare as multiline text'), cvChoice('drop', 'Omit this field')]);
-    g.entries.push({ recordIndex: null, field: u.name, before: u.type || '(missing type)', after: target === 'adx' ? 'G' : 'M' });
+    const g = group('type:' + u.name, u.name, tx('This custom declaration has no usable ADIF type.', 'Diese eigene Deklaration hat keinen brauchbaren ADIF-Typ.'), [cvChoice('text', tx('Declare as multiline text', 'Als mehrzeiligen Text deklarieren')), cvChoice('drop', tx('Omit this field', 'Dieses Feld weglassen'))]);
+    g.entries.push({ recordIndex: null, field: u.name, before: u.type || tx('(missing type)', '(Typ fehlt)'), after: target === 'adx' ? 'G' : 'M' });
   }
   const copy = [], unicodeFields = new Set();
   for (let index = 0; index < log.length; index++) {
@@ -79,8 +80,8 @@ export function* prepareExportSteps(log, columns, target, sources = [], fallback
     const sourceDefs = sourceOf?.(original) || fallbackDefs;
     if (sourceDefs?.adxRecords?.has(original)) defs.adxRecords.add(rec);
     if (target === 'adi' && defs.adxRecords.has(rec) && !Object.keys(rec).length) {
-      const g = group('empty-records', '(empty records)', 'ADI readers cannot restore fieldless ADX records. Export ADX to retain them, or explicitly omit these records.', [cvChoice('drop', 'Omit fieldless records')]);
-      g.entries.push({ recordIndex: index, field: '', before: 'empty ADX record', after: '(omitted)' });
+      const g = group('empty-records', tx('(empty records)', '(leere QSOs)'), tx('ADI readers cannot restore fieldless ADX records. Export ADX to retain them, or explicitly omit these records.', 'ADI-Leser können feldlose ADX-QSOs nicht wiederherstellen. Als ADX exportieren, um sie zu behalten, oder diese QSOs ausdrücklich weglassen.'), [cvChoice('drop', tx('Omit fieldless records', 'Feldlose QSOs weglassen'))]);
+      g.entries.push({ recordIndex: index, field: '', before: tx('empty ADX record', 'leeres ADX-QSO'), after: tx('(omitted)', '(weggelassen)') });
     }
     const originalApps = sourceDefs?.appOrigins?.get(original) || sourceDefs?.apps || {};
     defs.appOrigins.set(rec, originalApps);
@@ -90,7 +91,7 @@ export function* prepareExportSteps(log, columns, target, sources = [], fallback
       // Resolve declaration conflicts before presenting value/type losses.
       if (/[^\x20-\x7e\r\n]/.test(value)) unicodeFields.add(field);
       if (groups.has('definition:' + field)) {
-        groups.get('definition:' + field).entries.push({ recordIndex: index, field, before: value, after: '(export definition pending)' });
+        groups.get('definition:' + field).entries.push({ recordIndex: index, field, before: value, after: tx('(export definition pending)', '(Export-Definition offen)') });
         continue;
       }
       const def = ADIF_SPEC_FIELDS[field];
@@ -99,29 +100,29 @@ export function* prepareExportSteps(log, columns, target, sources = [], fallback
       const appIdentity = originalApps[field] || defs.apps[field];
       if (target === 'adi' && field.startsWith('APP_') && (appIdentity?.programId.includes('_') || /[,<>:{}]/.test(field) || / $/.test(field))) {
         const invalid = /[,<>:{}]/.test(field) || / $/.test(field);
-        g = group('identity:' + field, field, invalid ? 'This APP identity cannot be represented as an ADI field name. Cancel or export ADX to retain it.' : 'ADI cannot retain the separate PROGRAMID/FIELDNAME boundary for this APP field. Re-importing ADI may attribute it to a different program.', invalid ? [cvChoice('drop', 'Omit this field')] : [cvChoice('flatten', 'Approve the flattened ADI field name'), cvChoice('drop', 'Omit this field')]);
+        g = group('identity:' + field, field, invalid ? tx('This APP identity cannot be represented as an ADI field name. Cancel or export ADX to retain it.', 'Diese APP-Kennung lässt sich nicht als ADI-Feldname darstellen. Abbrechen oder als ADX exportieren, um sie zu behalten.') : tx('ADI cannot retain the separate PROGRAMID/FIELDNAME boundary for this APP field. Re-importing ADI may attribute it to a different program.', 'ADI kann die Grenze zwischen PROGRAMID und FIELDNAME dieses APP-Felds nicht erhalten. Ein erneuter ADI-Import ordnet es womöglich einem anderen Programm zu.'), invalid ? [cvChoice('drop', tx('Omit this field', 'Dieses Feld weglassen'))] : [cvChoice('flatten', tx('Approve the flattened ADI field name', 'Zusammengezogenen ADI-Feldnamen annehmen')), cvChoice('drop', tx('Omit this field', 'Dieses Feld weglassen'))]);
         after = invalid ? '' : value;
       } else if (target === 'adi' && (def?.type.startsWith('Intl') || customType === 'I' || customType === 'G')) {
         const nonintl = field.replace(/_INTL$/, '');
         const canMap = nonintl !== field && ADIF_SPEC_FIELDS[nonintl] && !ADIF_SPEC_FIELDS[nonintl].type.startsWith('Intl');
-        const choices = canMap ? [cvChoice('map-keep', `Map to ${nonintl}; keep existing values on conflicts`), cvChoice('map-replace', `Map to ${nonintl}; replace existing values on conflicts`), cvChoice('drop', 'Omit international field')] : [cvChoice('convert', 'Convert to ASCII text type'), cvChoice('drop', 'Omit this field')];
-        g = group('international:' + field, field, 'International data/types cannot be represented in ADI. Mapping transliterates characters; unsupported characters become ?.', choices);
+        const choices = canMap ? [cvChoice('map-keep', tx(`Map to ${nonintl}; keep existing values on conflicts`, `Nach ${nonintl} übernehmen; bei Konflikten vorhandene Werte behalten`)), cvChoice('map-replace', tx(`Map to ${nonintl}; replace existing values on conflicts`, `Nach ${nonintl} übernehmen; bei Konflikten vorhandene Werte ersetzen`)), cvChoice('drop', tx('Omit international field', 'Internationales Feld weglassen'))] : [cvChoice('convert', tx('Convert to ASCII text type', 'In ASCII-Texttyp umwandeln')), cvChoice('drop', tx('Omit this field', 'Dieses Feld weglassen'))];
+        g = group('international:' + field, field, tx('International data/types cannot be represented in ADI. Mapping transliterates characters; unsupported characters become ?.', 'Internationale Daten und Typen lassen sich in ADI nicht darstellen. Beim Übernehmen werden Zeichen umschrieben; nicht unterstützte Zeichen werden zu ?.'), choices);
         g.destination = canMap ? nonintl : field;
         after = cvAscii(value, canMap ? nonintl : field, defs);
       } else if (target === 'adx' && def?.header) {
-        g = group('header-field:' + field, field, 'A header field cannot be placed in an ADX QSO record. Cancel to edit it or use ADI to retain the existing representation.', [cvChoice('drop', 'Omit this field from QSO records')]);
+        g = group('header-field:' + field, field, tx('A header field cannot be placed in an ADX QSO record. Cancel to edit it or use ADI to retain the existing representation.', 'Ein Header-Feld kann nicht in einem ADX-QSO stehen. Abbrechen, um es zu bearbeiten, oder ADI verwenden, um die vorhandene Darstellung zu behalten.'), [cvChoice('drop', tx('Omit this field from QSO records', 'Dieses Feld aus den QSOs weglassen'))]);
         after = '';
       } else if (target === 'adi' && cvAscii(value, field, defs) !== value) {
-        g = group('value:' + field, field, 'ADI serialization changes characters, surrounding whitespace, or line breaks. Unsupported characters become ?.', [cvChoice('convert', 'Approve displayed ASCII/whitespace conversion'), cvChoice('drop', 'Omit this field')]);
+        g = group('value:' + field, field, tx('ADI serialization changes characters, surrounding whitespace, or line breaks. Unsupported characters become ?.', 'Das Schreiben als ADI ändert Zeichen, Leerraum am Rand oder Zeilenumbrüche. Nicht unterstützte Zeichen werden zu ?.'), [cvChoice('convert', tx('Approve displayed ASCII/whitespace conversion', 'Angezeigte ASCII-/Leerraum-Umwandlung annehmen')), cvChoice('drop', tx('Omit this field', 'Dieses Feld weglassen'))]);
         after = cvAscii(value, field, defs);
       } else if (target === 'adx' && !def && !field.startsWith('APP_') && !defs.userdefs.some(u => u.name === field)) {
-        g = group('unknown:' + field, field, 'ADX requires a USERDEF declaration for this nonstandard field.', [cvChoice('declare', 'Declare as text, preserving values'), cvChoice('drop', 'Omit this field')]);
+        g = group('unknown:' + field, field, tx('ADX requires a USERDEF declaration for this nonstandard field.', 'ADX braucht für dieses nicht standardisierte Feld eine USERDEF-Deklaration.'), [cvChoice('declare', tx('Declare as text, preserving values', 'Als Text deklarieren, Werte bleiben')), cvChoice('drop', tx('Omit this field', 'Dieses Feld weglassen'))]);
         after = value;
       } else if (target === 'adx' && (def?.importOnly || (def?.rangeImportOnly && /^-?(?:\d+\.?\d*|\.\d+)$/.test(value) && ((def.min !== undefined && +value < def.min) || (def.max !== undefined && +value > def.max))) || (def?.enum && (def.enumScope ? ADIF_SPEC_ENUMS[def.enum]?.importOnlyByScope?.[String(rec[def.enumScope] || '').toUpperCase()] : ADIF_SPEC_ENUMS[def.enum]?.importOnly)?.some(v => v.toUpperCase() === String(value).toUpperCase())))) {
-        g = group('deprecated:' + field, field, 'This field/value is import-only and cannot be emitted in a conforming export. Cancel to edit it or use ADI to retain the existing representation.', [cvChoice('drop', 'Omit import-only occurrences')]);
+        g = group('deprecated:' + field, field, tx('This field/value is import-only and cannot be emitted in a conforming export. Cancel to edit it or use ADI to retain the existing representation.', 'Dieses Feld bzw. dieser Wert ist nur für den Import und darf in einem konformen Export nicht vorkommen. Abbrechen, um es zu bearbeiten, oder ADI verwenden, um die vorhandene Darstellung zu behalten.'), [cvChoice('drop', tx('Omit import-only occurrences', 'Nur-Import-Vorkommen weglassen'))]);
         after = '';
       } else if (target === 'adx' && /[^\x20-\x7e\r\n]/.test(value) && !(def?.type.startsWith('Intl') || customType === 'I' || customType === 'G')) {
-        g = group('ascii:' + field, field, 'Unicode is not legal in this ordinary ADIF field/type, even in XML.', [cvChoice('convert', 'Approve displayed ASCII conversion'), cvChoice('drop', 'Omit this field')]);
+        g = group('ascii:' + field, field, tx('Unicode is not legal in this ordinary ADIF field/type, even in XML.', 'Unicode ist in diesem gewöhnlichen ADIF-Feld bzw. -Typ nicht erlaubt, auch nicht in XML.'), [cvChoice('convert', tx('Approve displayed ASCII conversion', 'Angezeigte ASCII-Umwandlung annehmen')), cvChoice('drop', tx('Omit this field', 'Dieses Feld weglassen'))]);
         after = cvAscii(value, field, defs);
       }
       if (g) g.entries.push({ recordIndex: index, field, before: value, after, existing: g.destination && g.destination !== field ? rec[g.destination] : undefined, identity: g.key.startsWith('identity:') ? appIdentity : undefined });
@@ -150,14 +151,14 @@ export function* applyExportChoicesSteps(plan, choices) {
   const columns = new Set(plan.columns), summary = [], omittedRecords = new Set();
   for (const group of plan.groups) {
     const action = choices[group.key];
-    if (!group.choices.some(c => c.value === action)) throw new Error(`Choose how to handle ${group.field}: ${group.reason}`);
+    if (!group.choices.some(c => c.value === action)) throw new Error(tx(`Choose how to handle ${group.field}: ${group.reason}`, `Wählen, wie ${group.field} behandelt wird: ${group.reason}`));
     const field = group.field;
     if (group.key === 'empty-records') {
       for (const entry of group.entries) omittedRecords.add(entry.recordIndex);
-      summary.push(`Omitted ${group.entries.length} fieldless ADX record(s).`);
+      summary.push(tx(`Omitted ${group.entries.length} fieldless ADX record(s).`, `${group.entries.length} feldlose(s) ADX-QSO(s) weggelassen.`));
       continue;
     }
-    summary.push(`${field}: ${group.entries.length} affected item(s), ${group.choices.find(c => c.value === action).label}`);
+    summary.push(tx(`${field}: ${group.entries.length} affected item(s), ${group.choices.find(c => c.value === action).label}`, `${field}: ${group.entries.length} betroffene(r) Eintrag/Einträge, ${group.choices.find(c => c.value === action).label}`));
     if (group.key.startsWith('definition:')) {
       defs.typeOverrides.add(field);
       const selected = action === 'last' ? group.candidates.at(-1) : group.candidates[0];
@@ -230,13 +231,13 @@ export function* applyExportChoicesSteps(plan, choices) {
   let inspected = 0;
   if (plan.target === 'adx') for (const rec of log) for (const value of Object.values(rec)) {
     if (++inspected % 1024 === 0) yield { phase: 'characters', done: inspected, total: inspected };
-    if (/[\x00-\x08\x0b\x0c\x0e-\x1f\ufffe\uffff]/.test(value)) throw new Error('An exported value contains a character forbidden in XML. Edit that value before exporting.');
+    if (/[\x00-\x08\x0b\x0c\x0e-\x1f\ufffe\uffff]/.test(value)) throw new Error(tx('An exported value contains a character forbidden in XML. Edit that value before exporting.', 'Ein exportierter Wert enthält ein in XML verbotenes Zeichen. Den Wert vor dem Export bearbeiten.'));
     for (let i = 0; i < value.length; i++) {
       const c = value.charCodeAt(i);
       if (c >= 0xd800 && c <= 0xdbff) {
         const next = value.charCodeAt(++i);
-        if (!(next >= 0xdc00 && next <= 0xdfff)) throw new Error('An exported value contains an unpaired Unicode surrogate. Edit it before exporting.');
-      } else if (c >= 0xdc00 && c <= 0xdfff) throw new Error('An exported value contains an unpaired Unicode surrogate. Edit it before exporting.');
+        if (!(next >= 0xdc00 && next <= 0xdfff)) throw new Error(tx('An exported value contains an unpaired Unicode surrogate. Edit it before exporting.', 'Ein exportierter Wert enthält ein unpaariges Unicode-Surrogat. Den Wert vor dem Export bearbeiten.'));
+      } else if (c >= 0xdc00 && c <= 0xdfff) throw new Error(tx('An exported value contains an unpaired Unicode surrogate. Edit it before exporting.', 'Ein exportierter Wert enthält ein unpaariges Unicode-Surrogat. Den Wert vor dem Export bearbeiten.'));
     }
   }
   return { records: log.filter((_, i) => !omittedRecords.has(i)), columns: [...columns], defs, summary };

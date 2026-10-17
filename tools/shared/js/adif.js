@@ -1,6 +1,8 @@
 // ADIF (.adi) helpers shared by the ADIF editor and the confirmation log's
 // export. Only the ADI text format (spec: adif.org.uk).
 
+import { tx } from './i18n.js';
+
 const ADIF_PRINTABLE_RE = /^[\x20-\x7e]*$/;
 
 // ADIF .adi is an ASCII format: transliterate German characters, replace
@@ -188,12 +190,12 @@ export function* parseADIFSteps(text, warnings, sourceLabel, headerInfo, stats, 
         bodyStart = r.end;
         header = r.fields;
         for (const name of bad) {
-          warn(`${sourceLabel}: header field ${name} declares a length that runs past <EOH>; read up to the next tag, the other header fields are kept.`);
+          warn(tx(`${sourceLabel}: header field ${name} declares a length that runs past <EOH>; read up to the next tag, the other header fields are kept.`, `${sourceLabel}: Das Header-Feld ${name} gibt eine Länge an, die über <EOH> hinausreicht; bis zum nächsten Tag gelesen, die anderen Header-Felder bleiben.`));
         }
       } else if (eoh) {
         bodyStart = eoh.index + eoh[0].length;
       } else if (firstNonWs && firstNonWs[0] !== '<') {
-        warn(`${sourceLabel}: no <EOH> tag found; parsing entire file as records.`);
+        warn(tx(`${sourceLabel}: no <EOH> tag found; parsing entire file as records.`, `${sourceLabel}: kein <EOH> gefunden; die ganze Datei wird als QSOs gelesen.`));
       }
     }
   }
@@ -229,7 +231,7 @@ export function* parseADIFSteps(text, warnings, sourceLabel, headerInfo, stats, 
     any = false;
     fieldsInRecord = 0;
     if (limits && limits.maxRecords && recordCount > limits.maxRecords) {
-      throw new AdifLimitError('RECORDS', `more than ${limits.maxRecords} QSOs`, { limit: limits.maxRecords, at: recordCount });
+      throw new AdifLimitError('RECORDS', tx(`more than ${limits.maxRecords} QSOs`, `mehr als ${limits.maxRecords} QSOs`), { limit: limits.maxRecords, at: recordCount });
     }
   };
   tagRe.lastIndex = 0;
@@ -245,22 +247,22 @@ export function* parseADIFSteps(text, warnings, sourceLabel, headerInfo, stats, 
     }
     if (name === 'EOH') continue;
     if (lenStr === undefined) {
-      warn(`${sourceLabel}: field <${name}> has no length, skipped.`);
+      warn(tx(`${sourceLabel}: field <${name}> has no length, skipped.`, `${sourceLabel}: Das Feld <${name}> hat keine Länge, übersprungen.`));
       continue;
     }
     const len = parseInt(lenStr, 10);
     if (limits) {
       fieldsTotal++;
       if (limits.maxFields && fieldsTotal > limits.maxFields) {
-        throw new AdifLimitError('FIELDS_TOTAL', `more than ${limits.maxFields} fields in total`, { limit: limits.maxFields, at: recordCount + 1 });
+        throw new AdifLimitError('FIELDS_TOTAL', tx(`more than ${limits.maxFields} fields in total`, `insgesamt mehr als ${limits.maxFields} Felder`), { limit: limits.maxFields, at: recordCount + 1 });
       }
       if (limits.maxFieldsPerRecord && ++fieldsInRecord > limits.maxFieldsPerRecord) {
-        throw new AdifLimitError('FIELDS', `a QSO with more than ${limits.maxFieldsPerRecord} fields`, { limit: limits.maxFieldsPerRecord, at: recordCount + 1 });
+        throw new AdifLimitError('FIELDS', tx(`a QSO with more than ${limits.maxFieldsPerRecord} fields`, `ein QSO mit mehr als ${limits.maxFieldsPerRecord} Feldern`), { limit: limits.maxFieldsPerRecord, at: recordCount + 1 });
       }
       if (columnNames && !columnNames.has(name)) {
         columnNames.add(name);
         if (columnNames.size > limits.maxColumns) {
-          throw new AdifLimitError('COLUMNS', `more than ${limits.maxColumns} different field names`, { limit: limits.maxColumns, at: recordCount + 1 });
+          throw new AdifLimitError('COLUMNS', tx(`more than ${limits.maxColumns} different field names`, `mehr als ${limits.maxColumns} verschiedene Feldnamen`), { limit: limits.maxColumns, at: recordCount + 1 });
         }
       }
     }
@@ -279,10 +281,10 @@ export function* parseADIFSteps(text, warnings, sourceLabel, headerInfo, stats, 
       // (never fewer than the decoded value, so only a long one is counted)
       if (byteSource && actual > limits.maxValueChars) actual = adifDecodedLength(body, tagEnd, available);
       if (actual > limits.maxValueChars) {
-        throw new AdifLimitError('VALUE', `<${name}:${len}> is longer than ${limits.maxValueChars} characters`, { limit: limits.maxValueChars, at: recordCount + 1, field: name, length: actual });
+        throw new AdifLimitError('VALUE', tx(`<${name}:${len}> is longer than ${limits.maxValueChars} characters`, `<${name}:${len}> ist länger als ${limits.maxValueChars} Zeichen`), { limit: limits.maxValueChars, at: recordCount + 1, field: name, length: actual });
       }
     }
-    if (cutAt >= 0) warn(`${sourceLabel}: <${name}:${len}> runs past the end of the file; the value was cut at the next tag.`);
+    if (cutAt >= 0) warn(tx(`${sourceLabel}: <${name}:${len}> runs past the end of the file; the value was cut at the next tag.`, `${sourceLabel}: <${name}:${len}> reicht über das Dateiende hinaus; der Wert wurde am nächsten Tag abgeschnitten.`));
     if (stats) {
       const next = body.charAt(tagEnd + len);
       // does the value end in a blank or '<'? (its last char, not sliced out)
@@ -303,10 +305,10 @@ export function* parseADIFSteps(text, warnings, sourceLabel, headerInfo, stats, 
     tagRe.lastIndex = valueEnd;
   }
   if (any) {
-    warn(`${sourceLabel}: trailing fields after last <EOR>, appended as final record.`);
+    warn(tx(`${sourceLabel}: trailing fields after last <EOR>, appended as final record.`, `${sourceLabel}: Felder nach dem letzten <EOR>, als letztes QSO angefügt.`));
     appendRecord();
   }
-  if (warnOmitted) warnings.push(`${sourceLabel}: ${warnOmitted} further warning(s) about the file's structure are not shown.`);
+  if (warnOmitted) warnings.push(tx(`${sourceLabel}: ${warnOmitted} further warning(s) about the file's structure are not shown.`, `${sourceLabel}: ${warnOmitted} weitere Warnung(en) zum Aufbau der Datei werden nicht angezeigt.`));
   if (limits) { limits.fieldsRead = fieldsTotal; limits.columnsRead = columnNames; } // for the caller's totals
   return records;
 }
@@ -354,7 +356,7 @@ export function* parseADIFAutoSteps(text, warnings, sourceLabel, headerInfo, def
   if (!bytes) return yield* parseADIFSteps(text, warnings, sourceLabel, headerInfo, undefined, defs, limits);
   const byteHeader = {}, byteDefs = {};
   const asBytes = yield* parseADIFSteps(adifUtf8Bytes(text), warnings, sourceLabel, byteHeader, undefined, byteDefs, limits, { byteSource: true });
-  warnings.push(`${sourceLabel}: field lengths count UTF-8 bytes, not characters (as the file's program writes them); read that way.`);
+  warnings.push(tx(`${sourceLabel}: field lengths count UTF-8 bytes, not characters (as the file's program writes them); read that way.`, `${sourceLabel}: Die Feldlängen zählen UTF-8-Bytes, nicht Zeichen (so schreibt sie das Programm der Datei); so gelesen.`));
   if (headerInfo) for (const [k, v] of Object.entries(byteHeader)) headerInfo[k] = adifFromUtf8Bytes(v);
   if (defs) {
     defs.userdefs = (defs.userdefs || []).concat(byteDefs.userdefs.map(u => ({ ...u, spec: adifFromUtf8Bytes(u.spec) })));

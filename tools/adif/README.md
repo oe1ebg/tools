@@ -733,6 +733,30 @@ The tool targets and declares **ADIF 3.1.8** (https://www.adif.org/318/ADIF_318.
   hand-typed from memory, so it stays accurate to the spec. Re-run that
   transform against the new export if/when the target version changes.
 
+## Languages
+
+The editor speaks German and English (#108 C3), switched with DE/EN in the
+header; it starts in the saved choice (`oe1ebg-adif-lang`), else in the
+browser's language. Both texts sit where a text is built:
+`tx('ADIF valid', 'ADIF gültig')` from `../shared/js/i18n.js`; static HTML
+has `data-de`, `data-de-title`, `data-de-aria-label`, `data-de-placeholder`,
+and the help has one block per language (`data-lang-only`). That covers the
+whole interface and every message: the validator's
+(`../shared/js/adif-validate.js`), the parser's (`../shared/js/adif.js`),
+loading, ADX, export decisions and statistics. Issue **codes** stay the
+same in both languages. Numbers use the language's separators (6,202 /
+6.202). In Node the language is English, so the tests and snapshots read
+the English texts; `tests/i18n.test.mjs` and `tests/e2e/adif-i18n.spec.mjs`
+check German.
+
+Stays English on purpose: the ADIF specification's own text (field
+descriptions in the column tooltips, DXCC entity names), and what is
+written into exported files (an export does not change with the
+interface language). A change of language rebuilds every text on the
+page; messages of a check already made keep their language until the
+next check (after an edit, or when a file is loaded again), since the
+loaded files' text is not kept to check them again.
+
 ## Column order
 
 The table shows the core fields of a QSO first (`js/columns.js`:

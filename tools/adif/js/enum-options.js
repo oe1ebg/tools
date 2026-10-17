@@ -19,6 +19,7 @@
 
 import { ADIF_SPEC_FIELDS, ADIF_SPEC_ENUMS, ADIF_SPEC_VERSION } from '../../shared/js/adif-spec-data.js';
 import { userdefParts } from './export.js';
+import { tx } from '../../shared/js/i18n.js';
 
 const EO_DXCC = 'DXCC_Entity_Code';
 const EO_USERDEF = 'userdef:';
@@ -58,10 +59,15 @@ export function eoNormKey(enumName, v){
 // importOnly: Set(norm key), note(ctx): why a value is not offered }.
 const eoLists = new Map();
 
+// After a change of language: the lists' labels are built again.
+export function eoClearLists(){
+  eoLists.clear();
+}
+
 function eoDxccLabel(code, shown){
   const e = ADIF_SPEC_ENUMS[EO_DXCC];
   const name = e.labels?.[code];
-  const deleted = (e.deleted || []).includes(code) ? ' (deleted)' : '';
+  const deleted = (e.deleted || []).includes(code) ? tx(' (deleted)', ' (gelöscht)') : '';
   return name ? `${shown} – ${name}${deleted}` : `${shown}${deleted}`;
 }
 
@@ -69,20 +75,20 @@ function eoBuildList(key){
   let enumName = null, values = [], importOnly = [], note;
   if (key.startsWith(EO_USERDEF)){
     values = userdefParts(key.slice(EO_USERDEF.length)).values || [];
-    note = () => 'not declared in USERDEF';
+    note = () => tx('not declared in USERDEF', 'nicht in USERDEF deklariert');
   } else if (key.includes('@')){
     const at = key.indexOf('@');
     enumName = key.slice(0, at);
     values = ADIF_SPEC_ENUMS[enumName]?.byScope?.[key.slice(at + 1)] || [];
     // the spec's import-only list of these values doesn't say for which
     // entity it holds (BC and NL: valid for Canada, import-only for Mexico)
-    note = ctx => `not listed for ${ctx?.scopeField || 'DXCC'}=${ctx?.scopeValue ?? ''}`;
+    note = ctx => tx(`not listed for ${ctx?.scopeField || 'DXCC'}=${ctx?.scopeValue ?? ''}`, `nicht aufgeführt für ${ctx?.scopeField || 'DXCC'}=${ctx?.scopeValue ?? ''}`);
   } else {
     enumName = key;
     const e = ADIF_SPEC_ENUMS[key];
     values = e?.values || [];
     importOnly = e?.importOnly || [];
-    note = () => `not in ADIF ${ADIF_SPEC_VERSION}`;
+    note = () => tx(`not in ADIF ${ADIF_SPEC_VERSION}`, `nicht in ADIF ${ADIF_SPEC_VERSION}`);
   }
   const io = new Set(importOnly.map(v => eoNormKey(enumName, v)));
   const options = [], pos = new Map();
@@ -125,7 +131,7 @@ export function eoCurrent(key, raw, ctx){
   const k = eoNormKey(list.enumName, r);
   const pos = list.pos.get(k);
   if (pos !== undefined) return { value: r, label: list.enumName === EO_DXCC ? eoDxccLabel(list.options[pos].value, r) : r, pos };
-  const why = list.importOnly.has(k) ? 'import-only' : list.note(ctx);
+  const why = list.importOnly.has(k) ? tx('import-only', 'nur Import') : list.note(ctx);
   return { value: r, label: `${r} (${why})`, pos: -1 };
 }
 

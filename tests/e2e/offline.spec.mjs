@@ -69,6 +69,7 @@ test('netlog-offline.html runs from file://: a session, a check-in from the call
 });
 
 test('adif-editor.html runs from file://', { tag: '@adif' }, async ({ page, request }, testInfo) => {
+  await page.addInitScript(() => { try { localStorage.setItem('oe1ebg-adif-lang', 'en'); } catch { /* blocked */ } }); // English texts below (the editor follows the browser: de-AT)
   const { url, requests } = await openSavedCopy(page, request, 'tools/adif/adif-editor.html', testInfo);
   await expect(page).toHaveTitle('ADIF Editor');
   await expect(page.locator('#btn-open')).toBeVisible();
@@ -113,6 +114,7 @@ for (const [tool, bundle, saveAs] of [
 }
 
 test('saved ADIF editor imports, edits and exports Unicode ADX without networking', { tag: '@adif' }, async ({ page, request }, testInfo) => {
+  await page.addInitScript(() => { try { localStorage.setItem('oe1ebg-adif-lang', 'en'); } catch { /* blocked */ } }); // English texts below (the editor follows the browser: de-AT)
   const { url, requests } = await openSavedCopy(page, request, 'tools/adif/adif-editor.html', testInfo);
   await page.context().setOffline(true);
   const source = '<ADX><HEADER><ADIF_VER>3.1.8</ADIF_VER></HEADER><RECORDS><RECORD><CALL>OE1AB</CALL><QSO_DATE>20261012</QSO_DATE><TIME_ON>1200</TIME_ON><BAND>20m</BAND><MODE>SSB</MODE><NAME_INTL>Éva 😀</NAME_INTL></RECORD></RECORDS></ADX>';

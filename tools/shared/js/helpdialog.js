@@ -4,7 +4,9 @@
 // it from anywhere, also from a text field (Notfunk: F1); `enabled()` can
 // limit the keys to a view. Esc or #help-close closes it and puts the focus
 // back where it was; the input is untouched. Section links (.help-nav a)
-// scroll inside the dialog without changing the page's address.
+// scroll inside the dialog without changing the page's address; with a
+// help in two languages (data-lang-only blocks, i18n.js) a link goes to
+// the shown one (its section id, or that id + "-de").
 
 import { $, isComposing } from './dom.js';
 
@@ -25,7 +27,9 @@ export function initHelpDialog({ keys = [], enabled = () => true } = {}) {
   for (const a of dlg.querySelectorAll('.help-nav a')) {
     a.addEventListener('click', ev => {
       ev.preventDefault();
-      dlg.querySelector(a.getAttribute('href'))?.scrollIntoView({ block: 'start' });
+      const id = a.getAttribute('href');
+      const target = [...dlg.querySelectorAll(`${id}, ${id}-de`)].find(n => !n.closest('[hidden]'));
+      target?.scrollIntoView({ block: 'start' });
     });
   }
   document.addEventListener('keydown', ev => {

@@ -9,6 +9,10 @@ import { serializeADIF } from '../../tools/adif/js/export.js';
 import { ADIF_CORE_COLUMNS } from '../../tools/adif/js/columns.js';
 import { readFileSync } from 'node:fs';
 
+// The editor follows the browser's language (de-AT here: German); these
+// tests read the English texts (adif-i18n.spec.mjs covers German).
+test.beforeEach(({ page }) => page.addInitScript(() => { try { localStorage.setItem('oe1ebg-adif-lang', 'en'); } catch { /* blocked */ } }));
+
 const SAMPLE = fileURLToPath(new URL('fixtures/sample.adi', import.meta.url));
 
 async function loadSample(page) {

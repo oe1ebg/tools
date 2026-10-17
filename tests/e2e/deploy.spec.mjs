@@ -70,6 +70,7 @@ test('security headers on pages, assets and errors', async ({ request }) => {
 // The documented embedding: a page of the same site shows adif-editor.html
 // in an <iframe>. The embedding page is stubbed (same origin, no headers).
 test('adif-editor.html can be embedded by a page of the same origin', { tag: '@adif' }, async ({ page }) => {
+  await page.addInitScript(() => { try { localStorage.setItem('oe1ebg-adif-lang', 'en'); } catch { /* blocked */ } }); // English texts below (the editor follows the browser: de-AT)
   await page.route('**/tools/embed-test.html', route => route.fulfill({
     contentType: 'text/html',
     body: '<!doctype html><title>embed</title><iframe src="adif/adif-editor.html" title="ADIF Editor"></iframe>',

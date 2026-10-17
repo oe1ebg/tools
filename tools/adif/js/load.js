@@ -13,6 +13,7 @@ import { detectLogFormat, parseADXSteps, validateADXRecordsSteps, AdxImportError
 import { parseADIFAutoSteps, AdifLimitError } from '../../shared/js/adif.js';
 import { validateAdifSteps } from '../../shared/js/adif-validate.js';
 import { chunkedRun, chunkedAbortError } from '../../shared/js/chunked.js';
+import { tx } from '../../shared/js/i18n.js';
 
 const ADIF_MB = 1024 * 1024;
 
@@ -33,12 +34,13 @@ export const ADIF_LIMITS = {
   maxWarnings: 200,             // parser warnings kept per file (the rest is counted and said once)
 };
 
+// 6,202 (English) / 6.202 (German)
 export function adifFormatCount(n) {
-  return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, tx(',', '.'));
 }
 
 function adifFormatMb(bytes) {
-  return `${Math.round(bytes / ADIF_MB * 10) / 10} MB`;
+  return `${String(Math.round(bytes / ADIF_MB * 10) / 10).replace('.', tx('.', ','))} MB`;
 }
 
 // The message for a file the editor refuses (an AdifLimitError, or a
@@ -46,16 +48,16 @@ function adifFormatMb(bytes) {
 // log is as it was.
 export function adifLimitMessage(name, e) {
   const n = adifFormatCount;
-  const where = e.at ? ` (at QSO ${n(e.at)})` : '';
-  const tail = ' The log is unchanged; split the file or remove what is not needed and add it again.';
+  const where = e.at ? tx(` (at QSO ${n(e.at)})`, ` (bei QSO ${n(e.at)})`) : '';
+  const tail = tx(' The log is unchanged; split the file or remove what is not needed and add it again.', ' Das Log ist unverändert; die Datei teilen oder Unnötiges entfernen und erneut hinzufügen.');
   switch (e.code) {
-    case 'FILE': return `${name}: not loaded, the file is ${adifFormatMb(e.size)}, the editor takes up to ${adifFormatMb(e.limit)} per file.${tail}`;
-    case 'RECORDS': return `${name}: not loaded, the log would have more than ${n(e.limit)} QSOs${where}, the most the editor takes.${tail}`;
-    case 'FIELDS_TOTAL': return `${name}: not loaded, the log would have more than ${n(e.limit)} field values (QSOs times fields per QSO)${where}, the most the editor takes.${tail}`;
-    case 'VALUE': return `${name}: not loaded, ${e.field} in QSO ${n(e.at)} has ${n(e.length)} characters, the editor takes values up to ${n(e.limit)}.${tail}`;
-    case 'FIELDS': return `${name}: not loaded, QSO ${n(e.at)} has more than ${n(e.limit)} fields.${tail}`;
-    case 'COLUMNS': return `${name}: not loaded, it has more than ${n(e.limit)} different field names${where}.${tail}`;
-    default: return `${name}: not loaded, ${e.message}.${tail}`;
+    case 'FILE': return tx(`${name}: not loaded, the file is ${adifFormatMb(e.size)}, the editor takes up to ${adifFormatMb(e.limit)} per file.${tail}`, `${name}: nicht geladen, die Datei hat ${adifFormatMb(e.size)}, der Editor nimmt bis zu ${adifFormatMb(e.limit)} pro Datei.${tail}`);
+    case 'RECORDS': return tx(`${name}: not loaded, the log would have more than ${n(e.limit)} QSOs${where}, the most the editor takes.${tail}`, `${name}: nicht geladen, das Log hätte mehr als ${n(e.limit)} QSOs${where}, mehr nimmt der Editor nicht.${tail}`);
+    case 'FIELDS_TOTAL': return tx(`${name}: not loaded, the log would have more than ${n(e.limit)} field values (QSOs times fields per QSO)${where}, the most the editor takes.${tail}`, `${name}: nicht geladen, das Log hätte mehr als ${n(e.limit)} Feldwerte (QSOs mal Felder pro QSO)${where}, mehr nimmt der Editor nicht.${tail}`);
+    case 'VALUE': return tx(`${name}: not loaded, ${e.field} in QSO ${n(e.at)} has ${n(e.length)} characters, the editor takes values up to ${n(e.limit)}.${tail}`, `${name}: nicht geladen, ${e.field} in QSO ${n(e.at)} hat ${n(e.length)} Zeichen, der Editor nimmt Werte bis ${n(e.limit)}.${tail}`);
+    case 'FIELDS': return tx(`${name}: not loaded, QSO ${n(e.at)} has more than ${n(e.limit)} fields.${tail}`, `${name}: nicht geladen, QSO ${n(e.at)} hat mehr als ${n(e.limit)} Felder.${tail}`);
+    case 'COLUMNS': return tx(`${name}: not loaded, it has more than ${n(e.limit)} different field names${where}.${tail}`, `${name}: nicht geladen, die Datei hat mehr als ${n(e.limit)} verschiedene Feldnamen${where}.${tail}`);
+    default: return tx(`${name}: not loaded, ${e.message}.${tail}`, `${name}: nicht geladen, ${e.message}.${tail}`);
   }
 }
 
@@ -65,7 +67,8 @@ export function decodeLog(buffer, name, warnings) {
   try {
     return new TextDecoder('utf-8', { fatal: true }).decode(buffer);
   } catch {
-    warnings.push(`${name}: not UTF-8, read as Windows-1252.`);
+    warnings.push(tx(`${name}: not UTF-8, read as Windows-1252.`, `${name}: kein UTF-8, als Windows-1252 gelesen.`));
+    warnings.decoded1252 = true; // ADX refuses that (loadFileSteps)
     return new TextDecoder('windows-1252').decode(buffer);
   }
 }
@@ -77,7 +80,7 @@ export function decodeLog(buffer, name, warnings) {
 export function* loadFileSteps(name, text, warnings, limits = ADIF_LIMITS, xmlParser = null) {
   const format = detectLogFormat(text, name);
   if (format === 'adx') {
-    if (warnings.some(w => w.includes('read as Windows-1252'))) throw new AdxImportError('ADX_ENCODING', 'ADX must use valid UTF-8; Windows-1252 fallback is only supported for ADI.');
+    if (warnings.decoded1252) throw new AdxImportError('ADX_ENCODING', tx('ADX must use valid UTF-8; Windows-1252 fallback is only supported for ADI.', 'ADX muss gültiges UTF-8 sein; Windows-1252 als Ersatz gibt es nur für ADI.'));
     const data = yield* parseADXSteps(text, { parser: xmlParser, limits, name });
     yield { phase: 'parsed', records: data.parsed.length };
     const result = yield* validateADXRecordsSteps(data, { lean: true, maxIssues: limits.maxIssues });
@@ -102,13 +105,13 @@ function progressOf(name, p) {
   const n = adifFormatCount;
   const part = p.total ? Math.min(1, (p.pos ?? p.done ?? 0) / p.total) : 0;
   switch (p.phase) {
-    case 'detect': return { frac: 0.05 + 0.05 * part, text: `Reading ${name}: checking how the lengths are counted` };
-    case 'parse': return { frac: 0.1 + 0.35 * part, text: `Reading ${name}: ${n(p.records)} QSOs read` };
-    case 'decode': return { frac: 0.45, text: `Reading ${name}: converting the characters` };
-    case 'parsed': return { frac: 0.45, text: `Read ${name}: ${n(p.records)} QSOs` };
-    case 'scan': return { frac: 0.45 + 0.15 * part, text: `Checking ${name}: scanning` };
-    case 'records': return { frac: 0.6 + 0.05 * part, text: `Checking ${name}: sorting the fields into QSOs` };
-    case 'check': return { frac: 0.65 + 0.35 * part, text: `Checking ${name}: ${n(p.done)} of ${n(p.total)} QSOs` };
+    case 'detect': return { frac: 0.05 + 0.05 * part, text: tx(`Reading ${name}: checking how the lengths are counted`, `Lese ${name}: prüfe, wie die Längen gezählt sind`) };
+    case 'parse': return { frac: 0.1 + 0.35 * part, text: tx(`Reading ${name}: ${n(p.records)} QSOs read`, `Lese ${name}: ${n(p.records)} QSOs gelesen`) };
+    case 'decode': return { frac: 0.45, text: tx(`Reading ${name}: converting the characters`, `Lese ${name}: wandle die Zeichen um`) };
+    case 'parsed': return { frac: 0.45, text: tx(`Read ${name}: ${n(p.records)} QSOs`, `${name} gelesen: ${n(p.records)} QSOs`) };
+    case 'scan': return { frac: 0.45 + 0.15 * part, text: tx(`Checking ${name}: scanning`, `Prüfe ${name}: durchsuche`) };
+    case 'records': return { frac: 0.6 + 0.05 * part, text: tx(`Checking ${name}: sorting the fields into QSOs`, `Prüfe ${name}: ordne die Felder den QSOs zu`) };
+    case 'check': return { frac: 0.65 + 0.35 * part, text: tx(`Checking ${name}: ${n(p.done)} of ${n(p.total)} QSOs`, `Prüfe ${name}: ${n(p.done)} von ${n(p.total)} QSOs`) };
     default: return { frac: 0, text: name };
   }
 }
@@ -141,7 +144,7 @@ export async function loadLogFiles(files, opts = {}) {
     const { frac, text } = progressOf(file.name, p);
     const pct = Math.max(lastPct, Math.min(100, Math.floor(100 * (doneBytes + frac * (file.size || 0)) / totalBytes)));
     lastPct = pct;
-    onProgress({ pct, text: files.length > 1 ? `File ${index + 1} of ${files.length}: ${text}` : text, file: index + 1, files: files.length });
+    onProgress({ pct, text: files.length > 1 ? tx(`File ${index + 1} of ${files.length}: ${text}`, `Datei ${index + 1} von ${files.length}: ${text}`) : text, file: index + 1, files: files.length });
   };
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
@@ -151,7 +154,7 @@ export async function loadLogFiles(files, opts = {}) {
       if (file.size > limits.maxFileBytes) throw new AdifLimitError('FILE', 'file too big', { size: file.size, limit: limits.maxFileBytes });
       let buffer;
       try { buffer = await read(file); }
-      catch (e) { throw new AdifLimitError('READ', `could not be read${e && e.message ? ` (${e.message})` : ''}`); }
+      catch (e) { throw new AdifLimitError('READ', tx(`could not be read${e && e.message ? ` (${e.message})` : ''}`, `ließ sich nicht lesen${e && e.message ? ` (${e.message})` : ''}`)); }
       if (signal?.aborted) throw chunkedAbortError();
       const warnings = [];
       const text = decodeLog(buffer, file.name, warnings);
@@ -173,7 +176,7 @@ export async function loadLogFiles(files, opts = {}) {
       if (e && e.name === 'AbortError') throw e;
       if (e instanceof AdifLimitError && e.code === 'RECORDS') e.limit = limits.maxRecords;
       if (e instanceof AdifLimitError && e.code === 'FIELDS_TOTAL') e.limit = limits.maxFields;
-      if (e instanceof AdxImportError) skipped.push({ name: file.name, message: `${file.name}: not loaded (${e.code}): ${e.message} Existing records are unchanged.` });
+      if (e instanceof AdxImportError) skipped.push({ name: file.name, message: tx(`${file.name}: not loaded (${e.code}): ${e.message} Existing records are unchanged.`, `${file.name}: nicht geladen (${e.code}): ${e.message} Die vorhandenen QSOs sind unverändert.`) });
       else if (e instanceof AdifLimitError) skipped.push({ name: file.name, message: e.code === 'READ' ? `${file.name}: ${e.message}.` : adifLimitMessage(file.name, e) });
       else throw e;
     }
