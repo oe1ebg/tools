@@ -823,7 +823,10 @@ test('series and session fields: repeater search and callsign completion', async
   await expect(page.locator('#srf-repeater').locator('xpath=..').locator('.ac-pop button')).toContainText(['OE0XRA']);
   await page.locator('#srf-repeater').press('ArrowDown');
   await page.keyboard.press('Enter');
-  await expect(page.locator('#srf-repeater')).toHaveValue('OE0XRA 145.600');
+  // the pick fills the repeater, its frequency and its only mode
+  await expect(page.locator('#srf-repeater')).toHaveValue('OE0XRA');
+  await expect(page.locator('#srf-freq')).toHaveValue('145.600');
+  await expect(page.locator('#srf-mode')).toHaveValue('FM');
   await page.locator('#srf-ncs').fill('OE0QX');
   const pop = page.locator('#srf-ncs').locator('xpath=..').locator('.ac-pop');
   await expect(pop.locator('button')).toContainText(['OE0QXB', 'OE0QXC']);
@@ -833,7 +836,23 @@ test('series and session fields: repeater search and callsign completion', async
   await page.locator('#srf-name').fill('Evening net');
   await page.locator('#series-form button[type=submit]').click();
   await expect(page.locator('#series-list')).toContainText('Evening net');
-  await expect(page.locator('#series-list')).toContainText('OE0XRA 145.600');
+  await expect(page.locator('#series-list')).toContainText('OE0XRA · 145.600 · FM');
+  // the same in "This session": all three saved
+  await page.locator('#btn-new-session').click();
+  await page.locator('#sf-own').fill('OE0QXZ');
+  await page.locator('#session-form button[type=submit]').click();
+  await page.locator('#tab-control').click();
+  await page.locator('#se-freq').fill('3.650');
+  await page.locator('#se-freq').press('Tab');
+  await page.locator('#se-repeater').fill('testberg');
+  await expect(page.locator('#se-repeater').locator('xpath=..').locator('.ac-pop button')).toContainText(['OE0XRA']);
+  await page.locator('#se-repeater').press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#se-repeater')).toHaveValue('OE0XRA');
+  await expect(page.locator('#se-freq')).toHaveValue('145.600');
+  await expect(page.locator('#se-mode')).toHaveValue('FM');
+  await expect.poll(() => page.evaluate(() => JSON.stringify(globalThis.NETLOG_APP.s.radio)))
+    .toBe(JSON.stringify({ repeater: 'OE0XRA', freq: '145.600', mode: 'FM' }));
 });
 
 test('j/k and the arrow keys wrap around at the ends of the roster', async ({ page }) => {
