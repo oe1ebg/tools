@@ -993,3 +993,53 @@ test('"." moves the net on; j/k only move in the list; the panel and tabs keep t
     expect(await size()).toEqual(first);
   }
 });
+
+test('export: stations and notes as CSV, check-ins as ADIF (what is left out listed), a printable report', async ({ page }) => {
+  await open(page, { lang: 'en' });
+  await startSession(page);
+  for (const [c, n] of [['OE0QXN', 'Nora'], ['OE0QXA', 'Anna'], ['OE0QX?', '']]) await checkIn(page, c, n);
+  await page.locator('#roster button.person', { hasText: 'OE0QXN' }).click();
+  await page.locator('#btn-ncs').click();
+  await page.locator('#roster button.person', { hasText: 'OE0QXA' }).click();
+  await page.locator('#station-rounds .composer-text').fill('asks about the antenna');
+  await page.locator('#station-rounds .composer-text').press('Enter');
+  await expect(page.locator('#st-save')).toContainText('saved');
+  await page.locator('#tab-control').click();
+  // nothing says which frequency or mode yet
+  await expect(page.locator('#export-issues')).toContainText('No mode');
+  await expect(page.locator('#export-issues')).toContainText('No frequency');
+  await expect(page.locator('#export-issues')).toContainText('OE0QX?: partial callsign, left out');
+  await page.locator('#se-repeater').fill('OE0XQR 438.950');
+  await page.locator('#se-repeater').press('Tab');
+  await page.locator('#se-mode').selectOption('FM');
+  await expect(page.locator('#export-issues')).not.toContainText('No mode');
+  await expect(page.locator('#export-issues')).not.toContainText('No frequency');
+  const save = async button => {
+    const dl = page.waitForEvent('download');
+    await page.locator(button).click();
+    const d = await dl;
+    return { name: d.suggestedFilename(), text: (await readFile(await d.path(), 'utf8')) };
+  };
+  const st = await save('#btn-export-stations');
+  expect(st.name).toMatch(/^\d{4}-\d\d-\d\d_netlog_stations\.csv$/);
+  expect(st.text.split('\r\n')[1]).toMatch(/^OE0QXN;Nora;;;active \(checked in\);NCS;\d{4}-\d\d-\d\d;\d\d:\d\d:\d\d;exact;/);
+  const notes = await save('#btn-export-notes');
+  expect(notes.text).toContain(';OE0QXA;Anna;asks about the antenna;');
+  const adi = await save('#btn-export-adif');
+  expect(adi.name).toMatch(/_log\.adi$/);
+  expect(adi.text).toContain('<CALL:6>OE0QXN');
+  expect(adi.text).toContain('<CALL:6>OE0QXA');
+  expect(adi.text).not.toContain('OE0QX?');
+  expect(adi.text).toContain('<MODE:2>FM');
+  expect(adi.text).toContain('<BAND:4>70cm');
+  expect(adi.text).not.toContain('antenna');
+  // the report: print is stubbed, the content checked
+  await page.evaluate(() => { window.print = () => { globalThis.__printed = true; }; });
+  await page.locator('#btn-export-print').click();
+  await expect.poll(() => page.evaluate(() => globalThis.__printed === true)).toBe(true);
+  await expect(page.locator('#print-report h1')).toHaveText('Netlog · ad-hoc session');
+  await expect(page.locator('#print-report table tbody tr')).toHaveCount(3);
+  await expect(page.locator('#print-report .rp-round')).toContainText('asks about the antenna');
+  await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
+  await expect(page.locator('#print-report')).toBeHidden();
+});

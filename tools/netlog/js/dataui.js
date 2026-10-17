@@ -18,8 +18,8 @@ function say(text, kind = '') {
   setText(m, text);
 }
 
-function download(text, name) {
-  const url = URL.createObjectURL(new Blob([text], { type: 'application/json;charset=utf-8' }));
+export function download(text, name, type = 'application/json;charset=utf-8') {
+  const url = URL.createObjectURL(new Blob([text], { type }));
   const a = el('a', { href: url, download: name });
   document.body.append(a);
   a.click();

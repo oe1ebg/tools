@@ -26,6 +26,7 @@ import { validateAdif } from '../tools/shared/js/adif-validate.js';
 import { toADIF } from '../tools/confirm/js/export.js';
 import { TEMPLATES, exampleValues } from '../tools/confirm/js/templates.js';
 import { headerSnapshot } from '../tools/confirm/js/model.js';
+import { netAdif } from '../tools/netlog/js/export.js';
 import { SOURCE, whole, groups, groupText, roundTrip } from './adif-official.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -175,6 +176,22 @@ test('cross-check confirmation-log exports (every template)', { skip }, () => {
       { id: 'b', seq: 2, call: 'OE3XYZ/P', ts: '2026-10-05T00:00:00Z', viaRepeater: false, snap: headerSnapshot(header), ...base },
     ];
     crossCheck(`confirm template ${tpl.key}`, toADIF({ id: tpl.key, title: 'T <x>', template: tpl.key, header }, entries, '2026-10-06T12:34:56.789Z'));
+  }
+});
+
+test('cross-check Netlog check-in exports', { skip }, () => {
+  const at = (iso, quality = 'exact') => ({ iso, quality });
+  const p = (id, call, extra = {}) => ({ id, call, base: call, deleted: null, status: 'active', rosterOrder: id.charCodeAt(0), presence: [{ from: at('2026-10-16T18:00:00.000Z'), to: null }], ...extra });
+  const participants = [
+    p('n', 'OE0QXN', { name: 'Nora <N>', qth: 'Wien Döbling', locator: 'jn88ee12ab' }),
+    p('a', 'OE0QXA', { name: 'Änne', locator: 'JN88', presence: [{ from: at('2026-10-16T18:05:00.000Z', 'estimated'), to: at('2026-10-16T19:00:00.000Z') }] }),
+    p('q', 'OE0QX?'),
+  ];
+  for (const radio of [{ repeater: 'OE0XQR 438.950', mode: 'FM' }, { repeater: '3.650', mode: 'SSB' }, { repeater: 'OE0XQD', mode: 'DMR' }, {}]) {
+    const session = { id: 's', name: 'Runde <x>', date: '2026-10-16', ncsId: 'n', own: { call: 'OE0QXZ', base: 'OE0QXZ' }, radio };
+    crossCheck(`netlog ${JSON.stringify(radio)}`, netAdif({ session, participants }, {
+      createdIso: '2026-10-16T20:00:00.000Z', repeaters: [{ call: 'OE0XQR', out: 438.95, in: 431.35, modes: ['FM'] }],
+    }));
   }
 });
 

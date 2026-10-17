@@ -12,6 +12,7 @@ import { expandedCount, setExpandedCount } from './notes.js';
 import { hm, zone, parseHm } from './clock.js';
 import { STATUS_MARK } from './roster.js';
 import { startNextRound, turnMark } from './speak.js';
+import { initExport, renderExport } from './exportui.js';
 import { prefSet } from '../../shared/js/prefs.js';
 import { OWN_PREF } from './sessions.js';
 import { isOwn } from './roster.js';
@@ -24,6 +25,7 @@ export function plannedOrder(participants, ncsId = null) {
 }
 
 export function initControl(app) {
+  initExport(app);
   // one click: the next round starts (number and topic are corrected in
   // the round list; undo takes it back)
   $('#btn-new-round').addEventListener('click', () => startNextRound(app));
@@ -75,7 +77,8 @@ export function initControl(app) {
       const r = await app.act(store => updateSession(store, app.ctx(), app.s.id, { style: f.value }));
       if (r) app.announce(t(`style.${r.style}`));
     }
-    if (f.id === 'se-repeater') await app.act(store => updateSession(store, app.ctx(), app.s.id, { radio: { ...app.s.radio, repeater: f.value.trim() } }));
+    if (f.id === 'se-repeater') await app.act(store => updateSession(store, app.ctx(), app.s.id, { radio: { repeater: f.value.trim() } }));
+    if (f.id === 'se-mode') await app.act(store => updateSession(store, app.ctx(), app.s.id, { radio: { mode: f.value } }));
   });
   $('#btn-checkin-own').addEventListener('click', async () => {
     const r = await app.act(store => addParticipant(store, app.ctx(), { call: app.s.own.call }));
@@ -238,6 +241,8 @@ export function renderControl(app) {
   setValue($('#se-name'), app.s.name || '');
   setValue($('#se-repeater'), (app.s.radio && app.s.radio.repeater) || '');
   if (document.activeElement !== $('#se-style')) $('#se-style').value = netStyle(app.s);
+  if (document.activeElement !== $('#se-mode')) $('#se-mode').value = (app.s.radio && app.s.radio.mode) || '';
+  renderExport(app);
   for (const f of $('#session-edit').elements) f.disabled = app.readOnly;
   const ownIn = app.s.own.base && app.sd.participants.some(p => !p.deleted && p.base === app.s.own.base);
   const ob = $('#btn-checkin-own');

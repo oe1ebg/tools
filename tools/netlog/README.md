@@ -181,6 +181,35 @@ offers the export, as on any other page without IndexedDB.
   backup…" checks the whole file first and imports it in one go (details in
   "Backup" below). A started download is not proof the file was kept:
   check it arrived.
+- **Export this session** (Net Control card):
+  - *Stations (CSV)*: one row per station, the NCS first: callsign, name,
+    QTH, locator, status, role (NCS, me), first check-in and last check-out
+    (UTC date and time, "estimated" marked), turns and notes counted.
+  - *Notes (CSV)*: one row per note in recorded order: UTC date/time,
+    round, station, the text (line breaks kept), its response state with
+    the prepared reply, and its after-net task.
+  - *Check-ins (ADIF)*: ADIF 3.1.7 `.adi`, one QSO per checked-in station
+    at its first check-in time: `STATION_CALLSIGN`/`OPERATOR` (my
+    callsign), `FREQ`/`BAND` (and `FREQ_RX`/`BAND_RX` via a repeater: the
+    offline repeater list gives its input and output), `MODE`/`SUBMODE`,
+    `PROP_MODE RPT`, `NAME`, `QTH`, `GRIDSQUARE(_EXT)`, `COMMENT` (net,
+    NCS, "check-in time estimated") and `APP_OE1EBG_NET` /
+    `APP_OE1EBG_REPEATER`. Left out: my own station, partial callsigns and
+    stations without a check-in time; notes never go into ADIF. The card
+    lists what is left out or missing (no mode, no frequency, no own
+    callsign) before the export. The mode is set under "This session"
+    (FM, SSB, AM, CW, DMR, D-STAR, C4FM, M17, FreeDV); without one, a
+    repeater whose list entry has exactly one of these modes gives it
+    (and the card says so).
+  - *Print report…*: session, date, NCS, repeater, mode; the stations; the
+    rounds with their notes by station (times UTC, "~" estimated); only
+    the report is printed.
+
+  CSV cells are spreadsheet-safe (`tools/shared/js/csv.js`). The CSVs and
+  the report contain notes: plaintext, like a backup. Code:
+  `js/export.js` (pure), `js/exportui.js`; tests:
+  `tests/netlog-export.test.mjs`, the cross-checks
+  (`tests/adif-crosscheck.test.mjs`) and the e2e "export: …" test.
 - **Privacy and deletion.** Removing a station ("Remove from this session"
   in its details), deleting a note (×) or a session is reversible: removed
   stations are listed in Net Control (Restore), deleted notes in the
@@ -286,7 +315,7 @@ shared `eventId` index).
 | Store | Record |
 | --- | --- |
 | `series` | `name`, `description`, `schedule`, `defaults { repeater, freq, mode, ncs }`, `numbering` (`sequential` / `none`) |
-| `sessions` | `seriesId` or null, `number` or null, `name`, `date` (UTC), `own { call, base }`, `radio { repeater, freq, mode }`, `suggestedNcs` (copied), `start` / `end` (times, below), `joinedLate`, `currentRoundId`, `ncsId` |
+| `sessions` | `seriesId` or null, `number` or null, `name`, `date` (UTC), `own { call, base }`, `radio { repeater, freq, mode }` (each saved on its own, merged in the transaction; `mode` a key of `NET_MODES` in `js/export.js` or empty), `suggestedNcs` (copied), `start` / `end` (times, below), `joinedLate`, `currentRoundId`, `ncsId` |
 | `profiles` | reusable station identity (`call`, `name`, `qth`, `locator`, `echolink`, `member`); a session never changes through a profile edit |
 | `participants` | session-specific snapshot: `call` (as typed), `base` (matching identity), `unresolved`, `profileId`, `name`, `qth`, `locator`, `rst`, `echolink`, `member`, `status`, `flags { reception }` (records from before v0.5 may also carry `speak`, `short`, `priority`; kept, no longer shown), `presence [{ from, to }]`, `rosterOrder`, `plannedOrder`, `checkinRoundId` |
 | `rounds` | `number`, `order`, `topic`, `start` |
