@@ -7,21 +7,36 @@ import { test, expect } from '@playwright/test';
 const IMG = fileURLToPath(new URL('../../docs/img/', import.meta.url));
 const at = iso => new Date(iso);
 
+// The header is sticky: in a picture of the whole page (or of an element
+// further down) it would sit across the content wherever the page happens
+// to be scrolled. For the pictures it stays at the top (set through the
+// element's style: the pages' CSP blocks an injected style sheet).
+async function staticHeader(page, run) {
+  await page.evaluate(() => { const h = document.querySelector('#site-header'); if (h) h.style.position = 'static'; });
+  try {
+    await run();
+  } finally {
+    await page.evaluate(() => { const h = document.querySelector('#site-header'); if (h) h.style.position = ''; });
+  }
+}
+
 async function shot(target, name) {
-  await target.screenshot({ path: `${IMG}${name}.png`, animations: 'disabled', caret: 'hide' });
+  await staticHeader(target.page(), () => target.screenshot({ path: `${IMG}${name}.png`, animations: 'disabled', caret: 'hide' }));
 }
 
 // One picture of several elements (the box around all of them), taken
-// from the whole page, so the sticky header doesn't cover anything.
+// from the whole page.
 async function shotAround(page, selectors, name, pad = 8) {
-  const boxes = await page.evaluate(sels => sels.map(sel => {
-    const r = document.querySelector(sel).getBoundingClientRect();
-    return { x: r.left + scrollX, y: r.top + scrollY, w: r.width, h: r.height };
-  }), selectors);
-  const x = Math.max(0, Math.min(...boxes.map(b => b.x)) - pad);
-  const y = Math.max(0, Math.min(...boxes.map(b => b.y)) - pad);
-  const clip = { x, y, width: Math.max(...boxes.map(b => b.x + b.w)) + pad - x, height: Math.max(...boxes.map(b => b.y + b.h)) + pad - y };
-  await page.screenshot({ path: `${IMG}${name}.png`, clip, fullPage: true, animations: 'disabled', caret: 'hide' });
+  await staticHeader(page, async () => {
+    const boxes = await page.evaluate(sels => sels.map(sel => {
+      const r = document.querySelector(sel).getBoundingClientRect();
+      return { x: r.left + scrollX, y: r.top + scrollY, w: r.width, h: r.height };
+    }), selectors);
+    const x = Math.max(0, Math.min(...boxes.map(b => b.x)) - pad);
+    const y = Math.max(0, Math.min(...boxes.map(b => b.y)) - pad);
+    const clip = { x, y, width: Math.max(...boxes.map(b => b.x + b.w)) + pad - x, height: Math.max(...boxes.map(b => b.y + b.h)) + pad - y };
+    await page.screenshot({ path: `${IMG}${name}.png`, clip, fullPage: true, animations: 'disabled', caret: 'hide' });
+  });
 }
 
 test('Notfunk-Meldebuch', async ({ page }) => {

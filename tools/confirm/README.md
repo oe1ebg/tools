@@ -318,7 +318,7 @@ also shows in print).
     at the end of the marker text: type, Shift+Enter, done. Esc leaves the
     marker as it is. If the operator was already in the entry form, or a
     check-in was half-typed, the form is left alone and the status line
-    offers "Text ergänzen". The table's "Bearb." button works for every
+    offers "Text ergänzen". The table's "Bearbeiten" button works for every
     comment.
   - Check-ins before and after the marker keep their own header snapshot
     (`snap`). That has not changed: CSV/ADIF read operator and repeater per

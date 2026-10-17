@@ -274,7 +274,7 @@ test('editing a line and deleting one keep the other rows', async ({ page }) => 
   await logCall(page, 'OE3XYZ');
   await page.evaluate(() => document.querySelectorAll('#log-body tr[data-id]').forEach((tr, i) => { tr.probe = i; }));
   const kept = () => page.evaluate(() => [...document.querySelectorAll('#log-body tr[data-id]')].map(tr => tr.probe ?? null));
-  await page.getByRole('button', { name: /Nr\. 1 OE1ABC bearbeiten/ }).click();
+  await page.getByRole('button', { name: /^Bearbeiten\W+Nr\. 1 OE1ABC$/ }).click();
   await expect(page.locator('#log-body tr.editing')).toHaveCount(1);
   await expect(page.locator('#log-body tr.editing')).toContainText('OE1ABC');
   await page.locator('#f-note').fill('geändert');
@@ -298,16 +298,16 @@ test('an edit made at an unchanged clock time still replaces the row (note and c
   await page.locator('#f-ctext').fill('Wechsel auf 145.500');
   await page.locator('#btn-save').click();
   await expect(page.locator('#log-body')).toContainText('Wechsel auf 145.500');
-  await page.getByRole('button', { name: /Nr\. 1 OE1ABC bearbeiten/ }).click();
+  await page.getByRole('button', { name: /^Bearbeiten\W+Nr\. 1 OE1ABC$/ }).click();
   await page.locator('#f-note').fill('erste Notiz');
   await page.locator('#btn-save').click();
   await expect(page.locator('#log-body')).toContainText('erste Notiz');
-  await page.getByRole('button', { name: /Nr\. 1 OE1ABC bearbeiten/ }).click();
+  await page.getByRole('button', { name: /^Bearbeiten\W+Nr\. 1 OE1ABC$/ }).click();
   await page.locator('#f-note').fill('zweite Notiz');
   await page.locator('#btn-save').click();
   await expect(page.locator('#log-body')).toContainText('zweite Notiz');
   await expect(page.locator('#log-body')).not.toContainText('erste Notiz');
-  await page.getByRole('button', { name: /Kommentar.*bearbeiten/ }).click();
+  await page.getByRole('button', { name: /^Bearbeiten\W+Kommentar/ }).click();
   await page.locator('#f-ctext').fill('Wechsel auf 145.600');
   await page.locator('#btn-save').click();
   await expect(page.locator('#log-body')).toContainText('Wechsel auf 145.600');

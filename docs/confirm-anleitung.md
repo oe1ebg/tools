@@ -23,7 +23,7 @@ Kopfzeile oder die Taste <kbd>?</kbd> (außerhalb von Textfeldern).
    dann Operator, Station und Relais eintragen ([Kopfdaten](#kopfdaten)).
 3. Das erste Rufzeichen eintippen und mit <kbd>⇧</kbd>+<kbd>Enter</kbd>
    speichern ([Check-ins aufnehmen](#check-ins-aufnehmen)).
-4. Am Ende „Exportieren ▾“ → „Sicherung (JSON)“, dazu CSV oder ADIF
+4. Am Ende „Exportieren ▾“ → „Sichern (JSON)“, dazu CSV oder ADIF
    ([Export und Sicherung](#export-und-sicherung)).
 
 ## Vorbereitung
@@ -100,7 +100,7 @@ Datenträger, USB-Stick, anderer Rechner). Probieren Sie den Import
 gelegentlich aus. Die Sicherung ist eine Momentaufnahme dieses Logs mit
 allen Zeilen, auch den gelöschten, und enthält die Daten **unverschlüsselt**.
 
-**Sicherung importieren.** „Sicherung importieren…“ auf der Startseite:
+**Wiederherstellen.** „Wiederherstellen…“ auf der Startseite liest eine Sicherung ein:
 
 - Die Datei wird zuerst geprüft. Ist sie keine gültige Sicherung des
   Bestätigungsverkehrs, wird nichts importiert und nichts verändert.
@@ -234,7 +234,7 @@ wird daraus ein Kommentar statt eines Check-ins: „!Netz pausiert“,
 ![Log mit Check-ins und einem Kommentar](img/confirm-log.png)
 
 Neueste Zeile oben. Oben stehen die Zahlen: Stationen und Check-ins.
-„Bearb.“ bearbeitet eine Zeile (die vorige Fassung bleibt gespeichert), ✕
+„Bearbeiten“ ändert eine Zeile (die vorige Fassung bleibt gespeichert), ✕
 löscht sie (wiederherstellbar unter „Gelöschte Zeilen und automatische
 Sicherungen“). Die Spalte **Quelle** sagt, woher der Standort kommt: *Suche*
 (Ortssuche), *früher* (aus einem früheren Check-in), *Call* (Lizenzadresse
@@ -287,7 +287,7 @@ Stationen ohne Standort stehen unter der Karte.
 | KML (Karte) | Stationen mit Standort für Google Earth / Google My Maps |
 | Zusammenfassung | Text: Rufzeichen, Statistik (beim Probealarm Sirenen-Noten und AT-Alert), Standorte, Kommentare und Operators |
 | Drucken | das Log als Tabelle |
-| Sicherung (JSON) | das ganze Log, auch gelöschte Zeilen; auf der Startseite mit „Sicherung importieren…“ wieder einspielen |
+| Sichern (JSON) | das ganze Log, auch gelöschte Zeilen; auf der Startseite mit „Wiederherstellen…“ wieder einspielen |
 
 Ein Hinweis neben dem Titel erinnert an eine Sicherung, wenn seit dem letzten
 Export viele Zeilen dazugekommen sind. Auf der Startseite sichert „Alle

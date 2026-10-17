@@ -36,7 +36,7 @@ function slug(text) {
     .replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
 }
 
-// Export everything, one series (opts.seriesId) or one session. Refused
+// Back up everything, one series (opts.seriesId) or one session. Refused
 // (nothing downloaded) beyond the restore limits.
 export async function exportBackup(app, sessionId = null, { seriesId = null, msg = null } = {}) {
   await app.flush();

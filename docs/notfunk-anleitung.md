@@ -382,12 +382,12 @@ Zeitraum (Von/Bis je Datum und Uhrzeit; nur ein Datum = der ganze Tag).
   ein `'` vorangestellt, damit Excel sie nicht als Formel ausführt (Zahlen
   wie `-10` bleiben unverändert); die Meldung nach dem Herunterladen sagt,
   wie viele. Die Sicherung (JSON) enthält die Werte unverändert.
-- **Sicherung (JSON):** der ganze Einsatz mit gelöschten Meldungen, allen
+- **Sichern (JSON):** der ganze Einsatz mit gelöschten Meldungen, allen
   Fassungen und den Nummernzählern, **unverschlüsselt**. Sie wird aus dem
   gespeicherten Stand gelesen, also aus dem, was abgeschlossen ist (nicht
   aus dem Entwurf). Kann der Speicher nicht gelesen werden, steht beim
   Download „der Speicher war nicht lesbar, sie enthält den Stand dieses
-  Tabs“. Auf der Startseite mit „Sicherung importieren…“ wieder einspielen,
+  Tabs“. Auf der Startseite mit „Wiederherstellen…“ wieder einspielen,
   auch auf einem anderen Gerät. Bücher mehrerer Geräte lassen sich so
   zusammenführen, wenn jedes Gerät ein eigenes Stationskürzel hat.
   Ist die Sicherung sehr groß (über 50 MB oder 200000 Meldungen und

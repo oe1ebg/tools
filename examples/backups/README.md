@@ -1,7 +1,7 @@
 # Fictional backup examples
 
-These JSON files can be imported through each tool's **Sicherung
-importieren… / Import backup…** control. Download the raw JSON file from
+These JSON files can be imported through each tool's **Wiederherstellen… /
+Restore…** control. Download the raw JSON file from
 GitHub, then select it in the matching tool. Each tool has its own backup
 format; the files are not interchangeable. These are repository examples,
 not assets included in the deployed apps or release bundle.

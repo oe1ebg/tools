@@ -91,7 +91,7 @@ function showSaveError(err) {
   console.error(err);
   const b = $('#banner');
   fill(b,
-    'SPEICHERN FEHLGESCHLAGEN – die Eingabe ist noch im Formular. Bitte sofort eine Sicherung (JSON) exportieren. ',
+    'SPEICHERN FEHLGESCHLAGEN – die Eingabe ist noch im Formular. Bitte sofort sichern („Sichern (JSON)“). ',
     el('small', {}, `(${err && (err.message || err.name) || err})`),
     el('button', { type: 'button', onclick: () => { b.hidden = true; } }, 'ausblenden'));
   b.hidden = false;

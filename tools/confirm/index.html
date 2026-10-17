@@ -92,9 +92,9 @@
       </div>
       <span class="spacer"></span>
       <button type="button" id="btn-new-event" class="primary" aria-expanded="false" aria-controls="new-event">+ Neues Log</button>
-      <button type="button" id="btn-import">Sicherung importieren…</button>
+      <button type="button" id="btn-import" title="Eine Sicherung (JSON) einlesen: Logs aus der Datei übernehmen">Wiederherstellen…</button>
       <input type="file" id="import-file" accept=".json,application/json" multiple hidden>
-      <button type="button" id="btn-backup-all">Alle sichern (JSON)</button>
+      <button type="button" id="btn-backup-all">Alles sichern (JSON)</button>
     </div>
 
     <div id="import-msg" class="banner warn" role="status" hidden></div>
@@ -152,7 +152,7 @@
           <button type="button" data-export="kml" title="Stationen mit Standort (Google Earth, Google My Maps)">KML (Karte)</button>
           <button type="button" data-export="summary">Zusammenfassung</button>
           <hr>
-          <button type="button" data-export="json" title="Vollständige Sicherung dieses Logs">Sicherung (JSON)</button>
+          <button type="button" data-export="json" title="Vollständige Sicherung dieses Logs">Sichern (JSON)</button>
           <button type="button" data-export="print">Drucken</button>
         </div>
       </div>
@@ -271,8 +271,8 @@
       <section id="h-logs" aria-labelledby="h-logs-t">
         <h3 id="h-logs-t">Logs und Sicherung</h3>
         <p>Jedes Log (ein Rundspruch, eine Übung) hat Kopfdaten und Zeilen. „+ Neues Log“ legt eines an; „← Logs“ führt zurück zur Liste.</p>
-        <p>Alles bleibt in diesem Browser auf diesem Gerät. „Alle sichern (JSON)“ und „Sicherung (JSON)“ im Log laden eine Sicherung herunter, „Sicherung importieren…“ liest sie wieder ein. Ob die Datei angekommen ist, meldet der Browser nicht: bitte selbst prüfen.</p>
-        <p>„Bearb.“ bearbeitet eine Zeile (die vorige Fassung bleibt gespeichert), ✕ löscht sie; gelöschte Zeilen lassen sich wiederherstellen.</p>
+        <p>Alles bleibt in diesem Browser auf diesem Gerät. „Alles sichern (JSON)“ und „Sichern (JSON)“ im Log laden eine Sicherung herunter, „Wiederherstellen…“ liest sie wieder ein. Ob die Datei angekommen ist, meldet der Browser nicht: bitte selbst prüfen.</p>
+        <p>„Bearbeiten“ ändert eine Zeile (die vorige Fassung bleibt gespeichert), ✕ löscht sie; gelöschte Zeilen lassen sich wiederherstellen.</p>
       </section>
     </div>
   </div>

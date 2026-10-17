@@ -1736,8 +1736,8 @@ function buildLogRow(e, { tpl, n, showDate, cols }) {
       timeMode() === 'local' && zoneLabel(e.ts, 'local') !== zoneLabel(nowIso(), 'local') ? el('span', { class: 'date' }, ' ' + zoneLabel(e.ts, 'local')) : null];
     const what = isComment(e) ? `Kommentar ${time}` : `Nr. ${e.seq} ${e.call}`;
     const actions = [
-      // the name starts with the visible "Bearb." (WCAG 2.5.3), the rest is for screen readers
-      el('button', { type: 'button', disabled: state.readOnly, onclick: () => startEdit(e.id) }, 'Bearb.', el('span', { class: 'sr-only' }, ` – ${what} bearbeiten`)),
+      // the name starts with the visible "Bearbeiten" (WCAG 2.5.3), the rest is for screen readers
+      el('button', { type: 'button', disabled: state.readOnly, onclick: () => startEdit(e.id) }, 'Bearbeiten', el('span', { class: 'sr-only' }, ` – ${what}`)),
       ' ',
       el('button', { type: 'button', class: 'danger', disabled: state.readOnly, 'aria-label': `${what} löschen`, title: 'Löschen',
         onclick: () => setDeleted(e.id, true) }, '✕'),
@@ -1876,7 +1876,7 @@ async function importFiles(files) {
 async function importData(name, data, check) {
   const fail = (...content) => ({ kind: 'err', content: [el('strong', {}, 'Nicht importiert: '), ...content] });
   if (check.notBackup) {
-    return fail(`„${name}“ ist keine Sicherung des Bestätigungsverkehrs (Datei „Sicherung (JSON)“ / „Alle sichern (JSON)“).`);
+    return fail(`„${name}“ ist keine Sicherung des Bestätigungsverkehrs (Datei von „Sichern (JSON)“ / „Alles sichern (JSON)“).`);
   }
   if (!check.ok) {
     return fail(`„${name}“ ist keine gültige Sicherung – es wurde nichts geändert.`, el('ul', {}, check.errors.map(m => el('li', {}, m))));

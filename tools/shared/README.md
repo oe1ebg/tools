@@ -349,6 +349,22 @@ service workers are missing on plain `http://` and `file://`.
   (`trackExpanded()`); every field has a `<label>` or `aria-label`;
   decorative glyphs are `aria-hidden`; status lines are `role="status"` /
   `aria-live` and only rewritten when their text changes.
+- **Words for actions** (#108 C2; `AGENTS.md`, "UX and accessibility"):
+  the same action has the same name in every tool.
+
+  | Action | German | English (Netlog) |
+  | --- | --- | --- |
+  | download a backup (JSON) of one log, operation, session or series | Sichern (JSON) | Back up (JSON) |
+  | the same for everything | Alles sichern (JSON) | Back up all (JSON) |
+  | read a backup file | Wiederherstellen… | Restore… |
+  | other formats (CSV, ADIF, KML, report, print) | Exportieren | Export |
+  | change an entry | Bearbeiten (a symbol such as ✎ only with that name) | Edit |
+  | delete, reversible | Löschen (✕ with the name „… löschen“) | Delete |
+  | bring back a deleted entry | wiederherstellen | Restore |
+  | remove for good | Endgültig löschen | Erase |
+
+  "…" means the action asks for something (a file) first. A backup is
+  never called an export.
 - **Common header** (`css/tools.css`, #108): `#site-header` holds, in this
   order, `#home-link` ("← Alle Tools"), the `h1.title`, links about the tool
   (`.hdr-link`: manual, single file, source), `.hdr-status` (status chips and
