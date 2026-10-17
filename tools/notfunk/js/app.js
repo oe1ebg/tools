@@ -27,7 +27,7 @@ import { newId, nowIso } from '../../shared/js/time.js';
 import { attachCallSearch } from '../../shared/js/callsearch.js';
 import { attachRepeaterSearch, loadRepeaterIndex } from '../../shared/js/repeaterui.js';
 import { createLocationField, describeLocation } from '../../shared/js/locfield.js';
-import { loadLocationIndex, fillLocationSources } from '../../shared/js/locationui.js';
+import { initLocationPanel } from '../../shared/js/locationui.js';
 import { sourceItem, standDate, trackOnline, mapLinks, repoLink } from '../../shared/js/sources.js';
 import { initOffline, setChip } from '../../shared/js/offline.js';
 import {
@@ -1780,8 +1780,10 @@ async function main() {
   fill($('#st-source'), ' · ', repoLink('Quellcode', 'tools/notfunk'));
   loadCallbook();
   loadRepeaterFooter();
-  // The location index is big: build it in the background, after the page is up.
-  setTimeout(() => { loadLocationIndex(); fillLocationSources(); }, 800);
+  // "📍 Standort": the offline location search (as in Confirm); it also
+  // builds the big location index in the background, after the page is up
+  initLocationPanel();
+  trackExpanded($('#btn-loc'), $('#loc-panel'));
   await route();
   // Everything is wired: the tests (and nothing else) wait for this.
   globalThis.NOTFUNK_READY = true;

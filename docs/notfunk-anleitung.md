@@ -154,6 +154,15 @@ Das Formular steht im Meldebuch ganz oben. Die nächste Nummer wird angezeigt
 | Inhalt – wörtlich | der Wortlaut; <kbd>Enter</kbd> macht eine neue Zeile | |
 | Rücklesen | „Rücklesen erfolgt und vom Absender als richtig bestätigt“ | |
 
+**Standortsuche.** „📍 Standort“ oben in der Kopfzeile öffnet die
+Offline-Standortsuche Wien, wie im Bestätigungsverkehr: Adresse, Ort, PLZ,
+Koordinaten, Locator oder UTMREF eintippen, die Treffer zeigen Adresse,
+Locator, UTMREF und Koordinaten. Das hilft, eine Ortsangabe zu prüfen oder
+umzurechnen, ohne das Formular zu verlassen; die Eingabe bleibt, wie sie
+ist. Dort lassen sich auch die Genauigkeit von Locator und UTMREF und die
+Schwelle für das automatische Übernehmen im Feld Ort einstellen (die
+Einstellungen gelten in beiden Werkzeugen).
+
 Pflichtfelder sind mit * markiert: Empfangen/Gesendet am, Von, An, Betreff
 und Inhalt. Fehlt eines, steht der Hinweis direkt am Feld und der Cursor
 springt dorthin.

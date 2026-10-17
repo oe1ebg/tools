@@ -19,7 +19,6 @@ main{ max-width:1200px; margin:0 auto; padding:1em; }
 .grow{ flex:1; min-width:16em; }
 .grow-sm{ flex:1; min-width:10em; }
 .grid-form.spaced{ margin-top:.6em; }
-#loc-q{ width:100%; font-size:16px; }
 
 .ac-info button.link{ font-size:13.5px; }
 .ac-info.prefilled{ color:var(--accent-text); font-style:italic; }
@@ -204,30 +203,9 @@ table.log tr.marker.editing td{ border-color:var(--warn); }
 .rpt{ font-size:12.5px; color:var(--accent-text); }
 
 /* ---------- location lookup ---------- */
-#loc-examples button{ margin-right:.7em; font-size:13.5px; }
-#loc-results{ display:grid; gap:.5em; margin-top:.7em; }
 .hint.ok{ color:var(--ok); }
 .hint.err{ color:var(--err); font-weight:600; }
-.loc-cand{ border:1px solid var(--line); border-left:4px solid var(--line); border-radius:6px; padding:.5em .8em; background:var(--bg); }
-.loc-cand.conf-exact, .loc-cand.conf-high{ border-left-color:var(--ok); }
-.loc-cand.conf-likely{ border-left-color:var(--accent); }
-.loc-cand.conf-ambiguous, .loc-cand.conf-low{ border-left-color:var(--warn); }
-.loc-cand.auto{ box-shadow:0 0 0 2px var(--ok) inset; }
-.lc-head{ display:flex; gap:.5em; align-items:baseline; flex-wrap:wrap; }
-.lc-type{ font-size:12.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-dim); }
-.lc-conf{ font-size:12.5px; padding:0 .45em; border-radius:999px; border:1px solid currentColor; }
-.conf-exact .lc-conf, .conf-high .lc-conf{ color:var(--ok); }
-.conf-likely .lc-conf{ color:var(--accent-text); }
-.conf-ambiguous .lc-conf, .conf-low .lc-conf{ color:var(--warn); }
-.lc-meta{ font-family:var(--font-mono); font-size:14.5px; margin:.15em 0; }
-.lc-why, .lc-detail{ font-size:13.5px; color:var(--text-dim); }
-.lc-note{ font-size:13.5px; color:var(--warn); }
-.lc-name{ font-size:13.5px; }
-.lc-name q{ font-weight:600; quotes:"„" "“"; }
-.nt, .lc-outside{ font-size:12.5px; padding:0 .45em; border-radius:999px; border:1px solid var(--line); color:var(--text-dim); white-space:nowrap; }
-.nt{ background:var(--bg-raised); }
-.nt.hist{ border-style:dashed; }
-.lc-actions{ display:flex; gap:.35em; flex-wrap:wrap; margin-top:.35em; }
+/* the candidates and the search panel: shared forms.css */
 button.mini{ font-size:13.5px; padding:.15em .55em; }
 .map-links{ display:inline-flex; gap:.6em; align-items:center; font-size:13.5px; margin-left:.3em; }
 .pin-tip-body .map-links{ display:flex; margin:.3em 0 0; }
