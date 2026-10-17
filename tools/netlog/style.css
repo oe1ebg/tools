@@ -476,3 +476,6 @@ li.event-line .time{ min-width:5.5em; }
   body.printing{ background:#fff; color:#000; }
   .print-report{ padding:0; }
 }
+
+.field-hint{ display:block; min-height:0; font-size:12.5px; color:var(--warn); }
+.field-hint:empty{ display:none; }

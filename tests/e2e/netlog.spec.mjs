@@ -814,6 +814,8 @@ test('my own callsign: changed in Net Control, marked "me" in the lists; the bac
 test('series and session fields: repeater search and callsign completion', async ({ page }) => {
   const repeaters = { source: 'test', retrieved: '2026-10-01', repeaters: [
     { call: 'OE0XRA', site: 'Testberg', city: 'Musterdorf', lat: 48.2, lon: 16.4, locator: 'JN88EF', alt: 500, band: '2m', out: 145.6, in: 145.0, shift: -0.6, ctcss: 88.5, modes: ['FM'], status: 'active', comment: '' },
+    { call: 'OE0XRB', site: 'Zweiberg', city: 'Musterdorf', lat: 48.2, lon: 16.4, locator: 'JN88EF', alt: 500, band: '70cm', out: 438.5, in: 430.9, shift: -7.6, ctcss: null, modes: ['DMR', 'C4FM'], status: 'active', comment: '' },
+    { call: 'OE0XRT', site: 'Funkberg', city: 'Musterdorf', lat: 48.2, lon: 16.4, locator: 'JN88EF', alt: 500, band: '70cm', out: 430.4, in: 430.4, shift: 0, ctcss: null, modes: ['TETRA'], status: 'active', comment: '' },
   ] };
   await page.route('**/shared/data/repeaters-at.json', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(repeaters) }));
   await page.route('**/shared/data/callsigns-oe.json', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(CALLBOOK) }));
@@ -853,6 +855,31 @@ test('series and session fields: repeater search and callsign completion', async
   await expect(page.locator('#se-mode')).toHaveValue('FM');
   await expect.poll(() => page.evaluate(() => JSON.stringify(globalThis.NETLOG_APP.s.radio)))
     .toBe(JSON.stringify({ repeater: 'OE0XRA', freq: '145.600', mode: 'FM' }));
+  // the mode follows the repeater: several modes without FM clear it (and say why)
+  const pick = async (q, call) => {
+    await page.locator('#se-repeater').fill(q);
+    await expect(page.locator('#se-repeater').locator('xpath=..').locator('.ac-pop button').first()).toContainText(call);
+    await page.locator('#se-repeater').press('ArrowDown');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('#se-repeater')).toHaveValue(call);
+  };
+  await pick('zweiberg', 'OE0XRB');
+  await expect(page.locator('#se-mode')).toHaveValue('');
+  await expect(page.locator('#se-freq')).toHaveValue('438.500');
+  await expect(page.locator('#se-mode-hint')).toHaveText('OE0XRB works in DMR, C4FM: choose the mode');
+  // a mode the repeater has stays
+  await page.locator('#se-mode').selectOption('C4FM');
+  await expect(page.locator('#se-mode-hint')).toHaveText('');
+  await pick('OE0XRB', 'OE0XRB');
+  await expect(page.locator('#se-mode')).toHaveValue('C4FM');
+  // a single mode always wins
+  await pick('testberg', 'OE0XRA');
+  await expect(page.locator('#se-mode')).toHaveValue('FM');
+  // none usable (TETRA): cleared
+  await pick('funkberg', 'OE0XRT');
+  await expect(page.locator('#se-mode')).toHaveValue('');
+  await expect(page.locator('#se-mode-hint')).toHaveText('OE0XRT (TETRA): no mode for the log, mode cleared');
+  await expect.poll(() => page.evaluate(() => globalThis.NETLOG_APP.s.radio.mode)).toBe('');
 });
 
 test('j/k and the arrow keys wrap around at the ends of the roster', async ({ page }) => {

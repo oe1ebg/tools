@@ -61,7 +61,7 @@ export function initControl(app) {
   // the session's own facts, changed in place: my callsign (marked "me"),
   // name, repeater
   const se = $('#session-edit');
-  attachRepeaterField(app, $('#se-repeater'), { freq: $('#se-freq'), mode: $('#se-mode') });
+  attachRepeaterField(app, $('#se-repeater'), { freq: $('#se-freq'), mode: $('#se-mode'), hint: $('#se-mode-hint') });
   attachCallField(app, $('#se-own'));
   se.addEventListener('submit', ev => ev.preventDefault());
   se.addEventListener('keydown', ev => { if (ev.key === 'Enter' && ev.target.matches('input')) { ev.preventDefault(); ev.target.dispatchEvent(new Event('change', { bubbles: true })); } });

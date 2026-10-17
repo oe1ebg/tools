@@ -14,9 +14,11 @@ import { candidateButtons } from './roster.js';
 const REPEATER_MODES = { FM: 'FM', DMR: 'DMR', C4FM: 'C4FM', DSTAR: 'DSTAR' };
 
 // A picked repeater fills its fields: the call into the repeater field,
-// its output frequency into the frequency field, and the mode when the
-// mode is not set yet and the list gives exactly one usable mode. Each
-// field saves through its own change event.
+// its output frequency into the frequency field, and the mode: the
+// repeater's mode when the list gives exactly one usable mode; with
+// several, the current mode stays if the repeater has it, otherwise the
+// mode is cleared and a message names the choices (also with none usable,
+// e.g. TETRA). Each field saves through its own change event.
 
 function wrap(input) {
   // the dropdown goes right after the field, inside a positioned box
@@ -28,8 +30,11 @@ function wrap(input) {
   return pop;
 }
 
-// fields: { freq: <input>, mode: <select> } next to the repeater field.
+// fields: { freq: <input>, mode: <select>, hint: <element> } next to the
+// repeater field; the hint says why the mode was cleared.
 export function attachRepeaterField(app, input, fields = {}) {
+  // the hint is about the last pick: gone once the mode is chosen
+  if (fields.mode && fields.hint) fields.mode.addEventListener('input', () => { fields.hint.textContent = ''; });
   const pop = wrap(input);
   const dd = popover(input, pop, { enterPicksFirst: false, label: t('field.repeaters') });
   app.onLang(() => pop.setAttribute('aria-label', t('field.repeaters')));
@@ -52,8 +57,15 @@ export function attachRepeaterField(app, input, fields = {}) {
         };
         set(input, r.call);
         if (r.out) set(fields.freq, formatMHz(r.out));
-        const usable = (r.modes || []).map(m => REPEATER_MODES[m]).filter(Boolean);
-        if (fields.mode && !fields.mode.value && usable.length === 1) set(fields.mode, usable[0]);
+        if (fields.mode) {
+          const usable = (r.modes || []).map(m => REPEATER_MODES[m]).filter(Boolean);
+          const cur = fields.mode.value;
+          const next = usable.includes(cur) ? cur : usable.length === 1 ? usable[0] : '';
+          set(fields.mode, next);
+          const why = next ? '' : t(usable.length ? 'field.modeChoose' : 'field.modeNone', { call: r.call, modes: (r.modes || []).join(', ') || '—' });
+          if (fields.hint) fields.hint.textContent = why;
+          else if (why) app.announce(why);
+        }
         dd.hide();
         input.focus();
       },
