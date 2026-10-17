@@ -9,6 +9,10 @@
 import { $, el, fill } from './dom.js';
 import { versionItems } from './sources.js';
 
+// How long an update waits for the new worker to take over before the page
+// reloads anyway (#97). Usually it takes well under a second.
+const UPDATE_STALL_MS = 5000;
+
 // The texts this module shows. German by default (Confirm, Notfunk); a tool
 // in another language passes its own through initOffline({ strings }), any
 // subset of these keys (the rest stay German).
@@ -160,6 +164,7 @@ export async function initOffline({ build = null, beforeReload = async () => tru
   let queued = null; // [action, what, intro] that arrived meanwhile (e.g. a controllerchange)
   let forceReload = false; // "Trotzdem aktualisieren" of a local update: its own controllerchange reloads without the hook
   let asked = false; // skipWaiting sent from here, no controllerchange yet (a newer install may replace that worker)
+  let stallTimer = null; // reload if the worker asked to take over does not (#97)
   let current = null; // { action, what, intro, res } of the banner shown
 
   const updChip = el('span', { id: 'st-update', class: 'chip warn', role: 'status', hidden: true });
@@ -272,6 +277,7 @@ export async function initOffline({ build = null, beforeReload = async () => tru
   // while a check or an action runs is kept and handled right after.
   const afterSave = async (action, what, intro = '') => {
     if (busy) { queued = [action, what, intro]; return; }
+    clearTimeout(stallTimer); // a new request decides again
     busy = true;
     forceReload = false;
     setBusy(true);
@@ -301,12 +307,25 @@ export async function initOffline({ build = null, beforeReload = async () => tru
   // The waiting worker is looked up when the action runs (another tab may
   // have activated it while the banner was up): then only reload. A forced
   // update reloads on its own controllerchange without asking the hook.
+  // Chromium can stall the activation: a request of the page in the moment
+  // it stops the old worker starts that worker again, and the new one stays
+  // waiting (#97). Without a controllerchange after UPDATE_STALL_MS the page
+  // reloads anyway (asking the hook again unless forced). Leaving the page
+  // lets the new worker take over (see controllerchange); if it still waits,
+  // the reloaded page offers the update again.
   const doUpdate = force => {
     if (!reg.waiting) return doReload();
     updating = true;
     asked = true;
     forceReload = !!force;
-    reg.waiting.postMessage('skipWaiting');
+    const w = reg.waiting;
+    w.postMessage('skipWaiting');
+    clearTimeout(stallTimer);
+    stallTimer = setTimeout(() => {
+      if (!asked || reg.waiting !== w || reloading) return; // taken over, replaced (goOn) or reloading
+      if (forceReload) doReload();
+      else reloadForUpdate();
+    }, UPDATE_STALL_MS);
   };
   const updateIntro = OT.updateIntro;
   // An update waits beside the active version. On the first install, WebKit
@@ -357,6 +376,10 @@ export async function initOffline({ build = null, beforeReload = async () => tru
   watch(reg.installing);
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     asked = false;
+    // A reload already under way (the fallback of doUpdate lets the stalled
+    // worker take over just then) can be dropped by Chromium when the new
+    // worker claims the page meanwhile (#97): reload again, under the new one.
+    if (reloading) { location.reload(); hadController = true; return; }
     // Update clicked here, or in another tab of this tool: the old cache is
     // gone, so every open tab must load the new version (draft kept; if the
     // save fails the page stays and the banner explains).
