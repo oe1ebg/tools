@@ -1,5 +1,6 @@
 // The single-file bundles (confirm/confirm-offline.html,
-// notfunk/notfunk-offline.html, adif/adif-editor.html) are made for file:// (USB stick, laptop without a
+// notfunk/notfunk-offline.html, netlog/netlog-offline.html,
+// adif/adif-editor.html) are made for file:// (USB stick, laptop without a
 // server): download each from the built site, open the saved copy from
 // file:// and check that it starts without errors and loads nothing else.
 import { readFile, writeFile } from 'node:fs/promises';
@@ -41,6 +42,32 @@ test('notfunk-offline.html runs from file://', async ({ page, request }, testInf
   expect(requests.filter(u => u !== url && !u.startsWith('blob:') && !u.startsWith('data:'))).toEqual([]);
 });
 
+test('netlog-offline.html runs from file://: a session, a check-in from the callsign list, kept over a reload', async ({ page, request }, testInfo) => {
+  const { url, requests } = await openSavedCopy(page, request, 'tools/netlog/netlog-offline.html', testInfo);
+  await expect(page).toHaveTitle('Netlog');
+  await expect.poll(() => page.evaluate(() => globalThis.NETLOG_READY === true)).toBe(true);
+  // the file is the offline copy: no download card, no link out of it
+  await expect(page.locator('#st-offline')).toHaveText('Offline-Datei');
+  await expect(page.locator('#offline-card')).toBeHidden();
+  await expect(page.locator('#home-link')).toBeHidden();
+  await page.locator('#btn-new-session').click();
+  await page.locator('#sf-own').fill('OE0QXZ');
+  await page.locator('#session-form button[type=submit]').click();
+  await expect(page.locator('#checkin-call')).toBeVisible();
+  // the inlined callsign list suggests (any real OE callsign will do)
+  await page.locator('#checkin-call').fill('OE1');
+  await expect(page.locator('#checkin-pop button').first()).toBeVisible({ timeout: 30_000 });
+  await page.locator('#checkin-call').fill('OE0QXA');
+  await page.locator('#checkin-name').fill('Probe');
+  await page.locator('#checkin-name').press('Enter');
+  await expect(page.locator('#roster li', { hasText: 'OE0QXA' })).toBeVisible();
+  await expect(page.locator('#st-save')).toContainText(/gespeichert/);
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => globalThis.NETLOG_READY === true)).toBe(true);
+  await expect(page.locator('#roster li', { hasText: 'OE0QXA' })).toBeVisible();
+  expect(requests.filter(u => u !== url && !u.startsWith('blob:') && !u.startsWith('data:'))).toEqual([]);
+});
+
 test('adif-editor.html runs from file://', { tag: '@adif' }, async ({ page, request }, testInfo) => {
   const { url, requests } = await openSavedCopy(page, request, 'tools/adif/adif-editor.html', testInfo);
   await expect(page).toHaveTitle('ADIF Editor');
@@ -65,6 +92,7 @@ test('adif-editor.html runs from file://', { tag: '@adif' }, async ({ page, requ
 for (const [tool, bundle, saveAs] of [
   ['confirm', 'confirm-offline.html', 'bestaetigungsverkehr-offline.html'],
   ['notfunk', 'notfunk-offline.html', 'notfunk-meldebuch-offline.html'],
+  ['netlog', 'netlog-offline.html', 'netlog-offline.html'],
 ]) {
   test(`${bundle} downloads whole from the installed tool`, async ({ page, request, browserName }) => {
     test.skip(browserName === 'webkit', 'service workers: Chromium and Firefox only');

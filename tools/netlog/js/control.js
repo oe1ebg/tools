@@ -5,7 +5,7 @@
 import { $, el, fill } from '../../shared/js/dom.js';
 import { t } from './i18n.js';
 import { keyedList, setText, setAttr, setValue } from './keyed.js';
-import { rosterSorted, roundsSorted, liveOf, cmp, timeOf, baseCall, STATUSES, netStyle, ncsFirst, isUnresolved } from './model.js';
+import { rosterSorted, roundsSorted, liveOf, cmp, timeOf, callBase, STATUSES, netStyle, ncsFirst, isUnresolved } from './model.js';
 import { updateSession, addParticipant, setStatus, moveParticipant, setCurrentRound, updateRound, setItemDone, addTask, setItemText, setNcs, setEventTime, deleteParticipant, eraseParticipant } from './ops.js';
 import { callText, statusLabel } from './roster.js';
 import { expandedCount, setExpandedCount } from './notes.js';
@@ -249,7 +249,7 @@ export function renderControl(app) {
   const ncs = app.participant(app.s.ncsId);
   setText($('#ncs-current'), ncs ? t('ncs.is', { call: `${callText(ncs)}${ncs.name ? ` · ${ncs.name}` : ''}` }) : t('ncs.none'));
   const sug = app.s.suggestedNcs;
-  const sugP = sug && app.sd.participants.find(p => p.base === baseCall(sug) && !p.deleted);
+  const sugP = sug && app.sd.participants.find(p => p.base === callBase(sug) && !p.deleted);
   const sugBox = $('#ncs-suggest');
   sugBox.hidden = !sug || (sugP && sugP.id === app.s.ncsId);
   if (!sugBox.hidden) {

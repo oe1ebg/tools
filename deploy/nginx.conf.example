@@ -27,11 +27,11 @@
 #                  the three tile servers (img-src), tools/sota-alerts/js/;
 #                  data: for the blank image Leaflet puts in unloaded tiles.
 #   single-file    confirm-offline.html, notfunk-offline.html,
-#                  adif-editor.html: the whole app is inline <script> and
-#                  <style>, so 'unsafe-inline' for this location only. They
-#                  are made to be saved and opened from file:// (where no
-#                  header applies); served here they still load nothing
-#                  from elsewhere.
+#                  netlog-offline.html, adif-editor.html: the whole app is
+#                  inline <script> and <style>, so 'unsafe-inline' for this
+#                  location only. They are made to be saved and opened from
+#                  file:// (where no header applies); served here they
+#                  still load nothing from elsewhere.
 # Everything: no plugins, no <base>, no framing (frame-ancestors has to be a
 # header, it is ignored in a <meta> tag), except adif-editor.html by pages
 # of the same origin: tools/adif/README.md ("Zensical integration")
@@ -43,7 +43,7 @@ map $uri $oe1ebg_csp {
     default                                                "default-src 'self'; script-src 'self' 'sha256-BFKCNN17mvY1faBbmDv6Qs2zM9TIJ4uOPbK2JRYPmY0=' 'sha256-4QzxWl/E8EGSZSZaTG6/Yh0/RwJ7dKruDne0oFCzeIQ=' 'sha256-1WkpEWRepTjoTSNgcAX7BqTAoY2CLE/8+RQDS/hBEZM='; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
     ~/sota-alerts/                                         "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: https://*.tile.opentopomap.org https://tile.openstreetmap.org https://mapsneu.wien.gv.at; connect-src 'self' https://api2.sota.org.uk https://overpass-api.de; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
     ~/adif-editor\.html$                                   "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'";
-    ~/(confirm-offline|notfunk-offline)\.html$             "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
+    ~/(confirm-offline|notfunk-offline|netlog-offline)\.html$ "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
 }
 
 # X-Frame-Options for browsers without frame-ancestors, the same rule.

@@ -299,7 +299,7 @@ vnu:
 # Remove generated files (keeps .cache/, so the data steps stay cheap).
 [doc("Remove generated files and the bundle (keeps .cache/)")]
 clean:
-    rm -rf site dist tools/sota-alerts/data tools/shared/data tools/confirm/precache.js tools/confirm/confirm-offline.html tools/confirm/build-info.js tools/notfunk/precache.js tools/notfunk/notfunk-offline.html tools/notfunk/build-info.js tools/netlog/precache.js tools/netlog/build-info.js tools/adif/adif-editor.html tools/adif/build-info.js tests/e2e/report tests/e2e/test-results tests/e2e/test-results.json
+    rm -rf site dist tools/sota-alerts/data tools/shared/data tools/confirm/precache.js tools/confirm/confirm-offline.html tools/confirm/build-info.js tools/notfunk/precache.js tools/notfunk/notfunk-offline.html tools/notfunk/build-info.js tools/netlog/precache.js tools/netlog/netlog-offline.html tools/netlog/build-info.js tools/adif/adif-editor.html tools/adif/build-info.js tests/e2e/report tests/e2e/test-results tests/e2e/test-results.json
 
 # Without a build the tools have no precache.js, and their service worker
 # (rightly) fails to install. For serving tools/ directly during development

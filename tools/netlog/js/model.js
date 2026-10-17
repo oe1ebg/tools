@@ -43,7 +43,7 @@ export function normCall(text) {
 // The identity used for matching: the part of a "prefix/call/suffix" that
 // looks like a callsign (letters and a digit, the longest such part),
 // placeholders kept. "OE/DL0QXA/P" -> "DL0QXA".
-export function baseCall(call) {
+export function callBase(call) {
   const c = normCall(call);
   const parts = c.split('/').filter(Boolean);
   if (parts.length <= 1) return parts[0] || '';
@@ -62,7 +62,7 @@ export function isUnresolved(call) {
 // placeholders stands for one or more unknown characters. A complete call
 // matches only itself. null for an empty call.
 export function callPattern(call) {
-  const b = baseCall(call);
+  const b = callBase(call);
   if (!b) return null;
   const src = b.split(/[?*]+/).map(s => s.replace(/[^A-Z0-9]/g, '')).join('[A-Z0-9]+');
   return new RegExp(`^${src}$`);
@@ -77,7 +77,7 @@ export function callCandidates(call, pool, limit = 8) {
   const seen = new Set();
   const out = [];
   for (const p of pool) {
-    const b = baseCall(p.call);
+    const b = callBase(p.call);
     if (!b || isUnresolved(b) || !re.test(b)) continue;
     const key = `${b}|${p.name || ''}`;
     if (seen.has(key)) continue;

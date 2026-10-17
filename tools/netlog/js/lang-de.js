@@ -181,6 +181,10 @@ export const LANG_DE = {
   'speak.progress': 'Runde {n}: {done} von {all} waren dran',
   'turn.short.onAir': '● spricht',
   'turn.short.next': '▶ nächste',
+  'offlineFile.title': 'Ohne Server arbeiten',
+  'offlineFile.text': 'Netlog als eine HTML-Datei mit Rufzeichen- und Relaisliste, ca. 1 MB, für USB-Stick oder Laptop: läuft ohne Server und ohne Internet. Ihre Daten speichert der Browser für diese Datei, getrennt von dieser installierten Version; Daten zwischen beiden mit einer Sicherung (JSON) übertragen.',
+  'offlineFile.download': 'Offline-Datei herunterladen',
+  'offlineFile.link': 'Offline-Datei',
   'control.empty': 'Noch keine Stationen aufgenommen.',
 
   'series.title': 'Sitzungen & Serien',

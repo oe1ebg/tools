@@ -84,6 +84,6 @@ repository root.
 | Model, ordering, callsigns | `tests/netlog-model.test.mjs` |
 | Ops, transactions, lease, undo, drafts | `tests/netlog-ops.test.mjs` |
 | Languages | `tests/netlog-i18n.test.mjs` and the language test in `tests/e2e/netlog.spec.mjs` |
-| Offline, precache | `tests/netlog-offline.test.mjs`, `tests/e2e/offline-update.spec.mjs` |
+| Offline, precache, single-file bundle | `tests/netlog-offline.test.mjs`, `tests/e2e/offline-update.spec.mjs`, `tests/e2e/offline.spec.mjs` (`file://`), `tests/e2e/deploy.spec.mjs` |
 | UI, keyboard, tabs | `tests/e2e/netlog.spec.mjs` (desktop and mobile projects) |
 | Shared changes | every consumer's tests: `just test`, `just e2e` |

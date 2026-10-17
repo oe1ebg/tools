@@ -4,17 +4,17 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  normCall, baseCall, isUnresolved, callPattern, callCandidates, nextSessionNumber, sessionLabel,
+  normCall, callBase, isUnresolved, callPattern, callCandidates, nextSessionNumber, sessionLabel,
   sessionsOf, moveInOrder, rosterSorted, changeStatus, timeOf, seriesDefaults,
 } from '../tools/netlog/js/model.js';
 
 test('callsigns: entered spelling kept, base identity for matching', () => {
   assert.equal(normCall(' oe0qxa/p '), 'OE0QXA/P');
-  assert.equal(baseCall('OE0QXA/P'), 'OE0QXA');
-  assert.equal(baseCall('OE/DL0QXB/M'), 'DL0QXB');
-  assert.equal(baseCall('OE0QXA'), 'OE0QXA');
-  assert.equal(baseCall('OE0QX?'), 'OE0QX?');
-  assert.equal(baseCall(''), '');
+  assert.equal(callBase('OE0QXA/P'), 'OE0QXA');
+  assert.equal(callBase('OE/DL0QXB/M'), 'DL0QXB');
+  assert.equal(callBase('OE0QXA'), 'OE0QXA');
+  assert.equal(callBase('OE0QX?'), 'OE0QX?');
+  assert.equal(callBase(''), '');
 });
 
 test('partial and unknown callsigns are unresolved and match candidates', () => {

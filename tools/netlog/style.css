@@ -447,3 +447,10 @@ li.event-line .time{ min-width:5.5em; }
 .speak-me{ box-sizing:border-box; height:30px; min-height:0; line-height:26px; padding-top:0; padding-bottom:0; }
 .speak-then{ height:1.3em; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
 .speak-strip{ height:2.1em; }
+
+/* the offline file (hidden in the file itself) */
+.offline-card{ display:flex; flex-wrap:wrap; gap:.6em 1em; align-items:center; margin-top:1.4em; padding-top:1em; border-top:1px solid var(--line); }
+.offline-card .icon{ flex:none; width:2em; height:2em; border-radius:50%; display:grid; place-items:center; background:var(--accent); color:#fff; font-size:15px; }
+.offline-card .txt{ flex:1 1 20em; }
+.offline-card h3{ margin:0 0 .2em; }
+.offline-card p{ margin:0; color:var(--text-dim); font-size:13.5px; }

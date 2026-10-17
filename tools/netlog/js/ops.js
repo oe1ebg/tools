@@ -14,7 +14,7 @@ import { newId, nowIso, laterIso } from '../../shared/js/time.js';
 import { NETLOG_STORES, SESSION_STORES } from './db.js';
 import { BACKUP_STORES, planImport } from './backup.js';
 import {
-  normCall, baseCall, isUnresolved, timeOf, changeStatus, nextOrder, moveInOrder,
+  normCall, callBase, isUnresolved, timeOf, changeStatus, nextOrder, moveInOrder,
   rosterSorted, nextSessionNumber, seriesDefaults, live, FLAGS,
   nextSeq, nextRoundNumber, latestContribution, responseOf, queueItems, openTurn, QUEUE_KINDS,
 } from './model.js';
@@ -244,7 +244,7 @@ export function createSession(store, ctx, fields) {
       number: number === '' || number == null ? null : Number(number),
       name: String(fields.name || '').trim(),
       date: fields.date || w.now.slice(0, 10),
-      own: { call: own, base: baseCall(own) },
+      own: { call: own, base: callBase(own) },
       radio: { ...defs.radio, ...(fields.radio || {}) },
       suggestedNcs: defs.suggestedNcs,
       style: fields.style === 'circle' || fields.style === 'star' ? fields.style : defs.style,
@@ -268,7 +268,7 @@ export function updateSession(store, ctx, id, patch) {
     for (const k of SESSION_FIELDS) if (k in patch) next[k] = patch[k];
     if ('own' in patch) {
       const call = normCall(patch.own && patch.own.call !== undefined ? patch.own.call : patch.own);
-      next.own = { call, base: baseCall(call) };
+      next.own = { call, base: callBase(call) };
     }
     if ('number' in patch) next.number = patch.number === '' || patch.number == null ? null : Number(patch.number);
     return next;
@@ -308,7 +308,7 @@ function participantRecord(fields, w, order, roundId) {
   const rec = {
     eventId: w.sessionId,
     call,
-    base: baseCall(call),
+    base: callBase(call),
     unresolved: isUnresolved(call),
     profileId: fields.profileId || null,
     status: 'active',
@@ -348,7 +348,7 @@ export function updateParticipant(store, ctx, id, patch) {
     const next = { ...p };
     if ('call' in patch) {
       next.call = normCall(patch.call);
-      next.base = baseCall(next.call);
+      next.base = callBase(next.call);
       next.unresolved = isUnresolved(next.call);
     }
     for (const k of DETAIL_FIELDS) if (k in patch) next[k] = k === 'echolink' ? !!patch[k] : String(patch[k] ?? '');
@@ -473,7 +473,7 @@ export function createNote(store, ctx, { participantId, roundId = null, text, fl
       id: id || newId(), eventId: ctx.sessionId, participantId, roundId: rid, contributionId: c ? c.id : null,
       text: String(text), seq: nextSeq(notes, contributions), time: timeOf(w.now), deleted: null,
     }, null);
-    if (flagged) await flagNote(w, note, true);
+    if (flagged) await setResponseFlag(w, note, true);
     return note;
   });
 }
@@ -515,7 +515,7 @@ function stateChange(item, state, at, turnId) {
 // Flag (on) or unflag a note for an on-air response. One response item per
 // note: reflagging reactivates it (with its prepared text), never a
 // duplicate; unflagging only takes it out of the queue.
-async function flagNote(w, note, on) {
+async function setResponseFlag(w, note, on) {
   const items = await w.all('items');
   const cur = responseOf(items, note.id);
   if (on) {
@@ -537,7 +537,7 @@ export function toggleResponse(store, ctx, noteId, on = null) {
     const note = await w.get('notes', noteId);
     const cur = responseOf(await w.all('items'), noteId);
     const want = on === null ? !(cur && cur.active !== false && cur.state !== 'done') : on;
-    return flagNote(w, note, want);
+    return setResponseFlag(w, note, want);
   });
 }
 
