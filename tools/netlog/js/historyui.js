@@ -186,7 +186,8 @@ let historyRenderSeq = 0;
 export async function renderHistory(app) {
   const box = $('#station-history');
   const p = app.participant(app.ui.selected);
-  if (!app.s || !p) { box.hidden = true; return; }
+  const btn = $('#btn-history');
+  if (!app.s || !p) { box.hidden = true; btn.hidden = true; return; }
   const seq = ++historyRenderSeq;
   let records;
   try {
@@ -194,6 +195,7 @@ export async function renderHistory(app) {
   } catch (e) {
     console.error(String(e));
     box.hidden = true;
+    btn.hidden = true;
     return;
   }
   // a newer render (another station, a change) took over meanwhile
@@ -201,8 +203,7 @@ export async function renderHistory(app) {
   const history = stationHistory(records, p, app.s.id);
   const matches = possibleMatches(records, p, app.s.id);
   const sum = historySummary(history);
-  box.hidden = false;
-  const btn = $('#btn-history');
+  btn.hidden = false;
   const empty = !sum.sessions && !matches.length;
   // shown open only when there is something to show
   const open = !!app.ui.historyOpen && !empty;
@@ -212,6 +213,8 @@ export async function renderHistory(app) {
   setText(btn, `${open ? '▾' : '▸'} ${label}${matches.length ? ` · ${t('history.maybe', { n: matches.length })}` : ''}`);
   setAttr(btn, 'aria-expanded', String(open));
   btn.disabled = empty;
+  // the panel (below the meta line) only when opened
+  box.hidden = !open;
   $('#history-body').hidden = !open;
   if (!open) return;
   const followUps = openFollowUps(history);

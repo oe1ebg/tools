@@ -1333,3 +1333,24 @@ test('search across nets: limited to a series, to the selected station, round to
   await expect(page.locator('#round-list input.round-topic').first()).toBeFocused();
   await expect(page.locator('#round-list input.round-topic').first()).toHaveValue('Antenna day');
 });
+
+test('the station heading stays compact: status controls on the callsign line, meta and history on one line', async ({ page }, testInfo) => {
+  test.skip(/mobile/.test(testInfo.project.name), 'desktop layout; phones wrap on purpose');
+  await open(page, { lang: 'de' });
+  await startSession(page);
+  await checkIn(page, 'OE0QXA', 'Anna');
+  await page.locator('#roster button.person', { hasText: 'OE0QXA' }).click();
+  const box = sel => page.locator(sel).boundingBox();
+  const mid = b => b.y + b.height / 2;
+  const call = await box('#station-call');
+  for (const sel of ['#station-status', '#btn-ncs']) {
+    const b = await box(sel);
+    expect(Math.abs(mid(b) - mid(call)), sel).toBeLessThan(call.height / 2);
+  }
+  const sub = await box('#station-sub');
+  const links = await box('#station-links');
+  expect(Math.abs(mid(links) - mid(sub))).toBeLessThan(sub.height);
+  // the notes begin within two lines below the heading
+  const rounds = await box('#station-rounds');
+  expect(rounds.y - (call.y + call.height)).toBeLessThan(90);
+});
