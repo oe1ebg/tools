@@ -24,17 +24,21 @@
 <header id="site-header" class="no-print">
   <a id="home-link" href="../">← Alle Tools</a>
   <h1 class="title">Notfunk-Meldebuch</h1>
-  <a id="manual-link" href="../notfunk-anleitung/" target="_blank" rel="noopener" title="Ausführliche Anleitung mit Bildern (online)">Anleitung</a>
-  <span class="spacer"></span>
-  <span id="clock" class="clock" role="timer" aria-label="Uhrzeit (Ortszeit)"><b id="clock-local">--:--</b></span>
-  <span id="st-offline" class="chip">offline: prüfe…</span>
-  <span id="st-storage" class="chip">Speicher: prüfe…</span>
-  <button type="button" id="st-backup" class="chip chip-btn" hidden title="Download der Sicherung (JSON) dieses Einsatzes jetzt starten; ob die Datei angekommen ist, meldet der Browser nicht"></button>
-  <button id="btn-update" type="button" class="primary" hidden title="Neue Version installieren (gespeicherte Daten bleiben erhalten; unfertige Eingaben vorher sichern oder kopieren)">Update verfügbar</button>
-  <div id="theme-toggle" role="group" aria-label="Farbschema">
-    <button type="button" data-theme-choice="light" aria-pressed="false">hell</button>
-    <button type="button" data-theme-choice="auto" aria-pressed="false">auto</button>
-    <button type="button" data-theme-choice="dark" aria-pressed="false">dunkel</button>
+  <a id="manual-link" class="hdr-link" href="../notfunk-anleitung/" target="_blank" rel="noopener" title="Ausführliche Anleitung mit Bildern (online)">Anleitung</a>
+  <div class="hdr-status">
+    <span id="st-offline" class="chip">offline: prüfe…</span>
+    <span id="st-storage" class="chip">Speicher: prüfe…</span>
+    <button type="button" id="st-backup" class="chip chip-btn" hidden title="Download der Sicherung (JSON) dieses Einsatzes jetzt starten; ob die Datei angekommen ist, meldet der Browser nicht"></button>
+    <button id="btn-update" type="button" class="primary" hidden title="Neue Version installieren (gespeicherte Daten bleiben erhalten; unfertige Eingaben vorher sichern oder kopieren)">Update verfügbar</button>
+  </div>
+  <div class="hdr-controls">
+    <span id="clock" class="clock" role="timer" aria-label="Uhrzeit (Ortszeit)"><b id="clock-local">--:--</b></span>
+    <div id="theme-toggle" class="toggle" role="group" aria-label="Farbschema">
+      <button type="button" data-theme-choice="light" aria-pressed="false">hell</button>
+      <button type="button" data-theme-choice="auto" aria-pressed="false">auto</button>
+      <button type="button" data-theme-choice="dark" aria-pressed="false">dunkel</button>
+    </div>
+    <button id="btn-help" type="button" aria-haspopup="dialog" aria-controls="help-dlg" aria-keyshortcuts="F1 ?" title="Hilfe zur Meldeaufnahme (F1, oder ? außerhalb von Textfeldern)"><span aria-hidden="true">?</span> Hilfe</button>
   </div>
 </header>
 
@@ -199,7 +203,6 @@
         <span id="form-reply" class="chip" hidden></span>
         <span class="spacer"></span>
         <span id="draft-status" class="draft-status" role="status"></span>
-        <button type="button" id="btn-help" class="help-btn" aria-haspopup="dialog" aria-controls="help-dlg" aria-keyshortcuts="F1" title="Hilfe zur Meldeaufnahme (F1)"><span aria-hidden="true">?</span> Hilfe</button>
       </div>
 
       <div class="row-flow">
@@ -346,8 +349,8 @@
   <div id="print-sheet" class="print-only"></div>
 </main>
 
-<!-- Help for the entry form: F1, "? Hilfe", or ? outside text fields. Esc
-     or "Schließen" closes it; the focus goes back to the field it came from. -->
+<!-- Help: "? Hilfe" in the header, F1, or ? outside text fields (shared
+     js/helpdialog.js). Esc or "Schließen" closes it; the focus goes back. -->
 <dialog id="help-dlg" class="help-dlg" aria-labelledby="help-title">
   <div class="help-head">
     <h2 id="help-title">Hilfe zur Meldeaufnahme</h2>

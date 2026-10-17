@@ -16,24 +16,22 @@
 <body>
 
 <header id="site-header">
-  <a id="back-link" href="../">
-    <svg class="icon-arrow-left" aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-    Alle Tools
-  </a>
-  <span class="spacer"></span>
-  <div id="theme-toggle" role="group" aria-label="color theme">
-    <button type="button" data-theme-choice="light" aria-pressed="false" title="light theme">light</button>
-    <button type="button" data-theme-choice="auto" aria-pressed="false" title="match system theme">auto</button>
-    <button type="button" data-theme-choice="dark" aria-pressed="false" title="dark theme">dark</button>
+  <a id="home-link" href="../">← Alle Tools</a>
+  <h1 class="title">ADIF editor</h1>
+  <a class="hdr-link" href="adif-editor.html" download="adif-editor.html" title="the whole editor in one HTML file: save it and open it without a server">single file ↓</a>
+  <a class="hdr-link" href="https://www.adif.org/318/ADIF_318.htm" target="_blank" rel="noopener">targets ADIF 3.1.8 <span aria-hidden="true">↗</span><span class="sr-only">(opens in a new tab)</span></a>
+  <a class="hdr-link" href="https://github.com/oe1ebg/tools/tree/main/tools/adif" target="_blank" rel="noopener" title="source code on GitHub">source <span aria-hidden="true">↗</span><span class="sr-only">(opens in a new tab)</span></a>
+  <div class="hdr-controls">
+    <div id="theme-toggle" class="toggle" role="group" aria-label="color theme">
+      <button type="button" data-theme-choice="light" aria-pressed="false" title="light theme">light</button>
+      <button type="button" data-theme-choice="auto" aria-pressed="false" title="match system theme">auto</button>
+      <button type="button" data-theme-choice="dark" aria-pressed="false" title="dark theme">dark</button>
+    </div>
+    <button id="btn-help" type="button" aria-haspopup="dialog" aria-controls="help-dlg" aria-keyshortcuts="?" title="help: editing, keys, exports (? outside table cells and fields)"><span aria-hidden="true">?</span> Help</button>
   </div>
-  <a class="badge" href="adif-editor.html" download="adif-editor.html" title="the whole editor in one HTML file: save it and open it without a server">single file ↓</a>
-  <a class="badge" href="https://www.adif.org/318/ADIF_318.htm" target="_blank" rel="noopener">targets ADIF 3.1.8 <span aria-hidden="true">↗</span><span class="sr-only">(opens in a new tab)</span></a>
-  <a class="badge" href="https://github.com/oe1ebg/tools/tree/main/tools/adif" target="_blank" rel="noopener" title="source code on GitHub">source <span aria-hidden="true">↗</span><span class="sr-only">(opens in a new tab)</span></a>
 </header>
 
 <div id="toolbar">
-  <h1>ADIF editor</h1>
-  <span class="sep" aria-hidden="true">/</span>
   <button type="button" id="btn-open">add file(s)…</button>
   <button type="button" id="btn-new" title="start an empty log">new</button>
   <button type="button" id="btn-clear" title="remove the whole log from the editor" disabled>clear…</button>
@@ -156,6 +154,52 @@
      Tab order, Alt+↓ in the cell does the same. -->
 <button type="button" id="cell-date-btn" class="date-pick" tabindex="-1" title="choose a date (Alt+↓)" aria-label="choose a date" hidden><svg class="icon-calendar" aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></button>
 <span id="cell-suggest-status" class="sr-only" role="status"></span>
+
+<!-- Help: "? Help" in the header or ? outside table cells and fields
+     (shared ../shared/js/helpdialog.js). Esc or "Close" closes it. -->
+<dialog id="help-dlg" class="help-dlg" aria-labelledby="help-title">
+  <div class="help-head">
+    <h2 id="help-title">Help</h2>
+    <a href="https://github.com/oe1ebg/tools/tree/main/tools/adif#readme" target="_blank" rel="noopener">More in the README (online)</a>
+    <button type="button" id="help-close" class="primary">Close (Esc)</button>
+  </div>
+  <div class="help-body">
+    <nav class="help-nav" aria-label="help sections">
+      <a href="#h-load">Loading</a><a href="#h-edit">Editing</a><a href="#h-check">Checks</a><a href="#h-find">Search &amp; filter</a><a href="#h-export">Export</a>
+    </nav>
+    <div class="help-content">
+      <section id="h-load" aria-labelledby="h-load-t">
+        <h3 id="h-load-t">Loading</h3>
+        <p>Drag .adi or .adx files onto the page, or use "add file(s)…". Files are added to the current log; "new" starts an empty one, "clear…" removes the whole log from the editor. Nothing leaves the browser.</p>
+        <p>"single file ↓" saves the whole editor as one HTML file that works without a server and without internet.</p>
+      </section>
+      <section id="h-edit" aria-labelledby="h-edit-t">
+        <h3 id="h-edit-t">Editing</h3>
+        <dl class="kb">
+          <dt><kbd>Enter</kbd></dt><dd>take the value and go one row down</dd>
+          <dt><kbd>Esc</kbd></dt><dd>restore the value from before the edit (in a list of suggestions: close the list first)</dd>
+          <dt><kbd>Tab</kbd></dt><dd>next field; at the end of a row, the next row</dd>
+          <dt><kbd>↓</kbd> <kbd>↑</kbd></dt><dd>in CONTEST_ID and SUBMODE: go through the suggestions, <kbd>Enter</kbd> takes one</dd>
+          <dt><kbd>Alt</kbd>+<kbd>↓</kbd></dt><dd>in a date field: open the calendar</dd>
+          <dt><kbd>?</kbd></dt><dd>this help (outside table cells and fields)</dd>
+        </dl>
+        <p>Fields with a fixed list in ADIF (BAND, MODE, DXCC, QSL status …) are drop-downs; the empty choice removes the field. A value is never changed by showing it. Dates are shown as YYYY-MM-DD, times as HH:MM or HH:MM:SS (UTC); the file keeps the ADIF format. Edits that were not exported make the browser ask before the tab closes.</p>
+      </section>
+      <section id="h-check" aria-labelledby="h-check-t">
+        <h3 id="h-check-t">Checks</h3>
+        <p>Every QSO is checked against ADIF 3.1.8. The issues button lists errors, warnings and notes; "row N" goes to the QSO.</p>
+      </section>
+      <section id="h-find" aria-labelledby="h-find-t">
+        <h3 id="h-find-t">Search &amp; filter</h3>
+        <p>The filter bar narrows the table only: text, validation status, field conditions, source file and a QSO_DATE range. Every export still writes the whole log.</p>
+      </section>
+      <section id="h-export" aria-labelledby="h-export-t">
+        <h3 id="h-export-t">Export</h3>
+        <p>"export .adi" and "export .adx" write a fresh ADIF file; CSV and the SOTA CSV are under the other exports. The file name is the field next to the buttons.</p>
+      </section>
+    </div>
+  </div>
+</dialog>
 
 <!-- Confirmation for "new" and "clear…" (js/app.js, askConfirm). -->
 <dialog id="confirm-dlg" aria-labelledby="confirm-title" aria-describedby="confirm-msg">

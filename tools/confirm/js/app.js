@@ -18,6 +18,7 @@ import { TEMPLATES, templateFor, fieldVisible, fieldDisplay, fieldOptions, curre
 import { toCSV, toADIF, adifIssues, ADIF_MIME, toKML, KML_MIME, toSummary } from './export.js';
 import { loadDataFile } from '../../shared/js/data.js';
 import { buildCallbook, lookupCall, suggestCalls, normalizeCall, isPlausibleCall } from '../../shared/js/callbook.js';
+import { initHelpDialog } from '../../shared/js/helpdialog.js';
 import { $, el, fill, copyToClipboard, popover, focusNext, submitForm, isComposing, trackExpanded, rowRoles, tableRoles } from '../../shared/js/dom.js';
 import { prefGet, prefSet } from '../../shared/js/prefs.js';
 import { initLocationPanel, loadLocationIndex, setUtmReference, logUtmDigits } from '../../shared/js/locationui.js';
@@ -1926,29 +1927,6 @@ function download(text, name, type) {
   setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
 
-/* --- help under the entry form: "? Hilfe" or the ? key (outside text fields) --- */
-
-const HELP_KEY = 'oe1ebg-confirm-help-open';
-
-function initEntryHelp() {
-  const btn = $('#btn-help');
-  const panel = $('#entry-help');
-  trackExpanded(btn, panel);
-  const show = open => {
-    panel.hidden = !open;
-    prefSet(HELP_KEY, open ? '1' : '');
-  };
-  show(prefGet(HELP_KEY) === '1');
-  btn.addEventListener('click', () => show(panel.hidden));
-  document.addEventListener('keydown', ev => {
-    if (ev.key !== '?' || ev.ctrlKey || ev.metaKey || ev.altKey || isComposing(ev)) return;
-    const t = ev.target;
-    if (t.closest?.('input, textarea, select, [contenteditable]') || $('#view-log').hidden) return;
-    ev.preventDefault();
-    show(panel.hidden);
-  });
-}
-
 /* --- "Exportieren" menu (disclosure: a button and a list of buttons) --- */
 
 function closeExportMenu(focusButton = false) {
@@ -2248,7 +2226,8 @@ function wire() {
     doExport(b.dataset.export);
   }));
   initExportMenu();
-  initEntryHelp();
+  // help: "? Hilfe" in the header or ? outside text fields
+  initHelpDialog();
   $('#btn-map').addEventListener('click', toggleMap);
   const sep = $('#csv-sep');
   sep.value = prefGet(CSV_SEP_KEY, ';');

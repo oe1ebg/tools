@@ -17,8 +17,8 @@ im Browser und ohne Internet; alle Daten bleiben auf dem Gerät.
     Meldesammelstelle abgestimmt. Felder, Bezeichnungen und die
     Dringlichkeitsstufen können sich ändern. Für Übungen gedacht.
 
-Die Kurzfassung steht im Werkzeug selbst: **„? Hilfe“** oben im Formular oder
-<kbd>F1</kbd>.
+Die Kurzfassung steht im Werkzeug selbst: **„? Hilfe“** ganz rechts in der
+Kopfzeile, <kbd>F1</kbd> oder <kbd>?</kbd> (außerhalb von Textfeldern).
 
 ## Kurz: so geht's los
 
@@ -472,7 +472,8 @@ Zeitraum (Von/Bis je Datum und Uhrzeit; nur ein Datum = der ganze Tag).
 
 ![Hilfe](img/notfunk-hilfe.png)
 
-„? Hilfe“ oder <kbd>F1</kbd> öffnet die Kurzhilfe über dem Formular. Die Eingabe
+„? Hilfe“ (ganz rechts in der Kopfzeile, wie in allen Werkzeugen) oder <kbd>F1</kbd>
+öffnet die Kurzhilfe über dem Formular. Die Eingabe
 bleibt, wie sie ist; nach dem Schließen ist der Cursor wieder im vorigen
 Feld.
 

@@ -43,58 +43,6 @@ body{
   display:flex;
   flex-direction:column;
 }
-#site-header{
-  display:flex;
-  align-items:center;
-  gap:.8em;
-  padding:.5em .8em;
-  position:sticky;
-  top:0;
-  z-index:20;
-  background:var(--header-bg);
-  backdrop-filter:blur(6px);
-  -webkit-backdrop-filter:blur(6px);
-  border-bottom:1px solid var(--line);
-}
-#back-link{
-  display:inline-flex;
-  align-items:center;
-  gap:.4em;
-  color:var(--accent-text);
-  text-decoration:none;
-  font-size:12px;
-}
-#back-link:hover{ text-decoration:underline; }
-.icon-arrow-left{ width:1em; height:1em; }
-.badge{
-  border:1px solid var(--line);
-  border-radius:.4rem;
-  padding:.15em .6em;
-  color:var(--text-dim);
-  font-size:11px;
-  white-space:nowrap;
-  text-decoration:none;
-}
-a.badge:hover{ color:var(--accent-text); border-color:var(--accent-dim); }
-.toggle-group{
-  display:flex;
-  border:1px solid var(--line);
-  border-radius:.3rem;
-  overflow:hidden;
-}
-.toggle-group button{
-  border:none;
-  border-radius:0;
-  padding:.3em .6em;
-  font-size:11px;
-  background:transparent;
-  color:var(--text-dim);
-}
-.toggle-group button:not(:first-child){ border-left:1px solid var(--line); }
-.toggle-group button.active{
-  background:var(--accent);
-  color:#fff;
-}
 #toolbar{
   display:flex;
   flex-wrap:wrap;
@@ -103,15 +51,6 @@ a.badge:hover{ color:var(--accent-text); border-color:var(--accent-dim); }
   padding:.6em .8em;
   background:var(--bg-raised);
   border-bottom:1px solid var(--line);
-}
-#toolbar h1{
-  font-size:13px;
-  font-weight:600;
-  letter-spacing:.02em;
-  margin:0;
-  color:var(--text);
-  white-space:nowrap;
-  text-transform:uppercase;
 }
 #toolbar .sep{ color:var(--line); }
 #toolbar label{ color:var(--text-dim); font-size:11px; white-space:nowrap; }
@@ -175,7 +114,7 @@ input.iso-date[aria-invalid="true"]{ color:var(--err); }
 #ref-indicator button{ padding:0 .3em; font-size:11px; border:none; color:var(--text-dim); }
 
 /* Grouped "date range" control: from/to inputs presented as one pill
-   (same visual language as .toggle-group) with an arrow between them,
+   (same visual language as the header's .toggle) with an arrow between them,
    rather than two separately-labeled "from (UTC)"/"to (UTC)" fields
    repeating "(UTC)" and reading as unrelated. */
 .date-range-group{
@@ -343,12 +282,9 @@ input.iso-date[aria-invalid="true"]{ color:var(--err); }
    vertical space that should go to the map (confirmed live at 390×844 —
    they pushed the map below the fold entirely), so they collapse behind
    "filters ▾" by default; only the title and that toggle stay in the
-   always-visible row. Also fixes #site-header wrapping the "back to
-   site" link's own text mid-word at narrow widths (it was shrinking
-   along with everything else with nowhere else to give). */
+   always-visible row. */
 @media (max-width: 600px){
-  #site-header{ flex-wrap:wrap; }
-  span.badge{ flex-basis:100%; order:10; white-space:normal; }
+  #site-header .hdr-note{ flex-basis:100%; white-space:normal; }
 
   .mobile-only{ display:inline-flex; }
 
@@ -449,10 +385,8 @@ input.iso-date[aria-invalid="true"]{ color:var(--err); }
   :root input, :root select, :root textarea{ font-size:16px; }
 }
 
-/* header badges: at least 24 px tall (WCAG 2.5.8); the header wraps
-   instead of pushing a narrow page sideways (1.4.10) */
-.badge{ display:inline-flex; align-items:center; min-height:24px; }
-#site-header{ flex-wrap:wrap; }
+/* the note in the header (layout: shared tools.css) */
+#site-header .hdr-note{ font-size:12.5px; color:var(--text-dim); }
 
 /* calendar buttons next to ISO date fields: at least 24x24 px (WCAG 2.5.8) */
 .date-pick{ min-width:24px; min-height:24px; justify-content:center; }

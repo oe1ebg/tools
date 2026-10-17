@@ -27,13 +27,20 @@
   <a id="home-link" href="../" data-i18n="header.allTools">← All tools</a>
   <h1 class="title">Netlog</h1>
   <span id="session-line" class="session-line"></span>
-  <span class="spacer"></span>
-  <span id="clock" class="clock" role="timer" aria-label="Time (UTC)"><b id="clock-utc">--:--</b> <span id="clock-zone">UTC</span></span>
-  <div id="time-toggle" class="toggle" role="group" data-i18n-attr="aria-label:header.timeMode; title:header.timeTitle" aria-label="Time display" title="Show times in UTC or local time; storage is always UTC.">
-    <button type="button" data-time="utc" aria-pressed="true" data-i18n="header.utc">UTC</button>
-    <button type="button" data-time="local" aria-pressed="false" data-i18n="header.local">local</button>
+  <div class="hdr-status">
+    <span id="mode-indicator" class="chip mode" role="status"></span>
+    <span id="st-save" class="chip" role="status" aria-live="polite"></span>
+    <span id="st-offline" class="chip">offline: …</span>
+    <span id="st-storage" class="chip">…</span>
+    <button type="button" id="st-backup" class="chip chip-btn" hidden data-i18n-attr="title:backup.chipTitle" title="Start the download of this session's backup (JSON) now; whether the file arrived, the browser does not say"></button>
+    <button id="btn-update" type="button" class="primary" hidden data-i18n="header.update">Update available</button>
   </div>
-  <div class="header-tools">
+  <div class="hdr-controls">
+    <span id="clock" class="clock" role="timer" aria-label="Time (UTC)"><b id="clock-utc">--:--</b> <span id="clock-zone">UTC</span></span>
+    <div id="time-toggle" class="toggle" role="group" data-i18n-attr="aria-label:header.timeMode; title:header.timeTitle" aria-label="Time display" title="Show times in UTC or local time; storage is always UTC.">
+      <button type="button" data-time="utc" aria-pressed="true" data-i18n="header.utc">UTC</button>
+      <button type="button" data-time="local" aria-pressed="false" data-i18n="header.local">local</button>
+    </div>
     <div id="lang-toggle" class="toggle" role="group" data-i18n-attr="aria-label:header.language" aria-label="Language">
       <button type="button" data-lang="de" lang="de" aria-pressed="false">DE</button>
       <button type="button" data-lang="en" lang="en" aria-pressed="false">EN</button>
@@ -43,15 +50,7 @@
       <button type="button" data-theme-choice="auto" aria-pressed="false" data-i18n="header.auto">auto</button>
       <button type="button" data-theme-choice="dark" aria-pressed="false" data-i18n="header.dark">dark</button>
     </div>
-    <button id="btn-help" type="button" aria-haspopup="dialog" data-i18n-attr="aria-label:help.open" aria-label="Help and keyboard shortcuts">?</button>
-  </div>
-  <div class="status-bar">
-    <span id="mode-indicator" class="chip mode" role="status"></span>
-    <span id="st-save" class="chip" role="status" aria-live="polite"></span>
-    <span id="st-offline" class="chip">offline: …</span>
-    <span id="st-storage" class="chip">…</span>
-    <button type="button" id="st-backup" class="chip chip-btn" hidden data-i18n-attr="title:backup.chipTitle" title="Start the download of this session's backup (JSON) now; whether the file arrived, the browser does not say"></button>
-    <button id="btn-update" type="button" class="primary" hidden data-i18n="header.update">Update available</button>
+    <button id="btn-help" type="button" aria-haspopup="dialog" aria-controls="help-dlg" aria-keyshortcuts="?" data-i18n-attr="title:help.open" title="Help and keyboard shortcuts (?)"><span aria-hidden="true">?</span> <span data-i18n="header.help">Help</span></button>
   </div>
 </header>
 

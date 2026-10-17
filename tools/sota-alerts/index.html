@@ -15,28 +15,25 @@
 <body>
 
 <header id="site-header">
-  <a id="back-link" href="../">
-    <svg class="icon-arrow-left" aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-    Alle Tools
-  </a>
-  <span class="spacer"></span>
-  <div id="time-toggle" class="toggle-group" role="group" aria-label="time display" title="show alert times in UTC or your local time zone">
-    <button type="button" data-time-choice="utc" aria-pressed="false">UTC</button>
-    <button type="button" data-time-choice="local" aria-pressed="false">local</button>
+  <a id="home-link" href="../">← Alle Tools</a>
+  <h1 class="title">SOTA Alerts Map</h1>
+  <a class="hdr-link" href="https://github.com/oe1ebg/tools/tree/main/tools/sota-alerts" target="_blank" rel="noopener" title="source code on GitHub">source <span aria-hidden="true">↗</span><span class="sr-only">(opens in a new tab)</span></a>
+  <span class="hdr-note">unofficial · uses SOTA's public API, not affiliated with the SOTA Association</span>
+  <div class="hdr-controls">
+    <div id="time-toggle" class="toggle" role="group" aria-label="time display" title="show alert times in UTC or your local time zone">
+      <button type="button" data-time-choice="utc" aria-pressed="false">UTC</button>
+      <button type="button" data-time-choice="local" aria-pressed="false">local</button>
+    </div>
+    <div id="theme-toggle" class="toggle" role="group" aria-label="color theme">
+      <button type="button" data-theme-choice="light" aria-pressed="false" title="light theme">light</button>
+      <button type="button" data-theme-choice="auto" aria-pressed="false" title="match system theme">auto</button>
+      <button type="button" data-theme-choice="dark" aria-pressed="false" title="dark theme">dark</button>
+    </div>
+    <button id="btn-help" type="button" aria-haspopup="dialog" aria-controls="help-dlg" aria-keyshortcuts="?" title="help: the map, alerts, summits, sharing (? outside text fields)"><span aria-hidden="true">?</span> Help</button>
   </div>
-  <!-- wired by ../shared/js/theme.js (aria-pressed + .active, stored choice) -->
-  <div id="theme-toggle" class="toggle-group" role="group" aria-label="color theme">
-    <button type="button" data-theme-choice="light" aria-pressed="false" title="light theme">light</button>
-    <button type="button" data-theme-choice="auto" aria-pressed="false" title="match system theme">auto</button>
-    <button type="button" data-theme-choice="dark" aria-pressed="false" title="dark theme">dark</button>
-  </div>
-  <span class="badge">unofficial · uses SOTA's public API, not affiliated with the SOTA Association</span>
-  <a class="badge" href="https://github.com/oe1ebg/tools/tree/main/tools/sota-alerts" target="_blank" rel="noopener" title="source code on GitHub">source <span aria-hidden="true">↗</span><span class="sr-only">(opens in a new tab)</span></a>
 </header>
 
 <div id="toolbar">
-  <h1>SOTA Alerts Map</h1>
-  <span class="sep" aria-hidden="true">/</span>
   <!-- Hidden except at phone widths (see the max-width:600px media query) —
        everything below collapses behind this on a phone so the map gets
        the screen instead of a wall of controls; desktop/tablet render
@@ -110,6 +107,40 @@
   <div id="map" role="region" aria-label="map of SOTA alerts and summits"></div>
   <div id="list-panel" role="region" aria-label="alert and pinned summit list"><div id="candidates-items"></div><div id="list-items"></div></div>
 </main>
+
+<!-- Help: "? Help" in the header or ? outside text fields (shared
+     ../shared/js/helpdialog.js). Esc or "Close" closes it. -->
+<dialog id="help-dlg" class="help-dlg" aria-labelledby="help-title">
+  <div class="help-head">
+    <h2 id="help-title">Help</h2>
+    <a href="https://github.com/oe1ebg/tools/tree/main/tools/sota-alerts#readme" target="_blank" rel="noopener">More in the README (online)</a>
+    <button type="button" id="help-close" class="primary">Close (Esc)</button>
+  </div>
+  <div class="help-body">
+    <nav class="help-nav" aria-label="help sections">
+      <a href="#h-map">Map and alerts</a><a href="#h-compare">Comparing summits</a><a href="#h-share">Sharing</a><a href="#h-data">Data and privacy</a>
+    </nav>
+    <div class="help-content">
+      <section id="h-map" aria-labelledby="h-map-t">
+        <h3 id="h-map-t">Map and alerts</h3>
+        <p>The map shows the alerts that SOTA's feed currently lists, within the date range in the filters ("today" sets both dates to the current UTC date). Alerts of your own callsigns ("my callsign(s)" in the filters) are green. Times are in UTC or your local time zone (switch in the header).</p>
+        <p>Hovering a summit opens its card; a click keeps it open. On a phone, "filters ▾" opens the filters and the list.</p>
+      </section>
+      <section id="h-compare" aria-labelledby="h-compare-t">
+        <h3 id="h-compare-t">Comparing summits</h3>
+        <p>"set as reference" in a summit's card (or a click on a list row) picks a reference summit (yellow). Any other summit's card then shows the distance and height difference, and a dashed line connects the two. Pinned summits (pink) stay on the map and in the list.</p>
+      </section>
+      <section id="h-share" aria-labelledby="h-share-t">
+        <h3 id="h-share-t">Sharing</h3>
+        <p>"share" copies a link with the date range, band and mode filters, the reference and the pinned summits. Whoever opens it sees the same summits; their own callsigns, theme and time display stay as they are, and their own pins are kept.</p>
+      </section>
+      <section id="h-data" aria-labelledby="h-data-t">
+        <h3 id="h-data-t">Data and privacy</h3>
+        <p>This map needs the internet: alerts come from SOTA's public API, map tiles from the map server. It is unofficial and not affiliated with the SOTA Association. Summit positions come from a list shipped with the page, so a summit is looked up live only when it is missing there. Your filters and last view stay in this browser.</p>
+      </section>
+    </div>
+  </div>
+</dialog>
 
 <script src="../shared/vendor/leaflet/leaflet.js"></script>
 <!-- ES modules (js/, plus ../shared/js/), served over http only. -->

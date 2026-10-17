@@ -12,8 +12,8 @@ denen sich Stationen nur melden: Bestätigungsverkehr nach einem Rundspruch,
 RST-Runden oder Umfragen wie den Zivilschutz-Probealarm. Er läuft vollständig
 im Browser und ohne Internet; alle Daten bleiben auf dem Gerät.
 
-Die Kurzfassung steht im Werkzeug selbst: **„? Hilfe“** unter dem
-Eingabefeld oder die Taste <kbd>?</kbd> (außerhalb von Textfeldern).
+Die Kurzfassung steht im Werkzeug selbst: **„? Hilfe“** ganz rechts in der
+Kopfzeile oder die Taste <kbd>?</kbd> (außerhalb von Textfeldern).
 
 ## Kurz: so geht's los
 
@@ -302,7 +302,7 @@ Abstand zu UTC, etwa „Europe/Vienna (UTC+2)“. Gespeichert wird immer die gen
 
 ## Tastatur
 
-![Hilfe unter dem Eingabefeld](img/confirm-hilfe.png)
+![Hilfe](img/confirm-hilfe.png)
 
 | Taste | Wirkung |
 | --- | --- |
@@ -312,7 +312,7 @@ Abstand zu UTC, etwa „Europe/Vienna (UTC+2)“. Gespeichert wird immer die gen
 | <kbd>⇧</kbd>+<kbd>Enter</kbd> | Zeile speichern, aus jedem Feld |
 | <kbd>Esc</kbd> | Zeile verwerfen (mit „Rückgängig“) |
 | `!` am Anfang des Rufzeichens | Operator-Kommentar statt Check-in |
-| <kbd>?</kbd> | Hilfe ein- und ausblenden (außerhalb von Textfeldern) |
+| <kbd>?</kbd> | Hilfe öffnen (außerhalb von Textfeldern); <kbd>Esc</kbd> schließt sie |
 
 ---
 

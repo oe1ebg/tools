@@ -12,58 +12,6 @@ body{
   display:flex;
   flex-direction:column;
 }
-#site-header{
-  display:flex;
-  align-items:center;
-  gap:.8em;
-  padding:.5em .8em;
-  position:sticky;
-  top:0;
-  z-index:20;
-  background:var(--header-bg);
-  backdrop-filter:blur(6px);
-  -webkit-backdrop-filter:blur(6px);
-  border-bottom:1px solid var(--line);
-}
-#back-link{
-  display:inline-flex;
-  align-items:center;
-  gap:.4em;
-  color:var(--accent-text);
-  text-decoration:none;
-  font-size:12px;
-}
-#back-link:hover{ text-decoration:underline; }
-.icon-arrow-left{ width:1em; height:1em; }
-.badge{
-  border:1px solid var(--line);
-  border-radius:.4rem;
-  padding:.15em .6em;
-  color:var(--text-dim);
-  font-size:11px;
-  white-space:nowrap;
-  text-decoration:none;
-}
-a.badge:hover{ color:var(--accent-text); border-color:var(--accent-dim); }
-#theme-toggle{
-  display:flex;
-  border:1px solid var(--line);
-  border-radius:.3rem;
-  overflow:hidden;
-}
-#theme-toggle button{
-  border:none;
-  border-radius:0;
-  padding:.3em .6em;
-  font-size:11px;
-  background:transparent;
-  color:var(--text-dim);
-}
-#theme-toggle button:not(:first-child){ border-left:1px solid var(--line); }
-#theme-toggle button.active{
-  background:var(--accent);
-  color:#fff;
-}
 #toolbar{
   display:flex;
   flex-wrap:wrap;
@@ -72,15 +20,6 @@ a.badge:hover{ color:var(--accent-text); border-color:var(--accent-dim); }
   padding:.6em .8em;
   background:var(--bg-raised);
   border-bottom:1px solid var(--line);
-}
-#toolbar h1{
-  text-transform:uppercase;
-  font-size:13px;
-  font-weight:600;
-  letter-spacing:.02em;
-  margin:0;
-  color:var(--text);
-  white-space:nowrap;
 }
 #toolbar .sep{ color:var(--line); }
 button, .btn{
@@ -563,10 +502,6 @@ body.compact #toolbar{ column-gap:.6em; }
 #filter-bar .date-pick{ margin-left:-.3em; }
 #cell-date-btn{ position:fixed; z-index:25; padding:.1em .2em; background:var(--bg-raised); }
 
-/* header badges: at least 24 px tall (WCAG 2.5.8); the header wraps
-   instead of pushing a narrow page sideways (1.4.10) */
-.badge{ display:inline-flex; align-items:center; min-height:24px; }
-#site-header{ flex-wrap:wrap; }
 
 /* "×" (remove column / delete row): at least 24×24 CSS px (WCAG 2.5.8);
    the row keeps its height (negative margins), the virtual table measures

@@ -26,21 +26,25 @@
 <header id="site-header">
   <a id="home-link" href="../">← Alle Tools</a>
   <h1 class="title">Bestätigungsverkehr</h1>
-  <a id="manual-link" href="../confirm-anleitung/" target="_blank" rel="noopener" title="Ausführliche Anleitung mit Bildern (online)">Anleitung</a>
-  <span class="spacer"></span>
-  <span id="st-offline" class="chip">offline: prüfe…</span>
-  <span id="st-storage" class="chip">Speicher: prüfe…</span>
-  <span id="st-tabs" class="chip warn" hidden title="Dieser Browser kann nicht verhindern, dass zwei Tabs oder Fenster dasselbe Log bearbeiten (fehlt z. B. bei http:// im Heimnetz oder in Safari vor 15.4). Jedes Log nur in einem Tab öffnen.">nur ein Tab pro Log!</span>
+  <a id="manual-link" class="hdr-link" href="../confirm-anleitung/" target="_blank" rel="noopener" title="Ausführliche Anleitung mit Bildern (online)">Anleitung</a>
   <button id="btn-loc" type="button" aria-expanded="false" aria-controls="loc-panel" title="Offline-Standortsuche Wien: Adresse, Ort, PLZ, Koordinaten, Locator, UTMREF"><span aria-hidden="true">📍</span> Standort</button>
-  <button id="btn-update" type="button" class="primary" hidden title="Neue Version installieren (gespeicherte Daten bleiben erhalten; unfertige Eingaben vorher sichern oder kopieren)">Update verfügbar</button>
-  <div id="time-toggle" class="seg" role="group" aria-label="Zeitanzeige" title="Anzeige und Eingabe der Zeit. Gespeichert wird immer ein ISO-8601-Zeitstempel (UTC).">
-    <button type="button" data-time-mode="utc" aria-pressed="false">UTC</button>
-    <button type="button" data-time-mode="local" aria-pressed="false">Lokal</button>
+  <div class="hdr-status">
+    <span id="st-offline" class="chip">offline: prüfe…</span>
+    <span id="st-storage" class="chip">Speicher: prüfe…</span>
+    <span id="st-tabs" class="chip warn" hidden title="Dieser Browser kann nicht verhindern, dass zwei Tabs oder Fenster dasselbe Log bearbeiten (fehlt z. B. bei http:// im Heimnetz oder in Safari vor 15.4). Jedes Log nur in einem Tab öffnen.">nur ein Tab pro Log!</span>
+    <button id="btn-update" type="button" class="primary" hidden title="Neue Version installieren (gespeicherte Daten bleiben erhalten; unfertige Eingaben vorher sichern oder kopieren)">Update verfügbar</button>
   </div>
-  <div id="theme-toggle" role="group" aria-label="Farbschema">
-    <button type="button" data-theme-choice="light" aria-pressed="false">hell</button>
-    <button type="button" data-theme-choice="auto" aria-pressed="false">auto</button>
-    <button type="button" data-theme-choice="dark" aria-pressed="false">dunkel</button>
+  <div class="hdr-controls">
+    <div id="time-toggle" class="toggle" role="group" aria-label="Zeitanzeige" title="Anzeige und Eingabe der Zeit. Gespeichert wird immer ein ISO-8601-Zeitstempel (UTC).">
+      <button type="button" data-time-mode="utc" aria-pressed="false">UTC</button>
+      <button type="button" data-time-mode="local" aria-pressed="false">Lokal</button>
+    </div>
+    <div id="theme-toggle" class="toggle" role="group" aria-label="Farbschema">
+      <button type="button" data-theme-choice="light" aria-pressed="false">hell</button>
+      <button type="button" data-theme-choice="auto" aria-pressed="false">auto</button>
+      <button type="button" data-theme-choice="dark" aria-pressed="false">dunkel</button>
+    </div>
+    <button id="btn-help" type="button" aria-haspopup="dialog" aria-controls="help-dlg" aria-keyshortcuts="?" title="Hilfe: Tastatur und Eingabe (Taste ?, außerhalb von Textfeldern)"><span aria-hidden="true">?</span> Hilfe</button>
   </div>
 </header>
 
@@ -212,23 +216,7 @@
         <button type="button" id="btn-discard" aria-keyshortcuts="Escape" title="Alle Eingaben dieser Zeile verwerfen (mit Rückgängig)">Verwerfen (Esc)</button>
         <div id="form-status" role="status"></div>
         <div class="hint kbd-hint"><kbd>⇧</kbd>+<kbd>Enter</kbd> speichert · <strong>!</strong> am Anfang des Rufzeichens = Kommentar</div>
-        <button type="button" id="btn-help" class="help-btn" aria-expanded="false" aria-controls="entry-help" aria-keyshortcuts="?" title="Tastatur und Eingabe (Taste ?, außerhalb von Textfeldern)"><span aria-hidden="true">?</span> Hilfe</button>
       </div>
-      <section id="entry-help" class="entry-help" aria-labelledby="entry-help-title" hidden>
-        <h2 id="entry-help-title">Tastatur und Eingabe</h2>
-        <dl>
-          <dt><kbd>Tab</kbd> / <kbd>Enter</kbd></dt><dd>nächstes Feld</dd>
-          <dt><kbd>↓</kbd>, dann <kbd>Enter</kbd></dt><dd>Vorschlag aus der Liste übernehmen (Rufzeichen, Standort, Relais)</dd>
-          <dt><kbd>1</kbd>–<kbd>5</kbd>, <kbd>⌫</kbd></dt><dd>Auswahlfelder (z. B. Sirene, Kategorie) setzen bzw. leeren</dd>
-          <dt><kbd>⇧</kbd>+<kbd>Enter</kbd></dt><dd>Zeile speichern, aus jedem Feld</dd>
-          <dt><kbd>Esc</kbd></dt><dd>Zeile verwerfen (mit „Rückgängig“)</dd>
-          <dt><strong>!</strong> im Rufzeichen</dt><dd>Operator-Kommentar statt Check-in (Frequenzwechsel, Übergabe, Unterbrechung …); zählt nicht als Station</dd>
-          <dt>Zeit</dt><dd>leer = Zeitpunkt des Speicherns; Korrektur als HH:MM oder JJJJ-MM-TT HH:MM (in der oben gewählten Zeitzone)</dd>
-          <dt>Relais</dt><dd>„über“ angehakt = die Station kommt über ein Relais (Vorgabe aus den Kopfdaten); Feld leer = Relais aus den Kopfdaten, sonst Rufzeichen, Ort oder Frequenz eines anderen Relais</dd>
-          <dt><kbd>?</kbd></dt><dd>diese Hilfe ein- und ausblenden (außerhalb von Textfeldern)</dd>
-        </dl>
-        <p id="help-manual" class="hint"><a href="../confirm-anleitung/" target="_blank" rel="noopener">Ausführliche Anleitung mit Bildern (online)</a></p>
-      </section>
     </form>
 
     <section id="map-panel" class="no-print" hidden>
@@ -252,6 +240,43 @@
     </details>
   </section>
 </main>
+
+<!-- Help: "? Hilfe" in the header or ? outside text fields (shared
+     js/helpdialog.js). Esc or "Schließen" closes it; the focus goes back. -->
+<dialog id="help-dlg" class="help-dlg" aria-labelledby="help-title">
+  <div class="help-head">
+    <h2 id="help-title">Hilfe</h2>
+    <a id="help-manual" href="../confirm-anleitung/" target="_blank" rel="noopener">Ausführliche Anleitung mit Bildern (online)</a>
+    <button type="button" id="help-close" class="primary">Schließen (Esc)</button>
+  </div>
+  <div class="help-body">
+    <nav class="help-nav" aria-label="Abschnitte der Hilfe">
+      <a href="#h-kb">Tastatur und Eingabe</a><a href="#h-logs">Logs und Sicherung</a>
+    </nav>
+    <div class="help-content">
+      <section id="h-kb" aria-labelledby="h-kb-t">
+        <h3 id="h-kb-t">Tastatur und Eingabe</h3>
+        <dl class="kb">
+          <dt><kbd>Tab</kbd> / <kbd>Enter</kbd></dt><dd>nächstes Feld</dd>
+          <dt><kbd>↓</kbd>, dann <kbd>Enter</kbd></dt><dd>Vorschlag aus der Liste übernehmen (Rufzeichen, Standort, Relais)</dd>
+          <dt><kbd>1</kbd>–<kbd>5</kbd>, <kbd>⌫</kbd></dt><dd>Auswahlfelder (z. B. Sirene, Kategorie) setzen bzw. leeren</dd>
+          <dt><kbd>⇧</kbd>+<kbd>Enter</kbd></dt><dd>Zeile speichern, aus jedem Feld</dd>
+          <dt><kbd>Esc</kbd></dt><dd>Zeile verwerfen (mit „Rückgängig“); in dieser Hilfe: schließt sie</dd>
+          <dt><strong>!</strong> im Rufzeichen</dt><dd>Operator-Kommentar statt Check-in (Frequenzwechsel, Übergabe, Unterbrechung …); zählt nicht als Station</dd>
+          <dt>Zeit</dt><dd>leer = Zeitpunkt des Speicherns; Korrektur als HH:MM oder JJJJ-MM-TT HH:MM (in der oben gewählten Zeitzone)</dd>
+          <dt>Relais</dt><dd>„über“ angehakt = die Station kommt über ein Relais (Vorgabe aus den Kopfdaten); Feld leer = Relais aus den Kopfdaten, sonst Rufzeichen, Ort oder Frequenz eines anderen Relais</dd>
+          <dt><kbd>?</kbd></dt><dd>diese Hilfe öffnen (außerhalb von Textfeldern); die Eingabe bleibt, wie sie ist</dd>
+        </dl>
+      </section>
+      <section id="h-logs" aria-labelledby="h-logs-t">
+        <h3 id="h-logs-t">Logs und Sicherung</h3>
+        <p>Jedes Log (ein Rundspruch, eine Übung) hat Kopfdaten und Zeilen. „+ Neues Log“ legt eines an; „← Logs“ führt zurück zur Liste.</p>
+        <p>Alles bleibt in diesem Browser auf diesem Gerät. „Alle sichern (JSON)“ und „Sicherung (JSON)“ im Log laden eine Sicherung herunter, „Sicherung importieren…“ liest sie wieder ein. Ob die Datei angekommen ist, meldet der Browser nicht: bitte selbst prüfen.</p>
+        <p>„Bearb.“ bearbeitet eine Zeile (die vorige Fassung bleibt gespeichert), ✕ löscht sie; gelöschte Zeilen lassen sich wiederherstellen.</p>
+      </section>
+    </div>
+  </div>
+</dialog>
 
 <dialog id="dlg" aria-labelledby="dlg-title">
   <form method="dialog">

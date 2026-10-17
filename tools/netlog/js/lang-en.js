@@ -405,7 +405,8 @@ export const LANG_EN = {
   'keys.taken': '{keys} is already used by another command.',
 
   'help.title': 'Help',
-  'help.open': 'Help and keyboard shortcuts',
+  'help.open': 'Help and keyboard shortcuts (?)',
+  'header.help': 'Help',
   'help.intro': 'Netlog is a note pad for radio nets: check in stations, write down what you hear, prepare what you want to answer, and keep the net control and rounds straight. Everything works offline and stays on this device.',
   'help.navCaption': 'Navigation (focus outside text fields)',
   'help.editCaption': 'While typing in a field',

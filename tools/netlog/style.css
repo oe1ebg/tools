@@ -29,18 +29,7 @@ button.mini{ font-size:13.5px; padding:.15em .55em; }
 .unresolved{ text-decoration:underline dotted; text-underline-offset:.2em; }
 
 /* ---------- header ---------- */
-#site-header{
-  position:sticky; top:0; z-index:10;
-  display:flex; align-items:center; gap:.6em; flex-wrap:wrap;
-  padding:.45em 1em;
-  background:var(--header-bg);
-  -webkit-backdrop-filter:blur(8px);
-  backdrop-filter:blur(8px);
-  border-bottom:1px solid var(--line);
-}
-#site-header a{ color:var(--text-dim); text-decoration:none; }
-#site-header a:hover{ color:var(--accent-text); }
-#site-header .title{ font-size:inherit; margin:0; font-weight:600; letter-spacing:.04em; text-transform:uppercase; }
+/* base: the common header in shared tools.css */
 .session-line{ color:var(--text-dim); font-size:13.5px; flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 /* The save chip changes its text on every save ("saving…", "saved 21:24:02
    UTC", "draft kept …"): a fixed width, so the header never rewraps and
@@ -48,14 +37,10 @@ button.mini{ font-size:13.5px; padding:.15em .55em; }
 #st-save{ box-sizing:border-box; width:17em; max-width:100%; text-align:center; overflow:hidden; text-overflow:ellipsis; }
 .clock{ font-family:var(--font-mono); font-size:13.5px; color:var(--text-dim); white-space:nowrap; }
 .clock b{ font-size:16px; color:var(--text); }
-.toggle, .tabs{ display:inline-flex; flex-wrap:wrap; max-width:100%; border:1px solid var(--line); border-radius:4px; overflow:hidden; }
-.toggle button{ background:none; border:none; border-radius:0; color:var(--text-dim); font-size:12.5px; padding:.2em .6em; }
-.toggle button + button{ border-left:1px solid var(--line); }
-.toggle button[aria-pressed="true"], #theme-toggle button.active{ background:var(--accent-soft); color:var(--accent-text); }
-#btn-help{ font-size:13.5px; padding:.15em .6em; }
-.header-tools{ display:inline-flex; gap:.6em; align-items:center; flex-wrap:nowrap; }
-/* the header's second row: the status chips, always on a line of their own */
-.status-bar{ flex-basis:100%; display:flex; gap:.5em; flex-wrap:wrap; align-items:center; justify-content:flex-end; }
+.tabs{ display:inline-flex; flex-wrap:wrap; max-width:100%; border:1px solid var(--line); border-radius:4px; overflow:hidden; }
+/* the header's second row: the status chips, always on a line of their own
+   (after the controls; on a phone the shared order applies) */
+.hdr-status{ flex-basis:100%; order:100; }
 .speak-style{ margin:0; }
 .chip-btn{ cursor:pointer; font:inherit; font-size:12.5px; background:none; }
 .chip-btn.warn{ color:var(--warn); border-color:var(--warn); background:var(--warn-soft); }

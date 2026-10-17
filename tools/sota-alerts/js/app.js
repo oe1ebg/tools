@@ -4,6 +4,7 @@
 
 import { localZoneText } from '../../shared/js/time.js';
 import { copyToClipboard } from '../../shared/js/dom.js';
+import { initHelpDialog } from '../../shared/js/helpdialog.js';
 import { isoDateFromText, isoBindDateField } from '../../shared/js/isodate.js';
 import { fetchAlerts, fetchSummit, searchSummits, searchOsmSummitsInView, fetchJson, SUMMIT_LOOKUP_URL, ALL_SUMMITS_URL } from './api.js';
 import {
@@ -505,7 +506,7 @@ function watchTheme(){
     .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 }
 
-// UTC/local time display — same toggle-group look as the theme switch,
+// UTC/local time display — same .toggle look as the theme switch,
 // except changing it needs a re-render (every alert time on screen goes
 // through timeDisplayPair(), keyed off state.timeDisplay).
 function applyTimeDisplayButtons(){
@@ -725,6 +726,7 @@ function wireEvents(){
 async function init(){
   watchTheme();
   initTimeDisplay();
+  initHelpDialog(); // "? Help" in the header, ? outside text fields
   mapView = createMap($id('map'), {
     state,
     setReference,

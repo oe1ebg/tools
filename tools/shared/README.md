@@ -25,7 +25,8 @@ browser loads.
 | `js/storageui.js` | the storage notices in their own box after the page banner: blocked open, connection taken over, moving fallback records into IndexedDB (UI) | confirm, notfunk, netlog |
 | `js/backup-parts.js` | JSON backups in parts (at most 12 parts / 480 MB / 1000000 records, also checked by the export, which refuses a set beyond them before downloading) when an export would exceed the import limits (`splitToFit`, `chunkRecord`/`applyChunks` for texts beyond the file limit, `groupParts`, part file names; issue #15) | confirm, notfunk |
 | `js/rowcache.js` | keyed row reuse for big tables (`syncRows`): a re-render creates only rows whose signature changed (confirm log, notfunk book; issue #15) | confirm, notfunk |
-| `js/dom.js` | DOM helpers (`el`, `fill`, `popover`, …); the one module touching the DOM directly, besides the UI modules below | confirm, notfunk, netlog |
+| `js/dom.js` | DOM helpers (`el`, `fill`, `popover`, …); the one module touching the DOM directly, besides the UI modules below | all tools |
+| `js/helpdialog.js` | the help dialog: `#btn-help` in the header, ? outside text fields (more keys per tool), Esc closes, focus returns | confirm, notfunk, adif, sota-alerts (netlog: own `help.js`, same button and key) |
 | `js/time.js` | ids, "now", ISO UTC timestamps shown/typed in UTC or local time (the device's or a named zone via Intl, incl. the repeated/skipped hour at the DST change), `laterIso()` (a changed record's `updated`, always after the previous one: row caches compare it) | confirm, notfunk, netlog |
 | `js/isodate.js` | ISO dates in text fields: `isoDateFromText()` (pure), and `isoBindDateField()` for a field and its calendar button, which opens the browser's date picker through `showPicker()` on a hidden `<input type="date">` and only takes its value (UI) | adif, sota-alerts, netlog |
 | `js/locmeta.js` | where a resolved location came from and how it was named (`LOC_ORIGINS`, …) | confirm, notfunk |
@@ -39,7 +40,7 @@ browser loads.
 | `js/offline.js` | offline readiness of a page: registers the tool's `sw.js`, version, user-triggered updates (UI) | confirm, notfunk, netlog |
 | `js/sw-core.js` | service worker logic (cache-first, own caches only); a tool's `sw.js` sets `self.OE1EBG_SW` and imports it | confirm, notfunk, netlog |
 | `js/sw-move.js` | move worker for installs from before `/tools/` (see below); staged as `/confirm/sw.js` and `/notfunk/sw.js` | old installs of confirm, notfunk |
-| `css/tools.css` | colour/font tokens, `[hidden]`, `.sr-only` | all tools |
+| `css/tools.css` | colour/font tokens, `[hidden]`, `.sr-only`, the common header, toggles, the help dialog | all tools |
 | `css/forms.css` | buttons, fields, completion dropdowns, radio chips, banners, chips | confirm, notfunk, netlog |
 | `data/` | build-time data, git-ignored (see below) | confirm, notfunk |
 | `vendor/leaflet/` | Leaflet 1.9.4, unmodified (BSD-2) | confirm, sota-alerts |
@@ -348,6 +349,16 @@ service workers are missing on plain `http://` and `file://`.
   (`trackExpanded()`); every field has a `<label>` or `aria-label`;
   decorative glyphs are `aria-hidden`; status lines are `role="status"` /
   `aria-live` and only rewritten when their text changes.
+- **Common header** (`css/tools.css`, #108): `#site-header` holds, in this
+  order, `#home-link` ("← Alle Tools"), the `h1.title`, links about the tool
+  (`.hdr-link`: manual, single file, source), `.hdr-status` (status chips and
+  the update button; it takes the room left and wraps inside itself, a chip
+  wraps its text rather than covering a neighbour) and `.hdr-controls` (clock,
+  time zone, language, theme as `.toggle` groups, and `#btn-help` "? Hilfe"
+  last). Help is always the last control, at the right of the first line;
+  on a phone the first line keeps the way back, the manual, the clock and
+  the help. `tests/e2e/header-layout.spec.mjs` checks the order, the place of the
+  help, the ? key and that nothing overlaps.
 - **Tables on phones:** a log table that would need sideways scrolling
   becomes cards below 640 px (Confirm's log, Notfunk's message book): the
   key fields and the row's buttons on the first line, the rest below, with
