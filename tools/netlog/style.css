@@ -541,3 +541,6 @@ li.event-line .time{ min-width:5.5em; }
 .series-body .sub{ margin:.3em 0 .2em; }
 .session-row .session-main b{ font-weight:600; font-size:14.5px; }
 .series-card.collapsed{ padding-bottom:0; }
+
+.series-head{ cursor:pointer; }
+.series-head:hover{ filter:brightness(.98); }

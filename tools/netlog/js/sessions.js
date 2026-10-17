@@ -135,6 +135,12 @@ export function initSessions(app) {
   });
 
   $('#series-list').addEventListener('click', async ev => {
+    // a click anywhere on a series heading band opens/closes it (its own
+    // buttons keep their actions; the title is the keyboard control)
+    if (!ev.target.closest('button, a, input, select, label') && ev.target.closest('.series-head')) {
+      ev.target.closest('.series-head').querySelector('.card-toggle').click();
+      return;
+    }
     const b = ev.target.closest('button[data-act]');
     if (!b) return;
     const id = b.dataset.id;
