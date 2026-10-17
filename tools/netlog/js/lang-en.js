@@ -239,6 +239,8 @@ export const LANG_EN = {
   'report.rounds': 'Rounds and notes',
   'report.emptyRound': 'No notes in this round.',
   'report.adhoc': 'ad-hoc session',
+  'field.modeChoose': '{call} works in {modes}: choose the mode',
+  'field.modeNone': '{call} ({modes}): no mode for the log, mode cleared',
   'control.empty': 'No stations checked in yet.',
 
   'series.title': 'Sessions & series',
