@@ -339,9 +339,14 @@ export function speakingOrder(participants, session) {
 }
 
 // Where the current round stands: { onAir: the last speaker (or null),
-// next: who is next (or null), complete: everyone in the order who may
-// speak has spoken this round, spoken: Set of ids }. A suggestion only:
-// rounds still start by the user's decision.
+// next: who is next (or null), then: in a star net, the station after the
+// NCS (or null), complete: the round is through, spoken: Set of ids,
+// order }. A suggestion only: rounds still start by the user's decision.
+//   star:   NCS -> A -> NCS -> B -> NCS ...: after a station the turn goes
+//           back to the NCS; the round is complete when every station has
+//           spoken and the NCS has the turn again.
+//   circle: A -> B -> C (the NCS in the order): complete when everyone in
+//           the order has spoken.
 export function speakingState({ session, participants, contributions }) {
   const rid = session.currentRoundId;
   const turns = liveOf(contributions).filter(c => c.roundId === rid).sort(bySeq);
@@ -349,15 +354,26 @@ export function speakingState({ session, participants, contributions }) {
   const order = speakingOrder(participants, session).filter(p => SPEAKS.has(p.status));
   const last = turns.length ? turns[turns.length - 1].participantId : null;
   const onAir = last ? participants.find(p => p.id === last) || null : null;
-  const complete = order.length > 0 && order.every(p => spoken.has(p.id));
-  let next = null;
-  if (!complete) {
-    // after the last speaker in the order, the first who has not spoken yet
-    const at = order.findIndex(p => p.id === last);
-    for (let k = 1; k <= order.length; k++) {
-      const p = order[(at + k + order.length) % order.length];
-      if (!spoken.has(p.id)) { next = p; break; }
+  const after = (fromId, list) => {
+    const at = list.findIndex(p => p.id === fromId);
+    for (let k = 1; k <= list.length; k++) {
+      const p = list[(at + k + list.length) % list.length];
+      if (!spoken.has(p.id)) return p;
     }
+    return null;
+  };
+  const ncs = session.ncsId ? participants.find(p => p.id === session.ncsId && !p.deleted) || null : null;
+  if (netStyle(session) === 'star' && ncs) {
+    const stationsDone = order.length > 0 && order.every(p => spoken.has(p.id));
+    // the last station that spoke (the NCS speaks in between)
+    const lastStation = [...turns].reverse().find(c => c.participantId !== ncs.id);
+    const nextStation = after(lastStation ? lastStation.participantId : null, order);
+    if (last && last !== ncs.id) {
+      // a station spoke: back to the NCS, then the next station
+      return { onAir, next: ncs, then: stationsDone ? null : nextStation, complete: false, spoken, order, ncs };
+    }
+    return { onAir, next: stationsDone ? null : nextStation, then: null, complete: stationsDone, spoken, order, ncs };
   }
-  return { onAir, next, complete, spoken, order };
+  const complete = order.length > 0 && order.every(p => spoken.has(p.id));
+  return { onAir, next: complete ? null : after(last, order), then: null, complete, spoken, order, ncs };
 }

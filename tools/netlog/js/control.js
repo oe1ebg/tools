@@ -5,12 +5,13 @@
 import { $, el, fill } from '../../shared/js/dom.js';
 import { t } from './i18n.js';
 import { keyedList, setText, setAttr, setValue } from './keyed.js';
-import { rosterSorted, roundsSorted, liveOf, cmp, timeOf, baseCall, STATUSES, netStyle, ncsFirst } from './model.js';
+import { rosterSorted, roundsSorted, liveOf, cmp, timeOf, baseCall, STATUSES, netStyle, ncsFirst, isUnresolved } from './model.js';
 import { updateSession, addParticipant, setStatus, moveParticipant, setCurrentRound, updateRound, setItemDone, addTask, setItemText, setNcs, setEventTime, deleteParticipant, eraseParticipant } from './ops.js';
 import { callText, statusLabel } from './roster.js';
 import { expandedCount, setExpandedCount } from './notes.js';
 import { hm, zone, parseHm } from './clock.js';
-import { startNextRound } from './speak.js';
+import { STATUS_MARK } from './roster.js';
+import { startNextRound, turnMark } from './speak.js';
 import { prefSet } from '../../shared/js/prefs.js';
 import { OWN_PREF } from './sessions.js';
 import { isOwn } from './roster.js';
@@ -147,6 +148,15 @@ export function initControl(app) {
     if (!b) return;
     const id = b.closest('li').dataset.key;
     if (b.dataset.act === 'open') { app.openStation(id); return; }
+    if (b.dataset.act === 'me') {
+      // this station is me: the session's own callsign
+      const p = app.participant(id);
+      const r = await app.act(store => updateSession(store, app.ctx(), app.s.id, { own: isOwn(app, p) ? '' : p.call }));
+      if (r && r.own.call) prefSet(OWN_PREF, r.own.call);
+      if (r) app.announce(t('control.ownSaved', { call: r.own.call || '—' }));
+      $('#order-list').querySelector(`li[data-key="${CSS.escape(id)}"] button[data-act="me"]`)?.focus();
+      return;
+    }
     if (b.dataset.act === 'ncs') {
       const on = app.s.ncsId !== id;
       const r = await app.act(store => setNcs(store, app.ctx(), on ? id : null));
@@ -171,15 +181,27 @@ export function renderControl(app) {
   keyedList($('#order-list'), list, {
     key: p => p.id,
     create: () => el('li', { class: 'order-row' },
+      el('span', { class: 'st-mark', 'aria-hidden': 'true' }),
       el('button', { type: 'button', class: 'link open', 'data-act': 'open' }),
       el('label', { class: 'inline-field status-field' }, el('span', { class: 'sr-only' }), el('select', { class: 'status-sel' })),
       el('span', { class: 'spacer' }),
+      el('button', { type: 'button', class: 'mini', 'data-act': 'me' }),
       el('button', { type: 'button', class: 'mini', 'data-act': 'ncs' }),
       el('button', { type: 'button', class: 'mini', 'data-act': 'up' }, '↑'),
       el('button', { type: 'button', class: 'mini', 'data-act': 'down' }, '↓')),
     update: (li, p) => {
-      const [open, status, , ncsB, up, down] = li.children;
+      const [mark, open, status, , meB, ncsB, up, down] = li.children;
       const isNcs = app.s.ncsId === p.id;
+      const me = isOwn(app, p);
+      // the same marks as the roster: status, speaking now, next
+      const turn = turnMark(app, p);
+      setText(mark, turn === 'on-air' ? '🎙' : turn === 'next' ? '▶' : STATUS_MARK[p.status] || '');
+      li.classList.toggle('on-air', turn === 'on-air');
+      li.classList.toggle('up-next', turn === 'next');
+      setText(meB, me ? `★ ${t('own.badge')}` : `☆ ${t('own.badge')}`);
+      setAttr(meB, 'aria-pressed', String(me));
+      setAttr(meB, 'aria-label', t('own.setLabel', { call: callText(p) }));
+      meB.disabled = app.readOnly || isUnresolved(p.call);
       li.classList.toggle('own', isOwn(app, p));
       li.classList.toggle('ncs', isNcs);
       setText(ncsB, isNcs ? '★ NCS' : '☆ NCS');
@@ -200,6 +222,8 @@ export function renderControl(app) {
       if (document.activeElement !== sel) sel.value = p.status;
       sel.disabled = app.readOnly;
       li.classList.toggle('out', p.status === 'out');
+      for (const s of STATUSES) li.classList.toggle(`st-${s}`, p.status === s);
+
       setAttr(up, 'aria-label', t('roster.upLabel', { call: callText(p) }));
       setAttr(down, 'aria-label', t('roster.downLabel', { call: callText(p) }));
       // the NCS stays first
@@ -248,7 +272,8 @@ export function renderControl(app) {
       setText(tl.firstChild, t('ncs.time', { zone: zone(e.time && e.time.iso) }));
       setValue(tl.lastChild, e.time && e.time.iso ? hm(e.time.iso) : '');
       tl.lastChild.disabled = app.readOnly;
-      el2.firstChild.checked = !!(e.time && e.time.quality === 'estimated');
+      // never overwrite a control while it is being used
+      if (document.activeElement !== el2.firstChild) el2.firstChild.checked = !!(e.time && e.time.quality === 'estimated');
       el2.firstChild.disabled = app.readOnly;
       setText(el2.lastChild, t('ncs.estimated'));
       const name = id => (id && byId.get(id) ? callText(byId.get(id)) : '—');

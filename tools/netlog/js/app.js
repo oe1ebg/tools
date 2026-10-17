@@ -21,19 +21,19 @@ import { createSessionLock, CHANNEL_NAME } from './lock.js';
 import { createSaveState } from './status.js';
 import { setText, setAttr } from './keyed.js';
 import { sessionLabel, live, rosterSorted, isUnresolved, openQueueCount } from './model.js';
-import { initRoster, renderRoster, renderStation, flushDetails, callText, rosterRows, isOwn } from './roster.js';
+import { initRoster, renderRoster, renderStation, flushDetails, callText, rosterRows, isOwn, STATUS_MARK } from './roster.js';
 import { initSessions, renderSessions } from './sessions.js';
 import { initControl, renderControl } from './control.js';
 import { initKeys, loadEditBindings, registerEditCommand, EDIT_COMMANDS } from './keys.js';
 import { initHelp, bindingText } from './help.js';
 import { createDrafts } from './drafts.js';
 import { timeMode, setTimeMode, hm, zone, localChoiceText } from './clock.js';
-import { initNotes, renderNotes, focusNoteEditor, flagNote, recordSpoke } from './notes.js';
+import { initNotes, renderNotes, focusNoteEditor, flagNote } from './notes.js';
 import { initTurn, renderTurn, enterTurn, turnRows, focusedTurnItem, completeItem, setSummary } from './myturn.js';
 import { createNav } from './nav.js';
 import { initLog, renderLog, logRows } from './clog.js';
 import { initSearch } from './searchui.js';
-import { initSpeak, renderSpeak } from './speak.js';
+import { initSpeak, renderSpeak, nextSpeaker } from './speak.js';
 import { initData, renderData, exportBackup } from './dataui.js';
 import { undo, undoStep } from './ops.js';
 
@@ -47,7 +47,7 @@ const app = {
   data: { series: [], sessions: [], profiles: [], knownCalls: [], participantCount: {} },
   s: null, // the open session
   sd: { participants: [], rounds: [], notes: [], items: [], contributions: [], turns: [], events: [] },
-  ui: { view: 'series', selected: null, detailsOpen: false, roundOpen: {}, summary: 'current', composeFlag: false },
+  ui: { view: 'series', selected: null, detailsOpen: null, roundOpen: {}, summary: 'current', composeFlag: false },
   langHooks: [],
 };
 globalThis.NETLOG_APP = app; // the browser tests read state through this
@@ -222,7 +222,8 @@ async function openSession(id) {
       await loadSession(id);
       const ui = loadUi(id);
       app.ui.selected = app.participant(ui.selected) ? ui.selected : (rosterSorted(app.sd.participants)[0] || {}).id || null;
-      app.ui.detailsOpen = !!ui.detailsOpen;
+      // the station whose edit panel is open (older state: a boolean)
+      app.ui.detailsOpen = typeof ui.detailsOpen === 'string' ? ui.detailsOpen : null;
       setReadOnly(false, null);
       if (app.store.kind !== 'memory') await lock.acquire(id);
       await app.drafts.load(id);
@@ -357,6 +358,9 @@ app.rowBadges = (p, long = false) => {
   if (open) out.push({ text: `↩ ${open}`, title: t('roster.openResponses', { n: open }) });
   if (isUnresolved(p.call)) out.push({ text: '?', title: t('station.unresolved'), cls: 'warn' });
   if (long && p.status !== 'active') out.push({ text: t(`status.${p.status}`), title: t(`status.${p.status}`) });
+  else if (!long && p.status !== 'active' && p.status !== 'unconfirmed') out.unshift({ text: STATUS_MARK[p.status], title: t(`status.${p.status}`), cls: `st ${p.status}` });
+  const mark = app.speak && app.speak.onAir && app.speak.onAir.id === p.id ? 'onAir' : app.speak && app.speak.next && app.speak.next.id === p.id ? 'next' : '';
+  if (mark) out.unshift({ text: mark === 'onAir' ? '🎙' : '▶', title: t(`turn.badge.${mark}`), cls: mark === 'onAir' ? 'on-air' : 'next' });
   return out;
 };
 
@@ -505,7 +509,8 @@ function navList() {
   if (inside('#view-turn')) return turnRows();
   if (inside('#view-log')) return logRows();
   if (inside('#station-rounds')) return [...$('#station-rounds').querySelectorAll('.round-body:not([hidden]) li.note')];
-  return [...$('#roster').querySelectorAll('button.person')];
+  // checked-out stations are skipped (they are still clickable)
+  return [...$('#roster').querySelectorAll('li:not(.st-out) button.person')];
 }
 
 function moveFocus(dir) {
@@ -577,6 +582,12 @@ function initKeyboard(help) {
       myTurn: () => {
         if (!app.s) return false;
         if (app.ui.view !== 'turn') { app.nav.push(); app.setView('turn'); }
+        return true;
+      },
+      // the next speaker in the net (j/k only move in the list)
+      nextSpeaker: () => {
+        if (!app.s || app.readOnly || $('#btn-next').disabled) return false;
+        nextSpeaker(app);
         return true;
       },
       previous: () => {
@@ -778,7 +789,6 @@ async function main() {
   $('#btn-undo').addEventListener('click', () => app.undo(false));
   $('#st-backup').addEventListener('click', () => { if (app.s) exportBackup(app, app.s.id); });
   $('#btn-redo').addEventListener('click', () => app.undo(true));
-  $('#btn-spoke').addEventListener('click', () => recordSpoke(app));
   const help = initHelp(app);
   initKeyboard(help);
   globalThis.addEventListener('hashchange', () => route().catch(e => console.error(e)));

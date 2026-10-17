@@ -17,7 +17,7 @@ import { newId } from '../../shared/js/time.js';
 import { t } from './i18n.js';
 import { keyedList, setText, setAttr, setValue } from './keyed.js';
 import { roundsSorted, notesOf, responseOf, roundCounts, live, rosterSorted } from './model.js';
-import { createNote, updateNote, deleteNote, toggleResponse, toggleTask, setItemText, setItemDone, addContribution, moveNotes } from './ops.js';
+import { createNote, updateNote, deleteNote, toggleResponse, toggleTask, setItemText, setItemDone, moveNotes } from './ops.js';
 import { callText } from './roster.js';
 import { hm, zone } from './clock.js';
 
@@ -206,13 +206,6 @@ async function saveReply(app, ta, moveOn) {
   }
 }
 
-// "Spoke now": a contribution of the selected station in the current round.
-export async function recordSpoke(app) {
-  const p = app.participant(app.ui.selected);
-  if (!p) return;
-  const c = await app.act(store => addContribution(store, app.ctx(), p.id));
-  if (c) app.announce(t('station.spokeDone', { call: callText(p) }));
-}
 
 export function noteRow() {
   return el('li', { class: 'note', tabindex: '-1' },

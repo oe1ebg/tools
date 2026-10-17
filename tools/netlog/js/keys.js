@@ -15,6 +15,7 @@ export const NAV_KEYS = [
   ['n', '', 'newNote', 'keys.newNote'],
   ['r', '', 'flag', 'keys.flag'],
   ['m', '', 'myTurn', 'keys.myTurn'],
+  ['.', '', 'nextSpeaker', 'keys.nextSpeaker'],
   ['p', '', 'previous', 'keys.previous'],
   ['x', '', 'complete', 'keys.complete'],
   ['b', '', 'back', 'keys.back'],

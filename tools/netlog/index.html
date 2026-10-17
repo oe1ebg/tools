@@ -88,11 +88,15 @@
         <p id="roster-stats" class="hint"></p>
       </div>
       <div id="speak-panel" class="speak-panel" hidden>
-        <p class="speak-style"><span id="speak-style" class="pill"></span></p>
-        <p id="speak-state" class="speak-state" aria-live="polite"></p>
+        <p id="speak-me" class="speak-me" role="status"></p>
+        <p class="speak-style"><span id="speak-style" class="topo-label"></span></p>
+        <ol id="speak-strip" class="speak-strip" data-i18n-attr="aria-label:speak.stripLabel" aria-label="Speaking order of this round"></ol>
+        <p id="speak-then" class="speak-then" aria-hidden="true"></p>
+        <p id="speak-state" class="sr-only" aria-live="polite"></p>
         <button type="button" id="btn-next" class="primary next-btn"></button>
       </div>
       <ul id="roster" class="roster" data-i18n-attr="aria-label:roster.listLabel" aria-label="Participants (j/k or arrow keys, Enter opens)"></ul>
+      <p id="topo-hint" class="topo-hint hint" hidden></p>
       <div class="sidecheckin">
           <form id="checkin-form" class="checkin" autocomplete="off">
             <div class="ac-wrap">
@@ -121,21 +125,11 @@
           <div class="station-head">
             <h2 id="station-call" class="station-call mono"></h2>
             <span id="station-name" class="station-name"></span>
+            <button type="button" id="btn-edit-identity" class="icon edit-id" aria-expanded="false" aria-controls="station-edit" data-i18n-attr="aria-label:station.edit; title:station.edit" aria-label="Edit callsign, name and details" title="Edit callsign, name and details">✎</button>
             <span id="station-badges" class="badges"></span>
           </div>
-          <p id="station-sub" class="hint"></p>
-          <p id="station-links" class="station-links online-only"></p>
-          <p id="own-turn" class="own-turn" hidden><button type="button" id="btn-own-turn" class="primary" data-i18n="own.myTurn">This is you: open My Turn</button></p>
-          <div class="toolbar station-tools">
-            <label class="inline-field"><span data-i18n="station.status">Status</span>
-              <select id="station-status"></select></label>
-            <span id="station-flags" class="flag-group" role="group" data-i18n-attr="aria-label:station.flags" aria-label="Flags"></span>
-            <button type="button" id="btn-ncs" aria-pressed="false" data-i18n="station.ncs">Net control</button>
-            <button type="button" id="btn-spoke" data-i18n="station.spoke" data-i18n-attr="title:station.spokeTitle" title="Record that this station spoke now (optional; notes never need it)">Spoke now</button>
-            <button type="button" id="btn-edit-identity" aria-expanded="false" aria-controls="identity-form" data-i18n="station.correct">Correct callsign / name</button>
-            <button type="button" id="btn-details" aria-expanded="false" aria-controls="station-details" data-i18n="station.details">Details</button>
-          </div>
-          <form id="identity-form" class="identity-form" hidden autocomplete="off">
+          <div id="station-edit" class="station-edit" hidden>
+          <form id="identity-form" class="identity-form" autocomplete="off">
             <div class="ac-wrap">
               <label class="field"><span data-i18n="checkin.callLabelShort">Callsign</span>
                 <input id="identity-call" class="call-input mono" autocapitalize="characters" autocorrect="off" spellcheck="false"></label>
@@ -148,12 +142,13 @@
               <button type="button" id="btn-identity-cancel" data-i18n="common.cancel">Cancel</button>
             </div>
           </form>
-          <form id="station-details" class="details-form" hidden autocomplete="off">
+          <form id="station-details" class="details-form" autocomplete="off">
             <label class="field"><span data-i18n="station.qth">QTH</span><input id="det-qth" data-field="qth" autocorrect="off"></label>
             <label class="field"><span data-i18n="station.locator">Locator</span><input id="det-locator" data-field="locator" class="mono" autocapitalize="characters" autocorrect="off" spellcheck="false"></label>
             <label class="field"><span data-i18n="station.rst">RST</span><input id="det-rst" data-field="rst" class="mono" inputmode="numeric" autocorrect="off"></label>
             <label class="field"><span data-i18n="station.member">Member no.</span><input id="det-member" data-field="member" autocorrect="off"></label>
             <label class="check"><input id="det-echolink" type="checkbox" data-field="echolink"> <span data-i18n="station.echolink">via EchoLink</span></label>
+            <span id="detail-flags" class="flag-group" role="group" data-i18n-attr="aria-label:station.moreFlags" aria-label="More flags"></span>
             <div class="form-buttons">
               <button type="button" id="btn-profile" data-i18n="station.saveProfile">Save as station profile</button>
               <button type="button" id="btn-remove-station" class="danger" data-i18n="station.remove">Remove from this session</button>
@@ -164,6 +159,16 @@
               <ul id="presence-list" class="presence-list"></ul>
             </div>
           </form>
+          </div>
+          <p id="station-sub" class="hint"></p>
+          <p id="station-links" class="station-links online-only"></p>
+          <p id="own-turn" class="own-turn" hidden><button type="button" id="btn-own-turn" class="primary" data-i18n="own.myTurn">This is you: open My Turn</button></p>
+          <div class="toolbar station-tools">
+            <label class="inline-field"><span data-i18n="station.status">Status</span>
+              <select id="station-status"></select></label>
+            <span id="station-flags" class="flag-group" role="group" data-i18n-attr="aria-label:station.flags" aria-label="Flags"></span>
+            <button type="button" id="btn-ncs" aria-pressed="false" data-i18n="station.ncs">Net control</button>
+          </div>
           <div id="station-rounds" class="rounds"></div>
         </article>
       </section>

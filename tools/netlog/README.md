@@ -53,10 +53,12 @@ yet (a follow-up).
   in; the fields empty at once, so the next station can be typed while the
   first one saves.
 - **The selected station** (Live Notes): status (active, paused/away,
-  listening, unconfirmed, checked out), flags (wants to speak, short time
-  only, reception problems, priority), "Correct callsign / name" inline,
-  "Details" (QTH, locator, RST, member number, EchoLink, presence
-  intervals). Checking out closes the presence interval; coming back opens
+  monitoring ("im Hintergrund"), unconfirmed, checked out) and the
+  "reception problems" flag in the head. ✎ next to the callsign opens one
+  edit panel right under the heading: callsign and name, then the details
+  (QTH, locator, RST, member number, EchoLink, the other flags, presence
+  intervals); it belongs to that station and closes when another one is
+  selected. Checking out closes the presence interval; coming back opens
   a new one (a reentry). Correcting a callsign keeps the station's id, so
   everything recorded for it stays with it.
 - **Order.** ↑/↓ in the sidebar change the roster order; Net Control has
@@ -79,20 +81,31 @@ yet (a follow-up).
   for local nets where not everyone hears everyone) or **circle** (a
   round-table / round-robin net: stations hand over in turn). The NCS is
   always listed first.
-- **Running the round** (above the roster): who is on air (the last
-  recorded speaking turn) and who is next. "▶ Next" records the next
-  speaker's turn and opens that station (My Turn when it is me). Star: the
-  stations in the planned order, the NCS speaking in between (not
-  recorded); circle: the NCS takes part in the order. Stations that are
-  paused, listening or checked out are skipped. When everyone has spoken,
+- **Running the round** (above the roster): the topology as a small
+  picture and a turn strip, one chip per station in speaking order (✓
+  spoken, 🎙 speaking now, ▶ next, dotted: after the NCS; a click opens the
+  station), the same marks in the roster and in Net Control. "▶ Next"
+  records the next speaker's turn and opens that station (My Turn when it
+  is me). Star: the turn goes back to the NCS after every station (NCS →
+  A → NCS → B …, the NCS's turns recorded too), the round is complete when
+  every station has spoken and the NCS has the turn again; the roster draws
+  the NCS as the hub with a spoke to every station. Circle: the stations
+  pass on in turn, the NCS included; the roster draws a chain with ↺ back
+  to the first. Stations that are paused, monitoring ("im Hintergrund") or
+  checked out are skipped; checked-out ones are struck through in both
+  lists and skipped by j/k. j/k only move in the list; `.` (like the ▶
+  button) moves the net on. The panel shows the station speaking now and
+  the next one (in a star also the one after the NCS), and a banner when I
+  am next or speaking; the panel and the tabs keep their size, so nothing
+  jumps while the turn moves. The NCS is a framed card on top, apart from
+  the list. When everyone has spoken,
   the button offers "▶ Start round N+1": a suggestion, it starts only when
   pressed.
 - **Rounds** start only by that button, "+ New round" (one click: the next
   number; number and topic can be corrected in Net Control; undo takes it
   back), never by a note, a reorder or a return to the NCS. Net Control corrects round numbers and topics and can
-  make another round the current one. "Spoke now" records a speaking turn
-  (contribution) of the selected station; it is optional and may repeat.
-  A new note belongs to its station's latest contribution in the round, if
+  make another round the current one. Speaking turns (contributions) are
+  recorded by "▶ Next"; they are optional and may repeat. A new note belongs to its station's latest contribution in the round, if
   there is one.
 - **On-air responses.** "○ response" (or `r` on a focused note, or
   Ctrl+Shift+Enter while typing it) flags a note for an answer on air; the
@@ -212,6 +225,7 @@ mode is shown in the toolbar ("Navigation" / "Editing").
 | `n` | new note for the selected station |
 | `r` | flag / unflag the focused note for an on-air response |
 | `m` | My Turn |
+| `.` | Next in the net (like the ▶ button) |
 | `p` | My Turn: current / previous round notes |
 | `x` | My Turn: complete / reopen the focused item |
 | `b` | back to where you came from |
