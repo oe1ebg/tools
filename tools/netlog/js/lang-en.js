@@ -185,6 +185,8 @@ export const LANG_EN = {
   'speak.me.soon': 'You come after the NCS',
   'speak.thenLine': 'then: {call}',
   'speak.progress': 'Round {n}: {done} of {all} have spoken',
+  'turn.short.onAir': '🎙 on air',
+  'turn.short.next': '▶ next',
   'control.empty': 'No stations checked in yet.',
 
   'series.title': 'Sessions & series',

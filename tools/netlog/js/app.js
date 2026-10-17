@@ -360,7 +360,7 @@ app.rowBadges = (p, long = false) => {
   if (long && p.status !== 'active') out.push({ text: t(`status.${p.status}`), title: t(`status.${p.status}`) });
   else if (!long && p.status !== 'active' && p.status !== 'unconfirmed') out.unshift({ text: STATUS_MARK[p.status], title: t(`status.${p.status}`), cls: `st ${p.status}` });
   const mark = app.speak && app.speak.onAir && app.speak.onAir.id === p.id ? 'onAir' : app.speak && app.speak.next && app.speak.next.id === p.id ? 'next' : '';
-  if (mark) out.unshift({ text: mark === 'onAir' ? '🎙' : '▶', title: t(`turn.badge.${mark}`), cls: mark === 'onAir' ? 'on-air' : 'next' });
+  if (mark) out.unshift({ text: t(`turn.short.${mark}`), title: t(`turn.badge.${mark}`), cls: mark === 'onAir' ? 'on-air' : 'next' });
   return out;
 };
 
