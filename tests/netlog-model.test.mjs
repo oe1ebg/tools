@@ -175,7 +175,7 @@ test('speaking order: star without the NCS, circle with it first; paused and che
   assert.deepEqual(ncsFirst(ps, 'c').map(p => p.id), ['c', 'n', 'a', 'b']);
   let st = speakingState({ session: star, participants: ps, contributions: [] });
   assert.equal(st.next.id, 'a');
-  assert.equal(st.onAir, null);
+  assert.equal(st.onAir.id, 'n', 'the NCS opens the round');
   st = speakingState({ session: star, participants: ps, contributions: [{ id: 'x', participantId: 'a', roundId: 'r', seq: 1 }] });
   assert.equal(st.onAir.id, 'a');
   assert.equal(st.next.id, 'n', 'back to the NCS');

@@ -380,14 +380,12 @@ li.event-line .time{ min-width:5.5em; }
 .roster.topo-circle .person-row:last-child::before{ content:"↺"; }
 .topo-hint{ margin:.2em .8em .4em; }
 /* whose turn it is */
-/* speaking now: a solid green row; next: only a dashed outline. Different
-   in shape and words, not just colour; the selection keeps its blue bar */
-.person-row.on-air button.person, .person-row.on-air.active button.person{ background:var(--ok); border-color:var(--ok); }
-.person-row.on-air button.person .call, .person-row.on-air button.person .pname{ color:#fff; }
-.person-row.on-air .dot{ background:#fff; }
+/* speaking now: a red tally light (lamp + ON AIR label), no fill; next:
+   only a dashed amber outline. Different in shape and words, not just
+   colour; the selection keeps its blue bar */
+.person-row.on-air .dot{ width:.8em; height:.8em; background:var(--err); box-shadow:0 0 0 2px var(--err-soft), 0 0 8px var(--err); }
 .person-row.up-next button.person{ border:2px dashed var(--warn); border-radius:6px; }
-.pill.on-air{ color:#fff; background:var(--ok); border-color:var(--ok); font-weight:700; white-space:nowrap; }
-.person-row.on-air .pill{ color:var(--ok); background:#fff; border-color:#fff; }
+.pill.on-air{ color:#fff; background:var(--err); border-color:var(--err); font-weight:700; white-space:nowrap; letter-spacing:.02em; }
 .pill.next{ color:var(--warn); background:var(--warn-soft); border-color:var(--warn); font-weight:700; white-space:nowrap; }
 
 /* ---------- the same status look in the roster and in Net Control ---------- */
@@ -403,15 +401,16 @@ li.event-line .time{ min-width:5.5em; }
 .sp-chip button{ min-height:0; padding:.3em .6em; font-size:15px !important; border-radius:999px; font:600 13px var(--font-mono); background:var(--bg); border:1.5px solid var(--line-strong); color:var(--text); display:inline-flex; gap:.25em; align-items:center; }
 .sp-chip.hub button{ border-radius:6px; border-width:2px; border-color:var(--accent); background:var(--accent-soft); }
 .sp-chip.spoken button{ opacity:.55; }
-.sp-chip.on-air button{ background:var(--ok); border-color:var(--ok); color:#fff; }
+.sp-chip.on-air button{ background:var(--bg); border:2px solid var(--err); color:var(--text); box-shadow:0 0 6px var(--err-soft); }
+.sp-chip.on-air .sym{ color:var(--err); }
 .sp-chip.next button{ border:2px dashed var(--warn); color:var(--warn); background:var(--bg); }
 .sp-chip.then button{ border-style:dashed; border-color:var(--warn); }
 .sp-chip.own button .c::after{ content:" ★"; }
 .sp-link{ color:var(--text-dim); font-size:13px; }
 .speak-strip.star .sp-link{ font-size:16px; color:var(--accent-dim); }
 
-.order-row.on-air{ background:var(--ok); }
-.order-row.on-air .open, .order-row.on-air .st-mark{ color:#fff; }
+.order-row.on-air .st-mark{ color:var(--err); }
+.order-row.on-air .open{ box-shadow:inset 0 -2px var(--err); }
 .order-row.up-next{ outline:2px dashed var(--warn); outline-offset:-2px; border-radius:6px; }
 
 .station-head .edit-id{ font-size:16px; min-width:0; min-height:0; padding:.15em .45em; align-self:center; }
@@ -423,12 +422,12 @@ li.event-line .time{ min-width:5.5em; }
 
 /* me: speaking now / next */
 .speak-me{ margin:0; padding:.45em .7em; border-radius:6px; font-weight:700; font-size:15px; }
-.speak-panel.me-onAir{ box-shadow:inset 0 0 0 2px var(--ok); }
-.speak-panel.me-onAir .speak-me{ background:var(--ok); color:#fff; }
+.speak-panel.me-onAir{ box-shadow:inset 0 0 0 2px var(--err); }
+.speak-panel.me-onAir .speak-me{ background:var(--err); color:#fff; }
 .speak-panel.me-next{ box-shadow:inset 0 0 0 2px var(--warn); }
 .speak-panel.me-next .speak-me{ background:var(--warn-soft); color:var(--warn); border:1.5px solid var(--warn); }
 .speak-panel.me-soon .speak-me{ background:var(--bg); color:var(--text-dim); border:1px dashed var(--warn); font-weight:600; font-size:13.5px; }
-.viewbar a.me-onAir{ background:var(--ok); color:#fff; }
+.viewbar a.me-onAir{ box-shadow:inset 0 -3px var(--err); }
 .viewbar a.me-next{ box-shadow:inset 0 -3px var(--warn); }
 @media (prefers-reduced-motion: no-preference){
   .speak-panel.me-next .speak-me{ animation:me-pulse 1.6s ease-in-out 3; }

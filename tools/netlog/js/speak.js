@@ -28,7 +28,7 @@ function chip(app, p, st, hub) {
     : st.next && st.next.id === p.id ? 'next'
       : st.then && st.then.id === p.id ? 'then'
         : st.spoken.has(p.id) ? 'spoken' : 'waiting';
-  const sym = { 'on-air': '🎙', next: '▶', then: '▷', spoken: '✓', waiting: '' }[state];
+  const sym = { 'on-air': '●', next: '▶', then: '▷', spoken: '✓', waiting: '' }[state];
   return el('li', { class: `sp-chip ${state}${hub ? ' hub' : ''}${isOwn(app, p) ? ' own' : ''}` },
     el('button', { type: 'button', 'data-pid': p.id, 'aria-label': `${callText(p)}: ${t(`speak.chip.${state}`)}${hub ? `, ${t('ncs.current')}` : ''}`, title: t(`speak.chip.${state}`) },
       sym ? el('span', { class: 'sym', 'aria-hidden': 'true' }, sym) : null,

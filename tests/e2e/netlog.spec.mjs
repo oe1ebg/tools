@@ -861,7 +861,9 @@ test('running a round: NCS first, Next through the order, my turn opens My Turn,
   await expect(page.locator('#speak-style')).toHaveText('Star net (via the NCS)');
   await expect(page.locator('#roster')).toHaveClass(/topo-star/);
   await expect(page.locator('#topo-hint')).toHaveText('Star: every station gives back to OE0QXN.');
-  await expect(page.locator('#speak-state')).toHaveText('Next to speak: OE0QXA (me)');
+  // the NCS opens the round; I am next
+  await expect(page.locator('#speak-state')).toHaveText('Speaking: OE0QXN · Next to speak: OE0QXA (me)');
+  await expect(page.locator('#roster li.on-air .call')).toHaveText('OE0QXN');
   await expect(page.locator('#speak-me')).toHaveText('▶ You are next');
   // my turn: Next opens My Turn, not notes about myself
   await page.locator('#btn-next').click();
@@ -885,6 +887,9 @@ test('running a round: NCS first, Next through the order, my turn opens My Turn,
   await expect(page.locator('#speak-state')).toHaveText('Speaking: OE0QXN · round 1: everyone has spoken');
   await page.locator('#btn-next').click();
   await expect(page.locator('#round-indicator')).toHaveText('Round 2');
+  // a new round: the NCS still has the turn, I am next again
+  await expect(page.locator('#speak-state')).toHaveText('Speaking: OE0QXN · Next to speak: OE0QXA (me)');
+  await expect(page.locator('#speak-me')).toHaveText('▶ You are next');
   // one click: no dialog; undo takes it back
   await page.locator('#btn-new-round').click();
   await expect(page.locator('#round-indicator')).toHaveText('Round 3');
@@ -978,7 +983,7 @@ test('"." moves the net on; j/k only move in the list; the panel and tabs keep t
   });
   const first = await size();
   await page.keyboard.press('j');
-  await expect(page.locator('#roster li.on-air')).toHaveCount(0); // j recorded nothing
+  await expect(page.locator('#roster li.on-air .call')).toHaveText('OE0QXN'); // j moved nothing on
   for (const call of ['OE0QXA', 'OE0QXN', 'OE0QXB']) {
     await page.locator('#roster button.person').first().focus();
     await page.keyboard.press('.');
