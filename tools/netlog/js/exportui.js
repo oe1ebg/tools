@@ -73,6 +73,7 @@ function printSessionReport(app) {
     `${t('report.date')}: ${app.s.date || ''}`,
     ncs ? `${t('report.ncs')}: ${callText(ncs)}` : '',
     radio.repeater ? `${t('session.repeater')}: ${radio.repeater}` : '',
+    radio.freq ? `${t('session.freq')}: ${radio.freq}` : '',
     radio.mode ? `${t('session.mode')}: ${radio.mode}` : '',
     app.s.own && app.s.own.call ? `${t('session.own')}: ${app.s.own.call}` : '',
     t('report.times'),

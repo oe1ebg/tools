@@ -1009,8 +1009,10 @@ test('export: stations and notes as CSV, check-ins as ADIF (what is left out lis
   await expect(page.locator('#export-issues')).toContainText('No mode');
   await expect(page.locator('#export-issues')).toContainText('No frequency');
   await expect(page.locator('#export-issues')).toContainText('OE0QX?: partial callsign, left out');
-  await page.locator('#se-repeater').fill('OE0XQR 438.950');
+  await page.locator('#se-repeater').fill('OE0XQR');
   await page.locator('#se-repeater').press('Tab');
+  await page.locator('#se-freq').fill('438.950');
+  await page.locator('#se-freq').press('Tab');
   await page.locator('#se-mode').selectOption('FM');
   await expect(page.locator('#export-issues')).not.toContainText('No mode');
   await expect(page.locator('#export-issues')).not.toContainText('No frequency');
