@@ -12,6 +12,7 @@ import { rosterSorted, rosterStats, isUnresolved, callCandidates, callPattern, n
 import { addParticipant, updateParticipant, setStatus, setFlag, moveParticipant, setNcs, mergePreview, mergeParticipants, saveProfile, deleteParticipant } from './ops.js';
 import { stationLinks } from './links.js';
 import { hm, hmz, zone } from './clock.js';
+import { turnMark } from './speak.js';
 import { lookupCall, searchCallbook } from '../../shared/js/callbook.js';
 
 // "OE0QXA" or the provisional "?" marked as unresolved.
@@ -23,6 +24,12 @@ export function callText(p) {
 export function isOwn(app, p) {
   return !!(app.s && app.s.own && app.s.own.base && p && p.base === app.s.own.base);
 }
+
+// The status symbol shown in both lists (the words in the tooltip / for
+// screen readers): paused/away, monitoring, unconfirmed, checked out.
+export const STATUS_MARK = { paused: '⏸', listening: '🎧', unconfirmed: '?', out: '✕' };
+// the flag shown in the station head (the others are in its details)
+const HEAD_FLAGS = ['reception'];
 
 export function statusLabel(status) {
   return t(`status.${status}`);
@@ -231,6 +238,10 @@ export function renderRoster(app) {
       li.classList.toggle('active', selected);
       li.classList.toggle('own', isOwn(app, p));
       li.classList.toggle('ncs', !!app.s && app.s.ncsId === p.id);
+      for (const s of STATUSES) li.classList.toggle(`st-${s}`, p.status === s);
+      const mark = turnMark(app, p);
+      li.classList.toggle('on-air', mark === 'on-air');
+      li.classList.toggle('up-next', mark === 'next');
       setAttr(b, 'aria-current', selected ? 'true' : null);
       setAttr(b, 'aria-label', [callText(p), p.name, statusLabel(p.status), isUnresolved(p.call) ? t('station.unresolved') : '', ...marks.map(m => m.title || m.text)].filter(Boolean).join(', '));
       b.tabIndex = selected || (!app.ui.selected && p === list[0]) ? 0 : -1;
@@ -256,7 +267,8 @@ function initStation(app) {
     const p = app.participant(app.ui.selected);
     if (p) app.act(store => setStatus(store, app.ctx(), p.id, status.value));
   });
-  $('#station-flags').addEventListener('click', ev => {
+  // "reception problems" in the head, the other flags in the details
+  for (const box of [$('#station-flags'), $('#detail-flags')]) box.addEventListener('click', ev => {
     const b = ev.target.closest('button[data-flag]');
     const p = app.participant(app.ui.selected);
     if (b && p) app.act(store => setFlag(store, app.ctx(), p.id, b.dataset.flag, !p.flags[b.dataset.flag]));
@@ -268,19 +280,24 @@ function initStation(app) {
   const idName = $('#identity-name');
   const idPop = $('#identity-pop');
   const idAc = popover(idCall, idPop, { enterPicksFirst: false, label: t('checkin.suggestions') });
+  // ✎ opens one edit panel right under the heading: callsign and name,
+  // then every detail of the station
+  const panel = $('#station-edit');
   const openIdentity = on => {
     const p = app.participant(app.ui.selected);
-    idForm.hidden = !on || !p;
-    idBtn.setAttribute('aria-expanded', String(!idForm.hidden));
-    if (!idForm.hidden) {
+    app.ui.detailsOpen = on && p ? p.id : null;
+    panel.hidden = !app.ui.detailsOpen;
+    idBtn.setAttribute('aria-expanded', String(!!app.ui.detailsOpen));
+    if (app.ui.detailsOpen) {
       idCall.value = p.call;
       idName.value = p.name || '';
+      app.render();
       idCall.focus();
       idCall.select();
     }
   };
   app.openIdentity = openIdentity;
-  idBtn.addEventListener('click', () => openIdentity(idForm.hidden));
+  idBtn.addEventListener('click', () => openIdentity(panel.hidden));
   $('#btn-identity-cancel').addEventListener('click', () => { openIdentity(false); idBtn.focus(); });
   idCall.addEventListener('input', () => {
     callbookInfo(app, idCall, $('#identity-info'));
@@ -363,11 +380,8 @@ function initStation(app) {
   });
 
   const details = $('#station-details');
-  const detBtn = $('#btn-details');
-  detBtn.addEventListener('click', () => {
-    details.hidden = !details.hidden;
-    detBtn.setAttribute('aria-expanded', String(!details.hidden));
-    app.ui.detailsOpen = !details.hidden;
+  details.addEventListener('keydown', ev => {
+    if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); flushDetails(app).then(() => { openIdentity(false); idBtn.focus(); }); }
   });
   // a detail is saved when the field is left (change); Enter does the same.
   // Until it is saved it is kept per station (pendingDetails), so neither a
@@ -488,14 +502,15 @@ export function renderStation(app) {
   if (document.activeElement !== status) status.value = p.status;
   status.disabled = app.readOnly;
 
-  const flags = $('#station-flags');
-  if (flags.childElementCount !== FLAGS.length || flags.dataset.lang !== app.lang()) {
-    fill(flags, FLAGS.map(f => el('button', { type: 'button', class: 'flag', 'data-flag': f }, t(`flag.${f}`))));
-    flags.dataset.lang = app.lang();
-  }
-  for (const b of flags.children) {
-    setAttr(b, 'aria-pressed', String(!!p.flags[b.dataset.flag]));
-    b.disabled = app.readOnly;
+  for (const [box, list] of [[$('#station-flags'), HEAD_FLAGS], [$('#detail-flags'), FLAGS.filter(f => !HEAD_FLAGS.includes(f))]]) {
+    if (box.childElementCount !== list.length || box.dataset.lang !== app.lang()) {
+      fill(box, list.map(f => el('button', { type: 'button', class: 'flag', 'data-flag': f }, t(`flag.${f}`))));
+      box.dataset.lang = app.lang();
+    }
+    for (const b of box.children) {
+      setAttr(b, 'aria-pressed', String(!!p.flags[b.dataset.flag]));
+      b.disabled = app.readOnly;
+    }
   }
   $('#btn-edit-identity').disabled = app.readOnly;
   const isNcs = app.s && app.s.ncsId === p.id;
@@ -507,11 +522,12 @@ export function renderStation(app) {
   $('#own-turn').hidden = !isOwn(app, p);
   const prof = p.profileId && app.data.profiles.find(x => x.id === p.profileId && live(x));
   setText($('#profile-state'), prof ? t('station.profileLinked') : '');
-  $('#btn-spoke').disabled = app.readOnly;
 
   const details = $('#station-details');
-  details.hidden = !app.ui.detailsOpen;
-  $('#btn-details').setAttribute('aria-expanded', String(!details.hidden));
+  // the edit panel belongs to one station; another one opens closed
+  const editing = app.ui.detailsOpen === p.id;
+  $('#station-edit').hidden = !editing;
+  $('#btn-edit-identity').setAttribute('aria-expanded', String(editing));
   const pending = pendingDetails[p.id] || {};
   for (const f of details.querySelectorAll('[data-field]')) {
     f.disabled = app.readOnly;

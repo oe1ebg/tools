@@ -178,8 +178,9 @@ test('speaking order: star without the NCS, circle with it first; paused and che
   assert.equal(st.onAir, null);
   st = speakingState({ session: star, participants: ps, contributions: [{ id: 'x', participantId: 'a', roundId: 'r', seq: 1 }] });
   assert.equal(st.onAir.id, 'a');
-  assert.equal(st.next.id, 'c', 'b is paused');
-  st = speakingState({ session: star, participants: ps, contributions: [{ id: 'x', participantId: 'a', roundId: 'r', seq: 1 }, { id: 'y', participantId: 'c', roundId: 'r', seq: 2 }] });
+  assert.equal(st.next.id, 'n', 'back to the NCS');
+  assert.equal(st.then.id, 'c', 'b is paused');
+  st = speakingState({ session: star, participants: ps, contributions: [{ id: 'x', participantId: 'a', roundId: 'r', seq: 1 }, { id: 'y', participantId: 'c', roundId: 'r', seq: 2 }, { id: 'z', participantId: 'n', roundId: 'r', seq: 3 }] });
   assert.equal(st.complete, true);
   assert.equal(st.next, null);
   // circle: the NCS takes part, the order goes on after the last speaker
@@ -190,4 +191,33 @@ test('speaking order: star without the NCS, circle with it first; paused and che
   // other rounds do not count
   st = speakingState({ session: star, participants: ps, contributions: [{ id: 'x', participantId: 'a', roundId: 'old', seq: 1 }] });
   assert.equal(st.next.id, 'a');
+});
+
+test('star net: after each station the turn goes back to the NCS; complete when the NCS has it again', () => {
+  const ps = [
+    { id: 'n', call: 'OE0QXN', status: 'active', rosterOrder: 1 },
+    { id: 'a', call: 'OE0QXA', status: 'active', rosterOrder: 2 },
+    { id: 'b', call: 'OE0QXB', status: 'active', rosterOrder: 3 },
+  ];
+  const s = { ncsId: 'n', style: 'star', currentRoundId: 'r' };
+  const turns = [];
+  const step = () => speakingState({ session: s, participants: ps, contributions: turns });
+  const say = id => turns.push({ id: `c${turns.length}`, participantId: id, roundId: 'r', seq: turns.length + 1 });
+  let st = step();
+  assert.equal(st.next.id, 'a');
+  say('a');
+  st = step();
+  assert.equal(st.next.id, 'n');
+  assert.equal(st.then.id, 'b');
+  say('n');
+  assert.equal(step().next.id, 'b');
+  say('b');
+  st = step();
+  assert.equal(st.next.id, 'n');
+  assert.equal(st.then, null);
+  assert.equal(st.complete, false, 'not before the NCS has the turn again');
+  say('n');
+  st = step();
+  assert.equal(st.complete, true);
+  assert.equal(st.next, null);
 });

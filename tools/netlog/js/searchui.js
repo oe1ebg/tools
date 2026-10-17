@@ -125,7 +125,7 @@ async function openResult(app, r) {
   if (r.kind === 'participant') {
     app.ui.selected = r.participantId;
     app.ui.view = 'live';
-    if (r.field === 'qth' || r.field === 'locator') app.ui.detailsOpen = true;
+    if (r.field === 'qth' || r.field === 'locator') app.ui.detailsOpen = r.participantId;
     app.syncHash();
     app.render();
     const f = r.field === 'qth' ? $('#det-qth') : r.field === 'locator' ? $('#det-locator') : null;

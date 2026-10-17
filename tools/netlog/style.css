@@ -85,7 +85,7 @@ button.person{
 .person-row.active button.person{ background:var(--accent-soft); box-shadow:inset 4px 0 var(--accent); }
 button.person .call{ min-width:5.5em; font-weight:700; }
 button.person .pname{ color:var(--text-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13.5px; }
-button.person .badges{ margin-left:auto; display:flex; gap:.25em; }
+button.person .badges{ margin-left:auto; display:flex; gap:.25em; flex-wrap:nowrap; }
 .dot{ width:.6em; height:.6em; border-radius:50%; background:var(--ok); flex-shrink:0; }
 .dot.paused, .dot.listening{ background:var(--warn); }
 .dot.unconfirmed{ background:transparent; border:2px solid var(--warn); }
@@ -97,7 +97,7 @@ button.person .badges{ margin-left:auto; display:flex; gap:.25em; }
 .viewbar{ padding:.6em 1em; border-bottom:1px solid var(--line); margin:0; }
 .tabs a{ padding:.35em .8em; color:var(--text); text-decoration:none; font-size:15px; }
 .tabs a + a{ border-left:1px solid var(--line); }
-.tabs a[aria-current="page"]{ background:var(--accent-soft); color:var(--accent-text); font-weight:600; }
+.tabs a[aria-current="page"]{ background:var(--accent-soft); color:var(--accent-text); text-shadow:.03em 0 currentColor; } /* faux bold: keeps the width */
 .mode{ min-width:7em; text-align:center; }
 .mode.editing{ color:var(--accent-text); border-color:currentColor; }
 .round-indicator{ font-weight:600; }
@@ -217,7 +217,7 @@ li.sum-note.flagged{ border-left-color:var(--warn); }
 .order-row button.open{ font-weight:600; text-align:left; }
 .order-row button.mini{ white-space:nowrap; }
 .order-row select.status-sel{ font-size:14px; padding:.15em .3em; }
-.order-row.out .open{ color:var(--text-dim); text-decoration:line-through; }
+
 button.icon{ font-size:18px; line-height:1; padding:.3em .55em; }
 #st-save{ width:15em; }
 
@@ -357,5 +357,87 @@ li.event-line .time{ color:var(--text-dim); }
 li.event-line .time{ min-width:5.5em; }
 
 /* the NCS: on top of the lists, as a band of its own */
-.person-row.ncs{ background:var(--accent-soft); border-bottom:2px solid var(--accent-dim); }
+.person-row.ncs{ border:2px solid var(--accent); border-radius:8px; margin:.35em .4em .8em; background:var(--bg); overflow:hidden; }
+.person-row.ncs button.person{ padding-top:.65em; padding-bottom:.65em; }
+.person-row.ncs button.person .call{ font-size:16px; font-weight:800; }
+.pill.ncs{ color:#fff; background:var(--accent); border-color:var(--accent); }
 .order-row.ncs{ background:var(--accent-soft); border-bottom:2px solid var(--accent-dim); padding-left:.4em; padding-right:.4em; }
+
+/* ---------- the net's topology in the roster ---------- */
+.topo-label{ display:inline-flex; align-items:center; gap:.4em; font-size:13.5px; font-weight:600; }
+.topo-icon line.spoke{ stroke:var(--accent-dim); stroke-width:1.6; }
+.topo-icon circle.hub{ fill:var(--accent); }
+.topo-icon circle.ring{ fill:none; stroke:var(--accent-dim); stroke-width:1.6; stroke-dasharray:3 2; }
+.topo-icon circle.node{ fill:var(--bg); stroke:var(--accent); stroke-width:1.6; }
+/* star: the NCS on top is the hub, every other station a spoke from it */
+.roster.topo-star .person-row:not(.ncs){ position:relative; padding-left:22px; }
+.roster.topo-star .person-row:not(.ncs)::before{ content:""; position:absolute; left:11px; top:0; bottom:0; border-left:2px solid var(--accent-dim); }
+.roster.topo-star .person-row:not(.ncs):last-child::before{ bottom:50%; }
+.roster.topo-star .person-row:not(.ncs)::after{ content:""; position:absolute; left:11px; top:50%; width:9px; border-top:2px solid var(--accent-dim); }
+/* circle: a chain from station to station, back to the first at the end */
+.roster.topo-circle .person-row{ position:relative; padding-left:22px; }
+.roster.topo-circle .person-row::before{ content:"↓"; position:absolute; left:6px; top:50%; transform:translateY(-50%); color:var(--accent-dim); font-size:13px; }
+.roster.topo-circle .person-row:last-child::before{ content:"↺"; }
+.topo-hint{ margin:.2em .8em .4em; }
+/* whose turn it is */
+.person-row.on-air button.person{ background:var(--accent-soft); background:color-mix(in srgb, var(--ok) 16%, var(--bg)); box-shadow:inset 5px 0 var(--ok); }
+.person-row.up-next button.person{ background:var(--warn-soft); box-shadow:inset 5px 0 var(--warn); }
+.pill.on-air{ color:var(--ok); border-color:currentColor; font-weight:600; }
+.pill.next{ color:var(--warn); border-color:currentColor; }
+
+/* ---------- the same status look in the roster and in Net Control ---------- */
+.person-row.st-out .call, .person-row.st-out .pname, .order-row.st-out .open{ text-decoration:line-through; }
+.person-row.st-out button.person, .order-row.st-out .open{ opacity:.55; }
+.person-row.st-paused .call, .order-row.st-paused .open, .person-row.st-listening .call, .order-row.st-listening .open{ font-style:italic; }
+.person-row.st-paused button.person, .person-row.st-listening button.person{ opacity:.8; }
+.pill.st{ border-color:transparent; background:none; padding:0 .15em; }
+.st-mark{ min-width:1.2em; text-align:center; color:var(--text-dim); }
+
+/* ---------- the turn strip ---------- */
+.speak-strip{ list-style:none; margin:0; padding:0; display:flex; flex-wrap:nowrap; min-height:2.1em; overflow:hidden; gap:.3em .25em; align-items:center; }
+.sp-chip button{ min-height:0; padding:.3em .6em; font-size:15px !important; border-radius:999px; font:600 13px var(--font-mono); background:var(--bg); border:1.5px solid var(--line-strong); color:var(--text); display:inline-flex; gap:.25em; align-items:center; }
+.sp-chip.hub button{ border-radius:6px; border-width:2px; border-color:var(--accent); background:var(--accent-soft); }
+.sp-chip.spoken button{ opacity:.55; }
+.sp-chip.on-air button{ background:var(--ok); border-color:var(--ok); color:#fff; }
+.sp-chip.next button{ border-color:var(--warn); color:var(--warn); background:var(--warn-soft); }
+.sp-chip.then button{ border-style:dashed; border-color:var(--warn); }
+.sp-chip.own button .c::after{ content:" ★"; }
+.sp-link{ color:var(--text-dim); font-size:13px; }
+.speak-strip.star .sp-link{ font-size:16px; color:var(--accent-dim); }
+
+.order-row.on-air{ box-shadow:inset 4px 0 var(--ok); background:var(--accent-soft); }
+.order-row.up-next{ box-shadow:inset 4px 0 var(--warn); }
+
+.station-head .edit-id{ font-size:16px; min-width:0; min-height:0; padding:.15em .45em; align-self:center; }
+.details-form .flag-group{ flex-basis:100%; }
+
+/* the edit panel under the station's heading */
+.station-edit{ margin:.5em 0 .8em; padding:.8em; border:1px solid var(--accent); border-radius:6px; background:var(--bg-raised); display:grid; gap:.6em; }
+.station-edit .identity-form, .station-edit .details-form{ border:0; padding:0; margin:0; background:none; }
+
+/* me: speaking now / next */
+.speak-me{ margin:0; padding:.45em .7em; border-radius:6px; font-weight:700; font-size:15px; }
+.speak-panel.me-onAir{ box-shadow:inset 0 0 0 2px var(--ok); }
+.speak-panel.me-onAir .speak-me{ background:var(--ok); color:#fff; }
+.speak-panel.me-next{ box-shadow:inset 0 0 0 2px var(--warn); }
+.speak-panel.me-next .speak-me{ background:var(--warn-soft); color:var(--warn); border:1.5px solid var(--warn); }
+.speak-panel.me-soon .speak-me{ background:var(--bg); color:var(--text-dim); border:1px dashed var(--warn); font-weight:600; font-size:13.5px; }
+.viewbar a.me-onAir{ background:var(--ok); color:#fff; }
+.viewbar a.me-next{ box-shadow:inset 0 -3px var(--warn); }
+@media (prefers-reduced-motion: no-preference){
+  .speak-panel.me-next .speak-me{ animation:me-pulse 1.6s ease-in-out 3; }
+}
+@keyframes me-pulse{ 50%{ opacity:.55; } }
+
+/* the panel keeps its size while the turn moves on */
+.speak-me{ min-height:1.6em; line-height:1.6em; padding:.2em .7em; color:var(--text-dim); font-weight:600; font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.speak-panel.me-onAir .speak-me, .speak-panel.me-next .speak-me{ font-size:15px; font-weight:700; }
+.speak-then{ margin:0; min-height:1.3em; font-size:13px; color:var(--warn); font-family:var(--font-mono); }
+.sp-chip{ min-width:0; }
+.sp-chip button{ max-width:100%; }
+.sp-chip .c{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#btn-next{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.speak-me{ border:1.5px solid transparent; border-radius:6px; }
+.speak-me{ box-sizing:border-box; height:30px; min-height:0; line-height:26px; padding-top:0; padding-bottom:0; }
+.speak-then{ height:1.3em; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.speak-strip{ height:2.1em; }

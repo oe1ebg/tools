@@ -113,7 +113,7 @@ test('keyboard only: check in, move through the roster, status and order', async
   await page.locator('#station-status').selectOption('out');
   await expect(page.locator('#roster li.active .dot')).toHaveClass(/out/);
   await page.locator('#station-status').selectOption('active');
-  await page.locator('#btn-details').click();
+  await page.locator('#btn-edit-identity').click();
   await expect(page.locator('#presence-list li')).toHaveCount(2);
   // typing j/k in a field types them
   await page.locator('#det-qth').fill('');
@@ -405,12 +405,13 @@ test('presence: late check-in, pause, checkout, reentry; reorders keep the speak
   await checkIn(page, 'OE0QXA');
   await checkIn(page, 'OE0QXB');
   await openStation(page, 'OE0QXB');
-  await page.locator('#btn-spoke').click();
+  await page.locator('#btn-next').click(); // a speaking turn
   await page.keyboard.press('Escape');
+  await page.locator('#roster button.person', { hasText: 'OE0QXB' }).click();
   await page.locator('#station-status').selectOption('paused');
   await page.locator('#station-status').selectOption('out');
   await page.locator('#station-status').selectOption('active');
-  await page.locator('#btn-details').click();
+  await page.locator('#btn-edit-identity').click();
   await expect(page.locator('#presence-list li')).toHaveCount(2);
   const before = await page.evaluate(() => JSON.stringify(globalThis.NETLOG_APP.sd.contributions.map(c => [c.id, c.participantId, c.roundId, c.seq])));
   await page.getByRole('button', { name: 'Move OE0QXB up' }).click();
@@ -678,7 +679,7 @@ test('privacy: remove and restore a station, erase it for good; lookup links onl
   await expect(page.locator('#station-links')).toBeHidden();
   await openStation(page, 'OE0QXB');
   page.on('dialog', d => d.accept());
-  await page.locator('#btn-details').click();
+  await page.locator('#btn-edit-identity').click();
   await page.locator('#btn-remove-station').click();
   await expect(roster(page)).toHaveText(['OE0QX?']);
   await page.locator('#tab-control').click();
@@ -738,7 +739,7 @@ test('the callsign list fills name and QTH at check-in and when a partial callsi
   await page.locator('#checkin-name').press('Enter');
   await expect(page.locator('#roster li', { hasText: 'OE0QXB' })).toContainText('Jonas Test');
   await page.locator('#roster button.person', { hasText: 'OE0QXB' }).click();
-  await page.locator('#btn-details').click();
+  await page.locator('#btn-edit-identity').click();
   await expect(page.locator('#det-qth')).toHaveValue('Musterdorf');
   // a name typed by hand is kept
   await page.locator('#checkin-call').fill('OE0QXC');
@@ -776,7 +777,7 @@ test('Net Control: check stations out and in, pause them, from the list; presenc
   // checkout closed the interval, coming back opened a new one
   await page.locator('#tab-live').click();
   await page.locator('#roster button.person', { hasText: 'OE0QXB' }).click();
-  await page.locator('#btn-details').click();
+  await page.locator('#btn-edit-identity').click();
   await expect(page.locator('#presence-list li')).toHaveCount(2);
   const events = await page.evaluate(() => globalThis.NETLOG_APP.sd.events.filter(e => e.type === 'status').sort((a, b) => (a.created < b.created ? -1 : 1)).map(e => e.to));
   expect(events).toEqual(['paused', 'out', 'active']);
@@ -858,18 +859,30 @@ test('running a round: NCS first, Next through the order, my turn opens My Turn,
   await page.locator('#btn-ncs').click();
   await expect(roster(page)).toHaveText(['OE0QXN', 'OE0QXA', 'OE0QXB', 'OE0QXC']);
   await expect(page.locator('#speak-style')).toHaveText('Star net (via the NCS)');
+  await expect(page.locator('#roster')).toHaveClass(/topo-star/);
+  await expect(page.locator('#topo-hint')).toHaveText('Star: every station gives back to OE0QXN.');
   await expect(page.locator('#speak-state')).toHaveText('Next to speak: OE0QXA (me)');
+  await expect(page.locator('#speak-me')).toHaveText('▶ You are next');
   // my turn: Next opens My Turn, not notes about myself
   await page.locator('#btn-next').click();
   await expect(page.locator('#view-turn')).toBeVisible();
-  await expect(page.locator('#speak-state')).toHaveText('Speaking: OE0QXA (me) · Next to speak: OE0QXB');
+  await expect(page.locator('#speak-me')).toHaveText('🎙 Your turn now');
+  await expect(page.locator('#tab-turn')).toHaveClass(/me-onAir/);
+  // star: back to the NCS, then the next station
+  await expect(page.locator('#speak-state')).toHaveText('Speaking: OE0QXA (me) · Next: back to OE0QXN, then OE0QXB');
+  await expect(page.locator('#roster li.up-next')).toContainText('OE0QXN');
+  await page.locator('#btn-next').click();
+  await expect(page.locator('#station-call')).toHaveText('OE0QXN');
+  await expect(page.locator('#roster li.on-air')).toContainText('OE0QXN');
   await page.locator('#btn-next').click();
   await expect(page.locator('#station-call')).toHaveText('OE0QXB');
   await expect(composer(page)).toBeFocused();
   // a station that is away is skipped
   await page.locator('#tab-control').click();
   await page.getByRole('combobox', { name: 'Status of OE0QXC' }).selectOption('paused');
-  await expect(page.locator('#speak-state')).toHaveText('Speaking: OE0QXB · round 1: everyone has spoken');
+  await expect(page.locator('#speak-state')).toHaveText('Speaking: OE0QXB · Next to speak: OE0QXN');
+  await page.locator('#btn-next').click();
+  await expect(page.locator('#speak-state')).toHaveText('Speaking: OE0QXN · round 1: everyone has spoken');
   await page.locator('#btn-next').click();
   await expect(page.locator('#round-indicator')).toHaveText('Round 2');
   // one click: no dialog; undo takes it back
@@ -909,4 +922,69 @@ test('my own station shows My Turn for a click and for j/k alike; j/k switch sta
   await page.locator('#roster button.person', { hasText: 'OE0QXA' }).focus();
   await page.keyboard.press('j');
   await expect(page.locator('#station-call')).toHaveText('OE0QXB');
+});
+
+test('circle net: stations pass on in turn, the NCS included; the roster draws a chain', async ({ page }) => {
+  await open(page, { lang: 'en' });
+  await startSession(page);
+  for (const c of ['OE0QXN', 'OE0QXA', 'OE0QXB']) await checkIn(page, c);
+  await page.locator('#roster button.person', { hasText: 'OE0QXN' }).click();
+  await page.locator('#btn-ncs').click();
+  await page.locator('#tab-control').click();
+  await page.locator('#se-style').selectOption('circle');
+  await expect(page.locator('#speak-style')).toHaveText('Circle net (in turn)');
+  await expect(page.locator('#roster')).toHaveClass(/topo-circle/);
+  await expect(page.locator('#topo-hint')).toContainText('back to the first');
+  for (const call of ['OE0QXN', 'OE0QXA', 'OE0QXB']) {
+    await page.locator('#btn-next').click();
+    await expect(page.locator('#roster li.on-air .call')).toHaveText(call);
+  }
+  await expect(page.locator('#btn-next')).toHaveText('▶ Start round 2');
+});
+
+test('status looks the same in both lists; checked-out stations are struck through and skipped by j/k; "me" from Net Control', async ({ page }) => {
+  await open(page, { lang: 'en' });
+  await startSession(page, { own: '' });
+  for (const c of ['OE0QXA', 'OE0QXB', 'OE0QXC']) await checkIn(page, c);
+  await page.locator('#tab-control').click();
+  await page.getByRole('combobox', { name: 'Status of OE0QXB' }).selectOption('out');
+  await page.getByRole('combobox', { name: 'Status of OE0QXC' }).selectOption('listening');
+  await expect(page.locator('#roster li', { hasText: 'OE0QXB' })).toHaveClass(/st-out/);
+  await expect(page.locator('#order-list li', { hasText: 'OE0QXB' })).toHaveClass(/st-out/);
+  await expect(page.locator('#roster li', { hasText: 'OE0QXB' }).locator('.call')).toHaveCSS('text-decoration-line', 'line-through');
+  await expect(page.locator('#order-list li', { hasText: 'OE0QXB' }).locator('.open')).toHaveCSS('text-decoration-line', 'line-through');
+  await expect(page.locator('#roster li', { hasText: 'OE0QXC' }).locator('.pill.st')).toHaveAttribute('title', 'monitoring (listening only)');
+  await expect(page.locator('#order-list li', { hasText: 'OE0QXC' }).locator('.st-mark')).toHaveText('🎧');
+  // j/k skip the checked-out station
+  await page.locator('#roster button.person', { hasText: 'OE0QXA' }).focus();
+  await page.keyboard.press('j');
+  await expect(page.locator('#roster button.person', { hasText: 'OE0QXC' })).toBeFocused();
+  // "me" set from the Net Control list
+  await page.getByRole('button', { name: 'This is me: OE0QXA' }).click();
+  await expect(page.locator('#session-line')).toContainText('me: OE0QXA');
+  await expect(page.locator('#roster li', { hasText: 'OE0QXA' }).locator('.pill.own')).toHaveText('me');
+});
+
+test('"." moves the net on; j/k only move in the list; the panel and tabs keep their size', async ({ page }) => {
+  await open(page, { lang: 'en' });
+  await startSession(page, { own: 'OE0QXA' });
+  for (const c of ['OE0QXN', 'OE0QXA', 'OE0QXB', 'OE0QXC']) await checkIn(page, c);
+  await page.locator('#roster button.person', { hasText: 'OE0QXN' }).click();
+  await page.locator('#btn-ncs').click();
+  await page.locator('#roster button.person', { hasText: 'OE0QXB' }).focus();
+  const size = () => page.evaluate(() => {
+    const r = s => { const b = document.querySelector(s).getBoundingClientRect(); return [Math.round(b.y + scrollY), Math.round(b.height)]; };
+    return { panel: r('#speak-panel'), next: r('#btn-next'), tabs: [...document.querySelectorAll('.viewbar a')].map(a => Math.round(a.getBoundingClientRect().x)) };
+  });
+  const first = await size();
+  await page.keyboard.press('j');
+  await expect(page.locator('#roster li.on-air')).toHaveCount(0); // j recorded nothing
+  for (const call of ['OE0QXA', 'OE0QXN', 'OE0QXB']) {
+    await page.locator('#roster button.person').first().focus();
+    await page.keyboard.press('.');
+    await expect(page.locator('#roster li.on-air .call')).toHaveText(call);
+    // the station opens ready for notes (my own turn opens My Turn)
+    if (call !== 'OE0QXA') await expect(page.locator('#station-rounds .composer-text')).toBeFocused();
+    expect(await size()).toEqual(first);
+  }
 });

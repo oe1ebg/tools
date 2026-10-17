@@ -51,7 +51,7 @@ const TOOLS = {
       await page.locator('#checkin-call').fill('OE0QXA');
       await page.locator('#checkin-name').press('Enter');
       await expect(page.locator('#station-call')).toHaveText('OE0QXA');
-      await page.locator('#btn-details').click();
+      await page.locator('#btn-edit-identity').click();
       await page.locator('#det-qth').fill('Halb getippter QTH');
     },
   },
