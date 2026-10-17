@@ -196,6 +196,16 @@ offers the export, as on any other page without IndexedDB.
     station profile: the current one's, else the other's, else a new one;
     the recorded snapshots are not changed) or "Not the same" (not offered
     again, `notSame` on the participant). Both are undoable.
+  - **Open follow-ups** from earlier sessions (on-air replies and
+    after-net tasks still open) are listed first, oldest first, with:
+    "✓ done" (closed in place; that session's My Turn cycle is not
+    touched), "→ after-net task" or "→ My Turn" (carry forward: a new item
+    in this session, a task or a talking point, with its source in `from`
+    as recorded, date, net, station, shown as "↪ from …" and opening the
+    original; the original is closed with `carriedTo`; one undo step takes
+    both back). Done ones can be reopened from their entry. Nothing from
+    another session enters My Turn without that click; tasks and replies
+    stay distinct.
   - Deleted sessions and notes are left out until restored. Nothing is
     looked up or sent; history is read from the local database.
   Code: `js/history.js` (pure), `js/historyui.js`; tests:
@@ -357,7 +367,7 @@ shared `eventId` index).
 | `rounds` | `number`, `order`, `topic`, `start` |
 | `contributions` | a speaking turn: `participantId`, `roundId`, `seq`, `time` |
 | `notes` | one observation: `participantId`, `roundId`, `contributionId` or null, `text`, `seq`, `time` |
-| `items` | `kind`: `response` (a note's on-air reminder, `noteId`, prepared reply in `text`), `point` (personal talking point, no note) or `task` (after-net follow-up); `state` `open`/`done`, `active` (flagged), `order` (My Turn order), `history [{ state, at, turnId }]`, `doneTurnId` |
+| `items` | `kind`: `response` (a note's on-air reminder, `noteId`, prepared reply in `text`), `point` (personal talking point, no note) or `task` (after-net follow-up); `state` `open`/`done`, `active` (flagged), `order` (My Turn order), `history [{ state, at, turnId }]`, `doneTurnId`, `from` (a carried-forward copy: `{ sessionId, itemId, noteId, roundId, participantId, kind, date, label, call }`), `carriedTo` (the original: `{ sessionId, itemId }`; both remapped on import) |
 | `turns` | My Turn review cycles: `started`, `ended` |
 | `events` | timestamped facts: check-ins (`type: 'presence'`), status changes (`'status'`, `from`/`to`), later NCS handovers and round changes |
 | `revisions` | every replaced version of a record (`store`, `recordId`, `record`, `at`) |

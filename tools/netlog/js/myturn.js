@@ -15,6 +15,7 @@
 import { $, el, fill, isComposing } from '../../shared/js/dom.js';
 import { t } from './i18n.js';
 import { keyedList, setText, setAttr, setValue } from './keyed.js';
+import { provenanceButton, renderProvenance, openProvenance } from './historyui.js';
 import { queueItems, openTurn, previousRound, roundSummary, responseOf, liveOf, cmp } from './model.js';
 import { setItemDone, moveItem, addPoint, startTurn, endTurn, setItemText, deleteItem } from './ops.js';
 import { callText } from './roster.js';
@@ -36,6 +37,7 @@ export function initTurn(app) {
     if (b.dataset.act === 'open') app.openSource(id);
     if (b.dataset.act === 'up' || b.dataset.act === 'down') reorder(app, id, b.dataset.act === 'up' ? -1 : 1, b.dataset.act);
     if (b.dataset.act === 'delete-point') app.act(store => deleteItem(store, app.ctx(), id));
+    if (b.dataset.act === 'from') openProvenance(app, app.sd.items.find(i => i.id === id));
   });
   items.addEventListener('input', ev => {
     const ta = ev.target.closest('textarea');
@@ -149,7 +151,7 @@ export function renderTurn(app) {
     create: i => el('li', { class: 'turn-item', tabindex: '-1' },
       el('input', { type: 'checkbox', class: 'turn-done' }),
       el('div', { class: 'ti-body' },
-        el('div', { class: 'ti-head' }, i.kind === 'point' ? el('span', { class: 'ti-point' }) : el('button', { type: 'button', class: 'link station', 'data-act': 'open' }), ' ', el('span', { class: 'hint ti-src' })),
+        el('div', { class: 'ti-head' }, i.kind === 'point' ? el('span', { class: 'ti-point' }) : el('button', { type: 'button', class: 'link station', 'data-act': 'open' }), ' ', provenanceButton(i) || el('span', { class: 'hint ti-src' })),
         el('p', { class: 'ti-obs' }),
         el('label', { class: 'field ti-reply-field' }, el('span', {}), el('textarea', { class: 'ti-reply', rows: 1 }))),
       el('div', { class: 'ti-tools' },
@@ -168,7 +170,8 @@ export function renderTurn(app) {
       setText(head.firstChild, who);
       if (i.kind !== 'point') setAttr(head.firstChild, 'aria-label', t('turn.openSource', { call: p ? callText(p) : '?' }));
       const r = note ? rounds.get(note.roundId) : null;
-      setText(head.lastChild, note ? t('turn.source', { n: r ? r.number : '?', time: note.time && note.time.iso ? hmz(note.time.iso) : '—' }) : '');
+      if (i.from) renderProvenance(head.lastChild, i);
+      else setText(head.lastChild, note ? t('turn.source', { n: r ? r.number : '?', time: note.time && note.time.iso ? hmz(note.time.iso) : '—' }) : '');
       setText(obs, note ? t('turn.observation', { text: note.text }) : '');
       obs.hidden = !note;
       const ta = replyField.lastChild;

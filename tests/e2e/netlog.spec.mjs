@@ -1220,3 +1220,62 @@ test('station history: earlier sessions with notes and open follow-ups, the exac
   await expect(toggle).toHaveText('▸ History: no earlier sessions on this device');
   await expect(toggle).toBeDisabled();
 });
+
+test('open follow-ups from earlier sessions: done in place, carried into My Turn or the task list with their source', async ({ page }) => {
+  await open(page, { lang: 'en' });
+  await page.evaluate(async () => {
+    const ops = await import('./js/ops.js');
+    const app = globalThis.NETLOG_APP;
+    const store = app.store;
+    const tab = app.tab;
+    const series = await ops.createSeries(store, { tab }, { name: 'Wiener Runde' });
+    const s1 = await ops.createSession(store, { tab }, { own: 'OE0QXZ', round: 1, seriesId: series.id, date: '2026-10-02' });
+    const ctx = { sessionId: s1.id, tab };
+    await ops.claimSession(store, s1.id, tab);
+    const a = await ops.addParticipant(store, ctx, { call: 'OE0QXA', name: 'Anna' });
+    const n1 = await ops.createNote(store, ctx, { participantId: a.id, text: 'asks about the QSL card' });
+    await ops.toggleResponse(store, ctx, n1.id, true);
+    const n2 = await ops.createNote(store, ctx, { participantId: a.id, text: 'send the antenna plan' });
+    await ops.toggleTask(store, ctx, n2.id, true);
+    const n3 = await ops.createNote(store, ctx, { participantId: a.id, text: 'lend a power supply' });
+    await ops.toggleTask(store, ctx, n3.id, true);
+    await app.reload();
+  });
+  await startSession(page);
+  await checkIn(page, 'OE0QXA', 'Anna');
+  await page.locator('#roster button.person', { hasText: 'OE0QXA' }).click();
+  await expect(page.locator('#btn-history')).toHaveText('▸ History: 1 earlier session · 3 open');
+  await page.locator('#btn-history').click();
+  const openList = page.locator('#history-open-list');
+  await expect(openList.locator('li.history-followup')).toHaveCount(3);
+  // My Turn stays empty until a follow-up is carried there on purpose
+  await expect(page.locator('#tab-turn-count')).toHaveText('');
+  await openList.locator('li', { hasText: 'asks about the QSL card' }).getByRole('button', { name: '→ My Turn' }).click();
+  await expect(page.locator('#tab-turn-count')).toHaveText(' · 1');
+  await openList.locator('li', { hasText: 'send the antenna plan' }).getByRole('button', { name: '→ after-net task' }).click();
+  await openList.locator('li', { hasText: 'lend a power supply' }).getByRole('button', { name: '✓ done' }).click();
+  await expect(page.locator('#btn-history')).toHaveText('▾ History: 1 earlier session · 0 open');
+  await expect(page.locator('#history-list')).toContainText('→ carried forward');
+  await expect(page.locator('#history-list')).toContainText('☑ task done');
+  // in My Turn: the talking point with its source; the source opens, Back returns
+  await page.locator('#tab-turn').click();
+  const from = page.locator('#turn-items li button.item-from');
+  await expect(from).toHaveText('↪ from 2026-10-02 · Wiener Runde #1 · OE0QXA');
+  await expect(page.locator('#turn-items li textarea.ti-reply')).toHaveValue('asks about the QSL card');
+  await from.click();
+  await expect(page.locator('#session-line')).toContainText('Wiener Runde');
+  await expect(page.locator('#station-rounds textarea.note-text').first()).toHaveValue('asks about the QSL card');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('b');
+  await expect(page.locator('#view-turn')).toBeVisible();
+  // in Net Control: the task with its source
+  await page.locator('#tab-control').click();
+  const task = page.locator('#task-list li', { has: page.locator('button.item-from') });
+  await expect(task.locator('input.task-text')).toHaveValue('send the antenna plan');
+  await expect(task.locator('button.item-from')).toHaveText('↪ from 2026-10-02 · Wiener Runde #1 · OE0QXA');
+  // reopen the one marked done
+  await page.locator('#tab-live').click();
+  await page.locator('#roster button.person', { hasText: 'OE0QXA' }).click();
+  await page.locator('#history-list li.history-note', { hasText: 'lend a power supply' }).getByRole('button', { name: 'reopen' }).click();
+  await expect(page.locator('#btn-history')).toHaveText(/1 earlier session · 1 open/);
+});

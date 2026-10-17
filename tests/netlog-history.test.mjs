@@ -8,8 +8,9 @@ import { memoryStore } from '../tools/netlog/js/memstore.js';
 import { NETLOG_STORES } from '../tools/netlog/js/db.js';
 import {
   createSeries, createSession, addParticipant, updateParticipant, createNote, toggleResponse, toggleTask, setItemDone,
-  deleteNote, deleteSession, linkSameStation, markNotSame, saveProfile, undo,
+  deleteNote, deleteSession, linkSameStation, markNotSame, saveProfile, undo, resolveFollowUp, carryForward,
 } from '../tools/netlog/js/ops.js';
+import { queueItems } from '../tools/netlog/js/model.js';
 import { sameStation, stationHistory, openFollowUps, possibleMatches, historySummary, HISTORY_STORES } from '../tools/netlog/js/history.js';
 
 const TAB = 'tab-h';
@@ -143,4 +144,62 @@ test('backup: "not the same" ids are remapped with the participants they name', 
   const map = { participants: new Map([['old1', 'new1']]), sessions: new Map() };
   const r = remapRecord('participants', { id: 'p', eventId: 's', notSame: ['old1', 'other'] }, map);
   assert.deepEqual(r.notSame, ['new1', 'other']);
+});
+
+test('follow-ups: done and reopened in place, without touching that session\'s My Turn cycle', async () => {
+  const f = await fixture();
+  const task = (await f.store.getAll('items')).find(i => i.noteId === f.n1.id && i.kind === 'task');
+  await resolveFollowUp(f.store, f.now.ctx, task.id, true);
+  let cur = await f.store.get('items', task.id);
+  assert.equal(cur.state, 'done');
+  assert.equal(cur.doneTurnId, null);
+  assert.equal(openFollowUps(stationHistory(await all(f.store), f.cur, f.now.s.id)).length, 1);
+  await resolveFollowUp(f.store, f.now.ctx, task.id, false);
+  cur = await f.store.get('items', task.id);
+  assert.equal(cur.state, 'open');
+  assert.deepEqual(cur.history.map(h => h.state), ['open', 'done', 'open']);
+});
+
+test('carry forward: a linked copy here (task or My Turn point), the original closed with a link; one undo step', async () => {
+  const f = await fixture();
+  const items = await f.store.getAll('items');
+  const reply = items.find(i => i.noteId === f.n2.id && i.kind === 'response');
+  const myTurnBefore = queueItems((await f.store.getAll('items')).filter(i => i.eventId === f.now.s.id), [], null);
+  assert.equal(myTurnBefore.length, 0, 'nothing from other sessions in My Turn by itself');
+  const copy = await carryForward(f.store, f.now.ctx, reply.id, 'point', { date: '2026-10-09', label: 'Wiener Runde #2', call: 'OE0QXA' });
+  assert.equal(copy.kind, 'point');
+  assert.equal(copy.eventId, f.now.s.id);
+  assert.equal(copy.text, 'asks about the QSL', 'the note text when no reply was prepared');
+  assert.deepEqual({ ...copy.from }, {
+    sessionId: f.s2.s.id, itemId: reply.id, noteId: f.n2.id, roundId: (await f.store.get('notes', f.n2.id)).roundId,
+    participantId: f.a2.id, kind: 'response', date: '2026-10-09', label: 'Wiener Runde #2', call: 'OE0QXA',
+  });
+  const orig = await f.store.get('items', reply.id);
+  assert.equal(orig.state, 'done');
+  assert.deepEqual(orig.carriedTo, { sessionId: f.now.s.id, itemId: copy.id });
+  const mine = (await f.store.getAll('items')).filter(i => i.eventId === f.now.s.id);
+  assert.deepEqual(queueItems(mine, [], null).map(i => i.id), [copy.id], 'now in My Turn, deliberately');
+  // carrying the same one again does nothing
+  assert.equal(await carryForward(f.store, f.now.ctx, reply.id, 'task'), null);
+  // a task stays a task: not in My Turn
+  const task = items.find(i => i.noteId === f.n1.id && i.kind === 'task');
+  const t2 = await carryForward(f.store, f.now.ctx, task.id, 'task', {});
+  assert.equal(t2.kind, 'task');
+  assert.equal(queueItems((await f.store.getAll('items')).filter(i => i.eventId === f.now.s.id), [], null).length, 1);
+  // undo: the copy goes, the original is open again
+  await undo(f.store, f.now.ctx);
+  assert.equal((await f.store.get('items', t2.id)).deleted != null, true);
+  assert.equal((await f.store.get('items', task.id)).state, 'open');
+  assert.throws(() => carryForward(f.store, f.now.ctx, task.id, 'response'), /carry as response/);
+});
+
+test('backup: a carried copy and its original keep their links through remapped ids', async () => {
+  const { remapRecord } = await import('../tools/netlog/js/backup.js');
+  const map = { sessions: new Map([['s1', 'S1']]), items: new Map([['i1', 'I1'], ['c1', 'C1']]), notes: new Map(), rounds: new Map(), participants: new Map() };
+  const copy = remapRecord('items', { id: 'c1', eventId: 's2', from: { sessionId: 's1', itemId: 'i1', noteId: null, roundId: null, participantId: null, date: 'd' } }, map);
+  assert.equal(copy.from.sessionId, 'S1');
+  assert.equal(copy.from.itemId, 'I1');
+  assert.equal(copy.from.date, 'd');
+  const orig = remapRecord('items', { id: 'i1', eventId: 's1', carriedTo: { sessionId: 's2', itemId: 'c1' } }, map);
+  assert.deepEqual(orig.carriedTo, { sessionId: 's2', itemId: 'C1' });
 });
