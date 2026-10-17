@@ -244,3 +244,20 @@ test('free-form: no prediction, no completion, no NCS needed; central control wi
   assert.equal(netStyle({ style: 'nonsense' }), 'star');
   assert.equal(seriesDefaults({ defaults: { style: 'free' } }).style, 'free');
 });
+
+test('My Turn summary: current and previous round together, grouped by station, each note marked with its round', async () => {
+  const { turnSummary } = await import('../tools/netlog/js/model.js');
+  const P = id => ({ id, call: id.toUpperCase() });
+  const participants = [P('a'), P('b'), P('c')];
+  const r2 = { id: 'r2', number: 2 };
+  const r3 = { id: 'r3', number: 3 };
+  const n = (id, pid, roundId, seq) => ({ id, participantId: pid, roundId, seq, text: id });
+  const notes = [n('a2', 'a', 'r2', 1), n('c2', 'c', 'r2', 2), n('b3', 'b', 'r3', 3), n('a3', 'a', 'r3', 4), n('a3b', 'a', 'r3', 5), n('x1', 'a', 'r1', 0)];
+  const s = turnSummary({ notes, contributions: [], participants, current: r3, previous: r2 });
+  assert.deepEqual(s.map(g => g.participant.id), ['b', 'a', 'c'], 'current round order first, then previous-only');
+  assert.deepEqual(s[1].entries.map(e => [e.note.id, e.which, e.round.number]), [['a2', 'previous', 2], ['a3', 'current', 3], ['a3b', 'current', 3]]);
+  assert.deepEqual(s[2].entries.map(e => e.which), ['previous']);
+  // the first round: only the current one
+  const first = turnSummary({ notes, contributions: [], participants, current: { id: 'r1', number: 1 }, previous: null });
+  assert.deepEqual(first.map(g => g.participant.id), ['a']);
+});

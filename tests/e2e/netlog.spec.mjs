@@ -293,43 +293,37 @@ test('My Turn: round 1 response above the round 4 summary, points in, tasks and 
   // the responses come before the round notes on the page
   const [qy, sy] = await Promise.all([page.locator('#turn-items').boundingBox(), page.locator('#sum-groups').boundingBox()]);
   expect(qy.y).toBeLessThan(sy.y);
-  // current round by default; p = previous (round 3): every note under its station
-  await expect(page.locator('#sum-current')).toHaveAttribute('aria-pressed', 'true');
+  // both rounds at once (round 4 current, round 3 previous), by station,
+  // each note marked with its round; no switching
+  await expect(page.locator('#sum-topic')).toHaveText('Round 4 (current) · Round 3 (previous)');
   await expect(page.locator('#sum-groups')).toContainText('Round four note.');
-  const before = await queue(page).allTextContents();
-  await page.locator('#turn-title').focus();
-  await page.keyboard.press('p');
-  await expect(page.locator('#sum-prev')).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.locator('#sum-topic')).toHaveText('Round 3');
-  await expect(page.locator('#sum-groups h4')).toHaveText(['OE0QXD · Felix', 'OE0QXC · Lea']);
   await expect(page.locator('#sum-groups')).toContainText('Plans a portable test.');
+  const prevNote = page.locator('#sum-groups li.sum-note', { hasText: 'Plans a portable test.' });
+  await expect(prevNote).toHaveClass(/previous/);
+  await expect(prevNote.locator('.sum-round')).toHaveText('R3');
+  await expect(prevNote.locator('.sum-round')).toHaveAttribute('title', 'previous round 3');
+  await expect(page.locator('#sum-groups li.sum-note', { hasText: 'Round four note.' }).locator('.sum-round')).toHaveText('R4');
   // prepared replies are not repeated in the summary
   await expect(page.locator('#sum-groups')).not.toContainText('common-mode');
+  const before = await queue(page).allTextContents();
+  await page.locator('#turn-title').focus();
+  await page.keyboard.press('p'); // no longer a command: nothing changes
   expect(await queue(page).allTextContents()).toEqual(before);
+  await expect(page.locator('#sum-topic')).toHaveText('Round 4 (current) · Round 3 (previous)');
   // manual order: the point moves above the response, with a button
   await queue(page).nth(1).getByRole('button', { name: /Move up/ }).click();
   await expect(queue(page).nth(0)).toContainText('Personal talking point');
-  // an empty previous round shows the empty state; in the first round
-  // there is no previous one
-  await page.locator('#tab-control').click();
-  await page.locator('#round-list li').nth(2).getByRole('button', { name: 'Make round 3 the current round' }).click();
-  await page.locator('#tab-turn').click();
-  await page.locator('#sum-prev').click();
-  await expect(page.locator('#sum-empty')).toHaveText('No notes in this round.');
+  // in the first round there is no previous one
   await page.locator('#tab-control').click();
   await page.locator('#round-list li').nth(0).getByRole('button', { name: 'Make round 1 the current round' }).click();
   await page.locator('#tab-turn').click();
-  await expect(page.locator('#sum-prev')).toHaveAttribute('aria-disabled', 'true');
-  await expect(page.locator('#sum-prev-why')).toHaveText('This is the first logged round: there is no previous one.');
+  await expect(page.locator('#sum-topic')).toHaveText('Round 1 (current) · no previous round yet');
 });
 
 test('My Turn: Enter opens the source, b comes back to the same place; x completes, End Turn clears', async ({ page }) => {
   await fourRounds(page);
   await page.keyboard.press('m');
   await expect(page.locator('#view-turn')).toBeVisible();
-  await page.locator('#turn-title').focus();
-  await page.keyboard.press('p'); // the previous round, to be restored
-  await expect(page.locator('#sum-prev')).toHaveAttribute('aria-pressed', 'true');
   await queue(page).first().focus();
   await page.keyboard.press('Enter');
   // the source: OE0QXB, round 1 expanded, the note focused
@@ -338,7 +332,6 @@ test('My Turn: Enter opens the source, b comes back to the same place; x complet
   await expect(page.locator('#station-rounds li.note:focus textarea.note-text')).toHaveValue('Interference persists after antenna change.');
   await page.keyboard.press('b');
   await expect(page.locator('#view-turn')).toBeVisible();
-  await expect(page.locator('#sum-prev')).toHaveAttribute('aria-pressed', 'true');
   await expect(queue(page).first()).toBeFocused();
   // the station link with the pointer does the same, the checkbox does not navigate
   await queue(page).first().locator('input.turn-done').check();

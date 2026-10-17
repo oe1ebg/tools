@@ -313,6 +313,31 @@ export function roundSummary({ notes, contributions, participants, roundId }) {
   return out.sort((a, b) => a.at - b.at || cmp(a.participant.id, b.participant.id));
 }
 
+// My Turn's round notes: the current and the previous round together,
+// grouped by station. Stations of the current round first (in its order),
+// then those only in the previous one; within a station the previous
+// round's notes, then the current one's, each marked with its round.
+// [{ participant, entries: [{ note, round, which: 'current' | 'previous' }] }]
+export function turnSummary({ notes, contributions, participants, current, previous }) {
+  const byP = new Map();
+  const out = [];
+  const add = (round, which) => {
+    if (!round) return;
+    for (const g of roundSummary({ notes, contributions, participants, roundId: round.id })) {
+      let e = byP.get(g.participant.id);
+      if (!e) { e = { participant: g.participant, entries: [] }; byP.set(g.participant.id, e); out.push(e); }
+      for (const note of g.notes) e.entries.push({ note, round, which });
+    }
+  };
+  add(current, 'current');
+  add(previous, 'previous');
+  for (const e of out) {
+    const prev = e.entries.filter(x => x.which === 'previous');
+    e.entries = [...prev, ...e.entries.filter(x => x.which === 'current')];
+  }
+  return out;
+}
+
 // ---------- net style and speaking order ----------
 
 // How a net runs: 'star' (every station gives back to the NCS: directed

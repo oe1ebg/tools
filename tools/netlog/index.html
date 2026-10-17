@@ -97,6 +97,11 @@
       </div>
       <ul id="roster" class="roster" data-i18n-attr="aria-label:roster.listLabel" aria-label="Participants (j/k or arrow keys, Enter opens)"></ul>
       <p id="topo-hint" class="topo-hint hint" hidden></p>
+      <!-- moves the selected station in the list (= the speaking order) -->
+      <div class="roster-move" role="group" data-i18n-attr="aria-label:roster.moveGroup" aria-label="Move the selected station">
+        <button type="button" id="btn-roster-up" data-i18n="roster.up">↑ Up</button>
+        <button type="button" id="btn-roster-down" data-i18n="roster.down">↓ Down</button>
+      </div>
       <div class="sidecheckin">
           <form id="checkin-form" class="checkin" autocomplete="off">
             <div class="ac-wrap">
@@ -109,10 +114,6 @@
             <input id="checkin-name" autocorrect="off" enterkeyhint="done" data-i18n-attr="placeholder:checkin.namePlaceholder" placeholder="Name (optional)">
             <button type="submit" class="primary" data-i18n="checkin.add">+ Check in</button>
           </form>
-      </div>
-      <div class="sidefoot">
-        <button type="button" id="btn-roster-up" data-i18n="roster.up">↑ Up</button>
-        <button type="button" id="btn-roster-down" data-i18n="roster.down">↓ Down</button>
       </div>
     </aside>
 
@@ -202,13 +203,8 @@
         <section class="turn-summary" aria-labelledby="sum-title">
           <div class="toolbar">
             <h3 id="sum-title" tabindex="-1" data-i18n="turn.roundNotes">Round Notes</h3>
-            <div class="tabs" role="group" data-i18n-attr="aria-label:turn.whichRound" aria-label="Which round">
-              <button type="button" id="sum-current" aria-pressed="true">Current</button>
-              <button type="button" id="sum-prev" aria-pressed="false" aria-describedby="sum-prev-why">Previous</button>
-            </div>
-            <span id="sum-prev-why" class="hint"></span>
+            <span id="sum-topic" class="sum-rounds"></span>
           </div>
-          <p id="sum-topic" class="hint"></p>
           <div id="sum-groups" class="sum-groups"></div>
           <p id="sum-empty" class="empty" hidden></p>
         </section>

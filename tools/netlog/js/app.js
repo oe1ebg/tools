@@ -29,7 +29,7 @@ import { initHelp, bindingText } from './help.js';
 import { createDrafts } from './drafts.js';
 import { timeMode, setTimeMode, hm, zone, localChoiceText } from './clock.js';
 import { initNotes, renderNotes, focusNoteEditor, flagNote } from './notes.js';
-import { initTurn, renderTurn, enterTurn, turnRows, focusedTurnItem, completeItem, setSummary } from './myturn.js';
+import { initTurn, renderTurn, enterTurn, turnRows, focusedTurnItem, completeItem } from './myturn.js';
 import { createNav } from './nav.js';
 import { initLog, renderLog, logRows } from './clog.js';
 import { initSearch } from './searchui.js';
@@ -48,7 +48,7 @@ const app = {
   data: { series: [], sessions: [], profiles: [], knownCalls: [], participantCount: {} },
   s: null, // the open session
   sd: { participants: [], rounds: [], notes: [], items: [], contributions: [], turns: [], events: [] },
-  ui: { view: 'series', selected: null, detailsOpen: null, roundOpen: {}, summary: 'current', composeFlag: false },
+  ui: { view: 'series', selected: null, detailsOpen: null, roundOpen: {}, composeFlag: false },
   langHooks: [],
 };
 globalThis.NETLOG_APP = app; // the browser tests read state through this
@@ -211,7 +211,6 @@ async function openSession(id) {
   app.s = null;
   app.sd = EMPTY_SD();
   app.ui.roundOpen = {};
-  app.ui.summary = 'current';
   await app.drafts.load(null);
   if (id) {
     const s = await app.store.get('sessions', id);
@@ -591,11 +590,6 @@ function initKeyboard(help) {
       nextSpeaker: () => {
         if (!app.s || app.readOnly || $('#btn-next').disabled) return false;
         nextSpeaker(app);
-        return true;
-      },
-      previous: () => {
-        if (app.ui.view !== 'turn') return false;
-        setSummary(app, app.ui.summary === 'previous' ? 'current' : 'previous');
         return true;
       },
       complete: () => {

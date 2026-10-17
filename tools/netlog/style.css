@@ -544,3 +544,31 @@ li.event-line .time{ min-width:5.5em; }
 
 .series-head{ cursor:pointer; }
 .series-head:hover{ filter:brightness(.98); }
+
+/* a session row: the title opens it; secondary actions on the right */
+.session-row{ gap:.4em .8em; }
+.session-open{ background:none; border:0; padding:.25em .3em; margin-left:-.3em; min-height:0; font:inherit; text-align:left; color:var(--accent-text); cursor:pointer; border-radius:4px; }
+.session-open:hover{ background:var(--accent-soft); }
+.session-title{ font-weight:600; font-size:14.5px; }
+.session-date{ color:var(--text-dim); font-weight:400; margin-right:.3em; }
+.session-info{ display:inline-flex; gap:.4em; align-items:center; }
+.session-acts{ margin-left:auto; display:inline-flex; flex-wrap:wrap; gap:.35em; align-items:center; }
+.session-acts select{ max-width:14em; }
+.session-row .session-main{ flex:0 1 auto; }
+
+/* My Turn round notes: both rounds, compact, by station */
+.sum-rounds{ font-size:13px; color:var(--text-dim); }
+.sum-group{ margin:.35em 0; }
+.sum-group h4{ margin:0 0 .1em; font-size:14px; }
+.sum-notes{ list-style:none; margin:0; padding:0 0 0 .4em; }
+.sum-note{ display:flex; gap:.5em; align-items:baseline; padding:.12em 0; font-size:14px; }
+.sum-note .sum-round{ flex:none; font-size:11.5px; font-weight:700; padding:0 .35em; border-radius:4px; background:var(--accent); color:#fff; }
+.sum-note.previous .sum-round{ background:var(--line-strong); color:var(--text); }
+.sum-note.previous .sum-text{ color:var(--text-dim); }
+.sum-note .sum-text{ flex:1 1 auto; white-space:pre-wrap; }
+.sum-note button.mini{ min-height:0; padding:0 .4em; }
+
+/* ↑/↓: the selected station in the list, right under it, two equal halves */
+.roster-move{ display:grid; grid-template-columns:1fr 1fr; gap:.4em; padding:.4em .8em 0; }
+.roster-move button{ min-height:0; padding:.3em .5em; font-size:13.5px; }
+@media (pointer: coarse){ .roster-move button{ min-height:40px; } }

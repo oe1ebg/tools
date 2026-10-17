@@ -53,7 +53,6 @@ export function createNav(app) {
     sessionId: app.sessionId(),
     view: app.ui.view,
     selected: app.ui.selected,
-    summary: app.ui.summary,
     roundOpen: { ...app.ui.roundOpen },
     scrollY: globalThis.scrollY,
     viewScroll: (document.getElementById(`view-${app.ui.view}`) || {}).scrollTop || 0,
@@ -77,7 +76,6 @@ export function createNav(app) {
       if (o.sessionId !== app.sessionId()) await app.openSessionNow(o.sessionId, o.view);
       app.ui.view = o.view;
       if (o.selected && app.participant(o.selected)) app.ui.selected = o.selected;
-      app.ui.summary = o.summary;
       // rounds expanded to show a source stay as the user had them
       app.ui.roundOpen = o.roundOpen;
       app.syncHash();
