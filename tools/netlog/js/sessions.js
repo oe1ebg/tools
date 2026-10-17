@@ -71,8 +71,8 @@ export function initSessions(app) {
     });
   }
   $('#sf-series').addEventListener('change', () => suggestNumber(app));
-  attachRepeaterField(app, $('#sf-repeater'));
-  attachRepeaterField(app, $('#srf-repeater'));
+  attachRepeaterField(app, $('#sf-repeater'), { freq: $('#sf-freq'), mode: $('#sf-mode') });
+  attachRepeaterField(app, $('#srf-repeater'), { freq: $('#srf-freq'), mode: $('#srf-mode') });
   attachCallField(app, $('#srf-ncs'));
   attachCallField(app, $('#sf-own'));
 

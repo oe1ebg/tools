@@ -10,10 +10,13 @@ import { searchRepeaters, formatMHz } from '../../shared/js/repeaters.js';
 import { t } from './i18n.js';
 import { candidateButtons } from './roster.js';
 
-// "OE1XUU 145.600" for a picked repeater.
-export function repeaterText(r) {
-  return [r.call, formatMHz(r.out)].filter(Boolean).join(' ');
-}
+// The modes of the session's mode field a listed repeater can stand for.
+const REPEATER_MODES = { FM: 'FM', DMR: 'DMR', C4FM: 'C4FM', DSTAR: 'DSTAR' };
+
+// A picked repeater fills its fields: the call into the repeater field,
+// its output frequency into the frequency field, and the mode when the
+// mode is not set yet and the list gives exactly one usable mode. Each
+// field saves through its own change event.
 
 function wrap(input) {
   // the dropdown goes right after the field, inside a positioned box
@@ -25,7 +28,8 @@ function wrap(input) {
   return pop;
 }
 
-export function attachRepeaterField(app, input, onPick = null) {
+// fields: { freq: <input>, mode: <select> } next to the repeater field.
+export function attachRepeaterField(app, input, fields = {}) {
   const pop = wrap(input);
   const dd = popover(input, pop, { enterPicksFirst: false, label: t('field.repeaters') });
   app.onLang(() => pop.setAttribute('aria-label', t('field.repeaters')));
@@ -41,11 +45,17 @@ export function attachRepeaterField(app, input, onPick = null) {
       type: 'button',
       class: 'ac-item',
       onclick: () => {
-        input.value = repeaterText(r);
+        const set = (f, v) => {
+          if (!f || f.value === v) return;
+          f.value = v;
+          f.dispatchEvent(new Event('change', { bubbles: true }));
+        };
+        set(input, r.call);
+        if (r.out) set(fields.freq, formatMHz(r.out));
+        const usable = (r.modes || []).map(m => REPEATER_MODES[m]).filter(Boolean);
+        if (fields.mode && !fields.mode.value && usable.length === 1) set(fields.mode, usable[0]);
         dd.hide();
-        input.dispatchEvent(new Event('change', { bubbles: true }));
         input.focus();
-        if (onPick) onPick(r);
       },
     }, el('b', {}, r.call), el('small', {}, describeRepeater(r, distKm).replace(`${r.call} · `, '')))));
     dd.update();
