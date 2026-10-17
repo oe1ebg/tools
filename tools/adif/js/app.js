@@ -9,6 +9,8 @@ import { ADIF_FIELDS, ADIF_FIELD_MAP } from './fields.js';
 import { serializeADIF, serializeADIFSteps, serializeCSV, serializeSotaCsv, adifChangedValues, ADI_MIME, emptyFieldDefs, mergeFieldDefs, forgetFieldDefs } from './export.js';
 import { el, fill, isComposing, trackExpanded } from '../../shared/js/dom.js';
 import { initHelpDialog } from '../../shared/js/helpdialog.js';
+import { prefGet, prefSet } from '../../shared/js/prefs.js';
+import { adifDisplayColumns, ADIF_COLUMN_ORDERS } from './columns.js';
 import { validateAdifSteps } from '../../shared/js/adif-validate.js';
 import { ChunkedSlot, chunkedIsAbort } from '../../shared/js/chunked.js';
 import { loadLogFiles, ADIF_LIMITS, adifFormatCount } from './load.js';
@@ -42,8 +44,12 @@ function populateFieldDatalist(){
 
 /* ---------- state ---------- */
 
-let columns = [];   // ordered field names
-let colIndex = new Map(); // field name -> position in columns
+let columns = [];   // ordered field names, as in the file (the exports' order)
+// The table's order (columns.js): core fields first, or the file's order.
+const COL_ORDER_PREF = 'oe1ebg-adif-column-order';
+let colOrder = ADIF_COLUMN_ORDERS.includes(prefGet(COL_ORDER_PREF)) ? prefGet(COL_ORDER_PREF) : 'core';
+let shown = [];     // the table's columns: adifDisplayColumns(columns, colOrder), set by render()
+let colIndex = new Map(); // field name -> position in shown
 let fileMeta = [];  // [{name, adifVer, programId, programVersion}], one per loaded file
 // USERDEF declarations and type indicators of the loaded files, merged
 // (export.js, mergeFieldDefs): the ADI export writes them back.
@@ -469,7 +475,7 @@ function buildColgroup(){
   numCol.style.width = `calc(${rownumCss})`;
   colsPx = 0;
   const group = el('colgroup', {}, numCol);
-  columns.forEach((col, ci) => {
+  shown.forEach((col, ci) => {
     // wide enough for the values (up to MAX_COL_CHARS) and for the header:
     // the name (a proportional bold font) and the sort/remove buttons;
     // ISO dates and times have two separators more than they store
@@ -501,7 +507,7 @@ function widenColumn(col, value){
 function buildProtoRow(){
   const tr = document.createElement('tr');
   tr.appendChild(el('td', { class: 'rownum' }, '', el('button', { type: 'button', class: 'del', title: 'delete row' }, '×')));
-  columns.forEach((col, ci) => {
+  shown.forEach((col, ci) => {
     const td = document.createElement('td');
     td.setAttribute('contenteditable', EDITABLE);
     td.spellcheck = false;
@@ -559,8 +565,8 @@ function renderRow(ri){
   num.lastChild.setAttribute('aria-label', `delete row ${ri + 1}`);
   const rec = records[ri];
   let td = num.nextSibling;
-  for (let ci = 0; ci < columns.length; ci++){
-    const col = columns[ci];
+  for (let ci = 0; ci < shown.length; ci++){
+    const col = shown[ci];
     const kind = colKinds[ci];
     if (kind && kind.kind !== 'suggest') renderCell(td, rec, col, ri, kind);
     else {
@@ -638,12 +644,13 @@ function render(){
     return;
   }
   setExportButtonsDisabled(false);
-  colIndex = new Map(columns.map((c, i) => [c, i]));
-  colKinds = columns.map(c => eoColumnKind(c, fieldDefs) || dtColumnKind(c, fieldDefs));
+  shown = adifDisplayColumns(columns, colOrder);
+  colIndex = new Map(shown.map((c, i) => [c, i]));
+  colKinds = shown.map(c => eoColumnKind(c, fieldDefs) || dtColumnKind(c, fieldDefs));
   protoRow = buildProtoRow();
 
   const htr = el('tr', { 'aria-rowindex': '1' }, el('th', { class: 'rownum-col', scope: 'col' }, '#'));
-  for (const col of columns){
+  for (const col of shown){
     const fieldDef = ADIF_FIELD_MAP.get(col);
     const userdef = fieldDef ? null : fieldDefs.userdefs.find(u => u.name === col);
     const indicator = fieldDef ? '' : fieldDefs.types[col];
@@ -697,7 +704,7 @@ function render(){
   dropEl.appendChild(addRowDiv);
 
   body = new VirtualBody(dropEl, table, {
-    columns: columns.length + 1,
+    columns: shown.length + 1,
     rowCount: viewLength,
     rowKey: viewIndexAt,
     renderRow,
@@ -904,7 +911,7 @@ function bindBodyEvents(tbody){
       focusCell(pos + 1);
     } else if (e.key === 'Tab' && e.shiftKey && !td && e.target.classList.contains('del') && pos > 0){
       e.preventDefault();
-      focusCell(pos - 1, columns[columns.length - 1]);
+      focusCell(pos - 1, shown[shown.length - 1]);
     }
   });
   tbody.addEventListener('click', e => {
@@ -1079,7 +1086,7 @@ function applyFilter(){
 // change) and the counter.
 function syncFilterBar(){
   filterUI.show(records.length > 0);
-  filterUI.setFields(columns);
+  filterUI.setFields(adifDisplayColumns(columns, colOrder));
   filterUI.setFiles([...new Set(fileMeta.map(f => f.name))]);
   filterUI.setCount(viewLength(), records.length);
 }
@@ -1484,6 +1491,23 @@ document.getElementById('btn-issues').addEventListener('click', () => {
   if (!panel.hidden && issuesStale) renderIssueList();
   updateIssuesButton();
 });
+
+// The column order of the table (not of the exports): core fields first
+// or the file's order, remembered on this device.
+function syncColOrder(){
+  for (const b of document.querySelectorAll('#col-order button')) b.setAttribute('aria-pressed', String(b.dataset.colOrder === colOrder));
+}
+document.getElementById('col-order').addEventListener('click', e => {
+  const next = e.target.closest('button')?.dataset.colOrder;
+  if (!next || next === colOrder) return;
+  commitFocusedCell();
+  colOrder = next;
+  prefSet(COL_ORDER_PREF, next);
+  syncColOrder();
+  if (records.length) render();
+  syncFilterBar();
+});
+syncColOrder();
 
 populateFieldDatalist();
 initHelpDialog(); // "? Help" in the header, ? outside cells and fields
