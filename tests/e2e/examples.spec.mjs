@@ -110,7 +110,7 @@ test.describe('Netlog examples', () => {
 test.describe('Confirm examples', () => {
   // the oldest log: 13 check-ins and 2 operator comments (rows of the log)
   for (const [name, logs] of [['confirm-full.json', 4], ['confirm-example.json', 1]]) {
-    test(`${name}: imports ${logs} logs; "Alle sichern" restores the same into an empty profile`, async ({ page, browser, baseURL }, testInfo) => {
+    test(`${name}: imports ${logs} logs; "Alles sichern" restores the same into an empty profile`, async ({ page, browser, baseURL }, testInfo) => {
       await ready(page, 'confirm', 'CONFIRM_READY');
       await page.locator('#import-file').setInputFiles(file(name));
       await expect(page.locator('#import-msg')).toContainText(`${logs} Log${logs === 1 ? '' : 's'} importiert`);

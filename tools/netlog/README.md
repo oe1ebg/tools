@@ -58,7 +58,7 @@ offers the export, as on any other page without IndexedDB.
   shown: sessions, date range, ⌀ stations per session, different stations
   (by station profile, else complete base callsign; partial calls not
   counted separately), notes and open follow-ups (`seriesStats()` in
-  `js/history.js`). "Back up" exports the series with all its sessions
+  `js/history.js`). "Back up (JSON)" saves the series with all its sessions
   (deleted ones too) and the profiles they use as one JSON backup (scope
   `series`); "Restore…" on its card accepts only a backup of that series
   and imports it like any backup (checked first, one transaction,

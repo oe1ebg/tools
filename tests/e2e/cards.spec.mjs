@@ -33,12 +33,12 @@ test('Confirm on a phone: each check-in is a card with callsign, buttons and nam
   expect(await fits(page, '#view-log .table-wrap')).toBe(true);
 
   const row = page.locator('#log-body tr[data-id]:not(.marker)').first();
-  for (const cell of [row.locator('td.call'), row.getByRole('button', { name: /^Bearb\./ }), row.getByRole('button', { name: /löschen$/ })]) {
+  for (const cell of [row.locator('td.call'), row.getByRole('button', { name: /^Bearbeiten/ }), row.getByRole('button', { name: /löschen$/ })]) {
     expect(await inside(cell)).toBe(true);
   }
   // the callsign and the buttons share the first line; the details follow, named
   const call = await row.locator('td.call').boundingBox();
-  const edit = await row.getByRole('button', { name: /^Bearb\./ }).boundingBox();
+  const edit = await row.getByRole('button', { name: /^Bearbeiten/ }).boundingBox();
   expect(Math.abs(call.y - edit.y)).toBeLessThan(call.height);
   await expect(row.locator('td[data-label="Notiz"]')).toBeVisible();
   expect(await row.locator('td[data-label="Notiz"]').evaluate(td => getComputedStyle(td, '::before').content)).toContain('Notiz');

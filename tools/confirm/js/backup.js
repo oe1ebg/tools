@@ -203,7 +203,7 @@ export function backupTexts(events, exported, setId, limits) {
     }
     return JSON.stringify({ format: BACKUP_FORMAT, version: 1, exported, ...(part ? { part } : {}), events: out, ...(chunks.length ? { chunks } : {}) }, null, 1);
   };
-  const tooLarge = backupTooLargeMessage('Bitte die einzelnen Logs getrennt sichern (Sicherung (JSON) im jeweiligen Log).');
+  const tooLarge = backupTooLargeMessage('Bitte die einzelnen Logs getrennt sichern („Sichern (JSON)“ im jeweiligen Log).');
   // a note, comment or revision text beyond the chunk size is written as chunks
   // (chunkRecord) in the parts and put together again by combineBackupParts()
   const expand = list => list.flatMap(it => {
