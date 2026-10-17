@@ -82,7 +82,7 @@ button.person{
   display:flex; gap:.5em; align-items:center; width:100%; text-align:left;
   border:2px solid transparent; border-radius:0; background:transparent; padding:calc(.5em - 2px) calc(.75em - 2px); font-size:15px;
 }
-.person-row.active button.person{ background:var(--accent-soft); box-shadow:inset 4px 0 var(--accent); }
+.person-row.active button.person{ background:var(--accent-soft); } /* the viewed station: a tint; the left bar is the tally */
 button.person .call{ min-width:5.5em; font-weight:700; }
 button.person .pname{ color:var(--text-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13.5px; }
 button.person .badges{ margin-left:auto; display:flex; gap:.25em; flex-wrap:nowrap; }
@@ -380,10 +380,12 @@ li.event-line .time{ min-width:5.5em; }
 .roster.topo-circle .person-row:last-child::before{ content:"↺"; }
 .topo-hint{ margin:.2em .8em .4em; }
 /* whose turn it is */
-/* speaking now: a red tally light (lamp + ON AIR label), no fill; next:
+/* speaking now: a red tally bar on the left + the "● spricht" label (the
+   status dot keeps showing the status); next:
    only a dashed amber outline. Different in shape and words, not just
    colour; the selection keeps its blue bar */
-.person-row.on-air .dot{ width:.8em; height:.8em; background:var(--err); box-shadow:0 0 0 2px var(--err-soft), 0 0 8px var(--err); }
+.person-row.on-air button.person{ box-shadow:inset 6px 0 var(--err); }
+@media (forced-colors: active){ .person-row.on-air button.person{ border-left:6px solid CanvasText; } }
 .person-row.up-next button.person{ border:2px dashed var(--warn); border-radius:6px; }
 .pill.on-air{ color:#fff; background:var(--err); border-color:var(--err); font-weight:700; white-space:nowrap; letter-spacing:.02em; }
 .pill.next{ color:var(--warn); background:var(--warn-soft); border-color:var(--warn); font-weight:700; white-space:nowrap; }

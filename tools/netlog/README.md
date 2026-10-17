@@ -83,7 +83,7 @@ yet (a follow-up).
   always listed first.
 - **Running the round** (above the roster): the topology as a small
   picture and a turn strip, one chip per station in speaking order (✓
-  spoken, ● speaking now (a red tally), ▶ next, dotted: after the NCS; a click opens the
+  spoken, ● speaking now (a red tally bar on the left; the status dot keeps the status, the viewed station is tinted), ▶ next, dotted: after the NCS; a click opens the
   station), the same marks in the roster and in Net Control. "▶ Next"
   records the next speaker's turn and opens that station (My Turn when it
   is me). Star: the NCS opens every round (it has the turn before anyone is
