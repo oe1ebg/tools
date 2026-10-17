@@ -4,7 +4,7 @@
 
 import { $, el, fill } from '../../shared/js/dom.js';
 import { t } from './i18n.js';
-import { keyedList, setText, setAttr, setValue } from './keyed.js';
+import { keyedList, setText, setAttr, setValue, setNamed } from './keyed.js';
 import { rosterSorted, roundsSorted, liveOf, cmp, timeOf, callBase, STATUSES, netStyle, ncsFirst, isUnresolved } from './model.js';
 import { updateSession, addParticipant, setStatus, moveParticipant, setCurrentRound, updateRound, setItemDone, addTask, setItemText, setNcs, setEventTime, deleteParticipant, eraseParticipant } from './ops.js';
 import { callText, statusLabel } from './roster.js';
@@ -213,11 +213,11 @@ export function renderControl(app) {
       li.classList.toggle('ncs', isNcs);
       setText(ncsB, isNcs ? '★ NCS' : '☆ NCS');
       setAttr(ncsB, 'aria-pressed', String(isNcs));
-      setAttr(ncsB, 'aria-label', t('ncs.assignLabel', { call: callText(p) }));
+      setNamed(ncsB, t('ncs.assignLabel', { call: callText(p) }));
       ncsB.disabled = app.readOnly;
       const i = list.indexOf(p);
       setText(open, `${i + 1}. ${callText(p)}${p.name ? ` · ${p.name}` : ''}${isOwn(app, p) ? ` (${t('own.badge')})` : ''}`);
-      setAttr(open, 'aria-label', t('control.openLabel', { call: callText(p) }));
+      setNamed(open, t('control.openLabel', { call: callText(p) }));
       // the station's state, switched here like in its head: checking out
       // closes its presence, coming back opens a new interval
       const [lab, sel] = status.children;
@@ -340,7 +340,7 @@ export function renderControl(app) {
       li.classList.toggle('current', isCur);
       setText(cur, isCur ? t('round.current') : t('round.makeCurrent'));
       setAttr(cur, 'aria-pressed', String(isCur));
-      setAttr(cur, 'aria-label', isCur ? t('round.isCurrentLabel', { n: r.number }) : t('round.makeCurrentLabel', { n: r.number }));
+      setNamed(cur, isCur ? t('round.isCurrentLabel', { n: r.number }) : t('round.makeCurrentLabel', { n: r.number }));
       cur.disabled = app.readOnly || isCur;
     },
   });
@@ -365,7 +365,7 @@ export function renderControl(app) {
       li.classList.toggle('done', i.state === 'done');
       if (n) setText(body, what); else { setValue(body, i.text); setAttr(body, 'aria-label', t('control.taskText')); body.disabled = app.readOnly; }
       if (open && !n) renderProvenance(open, i);
-      if (open && n) { open.dataset.pid = p ? p.id : ''; open.dataset.note = n.id; setText(open, t('turn.toNote')); setAttr(open, 'aria-label', t('turn.toNoteLabel', { call: p ? callText(p) : '?' })); }
+      if (open && n) { open.dataset.pid = p ? p.id : ''; open.dataset.note = n.id; setText(open, t('turn.toNote')); setNamed(open, t('turn.toNoteLabel', { call: p ? callText(p) : '?' })); }
     },
   });
   if (!tasks.length) fill($('#task-list'), el('li', { class: 'empty', 'data-key': '' }, t('control.noTasks')));

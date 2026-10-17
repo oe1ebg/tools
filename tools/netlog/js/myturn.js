@@ -14,7 +14,7 @@
 
 import { $, el, fill, isComposing } from '../../shared/js/dom.js';
 import { t } from './i18n.js';
-import { keyedList, setText, setAttr, setValue } from './keyed.js';
+import { keyedList, setText, setAttr, setValue, setNamed } from './keyed.js';
 import { provenanceButton, renderProvenance, openProvenance } from './historyui.js';
 import { queueItems, openTurn, previousRound, turnSummary, responseOf, liveOf, cmp } from './model.js';
 import { setItemDone, moveItem, addPoint, startTurn, endTurn, setItemText, deleteItem } from './ops.js';
@@ -151,7 +151,7 @@ export function renderTurn(app) {
       const p = note ? app.sd.participants.find(x => x.id === note.participantId) : null;
       const who = i.kind === 'point' ? t('turn.point') : `${p ? callText(p) : '?'}${p && p.name ? ` · ${p.name}` : ''}`;
       setText(head.firstChild, who);
-      if (i.kind !== 'point') setAttr(head.firstChild, 'aria-label', t('turn.openSource', { call: p ? callText(p) : '?' }));
+      if (i.kind !== 'point') setNamed(head.firstChild, t('turn.openSource', { call: p ? callText(p) : '?' }));
       const r = note ? rounds.get(note.roundId) : null;
       if (i.from) renderProvenance(head.lastChild, i);
       else setText(head.lastChild, note ? t('turn.source', { n: r ? r.number : '?', time: note.time && note.time.iso ? hmz(note.time.iso) : '—' }) : '');
@@ -222,7 +222,7 @@ export function renderTurn(app) {
       b.dataset.pid = p.id;
       b.dataset.round = cur.id;
       setText(b, `${callText(p)}${p.name ? ` · ${p.name}` : ''}`);
-      setAttr(b, 'aria-label', t('turn.stationNotes', { call: callText(p) }));
+      setNamed(b, t('turn.stationNotes', { call: callText(p) }));
       if (!ul.id) ul.id = `sum-${p.id}`;
       keyedList(ul, g.entries, {
         key: e => e.note.id,

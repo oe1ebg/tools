@@ -315,7 +315,7 @@ test('My Turn: round 1 response above the round 4 summary, points in, tasks and 
   await expect(queue(page).nth(0)).toContainText('Personal talking point');
   // in the first round there is no previous one
   await page.locator('#tab-control').click();
-  await page.locator('#round-list li').nth(0).getByRole('button', { name: 'Make round 1 the current round' }).click();
+  await page.locator('#round-list li').nth(0).getByRole('button', { name: /Make round 1 the current round/ }).click();
   await page.locator('#tab-turn').click();
   await expect(page.locator('#sum-topic')).toHaveText('Round 1 (current) · no previous round yet');
 });
@@ -367,7 +367,7 @@ test('net control: keyboard handover, history with old/new, time correction, und
   await expect(page.locator('#btn-ncs')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('#roster li', { hasText: 'OE0QXA' }).locator('.pill.ncs')).toHaveText('NCS');
   await page.locator('#tab-control').click();
-  await page.getByRole('button', { name: 'Net control: OE0QXB' }).press('Enter');
+  await page.getByRole('button', { name: /Net control: OE0QXB/ }).press('Enter');
   await expect(page.locator('#ncs-current')).toHaveText('Net control: OE0QXB · Jonas');
   await expect(page.locator('#roster .pill.ncs')).toHaveCount(1);
   await expect(page.locator('#ncs-history li .ev-what')).toHaveText(['— → OE0QXA', 'OE0QXA → OE0QXB']);
@@ -414,7 +414,7 @@ test('presence: late check-in, pause, checkout, reentry; reorders keep the speak
   await page.getByRole('button', { name: 'Move OE0QXB up' }).click();
   await page.locator('#tab-control').click();
   await page.locator('#order-list li').nth(1).getByRole('button', { name: 'Move OE0QXA up' }).click();
-  await page.getByRole('button', { name: 'Net control: OE0QXA' }).click();
+  await page.getByRole('button', { name: /Net control: OE0QXA/ }).click();
   expect(await page.evaluate(() => JSON.stringify(globalThis.NETLOG_APP.sd.contributions.map(c => [c.id, c.participantId, c.roundId, c.seq])))).toBe(before);
   await expect(page.locator('#round-list li')).toHaveCount(1);
   // a late arrival in round 3
@@ -657,7 +657,7 @@ test('offline after the install: reload, notes, search, My Turn, net control, ba
   await page.keyboard.press('m');
   await expect(page.locator('#view-turn')).toBeVisible();
   await page.locator('#tab-control').click();
-  await page.getByRole('button', { name: 'Net control: OE0QXB' }).click();
+  await page.getByRole('button', { name: /Net control: OE0QXB/ }).click();
   await expect(page.locator('#ncs-current')).toContainText('OE0QXB');
   await page.locator('#tab-series').click();
   const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#btn-export-all').click()]);

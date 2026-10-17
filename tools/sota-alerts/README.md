@@ -160,7 +160,7 @@ entirely instead of needing a proxy.
   `--pin-default` is a separate variable from `--accent` (the toolbar's
   button/link color) on purpose — the pin palette changing shouldn't
   restyle buttons sitewide, and the validated blue is a different exact
-  shade from `--accent`'s existing `#526cfe`. Two WARN-band results remain
+  shade from `--accent` (`#4560f0`, darkened from `#526cfe` for button contrast). Two WARN-band results remain
   (both legal only with secondary encoding, which this app already has):
   a light-mode contrast-vs-surface warning for yellow/magenta against a
   flat surface, mitigated by the pin's own white outline stroke giving

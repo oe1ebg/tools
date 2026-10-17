@@ -393,9 +393,9 @@ li.event-line .time{ min-width:5.5em; }
 
 /* ---------- the same status look in the roster and in Net Control ---------- */
 .person-row.st-out .call, .person-row.st-out .pname, .order-row.st-out .open{ text-decoration:line-through; }
-.person-row.st-out button.person, .order-row.st-out .open{ opacity:.55; }
+.person-row.st-out button.person .call, .person-row.st-out button.person .pname, .order-row.st-out .open{ color:var(--text-dim); } /* no opacity: text keeps >= 4.5:1 */
 .person-row.st-paused .call, .order-row.st-paused .open, .person-row.st-listening .call, .order-row.st-listening .open{ font-style:italic; }
-.person-row.st-paused button.person, .person-row.st-listening button.person{ opacity:.8; }
+
 .pill.st{ border-color:transparent; background:none; padding:0 .15em; }
 .st-mark{ min-width:1.2em; text-align:center; color:var(--text-dim); }
 
@@ -426,6 +426,8 @@ li.event-line .time{ min-width:5.5em; }
 .speak-me{ margin:0; padding:.45em .7em; border-radius:6px; font-weight:700; font-size:15px; }
 .speak-panel.me-onAir{ box-shadow:inset 0 0 0 2px var(--err); }
 .speak-panel.me-onAir .speak-me{ background:var(--err); color:#fff; }
+/* dark: the red is light, the text on it dark (>= 4.5:1) */
+:root[data-theme="dark"] .speak-panel.me-onAir .speak-me, :root[data-theme="dark"] .pill.on-air{ color:var(--bg); }
 .speak-panel.me-next{ box-shadow:inset 0 0 0 2px var(--warn); }
 .speak-panel.me-next .speak-me{ background:var(--warn-soft); color:var(--warn); border:1.5px solid var(--warn); }
 .speak-panel.me-soon .speak-me{ background:var(--bg); color:var(--text-dim); border:1px dashed var(--warn); font-weight:600; font-size:13.5px; }
@@ -563,7 +565,7 @@ li.event-line .time{ min-width:5.5em; }
 .sum-notes{ list-style:none; margin:0; padding:0 0 0 .4em; }
 .sum-note{ display:flex; gap:.5em; align-items:baseline; padding:.12em 0; font-size:14px; }
 .sum-note .sum-round{ flex:none; font-size:11.5px; font-weight:700; padding:0 .35em; border-radius:4px; background:var(--accent); color:#fff; }
-.sum-note.previous .sum-round{ background:var(--line-strong); color:var(--text); }
+.sum-note.previous .sum-round{ background:none; border:1px solid var(--line-strong); color:var(--text); }
 .sum-note.previous .sum-text{ color:var(--text-dim); }
 .sum-note .sum-text{ flex:1 1 auto; white-space:pre-wrap; }
 .sum-note button.mini{ min-height:0; padding:0 .4em; }
@@ -572,3 +574,5 @@ li.event-line .time{ min-width:5.5em; }
 .roster-move{ display:grid; grid-template-columns:1fr 1fr; gap:.4em; padding:.4em .8em 0; }
 .roster-move button{ min-height:0; padding:.3em .5em; font-size:13.5px; }
 @media (pointer: coarse){ .roster-move button{ min-height:40px; } }
+/* history entries: targets of at least 24 px (WCAG 2.5.8) */
+.station-history button.history-open{ min-height:24px; align-items:center; }

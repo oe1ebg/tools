@@ -294,7 +294,7 @@ export function renderSessions(app) {
           // starts); the secondary actions follow quietly, delete last
           const main = s.deleted
             ? el('span', { class: 'session-main' }, el('span', { class: 'session-title' }, el('span', { class: 'mono session-date' }, s.date || ''), ' ', label))
-            : el('button', { type: 'button', class: 'session-main session-open', 'data-act': 'open', 'data-id': s.id, 'aria-label': t('session.openLabel', { name: label }) },
+            : el('button', { type: 'button', class: 'session-main session-open', 'data-act': 'open', 'data-id': s.id, title: t('session.openLabel', { name: label }) },
               el('span', { class: 'session-title' }, el('span', { class: 'mono session-date' }, s.date || ''), ' ', label, ' ›'));
           fill(li,
             main,

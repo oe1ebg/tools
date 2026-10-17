@@ -277,6 +277,17 @@ screenshots *args:
     cd tests/e2e && npx playwright install chromium
     cd tests/e2e && npx playwright test --config shots.config.mjs {{args}}
 
+# UX and accessibility survey (AGENTS.md, "UX and accessibility"): the main
+# views of every tool with the example data, axe-core (WCAG 2.2 A/AA),
+# reflow at 320 px, target sizes and a keyboard walk; results and
+# screenshots in tests/e2e/a11y-survey/. Needs `just build` first. Reports,
+# does not fail.
+[doc("UX/a11y survey of all tools (axe-core, reflow, targets, keyboard), needs `just build` first")]
+a11y-survey:
+    cd tests/e2e && npm install --no-save --no-package-lock --no-audit --no-fund @playwright/test@{{playwright_version}} axe-core@4.14.0
+    cd tests/e2e && npx playwright install chromium
+    cd tests/e2e && node a11y.survey.mjs
+
 # Nu Html Checker on the tool pages in site/ (tests/e2e/vnu.sh; errors fail,
 # warnings are printed; plus the Pages index page). Uses the pinned validator image when docker or
 # podman is installed, as in CI; otherwise the vnu-jar npm package.

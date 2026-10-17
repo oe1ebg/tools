@@ -120,3 +120,7 @@ div.field > label.check{ text-transform:none; letter-spacing:0; color:var(--text
   /* inline links and the small header toggles stay compact */
   button.link, #theme-toggle button, #time-toggle button{ min-height:0; }
 }
+
+/* A status chip never pushes a narrow page sideways (WCAG 1.4.10): its
+   text wraps instead. */
+@media (max-width: 480px){ .chip{ white-space:normal; max-width:100%; } }

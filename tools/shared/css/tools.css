@@ -15,13 +15,17 @@
   --line-strong: #00000061;
   --text: #000000de;
   --text-dim: #00000099;
-  --accent: #526cfe;
+  /* the button/toggle colour: white on it >= 4.5:1 (WCAG 1.4.3); as an
+     outline >= 3:1 on --bg in both themes (1.4.11) */
+  --accent: #4560f0;
   /* accent as text colour on --bg / --bg-raised (>= 4.5:1, small text) */
   --accent-text: #3f55d9;
-  --accent-dim: #6b78d0;
-  --accent-soft: #526cfe1a;
+  /* also used for hint text: >= 4.5:1 on --bg and --bg-raised */
+  --accent-dim: #5563c0;
+  --accent-soft: #4560f01a;
   --ok: #2e7d32;
-  --warn: #9a6700;
+  /* warning text, also on --warn-soft: >= 4.5:1 */
+  --warn: #8f5f00;
   --warn-soft: #f9a8251f;
   --err: #c62828;
   --err-soft: #c628281a;
@@ -36,11 +40,12 @@
   --line: hsla(225,15%,90%,.14);
   --line-strong: hsla(225,15%,90%,.38);
   --text: hsla(225,15%,90%,.82);
-  --text-dim: hsla(225,15%,90%,.5);
-  --accent: #526cfe;
+  /* muted text: >= 4.5:1 on --bg and --bg-raised */
+  --text-dim: hsla(225,15%,90%,.57);
+  --accent: #4560f0;
   --accent-text: #9aa8f5;
   --accent-dim: #9aa8f5;
-  --accent-soft: #526cfe2e;
+  --accent-soft: #4560f02e;
   --ok: #7bc47f;
   --warn: #e0b35c;
   --warn-soft: #e0b35c1f;
@@ -67,3 +72,13 @@
 /* The hidden <input type="date"> behind the date fields' calendar button
    (js/isodate.js): only its picker shows. */
 .iso-date-picker{ position:fixed; width:1px; height:1px; padding:0; border:0; opacity:0; pointer-events:none; }
+
+/* Header controls (time zone, language, theme, help): at least 24×24 CSS
+   px everywhere (WCAG 2.5.8). :root lifts the specificity above the
+   tools' own `min-height:0`. */
+:root #theme-toggle button, :root #time-toggle button, :root .toggle button,
+:root button[data-theme-choice], :root button[data-time-choice], :root button[data-time-mode],
+:root button[data-lang], :root #btn-help{ min-height:24px; min-width:24px; }
+
+/* The way back to the overview: a target of at least 24 px too. */
+:root #back-link, :root #home-link{ display:inline-flex; align-items:center; min-height:24px; }

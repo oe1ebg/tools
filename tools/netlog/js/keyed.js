@@ -62,3 +62,11 @@ export function setValue(field, value) {
   const s = String(value ?? '');
   if (document.activeElement !== field && field.value !== s) field.value = s;
 }
+
+// An accessible name that starts with what the control shows (WCAG 2.5.3,
+// label in name), then the detail: "☐ danach – Aufgabe nach der Runde zu
+// dieser Notiz". Call after setting the visible text.
+export function setNamed(node, detail) {
+  const shown = node.textContent.replace(/\s+/g, ' ').trim();
+  setAttr(node, 'aria-label', detail ? `${shown} – ${detail}` : null);
+}

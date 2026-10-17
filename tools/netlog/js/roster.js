@@ -224,10 +224,13 @@ export function renderRoster(app) {
         el('span', { class: 'dot', 'aria-hidden': 'true' }),
         el('b', { class: 'call mono' }),
         el('small', { class: 'pname' }),
-        el('span', { class: 'badges' }))),
+        el('span', { class: 'badges' }),
+        // the details for screen readers, after the visible text (so the
+        // name starts with what is shown, WCAG 2.5.3)
+        el('span', { class: 'sr-only' }))),
     update: (li, p) => {
       const b = li.firstElementChild;
-      const [dot, callN, nameN, badges] = b.children;
+      const [dot, callN, nameN, badges, details] = b.children;
       dot.className = `dot ${p.status}`;
       setText(callN, callText(p));
       callN.classList.toggle('unresolved', isUnresolved(p.call));
@@ -247,7 +250,8 @@ export function renderRoster(app) {
       li.classList.toggle('on-air', mark === 'on-air');
       li.classList.toggle('up-next', mark === 'next');
       setAttr(b, 'aria-current', selected ? 'true' : null);
-      setAttr(b, 'aria-label', [callText(p), p.name, statusLabel(p.status), isUnresolved(p.call) ? t('station.unresolved') : '', ...marks.map(m => m.title || m.text)].filter(Boolean).join(', '));
+      setText(details, ['', statusLabel(p.status), isUnresolved(p.call) ? t('station.unresolved') : '', ...marks.map(m => m.title).filter(Boolean)].filter((x, i) => i === 0 || x).join(', '));
+      setAttr(b, 'aria-label', null);
       b.tabIndex = selected || (!app.ui.selected && p === list[0]) ? 0 : -1;
     },
   });

@@ -35,7 +35,7 @@ function palette() {
     text: cssVar('--text', '#222'),
     fill: cssVar('--bg-raised', '#f5f5f5'),
     bg: cssVar('--bg', '#fff'),
-    accent: cssVar('--accent', '#526cfe'),
+    accent: cssVar('--accent', '#4560f0'),
     warn: cssVar('--warn', '#9a6700'),
     water: '#4a90d9',
   };

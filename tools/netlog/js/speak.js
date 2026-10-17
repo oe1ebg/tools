@@ -170,19 +170,20 @@ export function renderSpeak(app) {
   if (st.free) {
     const sel = app.participant(app.ui.selected);
     setText(b, sel ? t('speak.freeBtn', { call: name(sel) }) : t('speak.freePick'));
-    setAttr(b, 'aria-label', sel ? t('speak.freeLabel', { call: callText(sel) }) : t('speak.freePick'));
+    // the name starts with the visible text (WCAG 2.5.3)
+    setAttr(b, 'aria-label', sel ? `${b.textContent} (${t('speak.freeHint')})` : null);
     b.disabled = app.readOnly || !sel;
     return;
   }
   if (st.needsNcs) {
     setText(b, t('speak.needsNcsBtn'));
-    setAttr(b, 'aria-label', t('speak.needsNcsBtn'));
+    setAttr(b, 'aria-label', null);
     b.disabled = true;
     return;
   }
   const nextNo = Math.max(0, ...roundsSorted(app.sd.rounds).map(r => r.number || 0)) + 1;
   setText(b, st.complete || !st.next ? t('speak.newRound', { n: nextNo }) : t('speak.nextBtn', { call: name(st.next) }));
-  setAttr(b, 'aria-label', st.complete || !st.next ? t('speak.newRoundLabel', { n: nextNo }) : t('speak.nextLabel', { call: callText(st.next) }));
+  setAttr(b, 'aria-label', st.complete || !st.next ? null : `${b.textContent} (${t('speak.nextHint')})`);
   b.classList.toggle('suggest-round', st.complete);
   b.disabled = app.readOnly || (!st.order.length && !st.complete);
 }
