@@ -240,6 +240,8 @@ export const LANG_DE = {
   'report.rounds': 'Runden und Notizen',
   'report.emptyRound': 'Keine Notizen in dieser Runde.',
   'report.adhoc': 'Sitzung ohne Serie',
+  'field.modeChoose': '{call} arbeitet in {modes}: Betriebsart wählen',
+  'field.modeNone': '{call} ({modes}): keine Betriebsart fürs Log, Betriebsart geleert',
   'control.empty': 'Noch keine Stationen aufgenommen.',
 
   'series.title': 'Sitzungen & Serien',
