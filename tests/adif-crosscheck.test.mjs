@@ -187,7 +187,8 @@ test('cross-check Netlog check-in exports', { skip }, () => {
     p('a', 'OE0QXA', { name: 'Änne', locator: 'JN88', presence: [{ from: at('2026-10-16T18:05:00.000Z', 'estimated'), to: at('2026-10-16T19:00:00.000Z') }] }),
     p('q', 'OE0QX?'),
   ];
-  for (const radio of [{ repeater: 'OE0XQR 438.950', mode: 'FM' }, { repeater: '3.650', mode: 'SSB' }, { repeater: 'OE0XQD', mode: 'DMR' }, {}]) {
+  for (const radio of [{ repeater: 'OE0XQR 438.950', mode: 'FM' }, { repeater: '3.650', mode: 'SSB' }, { repeater: 'OE0XQD', mode: 'DMR' },
+    { repeater: '', freq: '2m', mode: 'SSB' }, { repeater: 'OE0XQX', freq: '145.600', mode: 'FM' }, {}]) {
     const session = { id: 's', name: 'Runde <x>', date: '2026-10-16', ncsId: 'n', own: { call: 'OE0QXZ', base: 'OE0QXZ' }, radio };
     crossCheck(`netlog ${JSON.stringify(radio)}`, netAdif({ session, participants }, {
       createdIso: '2026-10-16T20:00:00.000Z', repeaters: [{ call: 'OE0XQR', out: 438.95, in: 431.35, modes: ['FM'] }],

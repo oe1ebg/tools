@@ -11,7 +11,7 @@ import {
   toggleTask, setNcs, deleteParticipant, setStatus,
 } from '../tools/netlog/js/ops.js';
 import {
-  netAdif, netAdifIssues, stationsCsv, notesCsv, reportData, radioInfo, parseRadioText, adifBand, exportBase,
+  netAdif, netAdifIssues, stationsCsv, notesCsv, reportData, radioInfo, parseRadioText, parseFreqText, adifBand, exportBase,
 } from '../tools/netlog/js/export.js';
 import { validateAdif } from '../tools/shared/js/adif-validate.js';
 import { readADI, isCompleteQSO } from './adif-spec.mjs';
@@ -63,6 +63,45 @@ test('repeater/frequency text: call and MHz; band from the ADIF band table', () 
   assert.equal(adifBand(3.65), '80m');
   assert.equal(adifBand(1000), '');
   assert.equal(adifBand(null), '');
+});
+
+test('frequency field: MHz or an ADIF band name; separate from the repeater', () => {
+  assert.deepEqual(parseFreqText('145.500'), { mhz: 145.5, band: '2m' });
+  assert.deepEqual(parseFreqText('3,650 MHz'), { mhz: 3.65, band: '80m' });
+  assert.deepEqual(parseFreqText('2m'), { mhz: null, band: '2m' });
+  assert.deepEqual(parseFreqText('70CM'), { mhz: null, band: '70cm' });
+  assert.deepEqual(parseFreqText(''), { mhz: null, band: '' });
+  // a direct net: frequency only, no repeater, no PROP_MODE
+  let r = radioInfo({ radio: { repeater: '', freq: '144.300', mode: 'SSB' } }, REPEATERS);
+  assert.equal(r.repeater, null);
+  assert.equal(r.txMHz, 144.3);
+  assert.equal(r.band, '2m');
+  // a band only ("2m SSB net")
+  r = radioInfo({ radio: { freq: '2m', mode: 'SSB' } }, REPEATERS);
+  assert.equal(r.txMHz, null);
+  assert.equal(r.band, '2m');
+  // a repeater off the list with its own frequency field
+  r = radioInfo({ radio: { repeater: 'OE0XQX', freq: '145.600' } }, REPEATERS);
+  assert.equal(r.repeater, 'OE0XQX');
+  assert.equal(r.txMHz, 145.6);
+});
+
+test('ADIF of a direct 2m SSB net: BAND without FREQ, no PROP_MODE; still valid', async () => {
+  const { data } = await fixture();
+  const session = { ...data.session, radio: { repeater: '', freq: '2m', mode: 'SSB' } };
+  const adi = netAdif({ ...data, session }, { repeaters: REPEATERS });
+  const v = validateAdif(adi, { today: '20261017' });
+  assert.equal(v.errors, 0, JSON.stringify(v.issues));
+  const { records } = readADI(adi);
+  for (const r of records) {
+    assert.ok(isCompleteQSO(r));
+    assert.equal(r.BAND, '2m');
+    assert.equal(r.FREQ, undefined);
+    assert.equal(r.MODE, 'SSB');
+    assert.equal(r.PROP_MODE, undefined);
+    assert.equal(r.APP_OE1EBG_REPEATER, undefined);
+  }
+  assert.deepEqual(netAdifIssues({ ...data, session }, REPEATERS).problems, []);
 });
 
 test('radio facts: the repeater list gives input/output and a single usable mode; a set mode wins', () => {

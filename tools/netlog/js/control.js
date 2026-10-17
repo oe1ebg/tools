@@ -78,6 +78,7 @@ export function initControl(app) {
       if (r) app.announce(t(`style.${r.style}`));
     }
     if (f.id === 'se-repeater') await app.act(store => updateSession(store, app.ctx(), app.s.id, { radio: { repeater: f.value.trim() } }));
+    if (f.id === 'se-freq') await app.act(store => updateSession(store, app.ctx(), app.s.id, { radio: { freq: f.value.trim() } }));
     if (f.id === 'se-mode') await app.act(store => updateSession(store, app.ctx(), app.s.id, { radio: { mode: f.value } }));
   });
   $('#btn-checkin-own').addEventListener('click', async () => {
@@ -240,6 +241,7 @@ export function renderControl(app) {
   setValue($('#se-own'), app.s.own.call || '');
   setValue($('#se-name'), app.s.name || '');
   setValue($('#se-repeater'), (app.s.radio && app.s.radio.repeater) || '');
+  setValue($('#se-freq'), (app.s.radio && app.s.radio.freq) || '');
   if (document.activeElement !== $('#se-style')) $('#se-style').value = netStyle(app.s);
   if (document.activeElement !== $('#se-mode')) $('#se-mode').value = (app.s.radio && app.s.radio.mode) || '';
   renderExport(app);
