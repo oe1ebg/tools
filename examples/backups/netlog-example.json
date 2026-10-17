@@ -1,0 +1,2673 @@
+{
+ "format": "oe1ebg-netlog-backup",
+ "version": 1,
+ "schema": 1,
+ "exported": "2026-10-17T12:00:00.000Z",
+ "scope": "session",
+ "sessionId": "ce74565c-013b-4676-954e-6e461a514fab",
+ "stores": {
+  "sessions": [
+   {
+    "id": "ce74565c-013b-4676-954e-6e461a514fab",
+    "seriesId": "7d44fbd6-38cf-453f-8c81-6fc5ab9cb00d",
+    "number": 1,
+    "name": "DEMO · Leuchtturm ohne Meer",
+    "date": "2026-06-03",
+    "own": {
+     "call": "OE0QXA",
+     "base": "OE0QXA"
+    },
+    "radio": {
+     "repeater": "",
+     "freq": "145.500",
+     "mode": "FM"
+    },
+    "suggestedNcs": "OE0QXA",
+    "style": "star",
+    "start": {
+     "iso": "2026-06-03T17:00:00.000Z",
+     "quality": "exact"
+    },
+    "end": {
+     "iso": "2026-06-03T17:44:05.000Z",
+     "quality": "exact"
+    },
+    "joinedLate": false,
+    "currentRoundId": "043ab95c-6d4f-4442-b8cb-c8049ed6203c",
+    "ncsId": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+    "deleted": null,
+    "created": "2026-06-03T17:00:00.000Z",
+    "updated": "2026-06-03T17:44:05.000Z"
+   }
+  ],
+  "series": [
+   {
+    "id": "7d44fbd6-38cf-453f-8c81-6fc5ab9cb00d",
+    "name": "DEMO · Lindenhain-Abendrunde",
+    "description": "Vollständig fiktive Testserie. Nur die Mischung aus Stammgästen, Nachfragen und längeren Gesprächen ist vom bereitgestellten Notizbuch inspiriert.",
+    "schedule": "Mittwochs 17:00 UTC",
+    "defaults": {
+     "repeater": "",
+     "freq": "145.500",
+     "mode": "FM",
+     "ncs": "OE0QXA",
+     "style": "star"
+    },
+    "numbering": "sequential",
+    "deleted": null,
+    "created": "2026-06-01T16:00:00.000Z",
+    "updated": "2026-06-01T16:00:00.000Z"
+   }
+  ],
+  "participants": [
+   {
+    "id": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "call": "OE0QXA",
+    "base": "OE0QXA",
+    "unresolved": false,
+    "profileId": "52d80747-4c4d-4eef-bfb7-13865996d686",
+    "status": "out",
+    "flags": {
+     "reception": false
+    },
+    "presence": [
+     {
+      "from": {
+       "iso": "2026-06-03T17:00:20.000Z",
+       "quality": "exact"
+      },
+      "to": {
+       "iso": "2026-06-03T17:44:05.000Z",
+       "quality": "exact"
+      }
+     }
+    ],
+    "rosterOrder": 1,
+    "plannedOrder": null,
+    "checkinRoundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "deleted": null,
+    "name": "Mira",
+    "qth": "Lindenhain (fiktiv)",
+    "locator": "",
+    "rst": "59",
+    "echolink": false,
+    "member": "DEMO-001",
+    "note": "Fiktive Testperson; Angaben ausschließlich für die Demo.",
+    "created": "2026-06-03T17:00:20.000Z",
+    "updated": "2026-06-03T17:44:05.000Z"
+   },
+   {
+    "id": "e4712138-b0ba-496e-8642-60171a398959",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "call": "OE0QXB",
+    "base": "OE0QXB",
+    "unresolved": false,
+    "profileId": "61a986a5-63c0-4612-8742-9612f8383fb8",
+    "status": "out",
+    "flags": {
+     "reception": false
+    },
+    "presence": [
+     {
+      "from": {
+       "iso": "2026-06-03T17:00:40.000Z",
+       "quality": "exact"
+      },
+      "to": {
+       "iso": "2026-06-03T17:44:05.000Z",
+       "quality": "exact"
+      }
+     }
+    ],
+    "rosterOrder": 2,
+    "plannedOrder": null,
+    "checkinRoundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "deleted": null,
+    "name": "Jona",
+    "qth": "Sonnenried (fiktiv)",
+    "locator": "",
+    "rst": "57",
+    "echolink": false,
+    "member": "DEMO-002",
+    "note": "Fiktive Testperson; Angaben ausschließlich für die Demo.",
+    "created": "2026-06-03T17:00:40.000Z",
+    "updated": "2026-06-03T17:44:05.000Z"
+   },
+   {
+    "id": "219e49b2-6ff4-44cf-b423-f61ddcd4f6b0",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "call": "OE0QXC",
+    "base": "OE0QXC",
+    "unresolved": false,
+    "profileId": "a211ab3d-89f8-4a2c-ba49-fcd32fd9e576",
+    "status": "out",
+    "flags": {
+     "reception": false
+    },
+    "presence": [
+     {
+      "from": {
+       "iso": "2026-06-03T17:01:00.000Z",
+       "quality": "exact"
+      },
+      "to": {
+       "iso": "2026-06-03T17:44:05.000Z",
+       "quality": "exact"
+      }
+     }
+    ],
+    "rosterOrder": 3,
+    "plannedOrder": null,
+    "checkinRoundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "deleted": null,
+    "name": "Nele",
+    "qth": "Birkenau-Testort (fiktiv)",
+    "locator": "",
+    "rst": "55",
+    "echolink": false,
+    "member": "DEMO-003",
+    "note": "Fiktive Testperson; Angaben ausschließlich für die Demo.",
+    "created": "2026-06-03T17:01:00.000Z",
+    "updated": "2026-06-03T17:44:05.000Z"
+   },
+   {
+    "id": "44c89bb2-41b8-4308-ae20-4df96d8d0f45",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "call": "OE0QXD",
+    "base": "OE0QXD",
+    "unresolved": false,
+    "profileId": "51dcf01f-f3e2-43e0-b4e3-1639f6b7c198",
+    "status": "out",
+    "flags": {
+     "reception": false
+    },
+    "presence": [
+     {
+      "from": {
+       "iso": "2026-06-03T17:01:20.000Z",
+       "quality": "exact"
+      },
+      "to": {
+       "iso": "2026-06-03T17:44:05.000Z",
+       "quality": "exact"
+      }
+     }
+    ],
+    "rosterOrder": 4,
+    "plannedOrder": null,
+    "checkinRoundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "deleted": null,
+    "name": "Timo",
+    "qth": "Wolkenfeld (fiktiv)",
+    "locator": "",
+    "rst": "59",
+    "echolink": false,
+    "member": "DEMO-004",
+    "note": "Fiktive Testperson; Angaben ausschließlich für die Demo.",
+    "created": "2026-06-03T17:01:20.000Z",
+    "updated": "2026-06-03T17:44:05.000Z"
+   },
+   {
+    "id": "c8c9eec0-6608-4102-90bc-1618a77e5d0d",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "call": "OE0QXE",
+    "base": "OE0QXE",
+    "unresolved": false,
+    "profileId": "2f03dc04-adfb-4f28-831a-ce75a9c1725d",
+    "status": "out",
+    "flags": {
+     "reception": false
+    },
+    "presence": [
+     {
+      "from": {
+       "iso": "2026-06-03T17:01:40.000Z",
+       "quality": "exact"
+      },
+      "to": {
+       "iso": "2026-06-03T17:44:05.000Z",
+       "quality": "exact"
+      }
+     }
+    ],
+    "rosterOrder": 5,
+    "plannedOrder": null,
+    "checkinRoundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "deleted": null,
+    "name": "Livia",
+    "qth": "Kieselbach (fiktiv)",
+    "locator": "",
+    "rst": "57",
+    "echolink": false,
+    "member": "DEMO-005",
+    "note": "Fiktive Testperson; Angaben ausschließlich für die Demo.",
+    "created": "2026-06-03T17:01:40.000Z",
+    "updated": "2026-06-03T17:44:05.000Z"
+   },
+   {
+    "id": "35f9f41a-6b53-4a99-ba9a-798b9f3bdcc3",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "call": "OE0QXF",
+    "base": "OE0QXF",
+    "unresolved": false,
+    "profileId": "53711dec-e80c-4531-b332-bb79acf777e2",
+    "status": "out",
+    "flags": {
+     "reception": false
+    },
+    "presence": [
+     {
+      "from": {
+       "iso": "2026-06-03T17:02:00.000Z",
+       "quality": "exact"
+      },
+      "to": {
+       "iso": "2026-06-03T17:44:05.000Z",
+       "quality": "exact"
+      }
+     }
+    ],
+    "rosterOrder": 6,
+    "plannedOrder": null,
+    "checkinRoundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "deleted": null,
+    "name": "Arne",
+    "qth": "Farnwinkel (fiktiv)",
+    "locator": "",
+    "rst": "55",
+    "echolink": false,
+    "member": "DEMO-006",
+    "note": "Fiktive Testperson; Angaben ausschließlich für die Demo.",
+    "created": "2026-06-03T17:02:00.000Z",
+    "updated": "2026-06-03T17:44:05.000Z"
+   },
+   {
+    "id": "97377a8f-548b-481f-b02b-6cd67ec55075",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "call": "OE0QXI",
+    "base": "OE0QXI",
+    "unresolved": false,
+    "profileId": "0b13b669-7658-4b71-baf3-991db175d763",
+    "status": "out",
+    "flags": {
+     "reception": false
+    },
+    "presence": [
+     {
+      "from": {
+       "iso": "2026-06-03T17:02:20.000Z",
+       "quality": "exact"
+      },
+      "to": {
+       "iso": "2026-06-03T17:44:05.000Z",
+       "quality": "exact"
+      }
+     }
+    ],
+    "rosterOrder": 7,
+    "plannedOrder": null,
+    "checkinRoundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "deleted": null,
+    "name": "Enna",
+    "qth": "Sonnenried (fiktiv)",
+    "locator": "",
+    "rst": "55",
+    "echolink": false,
+    "member": "DEMO-009",
+    "note": "Fiktive Testperson; Angaben ausschließlich für die Demo.",
+    "created": "2026-06-03T17:02:20.000Z",
+    "updated": "2026-06-03T17:44:05.000Z"
+   }
+  ],
+  "rounds": [
+   {
+    "id": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "number": 1,
+    "order": 1,
+    "topic": "Vorstellung: Leuchtturm ohne Meer",
+    "start": {
+     "iso": "2026-06-03T17:00:00.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "created": "2026-06-03T17:00:00.000Z",
+    "updated": "2026-06-03T17:03:50.000Z"
+   },
+   {
+    "id": "3f782daf-0fd7-45f5-bdfa-4c73dc14573f",
+    "number": 2,
+    "order": 2,
+    "topic": "Rückfragen",
+    "start": {
+     "iso": "2026-06-03T17:19:40.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:19:40.000Z",
+    "updated": "2026-06-03T17:19:40.000Z"
+   },
+   {
+    "id": "043ab95c-6d4f-4442-b8cb-c8049ed6203c",
+    "number": 3,
+    "order": 3,
+    "topic": "Ergebnisse und nächste Schritte",
+    "start": {
+     "iso": "2026-06-03T17:33:10.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:33:10.000Z",
+    "updated": "2026-06-03T17:33:10.000Z"
+   }
+  ],
+  "contributions": [
+   {
+    "id": "e0dca09e-37cf-4aec-a7d1-0ab71bb3d637",
+    "participantId": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+    "roundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "seq": 1,
+    "time": {
+     "iso": "2026-06-03T17:05:05.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:05:05.000Z",
+    "updated": "2026-06-03T17:05:05.000Z"
+   },
+   {
+    "id": "cee13c73-9ddb-470a-b250-38d2a190e682",
+    "participantId": "e4712138-b0ba-496e-8642-60171a398959",
+    "roundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "seq": 3,
+    "time": {
+     "iso": "2026-06-03T17:06:27.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:06:27.000Z",
+    "updated": "2026-06-03T17:06:27.000Z"
+   },
+   {
+    "id": "64d24a30-b182-4fd5-ac54-16e6c531d944",
+    "participantId": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+    "roundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "seq": 5,
+    "time": {
+     "iso": "2026-06-03T17:06:35.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:06:35.000Z",
+    "updated": "2026-06-03T17:06:35.000Z"
+   },
+   {
+    "id": "58d069b9-a41a-4bfa-a7a5-70093359e703",
+    "participantId": "219e49b2-6ff4-44cf-b423-f61ddcd4f6b0",
+    "roundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "seq": 6,
+    "time": {
+     "iso": "2026-06-03T17:08:04.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:08:04.000Z",
+    "updated": "2026-06-03T17:08:04.000Z"
+   },
+   {
+    "id": "26f5f141-bac2-4b80-97e4-8c886e5bc00b",
+    "participantId": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+    "roundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "seq": 8,
+    "time": {
+     "iso": "2026-06-03T17:08:12.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:08:12.000Z",
+    "updated": "2026-06-03T17:08:12.000Z"
+   },
+   {
+    "id": "558cca31-ace8-402f-bdad-73fa0c53b5dd",
+    "participantId": "44c89bb2-41b8-4308-ae20-4df96d8d0f45",
+    "roundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "seq": 9,
+    "time": {
+     "iso": "2026-06-03T17:09:48.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:09:48.000Z",
+    "updated": "2026-06-03T17:09:48.000Z"
+   },
+   {
+    "id": "ae6e110c-5a89-457f-8936-394a2d157c6e",
+    "participantId": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+    "roundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "seq": 11,
+    "time": {
+     "iso": "2026-06-03T17:09:56.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:09:56.000Z",
+    "updated": "2026-06-03T17:09:56.000Z"
+   },
+   {
+    "id": "15f4168e-a54d-4acb-b6ce-7a03854663af",
+    "participantId": "c8c9eec0-6608-4102-90bc-1618a77e5d0d",
+    "roundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "seq": 12,
+    "time": {
+     "iso": "2026-06-03T17:11:39.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:11:39.000Z",
+    "updated": "2026-06-03T17:11:39.000Z"
+   },
+   {
+    "id": "57116e12-9f38-403b-8d12-3fb4bd8bd6c2",
+    "participantId": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+    "roundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "seq": 14,
+    "time": {
+     "iso": "2026-06-03T17:11:47.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:11:47.000Z",
+    "updated": "2026-06-03T17:11:47.000Z"
+   },
+   {
+    "id": "0a59ec26-dad6-4e56-b1cb-b912d757bb08",
+    "participantId": "35f9f41a-6b53-4a99-ba9a-798b9f3bdcc3",
+    "roundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "seq": 15,
+    "time": {
+     "iso": "2026-06-03T17:13:37.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:13:37.000Z",
+    "updated": "2026-06-03T17:13:37.000Z"
+   },
+   {
+    "id": "92d52b53-b58b-4f79-86cb-6747c2772ce4",
+    "participantId": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+    "roundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "seq": 17,
+    "time": {
+     "iso": "2026-06-03T17:13:45.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:13:45.000Z",
+    "updated": "2026-06-03T17:13:45.000Z"
+   },
+   {
+    "id": "4fda2cec-d0f2-466a-87ec-7a587d9c05f7",
+    "participantId": "97377a8f-548b-481f-b02b-6cd67ec55075",
+    "roundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "seq": 18,
+    "time": {
+     "iso": "2026-06-03T17:15:42.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:15:42.000Z",
+    "updated": "2026-06-03T17:15:42.000Z"
+   },
+   {
+    "id": "efb4f575-c8a0-4407-8da6-5ce3471868ad",
+    "participantId": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+    "roundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "seq": 20,
+    "time": {
+     "iso": "2026-06-03T17:15:50.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:15:50.000Z",
+    "updated": "2026-06-03T17:15:50.000Z"
+   },
+   {
+    "id": "3072ac8c-d604-426f-9775-55eb41d3d483",
+    "participantId": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+    "roundId": "3f782daf-0fd7-45f5-bdfa-4c73dc14573f",
+    "seq": 21,
+    "time": {
+     "iso": "2026-06-03T17:20:55.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:20:55.000Z",
+    "updated": "2026-06-03T17:20:55.000Z"
+   },
+   {
+    "id": "b5540752-30dd-4294-a35b-434faaa9d437",
+    "participantId": "e4712138-b0ba-496e-8642-60171a398959",
+    "roundId": "3f782daf-0fd7-45f5-bdfa-4c73dc14573f",
+    "seq": 23,
+    "time": {
+     "iso": "2026-06-03T17:22:17.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:22:17.000Z",
+    "updated": "2026-06-03T17:22:17.000Z"
+   },
+   {
+    "id": "01230d4d-314c-4fc3-88da-3bee2bbc1fab",
+    "participantId": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+    "roundId": "3f782daf-0fd7-45f5-bdfa-4c73dc14573f",
+    "seq": 25,
+    "time": {
+     "iso": "2026-06-03T17:22:25.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:22:25.000Z",
+    "updated": "2026-06-03T17:22:25.000Z"
+   },
+   {
+    "id": "70fd64ce-540b-45fa-9668-6ca23674b600",
+    "participantId": "219e49b2-6ff4-44cf-b423-f61ddcd4f6b0",
+    "roundId": "3f782daf-0fd7-45f5-bdfa-4c73dc14573f",
+    "seq": 26,
+    "time": {
+     "iso": "2026-06-03T17:23:54.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:23:54.000Z",
+    "updated": "2026-06-03T17:23:54.000Z"
+   },
+   {
+    "id": "81c18dbb-f3a1-4653-9ed4-32bc034a038d",
+    "participantId": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+    "roundId": "3f782daf-0fd7-45f5-bdfa-4c73dc14573f",
+    "seq": 28,
+    "time": {
+     "iso": "2026-06-03T17:24:02.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:24:02.000Z",
+    "updated": "2026-06-03T17:24:02.000Z"
+   },
+   {
+    "id": "13a7a0bf-edf1-4c7f-80aa-6e13ab970cea",
+    "participantId": "44c89bb2-41b8-4308-ae20-4df96d8d0f45",
+    "roundId": "3f782daf-0fd7-45f5-bdfa-4c73dc14573f",
+    "seq": 29,
+    "time": {
+     "iso": "2026-06-03T17:25:38.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:25:38.000Z",
+    "updated": "2026-06-03T17:25:38.000Z"
+   },
+   {
+    "id": "bb17fa47-4a1e-4b38-99df-b102ab3d65f2",
+    "participantId": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+    "roundId": "3f782daf-0fd7-45f5-bdfa-4c73dc14573f",
+    "seq": 31,
+    "time": {
+     "iso": "2026-06-03T17:25:46.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:25:46.000Z",
+    "updated": "2026-06-03T17:25:46.000Z"
+   },
+   {
+    "id": "a6c0facd-48f9-40fe-b1d3-b08de589640f",
+    "participantId": "c8c9eec0-6608-4102-90bc-1618a77e5d0d",
+    "roundId": "3f782daf-0fd7-45f5-bdfa-4c73dc14573f",
+    "seq": 32,
+    "time": {
+     "iso": "2026-06-03T17:27:29.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:27:29.000Z",
+    "updated": "2026-06-03T17:27:29.000Z"
+   },
+   {
+    "id": "784e1d1b-0fc4-4cdc-8f89-c470e5ac9155",
+    "participantId": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+    "roundId": "3f782daf-0fd7-45f5-bdfa-4c73dc14573f",
+    "seq": 34,
+    "time": {
+     "iso": "2026-06-03T17:27:37.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:27:37.000Z",
+    "updated": "2026-06-03T17:27:37.000Z"
+   },
+   {
+    "id": "d682f636-3440-446d-bff1-39e591162899",
+    "participantId": "35f9f41a-6b53-4a99-ba9a-798b9f3bdcc3",
+    "roundId": "3f782daf-0fd7-45f5-bdfa-4c73dc14573f",
+    "seq": 35,
+    "time": {
+     "iso": "2026-06-03T17:29:27.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:29:27.000Z",
+    "updated": "2026-06-03T17:29:27.000Z"
+   },
+   {
+    "id": "7fb7c29c-ce4a-41d4-ae11-34baf24d9d2d",
+    "participantId": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+    "roundId": "3f782daf-0fd7-45f5-bdfa-4c73dc14573f",
+    "seq": 37,
+    "time": {
+     "iso": "2026-06-03T17:29:35.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:29:35.000Z",
+    "updated": "2026-06-03T17:29:35.000Z"
+   },
+   {
+    "id": "8226af2f-bd7e-404f-8d39-0c37b1bce95d",
+    "participantId": "97377a8f-548b-481f-b02b-6cd67ec55075",
+    "roundId": "3f782daf-0fd7-45f5-bdfa-4c73dc14573f",
+    "seq": 38,
+    "time": {
+     "iso": "2026-06-03T17:31:32.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:31:32.000Z",
+    "updated": "2026-06-03T17:31:32.000Z"
+   },
+   {
+    "id": "fc750856-6929-423f-a6e4-84539cdb5c37",
+    "participantId": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+    "roundId": "3f782daf-0fd7-45f5-bdfa-4c73dc14573f",
+    "seq": 40,
+    "time": {
+     "iso": "2026-06-03T17:31:40.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:31:40.000Z",
+    "updated": "2026-06-03T17:31:40.000Z"
+   },
+   {
+    "id": "e5db4108-9815-4b72-b811-ffdcffb36bc1",
+    "participantId": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+    "roundId": "043ab95c-6d4f-4442-b8cb-c8049ed6203c",
+    "seq": 41,
+    "time": {
+     "iso": "2026-06-03T17:34:25.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:34:25.000Z",
+    "updated": "2026-06-03T17:34:25.000Z"
+   },
+   {
+    "id": "eaa2d0b4-572d-4e11-a7e2-8ac5655d73d3",
+    "participantId": "e4712138-b0ba-496e-8642-60171a398959",
+    "roundId": "043ab95c-6d4f-4442-b8cb-c8049ed6203c",
+    "seq": 43,
+    "time": {
+     "iso": "2026-06-03T17:35:47.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:35:47.000Z",
+    "updated": "2026-06-03T17:35:47.000Z"
+   },
+   {
+    "id": "0ceb0dd1-13c5-43e8-a15a-1e290291a586",
+    "participantId": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+    "roundId": "043ab95c-6d4f-4442-b8cb-c8049ed6203c",
+    "seq": 45,
+    "time": {
+     "iso": "2026-06-03T17:35:55.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:35:55.000Z",
+    "updated": "2026-06-03T17:35:55.000Z"
+   },
+   {
+    "id": "63249776-660a-4dc0-ab8f-c7206a6a547d",
+    "participantId": "219e49b2-6ff4-44cf-b423-f61ddcd4f6b0",
+    "roundId": "043ab95c-6d4f-4442-b8cb-c8049ed6203c",
+    "seq": 46,
+    "time": {
+     "iso": "2026-06-03T17:37:24.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:37:24.000Z",
+    "updated": "2026-06-03T17:37:24.000Z"
+   },
+   {
+    "id": "2a2a25b6-e650-4016-ad3e-9df3fd3850c0",
+    "participantId": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+    "roundId": "043ab95c-6d4f-4442-b8cb-c8049ed6203c",
+    "seq": 48,
+    "time": {
+     "iso": "2026-06-03T17:37:32.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:37:32.000Z",
+    "updated": "2026-06-03T17:37:32.000Z"
+   },
+   {
+    "id": "6cbc1960-efd3-4b00-bda6-5b37a8e5cea3",
+    "participantId": "44c89bb2-41b8-4308-ae20-4df96d8d0f45",
+    "roundId": "043ab95c-6d4f-4442-b8cb-c8049ed6203c",
+    "seq": 49,
+    "time": {
+     "iso": "2026-06-03T17:39:08.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:39:08.000Z",
+    "updated": "2026-06-03T17:39:08.000Z"
+   },
+   {
+    "id": "532cca6f-bef5-44c8-8479-b7d54a405108",
+    "participantId": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+    "roundId": "043ab95c-6d4f-4442-b8cb-c8049ed6203c",
+    "seq": 51,
+    "time": {
+     "iso": "2026-06-03T17:39:16.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:39:16.000Z",
+    "updated": "2026-06-03T17:39:16.000Z"
+   },
+   {
+    "id": "f7aa6397-e89c-4e74-9d2a-99bf7d3cbf3d",
+    "participantId": "c8c9eec0-6608-4102-90bc-1618a77e5d0d",
+    "roundId": "043ab95c-6d4f-4442-b8cb-c8049ed6203c",
+    "seq": 52,
+    "time": {
+     "iso": "2026-06-03T17:40:59.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:40:59.000Z",
+    "updated": "2026-06-03T17:40:59.000Z"
+   },
+   {
+    "id": "6469939b-a652-426a-bc45-cc815f021a5b",
+    "participantId": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+    "roundId": "043ab95c-6d4f-4442-b8cb-c8049ed6203c",
+    "seq": 54,
+    "time": {
+     "iso": "2026-06-03T17:41:07.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:41:07.000Z",
+    "updated": "2026-06-03T17:41:07.000Z"
+   },
+   {
+    "id": "8c06ba47-e9a0-4578-9f96-078cccc4643b",
+    "participantId": "35f9f41a-6b53-4a99-ba9a-798b9f3bdcc3",
+    "roundId": "043ab95c-6d4f-4442-b8cb-c8049ed6203c",
+    "seq": 55,
+    "time": {
+     "iso": "2026-06-03T17:42:57.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:42:57.000Z",
+    "updated": "2026-06-03T17:42:57.000Z"
+   },
+   {
+    "id": "c95a099c-5beb-41d0-8fbd-d71105918868",
+    "participantId": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+    "roundId": "043ab95c-6d4f-4442-b8cb-c8049ed6203c",
+    "seq": 57,
+    "time": {
+     "iso": "2026-06-03T17:43:05.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:43:05.000Z",
+    "updated": "2026-06-03T17:43:05.000Z"
+   }
+  ],
+  "notes": [
+   {
+    "id": "9900da86-0d6f-4e95-a2d3-bc1ede54ca59",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "participantId": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+    "roundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "contributionId": "e0dca09e-37cf-4aec-a7d1-0ab71bb3d637",
+    "text": "Der Miniaturleuchtturm für die Klubausstellung bekommt eine langsam blinkende LED.\nNachtrag: Maßangabe in der Demo-Skizze geprüft.",
+    "seq": 2,
+    "time": {
+     "iso": "2026-06-03T17:05:05.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "created": "2026-06-03T17:05:05.000Z",
+    "updated": "2026-06-03T17:43:05.000Z"
+   },
+   {
+    "id": "e85ae9dc-36c7-4345-b761-53a233cf35bc",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "participantId": "e4712138-b0ba-496e-8642-60171a398959",
+    "roundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "contributionId": "cee13c73-9ddb-470a-b250-38d2a190e682",
+    "text": "Die Kuppel aus Transparentpapier streut das Licht gleichmäßiger als die erste Folie.",
+    "seq": 4,
+    "time": {
+     "iso": "2026-06-03T17:06:27.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "created": "2026-06-03T17:06:27.000Z",
+    "updated": "2026-06-03T17:06:27.000Z"
+   },
+   {
+    "id": "84e57c6f-1643-4cda-91dc-17e4653e51b6",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "participantId": "219e49b2-6ff4-44cf-b423-f61ddcd4f6b0",
+    "roundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "contributionId": "58d069b9-a41a-4bfa-a7a5-70093359e703",
+    "text": "Ein Pappmodell hilft beim Anzeichnen der Fenster; der Maßstab ist ausdrücklich frei erfunden.",
+    "seq": 7,
+    "time": {
+     "iso": "2026-06-03T17:08:04.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "created": "2026-06-03T17:08:04.000Z",
+    "updated": "2026-06-03T17:08:04.000Z"
+   },
+   {
+    "id": "20a6f8d0-e8fc-4432-8a3a-37c7750e77d7",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "participantId": "44c89bb2-41b8-4308-ae20-4df96d8d0f45",
+    "roundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "contributionId": "558cca31-ace8-402f-bdad-73fa0c53b5dd",
+    "text": "Die Drehscheibe klemmt an einer Schraube und wird mit einer Unterlegscheibe angehoben.",
+    "seq": 10,
+    "time": {
+     "iso": "2026-06-03T17:09:48.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "created": "2026-06-03T17:09:48.000Z",
+    "updated": "2026-06-03T17:09:48.000Z"
+   },
+   {
+    "id": "65ee29b7-6309-4cfc-a7f4-6869e1c65f03",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "participantId": "c8c9eec0-6608-4102-90bc-1618a77e5d0d",
+    "roundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "contributionId": "15f4168e-a54d-4acb-b6ce-7a03854663af",
+    "text": "Für das Ausstellungsschild fehlen noch zwei Zeilen zur erfundenen Inselgeschichte.",
+    "seq": 13,
+    "time": {
+     "iso": "2026-06-03T17:11:39.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "created": "2026-06-03T17:11:39.000Z",
+    "updated": "2026-06-03T17:11:39.000Z"
+   },
+   {
+    "id": "9705c31a-e948-4961-bc7e-1ae12b263de0",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "participantId": "35f9f41a-6b53-4a99-ba9a-798b9f3bdcc3",
+    "roundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "contributionId": "0a59ec26-dad6-4e56-b1cb-b912d757bb08",
+    "text": "Ein kleiner Lüfter war zu laut; die Beleuchtung läuft nun ohne bewegliche Teile.",
+    "seq": 16,
+    "time": {
+     "iso": "2026-06-03T17:13:37.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "created": "2026-06-03T17:13:37.000Z",
+    "updated": "2026-06-03T17:13:37.000Z"
+   },
+   {
+    "id": "dfbb8e28-cdbf-4b50-9063-0f384766e354",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "participantId": "97377a8f-548b-481f-b02b-6cd67ec55075",
+    "roundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "contributionId": "4fda2cec-d0f2-466a-87ec-7a587d9c05f7",
+    "text": "Der Transportkarton bekommt eine herausnehmbare Trennwand für das Dach.",
+    "seq": 19,
+    "time": {
+     "iso": "2026-06-03T17:15:42.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "created": "2026-06-03T17:15:42.000Z",
+    "updated": "2026-06-03T17:15:42.000Z"
+   },
+   {
+    "id": "6240f69b-1a73-4e72-bd03-e8d79282ccdc",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "participantId": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+    "roundId": "3f782daf-0fd7-45f5-bdfa-4c73dc14573f",
+    "contributionId": "3072ac8c-d604-426f-9775-55eb41d3d483",
+    "text": "Ergebnis: Der zweite Versuch war reproduzierbar; die Beobachtung wird ins Testheft übernommen.\nDie Kuppel aus Transparentpapier streut das Licht gleichmäßiger als die erste Folie.",
+    "seq": 22,
+    "time": {
+     "iso": "2026-06-03T17:20:55.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "created": "2026-06-03T17:20:55.000Z",
+    "updated": "2026-06-03T17:20:55.000Z"
+   },
+   {
+    "id": "3607301b-8c4f-40f9-826a-daa0fb979501",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "participantId": "e4712138-b0ba-496e-8642-60171a398959",
+    "roundId": "3f782daf-0fd7-45f5-bdfa-4c73dc14573f",
+    "contributionId": "b5540752-30dd-4294-a35b-434faaa9d437",
+    "text": "Ergänzung: Eine Skizze reicht vorerst, Materialliste folgt nach der Runde.\nEin Pappmodell hilft beim Anzeichnen der Fenster; der Maßstab ist ausdrücklich frei erfunden.",
+    "seq": 24,
+    "time": {
+     "iso": "2026-06-03T17:22:17.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "created": "2026-06-03T17:22:17.000Z",
+    "updated": "2026-06-03T17:22:17.000Z"
+   },
+   {
+    "id": "30ddb6c3-c471-4fe6-ac4d-4204a8787b58",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "participantId": "219e49b2-6ff4-44cf-b423-f61ddcd4f6b0",
+    "roundId": "3f782daf-0fd7-45f5-bdfa-4c73dc14573f",
+    "contributionId": "70fd64ce-540b-45fa-9668-6ca23674b600",
+    "text": "Zwischenfrage: Passt der Aufbau in die kleine Transportkiste?\nDie Drehscheibe klemmt an einer Schraube und wird mit einer Unterlegscheibe angehoben.",
+    "seq": 27,
+    "time": {
+     "iso": "2026-06-03T17:23:54.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "created": "2026-06-03T17:23:54.000Z",
+    "updated": "2026-06-03T17:23:54.000Z"
+   },
+   {
+    "id": "a79e9c30-f9e5-4189-a9ce-c0c82f26db93",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "participantId": "44c89bb2-41b8-4308-ae20-4df96d8d0f45",
+    "roundId": "3f782daf-0fd7-45f5-bdfa-4c73dc14573f",
+    "contributionId": "13a7a0bf-edf1-4c7f-80aa-6e13ab970cea",
+    "text": "Rückmeldung: Die Änderung wurde ausprobiert und bleibt für den nächsten Termin bestehen.\nFür das Ausstellungsschild fehlen noch zwei Zeilen zur erfundenen Inselgeschichte.",
+    "seq": 30,
+    "time": {
+     "iso": "2026-06-03T17:25:38.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "created": "2026-06-03T17:25:38.000Z",
+    "updated": "2026-06-03T17:25:38.000Z"
+   },
+   {
+    "id": "7e6f0e07-377c-4334-ba2e-e83be7c54164",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "participantId": "c8c9eec0-6608-4102-90bc-1618a77e5d0d",
+    "roundId": "3f782daf-0fd7-45f5-bdfa-4c73dc14573f",
+    "contributionId": "a6c0facd-48f9-40fe-b1d3-b08de589640f",
+    "text": "Offen bleibt die Beschriftung; zwei gut lesbare Varianten stehen zur Auswahl.\nEin kleiner Lüfter war zu laut; die Beleuchtung läuft nun ohne bewegliche Teile.",
+    "seq": 33,
+    "time": {
+     "iso": "2026-06-03T17:27:29.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "created": "2026-06-03T17:27:29.000Z",
+    "updated": "2026-06-03T17:27:29.000Z"
+   },
+   {
+    "id": "d3fee0b8-0187-44e6-a6e2-cccece8d5ba9",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "participantId": "35f9f41a-6b53-4a99-ba9a-798b9f3bdcc3",
+    "roundId": "3f782daf-0fd7-45f5-bdfa-4c73dc14573f",
+    "contributionId": "d682f636-3440-446d-bff1-39e591162899",
+    "text": "Kurzer Nachtrag: Der Tischaufbau lässt sich inzwischen allein aufräumen.\nDer Transportkarton bekommt eine herausnehmbare Trennwand für das Dach.",
+    "seq": 36,
+    "time": {
+     "iso": "2026-06-03T17:29:27.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "created": "2026-06-03T17:29:27.000Z",
+    "updated": "2026-06-03T17:29:27.000Z"
+   },
+   {
+    "id": "71334e7d-df3a-4d1b-85df-0989120255c8",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "participantId": "97377a8f-548b-481f-b02b-6cd67ec55075",
+    "roundId": "3f782daf-0fd7-45f5-bdfa-4c73dc14573f",
+    "contributionId": "8226af2f-bd7e-404f-8d39-0c37b1bce95d",
+    "text": "Zum Abschluss 73; die nächste Versuchsidee ist bereits notiert.\nDie Abnahmeprobe findet auf dem Küchentisch statt; alle Fenster leuchten.",
+    "seq": 39,
+    "time": {
+     "iso": "2026-06-03T17:31:32.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "created": "2026-06-03T17:31:32.000Z",
+    "updated": "2026-06-03T17:31:32.000Z"
+   },
+   {
+    "id": "70a9e1e0-eb66-4f35-9567-9843474d54d6",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "participantId": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+    "roundId": "043ab95c-6d4f-4442-b8cb-c8049ed6203c",
+    "contributionId": "e5db4108-9815-4b72-b811-ffdcffb36bc1",
+    "text": "Ergänzung: Eine Skizze reicht vorerst, Materialliste folgt nach der Runde.\nEin Pappmodell hilft beim Anzeichnen der Fenster; der Maßstab ist ausdrücklich frei erfunden.",
+    "seq": 42,
+    "time": {
+     "iso": "2026-06-03T17:34:25.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "created": "2026-06-03T17:34:25.000Z",
+    "updated": "2026-06-03T17:34:25.000Z"
+   },
+   {
+    "id": "e41277d9-1095-4dfd-af81-3825d7067d5f",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "participantId": "e4712138-b0ba-496e-8642-60171a398959",
+    "roundId": "043ab95c-6d4f-4442-b8cb-c8049ed6203c",
+    "contributionId": "eaa2d0b4-572d-4e11-a7e2-8ac5655d73d3",
+    "text": "Zwischenfrage: Passt der Aufbau in die kleine Transportkiste?\nDie Drehscheibe klemmt an einer Schraube und wird mit einer Unterlegscheibe angehoben.",
+    "seq": 44,
+    "time": {
+     "iso": "2026-06-03T17:35:47.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "created": "2026-06-03T17:35:47.000Z",
+    "updated": "2026-06-03T17:35:47.000Z"
+   },
+   {
+    "id": "66ab55cb-7d11-458f-94ef-e4270ab73499",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "participantId": "219e49b2-6ff4-44cf-b423-f61ddcd4f6b0",
+    "roundId": "043ab95c-6d4f-4442-b8cb-c8049ed6203c",
+    "contributionId": "63249776-660a-4dc0-ab8f-c7206a6a547d",
+    "text": "Rückmeldung: Die Änderung wurde ausprobiert und bleibt für den nächsten Termin bestehen.\nFür das Ausstellungsschild fehlen noch zwei Zeilen zur erfundenen Inselgeschichte.",
+    "seq": 47,
+    "time": {
+     "iso": "2026-06-03T17:37:24.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "created": "2026-06-03T17:37:24.000Z",
+    "updated": "2026-06-03T17:37:24.000Z"
+   },
+   {
+    "id": "bbd51db9-ac7f-426a-b8d7-09f3ae4f4107",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "participantId": "44c89bb2-41b8-4308-ae20-4df96d8d0f45",
+    "roundId": "043ab95c-6d4f-4442-b8cb-c8049ed6203c",
+    "contributionId": "6cbc1960-efd3-4b00-bda6-5b37a8e5cea3",
+    "text": "Offen bleibt die Beschriftung; zwei gut lesbare Varianten stehen zur Auswahl.\nEin kleiner Lüfter war zu laut; die Beleuchtung läuft nun ohne bewegliche Teile.",
+    "seq": 50,
+    "time": {
+     "iso": "2026-06-03T17:39:08.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "created": "2026-06-03T17:39:08.000Z",
+    "updated": "2026-06-03T17:39:08.000Z"
+   },
+   {
+    "id": "36cecda8-aa8a-44b1-9ef3-74876c7ac32f",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "participantId": "c8c9eec0-6608-4102-90bc-1618a77e5d0d",
+    "roundId": "043ab95c-6d4f-4442-b8cb-c8049ed6203c",
+    "contributionId": "f7aa6397-e89c-4e74-9d2a-99bf7d3cbf3d",
+    "text": "Kurzer Nachtrag: Der Tischaufbau lässt sich inzwischen allein aufräumen.\nDer Transportkarton bekommt eine herausnehmbare Trennwand für das Dach.",
+    "seq": 53,
+    "time": {
+     "iso": "2026-06-03T17:40:59.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "created": "2026-06-03T17:40:59.000Z",
+    "updated": "2026-06-03T17:40:59.000Z"
+   },
+   {
+    "id": "3e7d5545-826e-4d15-b8ad-6d354a07eb94",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "participantId": "35f9f41a-6b53-4a99-ba9a-798b9f3bdcc3",
+    "roundId": "043ab95c-6d4f-4442-b8cb-c8049ed6203c",
+    "contributionId": "8c06ba47-e9a0-4578-9f96-078cccc4643b",
+    "text": "Zum Abschluss 73; die nächste Versuchsidee ist bereits notiert.\nDie Abnahmeprobe findet auf dem Küchentisch statt; alle Fenster leuchten.",
+    "seq": 56,
+    "time": {
+     "iso": "2026-06-03T17:42:57.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "created": "2026-06-03T17:42:57.000Z",
+    "updated": "2026-06-03T17:42:57.000Z"
+   }
+  ],
+  "items": [
+   {
+    "id": "bcd52f8f-7597-4726-a167-efc8f4bf4bec",
+    "kind": "point",
+    "noteId": null,
+    "text": "Eigener Beitrag: Leuchtturm ohne Meer – zwei Varianten für die nächste Vorführung sammeln.",
+    "state": "open",
+    "active": true,
+    "order": 1,
+    "history": [
+     {
+      "state": "open",
+      "at": "2026-06-03T17:02:20.000Z",
+      "turnId": null
+     }
+    ],
+    "doneTurnId": null,
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:02:20.000Z",
+    "updated": "2026-06-03T17:02:20.000Z"
+   },
+   {
+    "id": "99527d78-cb91-4c07-8c01-e72105e9a123",
+    "kind": "response",
+    "noteId": "e85ae9dc-36c7-4345-b761-53a233cf35bc",
+    "text": "An OE0QXB: Vergleich notieren und beim nächsten Termin die Skizze besprechen.",
+    "state": "done",
+    "active": true,
+    "order": 2,
+    "history": [
+     {
+      "state": "open",
+      "at": "2026-06-03T17:06:27.000Z",
+      "turnId": null
+     },
+     {
+      "state": "done",
+      "at": "2026-06-03T17:06:27.000Z",
+      "turnId": "3c8bf7c3-4480-4275-9933-0fc0cb3c1660"
+     }
+    ],
+    "doneTurnId": "3c8bf7c3-4480-4275-9933-0fc0cb3c1660",
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:06:27.000Z",
+    "updated": "2026-06-03T17:06:27.002Z"
+   },
+   {
+    "id": "7f31874b-bc91-480e-8124-42d6a2f86ff7",
+    "kind": "response",
+    "noteId": "3607301b-8c4f-40f9-826a-daa0fb979501",
+    "text": "An OE0QXB: Vergleich notieren und beim nächsten Termin die Skizze besprechen.",
+    "state": "open",
+    "active": true,
+    "order": 3,
+    "history": [
+     {
+      "state": "open",
+      "at": "2026-06-03T17:22:17.000Z",
+      "turnId": null
+     }
+    ],
+    "doneTurnId": null,
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:22:17.000Z",
+    "updated": "2026-06-03T17:22:17.001Z"
+   },
+   {
+    "id": "d4c65972-1e70-4cf8-bbca-691fcb1a0c28",
+    "kind": "task",
+    "noteId": "9900da86-0d6f-4e95-a2d3-bc1ede54ca59",
+    "text": "Nach der Runde die fiktive Materialliste ergänzen.",
+    "state": "open",
+    "active": true,
+    "order": 0,
+    "history": [
+     {
+      "state": "open",
+      "at": "2026-06-03T17:43:05.000Z",
+      "turnId": null
+     }
+    ],
+    "doneTurnId": null,
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:43:05.000Z",
+    "updated": "2026-06-03T17:43:05.001Z"
+   }
+  ],
+  "events": [
+   {
+    "id": "91475ff2-5dd5-414a-902d-fb484ceddda6",
+    "type": "presence",
+    "kind": "checkin",
+    "participantId": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+    "roundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "time": {
+     "iso": "2026-06-03T17:00:20.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:00:20.000Z",
+    "updated": "2026-06-03T17:00:20.000Z"
+   },
+   {
+    "id": "9cea501c-3fd5-499e-941b-5d76aa1620be",
+    "type": "presence",
+    "kind": "checkin",
+    "participantId": "e4712138-b0ba-496e-8642-60171a398959",
+    "roundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "time": {
+     "iso": "2026-06-03T17:00:40.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:00:40.000Z",
+    "updated": "2026-06-03T17:00:40.000Z"
+   },
+   {
+    "id": "4e75ef70-4df5-44ec-bf3b-b87d3d4f593f",
+    "type": "presence",
+    "kind": "checkin",
+    "participantId": "219e49b2-6ff4-44cf-b423-f61ddcd4f6b0",
+    "roundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "time": {
+     "iso": "2026-06-03T17:01:00.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:01:00.000Z",
+    "updated": "2026-06-03T17:01:00.000Z"
+   },
+   {
+    "id": "724bf693-6b21-4d32-b684-82e0f51b5a27",
+    "type": "presence",
+    "kind": "checkin",
+    "participantId": "44c89bb2-41b8-4308-ae20-4df96d8d0f45",
+    "roundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "time": {
+     "iso": "2026-06-03T17:01:20.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:01:20.000Z",
+    "updated": "2026-06-03T17:01:20.000Z"
+   },
+   {
+    "id": "24abe87f-f6f5-492c-85e9-c21c27432def",
+    "type": "presence",
+    "kind": "checkin",
+    "participantId": "c8c9eec0-6608-4102-90bc-1618a77e5d0d",
+    "roundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "time": {
+     "iso": "2026-06-03T17:01:40.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:01:40.000Z",
+    "updated": "2026-06-03T17:01:40.000Z"
+   },
+   {
+    "id": "8b970151-ab87-47cd-abff-9a979bd5882f",
+    "type": "presence",
+    "kind": "checkin",
+    "participantId": "35f9f41a-6b53-4a99-ba9a-798b9f3bdcc3",
+    "roundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "time": {
+     "iso": "2026-06-03T17:02:00.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:02:00.000Z",
+    "updated": "2026-06-03T17:02:00.000Z"
+   },
+   {
+    "id": "e8f6f9b5-b531-4dff-8077-21e5b4606679",
+    "type": "presence",
+    "kind": "checkin",
+    "participantId": "97377a8f-548b-481f-b02b-6cd67ec55075",
+    "roundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "time": {
+     "iso": "2026-06-03T17:02:20.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:02:20.000Z",
+    "updated": "2026-06-03T17:02:20.000Z"
+   },
+   {
+    "id": "25670ad1-d290-48d1-9046-a8ad2d9563df",
+    "type": "ncs",
+    "from": null,
+    "to": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+    "roundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "time": {
+     "iso": "2026-06-03T17:02:20.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:02:20.000Z",
+    "updated": "2026-06-03T17:02:20.000Z"
+   },
+   {
+    "id": "794faa67-ba9e-4874-8430-53a84c0a9b24",
+    "type": "status",
+    "participantId": "97377a8f-548b-481f-b02b-6cd67ec55075",
+    "from": "active",
+    "to": "paused",
+    "time": {
+     "iso": "2026-06-03T17:16:10.000Z",
+     "quality": "exact"
+    },
+    "roundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:16:10.000Z",
+    "updated": "2026-06-03T17:16:10.000Z"
+   },
+   {
+    "id": "a6e6ce09-b7ac-4132-a0dd-db8ad22d3fc4",
+    "type": "status",
+    "participantId": "97377a8f-548b-481f-b02b-6cd67ec55075",
+    "from": "paused",
+    "to": "active",
+    "time": {
+     "iso": "2026-06-03T17:18:10.000Z",
+     "quality": "exact"
+    },
+    "roundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:18:10.000Z",
+    "updated": "2026-06-03T17:18:10.000Z"
+   },
+   {
+    "id": "49647f4d-e250-4630-816c-68d1d90a3691",
+    "type": "round",
+    "kind": "new",
+    "from": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "to": "3f782daf-0fd7-45f5-bdfa-4c73dc14573f",
+    "time": {
+     "iso": "2026-06-03T17:19:40.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:19:40.000Z",
+    "updated": "2026-06-03T17:19:40.000Z"
+   },
+   {
+    "id": "183485fe-847e-41c4-b224-8040c275d99b",
+    "type": "round",
+    "kind": "new",
+    "from": "3f782daf-0fd7-45f5-bdfa-4c73dc14573f",
+    "to": "043ab95c-6d4f-4442-b8cb-c8049ed6203c",
+    "time": {
+     "iso": "2026-06-03T17:33:10.000Z",
+     "quality": "exact"
+    },
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:33:10.000Z",
+    "updated": "2026-06-03T17:33:10.000Z"
+   },
+   {
+    "id": "db6dc052-a825-4634-9f2e-ea0886ebf5f1",
+    "type": "status",
+    "participantId": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+    "from": "active",
+    "to": "out",
+    "time": {
+     "iso": "2026-06-03T17:44:05.000Z",
+     "quality": "exact"
+    },
+    "roundId": "043ab95c-6d4f-4442-b8cb-c8049ed6203c",
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:44:05.000Z",
+    "updated": "2026-06-03T17:44:05.000Z"
+   },
+   {
+    "id": "47ba5220-a96d-41cd-af58-5855f163b314",
+    "type": "status",
+    "participantId": "e4712138-b0ba-496e-8642-60171a398959",
+    "from": "active",
+    "to": "out",
+    "time": {
+     "iso": "2026-06-03T17:44:05.000Z",
+     "quality": "exact"
+    },
+    "roundId": "043ab95c-6d4f-4442-b8cb-c8049ed6203c",
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:44:05.000Z",
+    "updated": "2026-06-03T17:44:05.000Z"
+   },
+   {
+    "id": "a784b6cd-50aa-4a85-baed-5cb8ca852455",
+    "type": "status",
+    "participantId": "219e49b2-6ff4-44cf-b423-f61ddcd4f6b0",
+    "from": "active",
+    "to": "out",
+    "time": {
+     "iso": "2026-06-03T17:44:05.000Z",
+     "quality": "exact"
+    },
+    "roundId": "043ab95c-6d4f-4442-b8cb-c8049ed6203c",
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:44:05.000Z",
+    "updated": "2026-06-03T17:44:05.000Z"
+   },
+   {
+    "id": "6803d5f5-3988-4b44-bcbe-1e0daf6d66fd",
+    "type": "status",
+    "participantId": "44c89bb2-41b8-4308-ae20-4df96d8d0f45",
+    "from": "active",
+    "to": "out",
+    "time": {
+     "iso": "2026-06-03T17:44:05.000Z",
+     "quality": "exact"
+    },
+    "roundId": "043ab95c-6d4f-4442-b8cb-c8049ed6203c",
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:44:05.000Z",
+    "updated": "2026-06-03T17:44:05.000Z"
+   },
+   {
+    "id": "341637ce-4866-4eed-9b74-2749b75d506a",
+    "type": "status",
+    "participantId": "c8c9eec0-6608-4102-90bc-1618a77e5d0d",
+    "from": "active",
+    "to": "out",
+    "time": {
+     "iso": "2026-06-03T17:44:05.000Z",
+     "quality": "exact"
+    },
+    "roundId": "043ab95c-6d4f-4442-b8cb-c8049ed6203c",
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:44:05.000Z",
+    "updated": "2026-06-03T17:44:05.000Z"
+   },
+   {
+    "id": "99693a2a-d203-4c6c-8b38-5bce2805575c",
+    "type": "status",
+    "participantId": "35f9f41a-6b53-4a99-ba9a-798b9f3bdcc3",
+    "from": "active",
+    "to": "out",
+    "time": {
+     "iso": "2026-06-03T17:44:05.000Z",
+     "quality": "exact"
+    },
+    "roundId": "043ab95c-6d4f-4442-b8cb-c8049ed6203c",
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:44:05.000Z",
+    "updated": "2026-06-03T17:44:05.000Z"
+   },
+   {
+    "id": "015c2506-3d81-4a44-b1c4-5e8f1f62a97d",
+    "type": "status",
+    "participantId": "97377a8f-548b-481f-b02b-6cd67ec55075",
+    "from": "active",
+    "to": "out",
+    "time": {
+     "iso": "2026-06-03T17:44:05.000Z",
+     "quality": "exact"
+    },
+    "roundId": "043ab95c-6d4f-4442-b8cb-c8049ed6203c",
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:44:05.000Z",
+    "updated": "2026-06-03T17:44:05.000Z"
+   }
+  ],
+  "turns": [
+   {
+    "id": "3c8bf7c3-4480-4275-9933-0fc0cb3c1660",
+    "started": "2026-06-03T17:06:27.000Z",
+    "ended": "2026-06-03T17:06:27.000Z",
+    "deleted": null,
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "created": "2026-06-03T17:06:27.000Z",
+    "updated": "2026-06-03T17:06:27.001Z"
+   }
+  ],
+  "revisions": [
+   {
+    "id": "47da3ec5-4397-42da-955b-8b6ad224bf86",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "store": "participants",
+    "recordId": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+    "at": "2026-06-03T17:00:20.000Z",
+    "record": {
+     "id": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+     "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+     "call": "OE0QXA",
+     "base": "OE0QXA",
+     "unresolved": false,
+     "profileId": null,
+     "status": "active",
+     "flags": {
+      "reception": false
+     },
+     "presence": [
+      {
+       "from": {
+        "iso": "2026-06-03T17:00:20.000Z",
+        "quality": "exact"
+       },
+       "to": null
+      }
+     ],
+     "rosterOrder": 1,
+     "plannedOrder": null,
+     "checkinRoundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+     "deleted": null,
+     "name": "Mira",
+     "qth": "Lindenhain (fiktiv)",
+     "locator": "",
+     "rst": "59",
+     "echolink": false,
+     "member": "DEMO-001",
+     "note": "Fiktive Testperson; Angaben ausschließlich für die Demo.",
+     "created": "2026-06-03T17:00:20.000Z",
+     "updated": "2026-06-03T17:00:20.000Z"
+    }
+   },
+   {
+    "id": "45eda48c-fbb1-444a-a251-3f400096ee5c",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "store": "participants",
+    "recordId": "e4712138-b0ba-496e-8642-60171a398959",
+    "at": "2026-06-03T17:00:40.000Z",
+    "record": {
+     "id": "e4712138-b0ba-496e-8642-60171a398959",
+     "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+     "call": "OE0QXB",
+     "base": "OE0QXB",
+     "unresolved": false,
+     "profileId": null,
+     "status": "active",
+     "flags": {
+      "reception": false
+     },
+     "presence": [
+      {
+       "from": {
+        "iso": "2026-06-03T17:00:40.000Z",
+        "quality": "exact"
+       },
+       "to": null
+      }
+     ],
+     "rosterOrder": 2,
+     "plannedOrder": null,
+     "checkinRoundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+     "deleted": null,
+     "name": "Jona",
+     "qth": "Sonnenried (fiktiv)",
+     "locator": "",
+     "rst": "57",
+     "echolink": false,
+     "member": "DEMO-002",
+     "note": "Fiktive Testperson; Angaben ausschließlich für die Demo.",
+     "created": "2026-06-03T17:00:40.000Z",
+     "updated": "2026-06-03T17:00:40.000Z"
+    }
+   },
+   {
+    "id": "f83adcb8-43c8-49ec-acfc-dbd3dd95eabd",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "store": "participants",
+    "recordId": "219e49b2-6ff4-44cf-b423-f61ddcd4f6b0",
+    "at": "2026-06-03T17:01:00.000Z",
+    "record": {
+     "id": "219e49b2-6ff4-44cf-b423-f61ddcd4f6b0",
+     "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+     "call": "OE0QXC",
+     "base": "OE0QXC",
+     "unresolved": false,
+     "profileId": null,
+     "status": "active",
+     "flags": {
+      "reception": false
+     },
+     "presence": [
+      {
+       "from": {
+        "iso": "2026-06-03T17:01:00.000Z",
+        "quality": "exact"
+       },
+       "to": null
+      }
+     ],
+     "rosterOrder": 3,
+     "plannedOrder": null,
+     "checkinRoundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+     "deleted": null,
+     "name": "Nele",
+     "qth": "Birkenau-Testort (fiktiv)",
+     "locator": "",
+     "rst": "55",
+     "echolink": false,
+     "member": "DEMO-003",
+     "note": "Fiktive Testperson; Angaben ausschließlich für die Demo.",
+     "created": "2026-06-03T17:01:00.000Z",
+     "updated": "2026-06-03T17:01:00.000Z"
+    }
+   },
+   {
+    "id": "d60f7ece-d441-480a-97c0-3a33865ae488",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "store": "participants",
+    "recordId": "44c89bb2-41b8-4308-ae20-4df96d8d0f45",
+    "at": "2026-06-03T17:01:20.000Z",
+    "record": {
+     "id": "44c89bb2-41b8-4308-ae20-4df96d8d0f45",
+     "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+     "call": "OE0QXD",
+     "base": "OE0QXD",
+     "unresolved": false,
+     "profileId": null,
+     "status": "active",
+     "flags": {
+      "reception": false
+     },
+     "presence": [
+      {
+       "from": {
+        "iso": "2026-06-03T17:01:20.000Z",
+        "quality": "exact"
+       },
+       "to": null
+      }
+     ],
+     "rosterOrder": 4,
+     "plannedOrder": null,
+     "checkinRoundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+     "deleted": null,
+     "name": "Timo",
+     "qth": "Wolkenfeld (fiktiv)",
+     "locator": "",
+     "rst": "59",
+     "echolink": false,
+     "member": "DEMO-004",
+     "note": "Fiktive Testperson; Angaben ausschließlich für die Demo.",
+     "created": "2026-06-03T17:01:20.000Z",
+     "updated": "2026-06-03T17:01:20.000Z"
+    }
+   },
+   {
+    "id": "f4b9887d-afad-4fb3-9330-ddf53dd9b459",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "store": "participants",
+    "recordId": "c8c9eec0-6608-4102-90bc-1618a77e5d0d",
+    "at": "2026-06-03T17:01:40.000Z",
+    "record": {
+     "id": "c8c9eec0-6608-4102-90bc-1618a77e5d0d",
+     "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+     "call": "OE0QXE",
+     "base": "OE0QXE",
+     "unresolved": false,
+     "profileId": null,
+     "status": "active",
+     "flags": {
+      "reception": false
+     },
+     "presence": [
+      {
+       "from": {
+        "iso": "2026-06-03T17:01:40.000Z",
+        "quality": "exact"
+       },
+       "to": null
+      }
+     ],
+     "rosterOrder": 5,
+     "plannedOrder": null,
+     "checkinRoundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+     "deleted": null,
+     "name": "Livia",
+     "qth": "Kieselbach (fiktiv)",
+     "locator": "",
+     "rst": "57",
+     "echolink": false,
+     "member": "DEMO-005",
+     "note": "Fiktive Testperson; Angaben ausschließlich für die Demo.",
+     "created": "2026-06-03T17:01:40.000Z",
+     "updated": "2026-06-03T17:01:40.000Z"
+    }
+   },
+   {
+    "id": "e8aa79af-8b2b-4168-ab69-af5af6472e3e",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "store": "participants",
+    "recordId": "35f9f41a-6b53-4a99-ba9a-798b9f3bdcc3",
+    "at": "2026-06-03T17:02:00.000Z",
+    "record": {
+     "id": "35f9f41a-6b53-4a99-ba9a-798b9f3bdcc3",
+     "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+     "call": "OE0QXF",
+     "base": "OE0QXF",
+     "unresolved": false,
+     "profileId": null,
+     "status": "active",
+     "flags": {
+      "reception": false
+     },
+     "presence": [
+      {
+       "from": {
+        "iso": "2026-06-03T17:02:00.000Z",
+        "quality": "exact"
+       },
+       "to": null
+      }
+     ],
+     "rosterOrder": 6,
+     "plannedOrder": null,
+     "checkinRoundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+     "deleted": null,
+     "name": "Arne",
+     "qth": "Farnwinkel (fiktiv)",
+     "locator": "",
+     "rst": "55",
+     "echolink": false,
+     "member": "DEMO-006",
+     "note": "Fiktive Testperson; Angaben ausschließlich für die Demo.",
+     "created": "2026-06-03T17:02:00.000Z",
+     "updated": "2026-06-03T17:02:00.000Z"
+    }
+   },
+   {
+    "id": "0c1c81fa-c4cf-44ac-ae1e-ed09df1b13e7",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "store": "participants",
+    "recordId": "97377a8f-548b-481f-b02b-6cd67ec55075",
+    "at": "2026-06-03T17:02:20.000Z",
+    "record": {
+     "id": "97377a8f-548b-481f-b02b-6cd67ec55075",
+     "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+     "call": "OE0QXI",
+     "base": "OE0QXI",
+     "unresolved": false,
+     "profileId": null,
+     "status": "active",
+     "flags": {
+      "reception": false
+     },
+     "presence": [
+      {
+       "from": {
+        "iso": "2026-06-03T17:02:20.000Z",
+        "quality": "exact"
+       },
+       "to": null
+      }
+     ],
+     "rosterOrder": 7,
+     "plannedOrder": null,
+     "checkinRoundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+     "deleted": null,
+     "name": "Enna",
+     "qth": "Sonnenried (fiktiv)",
+     "locator": "",
+     "rst": "55",
+     "echolink": false,
+     "member": "DEMO-009",
+     "note": "Fiktive Testperson; Angaben ausschließlich für die Demo.",
+     "created": "2026-06-03T17:02:20.000Z",
+     "updated": "2026-06-03T17:02:20.000Z"
+    }
+   },
+   {
+    "id": "82a2278b-8477-42e6-b32b-da731f6f04f8",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "store": "sessions",
+    "recordId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "at": "2026-06-03T17:02:20.000Z",
+    "record": {
+     "id": "ce74565c-013b-4676-954e-6e461a514fab",
+     "seriesId": "7d44fbd6-38cf-453f-8c81-6fc5ab9cb00d",
+     "number": 1,
+     "name": "DEMO · Leuchtturm ohne Meer",
+     "date": "2026-06-03",
+     "own": {
+      "call": "OE0QXA",
+      "base": "OE0QXA"
+     },
+     "radio": {
+      "repeater": "",
+      "freq": "145.500",
+      "mode": "FM"
+     },
+     "suggestedNcs": "OE0QXA",
+     "style": "star",
+     "start": {
+      "iso": "2026-06-03T17:00:00.000Z",
+      "quality": "exact"
+     },
+     "end": {
+      "iso": null,
+      "quality": "unknown"
+     },
+     "joinedLate": false,
+     "currentRoundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+     "ncsId": null,
+     "deleted": null,
+     "created": "2026-06-03T17:00:00.000Z",
+     "updated": "2026-06-03T17:00:00.000Z"
+    }
+   },
+   {
+    "id": "51b47697-d4b5-4489-a72e-852613d5256d",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "store": "rounds",
+    "recordId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+    "at": "2026-06-03T17:03:50.000Z",
+    "record": {
+     "id": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+     "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+     "number": 1,
+     "order": 1,
+     "topic": "",
+     "start": {
+      "iso": "2026-06-03T17:00:00.000Z",
+      "quality": "exact"
+     },
+     "deleted": null,
+     "created": "2026-06-03T17:00:00.000Z",
+     "updated": "2026-06-03T17:00:00.000Z"
+    }
+   },
+   {
+    "id": "a6eeebf7-9666-49cb-a7a3-95e0f9796ab4",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "store": "items",
+    "recordId": "99527d78-cb91-4c07-8c01-e72105e9a123",
+    "at": "2026-06-03T17:06:27.000Z",
+    "record": {
+     "id": "99527d78-cb91-4c07-8c01-e72105e9a123",
+     "kind": "response",
+     "noteId": "e85ae9dc-36c7-4345-b761-53a233cf35bc",
+     "text": "",
+     "state": "open",
+     "active": true,
+     "order": 2,
+     "history": [
+      {
+       "state": "open",
+       "at": "2026-06-03T17:06:27.000Z",
+       "turnId": null
+      }
+     ],
+     "doneTurnId": null,
+     "deleted": null,
+     "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+     "created": "2026-06-03T17:06:27.000Z",
+     "updated": "2026-06-03T17:06:27.000Z"
+    }
+   },
+   {
+    "id": "aa250b7d-1c4f-4282-b47d-ac4042165af6",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "store": "items",
+    "recordId": "99527d78-cb91-4c07-8c01-e72105e9a123",
+    "at": "2026-06-03T17:06:27.000Z",
+    "record": {
+     "id": "99527d78-cb91-4c07-8c01-e72105e9a123",
+     "kind": "response",
+     "noteId": "e85ae9dc-36c7-4345-b761-53a233cf35bc",
+     "text": "An OE0QXB: Vergleich notieren und beim nächsten Termin die Skizze besprechen.",
+     "state": "open",
+     "active": true,
+     "order": 2,
+     "history": [
+      {
+       "state": "open",
+       "at": "2026-06-03T17:06:27.000Z",
+       "turnId": null
+      }
+     ],
+     "doneTurnId": null,
+     "deleted": null,
+     "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+     "created": "2026-06-03T17:06:27.000Z",
+     "updated": "2026-06-03T17:06:27.001Z"
+    }
+   },
+   {
+    "id": "e5198b0c-808b-48a9-8514-07c3f9232dd8",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "store": "participants",
+    "recordId": "97377a8f-548b-481f-b02b-6cd67ec55075",
+    "at": "2026-06-03T17:16:10.000Z",
+    "record": {
+     "id": "97377a8f-548b-481f-b02b-6cd67ec55075",
+     "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+     "call": "OE0QXI",
+     "base": "OE0QXI",
+     "unresolved": false,
+     "profileId": "0b13b669-7658-4b71-baf3-991db175d763",
+     "status": "active",
+     "flags": {
+      "reception": false
+     },
+     "presence": [
+      {
+       "from": {
+        "iso": "2026-06-03T17:02:20.000Z",
+        "quality": "exact"
+       },
+       "to": null
+      }
+     ],
+     "rosterOrder": 7,
+     "plannedOrder": null,
+     "checkinRoundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+     "deleted": null,
+     "name": "Enna",
+     "qth": "Sonnenried (fiktiv)",
+     "locator": "",
+     "rst": "55",
+     "echolink": false,
+     "member": "DEMO-009",
+     "note": "Fiktive Testperson; Angaben ausschließlich für die Demo.",
+     "created": "2026-06-03T17:02:20.000Z",
+     "updated": "2026-06-03T17:02:20.001Z"
+    }
+   },
+   {
+    "id": "a3de79f5-f80c-4523-a0c3-0162960d8793",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "store": "participants",
+    "recordId": "97377a8f-548b-481f-b02b-6cd67ec55075",
+    "at": "2026-06-03T17:18:10.000Z",
+    "record": {
+     "id": "97377a8f-548b-481f-b02b-6cd67ec55075",
+     "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+     "call": "OE0QXI",
+     "base": "OE0QXI",
+     "unresolved": false,
+     "profileId": "0b13b669-7658-4b71-baf3-991db175d763",
+     "status": "paused",
+     "flags": {
+      "reception": false
+     },
+     "presence": [
+      {
+       "from": {
+        "iso": "2026-06-03T17:02:20.000Z",
+        "quality": "exact"
+       },
+       "to": null
+      }
+     ],
+     "rosterOrder": 7,
+     "plannedOrder": null,
+     "checkinRoundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+     "deleted": null,
+     "name": "Enna",
+     "qth": "Sonnenried (fiktiv)",
+     "locator": "",
+     "rst": "55",
+     "echolink": false,
+     "member": "DEMO-009",
+     "note": "Fiktive Testperson; Angaben ausschließlich für die Demo.",
+     "created": "2026-06-03T17:02:20.000Z",
+     "updated": "2026-06-03T17:16:10.000Z"
+    }
+   },
+   {
+    "id": "9544f7ac-6016-4bfb-be05-1e2bb8a72b12",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "store": "sessions",
+    "recordId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "at": "2026-06-03T17:19:40.000Z",
+    "record": {
+     "id": "ce74565c-013b-4676-954e-6e461a514fab",
+     "seriesId": "7d44fbd6-38cf-453f-8c81-6fc5ab9cb00d",
+     "number": 1,
+     "name": "DEMO · Leuchtturm ohne Meer",
+     "date": "2026-06-03",
+     "own": {
+      "call": "OE0QXA",
+      "base": "OE0QXA"
+     },
+     "radio": {
+      "repeater": "",
+      "freq": "145.500",
+      "mode": "FM"
+     },
+     "suggestedNcs": "OE0QXA",
+     "style": "star",
+     "start": {
+      "iso": "2026-06-03T17:00:00.000Z",
+      "quality": "exact"
+     },
+     "end": {
+      "iso": null,
+      "quality": "unknown"
+     },
+     "joinedLate": false,
+     "currentRoundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+     "ncsId": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+     "deleted": null,
+     "created": "2026-06-03T17:00:00.000Z",
+     "updated": "2026-06-03T17:02:20.000Z"
+    }
+   },
+   {
+    "id": "50d5c93d-edef-40e0-906e-1038c9c951e3",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "store": "items",
+    "recordId": "7f31874b-bc91-480e-8124-42d6a2f86ff7",
+    "at": "2026-06-03T17:22:17.000Z",
+    "record": {
+     "id": "7f31874b-bc91-480e-8124-42d6a2f86ff7",
+     "kind": "response",
+     "noteId": "3607301b-8c4f-40f9-826a-daa0fb979501",
+     "text": "",
+     "state": "open",
+     "active": true,
+     "order": 3,
+     "history": [
+      {
+       "state": "open",
+       "at": "2026-06-03T17:22:17.000Z",
+       "turnId": null
+      }
+     ],
+     "doneTurnId": null,
+     "deleted": null,
+     "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+     "created": "2026-06-03T17:22:17.000Z",
+     "updated": "2026-06-03T17:22:17.000Z"
+    }
+   },
+   {
+    "id": "c2950fd8-c108-44e2-a701-97c394249313",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "store": "sessions",
+    "recordId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "at": "2026-06-03T17:33:10.000Z",
+    "record": {
+     "id": "ce74565c-013b-4676-954e-6e461a514fab",
+     "seriesId": "7d44fbd6-38cf-453f-8c81-6fc5ab9cb00d",
+     "number": 1,
+     "name": "DEMO · Leuchtturm ohne Meer",
+     "date": "2026-06-03",
+     "own": {
+      "call": "OE0QXA",
+      "base": "OE0QXA"
+     },
+     "radio": {
+      "repeater": "",
+      "freq": "145.500",
+      "mode": "FM"
+     },
+     "suggestedNcs": "OE0QXA",
+     "style": "star",
+     "start": {
+      "iso": "2026-06-03T17:00:00.000Z",
+      "quality": "exact"
+     },
+     "end": {
+      "iso": null,
+      "quality": "unknown"
+     },
+     "joinedLate": false,
+     "currentRoundId": "3f782daf-0fd7-45f5-bdfa-4c73dc14573f",
+     "ncsId": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+     "deleted": null,
+     "created": "2026-06-03T17:00:00.000Z",
+     "updated": "2026-06-03T17:19:40.000Z"
+    }
+   },
+   {
+    "id": "93215f91-ad7d-41cd-bbee-c282ee14e4be",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "store": "notes",
+    "recordId": "9900da86-0d6f-4e95-a2d3-bc1ede54ca59",
+    "at": "2026-06-03T17:43:05.000Z",
+    "record": {
+     "id": "9900da86-0d6f-4e95-a2d3-bc1ede54ca59",
+     "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+     "participantId": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+     "roundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+     "contributionId": "e0dca09e-37cf-4aec-a7d1-0ab71bb3d637",
+     "text": "Der Miniaturleuchtturm für die Klubausstellung bekommt eine langsam blinkende LED.",
+     "seq": 2,
+     "time": {
+      "iso": "2026-06-03T17:05:05.000Z",
+      "quality": "exact"
+     },
+     "deleted": null,
+     "created": "2026-06-03T17:05:05.000Z",
+     "updated": "2026-06-03T17:05:05.000Z"
+    }
+   },
+   {
+    "id": "7d21b6d3-b761-4644-a56a-608831e1b3e2",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "store": "items",
+    "recordId": "d4c65972-1e70-4cf8-bbca-691fcb1a0c28",
+    "at": "2026-06-03T17:43:05.000Z",
+    "record": {
+     "id": "d4c65972-1e70-4cf8-bbca-691fcb1a0c28",
+     "kind": "task",
+     "noteId": "9900da86-0d6f-4e95-a2d3-bc1ede54ca59",
+     "text": "",
+     "state": "open",
+     "active": true,
+     "order": 0,
+     "history": [
+      {
+       "state": "open",
+       "at": "2026-06-03T17:43:05.000Z",
+       "turnId": null
+      }
+     ],
+     "doneTurnId": null,
+     "deleted": null,
+     "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+     "created": "2026-06-03T17:43:05.000Z",
+     "updated": "2026-06-03T17:43:05.000Z"
+    }
+   },
+   {
+    "id": "8c4a44eb-fea4-4888-9fd0-2e3d12d62de0",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "store": "participants",
+    "recordId": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+    "at": "2026-06-03T17:44:05.000Z",
+    "record": {
+     "id": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+     "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+     "call": "OE0QXA",
+     "base": "OE0QXA",
+     "unresolved": false,
+     "profileId": "52d80747-4c4d-4eef-bfb7-13865996d686",
+     "status": "active",
+     "flags": {
+      "reception": false
+     },
+     "presence": [
+      {
+       "from": {
+        "iso": "2026-06-03T17:00:20.000Z",
+        "quality": "exact"
+       },
+       "to": null
+      }
+     ],
+     "rosterOrder": 1,
+     "plannedOrder": null,
+     "checkinRoundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+     "deleted": null,
+     "name": "Mira",
+     "qth": "Lindenhain (fiktiv)",
+     "locator": "",
+     "rst": "59",
+     "echolink": false,
+     "member": "DEMO-001",
+     "note": "Fiktive Testperson; Angaben ausschließlich für die Demo.",
+     "created": "2026-06-03T17:00:20.000Z",
+     "updated": "2026-06-03T17:00:20.001Z"
+    }
+   },
+   {
+    "id": "53db5033-1647-40b0-8522-d3b32fc71e1c",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "store": "participants",
+    "recordId": "e4712138-b0ba-496e-8642-60171a398959",
+    "at": "2026-06-03T17:44:05.000Z",
+    "record": {
+     "id": "e4712138-b0ba-496e-8642-60171a398959",
+     "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+     "call": "OE0QXB",
+     "base": "OE0QXB",
+     "unresolved": false,
+     "profileId": "61a986a5-63c0-4612-8742-9612f8383fb8",
+     "status": "active",
+     "flags": {
+      "reception": false
+     },
+     "presence": [
+      {
+       "from": {
+        "iso": "2026-06-03T17:00:40.000Z",
+        "quality": "exact"
+       },
+       "to": null
+      }
+     ],
+     "rosterOrder": 2,
+     "plannedOrder": null,
+     "checkinRoundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+     "deleted": null,
+     "name": "Jona",
+     "qth": "Sonnenried (fiktiv)",
+     "locator": "",
+     "rst": "57",
+     "echolink": false,
+     "member": "DEMO-002",
+     "note": "Fiktive Testperson; Angaben ausschließlich für die Demo.",
+     "created": "2026-06-03T17:00:40.000Z",
+     "updated": "2026-06-03T17:00:40.001Z"
+    }
+   },
+   {
+    "id": "be54c92f-93b1-44e2-95de-fd82fa0b3eb3",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "store": "participants",
+    "recordId": "219e49b2-6ff4-44cf-b423-f61ddcd4f6b0",
+    "at": "2026-06-03T17:44:05.000Z",
+    "record": {
+     "id": "219e49b2-6ff4-44cf-b423-f61ddcd4f6b0",
+     "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+     "call": "OE0QXC",
+     "base": "OE0QXC",
+     "unresolved": false,
+     "profileId": "a211ab3d-89f8-4a2c-ba49-fcd32fd9e576",
+     "status": "active",
+     "flags": {
+      "reception": false
+     },
+     "presence": [
+      {
+       "from": {
+        "iso": "2026-06-03T17:01:00.000Z",
+        "quality": "exact"
+       },
+       "to": null
+      }
+     ],
+     "rosterOrder": 3,
+     "plannedOrder": null,
+     "checkinRoundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+     "deleted": null,
+     "name": "Nele",
+     "qth": "Birkenau-Testort (fiktiv)",
+     "locator": "",
+     "rst": "55",
+     "echolink": false,
+     "member": "DEMO-003",
+     "note": "Fiktive Testperson; Angaben ausschließlich für die Demo.",
+     "created": "2026-06-03T17:01:00.000Z",
+     "updated": "2026-06-03T17:01:00.001Z"
+    }
+   },
+   {
+    "id": "d4bb2937-1eef-435b-9064-94b2f4900acc",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "store": "participants",
+    "recordId": "44c89bb2-41b8-4308-ae20-4df96d8d0f45",
+    "at": "2026-06-03T17:44:05.000Z",
+    "record": {
+     "id": "44c89bb2-41b8-4308-ae20-4df96d8d0f45",
+     "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+     "call": "OE0QXD",
+     "base": "OE0QXD",
+     "unresolved": false,
+     "profileId": "51dcf01f-f3e2-43e0-b4e3-1639f6b7c198",
+     "status": "active",
+     "flags": {
+      "reception": false
+     },
+     "presence": [
+      {
+       "from": {
+        "iso": "2026-06-03T17:01:20.000Z",
+        "quality": "exact"
+       },
+       "to": null
+      }
+     ],
+     "rosterOrder": 4,
+     "plannedOrder": null,
+     "checkinRoundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+     "deleted": null,
+     "name": "Timo",
+     "qth": "Wolkenfeld (fiktiv)",
+     "locator": "",
+     "rst": "59",
+     "echolink": false,
+     "member": "DEMO-004",
+     "note": "Fiktive Testperson; Angaben ausschließlich für die Demo.",
+     "created": "2026-06-03T17:01:20.000Z",
+     "updated": "2026-06-03T17:01:20.001Z"
+    }
+   },
+   {
+    "id": "c629e8f8-eb67-4807-b29b-93898fe82ce6",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "store": "participants",
+    "recordId": "c8c9eec0-6608-4102-90bc-1618a77e5d0d",
+    "at": "2026-06-03T17:44:05.000Z",
+    "record": {
+     "id": "c8c9eec0-6608-4102-90bc-1618a77e5d0d",
+     "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+     "call": "OE0QXE",
+     "base": "OE0QXE",
+     "unresolved": false,
+     "profileId": "2f03dc04-adfb-4f28-831a-ce75a9c1725d",
+     "status": "active",
+     "flags": {
+      "reception": false
+     },
+     "presence": [
+      {
+       "from": {
+        "iso": "2026-06-03T17:01:40.000Z",
+        "quality": "exact"
+       },
+       "to": null
+      }
+     ],
+     "rosterOrder": 5,
+     "plannedOrder": null,
+     "checkinRoundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+     "deleted": null,
+     "name": "Livia",
+     "qth": "Kieselbach (fiktiv)",
+     "locator": "",
+     "rst": "57",
+     "echolink": false,
+     "member": "DEMO-005",
+     "note": "Fiktive Testperson; Angaben ausschließlich für die Demo.",
+     "created": "2026-06-03T17:01:40.000Z",
+     "updated": "2026-06-03T17:01:40.001Z"
+    }
+   },
+   {
+    "id": "e0a5af1a-fd39-4c1a-b904-4067a10aa4d8",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "store": "participants",
+    "recordId": "35f9f41a-6b53-4a99-ba9a-798b9f3bdcc3",
+    "at": "2026-06-03T17:44:05.000Z",
+    "record": {
+     "id": "35f9f41a-6b53-4a99-ba9a-798b9f3bdcc3",
+     "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+     "call": "OE0QXF",
+     "base": "OE0QXF",
+     "unresolved": false,
+     "profileId": "53711dec-e80c-4531-b332-bb79acf777e2",
+     "status": "active",
+     "flags": {
+      "reception": false
+     },
+     "presence": [
+      {
+       "from": {
+        "iso": "2026-06-03T17:02:00.000Z",
+        "quality": "exact"
+       },
+       "to": null
+      }
+     ],
+     "rosterOrder": 6,
+     "plannedOrder": null,
+     "checkinRoundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+     "deleted": null,
+     "name": "Arne",
+     "qth": "Farnwinkel (fiktiv)",
+     "locator": "",
+     "rst": "55",
+     "echolink": false,
+     "member": "DEMO-006",
+     "note": "Fiktive Testperson; Angaben ausschließlich für die Demo.",
+     "created": "2026-06-03T17:02:00.000Z",
+     "updated": "2026-06-03T17:02:00.001Z"
+    }
+   },
+   {
+    "id": "82f528ad-3528-4e94-93c8-e08d5777ec19",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "store": "participants",
+    "recordId": "97377a8f-548b-481f-b02b-6cd67ec55075",
+    "at": "2026-06-03T17:44:05.000Z",
+    "record": {
+     "id": "97377a8f-548b-481f-b02b-6cd67ec55075",
+     "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+     "call": "OE0QXI",
+     "base": "OE0QXI",
+     "unresolved": false,
+     "profileId": "0b13b669-7658-4b71-baf3-991db175d763",
+     "status": "active",
+     "flags": {
+      "reception": false
+     },
+     "presence": [
+      {
+       "from": {
+        "iso": "2026-06-03T17:02:20.000Z",
+        "quality": "exact"
+       },
+       "to": null
+      }
+     ],
+     "rosterOrder": 7,
+     "plannedOrder": null,
+     "checkinRoundId": "f253fa07-bfeb-445c-9ea0-d983eb059a9e",
+     "deleted": null,
+     "name": "Enna",
+     "qth": "Sonnenried (fiktiv)",
+     "locator": "",
+     "rst": "55",
+     "echolink": false,
+     "member": "DEMO-009",
+     "note": "Fiktive Testperson; Angaben ausschließlich für die Demo.",
+     "created": "2026-06-03T17:02:20.000Z",
+     "updated": "2026-06-03T17:18:10.000Z"
+    }
+   },
+   {
+    "id": "2d2b2c64-0666-4a4d-99cf-edb703b7014d",
+    "eventId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "store": "sessions",
+    "recordId": "ce74565c-013b-4676-954e-6e461a514fab",
+    "at": "2026-06-03T17:44:05.000Z",
+    "record": {
+     "id": "ce74565c-013b-4676-954e-6e461a514fab",
+     "seriesId": "7d44fbd6-38cf-453f-8c81-6fc5ab9cb00d",
+     "number": 1,
+     "name": "DEMO · Leuchtturm ohne Meer",
+     "date": "2026-06-03",
+     "own": {
+      "call": "OE0QXA",
+      "base": "OE0QXA"
+     },
+     "radio": {
+      "repeater": "",
+      "freq": "145.500",
+      "mode": "FM"
+     },
+     "suggestedNcs": "OE0QXA",
+     "style": "star",
+     "start": {
+      "iso": "2026-06-03T17:00:00.000Z",
+      "quality": "exact"
+     },
+     "end": {
+      "iso": null,
+      "quality": "unknown"
+     },
+     "joinedLate": false,
+     "currentRoundId": "043ab95c-6d4f-4442-b8cb-c8049ed6203c",
+     "ncsId": "95d6d929-899c-41a5-95f7-155fa42d95f5",
+     "deleted": null,
+     "created": "2026-06-03T17:00:00.000Z",
+     "updated": "2026-06-03T17:33:10.000Z"
+    }
+   }
+  ],
+  "undo": [],
+  "drafts": [],
+  "profiles": [
+   {
+    "id": "52d80747-4c4d-4eef-bfb7-13865996d686",
+    "call": "OE0QXA",
+    "base": "OE0QXA",
+    "name": "Mira",
+    "qth": "Lindenhain (fiktiv)",
+    "locator": "",
+    "echolink": false,
+    "member": "DEMO-001",
+    "deleted": null,
+    "created": "2026-06-03T17:00:20.000Z",
+    "updated": "2026-06-03T17:00:20.000Z"
+   },
+   {
+    "id": "61a986a5-63c0-4612-8742-9612f8383fb8",
+    "call": "OE0QXB",
+    "base": "OE0QXB",
+    "name": "Jona",
+    "qth": "Sonnenried (fiktiv)",
+    "locator": "",
+    "echolink": false,
+    "member": "DEMO-002",
+    "deleted": null,
+    "created": "2026-06-03T17:00:40.000Z",
+    "updated": "2026-06-03T17:00:40.000Z"
+   },
+   {
+    "id": "a211ab3d-89f8-4a2c-ba49-fcd32fd9e576",
+    "call": "OE0QXC",
+    "base": "OE0QXC",
+    "name": "Nele",
+    "qth": "Birkenau-Testort (fiktiv)",
+    "locator": "",
+    "echolink": false,
+    "member": "DEMO-003",
+    "deleted": null,
+    "created": "2026-06-03T17:01:00.000Z",
+    "updated": "2026-06-03T17:01:00.000Z"
+   },
+   {
+    "id": "51dcf01f-f3e2-43e0-b4e3-1639f6b7c198",
+    "call": "OE0QXD",
+    "base": "OE0QXD",
+    "name": "Timo",
+    "qth": "Wolkenfeld (fiktiv)",
+    "locator": "",
+    "echolink": false,
+    "member": "DEMO-004",
+    "deleted": null,
+    "created": "2026-06-03T17:01:20.000Z",
+    "updated": "2026-06-03T17:01:20.000Z"
+   },
+   {
+    "id": "2f03dc04-adfb-4f28-831a-ce75a9c1725d",
+    "call": "OE0QXE",
+    "base": "OE0QXE",
+    "name": "Livia",
+    "qth": "Kieselbach (fiktiv)",
+    "locator": "",
+    "echolink": false,
+    "member": "DEMO-005",
+    "deleted": null,
+    "created": "2026-06-03T17:01:40.000Z",
+    "updated": "2026-06-03T17:01:40.000Z"
+   },
+   {
+    "id": "53711dec-e80c-4531-b332-bb79acf777e2",
+    "call": "OE0QXF",
+    "base": "OE0QXF",
+    "name": "Arne",
+    "qth": "Farnwinkel (fiktiv)",
+    "locator": "",
+    "echolink": false,
+    "member": "DEMO-006",
+    "deleted": null,
+    "created": "2026-06-03T17:02:00.000Z",
+    "updated": "2026-06-03T17:02:00.000Z"
+   },
+   {
+    "id": "0b13b669-7658-4b71-baf3-991db175d763",
+    "call": "OE0QXI",
+    "base": "OE0QXI",
+    "name": "Enna",
+    "qth": "Sonnenried (fiktiv)",
+    "locator": "",
+    "echolink": false,
+    "member": "DEMO-009",
+    "deleted": null,
+    "created": "2026-06-03T17:02:20.000Z",
+    "updated": "2026-06-03T17:02:20.000Z"
+   }
+  ]
+ }
+}

@@ -18,6 +18,10 @@ framework and no server-side code. All data stays on the device. Each tool's
 `README.md` (and `AGENTS.md`) next to its code has the details.
 `tools/shared/` holds the code several tools use.
 
+For fictional data to try backup imports, see
+[`examples/backups/`](examples/backups/README.md): small examples and fuller
+datasets for Netlog, Bestätigungsverkehr and Notfunk-Meldebuch.
+
 ## Using a release
 
 Each release `vX.Y.Z` provides `oe1ebg-tools-vX.Y.Z.tar.gz`, its `.sha256`,
