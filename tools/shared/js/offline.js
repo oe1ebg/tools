@@ -372,12 +372,16 @@ export async function initOffline({ build = null, beforeReload = async () => tru
   // back to the foreground (an installed app resumes without a reload) and
   // hourly while it stays open — never required.
   let lastCheck = 0;
+  let checkSeq = 0;
   const check = () => {
     if (!navigator.onLine || Date.now() - lastCheck < 60e3) return;
     lastCheck = Date.now();
-    reg.update().then(() => { if (!reg.waiting) setUpdateNote(''); }, e => {
+    // only the latest check reports: an older one finishing late must not
+    // clear (or set) the note of a newer one
+    const seq = ++checkSeq;
+    reg.update().then(() => { if (seq === checkSeq && !reg.waiting) setUpdateNote(''); }, e => {
       console.warn('Update-Prüfung fehlgeschlagen', e);
-      setUpdateNote(OT.checkFailed, OT.checkFailedTitle);
+      if (seq === checkSeq) setUpdateNote(OT.checkFailed, OT.checkFailedTitle);
     });
   };
   window.addEventListener('online', () => {

@@ -5,7 +5,8 @@
 //   - a broken or missing manifest fails the install (first install: not
 //     "ready", nothing cached; later: the working installation stays),
 //   - development mode is only the explicit stub,
-//   - a failed update check is shown,
+//   - a failed update check is shown (an older check finishing late does
+//     not clear it),
 //   - a failed draft save holds the update/reload back (local click, update
 //     from another tab), keeps the input, and "Erneut versuchen" /
 //     "Trotzdem aktualisieren" go on.
@@ -207,6 +208,26 @@ for (const tool of Object.keys(TOOLS)) {
       });
       await expect(page.locator('#st-update')).toHaveText('Update-Prüfung fehlgeschlagen');
       await expect(page.locator('#st-offline')).toHaveText('offline bereit ✓');
+    });
+
+    test('an older update check finishing late does not clear a newer failure', async ({ page }) => {
+      await openReady(page, tool);
+      // the first check is slow and succeeds, the second fails at once
+      await page.evaluate(() => {
+        let n = 0;
+        globalThis.__slowDone = false;
+        ServiceWorkerRegistration.prototype.update = () => (++n === 1
+          ? new Promise(r => setTimeout(() => { globalThis.__slowDone = true; r(); }, 400))
+          : Promise.reject(new TypeError('Failed to update a ServiceWorker')));
+        const real = Date.now;
+        Date.now = () => real() + 120e3;
+        window.dispatchEvent(new Event('online'));
+        Date.now = () => real() + 240e3;
+        window.dispatchEvent(new Event('online'));
+      });
+      await expect(page.locator('#st-update')).toHaveText('Update-Prüfung fehlgeschlagen');
+      await expect.poll(() => page.evaluate(() => globalThis.__slowDone)).toBe(true);
+      await expect(page.locator('#st-update')).toHaveText('Update-Prüfung fehlgeschlagen');
     });
 
     test('a failed draft save holds the update back, keeps the input, and a retry updates', async ({ page, context, problems }) => {
