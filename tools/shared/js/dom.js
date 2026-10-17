@@ -28,6 +28,20 @@ export function fill(node, ...children) {
   return node;
 }
 
+// Tables shown as cards on small screens (rows with display: grid): WebKit
+// then no longer exposes them as tables, so the roles are set explicitly.
+// rowRoles() for a row (header or body), tableRoles() once for the table.
+export function rowRoles(tr) {
+  tr.setAttribute('role', 'row');
+  for (const c of tr.children) c.setAttribute('role', c.tagName === 'TH' ? 'columnheader' : 'cell');
+  return tr;
+}
+export function tableRoles(table) {
+  table.setAttribute('role', 'table');
+  for (const g of table.querySelectorAll(':scope > thead, :scope > tbody')) g.setAttribute('role', 'rowgroup');
+  for (const tr of table.querySelectorAll(':scope > thead > tr')) rowRoles(tr);
+}
+
 // Clipboard with a fallback for non-secure contexts (file://).
 export async function copyToClipboard(text) {
   try {

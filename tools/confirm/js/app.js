@@ -18,7 +18,7 @@ import { TEMPLATES, templateFor, fieldVisible, fieldDisplay, fieldOptions, curre
 import { toCSV, toADIF, adifIssues, ADIF_MIME, toKML, KML_MIME, toSummary } from './export.js';
 import { loadDataFile } from '../../shared/js/data.js';
 import { buildCallbook, lookupCall, suggestCalls, normalizeCall, isPlausibleCall } from '../../shared/js/callbook.js';
-import { $, el, fill, copyToClipboard, popover, focusNext, submitForm, isComposing, trackExpanded } from '../../shared/js/dom.js';
+import { $, el, fill, copyToClipboard, popover, focusNext, submitForm, isComposing, trackExpanded, rowRoles, tableRoles } from '../../shared/js/dom.js';
 import { prefGet, prefSet } from '../../shared/js/prefs.js';
 import { initLocationPanel, loadLocationIndex, setUtmReference, logUtmDigits } from '../../shared/js/locationui.js';
 import { locate } from '../../shared/js/location/index.js';
@@ -1654,12 +1654,12 @@ function renderLog(highlightCall) {
   $('#st-total').textContent = st.total;
   const call = highlightCall ?? normalizeCall($('#f-call').value);
 
-  fill($('#log-head'), el('tr', {},
+  fill($('#log-head'), rowRoles(el('tr', {},
     th(timeMode() === 'local' ? `Zeit (${zoneLabel(nowIso(), 'local')})` : 'Zeit UTC'), th('Nr'), th('Rufzeichen Gegenstation'),
     tpl.fields.flatMap(f => [f.type === 'location'
       ? el('th', { scope: 'col', class: 'origin', title: 'Quelle des Standorts' }, 'Quelle')
       : null, th(f.label)]),
-    th('Relais'), th('Notiz'), th('Op'), el('th', { scope: 'col', class: 'act' }, el('span', { class: 'sr-only' }, 'Aktionen'))));
+    th('Relais'), th('Notiz'), th('Op'), el('th', { scope: 'col', class: 'act' }, el('span', { class: 'sr-only' }, 'Aktionen')))));
 
   const body = $('#log-body');
   const cols = tpl.fields.length + 7 + tpl.fields.filter(f => f.type === 'location').length;
@@ -1667,7 +1667,7 @@ function renderLog(highlightCall) {
     resetRows(rowCache);
     rowsByCall = new Map();
     matched = [];
-    body.replaceChildren(el('tr', {}, el('td', { colspan: String(cols), class: 'empty' }, 'Noch keine Einträge. Rufzeichen eingeben und Shift+Enter drücken.')));
+    body.replaceChildren(rowRoles(el('tr', {}, el('td', { colspan: String(cols), class: 'empty' }, 'Noch keine Einträge. Rufzeichen eingeben und Shift+Enter drücken.'))));
     return;
   }
   // Rows are kept between renders (keyed by line id, signature = everything
@@ -1691,7 +1691,7 @@ function renderLog(highlightCall) {
       dates.set(e.id, showDate);
       return `${e.updated}|${e.deleted || ''}|${e.seq}|${nums.get(e.id)}|${showDate ? 1 : 0}`;
     },
-    build: e => buildLogRow(e, { tpl, n: nums.get(e.id), showDate: dates.get(e.id), cols }),
+    build: e => rowRoles(buildLogRow(e, { tpl, n: nums.get(e.id), showDate: dates.get(e.id), cols })),
   });
   rowsByCall = new Map();
   for (const e of live) {
@@ -1759,17 +1759,17 @@ function buildLogRow(e, { tpl, n, showDate, cols }) {
       el('td', { class: 'call' }, e.call, n > 1 ? el('span', { class: 'badge', title: `Check-in Nr. ${n}` }, `${n}×`) : null,
         callbookName(e.call) ? el('div', { class: 'cb-name' }, callbookName(e.call)) : null),
       tpl.fields.flatMap(f => [f.type === 'location' ? originCell(e.loc, e.fields?.[f.key]) : null,
-        el('td', {}, fieldVisible(f, e.fields, tpl) ? fieldDisplay(f, e.fields?.[f.key]) : '',
+        el('td', { 'data-label': f.label }, fieldVisible(f, e.fields, tpl) ? fieldDisplay(f, e.fields?.[f.key]) : '',
         f.type === 'location' && e.loc ? el('div', { class: 'loc-sub' }, [`→ ${describeLocation(e.loc, logUtmDigits())}`, ...locHints(e.loc)].join(' · ')) : null,
         f.type === 'location' && !e.loc && e.fields?.[f.key] ? el('div', { class: 'loc-sub unresolved' }, 'nicht zugeordnet') : null)]),
-      el('td', {}, e.viaRepeater
+      el('td', { 'data-label': 'Relais' }, e.viaRepeater
         ? el('span', {
           class: s.repeaterOverride ? 'rpt override' : 'rpt',
           title: [s.repeaterOverride ? 'anderes Relais als in den Kopfdaten' : 'Relais aus den Kopfdaten', s.repeaterFreq && `${s.repeaterFreq} MHz`, s.repeaterShift && `Shift ${s.repeaterShift}`, signallingText(s)].filter(Boolean).join(' · '),
         }, s.repeaterCall || 'ja')
         : '–'),
-      el('td', {}, e.note || ''),
-      el('td', { class: 'mono' }, s.operator && s.station && s.operator !== s.station ? `${s.operator}/${s.station}` : s.operator || s.station || ''),
+      el('td', { 'data-label': 'Notiz' }, e.note || ''),
+      el('td', { class: 'mono', 'data-label': 'Op' }, s.operator && s.station && s.operator !== s.station ? `${s.operator}/${s.station}` : s.operator || s.station || ''),
       el('td', { class: 'act' }, actions),
     );
 }
@@ -2217,6 +2217,7 @@ function wire() {
   });
   // Log header: Enter in the last field goes on to the callsign.
   headerKeys($('#log-header'), focusEntryStart);
+  tableRoles($('table.log')); // cards on phones (style.css)
   // A finished header edit (field left, Enter, checkbox, repeater pick)
   // writes the automatic operator/repeater marker.
   $('#log-header').addEventListener('change', () => { flushMarkers(); });
