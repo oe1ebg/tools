@@ -12,9 +12,9 @@ import {
   signallingText, REPEATER_KEYS, parseMHz, liveSorted, stats, isComment, COMMENT_CATEGORIES, newComment,
   headerChangeMarkers, headerFromRepeater,
 } from './model.js';
-import { newId, nowIso, laterIso, splitUtc, splitTime, zoneLabel, parseTimeInput, isoUtc, localZoneText } from '../../shared/js/time.js';
+import { newId, nowIso, laterIso, splitUtc, splitTime, zoneLabel, zoneAbbr, parseTimeInput, isoUtc, localZoneAbbrText } from '../../shared/js/time.js';
 import { LOC_ORIGINS, locOrigin, locHints } from '../../shared/js/locmeta.js';
-import { TEMPLATES, templateFor, fieldVisible, fieldDisplay, fieldOptions, currentOptions, shortSummary, exampleValues } from './templates.js';
+import { TEMPLATES, templateFor, fieldVisible, fieldDisplay, fieldOptions, currentOptions, shortSummary, exampleValues, logColumns, chainValues, nameField } from './templates.js';
 import { toCSV, toADIF, adifIssues, ADIF_MIME, toKML, KML_MIME, toSummary } from './export.js';
 import { loadDataFile } from '../../shared/js/data.js';
 import { buildCallbook, lookupCall, suggestCalls, normalizeCall, isPlausibleCall } from '../../shared/js/callbook.js';
@@ -33,6 +33,7 @@ import { sourceItem, trackOnline, repoLink } from '../../shared/js/sources.js';
 import { initOffline, setChip } from '../../shared/js/offline.js';
 import { createLineRepeater } from './linerepeater.js';
 import { createRowCache, syncRows, resetRows } from '../../shared/js/rowcache.js';
+import { trackSiteHeaderHeight } from '../../shared/js/stickyhead.js';
 import { formatShift, formatMHz } from '../../shared/js/repeaters.js';
 import { BACKUP_FORMAT, BACKUP_MAX_BYTES, SEQ_LIMIT, validateBackup, planBackupImport, backupTexts, combineBackupParts } from './backup.js';
 import { groupParts, partFileName, partsTooLarge } from '../../shared/js/backup-parts.js';
@@ -91,15 +92,20 @@ function timeMode() {
   return prefGet(TIME_MODE_KEY) === 'utc' ? 'utc' : 'local';
 }
 
-// "19:42:07 UTC" / "21:42:07 UTC+2"
+// The zone of a shown time: "UTC", or the local zone's short name ("MESZ").
+function zoneOf(iso) {
+  return timeMode() === 'utc' ? 'UTC' : zoneAbbr(iso);
+}
+
+// "19:42:07 UTC" / "21:42:07 MESZ"
 function fmtTime(iso, withSeconds = true) {
   const t = splitTime(iso, timeMode()).time;
-  return `${withSeconds ? t : t.slice(0, 5)} ${zoneLabel(iso, timeMode())}`;
+  return `${withSeconds ? t : t.slice(0, 5)} ${zoneOf(iso)}`;
 }
 
 function fmtDateTime(iso) {
   const { date, time } = splitTime(iso, timeMode());
-  return `${date} ${time} ${zoneLabel(iso, timeMode())}`;
+  return `${date} ${time} ${zoneOf(iso)}`;
 }
 
 function applyTimeMode() {
@@ -110,8 +116,8 @@ function applyTimeMode() {
   });
   // the local choice names the device's zone and its offset now
   const local = document.querySelector('#time-toggle button[data-time-mode="local"]');
-  if (local) local.textContent = localZoneText('Lokal', nowIso());
-  $('#time-label').textContent = mode === 'local' ? `Zeit ${localZoneText('lokal', nowIso())}` : 'Zeit UTC';
+  if (local) local.textContent = localZoneAbbrText('Lokal', nowIso());
+  $('#time-label').textContent = mode === 'local' ? `Zeit ${localZoneAbbrText('lokal', nowIso())}` : 'Zeit UTC';
   $('#f-time').title = `Leer lassen = Zeitpunkt des Speicherns. Korrektur: HH:MM oder JJJJ-MM-TT HH:MM (${mode === 'local' ? 'Lokalzeit' : 'UTC'}). Gespeichert wird immer ein ISO-Zeitstempel.`;
   $('#time-help').textContent = $('#f-time').title;
   tickClock();
@@ -193,6 +199,8 @@ async function initPersistence() {
 // radio group for a boolean header value: [falseValue, trueValue].
 // `span` is the width in columns of the header grid (style.css), default
 // 1; `narrowSpan` the width in its two phone columns, default `span`.
+// `bare`: a radio group on a row of its own, named only by its section
+// heading (aria-label), like the mode chips.
 const ROUTES = [['direct', 'direkt (Simplex)'], ['rpt', 'über Relais']];
 const HEADER_FIELDS = [
   { sub: 'Station' },
@@ -203,13 +211,14 @@ const HEADER_FIELDS = [
   { sub: 'Betriebsart' },
   { key: 'mode', label: 'Betriebsart', radio: MODES.map(m => [m.key, m.label]), adif: true },
   { sub: 'Verbindung', note: 'Standard für neue Zeilen, pro Zeile umschaltbar' },
-  { key: 'viaRepeater', label: 'Weg', radio: ROUTES, bool: ['direct', 'rpt'], span: 2 },
+  { key: 'viaRepeater', label: 'Verbindung', radio: ROUTES, bool: ['direct', 'rpt'], bare: true },
   { key: 'freq', label: 'Frequenz MHz', size: 9, inputmode: 'decimal', route: 'direct' },
-  { key: 'repeaterCall', label: 'Relais (Rufzeichen, Ort, Frequenz)', call: true, repeater: true, size: 11, route: 'rpt', span: 2 },
+  { key: 'repeaterCall', label: 'Relais', placeholder: 'Rufzeichen, Ort oder MHz', call: true, repeater: true, size: 11, route: 'rpt', span: 2 },
   { key: 'repeaterFreq', label: 'Ausgabe MHz', size: 9, inputmode: 'decimal', route: 'rpt' },
   { key: 'repeaterShift', label: 'Shift MHz', size: 6, inputmode: 'decimal', route: 'rpt', txHint: true },
-  ...Object.entries(SIGNALLING).flatMap(([mode, list]) => list.map(([key, label, placeholder]) => ({
-    key, label, placeholder, size: 6, modes: [mode],
+  // via repeater the signalling starts a row of its own (.sig-start)
+  ...Object.entries(SIGNALLING).flatMap(([mode, list]) => list.map(([key, label, placeholder], i) => ({
+    key, label, placeholder, size: 6, modes: [mode], sigStart: i === 0,
   }))),
 ];
 
@@ -240,6 +249,7 @@ function buildHeaderForm(container, header, onChange) {
     if (f.narrowSpan > 1) node.classList.add(`nspan-${f.narrowSpan}`);
     if (f.route) node.dataset.route = f.route;
     if (f.modes) node.dataset.modes = f.modes.join(' ');
+    if (f.sigStart) node.classList.add('sig-start');
     container.append(node);
   };
   for (const f of HEADER_FIELDS) {
@@ -260,8 +270,9 @@ function buildHeaderForm(container, header, onChange) {
           const m = f.adif ? adifModeText(v) : '';
           return el('label', { 'data-value': v, title: m || null }, r, el('span', {}, l));
         }));
-      // The mode has its own section heading: no second label (aria-label on the group).
-      place(f, el('div', { class: f.adif ? 'field wide' : 'field' }, f.adif ? null : el('span', {}, f.label), group));
+      // The mode and the route have their section heading: no second label (aria-label on the group).
+      const bare = f.adif || f.bare;
+      place(f, el('div', { class: bare ? 'field wide' : 'field' }, bare ? null : el('span', {}, f.label), group));
       continue;
     }
     const input = el('input', {
@@ -321,7 +332,13 @@ function buildHeaderForm(container, header, onChange) {
       });
     }
   }
-  container._hdr = { hints, rptSearch, qthField };
+  // set(h): the whole form at once (undo, Esc), as one change.
+  const set = h => {
+    writeHeaderForm(container, h);
+    if (qthField) qthField.refresh();
+    emit();
+  };
+  container._hdr = { hints, rptSearch, qthField, set };
   last = JSON.stringify(readHeaderForm(container));
   renderHeaderHints(container);
   rptSearch?.refresh();
@@ -363,9 +380,9 @@ function setSaveLabel(text) {
   fill($('#btn-save'), text, ' ', el('span', { 'aria-hidden': 'true' }, '⇧⏎'));
 }
 
-// Column header cell.
-function th(text) {
-  return el('th', { scope: 'col' }, text);
+// Column header cell; `title`: the full name (the visible one is short).
+function th(text, title) {
+  return el('th', { scope: 'col', title }, text);
 }
 
 // aria-live lines are read out on every write: only write real changes.
@@ -378,6 +395,7 @@ function renderHeaderHints(container) {
   if (!hints) return;
   const h = readHeaderForm(container);
   const route = h.viaRepeater ? 'rpt' : 'direct';
+  container.classList.toggle('route-rpt', h.viaRepeater);
   container.querySelectorAll('[data-route]').forEach(n => { n.hidden = n.dataset.route !== route; });
   container.querySelectorAll('[data-modes]').forEach(n => { n.hidden = !n.dataset.modes.split(' ').includes(h.mode); });
   const out = parseMHz(h.repeaterFreq), shift = parseMHz(h.repeaterShift);
@@ -451,20 +469,23 @@ function headerKeys(container, last) {
   });
 }
 
+// Everything in the Betrieb form on one line (the closed panel):
+// "Op OE1ABC für OE1XYZ · Wien JN88ee · FM via OE1XUU 438.950 MHz −7.6 CTCSS 162.2".
 function headerSummary(h) {
   const parts = [];
-  if (h.operator) parts.push(`Op ${h.operator}`);
-  if (h.station && h.station !== h.operator) parts.push(`für ${h.station}`);
+  if (h.operator) parts.push(`Op ${h.operator}${h.station && h.station !== h.operator ? ` für ${h.station}` : ''}`);
+  else if (h.station) parts.push(`für ${h.station}`);
+  const qth = [h.myQth, h.myGrid].filter(Boolean).join(' ');
+  if (qth) parts.push(qth);
   const sig = signallingText(h);
+  const mode = modeInfo(h.mode)?.label || h.mode || '';
   if (h.viaRepeater) {
     const shift = h.repeaterShift !== '' && h.repeaterShift !== undefined ? formatShift(parseMHz(h.repeaterShift)) : '';
-    parts.push(`${modeInfo(h.mode)?.label || ''} via ${h.repeaterCall || 'Relais'}${h.repeaterFreq ? ' ' + h.repeaterFreq : ''}`
-      + `${shift ? ' ' + shift : ''}${sig ? ', ' + sig : ''}`);
+    parts.push([mode, `via ${h.repeaterCall || 'Relais'}`, h.repeaterFreq && `${h.repeaterFreq} MHz`, shift, sig].filter(Boolean).join(' '));
   } else {
-    const f = [h.freq && `${h.freq} MHz`, modeInfo(h.mode)?.label, 'direkt'].filter(Boolean).join(' ');
-    parts.push(`${f}${sig ? ', ' + sig : ''}`);
+    parts.push([mode, 'direkt', h.freq && `${h.freq} MHz`, sig].filter(Boolean).join(' '));
   }
-  return parts.join(' · ') || '(noch leer – Operator und Station eintragen)';
+  return h.operator || h.station ? parts.join(' · ') : `(Operator und Station fehlen) · ${parts.join(' · ')}`;
 }
 
 /* ---------------------------------------------------------------- events view */
@@ -576,19 +597,24 @@ function openNewEventForm(prefill) {
   form.title.focus();
 }
 
-// What the chosen template changes: a sample log line with the log's
-// columns (the template's own ones highlighted).
+// What the chosen template changes: a sample line as the log shows it (its
+// columns, logColumns(); the template's own ones highlighted).
 function renderTemplatePreview(key) {
   const tpl = templateFor(key);
   const values = exampleValues(tpl);
-  const fields = tpl.fields.filter(f => fieldVisible(f, values, tpl));
+  const columns = logColumns(tpl);
+  const nf = nameField(tpl);
+  const sample = { id: 'sample', call: 'OE1ABC', fields: values, loc: null };
   // The <summary> is static in index.html (a <details> without one is invalid).
   fill($('#new-template-sample'),
-    el('div', { class: 'scroll' }, el('table', {},
-      el('tr', {}, ['Zeit UTC', 'Nr', 'Rufzeichen Gegenstation'].map(t => el('th', {}, t)),
-        fields.map(f => el('th', { class: 'tpl' }, f.label)), ['Relais', 'Notiz'].map(t => el('th', {}, t))),
-      el('tr', {}, ['18:42Z', '1', 'OE1ABC'].map(t => el('td', {}, t)),
-        fields.map(f => el('td', { class: 'tpl' }, fieldDisplay(f, values[f.key]))), ['OE1XUU', ''].map(t => el('td', {}, t))))));
+    el('div', { class: 'scroll' }, el('table', { class: 'sample' },
+      el('tr', {}, ['Nr', 'Zeit', 'Rufzeichen'].map(t => el('th', {}, t)),
+        columns.map(c => el('th', { class: 'tpl', title: c.title }, c.head)), el('th', {}, 'Notiz')),
+      el('tr', {}, el('td', { class: 'mono' }, '1'), el('td', { class: 'mono' }, '18:42Z'),
+        el('td', { class: 'call' }, 'OE1ABC', nf && values[nf.key] ? el('div', { class: 'op-name' }, values[nf.key]) : null),
+        // the place as typed (a sample is not looked up)
+        columns.map(c => el('td', { class: `tpl col-${c.kind}` }, c.kind === 'location' ? values[c.fields[0].key] || '' : columnCell(c, sample, tpl))),
+        el('td', {}, '')))));
 }
 
 // Pre-fill a new event with the header of the most recently created one —
@@ -654,6 +680,7 @@ async function openEvent(id) {
   state.entries = await state.store.getByEvent('entries', id);
   state.editingId = null;
   state.markerBase = { ...(ev.header || emptyHeader()) };
+  takeHeaderUndo();
   $('#view-events').hidden = true;
   $('#view-log').hidden = false;
   document.title = `${ev.title} – Bestätigungsverkehr`;
@@ -744,10 +771,55 @@ function onHeaderChange(h) {
   if (state.readOnly) return;
   state.event.header = h;
   $('#hdr-sum').textContent = headerSummary(h);
+  updateHeaderUndo();
   updateRepeaterDefault();
   maybeRefreshMap(); // own position follows "Eigener QTH" / "Eigener Locator"
   clearTimeout(state.headerTimer);
   state.headerTimer = setTimeout(flushHeader, 400);
+}
+
+// "Rückgängig" in the Betrieb panel: back to the header as it was when the
+// panel was opened (or the log), and the automatic markers its changes wrote
+// since then go to the trash, unless their text was edited.
+function takeHeaderUndo() {
+  state.hdrUndo = state.event ? { header: { ...(state.event.header || emptyHeader()) }, markers: [] } : null;
+  updateHeaderUndo();
+}
+
+function updateHeaderUndo() {
+  const u = state.hdrUndo;
+  $('#btn-hdr-undo').disabled = state.readOnly || !u
+    || JSON.stringify({ ...emptyHeader(), ...state.event?.header }) === JSON.stringify({ ...emptyHeader(), ...u.header });
+}
+
+async function undoHeader() {
+  const u = state.hdrUndo;
+  if (!u || state.readOnly) return;
+  $('#log-header')._hdr.set(u.header);
+  state.markerBase = { ...u.header };
+  await flushHeader();
+  const auto = u.markers.map(id => state.entries.find(e => e.id === id)).filter(e => e && !e.deleted && e.updated === e.created);
+  for (const e of auto) await setDeleted(e.id, true);
+  takeHeaderUndo();
+  logStatus(`Betrieb wie beim Öffnen${auto.length ? `, ${auto.length === 1 ? 'Marker' : `${auto.length} Marker`} im Papierkorb` : ''}.`);
+}
+
+// Esc in a Betrieb field: back to the value it had when it got the focus
+// (before anything is saved as a finished change). Open completion
+// dropdowns take Esc first.
+function headerEscape(container) {
+  container.addEventListener('focusin', ev => {
+    if (ev.target.matches('input:not([type])')) ev.target.dataset.orig = ev.target.value;
+  });
+  container.addEventListener('keydown', ev => {
+    const t = ev.target;
+    if (ev.key !== 'Escape' || ev.defaultPrevented || !t.matches('input:not([type])') || t.dataset.orig === undefined) return;
+    if (t.value === t.dataset.orig) return;
+    ev.preventDefault();
+    t.value = t.dataset.orig;
+    container._hdr.set(readHeaderForm(container));
+    t.select();
+  });
 }
 
 // Automatic log markers (decision on issue #32, option c): every finished
@@ -776,6 +848,7 @@ async function flushMarkers({ openForEdit = true } = {}) {
   }
   if (state.event?.id !== ev.id) return;
   state.entries.push(...made);
+  state.hdrUndo?.markers.push(...made.map(c => c.id));
   renderLog();
   broadcast({ type: 'entries', eventId: ev.id });
   const what = made.map(c => `${c.category}: ${c.text}`).join(' · ');
@@ -838,10 +911,11 @@ function buildEntryFields() {
     let control;
     if (f.type === 'radio') {
       const hintId = f.hint ? `f_${f.key}-hint` : null;
-      control = el('div', { class: f.grade ? 'radio-group grade' : 'radio-group', role: 'radiogroup', 'aria-label': f.label, title: f.hint,
+      control = el('div', { class: f.grade ? 'radio-group grade' : 'radio-group', 'data-key': f.key, role: 'radiogroup', 'aria-label': f.label, title: f.hint,
         'aria-describedby': hintId },
         hintId ? el('span', { id: hintId, class: 'sr-only' }, f.hint) : null,
-        fieldOptions(f).map(([v, l]) => {
+        fieldOptions(f).map(([v, exported, screen]) => {
+          const l = screen || exported;
           const r = el('input', { type: 'radio', name: `f_${f.key}`, value: v });
           // Clicking the selected option again clears it (radios can't otherwise be unset).
           r.addEventListener('click', () => {
@@ -867,14 +941,35 @@ function buildEntryFields() {
       // has a fixed height, so nothing in the form moves when it changes.
       control.id = `f_${f.key}`;
       box.append(el('div', { class: 'field ac-field', 'data-field': f.key },
-        el('label', { for: control.id }, f.label),
+        el('label', { for: control.id, title: f.caption ? f.label : null }, f.caption || f.label),
         el('div', { class: 'ac-wrap' }, control, el('div', { class: 'ac-pop loc-pop' })),
-        el('div', { class: 'ac-hints' }, el('div', { class: 'ac-info loc-chip', id: `${control.id}-info`, 'aria-live': 'polite' }))));
+        el('div', { class: 'ac-hints loc-hints' }, el('div', { class: 'ac-info loc-chip', id: `${control.id}-info`, 'aria-live': 'polite' }),
+          f.plzKey ? el('div', { class: 'ac-info plz-note', id: 'plz-note', 'aria-live': 'polite' }) : null)));
       control.setAttribute('aria-describedby', `${control.id}-info`);
       continue;
     }
-    box.append(el(f.type === 'radio' ? 'div' : 'label', { class: 'field', 'data-field': f.key }, el('span', {}, f.label), control,
-      el('span', { class: 'ac-hints', 'aria-hidden': 'true' })));
+    // Fields of a group ("Sirene") get short captions: "Sirene zu",
+    // "offen", "außen"; the full question stays their name, after the
+    // visible words (WCAG 2.5.3).
+    const prev = tpl.fields[tpl.fields.indexOf(f) - 1];
+    const caption = f.group && f.short ? (prev?.group === f.group ? f.short : `${f.group} ${f.short}`) : f.label;
+    if (caption !== f.label && f.type === 'radio') control.setAttribute('aria-label', `${caption} (${f.label})`);
+    const node = el(f.type === 'radio' ? 'div' : 'label', { class: 'field', 'data-field': f.key, title: caption !== f.label ? f.label : null }, el('span', {}, caption), control);
+    // A field shown by another one's answer (AT-Alert fehlt -> Handy ->
+    // Version) goes under it, in one block (placeChains()).
+    const parent = f.showIf && box.querySelector(`[data-field="${f.showIf[0]}"]`);
+    if (parent) {
+      let more = parent.closest('.field-chain')?.querySelector('.chain-more');
+      if (!more) {
+        more = el('div', { class: 'chain-more' });
+        const chain = el('div', { class: 'field-chain' });
+        parent.before(chain);
+        chain.append(parent, more);
+      }
+      more.append(node);
+    } else {
+      box.append(node);
+    }
   }
   state.locField = null;
   const lf = tpl.fields.find(f => f.type === 'location');
@@ -885,11 +980,43 @@ function buildEntryFields() {
       results: wrap.querySelector('.loc-pop'),
       chip: wrap.querySelector('.loc-chip'),
       plzInput: lf.plzKey ? box.querySelector(`input[name="f_${lf.plzKey}"]`) : null,
-      onChange: scheduleDraft,
+      onChange: () => { updatePlzNote(); scheduleDraft(); },
     });
+    const plz = lf.plzKey && box.querySelector(`input[name="f_${lf.plzKey}"]`);
+    if (plz) {
+      plz.setAttribute('aria-describedby', 'plz-note');
+      plz.addEventListener('input', updatePlzNote);
+    }
   }
   updateFieldVisibility();
   updateRepeaterDefault();
+  lockEntryHeight();
+}
+
+// Check-in and comment have different fields: the form keeps the height of
+// the taller of the two, so switching never moves the log below it.
+// Measured when the fields are built and when the form's width changes
+// (fields wrap differently); fields that appear with an answer (Handy,
+// Version) may still make it taller.
+function lockEntryHeight() {
+  const form = $('#entry-form');
+  const row = form.querySelector(':scope > .row');
+  if (!row.offsetWidth) return; // hidden: measured when it shows (observer)
+  row.style.minHeight = '';
+  const own = row.offsetHeight;
+  form.classList.toggle('comment-mode');
+  const other = row.offsetHeight;
+  form.classList.toggle('comment-mode');
+  row.style.minHeight = `${Math.max(own, other)}px`;
+}
+// The form's width follows the window's (and is 0 while the log is hidden:
+// lockEntryHeight() then waits for buildEntryFields() on opening a log).
+let entryWidth = 0;
+function watchEntryWidth() {
+  window.addEventListener('resize', () => requestAnimationFrame(() => {
+    const w = $('#entry-form').offsetWidth;
+    if (w && w !== entryWidth) { entryWidth = w; placeChains(); lockEntryHeight(); }
+  }));
 }
 
 // Keyboard on a radio group (its visible radios): digits pick the n-th
@@ -962,6 +1089,23 @@ function updateFieldVisibility() {
       });
     }
   }
+  placeChains();
+}
+
+// The fields under AT-Alert end at its right edge and reach left into the
+// free room under the fields before it; where that room is missing (AT-Alert
+// at the start of a line) they start at its left edge and wrap.
+function placeChains() {
+  const box = $('#f-fields');
+  for (const chain of box.querySelectorAll('.field-chain')) {
+    chain.classList.remove('chain-left');
+    const more = chain.querySelector('.chain-more');
+    const shown = [...more.children].filter(n => !n.hidden);
+    more.hidden = !shown.length;
+    if (!shown.length) continue;
+    const left = Math.min(...shown.map(n => n.getBoundingClientRect().left));
+    if (left < box.getBoundingClientRect().left) chain.classList.add('chain-left');
+  }
 }
 
 function updateRepeaterDefault() {
@@ -994,11 +1138,14 @@ function readForm() {
 function setCommentMode(on) {
   state.commentMode = on;
   $('#entry-form').classList.toggle('comment-mode', on);
+  document.querySelectorAll('#entry-mode button').forEach(b => b.setAttribute('aria-pressed', String((b.dataset.mode === 'comment') === on)));
   if (!on) {
     $('#f-ctext').value = '';
     writeCategory('');
   }
-  if (!state.editingId) setSaveLabel(on ? 'Kommentar speichern' : 'Speichern');
+  // the same label in both modes (the switch says which): a longer one would
+  // wrap the buttons on a phone and move the log
+  if (!state.editingId) setSaveLabel('Speichern');
 }
 
 function writeCategory(v) {
@@ -1020,6 +1167,31 @@ function buildCategoryChips() {
     r.addEventListener('keydown', ev => radioKey(ev, [...box.querySelectorAll('input')], onFormInput));
     return el('label', { 'data-value': c }, r, el('span', {}, `${i + 1} ${c}`));
   }));
+}
+
+// The switch above the form (Check-in | Kommentar). A line being edited
+// keeps its kind; typed input of the other kind is never thrown away:
+// save or discard it first (as for "!").
+function switchEntryMode(comment) {
+  if (comment === state.commentMode) return;
+  const warn = state.editingId
+    ? 'Eine gespeicherte Zeile bleibt, was sie ist (Check-in oder Kommentar).'
+    : comment ? (hasCheckinInput() ? 'Für einen Kommentar erst diese Zeile speichern oder verwerfen (Esc).' : '')
+      : ($('#f-ctext').value.trim() || readForm().category ? 'Erst den Kommentar speichern oder verwerfen (Esc).' : '');
+  // in the status line above the log (its place is kept): the form doesn't grow
+  if (warn) {
+    fill($('#log-status'), el('span', { class: 'mode-warn' }, warn));
+    return;
+  }
+  if ($('#log-status .mode-warn')) $('#log-status').replaceChildren();
+  setCommentMode(comment);
+  scheduleDraft();
+  focusEntryStart();
+}
+
+function hasCheckinInput() {
+  const f = readForm();
+  return !!($('#f-call').value.trim() || f.note || Object.values(f.fields).some(v => v) || f.loc || f.rptOverride);
 }
 
 // "!" typed into the empty callsign field: switch to comment mode.
@@ -1061,6 +1233,45 @@ function formIsEmpty(f) {
   return !f.call && !f.note && !f.time && !f.text && !f.category && Object.values(f.fields).every(v => !v);
 }
 
+// The PLZ field has no room for a hint line of its own: its note follows
+// the location's on the line under Standort, and only when it adds
+// something (a PLZ without Standort, an unknown PLZ, a PLZ that is not the
+// Standort's; a matching one is in the location line already).
+function updatePlzNote() {
+  const note = $('#plz-note');
+  if (!note) return;
+  const input = note.closest('#f-fields')?.querySelector('[data-field="plz"] input');
+  const code = input?.value.trim() || '';
+  const show = (text, warn, title = text) => {
+    note.className = `ac-info plz-note${warn ? ' warn' : ''}`;
+    setText(note, text);
+    note.title = title;
+  };
+  if (code.length < 4) return show('');
+  if (!/^\d{4}$/.test(code)) return show('⚠ PLZ: 4 Ziffern', true);
+  loadLocationIndex().then(idx => {
+    if (!idx || input.value.trim() !== code) return;
+    const place = plzPlace(idx, code);
+    if (!place) return show(`⚠ PLZ ${code} unbekannt`, true);
+    const at = state.locField?.get()?.postcode;
+    if (at && at !== code) return show(`⚠ PLZ ≠ Standort ${at}`, true, `PLZ ${code} (${place}) passt nicht zum Standort (${at})`);
+    show(at ? '' : `PLZ ${code}: ${place}`);
+  });
+}
+
+// "Wien 21., Floridsdorf" (the district from the PLZ's digits), elsewhere
+// "Perchtoldsdorf, Bez. Mödling, NÖ"; null for an unknown PLZ.
+function plzPlace(idx, code) {
+  const a = idx.areaPlz.get(code);
+  if (idx.viennaPlz.has(code) || a?.name === 'Wien') {
+    const d = idx.districts.get(Number(code.slice(1, 3)));
+    return d ? `Wien ${d.nr}., ${d.name}` : 'Wien';
+  }
+  if (!a) return null;
+  const bez = a.bezirke.map(b => idx.bezirke.get(b)?.name).filter(n => n && !n.startsWith(a.name));
+  return [a.name, ...bez.map(n => `Bez. ${n}`), idx.states[a.state]].filter(Boolean).join(', ');
+}
+
 function onFormInput() {
   updateFieldVisibility();
   updateCallFeedback();
@@ -1072,6 +1283,7 @@ function updateCallFeedback() {
   $('#call-warn').textContent = call && !isPlausibleCall(call) ? 'Ungewöhnliches Rufzeichen – trotzdem speicherbar.' : '';
   renderCallbookInfo(call);
   updateLocationOptions(call);
+  updatePlzNote();
   const prev = previousCheckins(state.entries, call, state.editingId);
   const box = $('#repeat-box');
   if (!prev.length) {
@@ -1649,21 +1861,24 @@ function renderLog(highlightCall) {
   maybeRefreshMap();
   const tpl = templateFor(state.event.template);
   const nums = checkinNumbers(state.entries);
-  const live = liveSorted(state.entries).reverse();
+  // newest first on screen, oldest first on paper (printOrder)
+  const live = printOrder ? liveSorted(state.entries) : liveSorted(state.entries).reverse();
   const st = stats(state.entries);
   $('#st-unique').textContent = st.unique;
   $('#st-total').textContent = st.total;
   const call = highlightCall ?? normalizeCall($('#f-call').value);
 
+  const columns = logColumns(tpl);
   fill($('#log-head'), rowRoles(el('tr', {},
-    th(timeMode() === 'local' ? `Zeit (${zoneLabel(nowIso(), 'local')})` : 'Zeit UTC'), th('Nr'), th('Rufzeichen Gegenstation'),
-    tpl.fields.flatMap(f => [f.type === 'location'
-      ? el('th', { scope: 'col', class: 'origin', title: 'Quelle des Standorts' }, 'Quelle')
-      : null, th(f.label)]),
-    th('Relais'), th('Notiz'), th('Op'), el('th', { scope: 'col', class: 'act' }, el('span', { class: 'sr-only' }, 'Aktionen')))));
+    // UTC times end in Z; local ones are the zone in the header's switch
+    th('Nr', 'laufende Nummer im Log'), th('Zeit', timeMode() === 'local' ? `Ortszeit (${zoneAbbr(nowIso())})` : 'UTC'),
+    th('Rufzeichen', nameField(tpl) ? 'Rufzeichen der Gegenstation, darunter der Name' : 'Rufzeichen der Gegenstation'),
+    columns.map(c => th(c.head, c.title)),
+    th('Notiz', 'Notiz; Relais und Operator nur, wenn sie vom Betrieb des Logs abweichen'),
+    el('th', { scope: 'col', class: 'act' }, el('span', { class: 'sr-only' }, 'Aktionen')))));
 
   const body = $('#log-body');
-  const cols = tpl.fields.length + 7 + tpl.fields.filter(f => f.type === 'location').length;
+  const cols = columns.length + 5;
   if (!live.length) {
     resetRows(rowCache);
     rowsByCall = new Map();
@@ -1682,17 +1897,10 @@ function renderLog(highlightCall) {
     rowTpl = tpl;
     rowBook = state.callbook;
   }
-  const newestDate = splitTime(live[0].ts, timeMode()).date;
-  const dates = new Map();
   syncRows(body, rowCache, live, {
     key: e => e.id,
-    // Date only when it differs from the newest line (nets past midnight).
-    sig: e => {
-      const showDate = splitTime(e.ts, timeMode()).date !== newestDate;
-      dates.set(e.id, showDate);
-      return `${e.updated}|${e.deleted || ''}|${e.seq}|${nums.get(e.id)}|${showDate ? 1 : 0}`;
-    },
-    build: e => rowRoles(buildLogRow(e, { tpl, n: nums.get(e.id), showDate: dates.get(e.id), cols })),
+    sig: e => `${e.updated}|${e.deleted || ''}|${e.seq}|${nums.get(e.id)}`,
+    build: e => rowRoles(buildLogRow(e, { tpl, columns, n: nums.get(e.id), cols })),
   });
   rowsByCall = new Map();
   for (const e of live) {
@@ -1703,6 +1911,30 @@ function renderLog(highlightCall) {
   }
   highlightMatches(call); // also clears `match` on reused rows of the previous call
   markEditing();
+}
+
+// Printing the log (the button or the browser's own print): the rows in
+// the order they were logged. The screen order comes back with the next
+// click or key after printing: a print preview renders again when its
+// settings change, also after "afterprint".
+let printOrder = false;
+function logPrintOrder() {
+  window.addEventListener('beforeprint', () => {
+    if (printOrder || !state.event) return;
+    printOrder = true;
+    renderLog();
+  });
+  window.addEventListener('afterprint', () => {
+    if (!printOrder) return;
+    const back = () => {
+      document.removeEventListener('pointerdown', back, true);
+      document.removeEventListener('keydown', back, true);
+      printOrder = false;
+      renderLog();
+    };
+    document.addEventListener('pointerdown', back, true);
+    document.addEventListener('keydown', back, true);
+  });
 }
 
 // The rows of the log (see renderLog): by callsign, and the ones marked now.
@@ -1728,12 +1960,14 @@ function markEditing() {
   editingRow?.classList.add('editing');
 }
 
-function buildLogRow(e, { tpl, n, showDate, cols }) {
-    const { date, time } = splitTime(e.ts, timeMode());
+function buildLogRow(e, { tpl, columns, n, cols }) {
+    const { time } = splitTime(e.ts, timeMode());
     const s = e.snap || {};
-    const timeBits = [showDate ? el('span', { class: 'date' }, date + ' ') : null, time,
+    // the time only (a log is one net or exercise); the full date and time
+    // are stored, exported and in the title
+    const timeBits = [time,
       timeMode() === 'utc' ? 'Z' : null, // ISO/military notation for UTC; local times keep the column's offset
-      timeMode() === 'local' && zoneLabel(e.ts, 'local') !== zoneLabel(nowIso(), 'local') ? el('span', { class: 'date' }, ' ' + zoneLabel(e.ts, 'local')) : null];
+      timeMode() === 'local' && zoneLabel(e.ts, 'local') !== zoneLabel(nowIso(), 'local') ? el('span', { class: 'date' }, ' ' + zoneAbbr(e.ts)) : null];
     const what = isComment(e) ? `Kommentar ${time}` : `Nr. ${e.seq} ${e.call}`;
     const actions = [
       // the name starts with the visible "Bearbeiten" (WCAG 2.5.3), the rest is for screen readers
@@ -1744,43 +1978,114 @@ function buildLogRow(e, { tpl, n, showDate, cols }) {
     ];
     if (isComment(e)) {
       // Operator comment / marker: one full-width banner row.
+      // the Nr column empty (a comment has no number), so its time stands
+      // under Zeit
       return el('tr', { 'data-id': e.id, class: e.auto ? 'marker auto' : 'marker' },
-        el('td', { colspan: String(cols) },
+        el('td', { class: 'marker-nr' }),
+        el('td', { colspan: String(cols - 1) },
           el('div', { class: 'marker-row' },
-            el('span', { class: 'mono marker-time', title: `${isoUtc(e.ts)} (gespeichert, UTC)` }, timeBits),
+            el('span', { class: 'mono marker-time', title: fullTime(e.ts) }, timeBits),
             el('span', { class: 'marker-cat' }, e.category || 'Kommentar'),
             el('span', { class: 'marker-text' }, e.text || ''),
-            el('span', { class: 'marker-op mono', title: 'Operator zu diesem Zeitpunkt' },
-              s.operator && s.station && s.operator !== s.station ? `Op ${s.operator}/${s.station}` : s.operator ? `Op ${s.operator}` : ''),
+            // the operator only when not the log's (as for check-ins)
+            el('span', { class: 'marker-op mono', title: 'Operator zu diesem Zeitpunkt (abweichend vom Betrieb)' },
+              opText(s) && opText(s) !== opText(state.event.header) ? `Op ${opText(s)}` : ''),
             el('span', { class: 'act' }, actions))));
     }
+    const nf = nameField(tpl);
+    const name = nf ? e.fields?.[nf.key] : '';
+    const cb = callbookName(e.call);
     return el('tr', { 'data-id': e.id },
-      el('td', { class: 'mono', title: `${isoUtc(e.ts)} (gespeichert, UTC)` }, timeBits),
+      // Nr first, as everywhere the log is shown (paper, print)
       el('td', { class: 'mono' }, String(e.seq)),
+      el('td', { class: 'mono', title: fullTime(e.ts) }, timeBits),
       el('td', { class: 'call' }, e.call, n > 1 ? el('span', { class: 'badge', title: `Check-in Nr. ${n}` }, `${n}×`) : null,
-        callbookName(e.call) ? el('div', { class: 'cb-name' }, callbookName(e.call)) : null),
-      tpl.fields.flatMap(f => [f.type === 'location' ? originCell(e.loc, e.fields?.[f.key]) : null,
-        el('td', { 'data-label': f.label }, fieldVisible(f, e.fields, tpl) ? fieldDisplay(f, e.fields?.[f.key]) : '',
-        f.type === 'location' && e.loc ? el('div', { class: 'loc-sub' }, [`→ ${describeLocation(e.loc, logUtmDigits())}`, ...locHints(e.loc)].join(' · ')) : null,
-        f.type === 'location' && !e.loc && e.fields?.[f.key] ? el('div', { class: 'loc-sub unresolved' }, 'nicht zugeordnet') : null)]),
-      el('td', { 'data-label': 'Relais' }, e.viaRepeater
-        ? el('span', {
-          class: s.repeaterOverride ? 'rpt override' : 'rpt',
-          title: [s.repeaterOverride ? 'anderes Relais als in den Kopfdaten' : 'Relais aus den Kopfdaten', s.repeaterFreq && `${s.repeaterFreq} MHz`, s.repeaterShift && `Shift ${s.repeaterShift}`, signallingText(s)].filter(Boolean).join(' · '),
-        }, s.repeaterCall || 'ja')
-        : '–'),
-      el('td', { 'data-label': 'Notiz' }, e.note || ''),
-      el('td', { class: 'mono', 'data-label': 'Op' }, s.operator && s.station && s.operator !== s.station ? `${s.operator}/${s.station}` : s.operator || s.station || ''),
+        name ? el('div', { class: 'op-name' }, name) : null,
+        cb && cb !== name ? el('div', { class: 'cb-name', title: 'laut Rufzeichenliste' }, cb) : null),
+      columns.map(c => el('td', { 'data-label': c.head, class: `col-${c.kind}` }, columnCell(c, e, tpl))),
+      el('td', { 'data-label': 'Notiz' }, deviations(e), e.note || ''),
       el('td', { class: 'act' }, actions),
     );
 }
 
-// "Quelle" cell before a location column: where the location came from
-// (LOC_ORIGINS; a source without a label leaves the cell empty).
-function originCell(loc, text) {
+// The full date and time of a line, in the page's mode (UTC or local):
+// the title of its time.
+function fullTime(iso) {
+  const { date, time } = splitTime(iso, timeMode());
+  return timeMode() === 'utc' ? `${date} ${time}Z (UTC)` : `${date} ${time} ${zoneAbbr(iso)}`;
+}
+
+// One display column of a check-in (logColumns() in templates.js).
+function columnCell(c, e, tpl) {
+  const v = e.fields || {};
+  if (c.kind === 'rst') {
+    const [rcvd, sent] = c.fields.map(f => v[f.key] || '–');
+    return el('span', { class: 'mono', title: `erhalten ${rcvd} / gegeben ${sent}` }, `${rcvd} / ${sent}`);
+  }
+  if (c.kind === 'location') return locationCell(c.fields[0], e, tpl);
+  if (c.kind === 'grades') {
+    return el('span', { class: 'gchips' }, c.fields.map(f => {
+      const g = v[f.key];
+      // not given: a dim placeholder, so the chips stay in their places
+      if (!g) return el('span', { class: 'gchip none', title: `${f.label}: keine Angabe` }, `${f.short} `, el('b', {}, '–'));
+      return el('span', { class: `gchip g${g}`, title: `${f.label}: ${g} (${GRADE_WORDS[g] || ''})` }, `${f.short} `, el('b', {}, g));
+    }));
+  }
+  const vs = chainValues(c, v, tpl);
+  if (!vs.length) return '';
+  const first = c.fields[0];
+  // a yes/no answer first, as a symbol and a word (not by colour alone)
+  if (first.key === 'atalert') {
+    const ok = v.atalert === 'ja';
+    // the phone and its version on a line of their own (never broken inside)
+    return [el('span', { class: ok ? 'yes' : 'no' }, el('span', { class: 'mark', 'aria-hidden': 'true' }, ok ? '✓' : '✕'), '\u00a0', vs[0]),
+      vs.length > 1 ? el('div', { class: 'chain-sub' }, vs.slice(1).join(' · ')) : null];
+  }
+  return vs.join(' · ');
+}
+
+const GRADE_WORDS = { 1: 'sehr gut hörbar', 2: 'gut', 3: 'befriedigend', 4: 'kaum hörbar', 5: 'nicht hörbar' };
+
+// The place: as typed (or chosen), then one small line with what it was
+// resolved to (only what the text doesn't already say), PLZ, locator and
+// where it came from; "nicht zugeordnet" for text the lookup didn't know.
+function locationCell(f, e, tpl) {
+  const text = e.fields?.[f.key] || '';
+  const plz = f.plzKey ? e.fields?.[f.plzKey] || '' : '';
+  const loc = e.loc;
+  if (!loc) {
+    if (!text && !plz) return '';
+    return [text, el('div', { class: 'loc-sub unresolved' }, [plz, text ? 'nicht zugeordnet' : ''].filter(Boolean).join(' · '))];
+  }
   const k = locOrigin(loc, text);
   const o = LOC_ORIGINS[k];
-  return el('td', { class: 'origin' }, o?.label ? el('span', { class: `src src-${k}`, title: o.title }, o.label) : '');
+  const full = describeLocation(loc, logUtmDigits()); // "label, PLZ · locator · UTM"
+  const sub = full.startsWith(loc.label) && loc.label === text ? full.slice(loc.label.length).replace(/^[\s,·]+/, '') : full;
+  return [text || loc.label,
+    el('div', { class: 'loc-sub' }, sub, ...locHints(loc).map(h => ` · ${h}`),
+      o?.label ? [' ', el('span', { class: `src src-${k}`, title: o.title }, o.label)] : null)];
+}
+
+// "OE1ABC" or "OE1ABC/OE1XKS" (operator at another station's callsign).
+function opText(s) {
+  return s?.operator && s.station && s.operator !== s.station ? `${s.operator}/${s.station}` : s?.operator || s?.station || '';
+}
+
+// Relais and operator are the log's (its Betrieb, the header) for most check-ins:
+// only a check-in that differs says so, at the start of its note.
+function deviations(e) {
+  const h = state.event?.header || {};
+  const s = e.snap || {};
+  const out = [];
+  if (!!e.viaRepeater !== !!h.viaRepeater || (e.viaRepeater && s.repeaterOverride)) {
+    out.push(el('span', {
+      class: 'dev', title: [e.viaRepeater ? 'über ein anderes Relais als im Betrieb' : 'direkt, nicht über das Relais im Betrieb',
+        s.repeaterFreq && `${s.repeaterFreq} MHz`, s.repeaterShift && `Shift ${s.repeaterShift}`, signallingText(s)].filter(Boolean).join(' · '),
+    }, e.viaRepeater ? `über ${s.repeaterCall || 'Relais'}` : 'direkt'));
+  }
+  const op = opText(s);
+  if (op && op !== opText(h)) out.push(el('span', { class: 'dev mono', title: 'Operator dieses Check-ins (abweichend vom Betrieb)' }, `Op ${op}`));
+  return out.flatMap(x => [x, ' ']);
 }
 
 async function renderTrash() {
@@ -1930,26 +2235,37 @@ function download(text, name, type) {
 /* --- "Exportieren" menu (disclosure: a button and a list of buttons) --- */
 
 function closeExportMenu(focusButton = false) {
-  $('#export-list').hidden = true;
-  if (focusButton) $('#btn-export-menu').focus();
+  closeMenu('#export-menu', focusButton);
 }
 
-function initExportMenu() {
-  const btn = $('#btn-export-menu');
-  const list = $('#export-list');
+function closeMenu(menu, focusButton = false) {
+  const m = $(menu);
+  m.querySelector('.menu-list').hidden = true;
+  if (focusButton) m.querySelector(':scope > button').focus();
+}
+
+// A button with a list below it (Exportieren): opens on a
+// click, the first entry focused; Esc, a click or focus elsewhere close it.
+function initMenu(menu) {
+  const m = $(menu);
+  const btn = m.querySelector(':scope > button');
+  const list = m.querySelector('.menu-list');
   trackExpanded(btn, list);
   btn.addEventListener('click', () => {
     list.hidden = !list.hidden;
     if (!list.hidden) list.querySelector('button').focus();
   });
   list.addEventListener('keydown', ev => {
-    if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); closeExportMenu(true); }
+    if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); closeMenu(menu, true); }
   });
-  // a click or focus anywhere else closes it
-  document.addEventListener('pointerdown', ev => { if (!$('#export-menu').contains(ev.target)) closeExportMenu(); });
-  $('#export-menu').addEventListener('focusout', ev => {
-    if (ev.relatedTarget && !$('#export-menu').contains(ev.relatedTarget)) closeExportMenu();
+  document.addEventListener('pointerdown', ev => { if (!m.contains(ev.target)) closeMenu(menu); });
+  m.addEventListener('focusout', ev => {
+    if (ev.relatedTarget && !m.contains(ev.relatedTarget)) closeMenu(menu);
   });
+}
+
+function initExportMenu() {
+  initMenu('#export-menu');
 }
 
 function showText(title, text) {
@@ -2033,7 +2349,7 @@ function showAdifIssues(issues) {
     el('ul', {}, shown.map(i => el('li', {}, `Nr. ${i.nr} ${i.call}: ${i.problems.join(', ')}`)),
       issues.length > shown.length ? el('li', {}, `… und ${issues.length - shown.length} weitere`) : null),
     go,
-    el('button', { type: 'button', onclick: () => { box.hidden = true; $('#hdr-panel').open = true; } }, 'Kopfdaten bearbeiten'));
+    el('button', { type: 'button', onclick: () => { box.hidden = true; $('#hdr-panel').open = true; } }, 'Betrieb bearbeiten'));
   box.hidden = false;
   go.focus();
 }
@@ -2102,8 +2418,19 @@ async function doExport(kind, force = false) {
   } else if (kind === 'summary') {
     showText('Zusammenfassung', toSummary(ev, entries, timeMode(), { qth }));
   } else if (kind === 'print') {
-    window.print();
+    printLog();
   }
+}
+
+// The whole log on paper: the page itself, with a line saying what it is
+// (date, template, when printed; the Betrieb line is above the log).
+function printLog() {
+  const ev = state.event;
+  const live = liveSorted(state.entries);
+  const zone = timeMode() === 'utc' ? 'UTC' : zoneAbbr(nowIso());
+  const day = live.length ? splitTime(live[0].ts, timeMode()).date : splitTime(ev.created, timeMode()).date;
+  fill($('#print-meta'), `${day} · ${templateFor(ev.template).label} · Zeiten in ${zone} · gedruckt ${splitTime(nowIso(), timeMode()).date} ${splitTime(nowIso(), timeMode()).time}`);
+  window.print();
 }
 
 async function backupAll() {
@@ -2195,6 +2522,10 @@ function wire() {
   });
   // Log header: Enter in the last field goes on to the callsign.
   headerKeys($('#log-header'), focusEntryStart);
+  headerEscape($('#log-header'));
+  logPrintOrder();
+  $('#btn-hdr-undo').addEventListener('click', undoHeader);
+  $('#hdr-panel').addEventListener('toggle', () => { if ($('#hdr-panel').open) takeHeaderUndo(); });
   tableRoles($('table.log')); // cards on phones (style.css)
   // A finished header edit (field left, Enter, checkbox, repeater pick)
   // writes the automatic operator/repeater marker.
@@ -2228,6 +2559,8 @@ function wire() {
   initExportMenu();
   // help: "? Hilfe" in the header or ? outside text fields
   initHelpDialog();
+  trackSiteHeaderHeight(); // the log's column names stick below the page header
+  watchEntryWidth();
   $('#btn-map').addEventListener('click', toggleMap);
   const sep = $('#csv-sep');
   sep.value = prefGet(CSV_SEP_KEY, ';');
@@ -2258,6 +2591,7 @@ function wire() {
   $('#f-call').addEventListener('change', prefillLocation);
   // "!" in the empty callsign field = operator comment (before onFormInput).
   $('#f-call').addEventListener('input', onCallInput);
+  document.querySelectorAll('#entry-mode button').forEach(b => b.addEventListener('click', () => switchEntryMode(b.dataset.mode === 'comment')));
   buildCategoryChips();
   // Backspace in the empty comment text goes back to a check-in.
   $('#f-ctext').addEventListener('keydown', ev => {

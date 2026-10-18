@@ -20,7 +20,7 @@ Kopfzeile oder die Taste <kbd>?</kbd> (außerhalb von Textfeldern).
 1. [Bestätigungsverkehr öffnen](confirm/index.html), einmal mit Internet;
    danach läuft er auch offline ([Vorbereitung](#vorbereitung)).
 2. „+ Neues Log“: Titel und Vorlage wählen ([Ein Log anlegen](#ein-log-anlegen)),
-   dann Operator, Station und Relais eintragen ([Kopfdaten](#kopfdaten)).
+   dann Operator, Station und Relais eintragen ([Betrieb](#betrieb)).
 3. Das erste Rufzeichen eintippen und mit <kbd>⇧</kbd>+<kbd>Enter</kbd>
    speichern ([Check-ins aufnehmen](#check-ins-aufnehmen)).
 4. Am Ende „Exportieren ▾“ → „Sichern (JSON)“, dazu CSV oder ADIF
@@ -60,7 +60,7 @@ der Kopfzeile erinnert bis zum nächsten Öffnen daran. Der
 Klick lädt aber **alle** offenen Tabs und Fenster des Werkzeugs neu; einen
 Aufschub, den man je Tab wählen kann, gibt es nicht. Gespeicherte Zeilen und
 Logs bleiben unverändert. Vor dem Neuladen sichert jeder Tab die halb
-getippte Zeile und die Kopfdaten als Entwurf und holt sie danach zurück.
+getippte Zeile und den Betrieb als Entwurf und holt sie danach zurück.
 Gelingt das Sichern in einem Tab nicht (zum Beispiel bei vollem Speicher),
 wird dieser Tab **nicht** neu geladen: die Eingabe bleibt stehen, der Knopf
 heißt „Update wartet: Eingabe klären“, und eine rote Meldung unter der
@@ -174,16 +174,16 @@ Speicher; zum Umziehen die Sicherung verwenden. Der Verlauf der Änderungen
     Freien, AT-Alert erhalten, sonst Handy und Version.
 
   „So sieht eine Logzeile mit dieser Vorlage aus“ zeigt ein Beispiel.
-- **Kopfdaten** (siehe unten). Ein neues Log übernimmt die Kopfdaten des
+- **Betrieb** (siehe unten). Ein neues Log übernimmt den Betrieb des
   zuletzt angelegten.
 
 Mit <kbd>⇧</kbd>+<kbd>Enter</kbd> oder „Log anlegen“ geht es los.
 
-## Kopfdaten
+## Betrieb
 
-![Kopfdaten](img/confirm-kopfdaten.png)
+![Betrieb](img/confirm-kopfdaten.png)
 
-Die Kopfdaten stehen aufklappbar über dem Eingabefeld und gelten für neue
+Der Betrieb steht aufklappbar über dem Eingabefeld und gilt für neue
 Zeilen. Gespeicherte Zeilen behalten Operator, Station, Frequenz und Relais
 vom Zeitpunkt des Eintrags.
 
@@ -194,13 +194,21 @@ vom Zeitpunkt des Eintrags.
 | Eigener QTH | der eigene Standort, mit Ortssuche | Wien 1220, Wagramer Straße |
 | Eigener Locator | Maidenhead-Locator des eigenen Standorts | JN88ef |
 | Betriebsart | FM, DMR, C4FM, D-STAR, M17, TETRA, SSB … | FM |
-| Weg | direkt (Simplex) oder über Relais | über Relais |
+| Verbindung | direkt (Simplex) oder über Relais | über Relais |
 | Frequenz MHz | bei direkt | 145,500 |
-| Relais | Rufzeichen, Ort oder Frequenz eines Relais aus der ÖVSV-Liste; setzt Ausgabe, Shift und Signalisierung | OE1XUU |
+| Relais | Rufzeichen, Ort oder Frequenz (MHz) eines Relais aus der ÖVSV-Liste, Platzhalter „Rufzeichen, Ort oder MHz“; setzt Ausgabe, Shift und Signalisierung | OE1XUU |
 
 Ein **Wechsel von Operator oder Relais/Frequenz** schreibt automatisch eine
 Markierung ins Log („OE1XYZ übernimmt von OE1ABC“, „OE1XUU → direkt“). Ihr
 Text lässt sich ergänzen.
+
+Bei geschlossenem Panel zeigt dessen Zeile alles, was eingestellt ist:
+Operator, Station, QTH und Locator, Betriebsart sowie direkte Frequenz oder
+Relais mit Shift und Signalisierung. In einem Feld setzt <kbd>Esc</kbd> den
+Wert zurück, den es vor dem Bearbeiten hatte. „Rückgängig“ stellt den Betrieb
+wieder her, wie er beim Öffnen des Panels war; automatische Markierungen, die
+diese Änderungen geschrieben haben, kommen in den Papierkorb, sofern ihr Text
+nicht bearbeitet wurde.
 
 ## Check-ins aufnehmen
 
@@ -214,9 +222,9 @@ Text lässt sich ergänzen.
 - **Zeit:** leer = Zeitpunkt des Speicherns. Korrektur als `19:42` oder
   `2026-10-08 19:42`, in der oben gewählten Zeitzone (UTC oder lokal).
 - **QTH / Standort** (siehe [Standort](#standort)).
-- **Relais:** „über“ angehakt = die Station kommt über das Relais aus den
-  Kopfdaten. Für ein anderes Relais dessen Rufzeichen, Ort oder Frequenz
-  eintragen.
+- **Relais:** ist mit dem Relais aus dem Betrieb vorbelegt; „über“
+  angehakt = die Station kommt über dieses Relais. Für ein anderes Relais
+  dessen Rufzeichen, Ort oder Frequenz eintragen (dann orange markiert).
 - **Notiz:** freier Text.
 - <kbd>⇧</kbd>+<kbd>Enter</kbd> speichert, aus jedem Feld. <kbd>Esc</kbd> verwirft die Zeile, mit
   „Rückgängig“.
@@ -225,9 +233,12 @@ Text lässt sich ergänzen.
 das Formular die früheren Check-ins und bietet „Werte vom letzten Check-in
 übernehmen“ an. Im Log steht die Anzahl neben dem Rufzeichen (2×).
 
-**Operator-Kommentare.** Beginnt die Eingabe im Rufzeichenfeld mit **`!`**,
-wird daraus ein Kommentar statt eines Check-ins: „!Netz pausiert“,
-„!Wechsel auf 145,500“. Eine Kategorie (Frequenzwechsel, Schichtwechsel /
+**Operator-Kommentare.** Der Schalter **Check-in | Kommentar** über dem
+Formular stellt auf einen Kommentar statt eines Check-ins um: für einen
+Operatorwechsel, „Netz pausiert“, „Wechsel auf 145,500“. Schneller per
+Tastatur: die Eingabe im Rufzeichenfeld mit **`!`** beginnen („!Netz
+pausiert“). Eine halb getippte Zeile der anderen Art geht dabei nie
+verloren: erst speichern oder verwerfen. Eine Kategorie (Frequenzwechsel, Schichtwechsel /
 Übergabe, Unterbrechung, Technik, Sonstiges) wählt man mit den Ziffern
 <kbd>1</kbd>–<kbd>5</kbd>. Kommentare zählen nicht als Station und kommen nie ins ADIF.
 
@@ -238,10 +249,20 @@ wird daraus ein Kommentar statt eines Check-ins: „!Netz pausiert“,
 Neueste Zeile oben. Oben stehen die Zahlen: Stationen und Check-ins.
 „Bearbeiten“ ändert eine Zeile (die vorige Fassung bleibt gespeichert), ✕
 löscht sie (wiederherstellbar unter „Gelöschte Zeilen und automatische
-Sicherungen“). Die Spalte **Quelle** sagt, woher der Standort kommt: *Suche*
+Sicherungen“).
+
+Zusammengehöriges steht in einer Zelle, damit eine Zeile kurz bleibt: der
+Name unter dem Rufzeichen, der Rapport als „erhalten / gegeben“, beim
+Standort darunter klein PLZ, Locator und woher der Standort kommt: *Suche*
 (Ortssuche), *früher* (aus einem früheren Check-in), *Call* (Lizenzadresse
-aus der Rufzeichenliste), *Text* (keinem Ort zugeordnet; darunter steht
-dann grau „nicht zugeordnet“).
+aus der Rufzeichenliste); grau „nicht zugeordnet“ heißt, der Text wurde
+keinem Ort zugeordnet. Beim Zivilschutz-Probealarm zeigt **Sirene** die drei
+Schulnoten (zu · offen · außen, grün bis rot) und **AT-Alert** „✓ erhalten“
+oder „✕ fehlt“ mit Handy und Version. **Relais und Operator** sind
+meist die aus dem Betrieb und stehen dann nicht in jeder Zeile; nur eine
+abweichende Zeile sagt es am Anfang der Notiz („direkt“, „über OE1XYZ“,
+„Op OE1ABC“). Die Spaltennamen sind kurz; mit der Maus darüber steht die
+Erklärung.
 
 Am Handy ist jede Zeile eine Karte: oben Zeit, Nummer, Rufzeichen und die
 Knöpfe, darunter die übrigen Spalten mit ihrem Namen (leere fehlen).
@@ -288,8 +309,8 @@ Stationen ohne Standort stehen unter der Karte.
 | ADIF (.adi) | für Logbuchprogramme, ADIF 3.1.7; über Relais mit `PROP_MODE=RPT` |
 | KML (Karte) | Stationen mit Standort für Google Earth / Google My Maps |
 | Zusammenfassung | Text: Rufzeichen, Statistik (beim Probealarm Sirenen-Noten und AT-Alert), Standorte, Kommentare und Operators |
-| Drucken | das Log als Tabelle |
 | Sichern (JSON) | das ganze Log, auch gelöschte Zeilen; auf der Startseite mit „Wiederherstellen…“ wieder einspielen |
+| Drucken | das ganze Log, quer (A4), mit Datum und Betrieb; die Zeilen stehen in zeitlicher Reihenfolge (älteste zuerst), anders als am Bildschirm (neueste zuerst) |
 
 Ein Hinweis neben dem Titel erinnert an eine Sicherung, wenn seit dem letzten
 Export viele Zeilen dazugekommen sind. Auf der Startseite sichert „Alle

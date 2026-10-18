@@ -79,10 +79,28 @@ export function localZoneName() {
   }
 }
 
+// The local zone's short name at that instant, as people say it: "MESZ" /
+// "MEZ" (lang 'de'), "CEST" / "CET" (other languages); the offset ("UTC+2",
+// zoneLabel()) where the zone has no such name (Intl then gives "GMT+3").
+// Only the zone's name comes from Intl, never a formatted time.
+export function zoneAbbr(iso, lang = 'de') {
+  try {
+    const parts = new Intl.DateTimeFormat(lang === 'de' ? 'de-AT' : 'en-GB', { timeZoneName: 'short' }).formatToParts(new Date(iso || Date.now()));
+    const name = parts.find(p => p.type === 'timeZoneName')?.value || '';
+    if (name && !/^(GMT|UTC)/.test(name)) return name;
+  } catch { /* no Intl: the offset */ }
+  return zoneLabel(iso, 'local');
+}
+
 // The local choice of a UTC/local switch: "Europe/Vienna (UTC+2)", or
 // `fallback (UTC+2)` without a zone name.
 export function localZoneText(fallback, iso) {
   return `${localZoneName() || fallback} (${zoneLabel(iso || new Date().toISOString(), 'local')})`;
+}
+
+// The same with the zone's short name: "Europe/Vienna (MESZ)".
+export function localZoneAbbrText(fallback, iso, lang = 'de') {
+  return `${localZoneName() || fallback} (${zoneAbbr(iso || new Date().toISOString(), lang)})`;
 }
 
 // ISO 8601 without milliseconds: "2026-10-04T10:00:05Z".

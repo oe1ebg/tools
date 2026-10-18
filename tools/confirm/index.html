@@ -133,6 +133,7 @@
 
   <!-- ===== Log ===== -->
   <section id="view-log" hidden>
+    <p id="print-meta" class="print-only"></p>
     <div class="toolbar log-bar">
       <button type="button" id="btn-back">← Logs</button>
       <input id="log-title" aria-label="Titel des Logs">
@@ -153,7 +154,7 @@
           <button type="button" data-export="summary">Zusammenfassung</button>
           <hr>
           <button type="button" data-export="json" title="Vollständige Sicherung dieses Logs">Sichern (JSON)</button>
-          <button type="button" data-export="print">Drucken</button>
+          <button type="button" data-export="print" title="Das ganze Log, quer (A4)">Drucken</button>
         </div>
       </div>
     </div>
@@ -162,16 +163,24 @@
     <div id="export-msg" class="banner warn" hidden role="status"></div>
 
     <details class="hdr" id="hdr-panel">
-      <summary><b>Kopfdaten</b> <span class="hdr-sum" id="hdr-sum"></span></summary>
+      <summary><b>Betrieb</b> <span class="hdr-sum" id="hdr-sum"></span></summary>
       <div class="body">
         <div id="log-header" class="grid-form"></div>
-        <p class="hint">Änderungen an den Kopfdaten gelten für neue Zeilen. Bereits geloggte Zeilen behalten Operator, Station, Frequenz und Relais vom Zeitpunkt des Eintrags.
+        <div class="hdr-actions"><button type="button" id="btn-hdr-undo" disabled title="Betrieb wie beim Öffnen; automatische Marker dieser Änderungen kommen in den Papierkorb">Rückgängig</button></div>
+        <p class="hint">Änderungen am Betrieb gelten für neue Zeilen. Bereits geloggte Zeilen behalten Operator, Station, Frequenz und Relais vom Zeitpunkt des Eintrags.
           Ein Wechsel von Operator oder Relais/Frequenz schreibt automatisch einen Marker ins Log (Text ergänzbar).<br>
-          Tastatur: Tab/Enter nächstes Feld · ↓ Vorschläge, Enter übernimmt · Ziffern bei Betriebsart</p>
+          Tastatur: Tab/Enter nächstes Feld · ↓ Vorschläge, Enter übernimmt · Esc stellt das Feld zurück · Ziffern bei Betriebsart</p>
       </div>
     </details>
 
     <form id="entry-form" autocomplete="off">
+      <!-- What this line is: a check-in or an operator comment (operator
+           change, frequency change, pause …); "!" at the start of the
+           callsign switches too (js/app.js setCommentMode()). -->
+      <div id="entry-mode" class="toggle entry-mode" role="group" aria-label="Art der Zeile">
+        <button type="button" data-mode="checkin" aria-pressed="true">Check-in</button>
+        <button type="button" data-mode="comment" aria-pressed="false" title="Operator-Kommentar: Operatorwechsel, Frequenzwechsel, Unterbrechung … (auch: ! am Anfang des Rufzeichens)">Kommentar</button>
+      </div>
       <div class="row">
         <label class="field"><span><span id="time-label">Zeit UTC</span> <span class="clock" id="clock" aria-hidden="true"></span></span>
           <input id="f-time" placeholder="jetzt" aria-describedby="time-help" autocomplete="off" enterkeyhint="next">
@@ -197,11 +206,11 @@
           <span class="ac-hints" aria-hidden="true"></span>
         </div>
         <div id="f-fields" class="row ci-only"></div>
-        <div class="field rpt-line ci-only"><span id="f-rpt-label">Relais (Standard: Kopfdaten)</span>
+        <div class="field rpt-line ci-only"><span id="f-rpt-label">Relais</span>
           <div class="rpt-line-row">
             <label class="check" title="Diese Station kommt über ein Relais"><input type="checkbox" id="f-rpt"> über</label>
             <div class="ac-wrap">
-              <input id="f-rpt-q" size="11" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" enterkeyhint="next" aria-labelledby="f-rpt-label" title="Leer = Relais aus den Kopfdaten. Anderes Relais: Rufzeichen, Ort oder Frequenz eingeben.">
+              <input id="f-rpt-q" size="11" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" enterkeyhint="next" aria-labelledby="f-rpt-label" title="Vorbelegt mit dem Relais aus „Betrieb“. Anderes Relais für diese Zeile: Rufzeichen, Ort oder Frequenz eingeben.">
               <div id="f-rpt-sug" class="ac-pop"></div>
             </div>
           </div>
@@ -264,13 +273,13 @@
           <dt><kbd>Esc</kbd></dt><dd>Zeile verwerfen (mit „Rückgängig“); in dieser Hilfe: schließt sie</dd>
           <dt><strong>!</strong> im Rufzeichen</dt><dd>Operator-Kommentar statt Check-in (Frequenzwechsel, Übergabe, Unterbrechung …); zählt nicht als Station</dd>
           <dt>Zeit</dt><dd>leer = Zeitpunkt des Speicherns; Korrektur als HH:MM oder JJJJ-MM-TT HH:MM (in der oben gewählten Zeitzone)</dd>
-          <dt>Relais</dt><dd>„über“ angehakt = die Station kommt über ein Relais (Vorgabe aus den Kopfdaten); Feld leer = Relais aus den Kopfdaten, sonst Rufzeichen, Ort oder Frequenz eines anderen Relais</dd>
+          <dt>Relais</dt><dd>„über“ angehakt = die Station kommt über ein Relais (aus „Betrieb“); vorbelegt mit dem Relais aus „Betrieb“, sonst Rufzeichen, Ort oder Frequenz eines anderen Relais</dd>
           <dt><kbd>?</kbd></dt><dd>diese Hilfe öffnen (außerhalb von Textfeldern); die Eingabe bleibt, wie sie ist</dd>
         </dl>
       </section>
       <section id="h-logs" aria-labelledby="h-logs-t">
         <h3 id="h-logs-t">Logs und Sicherung</h3>
-        <p>Jedes Log (ein Rundspruch, eine Übung) hat Kopfdaten und Zeilen. „+ Neues Log“ legt eines an; „← Logs“ führt zurück zur Liste.</p>
+        <p>Jedes Log (ein Rundspruch, eine Übung) hat Angaben zum Betrieb (Operator, Station, Frequenz, Relais) und Zeilen. „+ Neues Log“ legt eines an; „← Logs“ führt zurück zur Liste.</p>
         <p>Alles bleibt in diesem Browser auf diesem Gerät. „Alles sichern (JSON)“ und „Sichern (JSON)“ im Log laden eine Sicherung herunter, „Wiederherstellen…“ liest sie wieder ein. Ob die Datei angekommen ist, meldet der Browser nicht: bitte selbst prüfen.</p>
         <p>„Bearbeiten“ ändert eine Zeile (die vorige Fassung bleibt gespeichert), ✕ löscht sie; gelöschte Zeilen lassen sich wiederherstellen.</p>
       </section>
