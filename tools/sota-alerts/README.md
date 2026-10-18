@@ -87,6 +87,20 @@ path resolved a given summit. This is simpler and more robust than the raw
 CSV-caching approach originally planned, and sidesteps the CORS block
 entirely instead of needing a proxy.
 
+## Languages
+
+German and English (#108 C3), switched with DE/EN in the header; the map
+starts in the saved choice (`oe1ebg-sota-lang`), else in the browser's
+language. Texts are built with `tx(en, de)` from `../shared/js/i18n.js`;
+static HTML has `data-de*`, the help one block per language. That covers
+the page, the popups and lists, the warnings, the API/Overpass error
+messages, the map's layer names and credits and Leaflet's own control
+labels. The saved base layer keeps its English name (`store.js`), so a
+choice made before stays. Summit names, comments and frequencies come from
+SOTA and are shown as they are. A change of language rebuilds the page;
+warnings already shown keep their language. In Node the language is
+English; `tests/e2e/sota-i18n.spec.mjs` checks German.
+
 ## Features
 
 - **Alerts map + date range** — filters within whatever near-term window

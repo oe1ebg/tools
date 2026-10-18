@@ -4,6 +4,10 @@
 // on api2.sota.org.uk or a tile server being up.
 import { test, expect } from './fixtures.mjs';
 
+// The map follows the browser's language (de-AT here: German); these tests
+// read the English texts (sota-i18n.spec.mjs covers German).
+test.beforeEach(({ page }) => page.addInitScript(() => { try { localStorage.setItem('oe1ebg-sota-lang', 'en'); } catch { /* blocked */ } }));
+
 // 1x1 transparent PNG for every map tile.
 const TILE = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');

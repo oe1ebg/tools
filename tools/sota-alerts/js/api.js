@@ -3,6 +3,7 @@
 
 import { summitFromApi } from './summits.js';
 import { withDeadline, isAbort, ALERTS_TIMEOUT_MS, SUMMIT_TIMEOUT_MS, SEARCH_TIMEOUT_MS, DATA_STALL_MS, readJson } from './request.js';
+import { tx } from '../../shared/js/i18n.js';
 
 export const ALERTS_URL = 'https://api2.sota.org.uk/api/alerts';
 export const summitUrl = (assoc, code) => `https://api2.sota.org.uk/api/summits/${encodeURIComponent(assoc)}/${encodeURIComponent(code)}`;
@@ -33,10 +34,10 @@ let overpassRetryAt = 0;
 export function fetchAlerts(signal){
   return withDeadline(ALERTS_TIMEOUT_MS, signal, async s => {
     const res = await fetch(ALERTS_URL, { signal: s });
-    if (!res.ok) throw new Error(`alerts request failed: HTTP ${res.status}`);
+    if (!res.ok) throw new Error(tx(`alerts request failed: HTTP ${res.status}`, `Abfrage der Alerts fehlgeschlagen: HTTP ${res.status}`));
     let data;
     try { data = await res.json(); }
-    catch (err) { if (isAbort(err)) throw err; throw new Error('alerts request failed: not a JSON response'); }
+    catch (err) { if (isAbort(err)) throw err; throw new Error(tx('alerts request failed: not a JSON response', 'Abfrage der Alerts fehlgeschlagen: keine JSON-Antwort')); }
     return data; // validated by parseAlerts() (alerts.js)
   });
 }
@@ -74,8 +75,8 @@ export function fetchJson(url, signal){
 
 // bounds: Leaflet LatLngBounds (getSouth/getWest/getNorth/getEast).
 export async function searchOsmSummitsInView(bounds){
-  if (overpassBusy) throw new Error('an OSM search is already running');
-  if (Date.now() < overpassRetryAt) throw new Error('Overpass is rate-limiting requests — wait at least 30 seconds before searching again');
+  if (overpassBusy) throw new Error(tx('an OSM search is already running', 'eine OSM-Suche läuft schon'));
+  if (Date.now() < overpassRetryAt) throw new Error(tx('Overpass is rate-limiting requests — wait at least 30 seconds before searching again', 'Overpass bremst die Anfragen — mindestens 30 Sekunden warten, dann erneut suchen'));
   const query = `[out:json][timeout:25];node["communication:amateur_radio:sota"](${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()});out body;`;
   overpassBusy = true;
   const controller = new AbortController();
@@ -91,20 +92,20 @@ export async function searchOsmSummitsInView(bounds){
         credentials: 'omit', referrerPolicy: 'origin', signal: controller.signal,
       });
     } catch (err) {
-      if (err.name === 'AbortError') throw new Error('Overpass timed out — try again later');
+      if (err.name === 'AbortError') throw new Error(tx('Overpass timed out — try again later', 'Overpass antwortet nicht rechtzeitig — später erneut versuchen'));
       // A rejected response without CORS headers is hidden by the browser;
       // JavaScript cannot distinguish it from other network failures.
-      throw new Error('Overpass could not be reached (network, CORS or a server refusal). It requires a browser Referer; privacy settings may suppress it. Try summit search by name/code instead');
+      throw new Error(tx('Overpass could not be reached (network, CORS or a server refusal). It requires a browser Referer; privacy settings may suppress it. Try summit search by name/code instead', 'Overpass nicht erreichbar (Netz, CORS oder vom Server abgelehnt). Overpass braucht den Referer des Browsers; Datenschutz-Einstellungen unterdrücken ihn womöglich. Stattdessen die Gipfelsuche nach Name/Kennung verwenden'));
     }
     if (res.status === 429){
       const retryAfter = res.headers.get('Retry-After');
       const seconds = retryAfter && /^\d+$/.test(retryAfter) ? Number(retryAfter) : 0;
       const date = retryAfter && !/^\d+$/.test(retryAfter) ? Date.parse(retryAfter) : NaN;
       overpassRetryAt = Math.max(Date.now() + Math.max(30, seconds) * 1000, Number.isFinite(date) ? date : 0);
-      throw new Error('Overpass is rate-limiting requests (HTTP 429) — wait at least 30 seconds before searching again');
+      throw new Error(tx('Overpass is rate-limiting requests (HTTP 429) — wait at least 30 seconds before searching again', 'Overpass bremst die Anfragen (HTTP 429) — mindestens 30 Sekunden warten, dann erneut suchen'));
     }
-    if (res.status === 406) throw new Error('Overpass refused the request (HTTP 406). It requires a browser Referer and may block clients; try summit search by name/code instead');
-    if (res.status === 504 || res.status === 503) throw new Error(`Overpass is busy or unavailable (HTTP ${res.status}) — try again later`);
+    if (res.status === 406) throw new Error(tx('Overpass refused the request (HTTP 406). It requires a browser Referer and may block clients; try summit search by name/code instead', 'Overpass hat die Anfrage abgelehnt (HTTP 406). Es braucht den Referer des Browsers und sperrt manche Programme; stattdessen die Gipfelsuche nach Name/Kennung verwenden'));
+    if (res.status === 504 || res.status === 503) throw new Error(tx(`Overpass is busy or unavailable (HTTP ${res.status}) — try again later`, `Overpass ist ausgelastet oder nicht verfügbar (HTTP ${res.status}) — später erneut versuchen`));
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     // The public Overpass instance occasionally answers a busy/overloaded
     // moment with an HTML error page instead of JSON, even on a 200 — seen
@@ -112,8 +113,8 @@ export async function searchOsmSummitsInView(bounds){
     // "Unexpected token '<'" JSON-parse crash.
     let data;
     try { data = await res.json(); }
-    catch { throw new Error('Overpass returned an unexpected response (it may be busy — try again shortly)'); }
-    if (!data || !Array.isArray(data.elements)) throw new Error('Overpass returned an unexpected response (it may be busy — try again shortly)');
+    catch { throw new Error(tx('Overpass returned an unexpected response (it may be busy — try again shortly)', 'Overpass hat unerwartet geantwortet (womöglich ausgelastet — gleich erneut versuchen)')); }
+    if (!data || !Array.isArray(data.elements)) throw new Error(tx('Overpass returned an unexpected response (it may be busy — try again shortly)', 'Overpass hat unerwartet geantwortet (womöglich ausgelastet — gleich erneut versuchen)'));
     return data.elements; // each element checked by candidateFromOsmElement()
   } finally {
     clearTimeout(timeout);

@@ -386,7 +386,9 @@ input.iso-date[aria-invalid="true"]{ color:var(--err); }
 }
 
 /* the note in the header (layout: shared tools.css) */
-#site-header .hdr-note{ font-size:12.5px; color:var(--text-dim); }
+/* it takes the room left and wraps there, so the controls and the help
+   stay on the first line (the German text is longer) */
+#site-header .hdr-note{ font-size:12.5px; color:var(--text-dim); flex:1 1 0; min-width:12em; }
 
 /* calendar buttons next to ISO date fields: at least 24x24 px (WCAG 2.5.8) */
 .date-pick{ min-width:24px; min-height:24px; justify-content:center; }

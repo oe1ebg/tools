@@ -3,6 +3,8 @@
 
 // ISO 8601 and 24-hour in both zones (root AGENTS.md): built from the
 // date's parts, never from a locale-dependent formatter.
+import { tx } from '../../shared/js/i18n.js';
+
 const pad2 = n => String(n).padStart(2, '0');
 export function formatTimeUTC(t){ return t.toISOString().slice(11, 16) + 'Z'; }
 export function formatTimeLocal(t){ return `${pad2(t.getHours())}:${pad2(t.getMinutes())}`; }
@@ -21,7 +23,7 @@ export function timeDisplayPair(dateActivated, withDate, mode){
   const local = withDate ? formatDateTimeLocal(t) : formatTimeLocal(t);
   return mode === 'local'
     ? { primary: local, secondary: `UTC ${utc}` }
-    : { primary: utc, secondary: `local ${local}` };
+    : { primary: utc, secondary: tx(`local ${local}`, `lokal ${local}`) };
 }
 
 // One-line "when · who" summary for a single alert, shared by search-result
@@ -35,5 +37,5 @@ export function formatAlertBrief(a, mode){
 
 export function formatAlertsBrief(alerts, mode, cap = 3){
   if (!alerts.length) return null;
-  return alerts.slice(0, cap).map(a => formatAlertBrief(a, mode)).join('; ') + (alerts.length > cap ? ` +${alerts.length - cap} more` : '');
+  return alerts.slice(0, cap).map(a => formatAlertBrief(a, mode)).join('; ') + (alerts.length > cap ? tx(` +${alerts.length - cap} more`, ` +${alerts.length - cap} weitere`) : '');
 }

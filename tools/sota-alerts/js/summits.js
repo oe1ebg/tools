@@ -4,6 +4,7 @@
 // Pure; the fetching is in api.js, the caching in lookup.js.
 
 import { distanceMeters } from '../../shared/js/geo.js';
+import { tx } from '../../shared/js/i18n.js';
 
 // The search endpoint returns a combined "ASSOC/CODE" summitCode (unlike
 // the alerts feed, which has associationCode/summitCode as separate
@@ -20,16 +21,16 @@ export function splitSummitKey(key){
 // The valid rows are returned, the few invalid ones skipped.
 export const MIN_VALID_SHARE = 0.9;
 export function checkedRows(rows, isValid, what){
-  if (!Array.isArray(rows)) throw new Error(`the ${what} isn't in the expected format`);
-  if (!rows.length) throw new Error(`the ${what} is empty`);
+  if (!Array.isArray(rows)) throw new Error(tx(`the ${what} isn't in the expected format`, `${what}: nicht im erwarteten Format`));
+  if (!rows.length) throw new Error(tx(`the ${what} is empty`, `${what}: leer`));
   const valid = rows.filter(isValid);
-  if (valid.length < rows.length * MIN_VALID_SHARE) throw new Error(`the ${what} isn't in the expected format (${rows.length - valid.length} of ${rows.length} entries invalid)`);
+  if (valid.length < rows.length * MIN_VALID_SHARE) throw new Error(tx(`the ${what} isn't in the expected format (${rows.length - valid.length} of ${rows.length} entries invalid)`, `${what}: nicht im erwarteten Format (${rows.length - valid.length} von ${rows.length} Einträgen ungültig)`));
   return valid;
 }
 const isLookupRow = row => Array.isArray(row) && typeof row[0] === 'string' && row[0].includes('/') && isLatLon(row[1], row[2]);
 const isSummitRecord = r => isObject(r) && typeof r.key === 'string' && r.key.includes('/') && isLatLon(r.lat, r.lon);
 // data/summits.json (the "all summits" overlay) -> its valid records.
-export const summitsFromRecords = records => checkedRows(records, isSummitRecord, 'all-summits data');
+export const summitsFromRecords = records => checkedRows(records, isSummitRecord, tx('all-summits data', 'Daten aller Gipfel'));
 
 // Coordinates as numbers within range, from any of the sources.
 export const isLatLon = (lat, lon) => typeof lat === 'number' && typeof lon === 'number'
@@ -82,7 +83,7 @@ export function candidateFromOsmElement(el){
 // silently send every summit to the live API.
 export function lookupFromRows(rows){
   const map = new Map();
-  for (const row of checkedRows(rows, isLookupRow, 'summit list')){
+  for (const row of checkedRows(rows, isLookupRow, tx('summit list', 'Gipfelliste'))){
     const [key, lat, lon, name, altM, points, bonusPoints] = row;
     const rec = { name, lat, lon, locator: null };
     if (altM != null) rec.altM = altM;
@@ -99,13 +100,13 @@ export function lookupFromRows(rows){
 export function summitMetaLine(s){
   let ptsPart = null;
   if (s.points != null){
-    ptsPart = `${s.points} pts`;
+    ptsPart = tx(`${s.points} pts`, `${s.points} Pkt.`);
     // Real per-summit data (a fixed bonus tied to certain summits, not
     // derivable from the points tier alone — checked live, it shows up
     // across every points tier, not just one), only ever present on
     // entries sourced from the build-time bulk data, since the
     // per-summit/search API endpoints used elsewhere don't expose it.
-    if (s.bonusPoints) ptsPart += ` (+${s.bonusPoints} bonus)`;
+    if (s.bonusPoints) ptsPart += tx(` (+${s.bonusPoints} bonus)`, ` (+${s.bonusPoints} Bonus)`);
   }
   return [s.altM ? `${s.altM}m` : null, ptsPart, s.locator || null]
     .filter(Boolean).join(' · ');
@@ -129,7 +130,8 @@ export function referenceDiff(summit, referenceKey, summitMap){
 export function referenceDiffText(diff){
   if (!diff) return '';
   const height = diff.heightDiffM != null ? `, ${diff.heightDiffM > 0 ? '+' : ''}${diff.heightDiffM} m` : '';
-  return `${diff.distKm.toFixed(1)} km${height} from reference (${diff.refName})`;
+  const km = tx(diff.distKm.toFixed(1), diff.distKm.toFixed(1).replace('.', ','));
+  return tx(`${km} km${height} from reference (${diff.refName})`, `${km} km${height} vom Bezug (${diff.refName})`);
 }
 
 // Matches sotl.as's own summit-dot coloring exactly (its "summits_circles_all"

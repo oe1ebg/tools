@@ -15,21 +15,25 @@
 <body>
 
 <header id="site-header">
-  <a id="home-link" href="../">← Alle Tools</a>
+  <a id="home-link" href="../" data-de="← Alle Tools">← All tools</a>
   <h1 class="title">SOTA Alerts Map</h1>
-  <a class="hdr-link" href="https://github.com/oe1ebg/tools/tree/main/tools/sota-alerts" target="_blank" rel="noopener" title="source code on GitHub">source <span aria-hidden="true">↗</span><span class="sr-only">(opens in a new tab)</span></a>
-  <span class="hdr-note">unofficial · uses SOTA's public API, not affiliated with the SOTA Association</span>
+  <a class="hdr-link" href="https://github.com/oe1ebg/tools/tree/main/tools/sota-alerts" target="_blank" rel="noopener" title="source code on GitHub" data-de-title="Quellcode auf GitHub"><span data-de="Quellcode">source</span>&nbsp;<span aria-hidden="true">↗</span><span class="sr-only" data-de="(öffnet in neuem Tab)">(opens in a new tab)</span></a>
+  <span class="hdr-note" data-de="inoffiziell · verwendet die öffentliche API von SOTA, nicht mit der SOTA Association verbunden">unofficial · uses SOTA's public API, not affiliated with the SOTA Association</span>
   <div class="hdr-controls">
-    <div id="time-toggle" class="toggle" role="group" aria-label="time display" title="show alert times in UTC or your local time zone">
+    <div id="time-toggle" class="toggle" role="group" aria-label="time display" data-de-aria-label="Zeitanzeige" title="show alert times in UTC or your local time zone" data-de-title="Zeiten der Alerts in UTC oder in der eigenen Zeitzone zeigen">
       <button type="button" data-time-choice="utc" aria-pressed="false">UTC</button>
       <button type="button" data-time-choice="local" aria-pressed="false">local</button>
     </div>
-    <div id="theme-toggle" class="toggle" role="group" aria-label="color theme">
-      <button type="button" data-theme-choice="light" aria-pressed="false" title="light theme">light</button>
-      <button type="button" data-theme-choice="auto" aria-pressed="false" title="match system theme">auto</button>
-      <button type="button" data-theme-choice="dark" aria-pressed="false" title="dark theme">dark</button>
+    <div id="lang-toggle" class="toggle" role="group" aria-label="language" data-de-aria-label="Sprache">
+      <button type="button" data-lang="de" lang="de" aria-pressed="false">DE</button>
+      <button type="button" data-lang="en" lang="en" aria-pressed="false">EN</button>
     </div>
-    <button id="btn-help" type="button" aria-haspopup="dialog" aria-controls="help-dlg" aria-keyshortcuts="?" title="help: the map, alerts, summits, sharing (? outside text fields)"><span aria-hidden="true">?</span> Help</button>
+    <div id="theme-toggle" class="toggle" role="group" aria-label="color theme" data-de-aria-label="Farbschema">
+      <button type="button" data-theme-choice="light" aria-pressed="false" title="light theme" data-de-title="helles Farbschema" data-de="hell">light</button>
+      <button type="button" data-theme-choice="auto" aria-pressed="false" title="match system theme" data-de-title="wie das System" data-de="auto">auto</button>
+      <button type="button" data-theme-choice="dark" aria-pressed="false" title="dark theme" data-de-title="dunkles Farbschema" data-de="dunkel">dark</button>
+    </div>
+    <button id="btn-help" type="button" aria-haspopup="dialog" aria-controls="help-dlg" aria-keyshortcuts="?" title="help: the map, alerts, summits, sharing (? outside text fields)" data-de-title="Hilfe: Karte, Alerts, Gipfel, Teilen (? außerhalb von Textfeldern)"><span aria-hidden="true">?</span> <span data-de="Hilfe">Help</span></button>
   </div>
 </header>
 
@@ -39,42 +43,42 @@
        the screen instead of a wall of controls; desktop/tablet render
        #toolbar-controls' children as if this wrapper weren't there at all
        (display:contents), so this button and class have zero effect there. -->
-  <button type="button" id="btn-toggle-toolbar" class="mobile-only" aria-expanded="false" aria-controls="toolbar-controls">filters ▾</button>
+  <button type="button" id="btn-toggle-toolbar" class="mobile-only" aria-expanded="false" aria-controls="toolbar-controls" data-de="Filter ▾">filters ▾</button>
   <div id="toolbar-controls">
     <div class="field">
-      <label for="range-from">date range (UTC)</label>
+      <label for="range-from" data-de="Zeitraum (UTC)">date range (UTC)</label>
       <div class="date-range-group">
-        <input id="range-from" class="iso-date" type="text" aria-label="from date (UTC)" placeholder="YYYY-MM-DD" inputmode="numeric" maxlength="10" autocomplete="off" spellcheck="false">
-        <button type="button" class="date-pick" data-for="range-from" title="choose the first date" aria-label="choose the first date (UTC)"><svg class="icon-calendar" aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></button>
+        <input id="range-from" class="iso-date" type="text" aria-label="from date (UTC)" data-de-aria-label="von (Datum, UTC)" placeholder="YYYY-MM-DD" data-de-placeholder="JJJJ-MM-TT" inputmode="numeric" maxlength="10" autocomplete="off" spellcheck="false">
+        <button type="button" class="date-pick" data-for="range-from" title="choose the first date" aria-label="choose the first date (UTC)" data-de-title="das erste Datum wählen" data-de-aria-label="das erste Datum wählen (UTC)"><svg class="icon-calendar" aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></button>
         <span class="date-range-arrow" aria-hidden="true">→</span>
-        <input id="range-to" class="iso-date" type="text" aria-label="to date (UTC)" placeholder="YYYY-MM-DD" inputmode="numeric" maxlength="10" autocomplete="off" spellcheck="false">
-        <button type="button" class="date-pick" data-for="range-to" title="choose the last date" aria-label="choose the last date (UTC)"><svg class="icon-calendar" aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></button>
+        <input id="range-to" class="iso-date" type="text" aria-label="to date (UTC)" data-de-aria-label="bis (Datum, UTC)" placeholder="YYYY-MM-DD" data-de-placeholder="JJJJ-MM-TT" inputmode="numeric" maxlength="10" autocomplete="off" spellcheck="false">
+        <button type="button" class="date-pick" data-for="range-to" title="choose the last date" aria-label="choose the last date (UTC)" data-de-title="das letzte Datum wählen" data-de-aria-label="das letzte Datum wählen (UTC)"><svg class="icon-calendar" aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></button>
       </div>
     </div>
-    <button type="button" id="btn-today" title="jump the date range to today (UTC)">today</button>
+    <button type="button" id="btn-today" title="jump the date range to today (UTC)" data-de-title="den Zeitraum auf heute setzen (UTC)" data-de="heute">today</button>
     <div class="field">
-      <label for="callsigns-input">my callsign(s)</label>
+      <label for="callsigns-input" data-de="eigene Rufzeichen">my callsign(s)</label>
       <input id="callsigns-input" type="text" placeholder="OE1ABC, OE1ABC/P">
     </div>
     <div class="field">
-      <label for="summit-search">pin a summit</label>
-      <input id="summit-search" type="text" placeholder="name or code…">
+      <label for="summit-search" data-de="Gipfel anheften">pin a summit</label>
+      <input id="summit-search" type="text" placeholder="name or code…" data-de-placeholder="Name oder Kennung…">
       <div class="field-actions">
-        <button type="button" id="btn-summit-search">search</button>
-        <button type="button" id="btn-area-search" title="find summits tagged in OpenStreetMap within the current map view (coverage is partial)">find in view</button>
+        <button type="button" id="btn-summit-search" data-de="suchen">search</button>
+        <button type="button" id="btn-area-search" title="find summits tagged in OpenStreetMap within the current map view (coverage is partial)" data-de-title="in OpenStreetMap markierte Gipfel im aktuellen Kartenausschnitt suchen (lückenhaft)" data-de="im Ausschnitt suchen">find in view</button>
       </div>
     </div>
     <div class="spacer"></div>
-    <button type="button" id="btn-share" title="copy a link that reproduces this date range, reference summit, and pinned summits">share</button>
+    <button type="button" id="btn-share" title="copy a link that reproduces this date range, reference summit, and pinned summits" data-de-title="einen Link kopieren, der diesen Zeitraum, den Bezugsgipfel und die angehefteten Gipfel wiederherstellt" data-de="teilen">share</button>
     <span id="share-status" class="sr-only" role="status"></span>
-    <button type="button" id="btn-open-sotlas" title="open sotl.as, centered on the same area this map is currently showing">view on sotl.as ↗</button>
-    <button type="button" id="btn-locate" title="center the map on your current location">locate me</button>
-    <button type="button" id="btn-refresh-alerts">refresh alerts</button>
-    <button type="button" id="btn-refresh-summits" title="force re-fetch of summit coordinates, bypassing the local cache">refresh summit data</button>
-    <button type="button" id="btn-toggle-bandmode" aria-expanded="false" aria-controls="bandmode-panel">bands/modes ▾</button>
-    <button type="button" id="btn-toggle-all-summits" aria-pressed="false" title="show every SOTA summit in the current view (not just alerted/pinned ones) — built at site build time, no live SOTA API calls">all summits</button>
+    <button type="button" id="btn-open-sotlas" title="open sotl.as, centered on the same area this map is currently showing" data-de-title="sotl.as öffnen, mit demselben Ausschnitt wie diese Karte" data-de="auf sotl.as ansehen ↗">view on sotl.as ↗</button>
+    <button type="button" id="btn-locate" title="center the map on your current location" data-de-title="die Karte auf den eigenen Standort setzen" data-de="eigener Standort">locate me</button>
+    <button type="button" id="btn-refresh-alerts" data-de="Alerts aktualisieren">refresh alerts</button>
+    <button type="button" id="btn-refresh-summits" title="force re-fetch of summit coordinates, bypassing the local cache" data-de-title="Gipfelkoordinaten neu laden, am lokalen Zwischenspeicher vorbei" data-de="Gipfeldaten aktualisieren">refresh summit data</button>
+    <button type="button" id="btn-toggle-bandmode" aria-expanded="false" aria-controls="bandmode-panel" data-de="Bänder/Modes ▾">bands/modes ▾</button>
+    <button type="button" id="btn-toggle-all-summits" aria-pressed="false" title="show every SOTA summit in the current view (not just alerted/pinned ones) — built at site build time, no live SOTA API calls" data-de-title="jeden SOTA-Gipfel im Ausschnitt zeigen (nicht nur die mit Alert oder angeheftete) — beim Bauen erzeugt, keine Abfragen bei der SOTA-API" data-de="alle Gipfel">all summits</button>
     <span id="all-summits-note" role="status"></span>
-    <button type="button" id="btn-toggle-list" aria-expanded="false" aria-controls="list-panel">list ▾</button>
+    <button type="button" id="btn-toggle-list" aria-expanded="false" aria-controls="list-panel" data-de="Liste ▾">list ▾</button>
   </div>
 </div>
 
@@ -87,40 +91,40 @@
 <!-- Screen-reader announcement of the search panel's state (searching…,
      n results, failed); the panel itself holds the full result cards. -->
 <div id="search-status" class="sr-only" role="status"></div>
-<div id="search-panel" role="region" aria-label="summit search results"></div>
+<div id="search-panel" role="region" aria-label="summit search results" data-de-aria-label="Ergebnisse der Gipfelsuche"></div>
 
 <div id="bandmode-panel">
   <div class="bandmode-group" role="group" aria-labelledby="band-checks-title">
-    <div class="bandmode-group-title" id="band-checks-title">band</div>
+    <div class="bandmode-group-title" id="band-checks-title" data-de="Band">band</div>
     <div id="band-checks" class="bandmode-checks"></div>
   </div>
   <div class="bandmode-group" role="group" aria-labelledby="mode-checks-title">
-    <div class="bandmode-group-title" id="mode-checks-title">mode</div>
+    <div class="bandmode-group-title" id="mode-checks-title" data-de="Mode">mode</div>
     <div id="mode-checks" class="bandmode-checks"></div>
   </div>
-  <button type="button" id="btn-clear-bandmode" class="btn-ref">clear filter</button>
+  <button type="button" id="btn-clear-bandmode" class="btn-ref" data-de="Filter löschen">clear filter</button>
 </div>
 
 <div id="warnings" role="status"></div>
 
 <main id="main">
-  <div id="map" role="region" aria-label="map of SOTA alerts and summits"></div>
-  <div id="list-panel" role="region" aria-label="alert and pinned summit list"><div id="candidates-items"></div><div id="list-items"></div></div>
+  <div id="map" role="region" aria-label="map of SOTA alerts and summits" data-de-aria-label="Karte der SOTA-Alerts und Gipfel"></div>
+  <div id="list-panel" role="region" aria-label="alert and pinned summit list" data-de-aria-label="Liste der Alerts und angehefteten Gipfel"><div id="candidates-items"></div><div id="list-items"></div></div>
 </main>
 
 <!-- Help: "? Help" in the header or ? outside text fields (shared
      ../shared/js/helpdialog.js). Esc or "Close" closes it. -->
 <dialog id="help-dlg" class="help-dlg" aria-labelledby="help-title">
   <div class="help-head">
-    <h2 id="help-title">Help</h2>
-    <a href="https://github.com/oe1ebg/tools/tree/main/tools/sota-alerts#readme" target="_blank" rel="noopener">More in the README (online)</a>
-    <button type="button" id="help-close" class="primary">Close (Esc)</button>
+    <h2 id="help-title" data-de="Hilfe">Help</h2>
+    <a href="https://github.com/oe1ebg/tools/tree/main/tools/sota-alerts#readme" target="_blank" rel="noopener" data-de="Mehr im README (online, Englisch)">More in the README (online)</a>
+    <button type="button" id="help-close" class="primary" data-de="Schließen (Esc)">Close (Esc)</button>
   </div>
   <div class="help-body">
-    <nav class="help-nav" aria-label="help sections">
-      <a href="#h-map">Map and alerts</a><a href="#h-compare">Comparing summits</a><a href="#h-share">Sharing</a><a href="#h-data">Data and privacy</a>
+    <nav class="help-nav" aria-label="help sections" data-de-aria-label="Abschnitte der Hilfe">
+      <a href="#h-map" data-de="Karte und Alerts">Map and alerts</a><a href="#h-compare" data-de="Gipfel vergleichen">Comparing summits</a><a href="#h-share" data-de="Teilen">Sharing</a><a href="#h-data" data-de="Daten und Datenschutz">Data and privacy</a>
     </nav>
-    <div class="help-content">
+    <div class="help-content" data-lang-only="en" lang="en">
       <section id="h-map" aria-labelledby="h-map-t">
         <h3 id="h-map-t">Map and alerts</h3>
         <p>The map shows the alerts that SOTA's feed currently lists, within the date range in the filters ("today" sets both dates to the current UTC date). Alerts of your own callsigns ("my callsign(s)" in the filters) are green. Times are in UTC or your local time zone (switch in the header).</p>
@@ -136,7 +140,26 @@
       </section>
       <section id="h-data" aria-labelledby="h-data-t">
         <h3 id="h-data-t">Data and privacy</h3>
-        <p>This map needs the internet: alerts come from SOTA's public API, map tiles from the map server. It is unofficial and not affiliated with the SOTA Association. Summit positions come from a list shipped with the page, so a summit is looked up live only when it is missing there. Your filters and last view stay in this browser.</p>
+        <p>This map needs the internet: alerts come from SOTA's public API, map tiles from the map server. It is unofficial and not affiliated with the SOTA Association. Summit positions come from a list shipped with the page, so a summit is looked up live only when it is missing there. Your filters and last view stay in this browser. After a change of language, notes already shown stay as they are; new ones come in the new language.</p>
+      </section>
+    </div>
+    <div class="help-content" data-lang-only="de" lang="de" hidden>
+      <section id="h-map-de" aria-labelledby="h-map-de-t">
+        <h3 id="h-map-de-t">Karte und Alerts</h3>
+        <p>Die Karte zeigt die Alerts, die der Feed von SOTA gerade führt, im Zeitraum aus den Filtern („heute“ setzt beide Daten auf das aktuelle UTC-Datum). Alerts der eigenen Rufzeichen („eigene Rufzeichen“ in den Filtern) sind grün. Zeiten in UTC oder in der eigenen Zeitzone (Schalter in der Kopfzeile).</p>
+        <p>Mit der Maus über einem Gipfel öffnet sich seine Karte; ein Klick hält sie offen. Am Handy öffnet „Filter ▾“ die Filter und die Liste.</p>
+      </section>
+      <section id="h-compare-de" aria-labelledby="h-compare-de-t">
+        <h3 id="h-compare-de-t">Gipfel vergleichen</h3>
+        <p>„als Bezug setzen“ in der Karte eines Gipfels (oder ein Klick auf eine Zeile der Liste) wählt einen Bezugsgipfel (gelb). Die Karte jedes anderen Gipfels zeigt dann Entfernung und Höhenunterschied, eine gestrichelte Linie verbindet die beiden. Angeheftete Gipfel (rosa) bleiben auf der Karte und in der Liste.</p>
+      </section>
+      <section id="h-share-de" aria-labelledby="h-share-de-t">
+        <h3 id="h-share-de-t">Teilen</h3>
+        <p>„teilen“ kopiert einen Link mit Zeitraum, Band- und Mode-Filter, Bezug und angehefteten Gipfeln. Wer ihn öffnet, sieht dieselben Gipfel; eigene Rufzeichen, Farbschema und Zeitanzeige bleiben, wie sie sind, und eigene Pins bleiben erhalten.</p>
+      </section>
+      <section id="h-data-de" aria-labelledby="h-data-de-t">
+        <h3 id="h-data-de-t">Daten und Datenschutz</h3>
+        <p>Diese Karte braucht das Internet: Die Alerts kommen von der öffentlichen API von SOTA, die Kartenkacheln vom Kartenserver. Sie ist inoffiziell und nicht mit der SOTA Association verbunden. Gipfelpositionen stammen aus einer Liste, die mit der Seite kommt; nur ein dort fehlender Gipfel wird live nachgeschlagen. Filter und letzter Ausschnitt bleiben in diesem Browser. Nach einem Wechsel der Sprache bleiben schon angezeigte Hinweise, wie sie sind; neue erscheinen in der neuen Sprache.</p>
       </section>
     </div>
   </div>

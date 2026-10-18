@@ -5,6 +5,7 @@
 import { localZoneText } from '../../shared/js/time.js';
 import { copyToClipboard } from '../../shared/js/dom.js';
 import { initHelpDialog } from '../../shared/js/helpdialog.js';
+import { tx, i18nInit, i18nApply, i18nToggle } from '../../shared/js/i18n.js';
 import { isoDateFromText, isoBindDateField } from '../../shared/js/isodate.js';
 import { fetchAlerts, fetchSummit, searchSummits, searchOsmSummitsInView, fetchJson, SUMMIT_LOOKUP_URL, ALL_SUMMITS_URL } from './api.js';
 import {
@@ -48,7 +49,7 @@ function warnUnless(ok, key, msg){
   else warnings.add(msg, key);
 }
 const saveCandidates = () => warnUnless(store.saveCandidates(state.candidates), 'store-pins',
-  'could not save your pinned summits locally (storage full or blocked).');
+  tx('could not save your pinned summits locally (storage full or blocked).', 'die angehefteten Gipfel ließen sich nicht lokal speichern (Speicher voll oder gesperrt).'));
 
 /* ---------- summit lookup (lookup.js; the order is in AGENTS.md) ---------- */
 
@@ -61,7 +62,7 @@ const loadAllSummits = lazy(async () => summitsFromRecords(await fetchJson(ALL_S
 const resolveSummits = createSummitResolver({
   loadCache: store.loadSummitCache,
   saveCache: cache => warnUnless(store.saveSummitCache(cache), 'store-cache',
-    'summit coordinate cache could not be saved locally (storage full or blocked); it will be re-fetched every visit.'),
+    tx('summit coordinate cache could not be saved locally (storage full or blocked); it will be re-fetched every visit.', 'der Zwischenspeicher der Gipfelkoordinaten ließ sich nicht lokal speichern (Speicher voll oder gesperrt); er wird bei jedem Besuch neu geladen.')),
   loadLookup: loadSummitLookup,
   fetchSummit,
 });
@@ -70,7 +71,7 @@ const resolveSummits = createSummitResolver({
 // unavailable, drop the warning once it loaded.
 function noteLookupStatus(resolved){
   if (resolved.lookupError){
-    warnings.add(`the built-in summit list could not be loaded (${resolved.lookupError.message}), so summits are looked up from the SOTA API instead — at most ${FALLBACK_LIVE_BUDGET} per visit, the rest can't be placed on the map. "refresh alerts" tries loading the list again.`, 'summit-lookup');
+    warnings.add(tx(`the built-in summit list could not be loaded (${resolved.lookupError.message}), so summits are looked up from the SOTA API instead — at most ${FALLBACK_LIVE_BUDGET} per visit, the rest can't be placed on the map. "refresh alerts" tries loading the list again.`, `die eingebaute Gipfelliste ließ sich nicht laden (${resolved.lookupError.message}), daher werden Gipfel stattdessen bei der SOTA-API nachgeschlagen — höchstens ${FALLBACK_LIVE_BUDGET} pro Besuch, der Rest kann nicht auf die Karte. „Alerts aktualisieren“ versucht die Liste erneut zu laden.`), 'summit-lookup');
   } else if (loadSummitLookup.loaded()){
     warnings.drop('summit-lookup');
   }
@@ -109,6 +110,24 @@ function setAllSummitsNote(text){
 }
 
 let mapView = null; // createMap(), in init()
+
+// German or English (#108 C3): the saved choice, else the browser's
+// language; set before anything builds text.
+const LANG_PREF = 'oe1ebg-sota-lang';
+i18nInit(LANG_PREF);
+i18nApply();
+
+// The language switch: every text built here again (the map's layer names
+// and credits too); the view, the filters and the pins stay. Notes already
+// in the warnings box keep their language.
+function relabel(){
+  i18nApply();
+  const toolbarShown = $id('toolbar-controls').classList.contains('show');
+  $id('btn-toggle-toolbar').textContent = toolbarShown ? tx('filters ▴', 'Filter ▴') : tx('filters ▾', 'Filter ▾');
+  applyTimeDisplayButtons();
+  mapView?.relabel();
+  renderAll();
+}
 
 // The date range fields hold typed text (ISO, ../shared/js/isodate.js):
 // their date as YYYY-MM-DD, or '' while it is incomplete or no date.
@@ -154,9 +173,9 @@ async function applySharedStateFromUrl(){
 
   // ref and pins are validated, deduplicated and capped by parseShareSearch()
   if (shared.dropped){
-    warnings.add(`${shared.dropped} pin${shared.dropped === 1 ? '' : 's'} from the shared link ${shared.dropped === 1 ? 'was' : 'were'} skipped (not a summit reference like OE/WI-001, repeated, or over the limit of ${MAX_SHARED_PINS} pins).`, 'shared-pins');
+    warnings.add(tx(`${shared.dropped} pin${shared.dropped === 1 ? '' : 's'} from the shared link ${shared.dropped === 1 ? 'was' : 'were'} skipped (not a summit reference like OE/WI-001, repeated, or over the limit of ${MAX_SHARED_PINS} pins).`, `${shared.dropped} Pin(s) aus dem geteilten Link übersprungen (keine Gipfelkennung wie OE/WI-001, doppelt oder über der Grenze von ${MAX_SHARED_PINS} Pins).`), 'shared-pins');
   }
-  if (shared.badRef) warnings.add("the shared link's reference isn't a summit reference like OE/WI-001 and was skipped.", 'shared-ref');
+  if (shared.badRef) warnings.add(tx("the shared link's reference isn't a summit reference like OE/WI-001 and was skipped.", 'der Bezug im geteilten Link ist keine Gipfelkennung wie OE/WI-001 und wurde übersprungen.'), 'shared-ref');
   const refKey = shared.ref;
   // The reference always needs its own marker to mean anything (distance/
   // elevation math needs its coordinates), so it gets resolved as a pin
@@ -181,16 +200,16 @@ async function applySharedStateFromUrl(){
     else if (!overBudget.has(e.key)) anyMissing = true;
   }
   if (toFetch.length) saveCandidates();
-  if (anyMissing) warnings.add("some summits from the shared link couldn't be found and were skipped.", 'shared-link');
+  if (anyMissing) warnings.add(tx("some summits from the shared link couldn't be found and were skipped.", 'einige Gipfel aus dem geteilten Link wurden nicht gefunden und übersprungen.'), 'shared-link');
   if (overBudget.size){
-    const n = `${overBudget.size} summit${overBudget.size === 1 ? '' : 's'} from the shared link ${overBudget.size === 1 ? 'was' : 'were'} skipped`;
+    const n = tx(`${overBudget.size} summit${overBudget.size === 1 ? '' : 's'} from the shared link ${overBudget.size === 1 ? 'was' : 'were'} skipped`, `${overBudget.size} Gipfel aus dem geteilten Link übersprungen`);
     warnings.add(resolvedMap.lookupError
-      ? `${n}: the built-in summit list isn't available, and live SOTA API lookups are limited meanwhile.`
-      : `${n}: not in the built-in summit list, and a shared link looks up at most ${MAX_SHARED_LIVE_LOOKUPS} summits from the SOTA API.`, 'shared-budget');
+      ? tx(`${n}: the built-in summit list isn't available, and live SOTA API lookups are limited meanwhile.`, `${n}: Die eingebaute Gipfelliste ist nicht verfügbar, und Abfragen bei der SOTA-API sind solange begrenzt.`)
+      : tx(`${n}: not in the built-in summit list, and a shared link looks up at most ${MAX_SHARED_LIVE_LOOKUPS} summits from the SOTA API.`, `${n}: nicht in der eingebauten Gipfelliste, und ein geteilter Link fragt höchstens ${MAX_SHARED_LIVE_LOOKUPS} Gipfel bei der SOTA-API ab.`), 'shared-budget');
   }
 
   if (refKey && state.candidates.has(refKey)) state.referenceKey = refKey;
-  else if (refKey) warnings.add(`the shared link's reference summit (${refKey}) couldn't be found.`, 'shared-ref');
+  else if (refKey) warnings.add(tx(`the shared link's reference summit (${refKey}) couldn't be found.`, `der Bezugsgipfel des geteilten Links (${refKey}) wurde nicht gefunden.`), 'shared-ref');
 
   // Strip the query string once applied — otherwise it'd linger and go
   // stale the moment anything changes locally; "share" always builds a
@@ -229,9 +248,9 @@ async function loadAlerts(){
     console.warn('could not load SOTA alerts:', err);
     if (alertsStatus.loadedAt){
       alertsStatus.stale = true;
-      warnings.add(`could not refresh SOTA alerts (${err.message}); still showing the alerts loaded at ${alertsTime()}. Try "refresh alerts" again later.`, 'alerts');
+      warnings.add(tx(`could not refresh SOTA alerts (${err.message}); still showing the alerts loaded at ${alertsTime()}. Try "refresh alerts" again later.`, `SOTA-Alerts ließen sich nicht aktualisieren (${err.message}); weiter angezeigt: die Alerts von ${alertsTime()}. „Alerts aktualisieren“ später erneut versuchen.`), 'alerts');
     } else {
-      warnings.add(`could not load SOTA alerts (${err.message}). If this persists it may be a CORS/network problem — check the browser console, then try "refresh alerts".`, 'alerts');
+      warnings.add(tx(`could not load SOTA alerts (${err.message}). If this persists it may be a CORS/network problem — check the browser console, then try "refresh alerts".`, `SOTA-Alerts ließen sich nicht laden (${err.message}). Bleibt das so, ist es womöglich ein CORS- oder Netzproblem — die Browser-Konsole prüfen, dann „Alerts aktualisieren“ versuchen.`), 'alerts');
     }
     return false;
   }
@@ -241,7 +260,7 @@ async function loadAlerts(){
   alertsStatus.stale = false;
   warnings.drop('alerts');
   if (parsed.skipped){
-    warnings.add(`${parsed.skipped} alert${parsed.skipped === 1 ? '' : 's'} in SOTA's feed ${parsed.skipped === 1 ? 'was' : 'were'} malformed and skipped.`, 'alerts-skipped');
+    warnings.add(tx(`${parsed.skipped} alert${parsed.skipped === 1 ? '' : 's'} in SOTA's feed ${parsed.skipped === 1 ? 'was' : 'were'} malformed and skipped.`, `${parsed.skipped} Alert(s) im SOTA-Feed fehlerhaft und übersprungen.`), 'alerts-skipped');
   } else {
     warnings.drop('alerts-skipped');
   }
@@ -282,8 +301,8 @@ function renderAlertsAge(){
   if (!alertsStatus.loadedAt){ age.textContent = ''; return; }
   age.classList.toggle('stale', alertsStatus.stale);
   age.textContent = alertsStatus.stale
-    ? `⚠ alerts as of ${alertsTime()} (refresh failed)`
-    : `alerts as of ${alertsTime()}`;
+    ? tx(`⚠ alerts as of ${alertsTime()} (refresh failed)`, `⚠ Alerts von ${alertsTime()} (Aktualisieren fehlgeschlagen)`)
+    : tx(`alerts as of ${alertsTime()}`, `Alerts von ${alertsTime()}`);
 }
 
 /* ---------- rendering ---------- */
@@ -299,21 +318,21 @@ function alertsForSummitInRange(key){
 function checkRangeWarning(from, to, bounds){
   if (!bounds) return;
   if (from < bounds.min || to > bounds.max){
-    warnings.add(`SOTA's public alerts feed currently only covers ${bounds.min} – ${bounds.max}; there's no data outside that window (it's a rolling near-term feed, not a historical archive).`);
+    warnings.add(tx(`SOTA's public alerts feed currently only covers ${bounds.min} – ${bounds.max}; there's no data outside that window (it's a rolling near-term feed, not a historical archive).`, `Der öffentliche Alert-Feed von SOTA umfasst derzeit nur ${bounds.min} – ${bounds.max}; außerhalb gibt es keine Daten (ein laufender Feed der nächsten Tage, kein Archiv).`));
   }
 }
 
 function checkMissingSummits(groups, summitMap){
   const missing = [...groups.values()].filter(g => !summitMap.has(g.key));
   if (missing.length){
-    warnings.add(`${missing.length} alert${missing.length === 1 ? '' : 's'} couldn't be placed on the map (summit lookup failed for: ${missing.map(g => g.key).join(', ')}).`);
+    warnings.add(tx(`${missing.length} alert${missing.length === 1 ? '' : 's'} couldn't be placed on the map (summit lookup failed for: ${missing.map(g => g.key).join(', ')}).`, `${missing.length} Alert(s) ließen sich nicht auf die Karte setzen (Gipfel nicht gefunden: ${missing.map(g => g.key).join(', ')}).`));
   }
 }
 
 function checkPastRangeNote(to){
   const todayUtc = new Date().toISOString().slice(0, 10);
   if (to && to < todayUtc){
-    warnings.add(`You're viewing a fully past date range — SOTA's alerts feed only shows planned activations, not confirmed ones (and this tool doesn't have a historical archive). For a summit's actual activation history, open its popup and use the "sotadata ↗" or "sotl.as ↗" link.`);
+    warnings.add(tx(`You're viewing a fully past date range — SOTA's alerts feed only shows planned activations, not confirmed ones (and this tool doesn't have a historical archive). For a summit's actual activation history, open its popup and use the "sotadata ↗" or "sotl.as ↗" link.`, `Der Zeitraum liegt ganz in der Vergangenheit — der Alert-Feed von SOTA zeigt nur geplante Aktivierungen, keine bestätigten (und dieses Werkzeug hat kein Archiv). Für die tatsächlichen Aktivierungen eines Gipfels seine Karte öffnen und „sotadata ↗“ oder „sotl.as ↗“ verwenden.`));
   }
 }
 
@@ -322,7 +341,7 @@ function renderBandModeFacets(alerts){
   renderFacetGroup($id('band-checks'), bands, BAND_SORT_ORDER, state.selectedBands);
   renderFacetGroup($id('mode-checks'), modes, MODE_SORT_ORDER, state.selectedModes);
   const active = state.selectedBands.size + state.selectedModes.size;
-  $id('btn-toggle-bandmode').textContent = active ? `bands/modes (${active}) ▾` : 'bands/modes ▾';
+  $id('btn-toggle-bandmode').textContent = active ? tx(`bands/modes (${active}) ▾`, `Bänder/Modes (${active}) ▾`) : tx('bands/modes ▾', 'Bänder/Modes ▾');
 }
 
 function updateStats(visible, groups, ownSet){
@@ -426,22 +445,22 @@ async function doSummitSearch(term){
   const cacheKey = trimmed.toLowerCase();
   const cached = summitSearchCache.get(cacheKey);
   if (cached){
-    showCandidates(cached.map(candidateFromSearchResult).filter(Boolean), 'no summits found.');
+    showCandidates(cached.map(candidateFromSearchResult).filter(Boolean), tx('no summits found.', 'keine Gipfel gefunden.'));
     return;
   }
 
-  hint('searching…');
+  hint(tx('searching…', 'suche…'));
   searchPanel().classList.add('show');
   let results;
   try { results = await searchSummits(trimmed, run.signal); }
   catch (err) {
     if (isAbort(err) || !run.isCurrent()) return; // superseded by a newer search
-    hint(`search failed (${err.message}).`);
+    hint(tx(`search failed (${err.message}).`, `Suche fehlgeschlagen (${err.message}).`));
     return;
   }
   summitSearchCache.set(cacheKey, results);
   if (!run.isCurrent()) return;
-  showCandidates(results.map(candidateFromSearchResult).filter(Boolean), 'no summits found.');
+  showCandidates(results.map(candidateFromSearchResult).filter(Boolean), tx('no summits found.', 'keine Gipfel gefunden.'));
 }
 
 async function doAreaSearch(){
@@ -450,20 +469,20 @@ async function doAreaSearch(){
   const run = summitSearch.begin(); // the same panel: supersedes a running name search
   const bounds = mapView.map.getBounds();
   if (bounds.getNorth() - bounds.getSouth() > AREA_SEARCH_MAX_SPAN_DEG || bounds.getEast() - bounds.getWest() > AREA_SEARCH_MAX_SPAN_DEG){
-    hint('zoom in further before searching this area (keeps the query small and fast).');
+    hint(tx('zoom in further before searching this area (keeps the query small and fast).', 'vor der Suche in diesem Ausschnitt weiter hineinzoomen (hält die Abfrage klein und schnell).'));
     searchPanel().classList.add('show');
     return;
   }
-  hint('searching OpenStreetMap for tagged summits in view…');
+  hint(tx('searching OpenStreetMap for tagged summits in view…', 'suche in OpenStreetMap markierte Gipfel im Ausschnitt…'));
   searchPanel().classList.add('show');
   let elements;
   btn.disabled = true;
   try { elements = await searchOsmSummitsInView(bounds); }
-  catch (err) { if (run.isCurrent()) hint(`OSM search failed (${err.message}).`); return; }
+  catch (err) { if (run.isCurrent()) hint(tx(`OSM search failed (${err.message}).`, `OSM-Suche fehlgeschlagen (${err.message}).`)); return; }
   finally { btn.disabled = false; }
   if (!run.isCurrent()) return;
   const cands = elements.map(candidateFromOsmElement).filter(Boolean);
-  showCandidates(cands, 'no OSM-tagged SOTA summits found in this view (coverage is partial — most summits aren\'t tagged in OSM yet).');
+  showCandidates(cands, tx('no OSM-tagged SOTA summits found in this view (coverage is partial — most summits aren\'t tagged in OSM yet).', 'keine in OSM markierten SOTA-Gipfel in diesem Ausschnitt (die Abdeckung ist lückenhaft — die meisten Gipfel sind in OSM noch nicht markiert).'));
 }
 
 /* ---------- geolocation ---------- */
@@ -596,12 +615,12 @@ async function toggleAllSummits(){
   }
   if (!loadAllSummits.loaded()){
     btn.disabled = true;
-    $id('all-summits-note').textContent = 'loading…';
+    $id('all-summits-note').textContent = tx('loading…', 'lädt…');
     try { await loadAllSummits(); warnings.drop('all-summits'); }
     catch (err) {
       setPressed(false);
       mapView.setAllSummits(false);
-      warnings.add(`could not load the all-summits data (${err.message}). It's a build-time-generated file — if you're running this locally without having run "just fetch", it won't exist yet.`, 'all-summits');
+      warnings.add(tx(`could not load the all-summits data (${err.message}). It's a build-time-generated file — if you're running this locally without having run "just fetch", it won't exist yet.`, `die Daten aller Gipfel ließen sich nicht laden (${err.message}). Die Datei entsteht beim Bauen — lokal ohne „just fetch“ gibt es sie noch nicht.`), 'all-summits');
       $id('all-summits-note').textContent = '';
       btn.disabled = false;
       return;
@@ -630,7 +649,7 @@ function wireEvents(){
   });
   $id('callsigns-input').addEventListener('change', e => {
     warnUnless(store.saveOwnCallsigns(e.target.value), 'store-callsigns',
-      'could not save your callsign(s) locally (storage full or blocked) — you\'ll need to re-enter them next visit.');
+      tx('could not save your callsign(s) locally (storage full or blocked) — you\'ll need to re-enter them next visit.', 'die eigenen Rufzeichen ließen sich nicht lokal speichern (Speicher voll oder gesperrt) — beim nächsten Besuch erneut eingeben.'));
     renderAll();
   });
   $id('btn-share').addEventListener('click', async () => {
@@ -640,11 +659,11 @@ function wireEvents(){
     // Clipboard API, else the shared execCommand fallback (non-secure
     // contexts); if both are blocked, a manually-copyable prompt.
     const copied = await copyToClipboard(url);
-    if (!copied) window.prompt('copy this share link:', url);
-    btn.textContent = copied ? 'link copied ✓' : 'link ready ✓';
+    if (!copied) window.prompt(tx('copy this share link:', 'diesen Link kopieren:'), url);
+    btn.textContent = copied ? tx('link copied ✓', 'Link kopiert ✓') : tx('link ready ✓', 'Link bereit ✓');
     // the button's text change isn't announced by screen readers; this is
     const status = $id('share-status');
-    status.textContent = copied ? 'share link copied to the clipboard' : '';
+    status.textContent = copied ? tx('share link copied to the clipboard', 'Link in die Zwischenablage kopiert') : '';
     setTimeout(() => { btn.textContent = original; status.textContent = ''; }, 2000);
   });
   $id('btn-open-sotlas').addEventListener('click', () => {
@@ -656,7 +675,7 @@ function wireEvents(){
     const loc = await tryGeolocate();
     btn.disabled = false;
     if (loc){ state.userLocation = loc; mapView.map.setView([loc.lat, loc.lon], USER_LOCATION_ZOOM); warnings.drop('locate'); }
-    else warnings.add('could not determine your location (denied, unavailable, or timed out).', 'locate');
+    else warnings.add(tx('could not determine your location (denied, unavailable, or timed out).', 'der eigene Standort ließ sich nicht bestimmen (abgelehnt, nicht verfügbar oder zu langsam).'), 'locate');
   });
   $id('btn-refresh-alerts').addEventListener('click', () => refreshing.run(async () => {
     const loaded = await loadAlerts();
@@ -672,7 +691,7 @@ function wireEvents(){
     const btn = $id('btn-toggle-toolbar');
     const shown = $id('toolbar-controls').classList.toggle('show');
     btn.setAttribute('aria-expanded', String(shown));
-    btn.textContent = shown ? 'filters ▴' : 'filters ▾';
+    btn.textContent = shown ? tx('filters ▴', 'Filter ▴') : tx('filters ▾', 'Filter ▾');
   });
   $id('btn-toggle-list').addEventListener('click', e => {
     const shown = $id('list-panel').classList.toggle('show');
@@ -726,6 +745,7 @@ function wireEvents(){
 async function init(){
   watchTheme();
   initTimeDisplay();
+  i18nToggle(LANG_PREF, relabel);
   initHelpDialog(); // "? Help" in the header, ? outside text fields
   mapView = createMap($id('map'), {
     state,
