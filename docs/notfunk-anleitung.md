@@ -388,8 +388,11 @@ Status, die Meldungsart, Richtung und Zeit; unter dem Betreff der **Bezug**
 („↪ Antwort auf W1-003 …“, die Nummer führt dorthin); dann **Von → An** wie
 auf dem Formular, mit den Rufzeichen und dem Verteiler; der **Wortlaut**;
 darunter in kleinen Blöcken Übermittlung (mit Funkstelle), Ort, Stichzeit,
-Ursprung und Anmerkungen. **Auf der Karte** beim Ort öffnet die Karte des
-Meldebuchs an dieser Meldung (offline), mit ihrem Kärtchen. Rechts der **Ablauf**; dessen erster Schritt sagt,
+Ursprung und Anmerkungen. Hat die Meldung einen zugeordneten Ort, zeigt ihn
+darunter eine **kleine Karte** (offline, der Punkt in der Farbe der
+Dringlichkeit; mit der Maus zoomt sie erst nach einem Klick hinein).
+**Im Meldebuch zeigen** beim Ort öffnet die große Karte des Meldebuchs an
+dieser Meldung, mit den anderen Meldungen. Rechts der **Ablauf**; dessen erster Schritt sagt,
 wann und von wem die Meldung erfasst wurde.
 
 - **Eingang:** „Übergeben an“ (z. B. Meldesammelstelle) mit Zeitpunkt, dann
