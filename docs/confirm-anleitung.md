@@ -47,14 +47,16 @@ im Browser gespeichert. „offline: lädt…“ dauert beim ersten
 Offline-Kopie gelöscht; mit Internet geöffnet, repariert sie sich selbst
 („Offline-Kopie wird repariert…“). Gibt es auf dem Server inzwischen eine
 neue Version, steht „Neue Version auf dem Server – bitte aktualisieren“;
-dann über „Update verfügbar“ aktualisieren. Bei „Offline-Einrichtung
+dann über „Neue Version verwenden“ wechseln. Bei „Offline-Einrichtung
 fehlgeschlagen“ oder „Reparatur fehlgeschlagen“ die Seite mit Internet neu
 laden.
 „Entwicklungsmodus (nicht offline)“ gibt es nur auf
 Entwicklungsservern.
 
-**Neue Version.** Erscheint „Update verfügbar“, ist eine neue Version
-geladen. Sie wird erst nach einem Klick darauf aktiv, nicht von selbst. Der
+**Neue Version.** Erscheint oben der Balken „Neue Version bereit“, ist eine
+neue Version schon geladen. Sie wird erst mit „Jetzt verwenden“ aktiv, nicht
+von selbst; „Später“ schließt den Balken, und „Neue Version verwenden“ in
+der Kopfzeile erinnert bis zum nächsten Öffnen daran. Der
 Klick lädt aber **alle** offenen Tabs und Fenster des Werkzeugs neu; einen
 Aufschub, den man je Tab wählen kann, gibt es nicht. Gespeicherte Zeilen und
 Logs bleiben unverändert. Vor dem Neuladen sichert jeder Tab die halb

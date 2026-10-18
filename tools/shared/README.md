@@ -236,7 +236,7 @@ and `checkOldInstall()`. The redirects stay.
   (`#st-offline` keeps the width of `offline bereit ✓` from the start, so the
   first visit's `offline: prüfe…` → `offline: lädt…` → `offline bereit ✓`
   never rewraps the header; keep these texts that short);
-  next to the update button `Update verfügbar`, `Update fehlgeschlagen`
+  next to the update button (`Jetzt verwenden` in the bar "Neue Version bereit" over the page; after "Später" `Neue Version verwenden` in the header), `Update fehlgeschlagen`
   (new version could not install) and `Update-Prüfung fehlgeschlagen`. The
   button is offered only for a waiting worker beside an active one: on the
   first install WebKit may report the claiming worker as controller while it

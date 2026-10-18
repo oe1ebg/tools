@@ -68,7 +68,9 @@ now redirected; see "Move to /tools/" in `../shared/README.md`), and the source 
   together with a content-hash version. After that, every request is
   answered from the cache first. A new deploy is downloaded in the
   background, but it only takes over when the user clicks
-  **"Update verfügbar"**, so the app never changes in the middle of a net.
+  **"Jetzt verwenden"** in the bar "Neue Version bereit" (or, after
+  "Später", **"Neue Version verwenden"** in the header), so the app never
+  changes in the middle of a net.
   The update path was tested: the data and the half-typed draft survive it.
   The page looks for a new version on load, when it comes back online, when
   it comes back to the foreground (an installed app resumes without a
@@ -1054,5 +1056,5 @@ just preview         # full build, serve site/ at localhost:8000/confirm/
 
 When you check changes, keep in mind that the service worker serves pages
 from its cache first. In DevTools, either tick Application → Service
-Workers → "Update on reload" or click the in-page "Update verfügbar"
+Workers → "Update on reload" or click the in-page "Jetzt verwenden"
 button after rebuilding.

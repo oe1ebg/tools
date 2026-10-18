@@ -40,6 +40,9 @@ export const OFFLINE_TEXT_DE = {
   copyLabel: 'Text zum Kopieren',
   actionFailed: 'Die Aktion ist fehlgeschlagen. ',
   update: 'Update',
+  updateReady: 'Neue Version bereit',
+  useNow: 'Jetzt verwenden',
+  later: 'Später',
   reload: 'Neuladen',
   notDone: what => `${what} nicht ausgeführt: `,
   saveFailed: 'Die laufende Eingabe konnte nicht gesichert werden. ',
@@ -169,6 +172,30 @@ export async function initOffline({ build = null, beforeReload = async () => tru
 
   const updChip = el('span', { id: 'st-update', class: 'chip warn', role: 'status', hidden: true });
   ($('#btn-update') || $('#st-offline')).after(updChip);
+  // A waiting update is offered in a bar over the top of the page (not
+  // modal: no focus taken, nothing blocked while a net is running), with
+  // the update button and "Später". "Später" puts the button back into the
+  // header, where it stays as a reminder until the next page load.
+  const barText = el('span', { class: 'update-bar-text' });
+  const laterBtn = el('button', { type: 'button', id: 'btn-update-later' });
+  const bar = el('div', { id: 'update-bar', class: 'update-bar no-print', role: 'region', hidden: true }, barText, laterBtn);
+  document.body.prepend(bar);
+  let barDismissed = false;
+  // the button's words where it stands: "Jetzt verwenden" in the bar, the
+  // page's own ("Neue Version verwenden") in the header
+  const restLabel = () => ($('#btn-update')?.parentNode === bar ? OT.useNow : updateLabel);
+  const toHeader = () => {
+    const btn = $('#btn-update');
+    if (btn && btn.parentNode === bar) {
+      updChip.before(btn);
+      if (updateLabel && problem.hidden) btn.textContent = updateLabel;
+    }
+  };
+  laterBtn.addEventListener('click', () => {
+    barDismissed = true;
+    bar.hidden = true;
+    toHeader();
+  });
   const setUpdateNote = (text, title) => {
     updChip.hidden = !text;
     updChip.textContent = text || '';
@@ -205,7 +232,7 @@ export async function initOffline({ build = null, beforeReload = async () => tru
     pButtons.replaceChildren();
     buttonsKey = null;
     const btn = $('#btn-update');
-    if (btn && updateLabel) btn.textContent = updateLabel;
+    if (btn && updateLabel) btn.textContent = restLabel();
   };
   // What an action reports: nothing/true = done; false, a string, { message,
   // text } or an exception = it did not work (text is shown to copy by hand).
@@ -337,6 +364,14 @@ export async function initOffline({ build = null, beforeReload = async () => tru
     const btn = $('#btn-update');
     btn.hidden = false;
     btn.onclick = () => afterSave(doUpdate, OT.update, updateIntro);
+    if (!barDismissed) {
+      barText.textContent = OT.updateReady;
+      laterBtn.textContent = OT.later;
+      bar.setAttribute('aria-label', OT.updateReady);
+      laterBtn.before(btn);
+      if (problem.hidden) btn.textContent = OT.useNow;
+      bar.hidden = false;
+    }
   };
   // The worker told to take over activates only once the old one has served
   // its requests; a newer version that finishes installing meanwhile replaces

@@ -112,6 +112,8 @@ async function stageUpdate(page, context, tool) {
   await serveNewVersion(context, tool);
   await registerVersion(page, 'v2');
   await expect(page.locator('#btn-update')).toBeVisible({ timeout: 30_000 });
+  // offered in the bar over the page, not in the header
+  await expect(page.locator('#update-bar #btn-update')).toBeVisible();
 }
 
 // IndexedDB transactions fail from now on (quota, a blocked database): the
@@ -179,6 +181,25 @@ for (const tool of Object.keys(TOOLS)) {
       await page.goto(TOOLS[tool].path);
       await expect(page.locator('#st-offline')).toHaveText('Entwicklungsmodus (nicht offline)', { timeout: 30_000 });
       await expect(page.locator('#st-offline')).toHaveClass(/warn/);
+    });
+
+    // The bar over the page offers the update; "Später" puts the button back
+    // into the header (until the next load). Not modal: focus stays.
+    test('a waiting update is offered in a bar; "Später" moves it into the header', async ({ page, context }) => {
+      await openReady(page, tool);
+      await stageUpdate(page, context, tool);
+      const bar = page.locator('#update-bar');
+      await expect(bar).toBeVisible();
+      // it takes no focus
+      expect(await page.evaluate(() => !document.activeElement?.closest('#update-bar'))).toBe(true);
+      await expect(bar).toContainText(/Neue Version bereit|A new version is ready/);
+      await expect(page.locator('#btn-update')).toHaveText(/^(Jetzt verwenden|Use it now)$/);
+      // over the header, at the top of the page
+      expect((await bar.boundingBox()).y).toBe(0);
+      await bar.getByRole('button', { name: /Später|Later/ }).click();
+      await expect(bar).toBeHidden();
+      await expect(page.locator('.hdr-status #btn-update, #site-header #btn-update')).toBeVisible();
+      await expect(page.locator('#btn-update')).toHaveText(/^(Neue Version verwenden|Use the new version)$/);
     });
 
     test('a broken new version cannot replace the working installation', async ({ page, context }) => {
