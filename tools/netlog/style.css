@@ -571,3 +571,10 @@ li.event-line .time{ min-width:5.5em; }
   .station-history button.history-open{ width:auto; max-width:100%; }
   .station-history .history-item{ margin:.1em 0 .3em; }
 }
+
+/* Callsign fields as wide as a callsign: a station's at most 12 characters
+   ("PP/AA0BBB/SS"), a repeater's 6 (a typed place or frequency scrolls), as
+   in the other tools. The sidebar's check-in field keeps its width: its
+   placeholder explains the search. */
+#identity-call, #se-own, #sf-own, #srf-ncs{ width:calc(12ch + 1.2em); max-width:100%; box-sizing:border-box; }
+#se-repeater, #sf-repeater, #srf-repeater{ width:calc(6ch + 1.6em); max-width:100%; box-sizing:border-box; font-family:var(--font-mono); }

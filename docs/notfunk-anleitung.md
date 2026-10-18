@@ -101,7 +101,7 @@ Eingaben. Im Einsatz lieber erst nach einer ruhigen Phase aktualisieren.
 | Stationsrufzeichen | Rufzeichen der eigenen Funkstation, z. B. die Klubstation; kann vom Rufzeichen des Operators abweichen | OE1XKS |
 | Standort der Station (Adresse) | wo das eigene Funkgerät steht; steht oben im Ausdruck | Lichtinsel 12 Floridsdorf |
 | Für Stelle | für wen die Station arbeitet: Adressat eingehender und Absender ausgehender Meldungen, solange nichts anderes eingetragen ist | Stab |
-| Frequenz, Relais | Vorgabe für neue Meldungen | 145,500 · OE1XUU |
+| Frequenz, Relais | Vorgabe für neue Meldungen; Relais leer = direkt | 145,500 · OE1XUU |
 | **Am Gerät:** | | |
 | Operator | wer am Gerät aufnimmt; beim Schichtwechsel ändern | OE1EBG |
 
@@ -152,7 +152,7 @@ Das Formular steht im Meldebuch ganz oben. Die nächste Nummer wird angezeigt
 | Empfangen am / Gesendet am | wann die Meldung übermittelt wurde: Datum (JJJJ-MM-TT) und Uhrzeit (HH:MM, 24 Stunden) in zwei Feldern, Ortszeit. Zeigt von Anfang an jetzt und läuft mit der Uhr mit (grau), bis die Meldung begonnen wird; dann bleibt die Zeit stehen und kann korrigiert werden. `20261008` und `1405` gehen auch. Ein Klick ins Feld (oder 📅 / 🕒) öffnet einen Kalender bzw. eine Uhrzeit-Auswahl (Stunde, dann Minute), beide mit „Heute“ bzw. „Jetzt“. | 2026-10-08 · 14:05 |
 | Übermittlung | Funk, Telefon, mündlich, Melder, E-Mail, Fax, anders | Funk |
 | Funkstelle | die Funkstation, von der die Meldung gehört wurde (Eingang) bzw. an die sie gesendet wird (Ausgang); nur bei Funk | OE1ABC |
-| Frequenz MHz, Relais | Vorgabe aus dem Einsatz; Komma oder Punkt | 145,500 · OE1XUU |
+| Frequenz MHz, Relais | Vorgabe aus dem Einsatz; Komma oder Punkt; Relais leer = direkt | 145,500 · OE1XUU |
 | Von (Absender) | wer die Meldung fachlich aufgibt | FF Floridsdorf, Einsatzleiter |
 | An (Adressat) | für wen sie bestimmt ist | Stab, S4 |
 | Meldungsart | Meldung, Auftrag, Frage, Anforderung, Lagemeldung | |
@@ -388,7 +388,8 @@ Status, die Meldungsart, Richtung und Zeit; unter dem Betreff der **Bezug**
 („↪ Antwort auf W1-003 …“, die Nummer führt dorthin); dann **Von → An** wie
 auf dem Formular, mit den Rufzeichen und dem Verteiler; der **Wortlaut**;
 darunter in kleinen Blöcken Übermittlung (mit Funkstelle), Ort, Stichzeit,
-Ursprung und Anmerkungen. Rechts der **Ablauf**; dessen erster Schritt sagt,
+Ursprung und Anmerkungen. **Auf der Karte** beim Ort öffnet die Karte des
+Meldebuchs an dieser Meldung (offline), mit ihrem Kärtchen. Rechts der **Ablauf**; dessen erster Schritt sagt,
 wann und von wem die Meldung erfasst wurde.
 
 - **Eingang:** „Übergeben an“ (z. B. Meldesammelstelle) mit Zeitpunkt, dann

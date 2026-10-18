@@ -55,6 +55,7 @@ import { trackSiteHeaderHeight } from '../../shared/js/stickyhead.js';
 const LAST_OP_KEY = 'oe1ebg-notfunk-last-op';
 
 const state = {
+  mapFocus: null, // a message to open the book's map at ("Auf der Karte")
   store: null,
   tab: 'active',
   op: null,
@@ -508,6 +509,17 @@ async function route() {
   } else {
     showView('#view-book');
     renderBook();
+    // "Auf der Karte" from a message: the book's map, at that message
+    // (added to the map's list when the filter or search hides it)
+    if (state.mapFocus) {
+      const id = state.mapFocus;
+      state.mapFocus = null;
+      const list = state.bookList || [];
+      const msg = state.msgs.find(x => x.id === id);
+      setMapButton(true);
+      await notfunkOpenMap(mapContext(msg && !list.includes(msg) ? [...list, msg] : list), id);
+      $('#map-panel')?.scrollIntoView({ block: 'start' });
+    }
   }
 }
 
@@ -1702,7 +1714,8 @@ function renderDetail(id) {
         fact('Übermittlung', [CHANNELS[m.channel], m.channel === 'funk' && m.radio.freq && `${fmtFreq(m.radio.freq)} MHz`,
           m.channel === 'funk' ? (m.radio.via ? `via ${m.radio.via}` : 'direkt') : null].filter(Boolean).join(' · '),
           m.peer ? el('div', {}, el('span', { class: 'dim', title: m.direction === 'out' ? 'die empfangende Funkstation' : 'die übermittelnde Funkstation' }, 'Funkstelle '), el('span', { class: 'mono' }, m.peer)) : null),
-        m.location ? fact('Ort', describeLocation(m.location), el('div', { class: 'links' }, mapLinks(m.location)))
+        m.location ? fact('Ort', describeLocation(m.location), el('div', { class: 'links' },
+          el('a', { href: `#/e/${state.op.id}`, onclick: () => { state.mapFocus = m.id; } }, 'Auf der Karte'), ' ', mapLinks(m.location)))
           : m.locationText ? fact('Ort', m.locationText, el('span', { class: 'dim' }, ' (nicht zugeordnet)')) : null,
         m.stichzeit ? fact('Stichzeit', el('span', { class: 'mono' }, fmtVienna(m.stichzeit))) : null,
         m.origin.station || m.origin.place || m.origin.filed ? fact('Ursprung',

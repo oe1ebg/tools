@@ -171,6 +171,8 @@ label.field > .fwarn, div.field > .fwarn, .fwarn{ color:var(--warn); font-size:1
    confirmation log); the info lines under them keep their room */
 #n-call, #e-call, #n-operator, #e-operator, #m-peer, #m-orig-station{ width:calc(12ch + 1.2em); max-width:100%; box-sizing:border-box; }
 #n-via, #e-via, #m-via, #n-prefix, #e-prefix{ width:calc(6ch + 1.6em); max-width:100%; box-sizing:border-box; }
+/* empty = direkt: the placeholder in plain dim text, not like a callsign */
+#n-via::placeholder, #e-via::placeholder, #m-via::placeholder{ font-family:var(--font-ui); color:var(--text-dim); }
 .freq-field{ width:9em; }
 .radio-row input, details.more .row-flow input{ width:100%; box-sizing:border-box; }
 .place-field{ width:16em; max-width:100%; }
@@ -427,3 +429,6 @@ body > footer details.vendor-license pre{ white-space:pre-wrap; }
   .no-print, #site-header, body > footer, dialog{ display:none !important; }
   main{ max-width:none; padding:0; margin:0; }
 }
+
+/* "Auf der Karte" scrolls the map into view below the sticky page header */
+#map-panel{ scroll-margin-top:calc(var(--site-header-h, 0px) + .5em); }
