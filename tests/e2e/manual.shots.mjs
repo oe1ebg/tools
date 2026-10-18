@@ -139,6 +139,13 @@ test('Notfunk-Meldebuch', async ({ page }) => {
   await expect(page.locator('#book-body tr', { hasText: 'W1-003' })).toContainText('übertragen');
   await shotAround(page, ['#book-summary', '#view-book .filter-bar', '#view-book .table-wrap'], 'notfunk-meldebuch');
 
+  // the map of the book's messages
+  await page.getByRole('button', { name: 'Karte' }).click();
+  await expect(page.locator('#map .map-pin').first()).toBeVisible({ timeout: 30_000 });
+  await page.waitForTimeout(500); // the fit animation
+  await shotAround(page, ['#map-panel'], 'notfunk-karte');
+  await page.getByRole('button', { name: 'Karte' }).click();
+
   // the help
   await page.locator('#m-from').focus();
   await page.keyboard.press('F1');

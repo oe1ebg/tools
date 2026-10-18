@@ -65,7 +65,8 @@ test('map: no tile layers, no image icons (Leaflet would request them)', () => {
     for (const m of src.matchAll(/L\.marker\([^;]*/g)) if (!/icon/.test(m[0])) bad.push(`${p}: ${m[0].slice(0, 60)}`);
   }
   assert.deepEqual(bad, []);
-  assert.match(readFileSync(join(DIR, 'style.css'), 'utf8'), /\.leaflet-control-layers-toggle\{ background-image:none/);
+  // the map styles are shared with Notfunk (../shared/css/forms.css)
+  assert.match(readFileSync(join(SHARED_JS, '..', 'css', 'forms.css'), 'utf8'), /\.leaflet-control-layers-toggle\{ background-image:none/);
 });
 
 test('the link-only module really only provides links', () => {

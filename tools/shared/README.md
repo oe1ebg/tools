@@ -35,6 +35,8 @@ browser loads.
 | `js/theme.js` | light/auto/dark theme (classic script, first in every page's `<head>`) | all tools |
 | `js/callsearch.js` | callsign completion for an input (UI) | confirm, notfunk |
 | `js/repeaterui.js` | repeater completion and description (UI) | confirm, notfunk |
+| `js/basemap.js` | the offline base map of Vienna on Leaflet (districts, water, roads, Locator/UTM grids, layer control; `vienna-map.json`, no tiles); each tool draws its pins on it | confirm, notfunk |
+| `js/mapgrid.js` | the Maidenhead and UTM grid lines and labels for the map (pure) | confirm, notfunk |
 | `js/locationui.js` | the "Standortsuche" panel and the location index loader (UI); its settings keep their `oe1ebg-confirm-*` keys | confirm, notfunk |
 | `js/locfield.js` | location input field with lookup, chip and suggestions (UI) | confirm, notfunk |
 | `js/sources.js` | dataset/licence links, map links, version line; the only module with external URLs (links only, never fetched) | confirm, notfunk, netlog |

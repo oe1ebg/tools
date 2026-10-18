@@ -27,7 +27,9 @@ import { newId, nowIso } from '../../shared/js/time.js';
 import { attachCallSearch } from '../../shared/js/callsearch.js';
 import { attachRepeaterSearch, loadRepeaterIndex } from '../../shared/js/repeaterui.js';
 import { createLocationField, describeLocation } from '../../shared/js/locfield.js';
-import { initLocationPanel } from '../../shared/js/locationui.js';
+import { initLocationPanel, loadLocationIndex } from '../../shared/js/locationui.js';
+import { locate } from '../../shared/js/location/index.js';
+import { notfunkOpenMap, notfunkCloseMap, notfunkRefreshMap, notfunkMapVisible } from './mapview.js';
 import { sourceItem, standDate, trackOnline, mapLinks, repoLink } from '../../shared/js/sources.js';
 import { initOffline, setChip } from '../../shared/js/offline.js';
 import {
@@ -385,7 +387,51 @@ function initOpPanel() {
 
 function showView(id) {
   for (const v of ['#view-ops', '#view-book', '#view-msg']) $(v).hidden = v !== id;
+  if (id !== '#view-book') closeMap(); // the map belongs to the book
   renderBackupChip();
+}
+
+/* ---------------------------------------------------------------- map */
+
+// "Karte" in the book: the messages of the book's current list (filter
+// and search) at their Ort, the own station as the star (mapview.js).
+function mapContext(list) {
+  return {
+    opId: state.op.id,
+    msgs: list,
+    station: state.op.station,
+    call: state.op.call,
+    describe: m => ({
+      time: viennaTime(m.ts),
+      dir: m.direction === 'in' ? '↓' : '↑',
+      subject: m.subject || m.text.slice(0, 40),
+      status: statusLabel(currentStatus(m), m.direction),
+    }),
+    hrefOf: m => `#/e/${state.op.id}/m/${m.id}`,
+    // a place text counts only if it resolves confidently (as in Confirm)
+    resolve: async text => {
+      const idx = await loadLocationIndex();
+      return idx ? locate(idx, text, { autoSelect: 'high' }).autoSelect : null;
+    },
+  };
+}
+
+function setMapButton(on) {
+  const btn = $('#btn-map');
+  btn.classList.toggle('active', on);
+  btn.setAttribute('aria-pressed', String(on));
+}
+
+function closeMap() {
+  if (!notfunkMapVisible()) return;
+  notfunkCloseMap();
+  setMapButton(false);
+}
+
+async function toggleMap() {
+  if (notfunkMapVisible()) { closeMap(); return; }
+  setMapButton(true);
+  await notfunkOpenMap(mapContext(state.bookList || []));
 }
 
 async function route() {
@@ -1209,6 +1255,8 @@ function renderBook() {
   let list = filterMessages(state.msgs, { ...f, urgent: undefined, query: state.query });
   if (f.urgent) list = list.filter(m => m.priority !== 'routine');
   list.reverse(); // newest first
+  state.bookList = list;
+  notfunkRefreshMap(mapContext(list));
   const body = $('#book-body');
   if (!list.length) {
     resetRows(bookRows);
@@ -1762,6 +1810,7 @@ async function main() {
   }
   wire();
   tableRoles($('table.book')); // cards on phones (style.css)
+  $('#btn-map').addEventListener('click', toggleMap);
   initForm();
   trackOnline();
   tick();

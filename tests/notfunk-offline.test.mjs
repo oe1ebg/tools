@@ -60,8 +60,12 @@ test('offline bundle builds into one self-contained, parseable file', () => {
   assert.ok(!/<link[^>]+href="(?!data:)/.test(html), 'no external links');
   const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
   const hasData = sharedDataBuilt();
-  // theme, load-failure fallback, (inlined data when built), app bundle
-  assert.equal(scripts.length, hasData ? 4 : 3);
+  // theme, Leaflet (the map, #108), load-failure fallback, (inlined data
+  // when built), app bundle
+  assert.equal(scripts.length, hasData ? 5 : 4);
+  assert.ok(scripts.some(s => s.includes('Leaflet 1.9.4')), 'Leaflet inlined');
+  assert.ok(html.includes('.leaflet-control-layers-toggle{ background-image:none'), 'shared map CSS inlined');
+  assert.match(html, /<details class="vendor-license"><summary>Lizenztext leaflet<\/summary><pre>BSD 2-Clause License/);
   assert.ok(scripts[0].includes('OE1EBG_THEME'), 'theme script inlined, first');
   assert.ok(html.includes('.pf-sheet{'), 'tool CSS (with the print layout) inlined');
   assert.ok(html.includes('.ac-pop{'), 'shared form CSS inlined');
@@ -101,4 +105,17 @@ test('the service worker uses its own cache prefix', () => {
   const sw = readFileSync(join(DIR, 'sw.js'), 'utf8');
   assert.match(sw, /prefix: 'tools-notfunk', precache: 'NOTFUNK_PRECACHE'/);
   assert.match(sw, /importScripts\('\.\.\/shared\/js\/sw-core\.js'\)/);
+});
+
+// The map ("Karte", #108) works offline: no tile layers or image icons
+// anywhere in Notfunk's code (Leaflet would request them); every marker is
+// a CSS divIcon. The shared base map is checked by confirm-offline.test.mjs.
+test('map: no tile layers, no image icons', () => {
+  const bad = [];
+  for (const p of walk(join(DIR, 'js'))) {
+    const src = readFileSync(p, 'utf8').replace(/\/\/.*$/gm, '');
+    if (/tileLayer|L\.icon\(|L\.Icon\b|imageOverlay/.test(src)) bad.push(p);
+    for (const m of src.matchAll(/L\.marker\([^;]*/g)) if (!/icon/.test(m[0])) bad.push(`${p}: ${m[0].slice(0, 60)}`);
+  }
+  assert.deepEqual(bad, []);
 });

@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { stationsForMap, ownPosition, maidenheadGridLines, utmGridLines } from '../tools/confirm/js/mapdata.js';
+import { stationsForMap, ownPosition } from '../tools/confirm/js/mapdata.js';
+import { maidenheadGridLines, utmGridLines } from '../tools/shared/js/mapgrid.js';
 import { latLonToUtm } from '../tools/shared/js/utm.js';
 import { mapLinkUrls, mapLinkZoom } from '../tools/shared/js/sources.js';
 import { skipWithout } from './real-data.mjs';

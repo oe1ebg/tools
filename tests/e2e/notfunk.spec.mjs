@@ -654,3 +654,53 @@ test('offline location search: Standort in the header finds a landmark', async (
   await expect(page.locator('#loc-panel')).toBeHidden();
   await expect(page.locator('#m-text')).toHaveValue('Halb getippt');
 });
+
+// "Karte" in the book: the messages of the book's list at their Ort on the
+// offline map of Vienna (nothing requested), pins coloured by priority,
+// a card with links to the messages; the map follows filter and search.
+test('map: messages with an Ort as pins, priority colour, link to the message, follows the filter', async ({ page }) => {
+  await openNewOp(page, 'E2E Karte', 'k1');
+  const msg = async (from, subject, { loc, prio } = {}) => {
+    await page.locator('#m-from').fill(from);
+    await page.locator('#m-peer').fill('OE1ABC');
+    await page.locator('#m-subject').fill(subject);
+    if (loc) {
+      await page.locator('#m-loc').fill(loc);
+      await expect(page.locator('#m-loc-info')).toContainText('✓', { timeout: 30_000 });
+      await page.locator('#m-loc').press('Escape');
+    }
+    await page.locator('#m-text').fill(`${subject}, wörtlich.`);
+    if (prio) await page.locator(`label[for="m-prio-${prio}"]`).click();
+    await page.locator('#m-readback').check();
+    await page.locator('#btn-save').click();
+    await expect(page.locator('#book-body')).toContainText(subject);
+  };
+  await msg('FF Floridsdorf', 'Stromausfall Pflegeheim', { loc: 'Brünner Straße 68', prio: 'priority' });
+  await msg('Polizei', 'Lage Donauinsel', { loc: 'Donauturm' });
+  await msg('Stab', 'Ohne Ort');
+
+  const btn = page.getByRole('button', { name: 'Karte' });
+  await btn.click();
+  await expect(btn).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#map')).toBeVisible();
+  await expect(page.locator('#map .map-pin')).toHaveCount(2);
+  await expect(page.locator('#map .map-pin.prio-priority')).toHaveCount(1);
+  await expect(page.locator('#map-unplaced')).toContainText('1 ohne Ort');
+
+  // the filter and the search narrow the map too
+  await page.locator('#book-search').fill('Donauinsel');
+  await expect(page.locator('#map .map-pin')).toHaveCount(1);
+  await expect(page.locator('#map .map-pin.prio-priority')).toHaveCount(0);
+  await page.locator('#book-search').fill('');
+  await expect(page.locator('#map .map-pin')).toHaveCount(2);
+
+  // a pin's card links to the message; leaving the book closes the map
+  await page.locator('#map .map-pin.prio-priority').click();
+  const link = page.locator('.leaflet-popup a', { hasText: 'K1-001' });
+  await expect(link).toBeVisible();
+  await link.click();
+  await expect(page.locator('#view-msg')).toBeVisible();
+  await page.getByRole('button', { name: '← Meldebuch' }).click();
+  await expect(page.locator('#map-panel')).toBeHidden();
+  await expect(btn).toHaveAttribute('aria-pressed', 'false');
+});

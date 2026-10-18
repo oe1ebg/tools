@@ -17,6 +17,8 @@
 <link rel="stylesheet" href="../shared/css/tools.css">
 <link rel="stylesheet" href="../shared/css/forms.css">
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="../shared/vendor/leaflet/leaflet.css">
+<script src="../shared/vendor/leaflet/leaflet.js"></script>
 <!-- NOTFUNK-VENDOR-END -->
 </head>
 <body>
@@ -144,7 +146,7 @@
       <span class="icon" aria-hidden="true">⬇</span>
       <div class="txt">
         <h2 id="offline-card-title">Ohne Internet arbeiten</h2>
-        <p>Das Meldebuch als eine HTML-Datei mit allen Daten, ~6 MB (Rufzeichen, Relais, Wiener Adressen), für USB-Stick oder Laptop: läuft ohne Server und ohne Internet. Vor dem Einsatz herunterladen (nur online möglich).</p>
+        <p>Das Meldebuch als eine HTML-Datei mit allen Daten, ~7 MB (Rufzeichen, Relais, Wiener Adressen, Karte), für USB-Stick oder Laptop: läuft ohne Server und ohne Internet. Vor dem Einsatz herunterladen (nur online möglich).</p>
       </div>
       <a class="btn" href="notfunk-offline.html" download="notfunk-meldebuch-offline.html">Offline-Datei herunterladen</a>
     </aside>
@@ -156,6 +158,7 @@
       <button type="button" id="btn-back">← Einsätze</button>
       <h2 id="book-title">Meldebuch</h2>
       <span class="spacer"></span>
+      <button type="button" id="btn-map" aria-pressed="false" aria-controls="map-panel" title="Karte der Meldungen mit Ort (offline; zeigt die Auswahl des Meldebuchs)">Karte</button>
       <button type="button" id="btn-csv" title="Geschäftsbuch-Spalten (SKKM / ÖBFV E-31) für Excel">Geschäftsbuch (CSV)</button>
       <button type="button" id="btn-backup" title="Vollständige Sicherung dieses Einsatzes, auch gelöschte Meldungen und Fassungen">Sichern (JSON)</button>
       <button type="button" id="btn-print-book" aria-expanded="false" aria-controls="print-range">Drucken / PDF…</button>
@@ -344,6 +347,11 @@
       <span class="spacer"></span>
       <input id="book-search" type="search" placeholder="Suche: Nummer, Referenz, Betreff, Station …" aria-label="Meldungen durchsuchen">
     </div>
+
+    <section id="map-panel" class="no-print" hidden>
+      <div id="map" role="region" aria-label="Karte der Meldungen"></div>
+      <div id="map-unplaced" class="hint"></div>
+    </section>
 
     <div id="book-status" class="log-status" role="status" aria-live="polite"></div>
     <div class="table-wrap">

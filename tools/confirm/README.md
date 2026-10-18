@@ -894,7 +894,7 @@ zones 32 (west of 12° E) and 33, bands T and U.
     the header locator, then only as fine as the locator's square (a
     6-character locator gives `33U XP 0 4`, 10 km), so the export doesn't
     claim a precision it doesn't have.
-- **Map.** Layer "UTM-Raster (1 km)" (`utmGridLines()` in `js/mapdata.js`):
+- **Map.** Layer "UTM-Raster (1 km)" (`utmGridLines()` in `../shared/js/mapgrid.js`):
   1 km lines, the 10 km lines stronger and labelled with their square
   (`XP 0 4`); computed offline, at most 400 lines (otherwise 10 km).
 - **Not included:** BMN/GK (MGI, Bundesmeldenetz) would need a datum
@@ -994,8 +994,10 @@ any tiles**.
   operator comments and automatic header-change markers).
 - `js/templates.js`: the template field definitions.
 - `js/export.js`: CSV, ADIF, KML and summary output.
-- `js/mapdata.js` / `js/mapview.js`: the map view (pure helpers / Leaflet
-  UI); Leaflet 1.9.4, unmodified, is in `tools/shared/vendor/leaflet/`.
+- `js/mapdata.js` / `js/mapview.js`: the map view (pure helpers / the
+  station pins), on the shared base map `../shared/js/basemap.js` (with
+  `mapgrid.js`, also used by Notfunk); Leaflet 1.9.4, unmodified, is in
+  `tools/shared/vendor/leaflet/`.
 - From `tools/shared/js/` (shared with the other tools, see
   `tools/shared/README.md`): `location/` (the lookup engine above),
   `locationui.js` (the Standort panel and the candidate list), `locfield.js`
