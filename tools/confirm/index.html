@@ -226,7 +226,7 @@
           <span class="ac-hints" aria-hidden="true"></span></label>
       </div>
       <div id="repeat-box" hidden></div>
-      <div class="entry-actions">
+      <div class="entry-actions over-suggestions">
         <button type="submit" class="primary" id="btn-save" aria-keyshortcuts="Shift+Enter" title="Zeile speichern (Shift+Enter, aus jedem Feld)">Speichern <span aria-hidden="true">⇧⏎</span></button>
         <button type="button" id="btn-discard" aria-keyshortcuts="Escape" title="Alle Eingaben dieser Zeile verwerfen (mit Rückgängig)">Verwerfen (Esc)</button>
         <div id="form-status" role="status"></div>
@@ -240,8 +240,8 @@
     </section>
 
     <div id="log-status" class="log-status" role="status" aria-live="polite"></div>
-    <div class="table-wrap">
-      <table class="log">
+    <div class="table-wrap sticky-head">
+      <table class="log row-marks">
         <caption class="sr-only">Log-Zeilen</caption>
         <thead id="log-head"></thead>
         <tbody id="log-body"></tbody>

@@ -104,8 +104,6 @@ main{ max-width:1200px; margin:0 auto; padding:1em; }
 .tpl-preview td{ padding:.25em .8em .1em 0; white-space:nowrap; color:var(--text-dim); }
 .tpl-preview .tpl{ color:var(--accent-text); }
 .call-input, .grid-input{ font-family:var(--font-mono); }
-.call-input{ text-transform:uppercase; }
-.call-input::placeholder{ text-transform:none; }
 .grid-form .sub{ width:100%; font-size:12.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.06em; margin-top:.4em; }
 .grid-form .sub .sub-note{ text-transform:none; letter-spacing:0; }
 .grid-form .field.wide{ width:100%; }
@@ -163,14 +161,6 @@ details.hdr .body{ padding:0 1em 1em; }
 #entry-form .chain-left .chain-more{ justify-content:flex-start; flex-wrap:wrap; }
 #entry-form .chain-left .chain-more > .field{ flex:0 1 auto; width:auto; }
 .entry-actions{ display:flex; flex-wrap:wrap; gap:.4em .6em; align-items:center; margin-top:.5em; padding-top:.6em; border-top:1px solid var(--line); }
-/* With a mouse an open suggestion list (z-index 30) lies over Save and
-   Discard: the whole list stays readable. On touch screens and phones Save
-   and Discard stay above it: a tap on Save must never pick a suggestion
-   that happens to lie under it. */
-.entry-actions{ background:var(--bg-raised); }
-@media (max-width: 640px), (pointer: coarse){
-  .entry-actions{ position:relative; z-index:31; }
-}
 .entry-actions .kbd-hint{ flex:1 1 24em; margin:0; }
 .entry-actions #form-status{ margin:0; min-height:0; }
 .entry-actions #form-status:empty{ display:none; }
@@ -232,30 +222,13 @@ table.log tr.fresh td:first-child{ box-shadow:inset 3px 0 0 var(--ok); }
 .edit-tag{ font-weight:700; color:var(--warn); }
 
 .table-wrap{ overflow-x:auto; border:1px solid var(--line); border-radius:6px; position:relative; } /* positioned: hidden button texts (.sr-only) stay inside the scrolling */
-/* the log's column names stay in view while scrolling, right below the
-   page header: the wrapper clips instead of scrolling (a scroll container
-   would hold the sticky header); the compact columns fit. Browsers without
-   overflow: clip keep the scrolling wrapper and a header that scrolls away. */
-@supports (overflow: clip){
-  #view-log .table-wrap{ overflow-x:clip; }
-}
 table.log{ width:100%; border-collapse:collapse; font-size:14.5px; }
 table.log th, table.log td{ padding:.35em .6em; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
-/* one line: short names (the full one is the title); clearly a header,
-   stronger than the comment rows */
-table.log th{ font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--text);
-  background:linear-gradient(var(--line), var(--line)) var(--bg); /* opaque while it sticks over rows */
-  border-bottom:2px solid var(--text-dim); position:sticky; top:var(--site-header-h, 0px); z-index:2; white-space:nowrap; }
-/* the line under the header stays with it while it sticks */
-table.log thead th{ box-shadow:0 1px 0 var(--text-dim); }
+/* column names: .sticky-head (the shared stylesheet) */
+table.log th{ font-size:12.5px; text-transform:uppercase; letter-spacing:.05em; }
 table.log td.mono{ font-family:var(--font-mono); white-space:nowrap; }
 table.log td.call{ font-family:var(--font-mono); font-weight:600; font-size:14px; white-space:nowrap; }
 table.log tr.match td{ background:var(--warn-soft); }
-/* the line in the form (Bearbeiten): framed in the form's editing colour
-   and marked ✎ (not by colour alone: comment rows are tinted too) */
-table.log tr.editing td{ background:var(--warn-soft); border-top:2px solid var(--warn); border-bottom:2px solid var(--warn); }
-table.log tr.editing > td:first-child{ box-shadow:inset 4px 0 0 var(--warn); }
-table.log tr.editing > td:first-child::before{ content:"✎ "; content:"✎ " / "wird bearbeitet: "; color:var(--warn); font-weight:700; }
 table.log td.act{ white-space:nowrap; text-align:right; }
 /* location source: own fixed-width column, so labels never shift the text */
 .src{ display:inline-block; min-width:3.8em; text-align:center; font-size:12.5px; line-height:1.5; padding:0 .3em; border-radius:3px; border:1px solid var(--line); color:var(--text-dim); white-space:nowrap; }
@@ -267,8 +240,8 @@ table.log td.act button{ padding:.1em .45em; font-size:13.5px; }
 table.log tr.marker td{
   background:var(--accent-soft); padding:.35em .6em;
 }
-table.log tr.marker.editing td{ background:var(--warn-soft); }
-table.log tr.marker.editing .marker-row::before{ content:"✎"; content:"✎" / "wird bearbeitet"; color:var(--warn); font-weight:700; }
+table.log tr.marker.row-editing td{ background:var(--warn-soft); }
+table.log tr.marker.row-editing .marker-row::before{ content:"✎"; content:"✎" / "wird bearbeitet"; color:var(--warn); font-weight:700; }
 .marker-row{ display:flex; flex-wrap:wrap; gap:.3em .9em; align-items:baseline; }
 .marker-time{ font-family:var(--font-mono); white-space:nowrap; }
 .marker-cat{ font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--accent-text);
@@ -414,9 +387,9 @@ footer details.vendor-license pre{ white-space:pre-wrap; }
   table.log td[data-label]::before{ content:attr(data-label) ": "; content:attr(data-label) ": " / ""; color:var(--text-dim); font-size:12.5px; }
   table.log tr.fresh{ background:var(--accent-soft); box-shadow:inset 3px 0 0 var(--ok); }
   table.log tr.match{ background:var(--warn-soft); }
-  table.log tr.editing{ background:var(--warn-soft); box-shadow:inset 4px 0 0 var(--warn), inset 0 0 0 2px var(--warn); }
-  table.log tr.editing td{ border:none; }
-  table.log tr.editing > td:first-child{ box-shadow:none; }
+  table.log tr.row-editing{ background:var(--warn-soft); box-shadow:inset 4px 0 0 var(--warn), inset 0 0 0 2px var(--warn); }
+  table.log tbody tr.row-editing td{ border:none; } /* beats the shared .row-marks frame */
+  table.log tbody tr.row-editing > td:first-child{ box-shadow:none; }
   table.log tr.marker{ padding:0; border-bottom:none; }
 }
 /* the log on paper: landscape by default (the columns side by side; the
@@ -437,5 +410,5 @@ footer details.vendor-license pre{ white-space:pre-wrap; }
   details.hdr .body{ display:none; }
   body{ background:#fff; color:#000; font-size:11px; }
   .table-wrap{ border:none; }
-  table.log th{ position:static; }
+  .sticky-head th{ position:static; }
 }

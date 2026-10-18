@@ -275,12 +275,12 @@ test('editing a line and deleting one keep the other rows', async ({ page }) => 
   await page.evaluate(() => document.querySelectorAll('#log-body tr[data-id]').forEach((tr, i) => { tr.probe = i; }));
   const kept = () => page.evaluate(() => [...document.querySelectorAll('#log-body tr[data-id]')].map(tr => tr.probe ?? null));
   await page.getByRole('button', { name: /^Bearbeiten\W+Nr\. 1 OE1ABC$/ }).click();
-  await expect(page.locator('#log-body tr.editing')).toHaveCount(1);
-  await expect(page.locator('#log-body tr.editing')).toContainText('OE1ABC');
+  await expect(page.locator('#log-body tr.row-editing')).toHaveCount(1);
+  await expect(page.locator('#log-body tr.row-editing')).toContainText('OE1ABC');
   await page.locator('#f-note').fill('geändert');
   await page.locator('#btn-save').click();
   await expect(page.locator('#log-body')).toContainText('geändert');
-  await expect(page.locator('#log-body tr.editing')).toHaveCount(0);
+  await expect(page.locator('#log-body tr.row-editing')).toHaveCount(0);
   expect(await kept()).toEqual([0, null]); // the edited row is new, the other one is the same
   await page.getByRole('button', { name: /Nr\. 2 OE3XYZ löschen/ }).click();
   await expect(page.locator('#log-body tr[data-id]')).toHaveCount(1);

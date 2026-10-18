@@ -33,6 +33,7 @@ import { sourceItem, trackOnline, repoLink } from '../../shared/js/sources.js';
 import { initOffline, setChip } from '../../shared/js/offline.js';
 import { createLineRepeater } from './linerepeater.js';
 import { paperPdf } from './paperpdf.js';
+import { pdfOpen } from '../../shared/js/pdf.js';
 import { createRowCache, syncRows, resetRows } from '../../shared/js/rowcache.js';
 import { trackSiteHeaderHeight } from '../../shared/js/stickyhead.js';
 import { formatShift, formatMHz } from '../../shared/js/repeaters.js';
@@ -1956,9 +1957,9 @@ function highlightMatches(call) {
 // The line being edited gets the class `editing` (one row at a time).
 let editingRow = null;
 function markEditing() {
-  editingRow?.classList.remove('editing');
+  editingRow?.classList.remove('row-editing');
   editingRow = (state.editingId && rowCache.get(state.editingId)?.node) || null;
-  editingRow?.classList.add('editing');
+  editingRow?.classList.add('row-editing');
 }
 
 function buildLogRow(e, { tpl, columns, n, cols }) {
@@ -2444,15 +2445,7 @@ function printLog() {
 // to print at its own size; downloaded where the tab is blocked. From a
 // log: its template; from the overview: the one chosen.
 function printPaper(tpl = templateFor(state.event?.template)) {
-  const url = URL.createObjectURL(new Blob([paperPdf(tpl)], { type: 'application/pdf' }));
-  if (!window.open(url, '_blank')) {
-    const a = el('a', { href: url, download: `Leerformular_${tpl.key}.pdf` });
-    document.body.append(a);
-    a.click();
-    a.remove();
-  }
-  // the tab keeps it while open (a reload there needs the URL a while longer)
-  setTimeout(() => URL.revokeObjectURL(url), 10 * 60000);
+  pdfOpen(paperPdf(tpl), `Leerformular_${tpl.key}.pdf`);
 }
 
 async function backupAll() {

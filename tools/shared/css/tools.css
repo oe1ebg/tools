@@ -162,3 +162,33 @@ dl.kb dd{ margin:0; color:var(--text-dim); }
   dl.kb{ grid-template-columns:1fr; }
   dl.kb dd{ margin-bottom:.4em; }
 }
+
+/* ---------- tables: column names that stay in view (.sticky-head) ---------- */
+/* On the wrapper around a <table>: the column names stay in view while the
+   page scrolls, right below the sticky page header (--site-header-h, kept
+   current by trackSiteHeaderHeight() in js/stickyhead.js). The wrapper clips
+   instead of scrolling (a scroll container would hold the sticky header),
+   so the columns must fit; browsers without overflow: clip keep the
+   scrolling wrapper and a header that scrolls away. Clearly a header:
+   bold, opaque over the rows, a strong rule below. */
+@supports (overflow: clip){
+  .table-wrap.sticky-head{ overflow-x:clip; }
+}
+.sticky-head th{
+  font-weight:700; color:var(--text); white-space:nowrap;
+  background:linear-gradient(var(--line), var(--line)) var(--bg); /* opaque while it sticks over rows */
+  border-bottom:2px solid var(--text-dim);
+  position:sticky; top:var(--site-header-h, 0px); z-index:2;
+}
+/* the line under the header stays with it while it sticks */
+.sticky-head thead th{ box-shadow:0 1px 0 var(--text-dim); }
+
+/* ---------- tables: the row being edited (table.row-marks) ---------- */
+/* On the <table>; JS sets .row-editing on the <tr> whose record is in the
+   edit form. Framed in the form's editing colour and marked "✎" (not by
+   colour alone: other rows may be tinted too). The specificity is above a
+   tool's own row tints (tr.match td …), so the frame wins. The marker text
+   is the screen reader's alternative (German: the tools are used in German). */
+table.row-marks tbody tr.row-editing > td{ background:var(--warn-soft); border-top:2px solid var(--warn); border-bottom:2px solid var(--warn); }
+table.row-marks tbody tr.row-editing > td:first-child{ box-shadow:inset 4px 0 0 var(--warn); }
+table.row-marks tbody tr.row-editing > td:first-child::before{ content:"✎ "; content:"✎ " / "wird bearbeitet: "; color:var(--warn); font-weight:700; }
