@@ -403,17 +403,34 @@ test('Einsatz panel: Esc puts a field back, Rückgängig restores the opened sta
   await expect(page.locator('#btn-op-undo')).toBeDisabled();
 });
 
-test('print: an empty form to print a stack of', async ({ page }) => {
+// The empty form (Vordruck) to print a stack of: a one-page PDF opened in a
+// new tab, not the browser's print. Its content: tests/notfunk-paperpdf.test.mjs.
+test('print: the empty form (Vordruck) opens a one-page A4 PDF', async ({ page }) => {
   await page.goto('tools/notfunk/');
   await expect.poll(() => page.evaluate(() => globalThis.NOTFUNK_READY === true)).toBe(true);
-  await page.evaluate(() => { globalThis.print = () => {}; });
-  await page.getByRole('button', { name: 'Leeres Formular drucken / PDF' }).click();
-  await page.emulateMedia({ media: 'print' });
-  await expect(page.locator('#print-sheet .pf-sheet.blank')).toBeVisible();
-  await expect(page.locator('#print-sheet .pf-box.on, #print-sheet .pf-dot.on')).toHaveCount(0);
-  await expect(page.locator('#print-sheet')).toContainText('Dringlichkeit');
-  await expect(page.locator('#print-sheet')).not.toContainText('Stab herhören!');
-  await expect(page.locator('#view-ops')).toBeHidden();
+  // the PDF is read from its Blob (fetching the blob: URL is not allowed
+  // by the page's CSP, connect-src 'self')
+  await page.evaluate(() => {
+    window.__opened = [];
+    window.__blobs = new Map();
+    const make = URL.createObjectURL;
+    URL.createObjectURL = blob => { const url = make(blob); window.__blobs.set(url, blob); return url; };
+    window.open = url => { window.__opened.push(url); return {}; };
+    globalThis.print = () => { window.__printed = true; };
+  });
+  await page.getByRole('button', { name: 'Leeres Formular (PDF)' }).click();
+  const doc = await page.evaluate(async () => {
+    const blob = window.__blobs.get(window.__opened.at(-1));
+    return { type: blob.type, text: await blob.text() };
+  });
+  expect(doc.type).toBe('application/pdf');
+  expect(doc.text.startsWith('%PDF-1.4')).toBe(true);
+  expect(doc.text).toContain('/Count 1');
+  expect(doc.text).toContain('/MediaBox [0 0 595.28 841.89]');
+  // the page itself is not printed
+  expect(await page.evaluate(() => window.__printed)).toBeUndefined();
+  expect(await page.evaluate(() => document.documentElement.dataset.print)).toBeUndefined();
+  await expect(page.locator('#view-ops')).toBeVisible();
 });
 
 test('service worker installs the offline copy', async ({ page, browserName }) => {

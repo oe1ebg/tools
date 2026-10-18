@@ -43,6 +43,22 @@ test('notfunk-offline.html runs from file://', async ({ page, request }, testInf
   await page.getByRole('button', { name: /Standort/ }).click();
   await page.locator('#loc-q').fill('Donauturm');
   await expect(page.locator('#loc-results .loc-cand').first()).toContainText('Donauturm', { timeout: 30_000 });
+  // the empty form (Vordruck) is a PDF written in the page: no request, from file:// too
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => {
+    window.__blobs = new Map();
+    const make = URL.createObjectURL;
+    URL.createObjectURL = blob => { const u = make(blob); window.__blobs.set(u, blob); return u; };
+    window.open = u => { window.__opened = u; return {}; };
+  });
+  await page.getByRole('button', { name: 'Leeres Formular (PDF)' }).click();
+  const pdf = await page.evaluate(async () => {
+    const blob = window.__blobs.get(window.__opened);
+    return { type: blob.type, text: await blob.text() };
+  });
+  expect(pdf.type).toBe('application/pdf');
+  expect(pdf.text.startsWith('%PDF-1.4')).toBe(true);
+  expect(pdf.text).toContain('/Count 1');
   expect(requests.filter(u => u !== url && !u.startsWith('blob:') && !u.startsWith('data:'))).toEqual([]);
 });
 

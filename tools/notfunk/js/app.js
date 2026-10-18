@@ -45,8 +45,10 @@ import {
   emptyForm, setDirection, formToFields, formIsBlank, messageToForm, replyForm, nextStep, statusSteps, bookSummary, partyText,
   readDateTime, readClock, readBound, normDate, normTime, dateText, clockText, needsZone, upgradeForm, normalizeRef,
 } from './form.js';
-import { formSheet, blankFormSheet, bookSheet } from './print.js';
-import { renderFormSheet, fittedFormSheet, renderBookSheet, printSheet } from './printview.js';
+import { formSheet, bookSheet } from './print.js';
+import { fittedFormSheet, renderBookSheet, printSheet } from './printview.js';
+import { blankFormPdf } from './paperpdf.js';
+import { pdfOpen } from '../../shared/js/pdf.js';
 import { attachDatePicker, attachTimePicker } from './picker.js';
 import { createRowCache, syncRows, resetRows } from '../../shared/js/rowcache.js';
 import { trackSiteHeaderHeight } from '../../shared/js/stickyhead.js';
@@ -1610,10 +1612,12 @@ function printForm(m) {
   }, { once: true });
 }
 
-// An empty form (for a stack of paper forms): with the operation's name
-// when one is open. The number of copies is chosen in the print dialog.
+// An empty form (for a stack of paper forms) as a PDF (paperpdf.js), opened
+// in a new tab to print at its own size: with the operation's name when one
+// is open. It prints the same in every browser; the number of copies is
+// chosen in the print dialog of the PDF viewer.
 function printBlankForm() {
-  printSheet(renderFormSheet(blankFormSheet(state.op, { now: nowIso() })), 'form');
+  pdfOpen(blankFormPdf(state.op, { now: nowIso() }), state.op ? `${fileStem()}_Vordruck.pdf` : 'Notfunk_Vordruck.pdf');
 }
 
 function printBook() {

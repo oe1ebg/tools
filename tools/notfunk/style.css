@@ -427,7 +427,7 @@ html.pf-margins .pf-measure .pf-sheet{ padding:0; }
 .pf-cell{ padding:var(--pf-pad) 2.5mm; display:flex; flex-direction:column; gap:.5pt; min-width:0; }
 .pf-cell + .pf-cell{ border-left:.75pt solid #000; }
 .pf-inline{ flex-direction:row; flex-wrap:wrap; align-items:center; align-content:flex-start; gap:1pt 2.4mm; font-size:8.6pt; }
-.pf-inline > .pf-cap, .pf-inline > .pf-full{ flex-basis:100%; }
+.pf-inline > .pf-cap{ flex-basis:100%; }
 /* circle = choose one (filled by its border: no background needed);
    square = an extra mark */
 .pf-opt{ white-space:nowrap; display:inline-flex; align-items:center; gap:1.2mm; }
@@ -446,7 +446,6 @@ html.pf-margins .pf-measure .pf-sheet{ padding:0; }
 /* the verbatim text gets all the room that is left */
 .pf-text{ flex:1; display:flex; flex-direction:column; border:.75pt solid #000; border-top:none; padding:var(--pf-pad) 2.5mm; min-height:30mm; }
 .pf-text p{ flex:1; margin:1mm 0 2mm; font-size:var(--pf-text); line-height:1.45; white-space:pre-wrap; overflow-wrap:anywhere; }
-.pf-write{ flex:1; min-height:60mm; background:repeating-linear-gradient(transparent 0 9mm, #888 9mm calc(9mm + .5pt)); -webkit-print-color-adjust:exact; print-color-adjust:exact; }
 .pf-foot{ display:flex; justify-content:space-between; gap:1em; font-size:7pt; color:#333; margin-top:1.5mm; }
 /* several pages: the number on top of each one (table header repeats) */
 .pf-pages{ width:100%; border-collapse:collapse; }
