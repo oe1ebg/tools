@@ -1387,7 +1387,7 @@ function renderBook() {
         el('td', { class: 'st-when mono', title: viennaStamp(last.at) }, el('span', {}, ...[dated(last.at, viennaTime(last.at))].flat()), el('br'), el('span', { class: 'by' }, last.by || '')),
         el('td', { class: 'act' }, el('div', { class: 'act-stack' },
           step ? el('button', { type: 'button', class: 'mini next', 'aria-haspopup': 'dialog', onclick: () => openStepDialog(m, step), 'aria-label': `${m.number} ${step.label} …` }, step.label) : null,
-          el('button', { type: 'button', class: 'mini', onclick: () => printForm(m), 'aria-label': `Ausdruck ${m.number} (Meldeaufnahmeformular)` }, 'Ausdruck')))));
+          el('button', { type: 'button', class: 'mini', onclick: () => printForm(m), 'aria-label': `PDF ${m.number} (Meldeaufnahmeformular)`, title: 'Die Meldung als Meldeaufnahmeformular (PDF)' }, 'PDF')))));
     } });
   }
   markEditing();

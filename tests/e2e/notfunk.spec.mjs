@@ -357,7 +357,7 @@ test('print: a message opens its filled form as a one-page A4 PDF', async ({ pag
   await openNewOp(page, 'E2E Druck', 'p1');
   await addMessage(page, 'Lichtinsel 12', 'Aggregat ausgefallen');
   await capturePdfs(page);
-  await page.getByRole('button', { name: 'Ausdruck P1-001 (Meldeaufnahmeformular)' }).click();
+  await page.getByRole('button', { name: 'PDF P1-001 (Meldeaufnahmeformular)' }).click();
   const doc = await lastPdf(page);
   expect(doc.type).toBe('application/pdf');
   expect(doc.text.startsWith('%PDF-1.4')).toBe(true);

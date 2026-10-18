@@ -165,7 +165,12 @@ label.field > .fwarn, div.field > .fwarn, .fwarn{ color:var(--warn); font-size:1
 /* rows of fields that belong together, each as wide as it needs */
 #msg-form > .row-flow, details.more .row-flow{ display:flex; flex-wrap:wrap; gap:.6em 1.2em; align-items:flex-start; }
 .radio-row{ border-left:3px solid var(--accent-soft); padding-left:.7em; }
-.call-field{ width:10em; }
+.call-field{ width:auto; min-width:10em; }
+/* callsign fields as wide as a callsign: a station's at most 12 characters
+   ("PP/AA0BBB/SS"), a repeater's and the Stationskürzel 6 (as in the
+   confirmation log); the info lines under them keep their room */
+#n-call, #e-call, #n-operator, #e-operator, #m-peer, #m-orig-station{ width:calc(12ch + 1.2em); max-width:100%; box-sizing:border-box; }
+#n-via, #e-via, #m-via, #n-prefix, #e-prefix{ width:calc(6ch + 1.6em); max-width:100%; box-sizing:border-box; }
 .freq-field{ width:9em; }
 .radio-row input, details.more .row-flow input{ width:100%; box-sizing:border-box; }
 .place-field{ width:16em; max-width:100%; }
