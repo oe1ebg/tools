@@ -113,6 +113,12 @@ Alles außer dem Stationskürzel lässt sich später im aufklappbaren Feld
 **„Einsatz“** über dem Formular ändern; Änderungen gelten für neue Meldungen.
 Das Stationskürzel bleibt fest, sobald die erste Meldung gespeichert ist.
 
+In einem Feld setzt <kbd>Esc</kbd> den Wert zurück, den es vor dem Bearbeiten
+hatte (offene Vorschläge schließt <kbd>Esc</kbd> zuerst). „Rückgängig“ stellt
+den Einsatz wieder her, wie er beim Öffnen des Feldes „Einsatz“ war; das
+Stationskürzel bleibt, sobald Meldungen es verwenden. Ein Formular, das noch
+die Vorgaben zeigt, folgt mit.
+
 **Schichtwechsel:** im Feld „Einsatz“ den Operator ändern (oder oben im
 Formular auf „Aufnahme OE1EBG“ klicken). Gespeicherte Meldungen behalten den
 Operator, der sie aufgenommen hat.

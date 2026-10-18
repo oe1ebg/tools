@@ -19,7 +19,7 @@ import { toCSV, toADIF, adifIssues, ADIF_MIME, toKML, KML_MIME, toSummary } from
 import { loadDataFile } from '../../shared/js/data.js';
 import { buildCallbook, lookupCall, suggestCalls, normalizeCall, isPlausibleCall } from '../../shared/js/callbook.js';
 import { initHelpDialog } from '../../shared/js/helpdialog.js';
-import { $, el, fill, copyToClipboard, popover, focusNext, submitForm, isComposing, trackExpanded, rowRoles, tableRoles } from '../../shared/js/dom.js';
+import { $, el, fill, copyToClipboard, popover, focusNext, submitForm, isComposing, trackExpanded, rowRoles, tableRoles, revertOnEscape } from '../../shared/js/dom.js';
 import { prefGet, prefSet } from '../../shared/js/prefs.js';
 import { initLocationPanel, loadLocationIndex, setUtmReference, logUtmDigits } from '../../shared/js/locationui.js';
 import { locate } from '../../shared/js/location/index.js';
@@ -807,21 +807,9 @@ async function undoHeader() {
 }
 
 // Esc in a Betrieb field: back to the value it had when it got the focus
-// (before anything is saved as a finished change). Open completion
-// dropdowns take Esc first.
+// (before anything is saved as a finished change; revertOnEscape()).
 function headerEscape(container) {
-  container.addEventListener('focusin', ev => {
-    if (ev.target.matches('input:not([type])')) ev.target.dataset.orig = ev.target.value;
-  });
-  container.addEventListener('keydown', ev => {
-    const t = ev.target;
-    if (ev.key !== 'Escape' || ev.defaultPrevented || !t.matches('input:not([type])') || t.dataset.orig === undefined) return;
-    if (t.value === t.dataset.orig) return;
-    ev.preventDefault();
-    t.value = t.dataset.orig;
-    container._hdr.set(readHeaderForm(container));
-    t.select();
-  });
+  revertOnEscape(container, { onRevert: () => container._hdr.set(readHeaderForm(container)) });
 }
 
 // Automatic log markers (decision on issue #32, option c): every finished

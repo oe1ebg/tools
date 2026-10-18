@@ -147,6 +147,13 @@ name, and a distribution list ("Verteiler").
   can change at any time and apply to new messages; stored messages keep
   what they were saved with. An untouched form follows new defaults. The
   station code can only change while the operation has no message.
+  Esc in a field puts back the value it had when it got the focus
+  (`revertOnEscape()` in `shared/js/dom.js`; an open suggestion list takes
+  Esc first). "Rückgängig" puts the panel's fields back to what they were
+  when the panel was opened or the book loaded (`takeOpUndo()`), as one
+  `updateOp`; the station code stays once messages exist; a form that
+  followed the defaults follows back (`applyOpPatch()`, shared with the
+  fields). Another tab's change does not move that baseline.
 - **Entry form:** keyboard only, like the confirmation log: Tab/Enter next
   field (Enter in the text is a new line), digits pick an option,
   Shift+Enter or Ctrl/⌘+Enter saves. Required fields (`*`: time, Von, An,

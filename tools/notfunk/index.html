@@ -181,7 +181,8 @@
 
     <details class="hdr" id="op-panel">
       <summary><b>Einsatz</b> <span class="hdr-sum" id="op-sum"></span></summary>
-      <div class="body" id="op-form">
+      <div class="body">
+       <div id="op-form">
         <div class="grid-form op-grid">
           <label class="field span-2"><span>Einsatz / Übung</span>
             <input id="e-name" enterkeyhint="next"></label>
@@ -213,7 +214,11 @@
               <div class="ac-hints"><div id="e-operator-info" class="ac-info" aria-live="polite"></div></div></div>
           </div>
         </fieldset>
-        <p class="hint">Änderungen gelten für neue Meldungen; gespeicherte behalten Stationsrufzeichen, Operator, Frequenz und Nummer vom Zeitpunkt der Aufnahme. Ein Operatorwechsel (Schichtwechsel) wird hier eingetragen.</p>
+       </div>
+        <!-- outside #op-form: Enter in the last field goes on to the message form, not to this button -->
+        <div class="hdr-actions"><button type="button" id="btn-op-undo" disabled title="Einsatz wie beim Öffnen von „Einsatz“">Rückgängig</button></div>
+        <p class="hint">Änderungen gelten für neue Meldungen; gespeicherte behalten Stationsrufzeichen, Operator, Frequenz und Nummer vom Zeitpunkt der Aufnahme. Ein Operatorwechsel (Schichtwechsel) wird hier eingetragen.<br>
+          Tastatur: Tab/Enter nächstes Feld · ↓ Vorschläge, Enter übernimmt · Esc stellt das Feld zurück</p>
         <p class="hint" id="e-prefix-help">Das Stationskürzel lässt sich nur ändern, solange der Einsatz noch keine Meldung hat.</p>
         <p id="op-status" class="form-status" role="status"></p>
       </div>
@@ -405,7 +410,7 @@
           <dt><kbd>↓</kbd> <kbd>↑</kbd>, <kbd>Enter</kbd></dt><dd>in Funkstelle, Relais, Ort, Ursprungsstation und Ursprungsort: Vorschläge durchgehen, <kbd>Enter</kbd> übernimmt den markierten. Ohne Markierung übernimmt <kbd>Enter</kbd> nur einen Vorschlag, der das Getippte vervollständigt; sonst bleibt der getippte Text.</dd>
           <dt><kbd>Leertaste</kbd></dt><dd>Kästchen setzen oder löschen (Rücklesen)</dd>
           <dt><kbd>⇧</kbd>+<kbd>Enter</kbd>, <kbd>Strg</kbd>+<kbd>Enter</kbd></dt><dd>speichern, aus jedem Feld (am Mac auch <kbd>⌘</kbd>+<kbd>Enter</kbd>). Fehlt etwas, steht der Hinweis direkt am Feld. Gibt es nur Hinweise (z. B. Funkstelle fehlt), fragt das Formular nach; noch einmal <kbd>⇧</kbd>+<kbd>Enter</kbd> speichert trotzdem.</dd>
-          <dt><kbd>Esc</kbd></dt><dd>schließt zuerst offene Vorschläge. Danach bei ausgefülltem Formular: fragt „Eingabe verwerfen?“; noch einmal <kbd>Esc</kbd> heißt weiter erfassen. Nach dem Verwerfen ist „Rückgängig“ möglich. In dieser Hilfe: schließt die Hilfe.</dd>
+          <dt><kbd>Esc</kbd></dt><dd>schließt zuerst offene Vorschläge. Danach bei ausgefülltem Formular: fragt „Eingabe verwerfen?“; noch einmal <kbd>Esc</kbd> heißt weiter erfassen. Nach dem Verwerfen ist „Rückgängig“ möglich. In einem Feld von „Einsatz“: stellt den Wert zurück, den es vor dem Bearbeiten hatte. In dieser Hilfe: schließt die Hilfe.</dd>
           <dt><kbd>F1</kbd>, <kbd>?</kbd></dt><dd>diese Hilfe öffnen (<kbd>?</kbd> nur außerhalb von Textfeldern). Die Eingabe bleibt, wie sie ist.</dd>
         </dl>
       </section>
