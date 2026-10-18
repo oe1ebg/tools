@@ -18,6 +18,10 @@ import { readADI, isCompleteQSO } from './adif-spec.mjs';
 import { t, setLang } from '../tools/netlog/js/i18n.js';
 
 const TAB = 'tab-test';
+// Check-ins are timed when the test runs (now), so "today" for the
+// validator's future-date check follows the clock (the day after, UTC: no
+// edge at midnight). A fixed date failed from the day after it.
+const CHECK_DAY = new Date(Date.now() + 864e5).toISOString().slice(0, 10).replace(/-/g, '');
 const REPEATERS = [
   { call: 'OE0XQR', out: 438.95, in: 431.35, shift: -7.6, modes: ['FM'] },
   { call: 'OE0XQD', out: 438.5, in: 430.9, shift: -7.6, modes: ['DMR', 'FM'] },
@@ -90,7 +94,7 @@ test('ADIF of a direct 2m SSB net: BAND without FREQ, no PROP_MODE; still valid'
   const { data } = await fixture();
   const session = { ...data.session, radio: { repeater: '', freq: '2m', mode: 'SSB' } };
   const adi = netAdif({ ...data, session }, { repeaters: REPEATERS });
-  const v = validateAdif(adi, { today: '20261017' });
+  const v = validateAdif(adi, { today: CHECK_DAY });
   assert.equal(v.errors, 0, JSON.stringify(v.issues));
   const { records } = readADI(adi);
   for (const r of records) {
@@ -123,7 +127,7 @@ test('radio facts: the repeater list gives input/output and a single usable mode
 test('ADIF: one valid QSO per checked-in station; me, partial and deleted ones left out; notes never in it', async () => {
   const { data } = await fixture();
   const adi = netAdif(data, { createdIso: '2026-10-16T20:00:00.000Z', programVersion: 'abc1234', repeaters: REPEATERS });
-  const v = validateAdif(adi, { today: '20261017' });
+  const v = validateAdif(adi, { today: CHECK_DAY });
   assert.equal(v.errors, 0, JSON.stringify(v.issues));
   assert.equal(v.warnings, 0, JSON.stringify(v.issues));
   const { header, records } = readADI(adi);
@@ -161,7 +165,7 @@ test('ADIF issues: what is left out and what is missing, before the export', asy
   assert.deepEqual(r.problems, ['noMode', 'noBand', 'noOwn']);
   // without a mode the file is still valid ADI (logbooks complain about the QSOs)
   const adi = netAdif({ ...data, session: { ...data.session, radio: {} } }, { repeaters: null });
-  assert.equal(validateAdif(adi, { today: '20261017' }).errors, 0);
+  assert.equal(validateAdif(adi, { today: CHECK_DAY }).errors, 0);
 });
 
 test('stations CSV: every live station, NCS first, UTC, estimated marked, formulas defused; both languages', async () => {
