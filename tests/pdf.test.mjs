@@ -71,3 +71,16 @@ test('pdfCanvas: text alignment and the fonts', () => {
   const left = Number(cv.ops[0].match(/g ([\d.]+) [\d.]+ Td/)[1]);
   assert.ok(Math.abs(left - (100 - pdfTextWidth('ab', 10) / 2) * PDF_MM) < 0.01);
 });
+
+test('pdfCanvas: rect outlines and circle (four curves, stroked or filled)', () => {
+  const cv = pdfCanvas(PDF_A4_PORTRAIT);
+  cv.rect(10, 20, 30, 5, { width: 1, dash: [2, 1] });
+  // top left (10, 20), size 30 x 5 mm: the PDF rectangle starts at its lower left
+  assert.equal(cv.ops[0], `1 w 0 G [2 1] 0 d ${pdfNum(10 * PDF_MM)} ${pdfNum((297 - 25) * PDF_MM)} ${pdfNum(30 * PDF_MM)} ${pdfNum(5 * PDF_MM)} re S`);
+  cv.circle(50, 60, 2);
+  cv.circle(50, 60, 2, { solid: true });
+  assert.match(cv.ops[1], /^0\.6 w 0 G 0 g \[\] 0 d [\d. ]+ m( [\d. ]+){6} c( [\d. ]+){6} c( [\d. ]+){6} c( [\d. ]+){6} c S$/);
+  assert.ok(cv.ops[2].endsWith(' c B'));
+  // starts at the right-most point (cx + r, cy)
+  assert.ok(cv.ops[1].includes(`${pdfNum(52 * PDF_MM)} ${pdfNum((297 - 60) * PDF_MM)} m`));
+});

@@ -9,8 +9,8 @@
 //    Meldesammelstelle auszufüllen" (Referenz, federführend,
 //    mitwirkend, zur Kenntnis; only the reference is filled in, once it was
 //    reported back) and the handover (Eingang) or transmission (Ausgang).
-//    blankFormSheet(): the same form empty, to print a stack of them for
-//    working without a device.
+//    blankFormSheet(): the same form empty, the data of the Vordruck PDF
+//    (paperpdf.js) to print a stack of for working without a device.
 // 2. bookSheet(): the message book for a time range, the Geschäftsbuch
 //    columns (one row per message, deleted ones left out).
 

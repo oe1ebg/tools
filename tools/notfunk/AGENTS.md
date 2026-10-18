@@ -70,7 +70,9 @@ banner and draft labels wherever the tool is listed.
   `tools/notfunk/js/printview.js` into `#print-sheet`; layout uses `.pf-*`
   in `style.css`. Preserve E-31 field order and shared form labels.
   A message must fit one A4 page: white, thin lines, no filled areas or
-  dependence on printed backgrounds.
+  dependence on printed backgrounds. The empty form (Vordruck) is a PDF
+  written by `tools/notfunk/js/paperpdf.js` (shared `pdf.js`), not browser
+  print; it takes its words from `blankFormSheet()`.
 
 ## Verification
 

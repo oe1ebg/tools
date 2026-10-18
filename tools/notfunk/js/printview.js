@@ -1,5 +1,5 @@
 // The print-only sheet (#print-sheet): the Meldeaufnahmeformular of one
-// message or the message book of a time range, built with el() from the
+// message (the empty form is a PDF: paperpdf.js) or the message book of a time range, built with el() from the
 // data of print.js, then window.print(). The layout is in style.css (the
 // .pf-* and .pb-* rules, A4); "Als PDF sichern" in the print dialog makes
 // the PDF.
@@ -55,7 +55,7 @@ function val(text, cls = 'pf-val') {
 }
 
 function directionTiles(s) {
-  return el('div', { class: 'pf-dirrow' }, ...s.directions.map(d => el('div', { class: `pf-dir${s.blank ? '' : d.checked ? ' on' : ' off'}` },
+  return el('div', { class: 'pf-dirrow' }, ...s.directions.map(d => el('div', { class: `pf-dir${d.checked ? ' on' : ' off'}` },
     el('span', { class: 'pf-box', 'aria-hidden': 'true' }, d.checked ? '✕' : ''),
     el('span', { class: 'pf-dir-arrow', 'aria-hidden': 'true' }, DIR_ARROW[d.key] || ''),
     d.checked ? el('span', { class: 'sr-only' }, 'gewählt: ') : null,
@@ -71,10 +71,6 @@ function staffBlock(s) {
 }
 
 function whenCell(s) {
-  if (s.blank) {
-    return el('div', { class: 'pf-cell pf-inline' }, cap(s.timeLabel),
-      el('span', { class: 'pf-val pf-full' }, 'Datum ____________ Uhrzeit ________'));
-  }
   return el('div', { class: 'pf-cell pf-inline' }, cap(s.timeLabel),
     el('span', { class: 'pf-val pf-strong' }, `${s.date} · ${s.time}`),
     el('span', { class: 'pf-small' }, `erfasst ${s.created}`));
@@ -88,9 +84,9 @@ function choiceCell(label, options) {
 }
 
 export function renderFormSheet(s) {
-  const peerLine = side => (s.blank || (side === 'from') === (s.direction !== 'out'))
+  const peerLine = side => ((side === 'from') === (s.direction !== 'out'))
     ? el('div', { class: 'pf-small' }, `Funkstelle: ${s.peer}`) : null;
-  return el('article', { class: s.blank ? 'pf-sheet blank' : 'pf-sheet' },
+  return el('article', { class: 'pf-sheet' },
     el('header', { class: 'pf-top' },
       el('div', { class: 'pf-titlebox' },
         el('div', { class: 'pf-cap' }, ['ÖVSV Notfunk', s.title, s.station].filter(Boolean).join(' · ')),
@@ -114,18 +110,18 @@ export function renderFormSheet(s) {
       cell('Bezug', val(s.ref))),
     el('div', { class: 'pf-text' },
       cap('Inhalt – wörtlich, wie übermittelt'),
-      s.blank ? el('div', { class: 'pf-write' }) : el('p', {}, s.text || '–'),
+      el('p', {}, s.text || '–'),
       el('div', { class: 'pf-small' }, box(s.readBack, s.readBackLabel), s.extra ? ` · ${s.extra}` : '')),
     el('div', { class: 'pf-row pf-2' },
       cell('Aufgenommen von (Name / Unterschrift)', val(s.operator),
-        el('div', { class: 'pf-small' }, `an Station ${s.blank ? '______________' : s.stationCall || '–'}`)),
+        el('div', { class: 'pf-small' }, `an Station ${s.stationCall || '–'}`)),
       cell('Anmerkungen / weitere Veranlassung', val(s.remarks))),
     el('div', { class: 'pf-row pf-4' },
       ...s.handoverHeads.map((h, i) => cell(h,
         i === 3 && s.direction !== 'out' ? el('div', { class: 'pf-val' }, box(s.handoverDone, s.handover[3] || ' ')) : val(s.handover[i])))),
     el('footer', { class: 'pf-foot' },
-      el('span', {}, s.blank ? `Notfunk-Meldebuch · Vordruck, gedruckt ${s.printed}` : `Notfunk-Meldebuch · Status ${s.status} · gedruckt ${s.printed}`),
-      el('span', {}, s.blank ? 'Blatt ____' : `Fassung ${s.version}`)));
+      el('span', {}, `Notfunk-Meldebuch · Status ${s.status} · gedruckt ${s.printed}`),
+      el('span', {}, `Fassung ${s.version}`)));
 }
 
 const MM = 96 / 25.4;

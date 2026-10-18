@@ -444,7 +444,8 @@ engine does not.
 - `PDF_A4_LANDSCAPE` = `{ width: 297, height: 210 }`, `PDF_A4_PORTRAIT` =
   `{ width: 210, height: 297 }` (mm), `PDF_MM` (points per mm).
 - `pdfCanvas(page)` → `{ ops, line(x1, y1, x2, y2, { width, gray, dash }),
-  fill(x, y, w, h, gray), text(str, x, y, { size, bold, gray, align }) }`
+  rect(x, y, w, h, { width, gray, dash }), circle(cx, cy, r, { width, gray,
+  solid }), fill(x, y, w, h, gray), text(str, x, y, { size, bold, gray, align }) }`
   (`y` of text is the baseline; `align`: left, center, right).
 - `pdfDocument(page, content, title)` → `Uint8Array` of a one-page PDF;
   `content` is `canvas.ops.join('\n')`.
@@ -452,7 +453,8 @@ engine does not.
   where the tab is blocked.
 - `pdfTextWidth(text, sizePt, bold)` → mm; `pdfHex(text)`, `pdfNum(n)`.
 
-Used by Confirm's Leerformular (`confirm/js/paperpdf.js`, landscape).
+Used by Confirm's Leerformular (`confirm/js/paperpdf.js`, landscape) and
+Notfunk's Vordruck (`notfunk/js/paperpdf.js`, portrait).
 Tests: `tests/pdf.test.mjs`. The module is picked up by the single-file
 bundler and the precache lists through its import; its top-level names all
 start with `pdf`/`PDF_`.

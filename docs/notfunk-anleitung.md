@@ -411,9 +411,17 @@ dann die Schrift (höchstens bis 10 pt). Reicht auch das nicht (etwa ab 2.500
 Zeichen), sagt das Werkzeug vor dem Druck, wie viele Seiten es werden; jede
 Seite trägt die Nummer. Es wird nie etwas abgeschnitten.
 
-**Leere Formulare** für die Arbeit ohne Gerät: „Leeres Formular drucken /
-PDF“ auf der Startseite (bzw. „Leeres Formular“ im Meldebuch), die Anzahl im
-Druckdialog wählen. Das leere Formular hat dieselben Felder und Begriffe.
+**Leere Formulare** für die Arbeit ohne Gerät: „Leeres Formular (PDF)“ auf
+der Startseite (bzw. im Meldebuch unter „Drucken / PDF…“). Der Vordruck ist
+ein **PDF** (A4 hoch, eine Seite) und öffnet sich in einem neuen Tab; wo der
+Browser den Tab blockiert, wird er heruntergeladen
+(`meldebuch-<Präfix>-<Datum>_Vordruck.pdf`). Ein PDF druckt in jedem Browser
+gleich, anders als eine Seite, die der Browser selbst ausdruckt: dort die
+Anzahl der Kopien wählen, Skalierung „Tatsächliche Größe“ bzw. 100 %. Der
+Vordruck hat dieselben Felder und Begriffe wie der Ausdruck einer Meldung,
+mit großen Kästchen und Kreisen zum Ankreuzen und Schreiblinien (Inhalt) für
+die Handschrift; ausgefüllt sind nur der Name des Einsatzes in der Kopfzeile
+und das Druckdatum.
 
 **Das Meldebuch drucken:** „Drucken / PDF…“ im Meldebuch, optional mit
 Zeitraum (Von/Bis je Datum und Uhrzeit; nur ein Datum = der ganze Tag).

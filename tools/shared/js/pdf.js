@@ -57,6 +57,20 @@ export function pdfCanvas({ height }) {
     line(x1, y1, x2, y2, { width = 0.6, gray = 0, dash = null } = {}) {
       ops.push(`${pdfNum(width)} w ${pdfNum(gray)} G ${dash ? `[${dash.join(' ')}] 0 d` : '[] 0 d'} ${X(x1)} ${Y(y1)} m ${X(x2)} ${Y(y2)} l S`);
     },
+    // an outlined rectangle (top left x, y; size w, h)
+    rect(x, y, w, h, { width = 0.6, gray = 0, dash = null } = {}) {
+      ops.push(`${pdfNum(width)} w ${pdfNum(gray)} G ${dash ? `[${dash.join(' ')}] 0 d` : '[] 0 d'} ${X(x)} ${Y(y + h)} ${pdfNum(w * PDF_MM)} ${pdfNum(h * PDF_MM)} re S`);
+    },
+    // a circle (centre cx, cy; radius r) as four Bezier curves; `solid`
+    // fills it (a chosen option)
+    circle(cx, cy, r, { width = 0.6, gray = 0, solid = false } = {}) {
+      const k = r * 0.5523, p = (x, y) => `${X(x)} ${Y(y)}`;
+      ops.push(`${pdfNum(width)} w ${pdfNum(gray)} G ${pdfNum(gray)} g [] 0 d ${p(cx + r, cy)} m `
+        + `${p(cx + r, cy + k)} ${p(cx + k, cy + r)} ${p(cx, cy + r)} c `
+        + `${p(cx - k, cy + r)} ${p(cx - r, cy + k)} ${p(cx - r, cy)} c `
+        + `${p(cx - r, cy - k)} ${p(cx - k, cy - r)} ${p(cx, cy - r)} c `
+        + `${p(cx + k, cy - r)} ${p(cx + r, cy - k)} ${p(cx + r, cy)} c ${solid ? 'B' : 'S'}`);
+    },
     fill(x, y, w, h, gray) {
       ops.push(`${pdfNum(gray)} g ${X(x)} ${Y(y + h)} ${pdfNum(w * PDF_MM)} ${pdfNum(h * PDF_MM)} re f`);
     },
