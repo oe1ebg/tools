@@ -372,6 +372,8 @@ body > footer details.vendor-license pre{ white-space:pre-wrap; }
   table.book tr.urgent{ background:var(--err-soft); }
   table.book tr.urgent td{ background:none; }
   table.book tr.fresh, table.book tbody tr[data-id]:hover{ background:var(--accent-soft); }
+  /* the card is tinted as a whole, not cell by cell (gaps between them) */
+  table.book tr.fresh td, table.book tbody tr[data-id]:hover td{ background:none; }
 }
 
 /* ---------- print (A4; "Als PDF sichern" in the print dialog) ---------- */
