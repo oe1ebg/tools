@@ -75,7 +75,7 @@ test('Notfunk on a phone: each message is a card with number, status, subject an
   const num = row.locator('td.num');
   const status = row.locator('td.st');
   const subject = row.locator('td.content b');
-  for (const cell of [num, status, subject, row.getByRole('button', { name: /Ausdruck/ })]) {
+  for (const cell of [num, status, subject, row.getByRole('button', { name: /^PDF / })]) {
     await expect(cell).toBeVisible();
     expect(await inside(cell)).toBe(true);
   }

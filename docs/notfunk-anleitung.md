@@ -345,7 +345,8 @@ Jede Meldung ist eine Zeile mit sechs Spalten:
   Betreff und darunter der Anfang des Inhalts.
 - **Status:** der Stand (alle gleich breit), daneben Zeit und Operator des
   letzten Schritts.
-- Ganz rechts der **nächste Schritt** und darunter **Ausdruck**.
+- Ganz rechts der **nächste Schritt** und darunter **PDF** (die Meldung als
+  Meldeaufnahmeformular, wie „Ausdruck / PDF“ in der Meldung).
 
 Die Spaltennamen bleiben beim Scrollen unter der Kopfzeile sichtbar und
 sind kurz; mit der Maus darüber steht die Erklärung. Die Zeit ist
