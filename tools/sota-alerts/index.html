@@ -163,9 +163,15 @@
       </section>
     </div>
   </div>
+  <!-- Release (a build of a version tag) and commit, from build-info.js
+       (js/app.js, showBuild()). -->
+  <p id="build-line" class="help-foot"></p>
 </dialog>
 
 <script src="../shared/vendor/leaflet/leaflet.js"></script>
+<!-- build-info.js (written by scripts/build_site.py): release and commit
+     for the help's foot; missing on a dev server without a build = "dev". -->
+<script src="build-info.js"></script>
 <!-- ES modules (js/, plus ../shared/js/), served over http only. -->
 <script type="module" src="js/app.js"></script>
 </body>

@@ -390,7 +390,9 @@ Under the validation bar, a collapsible `<details id="compliance">`
 
 The facts come from `build-info.js`, generated (git-ignored) by
 `scripts/build_adif.py` next to `adif-editor.html` and inlined into it:
-`self.ADIF_BUILD = { commit, version, run, adifmt, adifChecker, commitFull }`.
+`self.ADIF_BUILD = { commit, version, release, run, adifmt, adifChecker, commitFull }`.
+`release` is the tag of a release build (`v0.7.0`, shown before the commit;
+`null` otherwise, as for the offline tools, `tools/confirm/README.md`).
 `commit` is `GIT_SHA` (Justfile, CI) shortened to 7 characters,
 `commitFull` the full SHA (`null` if `GIT_SHA` is short): GitHub resolves
 `/commit/<short>` but answers `/commit/<short>/checks` with a 404, so the

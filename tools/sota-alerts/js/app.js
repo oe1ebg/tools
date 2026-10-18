@@ -3,7 +3,8 @@
 // before adding requests.
 
 import { localZoneText } from '../../shared/js/time.js';
-import { copyToClipboard } from '../../shared/js/dom.js';
+import { copyToClipboard, fill } from '../../shared/js/dom.js';
+import { commitUrl, extLink, releaseText } from '../../shared/js/sources.js';
 import { initHelpDialog } from '../../shared/js/helpdialog.js';
 import { tx, i18nInit, i18nApply, i18nToggle } from '../../shared/js/i18n.js';
 import { isoDateFromText, isoBindDateField } from '../../shared/js/isodate.js';
@@ -742,11 +743,20 @@ function wireEvents(){
 
 /* ---------- init ---------- */
 
+// The help's foot: "v0.7.0 · commit abc1234" (the release only in a build
+// of a version tag), from build-info.js (scripts/build_site.py).
+function showBuild(){
+  const b = globalThis.SOTA_BUILD || {};
+  const commit = commitUrl(b.commit) ? b.commit : 'dev';
+  fill($id('build-line'), releaseText(b.release), 'commit ', commit === 'dev' ? commit : extLink(commitUrl(commit), commit));
+}
+
 async function init(){
   watchTheme();
   initTimeDisplay();
   i18nToggle(LANG_PREF, relabel);
   initHelpDialog(); // "? Help" in the header, ? outside text fields
+  showBuild();
   mapView = createMap($id('map'), {
     state,
     setReference,

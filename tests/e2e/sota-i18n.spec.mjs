@@ -58,4 +58,6 @@ test('the popup and the help in German', async ({ page }, testInfo) => {
   await page.locator('#btn-help').click();
   await expect(page.locator('#help-dlg .help-content[lang="de"]')).toBeVisible();
   await expect(page.locator('#help-dlg .help-content[lang="en"]')).toBeHidden();
+  // the build at the foot of the help (build-info.js from build_site.py)
+  await expect(page.locator('#build-line')).toContainText(/commit (dev|[0-9a-f]{7})/);
 });

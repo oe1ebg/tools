@@ -2,12 +2,12 @@
 // index.html): what the in-browser check covers, how the editor itself is
 // verified, and where this build comes from. The build facts come from
 // build-info.js (scripts/build_adif.py): self.ADIF_BUILD = { commit,
-// version, run, adifmt, adifChecker, commitFull }; without it (dev server) the panel
+// version, release, run, adifmt, adifChecker, commitFull }; without it (dev server) the panel
 // says "development build". app.js fills it once the page's language is
 // known, and again when it changes.
 
 import { el, fill } from '../../shared/js/dom.js';
-import { REPO_URL, commitUrl, extLink } from '../../shared/js/sources.js';
+import { REPO_URL, commitUrl, extLink, releaseText } from '../../shared/js/sources.js';
 import { ADIF_SPEC_VERSION } from '../../shared/js/adif-spec-data.js';
 import { tx } from '../../shared/js/i18n.js';
 
@@ -33,6 +33,7 @@ export function complianceFacts(build) {
   const run = /^https:\/\/\S+\/actions\/runs\/(\d+)/.exec(String(b.run || ''));
   return {
     commit,
+    release: releaseText(b.release) ? b.release : null,
     commitUrl: commit ? commitUrl(commit) : null,
     // GitHub's checks page needs the full SHA (/commit/<short>/checks is a 404)
     checksUrl: /^[0-9a-f]{40}$/.test(b.commitFull || '') ? `${commitUrl(b.commitFull)}/checks` : null,
@@ -68,7 +69,7 @@ function provenance(f) {
       el('code', null, 'just build-adif'), '). ', extLink(f.workflowUrl, tx('CI runs', 'CI-Läufe')), extIcon(), '.');
   }
   return el('ul', null,
-    el('li', null, 'Commit ', extLink(f.commitUrl, f.commit), extIcon(),
+    el('li', null, f.release ? `Version ${f.release} · ` : null, 'Commit ', extLink(f.commitUrl, f.commit), extIcon(),
       f.checksUrl ? [' · ', extLink(f.checksUrl, tx('checks for this commit', 'Prüfungen dieses Commits')), extIcon()] : null),
     el('li', null,
       f.runUrl ? [tx('Built by ', 'Gebaut von '), extLink(f.runUrl, tx(`GitHub Actions run ${f.runId}`, `GitHub-Actions-Lauf ${f.runId}`)), extIcon()] : tx('Local build (not built by CI)', 'Lokal gebaut (nicht von der CI)'),
