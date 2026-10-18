@@ -95,6 +95,11 @@
       <button type="button" id="btn-import" title="Eine Sicherung (JSON) einlesen: Logs aus der Datei übernehmen">Wiederherstellen…</button>
       <input type="file" id="import-file" accept=".json,application/json" multiple hidden>
       <button type="button" id="btn-backup-all">Alles sichern (JSON)</button>
+      <!-- an empty form to print in advance, per template, as a PDF (js/paperpdf.js) -->
+      <div class="menu no-print" id="paper-menu">
+        <button type="button" id="btn-paper-menu" aria-expanded="false" aria-controls="paper-list" title="Leeres Blatt mit 15 Zeilen als PDF zum Ausdrucken, für ein Netz ohne Gerät oder wenn eines ausfällt">Leerformular <span aria-hidden="true">▾</span></button>
+        <div id="paper-list" class="menu-list" hidden></div>
+      </div>
     </div>
 
     <div id="import-msg" class="banner warn" role="status" hidden></div>
@@ -155,6 +160,7 @@
           <hr>
           <button type="button" data-export="json" title="Vollständige Sicherung dieses Logs">Sichern (JSON)</button>
           <button type="button" data-export="print" title="Das ganze Log, quer (A4)">Drucken</button>
+          <button type="button" data-export="paper" title="Leeres Blatt mit 15 Zeilen in den Spalten dieses Logs als PDF, im Voraus drucken (für ein Netz ohne Gerät oder wenn eines ausfällt)">Leerformular (PDF)</button>
         </div>
       </div>
     </div>
