@@ -351,6 +351,58 @@ test('Einsatz header: a change applies to new messages, the code stays once used
   await expect(page.locator('#op-sum')).toContainText('via OE1X');
 });
 
+test('Einsatz panel: Esc puts a field back, Rückgängig restores the opened state', async ({ page }) => {
+  await openNewOp(page, 'E2E Esc', 'k1');
+  await page.locator('#op-panel > summary').click();
+  const station = page.locator('#e-station'), undo = page.locator('#btn-op-undo');
+  await expect(undo).toBeDisabled();
+  // Esc: the value from before editing, nothing saved afterwards
+  await station.fill('Keller');
+  await station.press('Tab');
+  await expect(page.locator('#book-status')).toContainText('Standort der Station');
+  await station.focus();
+  await station.fill('Dachboden');
+  await station.press('Escape');
+  await expect(station).toHaveValue('Keller');
+  await page.locator('#e-home').focus();
+  await expect(station).toHaveValue('Keller');
+  await expect.poll(async () => page.evaluate(() => new Promise(res => {
+    const r = indexedDB.open('oe1ebg-notfunk');
+    r.onsuccess = () => {
+      const q = r.result.transaction('operations').objectStore('operations').getAll();
+      q.onsuccess = () => res(q.result.map(o => o.station));
+    };
+  }))).toEqual(['Keller']);
+  // an open suggestion list takes Esc first: it closes, the text stays
+  await page.locator('#e-via').fill('oe1x');
+  await expect(page.locator('#e-via-pop .ac-item').first()).toBeVisible();
+  await page.locator('#e-via').press('Escape');
+  await expect(page.locator('#e-via-pop')).toBeHidden();
+  await expect(page.locator('#e-via')).toHaveValue('oe1x');
+  await page.locator('#e-via').press('Escape');
+  await expect(page.locator('#e-via')).toHaveValue('');
+  // Rückgängig: back to the opened state (Keller was typed since), then disabled; survives a reload
+  await expect(undo).toBeEnabled();
+  await page.locator('#e-home').fill('Leitstelle');
+  await page.locator('#e-operator').fill('oe3xyz');
+  await page.locator('#e-operator').press('Enter');
+  await expect(page.locator('#op-sum')).toContainText('Op OE3XYZ');
+  await expect(page.locator('#m-from')).toBeFocused();
+  await expect(undo).toBeEnabled();
+  await undo.click();
+  await expect(page.locator('#book-status')).toContainText('Einsatz wie beim Öffnen');
+  await expect(page.locator('#e-operator')).toHaveValue('OE1EBG');
+  await expect(page.locator('#e-home')).toHaveValue('Stab');
+  await expect(station).toHaveValue('');
+  await expect(undo).toBeDisabled();
+  await page.reload();
+  await expect(page.locator('#book-title')).toHaveText('E2E Esc');
+  await page.locator('#op-panel > summary').click();
+  await expect(page.locator('#e-operator')).toHaveValue('OE1EBG');
+  await expect(page.locator('#e-station')).toHaveValue('');
+  await expect(page.locator('#btn-op-undo')).toBeDisabled();
+});
+
 test('print: an empty form to print a stack of', async ({ page }) => {
   await page.goto('tools/notfunk/');
   await expect.poll(() => page.evaluate(() => globalThis.NOTFUNK_READY === true)).toBe(true);

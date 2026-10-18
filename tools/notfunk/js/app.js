@@ -18,7 +18,7 @@ import { openNotfunkStorage } from './db.js';
 import { requestPersistence, ConflictError } from '../../shared/js/storage.js';
 import { openStorageWithNotices, offerFallbackMigration } from '../../shared/js/storageui.js';
 import { initHelpDialog } from '../../shared/js/helpdialog.js';
-import { $, el, fill, focusNext, submitForm, isComposing, trackExpanded, rowRoles, tableRoles } from '../../shared/js/dom.js';
+import { $, el, fill, focusNext, submitForm, isComposing, trackExpanded, rowRoles, tableRoles, revertOnEscape } from '../../shared/js/dom.js';
 import { prefGet, prefSet } from '../../shared/js/prefs.js';
 import { loadDataFile } from '../../shared/js/data.js';
 import { buildCallbook, lookupCall, normalizeCall } from '../../shared/js/callbook.js';
@@ -293,6 +293,39 @@ function renderOpPanel() {
   ].filter(Boolean).join(' · '));
   renderBackupChip();
   $('#op-sum').classList.toggle('warn-text', !op.operator);
+  updateOpUndo();
+}
+
+// "Rückgängig" in the Einsatz panel: the panel's fields as they were when
+// the panel was opened (or the book loaded with it open). Taken from the
+// operation as this tab has it; another tab's later change to the operation
+// does not move the baseline (undo then puts these fields back over it, as
+// any edit here would). The Stationskürzel is not part of it once messages
+// use it.
+function takeOpUndo() {
+  state.opUndo = state.op ? Object.fromEntries(Object.keys(OP_FIELDS).map(k => [k, state.op[k] || ''])) : null;
+}
+
+function opUndoPatch() {
+  const u = state.opUndo, op = state.op;
+  if (!u || !op) return {};
+  const patch = {};
+  for (const [k, val] of Object.entries(u)) {
+    if (k === 'prefix' && state.msgs.length) continue;
+    if ((op[k] || '') !== val) patch[k] = val;
+  }
+  return patch;
+}
+
+function updateOpUndo() {
+  $('#btn-op-undo').disabled = !Object.keys(opUndoPatch()).length;
+}
+
+async function undoOp() {
+  const patch = opUndoPatch();
+  if (!Object.keys(patch).length) return;
+  await applyOpPatch({ ...patch });
+  bookStatus('Einsatz wie beim Öffnen.');
 }
 
 async function saveOpPanel() {
@@ -317,19 +350,27 @@ async function saveOpPanel() {
     status.textContent = '';
   }
   if (Object.entries(patch).every(([k, val]) => (op[k] || '') === val)) { renderOpPanel(); return; }
-  // An untouched form follows the new defaults (frequency, relay, own post).
+  await applyOpPatch(patch);
+  bookStatus(`Einsatz geändert: ${Object.keys(patch).filter(k => (op[k] || '') !== patch[k]).map(k => OP_LABELS[k]).join(', ')}`);
+}
+
+// Store a patch of the operation; an untouched message form follows the new
+// defaults (frequency, relay, own post). Used by the panel's fields and its
+// "Rückgängig".
+async function applyOpPatch(patch) {
+  const op = state.op;
   const f = readForm();
   const follow = {};
   if (normFreq(f.freq) === normFreq(op.freq || '')) follow.freq = patch.freq;
   if (f.via === (op.via || '')) follow.via = patch.via;
   if (f.to === (op.home || '') && f.direction === 'in') follow.to = patch.home;
   if (f.from === (op.home || '') && f.direction === 'out') follow.from = patch.home;
+  for (const k of Object.keys(follow)) if (follow[k] === undefined) delete follow[k];
   await updateOp(op, patch);
   if (patch.prefix) state.counter = await state.store.get('counters', counterKey(op.id, patch.prefix));
   if (Object.keys(follow).length && !state.editing) writeForm({ ...readForm(), ...follow });
   renderOpPanel();
   renderFormState();
-  bookStatus(`Einsatz geändert: ${Object.keys(patch).filter(k => (op[k] || '') !== patch[k]).map(k => OP_LABELS[k]).join(', ')}`);
 }
 
 const OP_LABELS = { name: 'Name', prefix: 'Stationskürzel', call: 'Stationsrufzeichen', station: 'Standort der Station (Adresse)', operator: 'Operator', home: 'Für Stelle', freq: 'Frequenz', via: 'Relais' };
@@ -373,9 +414,17 @@ function initOpPanel() {
   state.opRpt = attachOpLookups('e', saveOpPanel);
   const panel = $('#op-panel');
   panel.open = prefGet(OP_PANEL_KEY) === '1';
-  panel.addEventListener('toggle', () => prefSet(OP_PANEL_KEY, panel.open ? '1' : ''));
+  panel.addEventListener('toggle', () => {
+    prefSet(OP_PANEL_KEY, panel.open ? '1' : '');
+    if (panel.open) { takeOpUndo(); updateOpUndo(); }
+  });
+  $('#btn-op-undo').addEventListener('click', undoOp);
   const form = $('#op-form');
   form.addEventListener('change', saveOpPanel);
+  // Esc in a field: back to the value it had when it got the focus (open
+  // suggestion lists take Esc first). The reverted field equals the stored
+  // value again, so the change/blur after it saves nothing.
+  revertOnEscape(form, { onRevert: () => renderOpPanel() });
   form.addEventListener('keydown', ev => {
     if (ev.key !== 'Enter' || isComposing(ev) || ev.target.tagName !== 'INPUT') return;
     ev.preventDefault();
@@ -449,6 +498,8 @@ async function route() {
     if (!op) { location.hash = '#/'; return; }
     state.op = op;
     await loadOp();
+    takeOpUndo();
+    updateOpUndo();
     restoreDraft();
   }
   if (m[2]) {

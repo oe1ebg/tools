@@ -82,6 +82,7 @@ details.hdr > summary::before{ content:"▸"; color:var(--text-dim); }
 details.hdr[open] > summary::before{ content:"▾"; }
 details.hdr .body{ padding:0 1em 1em; }
 details.hdr .hint{ margin:.6em 0 0; }
+.hdr-actions{ margin-top:1em; }
 /* the Einsatz fields in groups: the own station, the person at the radio */
 fieldset.op-group{ margin:.8em 0 0; padding:.6em 0 0; border:none; border-top:1px dashed var(--line-strong); min-width:0; }
 fieldset.op-group > legend{ padding:0 .4em 0 0; font-size:13.5px; font-weight:700; color:var(--text); }

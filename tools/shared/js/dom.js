@@ -206,3 +206,24 @@ export function focusNext(container, from) {
   if (next) next.focus();
   return next || null;
 }
+
+// Esc in a text input of `container` puts back the value it had when it got
+// the focus, selects it and calls onRevert(input) so the caller can refresh
+// what depends on it (before any finished change is saved). Nothing happens
+// if the value is unchanged or the event was already handled: an open
+// completion list takes Esc first (popover() stops it, a list may also
+// preventDefault). `selector`: which inputs (default: plain text inputs).
+export function revertOnEscape(container, { onRevert, selector = 'input:not([type])' } = {}) {
+  container.addEventListener('focusin', ev => {
+    if (ev.target.matches(selector)) ev.target.dataset.orig = ev.target.value;
+  });
+  container.addEventListener('keydown', ev => {
+    const t = ev.target;
+    if (ev.key !== 'Escape' || ev.defaultPrevented || !t.matches(selector) || t.dataset.orig === undefined) return;
+    if (t.value === t.dataset.orig) return;
+    ev.preventDefault();
+    t.value = t.dataset.orig;
+    onRevert?.(t);
+    t.select();
+  });
+}
