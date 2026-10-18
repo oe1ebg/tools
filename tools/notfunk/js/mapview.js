@@ -54,12 +54,12 @@ function nfDrawPins(ctx) {
     const icon = L.divIcon({
       className: `map-pin prio-${pinPriority(group.items)}${nfWeak(group.loc) ? ' weak' : ''}`,
       html: n > 1 ? `<span>${n}</span>` : '',
-      iconSize: [18, 18],
-      iconAnchor: [9, 9],
+      iconSize: [22, 22], // forms.css .map-pin
+      iconAnchor: [11, 11],
     });
     const title = group.items.map(i => i.msg.number).join(', ');
     const m = L.marker([group.loc.lat, group.loc.lon], { icon, title, keyboard: true, riseOnHover: true });
-    if (basemapCanHover()) m.bindTooltip(() => nfCard(group, ctx, false), { sticky: true, direction: 'top', className: 'pin-tip', offset: [0, -8] });
+    if (basemapCanHover()) m.bindTooltip(() => nfCard(group, ctx, false), { sticky: true, direction: 'top', className: 'pin-tip', offset: [0, -10] });
     m.bindPopup(() => nfCard(group, ctx, true), { className: 'pin-tip', maxWidth: 300, autoPanPadding: [24, 24] });
     m.addTo(nfPins);
     pts.push([group.loc.lat, group.loc.lon]);

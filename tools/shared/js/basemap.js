@@ -65,7 +65,8 @@ export function createBasemap(container, baseData, onTheme) {
     }
     const roads = L.layerGroup();
     for (const r of baseData.roads) {
-      L.polyline(r.p, { color: c.line, weight: BASEMAP_ROAD_WEIGHT[r.c] || 1, opacity: 0.45, interactive: false }).addTo(roads);
+      // quiet enough for the pins to stand out
+      L.polyline(r.p, { color: c.line, weight: BASEMAP_ROAD_WEIGHT[r.c] || 1, opacity: 0.35, interactive: false }).addTo(roads);
     }
     const grid = L.layerGroup();
     const g = maidenheadGridLines(baseData.bounds, 6);

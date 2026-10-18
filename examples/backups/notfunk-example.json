@@ -7,7 +7,7 @@
   "name": "DEMO / ÜBUNG · Modellpark Lindenhain · Kurzbeispiel",
   "prefix": "D1",
   "call": "OE0QXA",
-  "station": "Übungsleitstelle Lindenhain (fiktiv)",
+  "station": "Am Spitz 1",
   "operator": "OE0QXA",
   "home": "Übungsleitung",
   "freq": "145.500",
@@ -56,7 +56,22 @@
     "placeLoc": null
    },
    "readBack": false,
-   "location": null,
+   "location": {
+    "type": "poi",
+    "label": "Karlsplatz",
+    "street": "",
+    "houseNumber": "",
+    "postcode": "1010",
+    "district": 4,
+    "lat": 48.20039,
+    "lon": 16.3696,
+    "maidenhead": "JN88ee",
+    "source": "osm",
+    "confidence": "high",
+    "manual": false,
+    "input": "Karlsplatz",
+    "origin": "search"
+   },
    "replyTo": null,
    "refKind": null,
    "refNumber": "",
@@ -93,7 +108,8 @@
    "attempts": [],
    "created": "2026-07-18T08:00:00.000Z",
    "updated": "2026-07-18T08:01:00.000Z",
-   "deleted": null
+   "deleted": null,
+   "locationText": ""
   },
   {
    "id": "demo-notfunk-message-2-example",
@@ -171,7 +187,8 @@
    "attempts": [],
    "created": "2026-07-18T08:04:00.000Z",
    "updated": "2026-07-18T08:05:00.000Z",
-   "deleted": null
+   "deleted": null,
+   "locationText": ""
   },
   {
    "id": "demo-notfunk-message-3-example",
@@ -212,7 +229,22 @@
     "placeLoc": null
    },
    "readBack": true,
-   "location": null,
+   "location": {
+    "type": "poi",
+    "label": "Karlsplatz",
+    "street": "",
+    "houseNumber": "",
+    "postcode": "1010",
+    "district": 4,
+    "lat": 48.20039,
+    "lon": 16.3696,
+    "maidenhead": "JN88ee",
+    "source": "osm",
+    "confidence": "high",
+    "manual": false,
+    "input": "Karlsplatz",
+    "origin": "search"
+   },
    "replyTo": "demo-notfunk-message-1-example",
    "refKind": "antwort",
    "refNumber": "D1-001",
@@ -240,7 +272,8 @@
    "attempts": [],
    "created": "2026-07-18T08:08:00.000Z",
    "updated": "2026-07-18T08:08:30.000Z",
-   "deleted": null
+   "deleted": null,
+   "locationText": ""
   },
   {
    "id": "demo-notfunk-message-4-example",
@@ -281,7 +314,22 @@
     "placeLoc": null
    },
    "readBack": false,
-   "location": null,
+   "location": {
+    "type": "street",
+    "label": "Volksgarten",
+    "street": "Volksgarten",
+    "houseNumber": "",
+    "postcode": "1010",
+    "district": 1,
+    "lat": 48.20808,
+    "lon": 16.36172,
+    "maidenhead": "JN88ee",
+    "source": "vienna-ogd",
+    "confidence": "high",
+    "manual": false,
+    "input": "Volksgarten",
+    "origin": "search"
+   },
    "replyTo": null,
    "refKind": null,
    "refNumber": "",
@@ -300,7 +348,8 @@
    "attempts": [],
    "created": "2026-07-18T08:12:00.000Z",
    "updated": "2026-07-18T08:12:00.000Z",
-   "deleted": null
+   "deleted": null,
+   "locationText": ""
   },
   {
    "id": "demo-notfunk-message-5-example",
@@ -378,7 +427,8 @@
    "attempts": [],
    "created": "2026-07-18T08:16:00.000Z",
    "updated": "2026-07-18T08:17:00.000Z",
-   "deleted": null
+   "deleted": null,
+   "locationText": ""
   },
   {
    "id": "demo-notfunk-message-6-example",
@@ -456,7 +506,8 @@
    "attempts": [],
    "created": "2026-07-18T08:20:00.000Z",
    "updated": "2026-07-18T08:21:00.000Z",
-   "deleted": null
+   "deleted": null,
+   "locationText": "Lagerzelt (fiktiv)"
   }
  ],
  "revisions": [],

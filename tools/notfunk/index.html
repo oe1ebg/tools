@@ -158,7 +158,6 @@
       <button type="button" id="btn-back">← Einsätze</button>
       <h2 id="book-title">Meldebuch</h2>
       <span class="spacer"></span>
-      <button type="button" id="btn-map" aria-pressed="false" aria-controls="map-panel" title="Karte der Meldungen mit Ort (offline; zeigt die Auswahl des Meldebuchs)">Karte</button>
       <button type="button" id="btn-csv" title="Geschäftsbuch-Spalten (SKKM / ÖBFV E-31) für Excel">Geschäftsbuch (CSV)</button>
       <button type="button" id="btn-backup" title="Vollständige Sicherung dieses Einsatzes, auch gelöschte Meldungen und Fassungen">Sichern (JSON)</button>
       <button type="button" id="btn-print-book" aria-expanded="false" aria-controls="print-range">Drucken / PDF…</button>
@@ -346,6 +345,9 @@
       </div>
       <span class="spacer"></span>
       <input id="book-search" type="search" placeholder="Suche: Nummer, Referenz, Betreff, Station …" aria-label="Meldungen durchsuchen">
+      <!-- the map opens right below, above the list; it shows the list's
+           selection (filter, search). The form stays on top. -->
+      <button type="button" id="btn-map" aria-pressed="false" aria-controls="map-panel" title="Karte der Meldungen mit Ort (offline; zeigt die Auswahl des Meldebuchs)">Karte</button>
     </div>
 
     <section id="map-panel" class="no-print" hidden>

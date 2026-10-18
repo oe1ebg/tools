@@ -49,11 +49,11 @@ function drawPins(ctx) {
     const icon = L.divIcon({
       className: `map-pin${weak ? ' weak' : ''}`,
       html: n > 1 ? `<span>${n}</span>` : '',
-      iconSize: [18, 18],
-      iconAnchor: [9, 9],
+      iconSize: [22, 22], // forms.css .map-pin
+      iconAnchor: [11, 11],
     });
     const m = L.marker([s.loc.lat, s.loc.lon], { icon, title: s.call, keyboard: true, riseOnHover: true });
-    if (canHover()) m.bindTooltip(() => stationTip(s, ctx), { sticky: true, direction: 'top', className: 'pin-tip', offset: [0, -8] });
+    if (canHover()) m.bindTooltip(() => stationTip(s, ctx), { sticky: true, direction: 'top', className: 'pin-tip', offset: [0, -10] });
     m.bindPopup(() => stationTip(s, ctx, true), { className: 'pin-tip', maxWidth: 280, autoPanPadding: [24, 24] });
     m.on('click', () => ctx.onPick(s.call));
     m.addTo(pinGroup);

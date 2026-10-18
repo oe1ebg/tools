@@ -686,6 +686,11 @@ test('map: messages with an Ort as pins, priority colour, link to the message, f
   await expect(page.locator('#map .map-pin')).toHaveCount(2);
   await expect(page.locator('#map .map-pin.prio-priority')).toHaveCount(1);
   await expect(page.locator('#map-unplaced')).toContainText('1 ohne Ort');
+  // the form on top; the button right above the map it opens
+  const [form, b, panel] = await Promise.all(['#msg-form', '#btn-map', '#map-panel'].map(s => page.locator(s).boundingBox()));
+  expect(form.y + form.height).toBeLessThanOrEqual(b.y);
+  expect(panel.y).toBeGreaterThanOrEqual(b.y + b.height);
+  expect(panel.y - (b.y + b.height)).toBeLessThan(80);
 
   // the filter and the search narrow the map too
   await page.locator('#book-search').fill('Donauinsel');
