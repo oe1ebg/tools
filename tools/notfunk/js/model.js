@@ -272,6 +272,12 @@ export function zoneHint(iso) {
   return ZONE_NAME_FMT.formatToParts(new Date(iso)).find(p => p.type === 'timeZoneName')?.value || '';
 }
 
+// Vienna's zone name at that moment, "MESZ" or "MEZ" (never the browser's).
+export function viennaZoneName(iso) {
+  if (!iso || isNaN(new Date(iso))) return '';
+  return ZONE_NAME_FMT.formatToParts(new Date(iso)).find(p => p.type === 'timeZoneName')?.value || '';
+}
+
 // "2026-10-05" (ISO 8601) and "14:07" (in the repeated hour "02:30 MESZ").
 export function viennaDate(iso) {
   return wallClock(iso, ZONE).date;
@@ -288,6 +294,12 @@ export function viennaTime(iso) {
 export function fmtVienna(iso) {
   const d = viennaDate(iso);
   return d ? `${d} ${viennaTime(iso)}` : '';
+}
+
+// "2026-10-05 14:07 MESZ": date, time and Vienna's zone, always (tooltips).
+export function viennaStamp(iso) {
+  const d = viennaDate(iso);
+  return d ? `${d} ${wallClock(iso, ZONE).time.slice(0, 5)} ${viennaZoneName(iso)}`.trim() : '';
 }
 
 // "2026-10-05T14:07:00+02:00": ISO 8601 with the offset, for the CSV.

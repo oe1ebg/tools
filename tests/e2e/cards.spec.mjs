@@ -108,6 +108,57 @@ test('Confirm on a wide screen: the column names stay in view while scrolling', 
   expect(th.height).toBeLessThan(40);
 });
 
+test('Notfunk on a wide screen: the column names stay in view while scrolling', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name.startsWith('mobile'), 'cards on phones');
+  await page.setViewportSize({ width: 1200, height: 600 });
+  await ready(page, 'notfunk', 'NOTFUNK_READY');
+  await page.locator('#import-file').setInputFiles(`${EXAMPLES}notfunk-full.json`);
+  await expect(page.locator('#import-msg')).toContainText('30 Meldungen neu');
+  await page.getByRole('button', { name: /„DEMO \/ ÜBUNG · Modellpark Lindenhain“ öffnen/ }).click();
+  await expect(page.locator('#book-body tr[data-id]')).toHaveCount(30);
+  await page.locator('#book-body tr[data-id]').last().scrollIntoViewIfNeeded();
+  const hdr = await page.locator('#site-header').boundingBox();
+  await expect.poll(async () => Math.abs((await page.locator('table.book thead th').first().boundingBox()).y - (hdr.y + hdr.height))).toBeLessThan(2);
+  const th = await page.locator('table.book thead th').first().boundingBox();
+  expect(th.height).toBeLessThan(40);
+  // the zone of the Zeit column is explained
+  await expect(page.locator('table.book thead th', { hasText: 'Zeit' })).toHaveAttribute('title', /Ortszeit Wien \(MESZ\/MEZ\)/);
+  // the table fits at 1200 px and above (clipped, no columns lost); below, it scrolls
+  for (const width of [1200, 1280]) {
+    await page.setViewportSize({ width, height: 600 });
+    expect(await page.evaluate(() => {
+      const w = document.querySelector('#view-book .table-wrap');
+      return w.scrollWidth <= w.clientWidth && document.documentElement.scrollWidth <= innerWidth;
+    })).toBe(true);
+  }
+  for (const width of [700, 1100]) {
+    await page.setViewportSize({ width, height: 600 });
+    expect(await page.locator('#view-book .table-wrap').evaluate(w => getComputedStyle(w).overflowX)).toBe('auto');
+  }
+  await expect(page.locator('table.book thead th').last()).toBeAttached();
+});
+
+test('Notfunk on a phone: Save stays above an open suggestion list', async ({ page }, testInfo) => {
+  test.skip(!testInfo.project.name.startsWith('mobile'), 'touch screens only');
+  await ready(page, 'notfunk', 'NOTFUNK_READY');
+  await page.locator('#import-file').setInputFiles(`${EXAMPLES}notfunk-full.json`);
+  await expect(page.locator('#import-msg')).toContainText('30 Meldungen neu');
+  await page.getByRole('button', { name: /„DEMO \/ ÜBUNG · Modellpark Lindenhain“ öffnen/ }).click();
+  await expect(page.locator('#book-body tr[data-id]')).toHaveCount(30);
+  const peer = page.locator('#m-peer');
+  await peer.scrollIntoViewIfNeeded();
+  await peer.fill('OE1');
+  const pop = page.locator('#m-peer-pop');
+  await expect(pop).toBeVisible();
+  // the field low in the viewport: the list reaches under the sticky Save row
+  await peer.evaluate(e => { const r = e.getBoundingClientRect(); window.scrollBy(0, r.bottom - innerHeight + 40); });
+  const save = page.locator('#btn-save');
+  const sb = await save.boundingBox();
+  const pb = await pop.boundingBox();
+  expect(pb.y < sb.y + sb.height && pb.y + pb.height > sb.y).toBe(true); // they overlap
+  expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('#btn-save') !== null, { x: sb.x + sb.width / 2, y: sb.y + sb.height / 2 })).toBe(true);
+});
+
 test('on a wide screen both stay ordinary tables', async ({ page }) => {
   await page.setViewportSize({ width: 1200, height: 800 });
   await ready(page, 'notfunk', 'NOTFUNK_READY');

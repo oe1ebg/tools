@@ -312,7 +312,7 @@
         <label class="field"><span>Anmerkungen / weitere Veranlassung</span><input id="m-remarks" enterkeyhint="done"></label>
       </details>
 
-      <div class="form-actions">
+      <div class="form-actions over-suggestions">
         <span class="hint kbd-hint"><kbd>⇧</kbd>+<kbd>Enter</kbd> oder <kbd>Strg</kbd>+<kbd>Enter</kbd> speichert</span>
         <span class="spacer"></span>
         <button type="button" id="btn-discard" aria-keyshortcuts="Escape">Verwerfen</button>
@@ -356,10 +356,10 @@
     </section>
 
     <div id="book-status" class="log-status" role="status" aria-live="polite"></div>
-    <div class="table-wrap">
-      <table class="book">
+    <div class="table-wrap sticky-head">
+      <table class="book row-marks">
         <caption class="sr-only">Meldungen</caption>
-        <thead><tr><th scope="col">Nr.</th><th scope="col">Zeit</th><th scope="col">Ein/Aus</th><th scope="col">Von → An</th><th scope="col">Betreff · Inhalt</th><th scope="col">Art · Dringlichkeit</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Aktion</span></th></tr></thead>
+        <thead><tr><th scope="col">Nr.</th><th scope="col" title="Ortszeit Wien (MESZ/MEZ)">Zeit</th><th scope="col" title="Eingang oder Ausgang">Ein/Aus</th><th scope="col" title="Absender → Empfänger">Von → An</th><th scope="col">Betreff · Inhalt</th><th scope="col">Art · Dringlichkeit</th><th scope="col" title="Stand der Meldung und Zeit der letzten Statusänderung (Ortszeit Wien)">Status</th><th scope="col"><span class="sr-only">Aktion</span></th></tr></thead>
         <tbody id="book-body"></tbody>
       </table>
     </div>
