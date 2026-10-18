@@ -208,7 +208,6 @@ table.log tr.marker.editing td{ border-color:var(--warn); }
 /* the candidates and the search panel: shared forms.css */
 button.mini{ font-size:13.5px; padding:.15em .55em; }
 .map-links{ display:inline-flex; gap:.6em; align-items:center; font-size:13.5px; margin-left:.3em; }
-.pin-tip-body .map-links{ display:flex; margin:.3em 0 0; }
 /* External map links lead nowhere offline: hidden (js/sources.js trackOnline()). */
 :root.offline .online-only{ display:none !important; }
 .rpt-line-row{ display:flex; gap:.4em; align-items:center; }
@@ -259,35 +258,7 @@ footer .src-list > span:not(:empty) ~ span:not(:empty)::before{ content:" · "; 
 footer details.vendor-license{ margin-top:.4em; }
 footer details.vendor-license pre{ white-space:pre-wrap; }
 
-/* ---------- map ---------- */
-#map-panel{ margin-bottom:1em; }
-/* isolation: keep Leaflet's internal z-indices (400-1000) below the sticky header */
-#map{ height:60vh; min-height:320px; border:1px solid var(--line); border-radius:6px; background:var(--bg); position:relative; z-index:0; isolation:isolate; }
-#map-unplaced{ margin-top:.3em; }
-.leaflet-container{ font-family:var(--font-ui); background:var(--bg); }
-.leaflet-control-layers-toggle{ background-image:none !important; } /* never request Leaflet's PNG */
-.leaflet-control-layers-toggle::after{ content:"Ebenen"; display:flex; height:100%; align-items:center; justify-content:center; font-size:12px; color:var(--text); }
-.leaflet-touch .leaflet-control-layers-toggle{ width:64px; }
-.leaflet-control-layers, .leaflet-bar a, .leaflet-control-attribution{ background:var(--bg-raised) !important; color:var(--text) !important; }
-.leaflet-control-attribution{ font-size:10px; }
-.leaflet-tooltip.map-district{ background:none; border:none; box-shadow:none; color:var(--text-dim); font-weight:700; font-size:13px; }
-.leaflet-tooltip.map-grid-label{ background:none; border:none; box-shadow:none; color:var(--accent-text); font-family:var(--font-mono); font-size:10px; opacity:.8; }
-.leaflet-tooltip.map-district::before, .leaflet-tooltip.map-grid-label::before{ display:none; }
-.map-pin{ border-radius:50%; background:var(--accent); border:2px solid var(--bg); box-shadow:0 0 0 1px var(--accent);
-  display:flex !important; align-items:center; justify-content:center; color:#fff; font:700 10px var(--font-ui); }
-.map-pin.weak{ background:var(--bg); border:2px dashed var(--warn); box-shadow:none; color:var(--warn); }
-.map-own{ border-radius:50%; background:var(--warn); border:3px solid var(--bg); box-shadow:0 0 0 3px var(--warn), 0 2px 8px #0006;
-  display:flex !important; align-items:center; justify-content:center; color:#fff; font-size:15px; }
-.leaflet-tooltip.pin-tip, .pin-tip .leaflet-popup-content-wrapper{ background:var(--bg); color:var(--text); border:1px solid var(--accent); }
-.pin-tip-body{ font-size:12px; width:max-content; max-width:260px; white-space:normal; }
-.pin-tip-head{ font-size:13px; }
-.pin-tip-loc{ color:var(--text-dim); }
-.pin-tip-body b{ font-family:var(--font-mono); }
-.pin-tip-body ul{ margin:.25em 0 0; padding:0; list-style:none; }
-.pin-tip-body li + li{ margin-top:.1em; }
-.pin-tip-more{ color:var(--text-dim); }
-.pin-tip-warn{ color:var(--warn); }
-#btn-map.active{ border-color:var(--accent); color:var(--accent-text); }
+/* ---------- map: shared forms.css ---------- */
 .csv-group{ display:inline-flex; }
 .csv-group button{ border-top-right-radius:0; border-bottom-right-radius:0; }
 .csv-group select{ border-top-left-radius:0; border-bottom-left-radius:0; border-left:none; font-family:var(--font-mono); padding:.3em .3em; }

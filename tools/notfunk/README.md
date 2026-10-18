@@ -161,6 +161,13 @@ name, and a distribution list ("Verteiler").
   callsign search); Funkstelle/Ursprungsstation complete from the
   stations heard in this operation and the callsign list, Relais from the ÖVSV list, Ort and Ursprungsort
   from the offline location lookup (which never changes the text).
+  **"Karte"** in the book shows the messages of the book's current list
+  (filter, search) at their Ort on the shared offline map
+  (`../shared/js/basemap.js`, `js/mapview.js`; which messages and where:
+  `js/mapdata.js`, node-tested): one pin per place, coloured by the most
+  pressing priority, a card with links to the messages; the own station
+  ("Standort der Station") as the star. A stored Ort is used as stored; one
+  kept only as text is looked up and shown only on a confident match.
   "📍 Standort" in the header opens the same offline location search as
   in Confirm (`initLocationPanel()`, shared `locationui.js`; the panel's
   settings are the shared location prefs, so they apply in both tools).

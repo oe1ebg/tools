@@ -1,91 +1,23 @@
-// Offline map of the open log: vector outline basemap (tools/shared/data/vienna-map.json,
-// built by scripts/build_map_data.py) drawn by the vendored Leaflet
-// (../shared/vendor/leaflet, a classic script defining globalThis.L), one pin per
-// station, the own position highlighted, log details on hover/tap.
-// No tile layers, no image icons — nothing is ever requested.
+// Offline map of the open log on the shared base map (../../shared/js/basemap.js:
+// Vienna's districts, water, roads, Locator/UTM grids; nothing is ever
+// requested): one pin per station, the own position highlighted, log
+// details on hover/tap.
 
 import { el, fill } from '../../shared/js/dom.js';
-import { loadDataFile } from '../../shared/js/data.js';
-import { stationsForMap, ownPosition, maidenheadGridLines, utmGridLines } from './mapdata.js';
+import { stationsForMap, ownPosition } from './mapdata.js';
 import { mapLinks } from '../../shared/js/sources.js';
+import { createBasemap, loadBasemapData, basemapPalette, basemapCanHover } from '../../shared/js/basemap.js';
 
-const MAP_ATTRIBUTION = 'Bezirke: Stadt Wien (CC BY 4.0) · Straßen, Gewässer: © OpenStreetMap-Mitwirkende (ODbL) · Leaflet';
-const ROAD_WEIGHT = { motorway: 3, trunk: 2.5, primary: 1.8, secondary: 1.1 };
-// Touch screens have no hover: popups only (a tooltip would open as well).
-const canHover = () => globalThis.matchMedia?.('(hover: hover)').matches ?? true;
-const narrow = () => globalThis.matchMedia?.('(max-width: 640px)').matches ?? false;
+const canHover = basemapCanHover;
+const palette = basemapPalette;
 
 let mapInst = null;
 let baseData = null;
 let pinGroup = null;
 let ownGroup = null;
-let baseGroups = null;
 let lastCtx = null;
 let fittedFor = null;
 let lastOwnKey = null;
-
-function cssVar(name, fallback) {
-  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  return v || fallback;
-}
-
-function palette() {
-  return {
-    line: cssVar('--text-dim', '#888'),
-    text: cssVar('--text', '#222'),
-    fill: cssVar('--bg-raised', '#f5f5f5'),
-    bg: cssVar('--bg', '#fff'),
-    accent: cssVar('--accent', '#4560f0'),
-    warn: cssVar('--warn', '#9a6700'),
-    water: '#4a90d9',
-  };
-}
-
-function drawBase() {
-  const L = globalThis.L;
-  const c = palette();
-  baseGroups?.forEach(g => g.remove());
-  const districts = L.layerGroup();
-  for (const d of baseData.districts) {
-    L.polygon(d.rings, { color: c.line, weight: 1.2, opacity: 0.7, fillColor: c.fill, fillOpacity: 0.35, interactive: false }).addTo(districts);
-    L.tooltip({ permanent: true, direction: 'center', className: 'map-district', interactive: false })
-      .setLatLng(d.label).setContent(`${d.nr}`).addTo(districts);
-  }
-  const water = L.layerGroup();
-  for (const w of baseData.water) {
-    L.polygon(w.rings, { stroke: false, fillColor: c.water, fillOpacity: 0.45, interactive: false }).addTo(water);
-  }
-  const roads = L.layerGroup();
-  for (const r of baseData.roads) {
-    L.polyline(r.p, { color: c.line, weight: ROAD_WEIGHT[r.c] || 1, opacity: 0.45, interactive: false }).addTo(roads);
-  }
-  const grid = L.layerGroup();
-  const g = maidenheadGridLines(baseData.bounds, 6);
-  for (const line of g.lines) L.polyline(line, { color: c.accent, weight: 0.8, opacity: 0.5, dashArray: '4 4', interactive: false }).addTo(grid);
-  for (const lab of g.labels) {
-    L.tooltip({ permanent: true, direction: 'center', className: 'map-grid-label', interactive: false })
-      .setLatLng([lab.lat, lab.lon]).setContent(lab.loc).addTo(grid);
-  }
-  // UTM grid (1 km, 10 km lines stronger and labelled with their square).
-  const utm = L.layerGroup();
-  const u = utmGridLines(baseData.bounds, 1000);
-  for (const line of u.lines) {
-    L.polyline(line.p, { color: c.warn, weight: line.major ? 1.2 : 0.6, opacity: line.major ? 0.7 : 0.4, interactive: false }).addTo(utm);
-  }
-  for (const lab of u.labels) {
-    L.tooltip({ permanent: true, direction: 'center', className: 'map-grid-label', interactive: false })
-      .setLatLng([lab.lat, lab.lon]).setContent(lab.text).addTo(utm);
-  }
-  baseGroups = [districts, water, roads, grid, utm];
-  water.addTo(mapInst);
-  roads.addTo(mapInst);
-  districts.addTo(mapInst);
-  mapInst._layersCtl?.remove();
-  // Expanded on wide screens; collapsed on phones, where the toggle shows the
-  // text "Ebenen" (CSS) instead of Leaflet's PNG icon.
-  mapInst._layersCtl = L.control.layers(null, { Bezirke: districts, Gewässer: water, Straßen: roads, 'Maidenhead-Raster': grid, 'UTM-Raster (1 km)': utm },
-    { collapsed: narrow(), position: 'topright' }).addTo(mapInst);
-}
 
 const TIP_CHECKINS = 3; // newest check-ins listed on a card
 
@@ -188,22 +120,16 @@ export async function openMap(ctx) {
     fill(document.getElementById('map-unplaced'), 'Kartenbibliothek nicht geladen.');
     return;
   }
-  if (!baseData) baseData = await loadDataFile('vienna-map.json');
+  if (!baseData) baseData = await loadBasemapData();
   if (!baseData) {
     fill(document.getElementById('map-unplaced'), 'Kartendaten nicht verfügbar (nicht gebaut?).');
     return;
   }
   if (!mapInst) {
     const L = globalThis.L;
-    mapInst = L.map('map', { zoomSnap: 0.25, minZoom: 9, maxZoom: 18, attributionControl: true, maxBounds: L.latLngBounds(baseData.bounds).pad(0.6) });
-    mapInst.attributionControl.setPrefix(false);
-    mapInst.attributionControl.addAttribution(MAP_ATTRIBUTION);
-    drawBase();
+    mapInst = createBasemap('map', baseData, () => { if (lastCtx) render(lastCtx, false); });
     pinGroup = L.layerGroup().addTo(mapInst);
     ownGroup = L.layerGroup().addTo(mapInst);
-    // Re-colour the basemap when the light/dark theme changes.
-    new MutationObserver(() => { drawBase(); if (lastCtx) render(lastCtx, false); })
-      .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
   }
   mapInst.invalidateSize();
   await render(ctx, true);
