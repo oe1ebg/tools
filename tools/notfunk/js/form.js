@@ -221,6 +221,7 @@ export function formToFields(form, { now, byNumber = new Map(), editing = false,
     origin: { station: form.origStation, place: form.origPlace, filed, placeLoc: isBlankText(form.origPlace) ? null : form.origPlaceLoc || null },
     readBack: form.readBack,
     location: form.location || null,
+    locationText: form.locationText,
     replyTo: refMsg ? refMsg.id : refNumber ? null : form.replyTo || null,
     refKind: refNumber || form.replyTo ? form.refKind : null,
     refNumber: refMsg ? refMsg.number : refNumber,
@@ -261,7 +262,8 @@ export function messageToForm(msg) {
     origPlaceLoc: msg.origin?.placeLoc || null,
     origFiled: clockText(msg.origin?.filed), origFiledTs: msg.origin?.filed || null, replyTo: msg.replyTo || null,
     refKind: msg.refKind || 'antwort', ref: msg.refNumber || '',
-    location: msg.location || null, locationText: msg.location?.input || msg.location?.label || '',
+    location: msg.location || null,
+    locationText: msg.location ? msg.location.input || msg.location.label || '' : msg.locationText || '',
   };
 }
 

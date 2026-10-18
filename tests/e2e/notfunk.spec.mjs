@@ -704,3 +704,28 @@ test('map: messages with an Ort as pins, priority colour, link to the message, f
   await expect(page.locator('#map-panel')).toBeHidden();
   await expect(btn).toHaveAttribute('aria-pressed', 'false');
 });
+
+// An Ort that the lookup doesn't know is saved as text, as the field says
+// ("nicht zugeordnet – wird als Text gespeichert"): in the message, the
+// edit form, the CSV and the map's list of places not on the map.
+test('Ort: an unresolved place is kept as text', async ({ page }) => {
+  await openNewOp(page, 'E2E Ort als Text', 't1');
+  await page.locator('#m-from').fill('FF Floridsdorf');
+  await page.locator('#m-peer').fill('OE1ABC');
+  await page.locator('#m-subject').fill('Sammelplatz');
+  await page.locator('#m-loc').fill('Hinterhof beim Zirkuszelt');
+  await expect(page.locator('#m-loc-info')).toContainText('nicht zugeordnet', { timeout: 30_000 });
+  await page.locator('#m-text').fill('Sammelplatz, wörtlich.');
+  await page.locator('#m-readback').check();
+  await page.locator('#btn-save').click();
+  await expect(page.locator('#book-body')).toContainText('Sammelplatz');
+
+  await page.getByRole('button', { name: 'Karte' }).click();
+  await expect(page.locator('#map-unplaced')).toContainText('1 Meldung mit nicht zugeordnetem Ort: T1-001');
+  await page.getByRole('button', { name: 'Karte' }).click();
+
+  await page.locator('#book-body tr[data-id]').first().click();
+  await expect(page.locator('#view-msg')).toContainText('Hinterhof beim Zirkuszelt (nicht zugeordnet)');
+  await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
+  await expect(page.locator('#m-loc')).toHaveValue('Hinterhof beim Zirkuszelt');
+});

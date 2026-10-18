@@ -25,6 +25,23 @@ const filled = {
   text: 'Aggregat seit 14:45 aus.\n40 Personen vor Ort.', priority: 'emergency', type: 'anforderung',
 };
 
+test('Ort: an unresolved Ort is kept as text; a resolved one keeps its snapshot, no extra text', () => {
+  const base = { ...emptyForm(OP), from: 'FF', to: 'Stab', subject: 'Lage', text: 'Lage.' };
+  const text = save({ ...base, location: null, locationText: '  Hinterhof beim Gemeindebau  ' }, 1);
+  assert.equal(text.location, null);
+  assert.equal(text.locationText, 'Hinterhof beim Gemeindebau');
+  assert.equal(messageToForm(text).locationText, 'Hinterhof beim Gemeindebau');
+  assert.equal(formSheet(text, OP, { now: NOW }).location, 'Hinterhof beim Gemeindebau', 'printed');
+  const loc = { type: 'place', label: 'Donauturm', lat: 48.24, lon: 16.41, input: 'Donauturm', confidence: 'exact', maidenhead: 'JN88EF' };
+  const resolved = save({ ...base, location: loc, locationText: 'Donauturm' }, 2);
+  assert.deepEqual(resolved.location, loc);
+  assert.equal(resolved.locationText, '', 'the text is in the snapshot');
+  assert.equal(messageToForm(resolved).locationText, 'Donauturm');
+  // a message from before (no locationText) reads as before
+  const { locationText: _t, ...old } = resolved;
+  assert.equal(messageToForm(old).locationText, 'Donauturm');
+});
+
 test('empty form: operation defaults, own post receives', () => {
   const f = emptyForm(OP);
   assert.equal(f.direction, 'in');

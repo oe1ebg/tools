@@ -97,6 +97,9 @@ export function messageFields(f) {
     },
     readBack: !!f.readBack,
     location: f.location || null,
+    // the Ort as typed when it isn't resolved (kept as text); with a
+    // resolved Ort the text is in location.input/label
+    locationText: f.location ? '' : trimmed(f.locationText),
     replyTo: f.replyTo || null,
     refKind: f.refKind in REF_KINDS ? f.refKind : (f.replyTo || trimmed(f.refNumber) ? 'antwort' : null),
     refNumber: trimmed(f.refNumber).toUpperCase(),

@@ -130,6 +130,9 @@ test('Geschäftsbuch CSV', () => {
   assert.match(lines.slice(2).join('\n'), /^W1-021;;.*;Ausgang;LI Floridsdorf \/ OE1ABC;"Re; Strom";/m);
   assert.match(lines.slice(2).join('\n'), /;zur Übertragung;;;;Antwort auf W1-020;;OE1XYZ;OE1XKS;2026-10-05 14:07;$/m);
   assert.ok(!csv.includes('W1-022'), 'deleted messages are not in the Geschäftsbuch');
+  // an Ort kept as text goes into the Ort column
+  const t = toGeschaeftsbuchCSV([msg({ locationText: 'Hinterhof beim Gemeindebau' }, 23)]).slice(1).trimEnd().split('\r\n');
+  assert.equal(t[1].split(';')[GB_COLUMNS.indexOf('Ort')], 'Hinterhof beim Gemeindebau');
 });
 
 test('backup round trip and merge: no lost edits, counters never go down', () => {
