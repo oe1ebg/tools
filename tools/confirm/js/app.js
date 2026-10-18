@@ -33,6 +33,7 @@ import { sourceItem, trackOnline, repoLink } from '../../shared/js/sources.js';
 import { initOffline, setChip } from '../../shared/js/offline.js';
 import { createLineRepeater } from './linerepeater.js';
 import { paperPdf } from './paperpdf.js';
+import { logPdf } from './logpdf.js';
 import { pdfOpen } from '../../shared/js/pdf.js';
 import { createRowCache, syncRows, resetRows } from '../../shared/js/rowcache.js';
 import { trackSiteHeaderHeight } from '../../shared/js/stickyhead.js';
@@ -1870,8 +1871,8 @@ function renderLog(highlightCall) {
   maybeRefreshMap();
   const tpl = templateFor(state.event.template);
   const nums = checkinNumbers(state.entries);
-  // newest first on screen, oldest first on paper (printOrder)
-  const live = printOrder ? liveSorted(state.entries) : liveSorted(state.entries).reverse();
+  // newest first on screen (the printed PDF has the oldest first)
+  const live = liveSorted(state.entries).reverse();
   const st = stats(state.entries);
   $('#st-unique').textContent = st.unique;
   $('#st-total').textContent = st.total;
@@ -1921,30 +1922,6 @@ function renderLog(highlightCall) {
   }
   highlightMatches(call); // also clears `match` on reused rows of the previous call
   markEditing();
-}
-
-// Printing the log (the button or the browser's own print): the rows in
-// the order they were logged. The screen order comes back with the next
-// click or key after printing: a print preview renders again when its
-// settings change, also after "afterprint".
-let printOrder = false;
-function logPrintOrder() {
-  window.addEventListener('beforeprint', () => {
-    if (printOrder || !state.event) return;
-    printOrder = true;
-    renderLog();
-  });
-  window.addEventListener('afterprint', () => {
-    if (!printOrder) return;
-    const back = () => {
-      document.removeEventListener('pointerdown', back, true);
-      document.removeEventListener('keydown', back, true);
-      printOrder = false;
-      renderLog();
-    };
-    document.addEventListener('pointerdown', back, true);
-    document.addEventListener('keydown', back, true);
-  });
 }
 
 // The rows of the log (see renderLog): by callsign, and the ones marked now.
@@ -2452,15 +2429,14 @@ async function doExport(kind, force = false) {
   }
 }
 
-// The whole log on paper: the page itself, with a line saying what it is
-// (date, template, when printed; the Betrieb line is above the log).
+// The whole log on paper: a PDF (logpdf.js) of every line, oldest first,
+// with the Betrieb and the range on every page; opened in a new tab to
+// print at its own size, downloaded where the tab is blocked. Times as on
+// the screen (UTC or local).
 function printLog() {
   const ev = state.event;
-  const live = liveSorted(state.entries);
-  const zone = timeMode() === 'utc' ? 'UTC' : zoneAbbr(nowIso());
-  const day = live.length ? splitTime(live[0].ts, timeMode()).date : splitTime(ev.created, timeMode()).date;
-  fill($('#print-meta'), `${day} · ${templateFor(ev.template).label} · Zeiten in ${zone} · gedruckt ${splitTime(nowIso(), timeMode()).date} ${splitTime(nowIso(), timeMode()).time}`);
-  window.print();
+  pdfOpen(logPdf(ev, state.entries, { mode: timeMode(), now: nowIso(), callbook: callbookName, utmDigits: logUtmDigits() }),
+    `${fileBase(ev)}_Log.pdf`);
 }
 
 // An empty form in a template's columns, to print in advance: nothing
@@ -2561,7 +2537,6 @@ function wire() {
   // Log header: Enter in the last field goes on to the callsign.
   headerKeys($('#log-header'), focusEntryStart);
   headerEscape($('#log-header'));
-  logPrintOrder();
   $('#btn-hdr-undo').addEventListener('click', undoHeader);
   $('#hdr-panel').addEventListener('toggle', () => { if ($('#hdr-panel').open) takeHeaderUndo(); });
   tableRoles($('table.log')); // cards on phones (style.css)

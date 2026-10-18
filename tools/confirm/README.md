@@ -265,8 +265,8 @@ now redirected; see "Move to /tools/" in `../shared/README.md`), and the source 
 An operator comment is a line in the log that is not a contact: "Wechsel
 auf 145.500", "OE1XYZ übernimmt von OE1ABC", "Netz pausiert", "Relais
 ausgefallen, weiter simplex". It is shown as a full-width banner between
-the check-ins (blue band with a category tag; black frame on paper, so it
-also shows in print).
+the check-ins (blue band with a category tag; in the printed PDF a tinted row with
+a dark bar and the category in capitals, so it also shows in black and white).
 
 - **Data model.** Comments live in the existing `entries` store, so there
   was **no schema change** (still v2): `{ id, eventId, kind: 'comment', ts,
@@ -411,6 +411,20 @@ also shows in print).
   comments and the "Operators:" line are described above.
 - **No comments in ADIF or KML.** See the table in
   [Operator comments](#operator-comments-and-log-markers-issue-32).
+- **Drucken (PDF).** The whole log as an A4 landscape PDF, not the browser's
+  print view: `js/logpdf.js` (`logPdf(event, entries, { mode, now, callbook,
+  utmDigits })`) writes it with the shared `../shared/js/pdf.js`, opened in a
+  new tab (downloaded where blocked) as `<date>_<slug>_Log.pdf`. Every live
+  line, oldest first (deleted ones left out), in the columns of the screen
+  log (`logColumns()`: Nr, Zeit, Rufzeichen, the template's columns, Relais,
+  Notiz). Every page repeats the header: title, all labelled fields of the
+  Betrieb, range (first to last line), time zone (UTC or local, as the screen),
+  template and print time; the footer has "Seite x von y". Notes are wrapped in
+  full, a row that does not fit continues on the next page. Comment/marker
+  lines are tinted full-width rows with a bar; a Relais differing from the
+  Betrieb is framed dashed and labelled; siren grades are numbers in boxes
+  (tinted, the digit carries the information). Tests:
+  `tests/confirm-logpdf.test.mjs`.
 - **Leerformular (PDF).** An empty sheet in a template's columns, printed
   in advance for a net without a device (or when one fails): one A4
   landscape page with 15 lines, nothing filled in. `js/paperpdf.js` lays out

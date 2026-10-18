@@ -435,21 +435,10 @@ footer details.vendor-license pre{ white-space:pre-wrap; }
   table.log tbody tr.row-editing > td:first-child{ box-shadow:none; }
   table.log tr.marker{ padding:0; border-bottom:none; }
 }
-/* the log on paper: landscape by default (the columns side by side; the
-   print dialog can still switch) */
-@page{ size:A4 landscape; margin:8mm; }
-@media screen{ .print-only{ display:none !important; } }
-@media print{
-  .print-only{ display:block; }
-  #print-meta{ font-size:9pt; margin:0 0 1mm; }
-}
-
+/* the log's own printout is a PDF (Drucken, logpdf.js); the browser's print
+   of the page just leaves out the controls */
 @media print{
   #site-header, .toolbar button, #entry-form, details.hdr > summary::before, .no-print, footer, table.log td.act, table.log th.act, .marker-row .act{ display:none !important; }
-  /* markers stay visible on paper without background colours */
-  table.log tr.marker td{ background:none; border-top:1pt solid #000; border-bottom:1pt solid #000; break-inside:avoid; }
-  .marker-cat{ color:#000; border-color:#000; }
-  .marker-op{ color:#000; }
   details.hdr .body{ display:none; }
   body{ background:#fff; color:#000; font-size:11px; }
   .table-wrap{ border:none; }

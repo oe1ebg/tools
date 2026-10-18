@@ -391,6 +391,45 @@ test('the empty form (Leerformular) opens a one-page PDF', async ({ page }) => {
   expect(doc.text).toContain('/Count 1');
 });
 
+// "Drucken": the log as a PDF (tests/confirm-logpdf.test.mjs has the content
+// in detail), oldest line first, opened in a new tab; the page itself is
+// not printed and the screen keeps its order (newest first).
+test('Drucken opens the log as a PDF, oldest first', async ({ page }) => {
+  await openNewLog(page, 'E2E Druck');
+  await page.evaluate(() => {
+    window.__opened = [];
+    window.__blobs = new Map();
+    window.__printed = 0;
+    window.print = () => { window.__printed++; };
+    const make = URL.createObjectURL;
+    URL.createObjectURL = blob => { const url = make(blob); window.__blobs.set(url, blob); return url; };
+    window.open = url => { window.__opened.push(url); return {}; };
+  });
+  await logCall(page, 'OE1AAA');
+  await logCall(page, 'OE3BBB');
+  await logCall(page, 'OE5CCC');
+  await page.getByRole('button', { name: /Nr\. 2 OE3BBB löschen/ }).click();
+  await expect(page.locator('#log-body tr[data-id]')).toHaveCount(2);
+  await page.locator('#btn-export-menu').click();
+  await page.locator('#export-list [data-export="print"]').click();
+  await expect.poll(() => page.evaluate(() => window.__opened.length)).toBe(1);
+  const doc = await page.evaluate(async () => {
+    const blob = window.__blobs.get(window.__opened.at(-1));
+    return { type: blob.type, text: await blob.text() };
+  });
+  expect(doc.type).toBe('application/pdf');
+  expect(doc.text.startsWith('%PDF-1.4')).toBe(true);
+  expect(doc.text).toContain('/Count 1');
+  // the drawn texts (hex, WinAnsi) in order: oldest first, the deleted line left out
+  const texts = [...doc.text.matchAll(/<([0-9a-f]+)> Tj/g)].map(m => m[1].match(/../g).map(h => String.fromCharCode(parseInt(h, 16))).join('').trim());
+  expect(texts).toContain('E2E Druck');
+  expect(texts).toContain('Seite 1 von 1');
+  expect(texts.filter(t => /^OE\d[A-Z]{3}$/.test(t))).toEqual(['OE1AAA', 'OE5CCC']);
+  expect(await page.evaluate(() => window.__printed)).toBe(0); // not the browser's print
+  // the screen: newest first, as before
+  await expect(page.locator('#log-body tr[data-id]').first()).toContainText('OE5CCC');
+});
+
 test('a re-render after a highlight set from outside the field leaves no stale match', async ({ page }) => {
   await openNewLog(page, 'E2E Match');
   await logCall(page, 'OE1ABC');
