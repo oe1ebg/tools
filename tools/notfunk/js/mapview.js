@@ -48,6 +48,7 @@ function nfDrawPins(ctx) {
   const L = globalThis.L;
   const { placed, unplaced, noPlace } = messagesForMap(ctx.msgs, nfResolved);
   nfPins.clearLayers();
+  nfMarkerOf.clear();
   const pts = [];
   for (const group of groupByPlace(placed)) {
     const n = group.items.length;
@@ -62,6 +63,7 @@ function nfDrawPins(ctx) {
     if (basemapCanHover()) m.bindTooltip(() => nfCard(group, ctx, false), { sticky: true, direction: 'top', className: 'pin-tip', offset: [0, -10] });
     m.bindPopup(() => nfCard(group, ctx, true), { className: 'pin-tip', maxWidth: 300, autoPanPadding: [24, 24] });
     m.addTo(nfPins);
+    for (const i of group.items) nfMarkerOf.set(i.msg.id, m);
     pts.push([group.loc.lat, group.loc.lon]);
   }
   const notes = [];
@@ -90,7 +92,10 @@ async function nfDrawOwn(ctx) {
   return [own.lat, own.lon];
 }
 
-async function nfRender(ctx, refit) {
+// message id -> its pin (for opening the map at one message)
+const nfMarkerOf = new Map();
+
+async function nfRender(ctx, refit, focusId = null) {
   nfLastCtx = ctx;
   // texts of an Ort without a stored place: looked up once each
   for (const text of placeTextsToResolve(ctx.msgs, nfResolved)) nfResolved.set(text, await ctx.resolve(text));
@@ -104,6 +109,13 @@ async function nfRender(ctx, refit) {
     else if (pts.length === 1) nfMap.setView(pts[0], 14);
     else nfMap.fitBounds(nfBase.bounds);
   }
+  // opened from one message ("Auf der Karte"): centred on its pin, the
+  // pin's card open
+  const focus = focusId && nfMarkerOf.get(focusId);
+  if (focus) {
+    nfMap.setView(focus.getLatLng(), Math.max(nfMap.getZoom(), 15));
+    focus.openPopup();
+  }
 }
 
 export function notfunkMapVisible() {
@@ -114,7 +126,8 @@ export function notfunkMapVisible() {
 // ctx: { opId, msgs (the book's current list), station (text), call,
 // describe(msg) -> { time, dir, subject, status }, hrefOf(msg),
 // resolve(text) -> location | null (confident only) }
-export async function notfunkOpenMap(ctx) {
+// focusId: a message to centre the map on (its card open).
+export async function notfunkOpenMap(ctx, focusId = null) {
   const panel = document.getElementById('map-panel');
   panel.hidden = false;
   if (!globalThis.L) {
@@ -133,7 +146,7 @@ export async function notfunkOpenMap(ctx) {
     nfOwn = L.layerGroup().addTo(nfMap);
   }
   nfMap.invalidateSize();
-  await nfRender(ctx, true);
+  await nfRender(ctx, true, focusId);
 }
 
 export function notfunkCloseMap() {

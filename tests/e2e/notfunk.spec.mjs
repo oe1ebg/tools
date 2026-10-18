@@ -952,3 +952,17 @@ test('book times: title with date and zone, date shown on another day', async ({
   await expect(rows.nth(1).locator('td.num .when .date')).toHaveText('2026-07-18');
   await expect(rows.nth(1).locator('td.num .when')).toContainText(/2026-07-18\s+\d\d:\d\d/);
 });
+
+// "Auf der Karte" at a message's Ort: the book's map, centred on that
+// message, its card open (also when the filter hides it).
+test('message detail: "Auf der Karte" opens the book map at the message', async ({ page }) => {
+  await page.goto('tools/notfunk/');
+  await expect.poll(() => page.evaluate(() => globalThis.NOTFUNK_READY === true)).toBe(true);
+  await page.locator('#import-file').setInputFiles(new URL('../../examples/backups/notfunk-full.json', import.meta.url).pathname);
+  await page.locator('.op-card.clickable').first().click();
+  await page.locator('#book-body td.num > a', { hasText: /^D1-001$/ }).click();
+  await page.getByRole('link', { name: 'Auf der Karte' }).click();
+  await expect(page.locator('#map-panel')).toBeVisible();
+  await expect(page.locator('#btn-map')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.leaflet-popup')).toContainText('D1-001');
+});
