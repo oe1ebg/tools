@@ -1254,7 +1254,7 @@
    },
    "peer": "OE0QXG",
    "type": "meldung",
-   "priority": "routine",
+   "priority": "emergency",
    "from": {
     "name": "Fenna / Übungsstation",
     "call": "OE0QXG",
@@ -1269,7 +1269,7 @@
     "Übungsleitung"
    ],
    "subject": "ÜBUNG: Transportauftrag",
-   "text": "ÜBUNG – KEIN REALEINSATZ.\nBitte den leeren Bollerwagen von Station Farnwinkel zur Modellbrücke bringen. Keine Personenbeförderung.\nENDE DER ÜBUNGSMELDUNG.",
+   "text": "ÜBUNG – KEIN REALEINSATZ.\nSimulierter Notfall: Eine Übungspuppe liegt beim markierten Punkt am Hauptbahnhof. Bitte Trage und zwei Helfer schicken. Keine echte Person betroffen.\nENDE DER ÜBUNGSMELDUNG.",
    "stichzeit": null,
    "origin": {
     "station": "OE0QXG",

@@ -305,6 +305,11 @@ Suche (Nummer, Referenz, Betreff, Station, Text).
 
 ![Karte der Meldungen](img/notfunk-karte.png)
 
+*Im Bild der Beispiel-Einsatz zum Ausprobieren
+([notfunk-full.json](https://github.com/oe1ebg/tools/blob/main/examples/backups/notfunk-full.json),
+über „Wiederherstellen…“ einspielen): rot ein Notfall, gelb Dringend, blau
+Routine; die Zahl auf einem Punkt sind mehrere Meldungen am selben Ort.*
+
 **Karte.** „Karte“ (neben der Suche, über der Liste) zeigt die Meldungen
 der aktuellen Auswahl (Filter und Suche) direkt über der Liste an ihrem Ort, auf einer Offline-Karte von Wien mit Bezirken,
 Gewässern, Hauptstraßen, Locator- und UTM-Raster (wie im
