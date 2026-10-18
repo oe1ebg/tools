@@ -201,7 +201,16 @@ name, and a distribution list ("Verteiler").
   `just screenshots`).
 - **Book:** newest first, filters (offen, Eingang, Ausgang, Notfall +
   Dringend, search incl. the reference), the next status step as a button,
-  an "Ausdruck" button per row; a summary says how many emergencies are
+  an "Ausdruck" button per row; the column names stay in view below the page
+  header (`.sticky-head`, `trackSiteHeaderHeight()`; the wrapper clips, so
+  from 641 to 1199 px, where the table (about 1060 px at its narrowest) does not fit, it scrolls sideways
+  again and the names scroll with it; below 641 px the rows are cards); the
+  Zeit cell has the full "2026-10-05 14:07 MESZ" as title (Vienna's zone name,
+  whatever the browser's zone) and shows its date when it is not the newest
+  message's day (also the status time); the message in the form has
+  `row-editing` (framed, ✎; `markEditing()` follows `state.editing` on the
+  cached rows); on phones the sticky Save row (`.over-suggestions`) stays above
+  an open suggestion list; a summary says how many emergencies are
   open, how many aren't confirmed, and whether the numbers are gapless. The
   header shows the backup state ("Sicherung gestartet 14:40 · 3 Meldungen
   ungesichert" or "… · nichts ungesichert", neutral, never "ok"-green; a

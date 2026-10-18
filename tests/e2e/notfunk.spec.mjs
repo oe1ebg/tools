@@ -734,3 +734,63 @@ test('Ort: an unresolved place is kept as text', async ({ page }) => {
   await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
   await expect(page.locator('#m-loc')).toHaveValue('Hinterhof beim Zirkuszelt');
 });
+
+// The book row of the message in the form is marked (framed, ✎) and the
+// mark follows the edit: gone after saving or discarding, moved when another
+// message is opened. Rows are cached; no row is rebuilt for it.
+test('the book row being edited is marked and the mark follows the edit', async ({ page }) => {
+  await openNewOp(page, 'E2E Markierung', 'm1');
+  await addMessage(page, 'LI 1', 'Erste');
+  await addMessage(page, 'LI 2', 'Zweite');
+  const row = n => page.locator('#book-body tr', { has: page.locator('td.num', { hasText: n }) });
+  await expect(page.locator('table.book')).toHaveClass(/row-marks/);
+  await expect(page.locator('#book-body tr.row-editing')).toHaveCount(0);
+  const node = await row('M1-001').elementHandle();
+  await page.locator('#book-body a', { hasText: 'M1-001' }).click();
+  await page.getByRole('button', { name: 'Bearbeiten' }).click();
+  await expect(row('M1-001')).toHaveClass(/row-editing/);
+  await expect(page.locator('#book-body tr.row-editing')).toHaveCount(1);
+  expect(await row('M1-001').locator('td').first().evaluate(td => getComputedStyle(td, '::before').content)).toContain('✎');
+  // typing in the form does not rebuild the row
+  await page.locator('#m-subject').fill('Erste, geändert');
+  expect(await node.evaluate((n, el) => n === el, await row('M1-001').elementHandle())).toBe(true);
+  // saving: the mark goes with the form
+  await page.locator('#btn-save').click();
+  await expect(page.locator('#book-body')).toContainText('Erste, geändert');
+  await expect(page.locator('#book-body tr.row-editing')).toHaveCount(0);
+  // another message: the mark moves; discarding removes it
+  await page.locator('#book-body a', { hasText: 'M1-002' }).click();
+  await page.getByRole('button', { name: 'Bearbeiten' }).click();
+  await expect(row('M1-002')).toHaveClass(/row-editing/);
+  await expect(row('M1-001')).not.toHaveClass(/row-editing/);
+  await page.locator('#btn-discard').click();
+  await page.locator('#btn-discard-yes').click();
+  await expect(page.locator('#book-body tr.row-editing')).toHaveCount(0);
+});
+
+// Times: the full date, time and Vienna's zone as the title; the date in the
+// cell when it is not the newest message's day.
+test('book times: title with date and zone, date shown on another day', async ({ page }) => {
+  await page.goto('tools/notfunk/');
+  await expect.poll(() => page.evaluate(() => globalThis.NOTFUNK_READY === true)).toBe(true);
+  await page.locator('#import-file').setInputFiles(new URL('../../examples/backups/notfunk-full.json', import.meta.url).pathname);
+  await expect(page.locator('#import-msg')).toContainText('30 Meldungen neu');
+  await page.getByRole('button', { name: /„DEMO \/ ÜBUNG · Modellpark Lindenhain“ öffnen/ }).click();
+  const rows = page.locator('#book-body tr[data-id]');
+  await expect(rows).toHaveCount(30);
+  const time = rows.first().locator('td').nth(1);
+  await expect(time).toHaveAttribute('title', /^2026-07-18 \d\d:\d\d MESZ$/); // Vienna's summer time, whatever the browser's zone
+  await expect(rows.locator('.date')).toHaveCount(0); // one day: no date in the cells
+  // a message today (another day than the example's July): the older ones show their date
+  await page.locator('#m-from').fill('LI 1');
+  await page.locator('#m-peer').fill('OE1ABC');
+  await page.locator('#m-subject').fill('Heute');
+  await page.locator('#m-text').fill('Heute, wörtlich.');
+  await page.locator('#m-readback').check();
+  await page.locator('#btn-save').click();
+  await expect(page.locator('#book-body')).toContainText('Heute');
+  await expect(rows).toHaveCount(31);
+  await expect(rows.first().locator('td').nth(1).locator('.date')).toHaveCount(0);
+  await expect(rows.nth(1).locator('td').nth(1).locator('.date')).toHaveText('2026-07-18');
+  await expect(rows.nth(1).locator('td').nth(1)).toContainText(/2026-07-18\s+\d\d:\d\d/);
+});

@@ -203,17 +203,30 @@ details.more .hint{ margin:.4em 0 0; }
 .table-wrap{ overflow-x:auto; position:relative; border:1px solid var(--line); border-radius:6px; }
 table.book{ width:100%; border-collapse:collapse; font-size:14.5px; min-width:56em; }
 table.book th, table.book td{ padding:.45em .6em; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
-table.book th{ font-size:12.5px; font-weight:500; text-transform:uppercase; letter-spacing:.05em; color:var(--text-dim); background:var(--bg-raised); }
+/* column names: .sticky-head (the shared stylesheet) */
+table.book th{ font-size:12.5px; text-transform:uppercase; letter-spacing:.05em; }
+/* the wrapper clips (sticky column names), so the table must fit: its
+   narrowest layout is about 1060px wide (the cells' longest unbreakable
+   texts), it fits from a 1200px window up; between the cards (641px) and
+   there the wrapper scrolls sideways again and the names scroll with the
+   table */
+@media (min-width: 641px) and (max-width: 1199px){
+  .table-wrap.sticky-head{ overflow-x:auto; }
+}
+table.book .date{ display:block; font-size:12.5px; color:var(--text-dim); }
 table.book td.num{ font-family:var(--font-mono); font-weight:600; white-space:nowrap; }
 table.book td.num a{ color:var(--accent-text); text-decoration:none; }
 table.book td.parties{ min-width:12em; }
 table.book td.content{ max-width:28em; }
-table.book td.act{ white-space:nowrap; text-align:right; }
-table.book td.act button + button{ margin-left:.3em; }
+table.book td.act{ text-align:right; }
+table.book td.act button{ margin:0 0 .25em .3em; } /* the two buttons wrap below each other when narrow */
 table.book tr.urgent td{ background:var(--err-soft); }
 table.book tbody tr[data-id]{ cursor:pointer; }
 table.book tbody tr[data-id]:hover td{ background:var(--accent-soft); }
 table.book tr.fresh td{ background:var(--accent-soft); }
+@media (min-width: 641px){
+  table.book tbody tr.row-editing[data-id]:hover > td{ background:var(--warn-soft); }
+}
 .sub{ font-size:13.5px; color:var(--text-dim); }
 .clamp{ display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
 .pill{ display:inline-block; font-size:13.5px; font-weight:600; border-radius:999px; padding:0 .6em; border:1px solid transparent; white-space:nowrap; }
@@ -311,6 +324,7 @@ body > footer details.vendor-license pre{ white-space:pre-wrap; }
   footer .sources dl, dl.kv{ grid-template-columns:1fr; }
   /* save stays in reach while typing a long text (the Handy design) */
   .form-actions{ position:sticky; bottom:0; z-index:5; background:var(--bg-raised); padding:.5em 0; border-top:1px solid var(--line); }
+  .form-actions.over-suggestions{ z-index:31; } /* sticky stays, above an open suggestion list */
   .form-actions .kbd-hint{ display:none; }
   #btn-save{ flex:1; font-size:16px; font-weight:600; }
   /* the message book as cards (#108 B1): number, time, direction and the
@@ -334,6 +348,11 @@ body > footer details.vendor-license pre{ white-space:pre-wrap; }
   table.book tr.urgent{ background:var(--err-soft); }
   table.book tr.urgent td{ background:none; }
   table.book tr.fresh, table.book tbody tr[data-id]:hover{ background:var(--accent-soft); }
+  table.book .date{ display:inline; margin-right:.3em; }
+  table.book tr > td:nth-child(7) .date{ display:inline; }
+  table.book tr.row-editing, table.book tbody tr.row-editing[data-id]:hover{ background:var(--warn-soft); box-shadow:inset 4px 0 0 var(--warn), inset 0 0 0 2px var(--warn); }
+  table.book.row-marks tbody tr.row-editing > td{ border:none; background:none; } /* beats the shared .row-marks frame */
+  table.book.row-marks tbody tr.row-editing > td:first-child{ box-shadow:none; }
   /* the card is tinted as a whole, not cell by cell (gaps between them) */
   table.book tr.fresh td, table.book tbody tr[data-id]:hover td{ background:none; }
 }

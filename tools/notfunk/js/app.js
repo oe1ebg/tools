@@ -35,7 +35,7 @@ import { initOffline, setChip } from '../../shared/js/offline.js';
 import {
   DIRECTIONS, CHANNELS, MESSAGE_TYPES, PRIORITIES, REF_KINDS, statusLabel, statusEntry, timeLabel, readBackLabel,
   editMessage, messageFields, softDelete, restoreDeleted, setStatus, addAttempt, currentStatus, filterMessages,
-  repliesTo, fmtVienna, viennaTime, zoneHint, normFreq, fmtFreq,
+  repliesTo, fmtVienna, viennaTime, viennaDate, viennaStamp, zoneHint, normFreq, fmtFreq,
 } from './model.js';
 import { normalizePrefix, PREFIX_RE, nextSeq, formatNumber, counterKey } from './numbering.js';
 import { toGeschaeftsbuchCSV, toBackupTexts, checkBackup, combineBackupParts, BACKUP_MAX_BYTES } from './export.js';
@@ -49,6 +49,7 @@ import { formSheet, blankFormSheet, bookSheet } from './print.js';
 import { renderFormSheet, fittedFormSheet, renderBookSheet, printSheet } from './printview.js';
 import { attachDatePicker, attachTimePicker } from './picker.js';
 import { createRowCache, syncRows, resetRows } from '../../shared/js/rowcache.js';
+import { trackSiteHeaderHeight } from '../../shared/js/stickyhead.js';
 
 const LAST_OP_KEY = 'oe1ebg-notfunk-last-op';
 const PRINT_HINT_KEY = 'oe1ebg-notfunk-print-hint-off';
@@ -732,6 +733,16 @@ function setEditing(msg, savedBase = null) {
   state.editStale = false;
   state.editing = msg;
   state.editBase = msg ? editBaseOf(msg, savedBase) : null;
+  markEditing();
+}
+
+// The book row of the message in the form gets `row-editing` (one at a
+// time); rows are cached, so the class follows the state, not the build.
+let editingRow = null;
+function markEditing() {
+  editingRow?.classList.remove('row-editing');
+  editingRow = (state.editing && bookRows.get(state.editing.id)?.node) || null;
+  editingRow?.classList.add('row-editing');
 }
 
 let draftChain = Promise.resolve();
@@ -1266,13 +1277,21 @@ function renderBook() {
     // message's `updated` token): a new or changed message builds one row,
     // searching/filtering only moves, adds and removes rows.
     if (bookOp !== state.op.id) { resetRows(bookRows); bookOp = state.op.id; }
-    syncRows(body, bookRows, list, { key: m => m.id, sig: m => `${m.updated}|${m.deleted || ''}|${m.status.length}`, build: m => {
+    // Operations run over days: a time shows its date when that is not the
+    // newest message's day (so a day change is visible without hovering).
+    const today = viennaDate(list[0].ts);
+    const dateOf = iso => { const d = viennaDate(iso); return d && d !== today ? d : ''; };
+    syncRows(body, bookRows, list, { key: m => m.id, sig: m => `${m.updated}|${m.deleted || ''}|${m.status.length}|${dateOf(m.ts)}|${dateOf(m.status[m.status.length - 1].at)}`, build: m => {
       const step = nextStep(m);
       const last = m.status[m.status.length - 1];
+      const dated = (iso, text) => {
+        const d = dateOf(iso);
+        return d ? [el('span', { class: 'date' }, d), ' ', text] : text;
+      };
       return rowRoles(el('tr', { 'data-id': m.id, class: m.priority === 'emergency' ? 'urgent' : null },
         el('td', { class: 'num' }, el('a', { href: `#/e/${state.op.id}/m/${m.id}` }, m.number),
           m.staffRef ? el('div', { class: 'sub', title: 'Referenz der Meldesammelstelle' }, `Ref. ${m.staffRef}`) : null),
-        el('td', { class: 'mono' }, viennaTime(m.ts)),
+        el('td', { class: 'mono', title: viennaStamp(m.ts) }, ...[dated(m.ts, viennaTime(m.ts))].flat()),
         el('td', { class: 'nowrap' }, m.direction === 'in' ? '↓ Ein' : '↑ Aus'),
         el('td', { class: 'parties' }, partyText(m.from), el('span', { class: 'dim' }, ' → '), partyText(m.to),
           // below: by radio the Funkstelle and via relay or direct; else the channel
@@ -1281,12 +1300,13 @@ function renderBook() {
             : [CHANNELS[m.channel]]).concat(m.stichzeit ? `Stichzeit ${viennaTime(m.stichzeit)}` : []).filter(Boolean).join(' · '))),
         el('td', { class: 'content' }, el('b', {}, m.subject || ''), el('div', { class: 'sub clamp' }, m.text)),
         el('td', { class: 'nowrap' }, MESSAGE_TYPES[m.type], el('div', {}, prioPill(m))),
-        el('td', { class: 'nowrap' }, statusPill(m), el('div', { class: 'sub mono' }, `${viennaTime(last.at)} ${last.by}`)),
+        el('td', { class: 'nowrap' }, statusPill(m), el('div', { class: 'sub mono', title: viennaStamp(last.at) }, ...[dated(last.at, `${viennaTime(last.at)} ${last.by}`)].flat())),
         el('td', { class: 'act' },
           step ? el('button', { type: 'button', class: 'mini', onclick: () => advance(m, step.state), 'aria-label': `${m.number} ${step.label}` }, step.label) : null,
           el('button', { type: 'button', class: 'mini', onclick: () => printForm(m), 'aria-label': `Ausdruck ${m.number} (Meldeaufnahmeformular)` }, 'Ausdruck'))));
     } });
   }
+  markEditing();
   renderTrash();
 }
 
@@ -1810,6 +1830,7 @@ async function main() {
     offerFallbackMigration(state.store, $('#banner'));
   }
   wire();
+  trackSiteHeaderHeight();
   tableRoles($('table.book')); // cards on phones (style.css)
   $('#btn-map').addEventListener('click', toggleMap);
   initForm();

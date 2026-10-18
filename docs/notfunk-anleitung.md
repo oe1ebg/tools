@@ -325,6 +325,15 @@ als Text gespeichert ist, wird auf der Karte nachgeschlagen und nur bei
 sicherem Treffer gezeigt; unter der Karte steht, welche Meldungen keinen
 zugeordneten Ort haben.
 
+Die Spaltennamen bleiben beim Scrollen unter der Kopfzeile sichtbar und
+sind kurz; mit der Maus darüber steht die Erklärung. Die Zeit ist
+**Ortszeit Wien**; darüber (oder mit dem Finger gehalten) steht Datum, Uhrzeit
+und MESZ/MEZ. Liegt eine Zeit nicht am Tag der neuesten Meldung, steht ihr
+Datum (JJJJ-MM-TT) gleich davor, damit ein Tageswechsel ohne Hinweis
+sichtbar ist. Die Meldung, die gerade im Formular bearbeitet wird („Bearbeiten“),
+ist in der Liste umrahmt und mit ✎ markiert; nach dem Speichern oder Verwerfen
+verschwindet die Markierung.
+
 Am Handy ist jede Meldung eine Karte: oben Nummer, Zeit, Richtung und
 Status, darunter Von → An, Betreff und Inhalt, unten Art und die Knöpfe.
 Seitlich schieben ist nicht nötig.
