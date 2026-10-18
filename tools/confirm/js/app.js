@@ -32,6 +32,7 @@ import { attachCallSearch } from '../../shared/js/callsearch.js';
 import { sourceItem, trackOnline, repoLink } from '../../shared/js/sources.js';
 import { initOffline, setChip } from '../../shared/js/offline.js';
 import { createLineRepeater } from './linerepeater.js';
+import { paperPdf } from './paperpdf.js';
 import { createRowCache, syncRows, resetRows } from '../../shared/js/rowcache.js';
 import { trackSiteHeaderHeight } from '../../shared/js/stickyhead.js';
 import { formatShift, formatMHz } from '../../shared/js/repeaters.js';
@@ -2244,7 +2245,7 @@ function closeMenu(menu, focusButton = false) {
   if (focusButton) m.querySelector(':scope > button').focus();
 }
 
-// A button with a list below it (Exportieren): opens on a
+// A button with a list below it (Exportieren, Leerformular): opens on a
 // click, the first entry focused; Esc, a click or focus elsewhere close it.
 function initMenu(menu) {
   const m = $(menu);
@@ -2266,6 +2267,9 @@ function initMenu(menu) {
 
 function initExportMenu() {
   initMenu('#export-menu');
+  // the empty form from the overview: one entry per template
+  fill($('#paper-list'), TEMPLATES.map(t => el('button', { type: 'button', onclick: () => { closeMenu('#paper-menu'); printPaper(t); } }, t.label)));
+  initMenu('#paper-menu');
 }
 
 function showText(title, text) {
@@ -2419,6 +2423,8 @@ async function doExport(kind, force = false) {
     showText('Zusammenfassung', toSummary(ev, entries, timeMode(), { qth }));
   } else if (kind === 'print') {
     printLog();
+  } else if (kind === 'paper') {
+    printPaper();
   }
 }
 
@@ -2431,6 +2437,22 @@ function printLog() {
   const day = live.length ? splitTime(live[0].ts, timeMode()).date : splitTime(ev.created, timeMode()).date;
   fill($('#print-meta'), `${day} · ${templateFor(ev.template).label} · Zeiten in ${zone} · gedruckt ${splitTime(nowIso(), timeMode()).date} ${splitTime(nowIso(), timeMode()).time}`);
   window.print();
+}
+
+// An empty form in a template's columns, to print in advance: nothing
+// filled in, everything by hand. A PDF (paperpdf.js), opened in a new tab
+// to print at its own size; downloaded where the tab is blocked. From a
+// log: its template; from the overview: the one chosen.
+function printPaper(tpl = templateFor(state.event?.template)) {
+  const url = URL.createObjectURL(new Blob([paperPdf(tpl)], { type: 'application/pdf' }));
+  if (!window.open(url, '_blank')) {
+    const a = el('a', { href: url, download: `Leerformular_${tpl.key}.pdf` });
+    document.body.append(a);
+    a.click();
+    a.remove();
+  }
+  // the tab keeps it while open (a reload there needs the URL a while longer)
+  setTimeout(() => URL.revokeObjectURL(url), 10 * 60000);
 }
 
 async function backupAll() {

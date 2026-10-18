@@ -354,6 +354,43 @@ test('the form switches between check-in and operator comment', async ({ page })
   await expect(page.locator('#f-call')).toBeVisible();
 });
 
+// The empty form to print in advance (Leerformular): a one-page PDF in the
+// log's columns, opened in a new tab; also from the overview, per template.
+// Its content: tests/confirm-paperpdf.test.mjs.
+test('the empty form (Leerformular) opens a one-page PDF', async ({ page }) => {
+  await openNewLog(page, 'E2E Papier');
+  // the PDF is read from its Blob (fetching the blob: URL is not allowed
+  // by the page's CSP, connect-src 'self')
+  await page.evaluate(() => {
+    window.__opened = [];
+    window.__blobs = new Map();
+    const make = URL.createObjectURL;
+    URL.createObjectURL = blob => { const url = make(blob); window.__blobs.set(url, blob); return url; };
+    window.open = url => { window.__opened.push(url); return {}; };
+  });
+  const pdf = async () => page.evaluate(async () => {
+    const blob = window.__blobs.get(window.__opened.at(-1));
+    return { type: blob.type, text: await blob.text() };
+  });
+  await page.locator('#btn-export-menu').click();
+  await page.getByRole('button', { name: 'Leerformular (PDF)' }).click();
+  let doc = await pdf();
+  expect(doc.type).toBe('application/pdf');
+  expect(doc.text.startsWith('%PDF-1.4')).toBe(true);
+  expect(doc.text).toContain('/Count 1');
+  expect(doc.text).not.toContain('E2E Papier'); // empty: not even the log's title
+  // the page itself is not printed
+  expect(await page.evaluate(() => document.documentElement.dataset.print)).toBeUndefined();
+
+  // the overview: one entry per template
+  await page.getByRole('button', { name: '← Logs' }).click();
+  await page.getByRole('button', { name: /^Leerformular/ }).click();
+  await page.getByRole('button', { name: 'Zivilschutz-Probealarm' }).click();
+  doc = await pdf();
+  expect(await page.evaluate(() => window.__opened.length)).toBe(2);
+  expect(doc.text).toContain('/Count 1');
+});
+
 test('a re-render after a highlight set from outside the field leaves no stale match', async ({ page }) => {
   await openNewLog(page, 'E2E Match');
   await logCall(page, 'OE1ABC');

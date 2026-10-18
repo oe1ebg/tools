@@ -311,6 +311,7 @@ Stationen ohne Standort stehen unter der Karte.
 | Zusammenfassung | Text: Rufzeichen, Statistik (beim Probealarm Sirenen-Noten und AT-Alert), Standorte, Kommentare und Operators |
 | Sichern (JSON) | das ganze Log, auch gelöschte Zeilen; auf der Startseite mit „Wiederherstellen…“ wieder einspielen |
 | Drucken | das ganze Log, quer (A4), mit Datum und Betrieb; die Zeilen stehen in zeitlicher Reihenfolge (älteste zuerst), anders als am Bildschirm (neueste zuerst) |
+| Leerformular (PDF) | ein leeres Blatt mit 15 Zeilen in den Spalten dieses Logs, alles von Hand auszufüllen; im Voraus drucken, für ein Netz ohne Gerät oder wenn eines ausfällt. Ein PDF (A4 quer, eine Seite), das sich in einem neuen Tab öffnet (sonst wird es heruntergeladen) und in jedem Browser gleich druckt; beim Drucken „Tatsächliche Größe“ bzw. 100 % wählen. Auch auf der Startseite („Leerformular ▾“, für jede Vorlage) |
 
 Ein Hinweis neben dem Titel erinnert an eine Sicherung, wenn seit dem letzten
 Export viele Zeilen dazugekommen sind. Auf der Startseite sichert „Alle
