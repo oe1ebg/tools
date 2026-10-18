@@ -91,7 +91,7 @@ graetzl | Freihausviertel | Freihausviertel | 1 |
 graetzl | Brunnenviertel | Brunnenviertel | 1 |
 graetzl | Nordbahnviertel | Nordbahnviertel | 1 |
 graetzl | Karmeliterviertel | Karmeliterviertel | 1 |
-graetzl | Am Spitz | Am Spitz | 1 |
+graetzl | Am Spitz | @48.2578,16.3973/600 | 1 |
 graetzl | Schmelz | Schmelz | 1 |
 graetzl | Alterlaa | Alterlaa | 1 |
 graetzl | Alt Erlaa | Alterlaa OR Alt Erlaa | 1 |
@@ -116,7 +116,8 @@ graetzl | Matzleinsdorf | Matzleinsdorf | 1 |
 # --- colloquial names (what people say, not what is signposted)
 colloquial | Copa Cagrana | @48.2335,16.4130/600 | 1 |
 colloquial | Kaiserwiese | @48.2160,16.3965/400 | 1 |
-colloquial | Floridsdorfer Spitz | Am Spitz | 1 |
+# the square in the 21st, not the locality "Am Spitz" in Lower Austria
+colloquial | Floridsdorfer Spitz | @48.2578,16.3973/600 | 1 | auto
 colloquial | Twin Towers | Twin Tower | 1 |
 colloquial | Ottakringer Brauerei | Ottakringer Brauerei | 1 |
 colloquial | Happel-Stadion | Ernst-Happel-Stadion | 1 |
@@ -218,7 +219,7 @@ typo | Zentralfridhof | Zentralfriedhof | 1 |
 typo | Kaisermülen | Kaisermühlen | 1 |
 typo | Wahringerstrase 42 | Währinger Straße 42 OR Währinger Straße 40-42 | 1 |
 typo | Donauturn | Donauturm | 1 |
-typo | Floridsdorf Am Spiz | Am Spitz | 3 |
+typo | Floridsdorf Am Spiz | @48.2578,16.3973/600 | 3 |
 typo | Mariahilfastraße | Mariahilfer Straße | 1 |
 typo | Schotentor | Schottentor | 1 |
 

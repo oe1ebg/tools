@@ -437,7 +437,13 @@ ALIAS_TYPES = {"": "", "alias": "", "abbrev": "", "colloquial": "c", "historical
 
 
 def resolve_aliases(aliases_cfg: dict, streets: list, places: list) -> list[list]:
-    """[[alias]] -> [alias, kind, id, type]; type "" alias, "c" colloquial, "h" historical."""
+    """[[alias]] -> [alias, kind, id, type]; type "" alias, "c" colloquial, "h" historical.
+
+    The target is looked up as a place in Vienna, then as a Vienna street,
+    then as a place outside Vienna (row[6], umland): the curated aliases
+    are Vienna's vocabulary, and a name can exist in both ("Floridsdorfer
+    Spitz" -> the street Am Spitz in the 21st, not the locality "Am Spitz"
+    near the Slovak border). An airport alias still finds the airport."""
     street_idx = {s[0]: i for i, s in enumerate(streets)}
     out = []
     for a in aliases_cfg.get("alias", []):
@@ -446,10 +452,14 @@ def resolve_aliases(aliases_cfg: dict, streets: list, places: list) -> list[list
         cands = [i for i, p in enumerate(places) if p[0] == target or target in map(alt_name, p[4])]
         if prefer:
             cands.sort(key=lambda i: places[i][1] != prefer)
-        if cands:
-            out.append([a["alias"], "place", cands[0], kind])
+        vienna = [i for i in cands if not places[i][6]]
+        umland = [i for i in cands if places[i][6]]
+        if vienna:
+            out.append([a["alias"], "place", vienna[0], kind])
         elif target in street_idx:
             out.append([a["alias"], "street", street_idx[target], kind])
+        elif umland:
+            out.append([a["alias"], "place", umland[0], kind])
         else:
             log(f"WARNING: alias {a['alias']!r}: target {target!r} not found")
     return out
