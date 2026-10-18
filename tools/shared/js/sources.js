@@ -83,15 +83,23 @@ export function commitUrl(sha) {
   return /^[0-9a-f]{7,40}$/.test(s) ? `${REPO_URL}/commit/${s}` : null;
 }
 
-// Footer version: "commit abc1234 · data 1a2b3c4d5e6f" (commit linked when
-// it is a real SHA). build = { commit, version } (build-info.js); version =
-// the active service worker's content hash, which wins over build.version.
+// Footer version: "v0.7.0 · commit abc1234 · data 1a2b3c4d5e6f" (the
+// release only in a build of a version tag; commit linked when it is a real
+// SHA). build = { commit, version, release } (build-info.js); version = the
+// active service worker's content hash, which wins over build.version.
 export function versionItems(build, version) {
   const b = build || {};
   const commit = b.commit || 'dev';
   const data = version || b.version || 'dev';
   const url = commitUrl(commit);
-  return ['commit ', url ? extLink(url, commit) : commit, ` · data ${data}`];
+  const release = releaseText(b.release);
+  return [...(release ? [release] : []), 'commit ', url ? extLink(url, commit) : commit, ` · data ${data}`];
+}
+
+// "v0.7.0 · " for a release build's tag (scripts/offline_tool.py,
+// release_tag()), else nothing.
+export function releaseText(release) {
+  return /^v\d+\.\d+\.\d+(-[0-9a-z.]+)?$/.test(String(release || '')) ? `${release} · ` : '';
 }
 
 // "2026-10-04..." -> "04.10.2026"

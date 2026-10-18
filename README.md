@@ -146,7 +146,9 @@ it (and the other way round); the service worker caches what it gets without
 digest checks or a pinned release URL. That residual race is short, but it
 exists, so do not read the switch as "one coherent release in every client".
 Avoid switching during a net or exercise, and check the footer version
-after an update.
+after an update: a release build shows its tag there (`v0.7.0 · commit
+abc1234 · data …`; in ADIF's compliance panel and at the foot of SOTA's
+help).
 
 **Assessment: asset verification (limitation).** The bundle does not verify
 its own files at runtime. Files are not content-hashed in their names, the

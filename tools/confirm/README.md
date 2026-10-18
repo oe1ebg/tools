@@ -105,14 +105,18 @@ now redirected; see "Move to /tools/" in `../shared/README.md`), and the source 
   **both** tools; when removing the old app, leave any "delete data / site
   data" option (Chrome: "Also delete data from Chrome") unchecked. Data
   stays only if the same browser profile and the origin's storage are kept.
-- **Version in the footer.** It reads `commit abc1234 · data 1a2b3c4d5e6f`.
+- **Version in the footer.** It reads `commit abc1234 · data 1a2b3c4d5e6f`,
+  in a build of a release tag `v0.7.0 · commit abc1234 · data 1a2b3c4d5e6f`.
+  The release is `TOOLS_VERSION` (CI: the tag; Justfile: `git describe`)
+  when that is a version tag (`release_tag()` in `scripts/offline_tool.py`),
+  so previews (`main`, `pr-123`) and local builds between tags show none.
   The commit is the git short SHA the build came from, linked to the commit
   on GitHub (no link for local `dev` builds). CI passes it as the Docker
   build arg `GIT_SHA`; `just build-confirm` uses `git rev-parse --short
   HEAD`. `data` is the content hash, which is still the service worker's
   cache version, because the weekly and monthly data refreshes change the
   shipped files without a new commit. The commit is written to a separate
-  generated `build-info.js`. That file is precached but not hashed and not
+  generated `build-info.js` (the release too). That file is precached but not hashed and not
   in `precache.js`. Otherwise every oe1ebg commit, even one that doesn't
   touch this tool, would change `precache.js` and offer a pointless update
   that downloads ~5 MB of data again. So the footer shows the commit the

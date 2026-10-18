@@ -8,7 +8,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import { sharedDataBuilt } from './real-data.mjs';
-import { commitUrl, versionItems, repoUrl, repoLink, REPO_URL } from '../tools/shared/js/sources.js';
+import { commitUrl, versionItems, releaseText, repoUrl, repoLink, REPO_URL } from '../tools/shared/js/sources.js';
 
 const OE1EBG = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIR = join(OE1EBG, 'tools', 'confirm');
@@ -122,8 +122,8 @@ test('offline bundle builds into one self-contained, parseable file', () => {
   assert.ok(!pre.includes('"confirm-offline.html"'), 'bundle is a download, not precached');
 });
 
-function buildWith(sha) {
-  runPython(join(OE1EBG, 'scripts', 'build_confirm.py'), { GIT_SHA: sha });
+function buildWith(sha, release = '') {
+  runPython(join(OE1EBG, 'scripts', 'build_confirm.py'), { GIT_SHA: sha, TOOLS_VERSION: release });
   return {
     pre: readFileSync(join(DIR, 'precache.js'), 'utf8'),
     info: readFileSync(join(DIR, 'build-info.js'), 'utf8'),
@@ -148,13 +148,21 @@ test('commit: shown via build-info.js, never part of the content hash', () => {
     assert.ok(!a.pre.includes('0123456'), 'commit not in precache.js');
     assert.ok(a.pre.includes('"build-info.js"'), 'build-info.js is precached');
     const version = /version: "([0-9a-f]{12})"/.exec(a.pre)[1];
-    assert.deepEqual(buildInfo(a.info), { commit: '0123456', version });
-    assert.deepEqual(buildInfo(b.info), { commit: 'dev', version });
+    assert.deepEqual(buildInfo(a.info), { commit: '0123456', version, release: null });
+    assert.deepEqual(buildInfo(b.info), { commit: 'dev', version, release: null });
     // the offline file carries the same build info, inlined
-    assert.ok(a.html.includes(`self.CONFIRM_BUILD = {"commit": "0123456", "version": "${version}"};`));
+    assert.ok(a.html.includes(`self.CONFIRM_BUILD = {"commit": "0123456", "version": "${version}", "release": null};`));
     assert.ok(!a.html.includes('src="build-info.js"'), 'no reference to build-info.js left in the bundle');
     assert.equal(buildInfo(buildWith('not a sha; rm -rf').info).commit, 'dev');
     assert.equal(buildInfo(buildWith('ABCDEF1').info).commit, 'abcdef1');
+    // a build of a version tag names the release, in both; never in precache.js
+    const r = buildWith(full, 'v0.7.0');
+    assert.equal(r.pre, b.pre);
+    assert.deepEqual(buildInfo(r.info), { commit: '0123456', version, release: 'v0.7.0' });
+    assert.ok(r.html.includes(`"release": "v0.7.0"`));
+    // anything but a version tag (git describe between tags, previews) is no release
+    for (const v of ['v0.6.0-9-g0123456', 'v0.7.0-dirty', 'main', 'pr-123', 'dev']) assert.equal(buildInfo(buildWith(full, v).info).release, null, v);
+    assert.equal(buildInfo(buildWith(full, 'v0.7.0-rc.1').info).release, 'v0.7.0-rc.1');
   } finally {
     buildWith('dev');
   }
@@ -168,6 +176,13 @@ test('commit link only for real SHAs, built in the link-only module', () => {
   assert.deepEqual(versionItems(undefined, undefined), ['commit ', 'dev', ' · data dev']);
   assert.deepEqual(versionItems({ commit: 'dev', version: '111111111111' }, '1a2b3c4d5e6f'), ['commit ', 'dev', ' · data 1a2b3c4d5e6f']);
   assert.deepEqual(versionItems({ commit: 'dev', version: '111111111111' }), ['commit ', 'dev', ' · data 111111111111']);
+});
+
+test('footer: the release first, only in a build of a version tag', () => {
+  assert.deepEqual(versionItems({ commit: 'dev', version: '111111111111', release: 'v0.7.0' }), ['v0.7.0 · ', 'commit ', 'dev', ' · data 111111111111']);
+  assert.deepEqual(versionItems({ commit: 'dev', version: '111111111111', release: null }), ['commit ', 'dev', ' · data 111111111111']);
+  for (const v of ['v0.7.0', 'v1.12.3', 'v0.7.0-rc.1']) assert.equal(releaseText(v), `${v} · `, v);
+  for (const v of [null, undefined, '', 'main', 'pr-123', 'dev', '0.7.0', 'v0.7', 'v0.7.0 <b>', 'v0.7.0-RC1']) assert.equal(releaseText(v), '', String(v));
 });
 
 test('source link: the repository or a tool folder on main, opened in a new tab', () => {

@@ -611,7 +611,11 @@ current state rather than treating the URL as continuously live.
   `leaflet.css`, `LICENSE`), shared with the confirmation log.
 
 `scripts/build_site.py` copies this directory into the bundle
-(`site/tools/sota-alerts/`) at build time without its Markdown files.
+(`site/tools/sota-alerts/`) at build time without its Markdown files, and
+writes `build-info.js` there: `self.SOTA_BUILD = { commit, release }`, shown
+at the foot of the help ("v0.7.0 · commit abc1234"; the release only in a
+build of a version tag). On a dev server without a build it is missing and
+the help says "commit dev".
 
 ## Known gaps (not implemented — flag if you want these)
 

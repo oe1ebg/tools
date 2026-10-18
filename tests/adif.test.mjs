@@ -92,7 +92,7 @@ test('editor single-file bundle builds and parses', () => {
   assert.ok(!/^\s*(import|export)\b/m.test(app));
   assert.ok(app.includes('function parseADIF('), 'shared module inlined');
   // build-info.js (scripts/build_adif.py) inlined before the modules
-  assert.match(app, /^\s*self\.ADIF_BUILD = \{"commit": "[^"]+", "version": "[0-9a-f]{12}", "run": /);
+  assert.match(app, /^\s*self\.ADIF_BUILD = \{"commit": "[^"]+", "version": "[0-9a-f]{12}", "release": (null|"v[^"]+"), "run": /);
   const info = readFileSync(join(OE1EBG, 'tools', 'adif', 'build-info.js'), 'utf8');
   const ctx = { self: {} };
   vm.runInNewContext(info, ctx);

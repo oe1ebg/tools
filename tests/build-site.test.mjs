@@ -10,11 +10,12 @@ import { DATA_REQUIRED } from './real-data.mjs';
 
 const OE1EBG = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-// footer(version, sha) via the project's Python (it needs python-markdown);
-// null when neither uv nor a python3 with markdown is available.
-function footer(version, sha) {
+// build_site.<fn>(version, sha) via the project's Python (it needs
+// python-markdown); null when neither uv nor a python3 with markdown is
+// available.
+function footer(version, sha, fn = 'footer') {
   const code = 'import sys, json; sys.path.insert(0, "scripts"); import build_site; '
-    + 'print(build_site.footer(*json.loads(sys.argv[1])))';
+    + `print(build_site.${fn}(*json.loads(sys.argv[1])))`;
   const args = ['-c', code, JSON.stringify([version, sha])];
   for (const [cmd, pre] of [['uv', ['run', 'python']], ['python3', []]]) {
     try {
@@ -43,6 +44,25 @@ test('overview and manuals link the repository, version and commit', t => {
   const dev = footer('dev', 'dev');
   assert.ok(dev.includes('(commit dev)') && !dev.includes('/commit/'), dev);
   assert.ok(!footer('<x>', '<y>').includes('<y>'));
+});
+
+test('SOTA build-info.js: commit, and the release only for a version tag', t => {
+  const info = (v, sha) => {
+    const js = footer(v, sha, 'sota_build_info');
+    if (js === null) return null;
+    const self = {};
+    new Function('self', js)(self);
+    return self.SOTA_BUILD;
+  };
+  const a = info('v0.7.0', 'abc1234' + '0'.repeat(33));
+  if (a === null) {
+    assert.ok(!DATA_REQUIRED, 'DATA_TESTS=require, but no Python with python-markdown (uv sync)');
+    return t.skip('no Python with python-markdown');
+  }
+  assert.deepEqual(a, { commit: 'abc1234', release: 'v0.7.0' });
+  assert.deepEqual(info('v0.6.0-9-gabc1234', 'abc1234'), { commit: 'abc1234', release: null });
+  assert.deepEqual(info('main', 'dev'), { commit: 'dev', release: null });
+  assert.deepEqual(info('pr-12', 'not a sha'), { commit: 'dev', release: null });
 });
 
 test('build_site renders the footer on every page', async () => {

@@ -17,8 +17,9 @@ git_sha := env("GIT_SHA", `git rev-parse HEAD 2>/dev/null || echo dev`)
 # (= "local build") elsewhere. An exported BUILD_RUN_URL wins.
 build_run := env("BUILD_RUN_URL", if env("GITHUB_RUN_ID", "") == "" { "" } else { env("GITHUB_SERVER_URL", "https://github.com") + "/" + env("GITHUB_REPOSITORY", "") + "/actions/runs/" + env("GITHUB_RUN_ID") })
 
-# Release version written into manifest.json and the tarball names; CI sets
-# it from the tag. Defaults to `git describe`.
+# Release version written into manifest.json and the tarball names, and
+# into the tools' build-info.js when it is a version tag (the footer shows
+# it); CI sets it from the tag. Defaults to `git describe`.
 version := env("TOOLS_VERSION", `git describe --tags --always --dirty 2>/dev/null || echo dev`)
 
 [private]
@@ -104,24 +105,24 @@ build-adif-spec:
 # confirm-offline.html). Needs the data: they are inlined and hashed.
 [doc("Build the confirmation log's offline bundle + service-worker precache list")]
 build-confirm: fetch-callsigns fetch-repeaters build-location build-areas build-map
-    GIT_SHA={{git_sha}} uv run python scripts/build_confirm.py
+    GIT_SHA={{git_sha}} TOOLS_VERSION={{version}} uv run python scripts/build_confirm.py
 
 # The Notfunk-Meldebuch's offline files; same data as the confirmation log.
 [doc("Build the Notfunk-Meldebuch's offline bundle + service-worker precache list")]
 build-notfunk: fetch-callsigns fetch-repeaters build-location build-areas
-    GIT_SHA={{git_sha}} uv run python scripts/build_notfunk.py
+    GIT_SHA={{git_sha}} TOOLS_VERSION={{version}} uv run python scripts/build_notfunk.py
 
 # Netlog's service-worker files (no single-file bundle); it uses the
 # callsign list.
 [doc("Build Netlog's service-worker precache list + build-info.js")]
 build-netlog: fetch-callsigns fetch-repeaters
-    GIT_SHA={{git_sha}} uv run python scripts/build_netlog.py
+    GIT_SHA={{git_sha}} TOOLS_VERSION={{version}} uv run python scripts/build_netlog.py
 
 # The ADIF editor's single-file version (tools/adif/adif-editor.html) and
 # build-info.js (commit, CI run, cross-check tool versions).
 [doc("Build the ADIF editor's single-file adif-editor.html + build-info.js")]
 build-adif:
-    GIT_SHA={{git_sha}} BUILD_RUN_URL={{quote(build_run)}} uv run python scripts/build_adif.py
+    GIT_SHA={{git_sha}} TOOLS_VERSION={{version}} BUILD_RUN_URL={{quote(build_run)}} uv run python scripts/build_adif.py
 
 # Assemble site/tools/ (scripts/build_site.py): the tools without Markdown,
 # the rendered manuals, the overview page and manifest.json. Re-run after

@@ -30,6 +30,12 @@ test('complianceFacts: a CI build links commit, checks, run and the commit\'s fi
   assert.equal(f.runId, '42');
   assert.equal(f.file('tests/adif-spec.mjs'), `${REPO_URL}/blob/abc1234/tests/adif-spec.mjs`);
   assert.equal(f.workflowUrl, `${REPO_URL}/actions/workflows/ci.yml`);
+  assert.equal(f.release, null, 'not a release build');
+});
+
+test('complianceFacts: the release of a build of a version tag', () => {
+  assert.equal(complianceFacts({ commit: 'abc1234', release: 'v0.7.0' }).release, 'v0.7.0');
+  for (const release of [null, 'main', 'v0.6.0-9-gabc1234', '<b>v1</b>']) assert.equal(complianceFacts({ commit: 'abc1234', release }).release, null, String(release));
 });
 
 test('complianceFacts: local and dev builds have no run / no commit', () => {
