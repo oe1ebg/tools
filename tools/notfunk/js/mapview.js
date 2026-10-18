@@ -118,6 +118,34 @@ async function nfRender(ctx, refit, focusId = null) {
   }
 }
 
+// A small map in the message detail: the message's Ort with one pin in its
+// priority's colour, offline. One map, reused for every message (its
+// element moves into the detail view: no map left behind per message).
+// Scroll-zoom only after a click into it, so scrolling the page never gets
+// caught in the map.
+let nfMini = null, nfMiniEl = null, nfMiniPin = null;
+export async function notfunkMiniMap(slot, loc, priority) {
+  const L = globalThis.L;
+  if (!L || !slot || !Number.isFinite(loc?.lat)) return;
+  if (!nfBase) nfBase = await loadBasemapData();
+  if (!nfBase || !slot.isConnected) return;
+  if (!nfMiniEl) nfMiniEl = el('div', { class: 'msg-map', role: 'region', 'aria-label': 'Karte: Ort der Meldung' });
+  slot.append(nfMiniEl);
+  if (!nfMini) {
+    nfMini = createBasemap(nfMiniEl, nfBase);
+    nfMini.scrollWheelZoom.disable();
+    nfMiniEl.addEventListener('click', () => nfMini.scrollWheelZoom.enable());
+    nfMiniEl.addEventListener('mouseleave', () => nfMini.scrollWheelZoom.disable());
+  }
+  nfMini.invalidateSize();
+  nfMiniPin?.remove();
+  nfMiniPin = L.marker([loc.lat, loc.lon], {
+    icon: L.divIcon({ className: `map-pin prio-${priority || 'routine'}`, html: '', iconSize: [22, 22], iconAnchor: [11, 11] }),
+    keyboard: false, interactive: false,
+  }).addTo(nfMini);
+  nfMini.setView([loc.lat, loc.lon], 14);
+}
+
 export function notfunkMapVisible() {
   const panel = document.getElementById('map-panel');
   return !!panel && !panel.hidden;

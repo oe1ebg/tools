@@ -303,6 +303,10 @@ details.misc > summary{ cursor:pointer; color:var(--text-dim); }
 .fact .val{ font-size:14.5px; overflow-wrap:anywhere; }
 .fact.wide{ grid-column:1 / -1; }
 .fact .links{ font-size:13.5px; }
+/* the Ort on a small map (mapview.js notfunkMiniMap()) */
+/* (no layer switcher here: the book's big map has it) */
+.msg-map .leaflet-control-layers{ display:none; }
+.msg-map{ height:220px; border:1px solid var(--line); border-radius:6px; background:var(--bg); position:relative; z-index:0; isolation:isolate; }
 .verbatim{ border:1px solid var(--line); border-radius:6px; background:var(--bg-raised); padding:.8em 1em; }
 .verbatim p{ margin:.3em 0 0; font-size:16px; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; }
 .cap{ font-size:12.5px; font-weight:500; text-transform:uppercase; letter-spacing:.05em; color:var(--text-dim); margin:0 0 .4em; }

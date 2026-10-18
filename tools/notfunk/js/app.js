@@ -29,7 +29,7 @@ import { attachRepeaterSearch, loadRepeaterIndex } from '../../shared/js/repeate
 import { createLocationField, describeLocation } from '../../shared/js/locfield.js';
 import { initLocationPanel, loadLocationIndex } from '../../shared/js/locationui.js';
 import { locate } from '../../shared/js/location/index.js';
-import { notfunkOpenMap, notfunkCloseMap, notfunkRefreshMap, notfunkMapVisible } from './mapview.js';
+import { notfunkOpenMap, notfunkCloseMap, notfunkRefreshMap, notfunkMapVisible, notfunkMiniMap } from './mapview.js';
 import { sourceItem, standDate, trackOnline, mapLinks, repoLink } from '../../shared/js/sources.js';
 import { initOffline, setChip } from '../../shared/js/offline.js';
 import {
@@ -1715,13 +1715,15 @@ function renderDetail(id) {
           m.channel === 'funk' ? (m.radio.via ? `via ${m.radio.via}` : 'direkt') : null].filter(Boolean).join(' · '),
           m.peer ? el('div', {}, el('span', { class: 'dim', title: m.direction === 'out' ? 'die empfangende Funkstation' : 'die übermittelnde Funkstation' }, 'Funkstelle '), el('span', { class: 'mono' }, m.peer)) : null),
         m.location ? fact('Ort', describeLocation(m.location), el('div', { class: 'links' },
-          el('a', { href: `#/e/${state.op.id}`, onclick: () => { state.mapFocus = m.id; } }, 'Auf der Karte'), ' ', mapLinks(m.location)))
+          el('a', { href: `#/e/${state.op.id}`, onclick: () => { state.mapFocus = m.id; }, title: 'Die Karte des Meldebuchs, mit den anderen Meldungen' }, 'Im Meldebuch zeigen'), ' ', mapLinks(m.location)))
           : m.locationText ? fact('Ort', m.locationText, el('span', { class: 'dim' }, ' (nicht zugeordnet)')) : null,
         m.stichzeit ? fact('Stichzeit', el('span', { class: 'mono' }, fmtVienna(m.stichzeit))) : null,
         m.origin.station || m.origin.place || m.origin.filed ? fact('Ursprung',
           [m.origin.station, m.origin.placeLoc ? describeLocation(m.origin.placeLoc) : m.origin.place].filter(Boolean).join(' · '),
           m.origin.filed ? el('div', {}, el('span', { class: 'dim' }, 'aufgegeben '), el('span', { class: 'mono' }, fmtVienna(m.origin.filed))) : null) : null,
         m.remarks ? el('div', { class: 'fact wide' }, el('div', { class: 'cap' }, 'Anmerkungen'), el('div', { class: 'val' }, m.remarks)) : null),
+      // the Ort on a small map (notfunkMiniMap() fills it)
+      m.location ? el('div', { id: 'msg-map-slot', class: 'msg-map-slot' }) : null,
       el('div', { class: 'toolbar detail-actions' },
         m.deleted ? null : el('button', { type: 'button', onclick: () => startReply(m) }, 'Antwort erfassen'),
         m.deleted ? null : el('button', { type: 'button', onclick: () => startEdit(m) }, 'Bearbeiten'),
@@ -1743,6 +1745,7 @@ function renderDetail(id) {
             el('div', { class: 'sub' }, el('b', {}, r.old.subject || ''), ' ', r.old.text, r.old.staffRef !== undefined && r.old.staffRef !== m.staffRef ? ` · Referenz: ${r.old.staffRef || '–'}` : ''))))) : null,
         el('p', { class: 'sub' }, el('span', { class: 'mono' }, `${fmtVienna(m.created)} ${m.operator || ''}`), ' erfasst'),
         el('p', { class: 'hint' }, 'Jede Änderung behält die vorige Fassung. Die Nummer bleibt immer gleich.')))));
+  if (m.location) notfunkMiniMap($('#msg-map-slot'), m.location, m.priority);
 }
 
 /* ---------------------------------------------------------------- print, exports, backup */
