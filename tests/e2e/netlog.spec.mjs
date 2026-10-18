@@ -702,14 +702,22 @@ test('times in UTC or local time, always labelled; a handover typed in local tim
   await page.locator('#time-toggle button[data-time=local]').click();
   await expect(page.locator('#time-toggle button[data-time=local]')).toHaveAttribute('aria-pressed', 'true');
   // the test browsers run in Europe/Vienna
-  await expect(noteTime).toHaveText(/^\d{2}:\d{2} UTC\+[12]$/);
-  await expect(page.locator('#clock-zone')).toHaveText(/^UTC\+[12]$/);
-  await expect(page.locator('#st-save')).toHaveText(/UTC\+[12]$/);
+  await expect(noteTime).toHaveText(/^\d{2}:\d{2} (CEST|CET)$/);
+  await expect(page.locator('#clock-zone')).toHaveText(/^(CEST|CET)$/);
+  await expect(page.locator('#st-save')).toHaveText(/ (CEST|CET)$/);
+  await expect(page.locator('#time-toggle button[data-time=local]')).toHaveText(/^Europe\/Vienna \((CEST|CET)\)$/);
+  // the zone name follows the interface language
+  await page.locator('#lang-toggle button[data-lang=de]').click();
+  await expect(page.locator('#clock-zone')).toHaveText(/^(MESZ|MEZ)$/);
+  await expect(noteTime).toHaveText(/^\d{2}:\d{2} (MESZ|MEZ)$/);
+  await expect(page.locator('#time-toggle button[data-time=local]')).toHaveText(/^Europe\/Vienna \((MESZ|MEZ)\)$/);
+  await page.locator('#lang-toggle button[data-lang=en]').click();
+  await expect(page.locator('#clock-zone')).toHaveText(/^(CEST|CET)$/);
   // a handover time typed in local time
   await page.locator('#btn-ncs').click();
   await page.locator('#tab-control').click();
   const time = page.locator('#ncs-history li input.ev-time');
-  await expect(page.locator('#ncs-history li .inline-field span')).toHaveText(/^Time \(UTC\+[12]\)$/);
+  await expect(page.locator('#ncs-history li .inline-field span')).toHaveText(/^Time \((CEST|CET)\)$/);
   await time.fill('21:05');
   await time.press('Enter');
   await expect.poll(() => page.evaluate(() => globalThis.NETLOG_APP.sd.events.find(e => e.type === 'ncs').time.iso.slice(11, 16))).toMatch(/^(19|20):05$/);
@@ -755,6 +763,28 @@ test('the callsign list fills name and QTH at check-in and when a partial callsi
   // searching by name
   await page.locator('#identity-call').fill('probe');
   await expect(page.locator('#identity-pop button')).toContainText(['OE0QXC']);
+});
+
+test('an open suggestion list never covers "+ Check in" on phones and touch screens', async ({ page }, testInfo) => {
+  await page.route('**/shared/data/callsigns-oe.json', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(CALLBOOK) }));
+  await open(page, { lang: 'en' });
+  await startSession(page);
+  // the button in view (the sidebar may push it below a phone's screen;
+  // elementFromPoint sees only the viewport)
+  await page.locator('#checkin-form button[type=submit]').scrollIntoViewIfNeeded();
+  await page.locator('#checkin-call').fill('OE0QX?');
+  await expect(page.locator('#checkin-pop')).toContainText('callsign list');
+  const hit = () => page.evaluate(() => {
+    const b = document.querySelector('#checkin-form button[type=submit]');
+    const r = b.getBoundingClientRect();
+    // the top edge is where the list reaches first; the centre as well
+    return [r.top + 2, r.top + r.height / 2].every(y => {
+      const top = document.elementFromPoint(r.left + r.width / 2, y);
+      return top === b || b.contains(top);
+    });
+  });
+  if (/mobile/.test(testInfo.project.name)) expect(await hit()).toBe(true);
+  else testInfo.annotations.push({ type: 'info', description: `mouse: button is hit target = ${await hit()} (the list may lie over it)` });
 });
 
 test('Net Control: check stations out and in, pause them, from the list; presence follows', async ({ page }) => {

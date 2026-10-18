@@ -314,8 +314,10 @@ offers the export, as on any other page without IndexedDB.
   the offline ÖVSV repeater list (`repeaters-at.json`); my callsign and
   the usual net control complete from the callsign sources above.
 - **Time display**: the switch next to the clock shows UTC (the default)
-  or the device's local time, named with its zone and offset ("Europe/
-  Vienna (UTC+2)"); every time carries its zone. Stored is always UTC; a
+  or the device's local time, named with its zone and the zone's short
+  name in the interface language ("Europe/Vienna (MESZ)", English "CEST";
+  "UTC+3" where a zone has no name); every time carries it, per instant, so
+  a time from before the clocks changed keeps its own name. Stored is always UTC; a
   handover time is typed in the shown zone.
 - **Backup chip** (header, like Notfunk's): when the last backup download
   of the session started and how many notes changed since; a click
