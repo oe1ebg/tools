@@ -211,7 +211,7 @@ passt, und der **Inhalt der Meldung wird nie verändert**.
 ### Zeiten
 
 - **Empfangen am / Gesendet am:** wann die Meldung übermittelt wurde.
-- **Erfasst am:** wann sie hier gespeichert wurde (automatisch).
+- **Erfasst am:** wann sie hier gespeichert wurde (automatisch; in der Meldung der erste Schritt im Ablauf).
 - **Aufgabezeit:** wann sie bei der Ursprungsstation aufgegeben wurde.
 - **Stichzeit:** worauf sich eine Lagemeldung bezieht.
 
@@ -331,6 +331,22 @@ als Text gespeichert ist, wird auf der Karte nachgeschlagen und nur bei
 sicherem Treffer gezeigt; unter der Karte steht, welche Meldungen keinen
 zugeordneten Ort haben.
 
+Jede Meldung ist eine Zeile mit sechs Spalten:
+
+- **Nr. · Zeit:** die Notfunk-Nummer, darunter die Zeit, darunter die Referenz
+  der Meldesammelstelle und bei einer Antwort „↪“ mit der Nummer der
+  Meldung, auf die sie antwortet.
+- **Gegenstelle:** die andere Stelle, mit **↓** (Eingang: von ihr) oder **↑**
+  (Ausgang: an sie); nur ihr Name, Rufzeichen und Frequenz stehen in der
+  Meldung. Die eigene Stelle steht in jeder Meldung gleich und wird nur
+  gezeigt, wo sie abweicht.
+- **Betreff · Inhalt:** die Meldungsart als Etikett (MELDUNG, LAGEMELDUNG …),
+  die Dringlichkeit, wenn nicht Routine (rot Notfall, gelb Dringend), der
+  Betreff und darunter der Anfang des Inhalts.
+- **Status:** der Stand (alle gleich breit), daneben Zeit und Operator des
+  letzten Schritts.
+- Ganz rechts der **nächste Schritt** und darunter **Ausdruck**.
+
 Die Spaltennamen bleiben beim Scrollen unter der Kopfzeile sichtbar und
 sind kurz; mit der Maus darüber steht die Erklärung. Die Zeit ist
 **Ortszeit Wien**; darüber (oder mit dem Finger gehalten) steht Datum, Uhrzeit
@@ -340,8 +356,9 @@ sichtbar ist. Die Meldung, die gerade im Formular bearbeitet wird („Bearbeiten
 ist in der Liste umrahmt und mit ✎ markiert; nach dem Speichern oder Verwerfen
 verschwindet die Markierung.
 
-Am Handy ist jede Meldung eine Karte: oben Nummer, Zeit, Richtung und
-Status, darunter Von → An, Betreff und Inhalt, unten Art und die Knöpfe.
+Am Handy ist jede Meldung eine Karte: oben Nummer, Zeit und Referenzen,
+rechts der Status; darunter die Gegenstelle, Art, Betreff und Inhalt, unten
+Zeit und Operator des Status und die Knöpfe.
 Seitlich schieben ist nicht nötig.
 
 Der **Status** hängt von der Richtung ab:
@@ -351,9 +368,13 @@ Der **Status** hängt von der Richtung ab:
 | ↓ Eingang | erfasst | übergeben | übernommen | beantwortet |
 | ↑ Ausgang | zur Übertragung | übertragen | Empfang bestätigt | beantwortet |
 
-Der Knopf in der Zeile trägt den nächsten Schritt mit der aktuellen Zeit ein
-(„übergeben“, „Übernahme bestätigt“, „übertragen“, „Empfang bestätigt“). Mit
-Angaben (an wen, durch wen, wann) geht es bei der Meldung selbst.
+Der Knopf in der Zeile („übergeben“, „Übernahme bestätigt“, „übertragen“,
+„Empfang bestätigt“) öffnet ein kleines Fenster für diesen Schritt: **an wen**
+bzw. **durch wen** (vorgeschlagen werden die Namen, die in diesem Einsatz schon
+vorkamen; bei „übergeben“ ist die zuletzt verwendete Stelle eingetragen), der
+**Zeitpunkt** (leer = jetzt) und bei „Übernahme bestätigt“ die **Referenz der
+Meldesammelstelle**, wenn sie dabei genannt wird. <kbd>Enter</kbd> trägt ein,
+<kbd>Esc</kbd> schließt ohne Eintrag.
 „Beantwortet“ entsteht von selbst, wenn eine Antwort mit Bezug gespeichert
 wird.
 
@@ -361,11 +382,17 @@ wird.
 
 ![Meldung im Detail](img/notfunk-meldung-detail.png)
 
-Ein Klick auf die Zeile (oder die Nummer) öffnet die Meldung: Wortlaut, alle Angaben und
-rechts der **Ablauf**.
+Ein Klick auf die Zeile (oder die Nummer) öffnet die Meldung. Oben der
+Status, die Meldungsart, Richtung und Zeit; unter dem Betreff der **Bezug**
+(„↪ Antwort auf W1-003 …“, die Nummer führt dorthin); dann **Von → An** wie
+auf dem Formular, mit den Rufzeichen und dem Verteiler; der **Wortlaut**;
+darunter in kleinen Blöcken Übermittlung (mit Funkstelle), Ort, Stichzeit,
+Ursprung und Anmerkungen. Rechts der **Ablauf**; dessen erster Schritt sagt,
+wann und von wem die Meldung erfasst wurde.
 
 - **Eingang:** „Übergeben an“ (z. B. Meldesammelstelle) mit Zeitpunkt, dann
-  „Übernommen durch“ mit Zeitpunkt.
+  „Übernommen durch“ mit Zeitpunkt und, wenn genannt, der Referenz der
+  Meldesammelstelle.
 - **Ausgang:** „Übertragen an“ (die Funkstelle) mit Zeitpunkt und ob sie
   zurückgelesen hat, dann „Empfang bestätigt durch“. Klappt eine Übertragung
   nicht oder gibt es eine Rückfrage: „Fehlversuch / Rückfrage eintragen“.
@@ -387,44 +414,62 @@ wieder verwendet**; wiederherstellbar unter „Gelöschte Meldungen“).
 
 ![Ausdruck einer Meldung](img/notfunk-ausdruck.png)
 
-Eine Meldung wird auf **eine A4-Seite** gedruckt: weißes Papier, dünne
-Linien, keine schwarzen Flächen, auch aus der dunklen Ansicht.
+**Ausdruck / PDF** schreibt die Meldung als **PDF** (A4 hoch) und öffnet es in
+einem neuen Tab; wo der Browser den Tab blockiert, wird es heruntergeladen
+(`meldebuch-<Präfix>-<Datum>_<Nummer>.pdf`). Gedruckt wird dort, im
+Druckdialog des PDF-Betrachters (Anzahl der Kopien, Skalierung „Tatsächliche
+Größe“ bzw. 100 %). Ein PDF druckt in jedem Browser gleich; Einstellungen wie
+„Kopf- und Fußzeilen“ gibt es dafür nicht. Weißes Papier, dünne Linien,
+keine schwarzen Flächen, auch aus der dunklen Ansicht.
 
 - Oben die Richtung (**↓ EINGANG** oder **↑ AUSGANG**, die gewählte mit
-  dickem Rahmen und ✕) und die Notfunk-Nummer.
+  dickem Rahmen und ✕, die andere blass) und die Notfunk-Nummer.
 - Darunter der Block **„Nur von der Meldesammelstelle
-  auszufüllen“**: Referenz / Geschäftsbuch-Nr. (vorbelegt, wenn schon
+  auszufüllen“**: Referenz / Geschäftsbuch-Nr. (eingetragen, wenn schon
   bekannt), Federführend, Mitwirkend, Zur Kenntnis.
-- Datum und Uhrzeit (Ortszeit) in einem Feld: „2026-10-08 · 14:05“, dazu
-  die Erfassungszeit.
-- Unten die Übergabe (Eingang) bzw. Übertragung (Ausgang).
+- Unter dem Kopf alle Angaben des Einsatzes (Stationskürzel, Station,
+  Standort, Operator, Für Stelle, Frequenz, Relais).
+- Datum und Uhrzeit (Ortszeit Wien) mit der Erfassungszeit und die
+  Dringlichkeit; darunter je eine Zeile Übermittlung und Meldungsart. Jede
+  Wahl ist ein Kreis mit dem Wort; der gewählte ist ausgefüllt und fett.
+- Von, An, Funkstelle, Betreff, Ort, Bezug, der Inhalt, Aufgenommen von,
+  Anmerkungen und unten die Übergabe (Eingang) bzw. Übertragung (Ausgang).
+- Fußzeile: Status, Druckzeit, „Fassung n“ (passend zu den gespeicherten
+  Fassungen).
 
-![Druckhinweis](img/notfunk-druckhinweis.png)
-
-**Druckeinstellungen.** Vor dem ersten Druck erinnert ein Hinweis daran, im
-Druckdialog **„Kopf- und Fußzeilen“ auszuschalten**, A4 und 100 % zu wählen.
-Chrome und Edge lassen Kopf- und Fußzeilen bei diesem Blatt ohnehin weg.
-Als PDF: Ziel „Als PDF sichern“ bzw. „Als PDF speichern“.
-
-**Lange Meldungen.** Passt der Text nicht, werden zuerst die Abstände kleiner,
-dann die Schrift (höchstens bis 10 pt). Reicht auch das nicht (etwa ab 2.500
-Zeichen), sagt das Werkzeug vor dem Druck, wie viele Seiten es werden; jede
-Seite trägt die Nummer. Es wird nie etwas abgeschnitten.
+**Lange Meldungen.** Der Inhalt wird in der größten lesbaren Schrift
+(12 bis 10 pt) gesetzt, die auf die Seite passt. Reicht auch 10 pt nicht
+(etwa ab 1.500 Zeichen), steht unten im Inhalt „Fortsetzung auf Seite 2“ und
+der Rest folgt auf Folgeseiten, jede mit Notfunk-Nummer, Betreff und
+„Fortsetzung, Seite n von N“. Es wird nie etwas abgeschnitten: ein Wert, der
+nicht in sein einzeiliges Feld passt (etwa ein sehr langer Betreff), wird dort
+mit „…“ gekürzt und steht vollständig auf der letzten Seite.
 
 **Leere Formulare** für die Arbeit ohne Gerät: „Leeres Formular (PDF)“ auf
 der Startseite (bzw. im Meldebuch unter „Drucken / PDF…“). Der Vordruck ist
-ein **PDF** (A4 hoch, eine Seite) und öffnet sich in einem neuen Tab; wo der
-Browser den Tab blockiert, wird er heruntergeladen
-(`meldebuch-<Präfix>-<Datum>_Vordruck.pdf`). Ein PDF druckt in jedem Browser
-gleich, anders als eine Seite, die der Browser selbst ausdruckt: dort die
-Anzahl der Kopien wählen, Skalierung „Tatsächliche Größe“ bzw. 100 %. Der
-Vordruck hat dieselben Felder und Begriffe wie der Ausdruck einer Meldung,
-mit großen Kästchen und Kreisen zum Ankreuzen und Schreiblinien (Inhalt) für
-die Handschrift; ausgefüllt sind nur der Name des Einsatzes in der Kopfzeile
-und das Druckdatum.
+ein **PDF** (A4 hoch, eine Seite) und öffnet sich in einem neuen Tab
+(`meldebuch-<Präfix>-<Datum>_Vordruck.pdf`). Er hat dieselben Felder und
+Begriffe wie der Ausdruck einer Meldung, für die Handschrift: jede Wahl
+(Dringlichkeit, Übermittlung, Meldungsart) ist ein eigenes Feld mit dem Wort
+zum Ankreuzen oder Einkreisen, dazu Kästchen und Schreiblinien mindestens
+10 mm Abstand für den Inhalt. Er wird oft vor
+dem Einsatz gedruckt: ausgefüllt sind nur der Name des Einsatzes in der
+Kopfzeile (wenn aus einem Einsatz gedruckt) und das Druckdatum, nicht dessen
+weitere Angaben.
 
-**Das Meldebuch drucken:** „Drucken / PDF…“ im Meldebuch, optional mit
-Zeitraum (Von/Bis je Datum und Uhrzeit; nur ein Datum = der ganze Tag).
+**Das Meldebuch als PDF:** „Drucken / PDF…“ im Meldebuch, optional mit
+Zeitraum (Von/Bis je Datum und Uhrzeit; nur ein Datum = der ganze Tag), dann
+„Meldebuch als PDF“. Das PDF ist A4 quer (`meldebuch-<Präfix>-<Datum>_Meldebuch.pdf`)
+und hat die Spalten des Meldebuchs: Nr. · Zeit (mit Referenz der
+Meldesammelstelle und Bezug), Gegenstelle (↓ Eingang von / ↑ Ausgang an),
+Betreff · Inhalt (mit Meldungsart und Dringlichkeit, der **ganze** Inhalt) und
+Status (mit Zeit und Operator). Notfall und Dringend sind farbig markiert wie
+im Meldebuch und zusätzlich dick bzw. mittel umrahmt, damit sie auch
+schwarzweiß gedruckt auffallen. Jede Seite hat die Kopfzeile (Einsatz mit
+allen Angaben, Zeitraum, Druckzeit), die Spaltenköpfe und „Seite n von N“;
+eine lange Zeile läuft auf der nächsten Seite weiter, mit ihrer Nummer. Der
+Zeitraum steht immer mit Datum und Uhrzeit, ohne gewählte Grenzen die erste
+und letzte Meldung mit „(gesamter Einsatz)“. Zeiten in Ortszeit Wien.
 
 ## Exporte und Sicherung
 

@@ -66,13 +66,15 @@ banner and draft labels wherever the tool is listed.
   counting, export, or keyboard contracts.
 - Keep German wording consistent across the form, help, print, CSV, and
   manual. Regenerate affected manual screenshots with `just screenshots`.
-- Print data is produced by `tools/notfunk/js/print.js` and rendered by
-  `tools/notfunk/js/printview.js` into `#print-sheet`; layout uses `.pf-*`
-  in `style.css`. Preserve E-31 field order and shared form labels.
-  A message must fit one A4 page: white, thin lines, no filled areas or
-  dependence on printed backgrounds. The empty form (Vordruck) is a PDF
-  written by `tools/notfunk/js/paperpdf.js` (shared `pdf.js`), not browser
-  print; it takes its words from `blankFormSheet()`.
+- Print data is produced by `tools/notfunk/js/print.js` (`formSheet()`,
+  `blankFormSheet()`, `bookSheet()`); every printout is a PDF written with
+  the shared `pdf.js`, not browser print: the filled and the empty form by
+  ONE drawing function in `tools/notfunk/js/paperpdf.js`, the book by
+  `tools/notfunk/js/bookpdf.js`. Preserve E-31 field order and shared form
+  labels. White, thin lines, no filled areas except the chosen circles.
+  Text never leaves its cell (wrap, or shorten with "…" and repeat in full
+  on a continuation page); a long Inhalt continues on further pages, a long
+  book row splits across pages, nothing is truncated.
 
 ## Verification
 
@@ -83,7 +85,7 @@ Use the root verification matrix and the relevant coverage below:
 | Numbering/retries | `tests/notfunk-numbering.test.mjs`, `tests/notfunk-integrity.test.mjs` |
 | Model, status, replies, time | `tests/notfunk-model.test.mjs`, `tests/notfunk-times.test.mjs` |
 | Draft/conflict/backup recovery | Integrity tests, storage tests, `tests/backup-parts.test.mjs`, `tests/e2e/notfunk.spec.mjs` |
-| Form/print/exports | `tests/notfunk-form.test.mjs`, Notfunk browser specs; Chromium PDF page-count check; row reuse also needs `tests/rowcache.test.mjs` |
+| Form/print/exports | `tests/notfunk-form.test.mjs`, `tests/notfunk-paperpdf.test.mjs` (form, Vordruck, book PDFs), `tests/pdf.test.mjs`, Notfunk browser specs; row reuse also needs `tests/rowcache.test.mjs` |
 | Offline/update/bundling | Rebuild; `tests/notfunk-offline.test.mjs` and relevant offline/update browser specs |
 
 Exercise the affected save/edit/status/reply, retry/conflict, draft reload,

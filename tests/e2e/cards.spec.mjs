@@ -73,7 +73,7 @@ test('Notfunk on a phone: each message is a card with number, status, subject an
 
   const row = page.locator('#book-body tr[data-id]').first();
   const num = row.locator('td.num');
-  const status = row.locator('td').nth(6);
+  const status = row.locator('td.st');
   const subject = row.locator('td.content b');
   for (const cell of [num, status, subject, row.getByRole('button', { name: /Ausdruck/ })]) {
     await expect(cell).toBeVisible();
@@ -86,7 +86,7 @@ test('Notfunk on a phone: each message is a card with number, status, subject an
   expect((await subject.boundingBox()).y).toBeGreaterThan(n.y + n.height / 2);
 
   const table = page.getByRole('table', { name: 'Meldungen' });
-  await expect(table.getByRole('columnheader', { name: 'Status' })).toHaveCount(1);
+  await expect(table.getByRole('columnheader', { name: 'Status', exact: true })).toHaveCount(1);
   await expect(table.getByRole('row')).toHaveCount(31);
 });
 
@@ -121,8 +121,8 @@ test('Notfunk on a wide screen: the column names stay in view while scrolling', 
   await expect.poll(async () => Math.abs((await page.locator('table.book thead th').first().boundingBox()).y - (hdr.y + hdr.height))).toBeLessThan(2);
   const th = await page.locator('table.book thead th').first().boundingBox();
   expect(th.height).toBeLessThan(40);
-  // the zone of the Zeit column is explained
-  await expect(page.locator('table.book thead th', { hasText: 'Zeit' })).toHaveAttribute('title', /Ortszeit Wien \(MESZ\/MEZ\)/);
+  // the zone of the Nr. · Zeit column is explained
+  await expect(page.locator('table.book thead th', { hasText: 'Nr. · Zeit' })).toHaveAttribute('title', /Ortszeit Wien, MESZ\/MEZ/);
   // the table fits at 1200 px and above (clipped, no columns lost); below, it scrolls
   for (const width of [1200, 1280]) {
     await page.setViewportSize({ width, height: 600 });

@@ -129,9 +129,9 @@ name, and a distribution list ("Verteiler").
 | Status | In the words of the direction. Eingang: erfasst → übergeben (to whom, when) → übernommen (by whom, when). Ausgang: zur Übertragung → übertragen (to which station, when, read back) → Empfang bestätigt (by whom, when); failed attempts / queries are logged without changing the status. Each step once, the handover never goes back; "beantwortet" comes from saving a reply and doesn't block recording the handover later. None of the steps means that an order in the text was carried out. Stored keys unchanged (`forwarded`, `acknowledged`), so older data reads as übergeben/übertragen and übernommen/Empfang bestätigt. | #31, handover note of Oct 2026 |
 | Edits, deletes | Edits keep the previous version as a revision. Deletes are soft, and a deleted message keeps its number. | #31, ÖVSV § 6.7 (complete records) |
 | Exports | **Geschäftsbuch CSV** (E-31 columns + Notfunk fields; `;` with BOM for Excel de-AT), JSON backup/restore. Planned: KMZ for messages with a location (#27). | E-31 forms |
-| Print / PDF | Two ways, no PDF library for the first: through the browser's print dialog ("Als PDF sichern"; an A4 layout, `@page`, the `.pf-*` rules in `style.css`) for the filled form and the book, and a PDF written by the app for the empty form (below). Three printouts: the **Meldeaufnahmeformular** of one message on **one A4 page** ("Fassung n" to match the edit history), the **message book** for a time range (Geschäftsbuch columns, header repeated on each page), and an **empty form** ("Vordruck") to print a stack of. The form page has no page margin (`printview.js` sets the `@page` margin to 0 while it prints; not a named page, Safari ignores those), which keeps Chrome's and Edge's header/footer lines off it. The sheet is 276 mm high, sized for Safari: WebKit (macOS and iOS) prints 1 CSS px as 0.8 pt, so its A4 page is only 197 × 278 mm in CSS units, and a full 296 mm sheet spilled onto a second page; a dialog before the first print says to switch "Kopf- und Fußzeilen" off (can be turned off). A long text first gets tighter spacing, then a smaller font down to 10 pt (`fitForm()` measures the sheet off-screen); beyond that (about 2,500 characters) it flows over several pages with the number on each, and the dialog says so first. | E-31 forms; works offline and on iOS; handover note of Oct 2026 |
-| Empty form (Vordruck) | A **PDF written without a library** (`js/paperpdf.js` on the shared `shared/js/pdf.js`; Helvetica, WinAnsi), one portrait A4 page, opened in a new tab (downloaded as `meldebuch-<prefix>-<date>_Vordruck.pdf` where the tab is blocked; "Leeres Formular (PDF)" on the Einsatz list and in the book's print panel). Not the browser's print engine: every engine scales and pads differently (WebKit prints 1 CSS px as 0.8 pt), a PDF prints the same at its own size everywhere. Same fields and words as the filled form (`blankFormSheet()` in `print.js` gives the options, headings and footer), black thin lines on white; writing lines 9.5 mm apart, tick squares of 4.4–5.6 mm and choice circles of 4.6 mm; only the Einsatz's name and the print date are filled in. | Confirm's Leerformular (same writer); print engines differ |
-| Paper form design | White, thin lines, no filled areas (nothing depends on printed backgrounds; saves toner, works in black and white, also from the dark theme). On top: title, **↓ EINGANG \| ↑ AUSGANG** (the chosen one with a thick frame and ✕, the other pale), a big box for the Notfunk-Nr.; then one dashed row **"Nur von der Meldesammelstelle auszufüllen"** (Referenz / Geschäftsbuch-Nr., Federführend, Mitwirkend, Zur Kenntnis; only the reference is filled in); two narrow rows for Empfangen/Gesendet am (date · time, Erfasst), Übermittlung, Dringlichkeit (one joined block) and Meldungsart; Von/An (with the Funkstelle), Betreff/Ort/Bezug; the verbatim text takes the rest of the page; then Aufgenommen von, Anmerkungen, and the handover (Eingang) or transmission (Ausgang). A **circle** = choose one, a **square** = an extra mark. Frequency and relay stay in the book, not on paper. | common paper-form conventions; reviewed as a mockup (Oct 2026) |
+| Print / PDF | Every printout is a **PDF written by the app** without a library (`js/paperpdf.js` for the forms, `js/bookpdf.js` for the book, on the shared `shared/js/pdf.js`; Helvetica, WinAnsi), opened in a new tab (downloaded where the tab is blocked), printed from the PDF viewer. Not the browser's print engine: every engine scales, breaks and pads differently (WebKit prints 1 CSS px as 0.8 pt), a PDF prints the same at its own size everywhere, with no header/footer or scaling settings to get right. Three printouts: the **Meldeaufnahmeformular** of one message (A4 portrait, `meldebuch-<prefix>-<date>_<number>.pdf`, "Fassung n" to match the edit history), the **message book** for a time range (A4 landscape, `_Meldebuch.pdf`) and an **empty form** ("Vordruck", below). The form and the Vordruck come from ONE drawing function fed by `formSheet()` / `blankFormSheet()` in `print.js`. A long text is set in the largest of 12 / 11 / 10.5 / 10 pt that fits the Inhalt area; beyond that (about 1,500 characters) the form page ends with "Fortsetzung auf Seite 2" and continuation pages follow, each with Notfunk-Nr., Betreff and "Fortsetzung, Seite n von N". Text never leaves its cell: single-line values shrink, then are shortened with "…" and given in full on the last page. The book has the screen's columns (Nr. · Zeit with reference and Bezug, Gegenstelle with the direction as a drawn arrow, Betreff · Inhalt with the FULL text wrapped, Status with time and operator), header, column heads and "Seite n von N" on every page; a row that does not fit the rest of a page is split and continues with its number (`bookSheet()` supplies the rows). | E-31 forms; works offline and on iOS (also from `file://`); print engines differ |
+| Empty form (Vordruck) | The same PDF writer and drawing function with nothing filled in ("Leeres Formular (PDF)" on the Einsatz list and in the book's print panel; `meldebuch-<prefix>-<date>_Vordruck.pdf`). Same fields and words as the filled form (`blankFormSheet()` in `print.js` gives the options, headings and footer), black thin lines on white; writing lines at least 10 mm apart, tick squares of 4.4–5.6 mm, each choice option a box of its own with the word (to cross or circle by hand, as the siren grades on Confirm's Leerformular); only the Einsatz's name and the print date are filled in, not the rest of its header (often printed before the Einsatz). | Confirm's Leerformular (same writer); print engines differ |
+| Paper form design | White, thin lines, no filled areas (nothing depends on printed backgrounds; saves toner, works in black and white, also from the dark theme). On top: title, **↓ EINGANG \| ↑ AUSGANG** (the chosen one with a thick frame and ✕, the other pale; the chosen option of each choice is a filled circle), a big box for the Notfunk-Nr.; then one dashed row **"Nur von der Meldesammelstelle auszufüllen"** (Referenz / Geschäftsbuch-Nr., Federführend, Mitwirkend, Zur Kenntnis; only the reference is filled in); under the head every field of the Einsatz header, labelled (`einsatzFields()`; not on the empty form, printed before an Einsatz); Empfangen/Gesendet am (Datum and Uhrzeit side by side, Erfasst) | Dringlichkeit, then Übermittlung and Meldungsart each on a line of its own (every choice a circle and its word, no frames; nothing wraps); Von/An (with the Funkstelle), Betreff/Ort/Bezug (Betreff the left half, aligned with Von); the verbatim text takes the rest of the page; then Aufgenommen von, Anmerkungen, and the handover (Eingang) or transmission (Ausgang). A **circle** = choose one, a **square** = an extra mark. The book PDF marks Notfall (red label, row tinted) and Dringend (amber label) as on screen and frames those rows thick / medium, so they show on black-and-white printers too; its "Zeitraum" is always from–to with date and time ("(gesamter Einsatz)" without chosen bounds). | common paper-form conventions; reviewed as a mockup (Oct 2026) |
 
 ## Using it
 
@@ -223,7 +223,18 @@ name, and a distribution list ("Verteiler").
   header shows the backup state ("Sicherung gestartet 14:40 · 3 Meldungen
   ungesichert" or "… · nichts ungesichert", neutral, never "ok"-green; a
   click starts a backup download).
-- **One message:** verbatim text, all fields, the flow (Ablauf) with a small
+- **Book rows** (Variante D of a mockup, Oct 2026): Nr. with time, reference
+  and "↪ Bezug"; the Gegenstelle only (↓/↑ and its name; the own side, the
+  most common one in the book, only where a message differs); the type as a
+  label, the priority when not routine, Betreff and two lines of text; the
+  status pill (fixed width) with time and operator; the next step above
+  Ausdruck. The step button opens a small dialog (`openStepDialog()`, the same
+  inputs as the Ablauf's step form, `stepInputs()`): to whom / by whom with
+  the names used in the Einsatz as suggestions, the time, and at an incoming
+  takeover the Meldesammelstelle's reference.
+- **One message:** the status line (type, direction, time), the Bezug under
+  the subject, Von → An as on the paper form, the verbatim text, small
+  blocks (Übermittlung, Ort, Stichzeit, Ursprung, Anmerkungen), the flow (Ablauf) with a small
   form for the next step (to whom / by whom, when), failed attempts, the
   Meldesammelstelle's reference (an edit with a revision), replies ("Antwort erfassen" swaps Von/An
   and sets the Bezug; saving it marks the original "beantwortet"), earlier
@@ -263,15 +274,15 @@ The manifest has no `id` on purpose; see `../confirm/README.md`, "App identity" 
 
 ## Code
 
-- `index.html`, `style.css` (incl. the print layout), `sw.js` (on the shared
+- `index.html`, `style.css`, `sw.js` (on the shared
   `../shared/js/sw-core.js`), `manifest.webmanifest`, icons.
 - `js/app.js`: the page (routing, views, form wiring, exports, printing).
 - `js/db.js`: the storage schema (operations, messages, revisions,
   counters, drafts, stations).
 - `js/form.js`: the entry form as data <-> message fields (pure, tested).
 - `js/print.js`: what the printouts show (pure, tested);
-  `js/printview.js` turns it into the print-only sheet and measures the
-  one-page fit; `js/paperpdf.js` writes the empty form (Vordruck) as a PDF.
+  `js/paperpdf.js` writes the filled form and the empty one (Vordruck) as
+  PDFs, `js/bookpdf.js` the book (shared `pdf.js`).
 - `js/numbering.js`: message numbers (format, next number, atomic save,
   restore counters, gap check).
 - `js/model.js`: the message record (fields, validation, edit with revision,
@@ -293,7 +304,7 @@ The modules follow the single-file bundler rules (`scripts/single_file.py`):
 only `import { … } from './x.js'` and unique top-level names.
 
 Tests: `tests/notfunk-model.test.mjs`, `notfunk-numbering.test.mjs`,
-`notfunk-form.test.mjs` (form and printouts), `notfunk-paperpdf.test.mjs` (the Vordruck PDF), `notfunk-offline.test.mjs`
+`notfunk-form.test.mjs` (form and printouts), `notfunk-paperpdf.test.mjs` (the form, Vordruck and book PDFs), `notfunk-offline.test.mjs`
 (no external URLs, bundle and precache); browser tests in
 `tests/e2e/notfunk.spec.mjs` and `offline.spec.mjs`.
 

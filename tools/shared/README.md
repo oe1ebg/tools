@@ -447,14 +447,20 @@ engine does not.
   rect(x, y, w, h, { width, gray, dash }), circle(cx, cy, r, { width, gray,
   solid }), fill(x, y, w, h, gray), text(str, x, y, { size, bold, gray, align }) }`
   (`y` of text is the baseline; `align`: left, center, right).
-- `pdfDocument(page, content, title)` → `Uint8Array` of a one-page PDF;
-  `content` is `canvas.ops.join('\n')`.
+- `pdfDocument(page, content, title)` → `Uint8Array` of a PDF; `content` is
+  `canvas.ops.join('\n')` (one page) or an array of such strings (one page
+  each; `/Pages` `/Kids` and `/Count` and the xref follow).
+- `pdfWrap(text, widthMm, sizePt, bold = false)` → array of lines: breaks
+  at spaces, keeps `\n` (and `\r\n`; an empty line stays one), breaks a
+  word wider than the line hard by characters; uses `pdfTextWidth`.
 - `pdfOpen(bytes, filename)` (UI): opens the PDF in a new tab, downloads it
   where the tab is blocked.
 - `pdfTextWidth(text, sizePt, bold)` → mm; `pdfHex(text)`, `pdfNum(n)`.
 
 Used by Confirm's Leerformular (`confirm/js/paperpdf.js`, landscape) and
-Notfunk's Vordruck (`notfunk/js/paperpdf.js`, portrait).
+Notfunk's forms (`notfunk/js/paperpdf.js`, portrait: the empty and the
+filled one, several pages for a long text) and book (`notfunk/js/bookpdf.js`,
+landscape, several pages).
 Tests: `tests/pdf.test.mjs`. The module is picked up by the single-file
 bundler and the precache lists through its import; its top-level names all
 start with `pdf`/`PDF_`.

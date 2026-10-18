@@ -11,6 +11,7 @@
 //   const cv = pdfCanvas(PDF_A4_PORTRAIT);   // cv.line / fill / text
 //   const bytes = pdfDocument(PDF_A4_PORTRAIT, cv.ops.join('\n'), 'Title');
 //   pdfOpen(bytes, 'form.pdf');
+//   (several pages: pdfDocument(page, [content1, content2], 'Title'))
 
 export const PDF_MM = 72 / 25.4;
 export const PDF_A4_LANDSCAPE = { width: 297, height: 210 }; // mm
@@ -42,11 +43,44 @@ export function pdfTextWidth(text, size, bold = false) {
   return units / 1000 * size / PDF_MM;
 }
 
+// A text wrapped to `widthMm` at `size` pt: an array of lines. Breaks at
+// spaces, keeps the line breaks ('\n', also '\r\n') of the text (an empty
+// line stays one), and breaks a word wider than the line hard, by
+// characters. Runs of spaces and tabs count as one space.
+export function pdfWrap(text, widthMm, sizePt, bold = false) {
+  const wide = s => pdfTextWidth(s, sizePt, bold);
+  const lines = [];
+  for (const para of String(text ?? '').replace(/\r\n?/g, '\n').split('\n')) {
+    let line = '';
+    for (const word of para.split(/[ \t]+/).filter(Boolean)) {
+      if (line && wide(`${line} ${word}`) <= widthMm) { line = `${line} ${word}`; continue; }
+      if (line) { lines.push(line); line = ''; }
+      let rest = word;
+      while (rest.length > 1 && wide(rest) > widthMm) {
+        let n = 1;
+        while (n < rest.length && wide(rest.slice(0, n + 1)) <= widthMm) n++;
+        // never split a surrogate pair
+        if (n < rest.length && /[\ud800-\udbff]/.test(rest[n - 1])) n--;
+        lines.push(rest.slice(0, n));
+        rest = rest.slice(n);
+      }
+      line = rest;
+    }
+    lines.push(line);
+  }
+  return lines;
+}
+
 export function pdfHex(text) {
   return [...text].map(ch => pdfCode(ch).toString(16).padStart(2, '0')).join('');
 }
 
 export const pdfNum = v => (Math.round(v * 100) / 100).toString();
+
+// The fill colour operator: a gray level, or [r, g, b].
+function pdfFillColor(c) {
+  return Array.isArray(c) ? `${c.map(pdfNum).join(' ')} rg` : `${pdfNum(c)} g`;
+}
 
 // A content stream drawn in mm from the top left of a page { width, height }.
 export function pdfCanvas({ height }) {
@@ -71,31 +105,42 @@ export function pdfCanvas({ height }) {
         + `${p(cx - r, cy - k)} ${p(cx - k, cy - r)} ${p(cx, cy - r)} c `
         + `${p(cx + k, cy - r)} ${p(cx + r, cy - k)} ${p(cx + r, cy)} c ${solid ? 'B' : 'S'}`);
     },
+    // `gray` (0 black .. 1 white) or a colour [r, g, b] (0..1 each)
     fill(x, y, w, h, gray) {
-      ops.push(`${pdfNum(gray)} g ${X(x)} ${Y(y + h)} ${pdfNum(w * PDF_MM)} ${pdfNum(h * PDF_MM)} re f`);
+      ops.push(`${pdfFillColor(gray)} ${X(x)} ${Y(y + h)} ${pdfNum(w * PDF_MM)} ${pdfNum(h * PDF_MM)} re f`);
     },
-    // baseline at y; align: left | center | right of x
-    text(str, x, y, { size = 9, bold = false, gray = 0, align = 'left' } = {}) {
+    // baseline at y; align: left | center | right of x; `color` [r, g, b]
+    // instead of `gray`
+    text(str, x, y, { size = 9, bold = false, gray = 0, color = null, align = 'left' } = {}) {
       const w = pdfTextWidth(str, size, bold);
       const left = align === 'center' ? x - w / 2 : align === 'right' ? x - w : x;
-      ops.push(`BT /${bold ? 'F2' : 'F1'} ${pdfNum(size)} Tf ${pdfNum(gray)} g ${X(left)} ${Y(y)} Td <${pdfHex(str)}> Tj ET`);
+      ops.push(`BT /${bold ? 'F2' : 'F1'} ${pdfNum(size)} Tf ${pdfFillColor(color || gray)} ${X(left)} ${Y(y)} Td <${pdfHex(str)}> Tj ET`);
     },
   };
 }
 
-// -> the PDF file as bytes (Uint8Array): one page of `page` ({ width, height }
-// in mm) with the content stream `content` (from pdfCanvas().ops.join('\n'))
-// and `title` in the document info.
+// -> the PDF file as bytes (Uint8Array): the pages of `page` ({ width,
+// height } in mm) and `title` in the document info. `content` is one
+// page's content stream (from pdfCanvas().ops.join('\n')) or an array of
+// them, one per page.
 export function pdfDocument(page, content, title) {
+  const streams = Array.isArray(content) ? content : [content];
+  const n = streams.length;
+  const fonts = `/Font << /F1 ${3 + 2 * n} 0 R /F2 ${4 + 2 * n} 0 R >>`;
+  const box = `[0 0 ${pdfNum(page.width * PDF_MM)} ${pdfNum(page.height * PDF_MM)}]`;
   const objects = [
     '<< /Type /Catalog /Pages 2 0 R >>',
-    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
-    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pdfNum(page.width * PDF_MM)} ${pdfNum(page.height * PDF_MM)}] /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> /Contents 4 0 R >>`,
-    `<< /Length ${content.length} >>\nstream\n${content}\nendstream`,
+    `<< /Type /Pages /Kids [${streams.map((_, i) => `${3 + 2 * i} 0 R`).join(' ')}] /Count ${n} >>`,
+  ];
+  streams.forEach((c, i) => {
+    objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox ${box} /Resources << ${fonts} >> /Contents ${4 + 2 * i} 0 R >>`,
+      `<< /Length ${c.length} >>\nstream\n${c}\nendstream`);
+  });
+  objects.push(
     '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
     '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>',
     `<< /Title <${pdfHex(title)}> /Producer (oe1ebg tools) >>`,
-  ];
+  );
   // All ASCII (text as hex strings): string length = byte length.
   let out = '%PDF-1.4\n';
   const offsets = objects.map((body, i) => {

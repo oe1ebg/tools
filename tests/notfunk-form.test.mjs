@@ -319,11 +319,11 @@ test('Meldebuch printout: range, deleted left out, oldest first', () => {
   const c = softDelete(save(filled, 3, '2026-10-07T12:30:00.000Z'), { operator: 'x', now: NOW });
   const all = bookSheet([c, b, a], OP, { now: NOW });
   assert.deepEqual(all.rows.map(r => r.number), ['W1-001', 'W1-002']);
-  assert.equal(all.range, 'gesamter Einsatz');
+  assert.equal(all.range, '2026-10-07 13:00 bis 2026-10-07 14:00 (gesamter Einsatz)');
   assert.deepEqual([all.rows[1].direction, all.rows[1].party, all.rows[1].priority], ['Aus', 'LI 3', '']);
   const part = bookSheet([a, b], OP, { now: NOW, fromIso: '2026-10-07T11:30:00.000Z' });
   assert.deepEqual(part.rows.map(r => r.number), ['W1-002']);
-  assert.match(part.range, /^2026-10-07 13:30 bis jetzt$/);
+  assert.match(part.range, /^2026-10-07 13:30 bis 2026-10-07 14:00$/);
 });
 
 test('date picker: months from Monday, ISO dates; month steps across the year', async () => {
