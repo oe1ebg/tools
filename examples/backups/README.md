@@ -43,7 +43,7 @@ observations rather than long conversations.
 **Notfunk:** an explicitly fictional logistics exercise at a model park
 contains incoming requests, outgoing replies and follow-up reports. Try
 the map ("Karte": the Ort of the incoming messages, some unresolved, the
-Dringend chain in amber), the message references, delivery-state filters, read-back flags, a failed
+Dringend chain in amber, the simulated Notfall D1-016 in red), the message references, delivery-state filters, read-back flags, a failed
 transmission attempt and radio/telephone/messenger channels. Message
 numbers and the staff's separate reference numbers are both populated.
 The next message number is `D1-031` in the full exercise and `D1-007` in the

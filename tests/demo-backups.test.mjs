@@ -138,5 +138,7 @@ test('demo identities are fictional and consistent across tools and profile snap
       else if (m.locationText) assertPlace(m.locationText, null, m.number);
     }
     assert.ok(nf.messages.some(m => m.location) && nf.messages.some(m => m.locationText) && nf.messages.some(m => !m.location && !m.locationText), name);
+    // every pin colour: Notfall, Dringend, Routine, each at a place
+    if (name === 'notfunk-full') for (const p of ['emergency', 'priority', 'routine']) assert.ok(nf.messages.some(m => m.priority === p && m.location), p);
   }
 });

@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { test, expect } from '@playwright/test';
 
 const IMG = fileURLToPath(new URL('../../docs/img/', import.meta.url));
+const EXAMPLES = fileURLToPath(new URL('../../examples/backups/', import.meta.url));
 const at = iso => new Date(iso);
 
 // The header is sticky: in a picture of the whole page (or of an element
@@ -139,12 +140,6 @@ test('Notfunk-Meldebuch', async ({ page }) => {
   await expect(page.locator('#book-body tr', { hasText: 'W1-003' })).toContainText('übertragen');
   await shotAround(page, ['#book-summary', '#view-book .filter-bar', '#view-book .table-wrap'], 'notfunk-meldebuch');
 
-  // the map of the book's messages
-  await page.getByRole('button', { name: 'Karte' }).click();
-  await expect(page.locator('#map .map-pin').first()).toBeVisible({ timeout: 30_000 });
-  await page.waitForTimeout(500); // the fit animation
-  await shotAround(page, ['#view-book .filter-bar', '#map-panel'], 'notfunk-karte');
-  await page.getByRole('button', { name: 'Karte' }).click();
 
   // the help
   await page.locator('#m-from').focus();
@@ -231,6 +226,20 @@ test('Bestätigungsverkehr', async ({ page }) => {
 });
 
 // --- notices (docs/notfunk-anleitung.md, docs/confirm-anleitung.md) ---
+
+// The map with the example operation (examples/backups/notfunk-full.json):
+// messages at many places, every priority colour, places not resolved.
+test('Notfunk-Meldebuch: Karte (Beispiel-Einsatz)', async ({ page }) => {
+  await page.goto('tools/notfunk/');
+  await expect.poll(() => page.evaluate(() => globalThis.NOTFUNK_READY === true)).toBe(true);
+  await page.locator('#import-file').setInputFiles(`${EXAMPLES}notfunk-full.json`);
+  await expect(page.locator('#import-msg')).toContainText('30 Meldungen neu');
+  await page.getByRole('button', { name: /„DEMO \/ ÜBUNG · Modellpark Lindenhain“ öffnen/ }).click();
+  await page.getByRole('button', { name: 'Karte' }).click();
+  await expect(page.locator('#map .map-pin.prio-emergency')).toBeVisible({ timeout: 30_000 });
+  await page.waitForTimeout(800); // the fit animation
+  await shotAround(page, ['#view-book .filter-bar', '#map-panel'], 'notfunk-karte');
+});
 
 async function notfunkOp(page, name, prefix) {
   await page.goto('tools/notfunk/');
