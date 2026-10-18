@@ -1,8 +1,7 @@
 // Notfunk-Meldebuch (/tools/notfunk/): an operation is created, messages get
 // gapless numbers (a deleted one keeps its number), the status moves on,
 // a reply marks the original answered, an edit keeps a revision, the
-// Geschäftsbuch CSV downloads, the print layout shows only the form (one
-// A4 page), the help opens and closes without touching the form.
+// Geschäftsbuch CSV downloads, the printouts open as PDFs, the help opens and closes without touching the form.
 import { test, expect, downloadText, offlineSettled } from './fixtures.mjs';
 
 async function openNewOp(page, name, prefix) {
@@ -31,7 +30,7 @@ async function addMessage(page, from, subject, text = `${subject}, wörtlich.`) 
   await expect(page.locator('#book-body')).toContainText(subject);
 }
 
-const numbers = page => page.locator('#book-body td.num').allTextContents();
+const numbers = page => page.locator('#book-body td.num a').allTextContents();
 
 test('loads and shows the operations', async ({ page }) => {
   await page.goto('tools/notfunk/');
@@ -51,7 +50,10 @@ test('numbers, status, reply, edit, delete and CSV', async ({ page }) => {
 
   // hand W1-001 over from the table
   await page.getByRole('button', { name: 'W1-001 übergeben' }).click();
-  await expect(page.locator('#book-body tr', { hasText: 'W1-001' })).toContainText('übergeben');
+  await expect(page.locator('#step-dlg')).toBeVisible();
+  await page.locator('#step-dlg').getByRole('button', { name: 'Übergabe eintragen' }).click();
+  await expect(page.locator('#step-dlg')).toBeHidden();
+  await expect(page.locator('#book-body tr', { has: page.locator('td.num a', { hasText: 'W1-001' }) })).toContainText('übergeben');
 
   // delete W1-002: the number stays taken
   await page.locator('#book-body a', { hasText: 'W1-002' }).click();
@@ -72,14 +74,14 @@ test('numbers, status, reply, edit, delete and CSV', async ({ page }) => {
   await page.locator('#m-text').fill('Tankwagen um 16 Uhr.');
   await page.locator('#btn-save').click();
   await expect.poll(() => numbers(page)).toEqual(['W1-004', 'W1-003', 'W1-001']);
-  await expect(page.locator('#book-body tr', { hasText: 'W1-001' })).toContainText('beantwortet');
+  await expect(page.locator('#book-body tr', { has: page.locator('td.num a', { hasText: 'W1-001' }) })).toContainText('beantwortet');
 
   // edit W1-003: one earlier version kept, the number unchanged
   await page.locator('#book-body a', { hasText: 'W1-003' }).click();
   await page.getByRole('button', { name: 'Bearbeiten' }).click();
   await page.locator('#m-subject').fill('Diesel 60 Liter');
   await page.locator('#btn-save').click();
-  await expect(page.locator('#book-body tr', { hasText: 'W1-003' })).toContainText('Diesel 60 Liter');
+  await expect(page.locator('#book-body tr', { has: page.locator('td.num a', { hasText: 'W1-003' }) })).toContainText('Diesel 60 Liter');
   await page.locator('#book-body a', { hasText: 'W1-003' }).click();
   await expect(page.locator('#msg-detail')).toContainText('geändert; vorher');
   await page.getByRole('button', { name: '← Meldebuch' }).click();
@@ -125,8 +127,9 @@ test('search, filter and a status step keep the rows of unchanged messages', asy
 
   // a status step rebuilds that row only, and the order stays
   await page.getByRole('button', { name: 'W1-002 übergeben' }).click();
+  await page.locator('#step-dlg').getByRole('button', { name: 'Übergabe eintragen' }).click();
   await expect.poll(kept).toEqual([0, null, 2]);
-  await expect(page.locator('#book-body tr', { hasText: 'W1-002' }).locator('.pill')).toContainText('übergeben');
+  await expect(page.locator('#book-body tr', { has: page.locator('td.num a', { hasText: 'W1-002' }) }).locator('.pill')).toContainText('übergeben');
   expect(await numbers(page)).toEqual(['W1-003', 'W1-002', 'W1-001']);
 
   // a click on a row still opens the message
@@ -280,41 +283,127 @@ test('handover: steps with who and when, the staff reference apart from the numb
   await page.getByRole('button', { name: 'Referenz eintragen' }).click();
   await expect(page.locator('#msg-detail .detail-tags')).toContainText('Ref. GZ 0412');
   await page.getByRole('button', { name: '← Meldebuch' }).click();
-  const row = page.locator('#book-body tr', { hasText: 'U1-001' });
+  const row = page.locator('#book-body tr', { has: page.locator('td.num a', { hasText: 'U1-001' }) });
   await expect(row).toContainText('übernommen');
-  await expect(row).toContainText('Ref. GZ 0412');
+  // the reference bare, below the number (no "Ref." prefix in the book)
+  await expect(row.locator('td.num .ref')).toHaveText('GZ 0412');
 });
 
-test('print: one A4 page, white, the staff block on top', async ({ page, browserName }) => {
+// The book's step button opens a small dialog with the step's inputs.
+test('book step dialog: prefilled with the last target, Enter records, focus returns to the row, the reference shows', async ({ page }) => {
+  await openNewOp(page, 'E2E Schritt', 's1');
+  await addMessage(page, 'Lichtinsel 2', 'Wasser');
+  await addMessage(page, 'Lichtinsel 3', 'Strom');
+  const dlg = page.locator('#step-dlg');
+  const rowOf = n => page.locator('#book-body tr', { has: page.locator('td.num a', { hasText: n }) });
+  // the first handover: typed, recorded with the button
+  await page.getByRole('button', { name: 'S1-001 übergeben' }).click();
+  await expect(dlg).toBeVisible();
+  await expect(dlg.getByLabel('Übergeben an')).toBeFocused();
+  await dlg.getByLabel('Übergeben an').fill('Meldesammelstelle');
+  await dlg.getByRole('button', { name: 'Übergabe eintragen' }).click();
+  await expect(dlg).toBeHidden();
+  // Esc / Abbrechen leave without a step
+  await page.getByRole('button', { name: 'S1-002 übergeben' }).click();
+  await dlg.getByRole('button', { name: 'Abbrechen' }).click();
+  await expect(dlg).toBeHidden();
+  await expect(rowOf('S1-002').locator('.pill')).not.toContainText('übergeben');
+  // the second: prefilled with the last target, Enter records
+  await page.getByRole('button', { name: 'S1-002 übergeben' }).click();
+  await expect(dlg.getByLabel('Übergeben an')).toHaveValue('Meldesammelstelle');
+  // Enter in the name field records (the suggestion list never takes it)
+  await dlg.getByLabel('Übergeben an').press('Enter');
+  await expect(dlg).toBeHidden();
+  await expect(rowOf('S1-002').locator('.pill')).toContainText('übergeben');
+  // focus is back on the row (its next step button)
+  await expect(rowOf('S1-002').locator('.act-stack button.next')).toBeFocused();
+  // the takeover with the Meldesammelstelle's reference: bare in the row
+  await page.getByRole('button', { name: 'S1-002 Übernahme bestätigt' }).click();
+  await dlg.getByLabel('Übernommen durch').fill('S6 Huber');
+  await dlg.getByLabel('Referenz der Meldesammelstelle (optional)').fill('GZ 0777');
+  await dlg.getByLabel('Referenz der Meldesammelstelle (optional)').press('Enter');
+  await expect(dlg).toBeHidden();
+  await expect(rowOf('S1-002').locator('.pill')).toContainText('übernommen');
+  await expect(rowOf('S1-002').locator('td.num .ref')).toHaveText('GZ 0777');
+  await expect(rowOf('S1-001').locator('td.num .ref')).toHaveCount(0);
+});
+
+// The printouts are PDFs (tests/notfunk-paperpdf.test.mjs checks their
+// content). They open in a new tab; here window.open is stubbed and the PDF
+// is read from its Blob (fetching the blob: URL is not allowed by the
+// page's CSP, connect-src 'self').
+async function capturePdfs(page) {
+  await page.evaluate(() => {
+    window.__opened = [];
+    window.__blobs = new Map();
+    const make = URL.createObjectURL;
+    URL.createObjectURL = blob => { const url = make(blob); window.__blobs.set(url, blob); return url; };
+    window.open = url => { window.__opened.push(url); return {}; };
+    globalThis.print = () => { window.__printed = true; };
+  });
+}
+
+async function lastPdf(page) {
+  await expect.poll(() => page.evaluate(() => window.__opened.length)).toBeGreaterThan(0);
+  return page.evaluate(async () => {
+    const blob = window.__blobs.get(window.__opened.at(-1));
+    return { type: blob.type, text: await blob.text() };
+  });
+}
+
+const pdfTexts = text => [...text.matchAll(/<([0-9a-f]+)> Tj/g)].map(m => m[1].match(/../g).map(h => String.fromCharCode(parseInt(h, 16))).join(''));
+
+test('print: a message opens its filled form as a one-page A4 PDF', async ({ page }) => {
   await openNewOp(page, 'E2E Druck', 'p1');
   await addMessage(page, 'Lichtinsel 12', 'Aggregat ausgefallen');
-  await page.evaluate(() => { globalThis.print = () => {}; });
+  await capturePdfs(page);
   await page.getByRole('button', { name: 'Ausdruck P1-001 (Meldeaufnahmeformular)' }).click();
-  // the first time: how to set up the print dialog
-  await expect(page.locator('#print-dlg')).toBeVisible();
-  await expect(page.locator('#print-dlg')).toContainText('Kopf- und Fußzeilen');
-  await page.locator('#print-dlg-ok').click();
-  await page.emulateMedia({ media: 'print' });
-  await expect(page.locator('#print-sheet .pf-num')).toHaveText('P1-001');
-  await expect(page.locator('#print-sheet .pf-dir.on')).toContainText('EINGANG');
-  await expect(page.locator('#print-sheet .pf-staff')).toContainText('Nur von der Meldesammelstelle auszufüllen');
-  await expect(page.locator('#view-book')).toBeHidden();
-  await expect(page.locator('#site-header')).toBeHidden();
-  // one page in Safari too: no page margin while the form prints, and the
-  // sheet fits WebKit's A4 page (it prints 1 px as 0.8 pt: 744 × 1052 px)
-  const pageMargin = () => page.evaluate(() => [...document.styleSheets].flatMap(s => [...s.cssRules])
-    .find(r => r instanceof CSSPageRule).style.marginTop);
-  expect(await pageMargin()).toBe('0px');
-  const box = await page.locator('#print-sheet .pf-sheet').boundingBox();
-  expect(box.height).toBeLessThanOrEqual(1052);
-  if (browserName === 'chromium') {
-    const pdf = (await page.pdf({ preferCSSPageSize: true })).toString('latin1');
-    expect(pdf.match(/\/Type\s*\/Page[^s]/g)).toHaveLength(1);
-  }
-  await page.evaluate(() => globalThis.dispatchEvent(new Event('afterprint')));
-  expect(await pageMargin()).toBe('12mm');
-  await page.emulateMedia({ media: 'screen' });
-  await expect(page.locator('#print-sheet')).toBeHidden();
+  const doc = await lastPdf(page);
+  expect(doc.type).toBe('application/pdf');
+  expect(doc.text.startsWith('%PDF-1.4')).toBe(true);
+  expect(doc.text).toContain('/Count 1');
+  expect(doc.text).toContain('/MediaBox [0 0 595.28 841.89]');
+  const t = pdfTexts(doc.text);
+  expect(t).toContain('P1-001');
+  expect(t).toContain('Lichtinsel 12');
+  expect(t).toContain('Aggregat ausgefallen');
+  expect(t).toContain('EINGANG');
+  expect(t).toContain('NUR VON DER MELDESAMMELSTELLE AUSZUFÜLLEN');
+  // the page itself is not printed, and no print sheet or dialog is left
+  expect(await page.evaluate(() => window.__printed)).toBeUndefined();
+  expect(await page.evaluate(() => document.documentElement.dataset.print)).toBeUndefined();
+  await expect(page.locator('#print-dlg, #print-sheet')).toHaveCount(0);
+  await expect(page.locator('#view-book')).toBeVisible();
+  // the same from the message's detail view
+  await page.locator('#book-body a', { hasText: 'P1-001' }).click();
+  await page.getByRole('button', { name: 'Ausdruck / PDF' }).click();
+  await expect.poll(() => page.evaluate(() => window.__opened.length)).toBe(2);
+});
+
+test('print: the book opens as an A4 landscape PDF with the chosen range', async ({ page }) => {
+  await openNewOp(page, 'E2E Meldebuch', 'p1');
+  await addMessage(page, 'Lichtinsel 12', 'Aggregat ausgefallen', 'Aggregat ausgefallen, 40 Personen.');
+  await addMessage(page, 'Lichtinsel 14', 'Wasser steigt');
+  await capturePdfs(page);
+  await page.getByRole('button', { name: 'Drucken / PDF…' }).click();
+  await page.getByRole('button', { name: 'Meldebuch als PDF' }).click();
+  const doc = await lastPdf(page);
+  expect(doc.type).toBe('application/pdf');
+  expect(doc.text).toContain('/MediaBox [0 0 841.89 595.28]');
+  const t = pdfTexts(doc.text);
+  expect(t).toContain('Notfunk-Meldebuch');
+  expect(t.some(x => /^Zeitraum: \d{4}-\d\d-\d\d \d\d:\d\d bis \d{4}-\d\d-\d\d \d\d:\d\d \(gesamter Einsatz\)$/.test(x))).toBe(true);
+  expect(t).toContain('P1-001');
+  expect(t).toContain('P1-002');
+  expect(t).toContain('Aggregat ausgefallen, 40 Personen.');
+  expect(t).toContain('Seite 1 von 1');
+  expect(await page.evaluate(() => window.__printed)).toBeUndefined();
+  // a time that does not exist is refused in text, no PDF
+  await page.locator('#pr-from-date').fill('2026-03-29');
+  await page.locator('#pr-from-time').fill('02:30');
+  await page.getByRole('button', { name: 'Meldebuch als PDF' }).click();
+  await expect(page.locator('#pr-status')).toContainText('Diese Zeit gibt es nicht');
+  expect(await page.evaluate(() => window.__opened.length)).toBe(1);
 });
 
 test('Einsatz header: a change applies to new messages, the code stays once used', async ({ page }) => {
@@ -323,8 +412,8 @@ test('Einsatz header: a change applies to new messages, the code stays once used
   await expect(page.locator('#e-prefix')).toBeEditable();
   await addMessage(page, 'LI 1', 'Erste');
   await expect(page.locator('#e-prefix')).not.toBeEditable();
-  // the book row: Von → An, below the Funkstelle and via relay or direct
-  await expect(page.locator('#book-body tr', { hasText: 'H1-001' }).locator('td.parties')).toContainText('OE1ABC · direkt');
+  // the book row: the other party's name with the direction (the Funkstelle and the way are in the detail view)
+  await expect(page.locator('#book-body tr', { has: page.locator('td.num a', { hasText: 'H1-001' }) }).locator('td.peer')).toContainText('von LI 1');
   // the own station's callsign, apart from the operator's
   await page.locator('#e-call').fill('oe1xks');
   await page.locator('#e-call').press('Tab');
@@ -338,8 +427,8 @@ test('Einsatz header: a change applies to new messages, the code stays once used
   await page.locator('#e-operator').press('Enter');
   await expect(page.locator('#op-sum')).toContainText('Op OE3XYZ');
   await addMessage(page, 'LI 2', 'Zweite');
-  await expect(page.locator('#book-body tr', { hasText: 'H1-002' })).toContainText('OE3XYZ');
-  await expect(page.locator('#book-body tr', { hasText: 'H1-001' })).toContainText('OE1EBG');
+  await expect(page.locator('#book-body tr', { has: page.locator('td.num a', { hasText: 'H1-002' }) })).toContainText('OE3XYZ');
+  await expect(page.locator('#book-body tr', { has: page.locator('td.num a', { hasText: 'H1-001' }) })).toContainText('OE1EBG');
   // relay lookup from the ÖVSV list, as in the confirmation log: a pick
   // also sets the frequency
   await page.locator('#e-via').fill('oe1x');
@@ -486,16 +575,16 @@ test('two tabs: a stale edit is refused, the handover is not lost, the input sta
   await b.getByRole('button', { name: 'Übergabe eintragen' }).click();
   await expect(b.locator('#msg-detail')).toContainText('an Meldesammelstelle');
   // tab A saves its edit: refused, with the current version loaded and the input kept
-  await expect(page.locator('#book-body tr', { hasText: 'T1-001' })).toContainText('übergeben');
+  await expect(page.locator('#book-body tr', { has: page.locator('td.num a', { hasText: 'T1-001' }) })).toContainText('übergeben');
   await page.locator('#btn-save').click();
   await expect(page.locator('#banner')).toContainText('NICHT GESPEICHERT');
   await expect(page.locator('#banner')).toContainText('inzwischen geändert');
   await expect(page.locator('#m-subject')).toHaveValue('Wasser dringend');
-  await expect(page.locator('#book-body tr', { hasText: 'T1-001' })).toContainText('Wasser');
-  await expect(page.locator('#book-body tr', { hasText: 'T1-001' })).not.toContainText('dringend');
+  await expect(page.locator('#book-body tr', { has: page.locator('td.num a', { hasText: 'T1-001' }) })).toContainText('Wasser');
+  await expect(page.locator('#book-body tr', { has: page.locator('td.num a', { hasText: 'T1-001' }) })).not.toContainText('dringend');
   // saving again (now based on the current version) keeps the handover
   await page.locator('#btn-save').click();
-  const row = page.locator('#book-body tr', { hasText: 'T1-001' });
+  const row = page.locator('#book-body tr', { has: page.locator('td.num a', { hasText: 'T1-001' }) });
   await expect(row).toContainText('Wasser dringend');
   await expect(row).toContainText('übergeben');
   await b.close();
@@ -566,7 +655,7 @@ test('edit draft restore: a change made meanwhile is a conflict, the old text is
   await page.locator('#btn-save').click();
   await expect(page.locator('#banner')).toContainText('NICHT GESPEICHERT');
   await page.locator('#btn-save').click();
-  await expect(page.locator('#book-body tr', { hasText: 'B1-001' })).toContainText('Wasser dringend');
+  await expect(page.locator('#book-body tr', { has: page.locator('td.num a', { hasText: 'B1-001' }) })).toContainText('Wasser dringend');
   await page.locator('#book-body a', { hasText: 'B1-001' }).click();
   await expect(page.locator('#msg-detail .verbatim')).toContainText('new text from tab B');
   await expect(page.locator('#msg-detail .verbatim')).not.toContainText('old text');
@@ -611,11 +700,11 @@ test('legacy edit draft (no base), message changed in between: shown, held back 
   // saving is held back
   await page.locator('#btn-save').click();
   await expect(page.locator('#banner')).toContainText('ENTWURF PRÜFEN');
-  await expect(page.locator('#book-body tr', { hasText: 'L1-001' })).not.toContainText('dringend');
+  await expect(page.locator('#book-body tr', { has: page.locator('td.num a', { hasText: 'L1-001' }) })).not.toContainText('dringend');
   // applying the draft is an explicit choice
   await page.getByRole('button', { name: 'Entwurf auf die aktuelle Fassung anwenden' }).click();
   await page.locator('#btn-save').click();
-  await expect(page.locator('#book-body tr', { hasText: 'L1-001' })).toContainText('Wasser dringend');
+  await expect(page.locator('#book-body tr', { has: page.locator('td.num a', { hasText: 'L1-001' }) })).toContainText('Wasser dringend');
 });
 
 // #20: a typed Stichzeit survives a draft restore
@@ -847,7 +936,7 @@ test('book times: title with date and zone, date shown on another day', async ({
   await page.getByRole('button', { name: /„DEMO \/ ÜBUNG · Modellpark Lindenhain“ öffnen/ }).click();
   const rows = page.locator('#book-body tr[data-id]');
   await expect(rows).toHaveCount(30);
-  const time = rows.first().locator('td').nth(1);
+  const time = rows.first().locator('td.num .when');
   await expect(time).toHaveAttribute('title', /^2026-07-18 \d\d:\d\d MESZ$/); // Vienna's summer time, whatever the browser's zone
   await expect(rows.locator('.date')).toHaveCount(0); // one day: no date in the cells
   // a message today (another day than the example's July): the older ones show their date
@@ -859,7 +948,7 @@ test('book times: title with date and zone, date shown on another day', async ({
   await page.locator('#btn-save').click();
   await expect(page.locator('#book-body')).toContainText('Heute');
   await expect(rows).toHaveCount(31);
-  await expect(rows.first().locator('td').nth(1).locator('.date')).toHaveCount(0);
-  await expect(rows.nth(1).locator('td').nth(1).locator('.date')).toHaveText('2026-07-18');
-  await expect(rows.nth(1).locator('td').nth(1)).toContainText(/2026-07-18\s+\d\d:\d\d/);
+  await expect(rows.first().locator('td.num .when .date')).toHaveCount(0);
+  await expect(rows.nth(1).locator('td.num .when .date')).toHaveText('2026-07-18');
+  await expect(rows.nth(1).locator('td.num .when')).toContainText(/2026-07-18\s+\d\d:\d\d/);
 });

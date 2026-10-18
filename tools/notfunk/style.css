@@ -33,7 +33,13 @@ main{ max-width:1200px; margin:0 auto; padding:1em; }
 .toolbar h2{ font-size:18px; margin:0; letter-spacing:.03em; }
 .toolbar.form-foot{ margin:1em 0 0; }
 .banner.ok{ color:var(--ok); background:var(--bg-raised); }
-.banner.draft{ color:var(--text); background:var(--warn-soft); border-color:var(--warn); font-size:14.5px; margin-top:0; }
+.banner.draft{ color:var(--text); background:var(--warn-soft); border-color:var(--warn); font-size:14.5px; margin-top:0;
+  display:flex; align-items:flex-start; gap:.6em; }
+.banner.draft p{ margin:0; flex:1; }
+.banner.draft[hidden]{ display:none; }
+/* ✕: hides the note until the next page load */
+.banner-close{ flex:none; margin:-.2em -.3em 0 0; padding:.1em .45em; min-width:24px; min-height:24px; background:none; border-color:transparent; color:var(--text-dim); }
+.banner-close:hover{ border-color:var(--line-strong); }
 .panel{ border:1px solid var(--line); border-radius:6px; padding:1em; margin-bottom:1em; background:var(--bg-raised); }
 .empty{ color:var(--text-dim); padding:2em; text-align:center; }
 button.mini{ font-size:13.5px; padding:.15em .55em; }
@@ -202,7 +208,7 @@ details.more .hint{ margin:.4em 0 0; }
 /* relative: the .sr-only texts in the table stay inside the scroll box
    (absolutely positioned, they would widen the whole page on phones) */
 .table-wrap{ overflow-x:auto; position:relative; border:1px solid var(--line); border-radius:6px; }
-table.book{ width:100%; border-collapse:collapse; font-size:14.5px; min-width:56em; }
+table.book{ width:100%; border-collapse:collapse; font-size:14.5px; min-width:44em; }
 table.book th, table.book td{ padding:.45em .6em; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
 /* column names: .sticky-head (the shared stylesheet) */
 table.book th{ font-size:12.5px; text-transform:uppercase; letter-spacing:.05em; }
@@ -215,12 +221,28 @@ table.book th{ font-size:12.5px; text-transform:uppercase; letter-spacing:.05em;
   .table-wrap.sticky-head{ overflow-x:auto; }
 }
 table.book .date{ display:block; font-size:12.5px; color:var(--text-dim); }
-table.book td.num{ font-family:var(--font-mono); font-weight:600; white-space:nowrap; }
-table.book td.num a{ color:var(--accent-text); text-decoration:none; }
-table.book td.parties{ min-width:12em; }
-table.book td.content{ max-width:28em; }
-table.book td.act{ text-align:right; }
-table.book td.act button{ margin:0 0 .25em .3em; } /* the two buttons wrap below each other when narrow */
+/* Nr., below it the time and the references (Meldesammelstelle, Bezug) */
+table.book td.num{ width:1%; white-space:nowrap; }
+table.book td.num a{ font-family:var(--font-mono); font-weight:600; color:var(--accent-text); text-decoration:none; }
+table.book td.num .when{ font-weight:600; }
+table.book td.num .ref{ font-family:var(--font-mono); font-size:13px; color:var(--text-dim); }
+/* the other party: "↓ von …" / "↑ an …", a long name wraps beside the arrow */
+table.book td.peer{ min-width:10em; max-width:16em; }
+table.book .peer-line{ display:grid; grid-template-columns:auto 1fr; column-gap:.35em; font-weight:600; }
+table.book .peer-line .arrow{ color:var(--text-dim); font-weight:400; white-space:nowrap; }
+/* the type always as a label, the priority (not routine), the subject */
+table.book .subj{ display:flex; flex-wrap:wrap; gap:.2em .45em; align-items:baseline; margin-bottom:.5em; }
+.kind{ font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--accent-text);
+  border:1px solid var(--accent); border-radius:4px; padding:0 .4em; line-height:1.5; white-space:nowrap; }
+/* status: the state (all the same width), then time and operator */
+table.book td.st{ width:1%; padding-right:.3em; }
+table.book td.st .pill{ display:block; min-width:7.6em; box-sizing:border-box; text-align:center; }
+table.book td.st-when{ width:1%; white-space:nowrap; padding-left:.3em; font-size:13.5px; line-height:1.3; color:var(--text-dim); }
+/* the next step above Ausdruck, equally wide */
+table.book td.act{ width:1%; }
+table.book .act-stack{ display:grid; gap:.3em; }
+table.book .act-stack button{ width:100%; white-space:nowrap; }
+table.book .act-stack button.next{ border-color:var(--accent); color:var(--accent-text); }
 table.book tr.urgent td{ background:var(--err-soft); }
 table.book tbody tr[data-id]{ cursor:pointer; }
 table.book tbody tr[data-id]:hover td{ background:var(--accent-soft); }
@@ -252,6 +274,28 @@ details.misc > summary{ cursor:pointer; color:var(--text-dim); }
 .detail-side p{ margin:.3em 0; }
 .detail-tags{ display:flex; flex-wrap:wrap; gap:.5em; align-items:center; }
 .detail-subject{ font-size:20px; margin:0; }
+/* what the message refers to, under its subject */
+.detail-bezug{ font-size:14.5px; color:var(--text-dim); margin-top:-.4em; }
+.detail-bezug a{ font-weight:600; }
+/* Von → An above the text, as on the paper form; stacked when narrow */
+.route{ display:grid; grid-template-columns:minmax(0, 1fr) auto minmax(0, 1fr); gap:.2em .8em; align-items:start;
+  border:1px solid var(--line); border-radius:6px; padding:.55em .9em; }
+.route .who{ font-weight:600; overflow-wrap:anywhere; }
+.route .call{ font-family:var(--font-mono); font-size:13.5px; color:var(--text-dim); font-weight:400; }
+.route .arrow{ font-size:20px; line-height:1; color:var(--text-dim); padding-top:.35em; }
+.route .side-cap{ font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-dim); }
+.route .verteiler{ grid-column:1 / -1; font-size:13.5px; color:var(--text-dim); border-top:1px dashed var(--line); padding-top:.35em; }
+@media (max-width: 560px){
+  .route{ grid-template-columns:1fr; }
+  .route .arrow{ padding:0; transform:rotate(90deg); justify-self:start; }
+}
+/* the facts under the text: small blocks with a caption */
+.facts{ display:grid; grid-template-columns:repeat(auto-fit, minmax(14em, 1fr)); gap:.6em 1.4em; }
+.facts:empty{ display:none; }
+.fact .cap{ margin-bottom:.1em; }
+.fact .val{ font-size:14.5px; overflow-wrap:anywhere; }
+.fact.wide{ grid-column:1 / -1; }
+.fact .links{ font-size:13.5px; }
 .verbatim{ border:1px solid var(--line); border-radius:6px; background:var(--bg-raised); padding:.8em 1em; }
 .verbatim p{ margin:.3em 0 0; font-size:16px; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; }
 .cap{ font-size:12.5px; font-weight:500; text-transform:uppercase; letter-spacing:.05em; color:var(--text-dim); margin:0 0 .4em; }
@@ -263,9 +307,11 @@ dl.kv dd{ margin:0; overflow-wrap:anywhere; }
 html.offline .online-only{ display:none; }
 ol.steps{ list-style:none; margin:0; padding:0; }
 ol.steps li{ display:grid; grid-template-columns:1.2em 1fr; gap:.6em; min-height:3em; position:relative; }
-ol.steps li:not(:last-child)::after{ content:""; position:absolute; left:calc(.6em - 1px); top:1.2em; bottom:0; width:2px; background:var(--line); }
+/* the line runs from a dot's bottom to the next dot's top, through the
+   dots' centre (the middle of the 1.2em column) */
+ol.steps li:not(:last-child)::after{ content:""; position:absolute; left:calc(.6em - 1px); top:1.1em; bottom:-.2em; width:2px; background:var(--line); }
 ol.steps li.done:not(:last-child)::after{ background:var(--accent); }
-ol.steps .dot{ width:.9em; height:.9em; border-radius:50%; border:2px solid var(--line-strong); background:var(--bg); margin-top:.2em; box-sizing:border-box; }
+ol.steps .dot{ width:.9em; height:.9em; border-radius:50%; border:2px solid var(--line-strong); background:var(--bg); margin-top:.2em; box-sizing:border-box; justify-self:center; }
 ol.steps li.done .dot{ background:var(--accent); border-color:var(--accent); }
 ol.steps li.next .dot{ border-color:var(--accent); }
 ol.steps li.next .step-label{ color:var(--accent-text); font-weight:600; }
@@ -285,16 +331,18 @@ details.attempt-add > summary{ cursor:pointer; color:var(--text-dim); }
 ul.revs{ list-style:none; margin:0; padding:0; font-size:14.5px; }
 ul.revs summary{ cursor:pointer; }
 
-/* ---------- dialogs: help (base: shared tools.css), print ---------- */
+/* ---------- dialogs: help (base: shared tools.css), status step ---------- */
 dialog{ background:var(--bg); color:var(--text); border:1px solid var(--line-strong); border-radius:8px; padding:0; box-shadow:0 10px 40px rgba(0,0,0,.35); }
 dialog::backdrop{ background:rgba(0,0,0,.35); }
 .flow-list{ margin:.3em 0; padding-left:1.4em; }
 .flow-list li{ margin:.2em 0; }
 .ex{ font-family:var(--font-mono); font-size:13.5px; background:var(--bg-raised); border:1px solid var(--line); border-radius:3px; padding:0 .3em; color:var(--text); white-space:nowrap; }
-.print-dlg{ width:min(560px, calc(100vw - 2em)); }
-.print-dlg form{ padding:1em 1.2em; }
-.print-dlg h2{ margin:0 0 .5em; font-size:18px; }
-.print-dlg ul{ margin:.3em 0 .8em; padding-left:1.3em; }
+/* a status step from the book (openStepDialog) */
+.step-dlg{ width:min(480px, calc(100vw - 2em)); }
+.step-dlg-body{ padding:1em 1.2em; display:grid; gap:.4em; }
+.step-dlg h2{ margin:0; font-size:18px; }
+.step-dlg .sub{ margin:0 0 .3em; }
+.step-dlg .inline-fields{ grid-template-columns:1fr; }
 
 /* ---------- footer ---------- */
 body > footer{ max-width:1200px; margin:2em auto 1em; padding:0 1em; font-size:12.5px; color:var(--text-dim); }
@@ -328,29 +376,35 @@ body > footer details.vendor-license pre{ white-space:pre-wrap; }
   .form-actions.over-suggestions{ z-index:31; } /* sticky stays, above an open suggestion list */
   .form-actions .kbd-hint{ display:none; }
   #btn-save{ flex:1; font-size:16px; font-weight:600; }
-  /* the message book as cards (#108 B1): number, time, direction and the
-     status on top, then from/to, subject and text, type and the buttons.
-     The column heads stay for screen readers (roles: app.js). */
+  /* the message book as cards (#108 B1): number, time and references,
+     the status on top; the other party; type, subject and text; time and
+     operator of the status and the buttons. The column heads stay for
+     screen readers (roles: app.js). */
   table.book{ min-width:0; }
   table.book, table.book tbody{ display:block; }
   table.book thead{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
-  table.book tr{ display:grid; grid-template-columns:auto auto minmax(0, 1fr) auto; column-gap:.6em; row-gap:.15em; padding:.45em .55em; border-bottom:1px solid var(--line); }
-  table.book tr > td{ display:block; padding:0; border:none; min-width:0; max-width:none; }
-  table.book tr > td:nth-child(1){ grid-area:1 / 1; }
-  table.book tr > td:nth-child(2){ grid-area:1 / 2; }
-  table.book tr > td:nth-child(3){ grid-area:1 / 3; }
-  table.book tr > td:nth-child(7){ grid-area:1 / 4; text-align:right; }
-  table.book tr > td:nth-child(4){ grid-area:2 / 1 / 3 / -1; }
-  table.book tr > td:nth-child(5){ grid-area:3 / 1 / 4 / -1; }
-  table.book tr > td:nth-child(6){ grid-area:4 / 1 / 5 / 3; align-self:center; }
-  table.book tr > td.act{ grid-area:4 / 3 / 5 / -1; white-space:normal; }
+  table.book tr{ display:grid; grid-template-columns:minmax(0, 1fr) max-content; column-gap:.6em; row-gap:.2em; padding:.45em .55em; border-bottom:1px solid var(--line); }
+  table.book tr > td{ display:block; padding:0; border:none; min-width:0; max-width:none; width:auto; }
+  table.book tr > td.num{ grid-area:1 / 1; display:flex; flex-wrap:wrap; align-items:baseline; gap:0 .5em; white-space:normal; }
+  table.book tr > td.num > *{ white-space:nowrap; }
+  table.book tr > td.st{ grid-area:1 / 2; }
+  /* (the wide layout's width:1% cells: auto here) */
+  table.book tr > td:is(.num, .st, .st-when, .act){ width:auto; }
+  table.book tr > td.st .pill{ display:inline-block; min-width:0; }
+  table.book tr > td:is(.st, .act){ justify-self:end; }
+  table.book .act-stack button{ width:auto; }
+  table.book tr > td.peer{ grid-area:2 / 1 / 3 / -1; }
+  table.book tr > td.content{ grid-area:3 / 1 / 4 / -1; }
+  table.book tr > td.st-when{ grid-area:4 / 1; align-self:center; padding:0; }
+  table.book tr > td.st-when br{ display:none; }
+  table.book tr > td.st-when .by{ margin-left:.5em; }
+  table.book tr > td.act{ grid-area:4 / 2; }
+  table.book .act-stack{ grid-auto-flow:column; }
   table.book tr > td.empty{ grid-column:1 / -1; }
-  table.book tr > td:nth-child(6) > div{ display:inline; margin-left:.4em; }
   table.book tr.urgent{ background:var(--err-soft); }
   table.book tr.urgent td{ background:none; }
   table.book tr.fresh, table.book tbody tr[data-id]:hover{ background:var(--accent-soft); }
   table.book .date{ display:inline; margin-right:.3em; }
-  table.book tr > td:nth-child(7) .date{ display:inline; }
   table.book tr.row-editing, table.book tbody tr.row-editing[data-id]:hover{ background:var(--warn-soft); box-shadow:inset 4px 0 0 var(--warn), inset 0 0 0 2px var(--warn); }
   table.book.row-marks tbody tr.row-editing > td{ border:none; background:none; } /* beats the shared .row-marks frame */
   table.book.row-marks tbody tr.row-editing > td:first-child{ box-shadow:none; }
@@ -358,109 +412,13 @@ body > footer details.vendor-license pre{ white-space:pre-wrap; }
   table.book tr.fresh td, table.book tbody tr[data-id]:hover td{ background:none; }
 }
 
-/* ---------- print (A4; "Als PDF sichern" in the print dialog) ---------- */
-/* The form is one page without page margin (no room for the browser's
-   header and footer lines): printview.js sets this @page rule's margin to
-   0 while a one-page form prints. No named page for it: Safari accepts
-   `page:` but prints with the default page's margins. The book and a form
-   that needs several pages use the normal margins. Paper is white with
-   black lines only: nothing depends on printed backgrounds.
-   Sized for Safari (macOS and iOS): WebKit prints 1 CSS px as 0.8 pt, not
-   0.75 pt, so its A4 page is 744 × 1052 px (197 × 278 mm in CSS units)
-   instead of 210 × 297 mm. The sheet is 276 mm high (and measured at
-   197 mm wide), which fits there and leaves some room at the bottom in
-   Chrome and Firefox. A taller sheet spills onto a second page in Safari. */
-@media screen{ .print-only{ display:none; } }
-@page{ size:A4; margin:12mm 14mm; }
+/* ---------- print ---------- */
+/* The printouts (message form, book, empty form) are PDFs written by the
+   app (paperpdf.js, bookpdf.js), not this page. A print of the page itself
+   (browser menu) leaves out what is not for paper. */
 @media print{
   :root{ color-scheme:light; }
   html, body{ background:#fff; color:#000; font-size:10.5pt; }
   .no-print, #site-header, body > footer, dialog{ display:none !important; }
   main{ max-width:none; padding:0; margin:0; }
-  .print-only{ display:block; }
-  .pf-sheet:not(.multi){ height:276mm; overflow:hidden; }
-  html.pf-margins .pf-sheet:not(.multi){ height:252mm; padding:0; }
-  .pf-sheet.multi{ padding:0; }
 }
-/* off-screen copy at the printed width, to measure the fit (printview.js) */
-.pf-measure{ position:absolute; left:-10000px; top:0; width:197mm; visibility:hidden; }
-html.pf-margins .pf-measure{ width:169mm; }
-html.pf-margins .pf-measure .pf-sheet{ padding:0; }
-
-.pf-sheet{
-  --pf-text:12.5pt; --pf-pad:3.5pt; --pf-gap:3.5mm;
-  box-sizing:border-box; width:100%; padding:11mm 13mm 8mm; display:flex; flex-direction:column;
-  background:#fff; color:#000; font:9pt/1.3 var(--font-ui);
-}
-/* a long text: first tighter, then smaller (never under 10 pt) */
-.pf-sheet.fit-1{ --pf-text:11.5pt; --pf-pad:2.5pt; --pf-gap:2.5mm; }
-.pf-sheet.fit-2{ --pf-text:10.5pt; --pf-pad:2pt; --pf-gap:2mm; }
-.pf-sheet.fit-3{ --pf-text:10pt; --pf-pad:1.5pt; --pf-gap:1.5mm; }
-.pf-cap{ font-size:6.8pt; letter-spacing:.06em; text-transform:uppercase; color:#333; }
-.pf-small{ font-size:7.8pt; color:#222; }
-.pf-val{ font-size:10.5pt; min-height:1.3em; overflow-wrap:anywhere; }
-.pf-strong{ font-weight:700; }
-.pf-top{ display:grid; grid-template-columns:minmax(0,1fr) auto; grid-template-rows:auto auto; gap:2mm 5mm; align-items:end; padding-bottom:2.5mm; border-bottom:1.5pt solid #000; }
-.pf-titlebox{ grid-column:1; grid-row:1; min-width:0; }
-.pf-title{ font-size:17pt; font-weight:700; line-height:1.1; }
-.pf-dirrow{ grid-column:1; grid-row:2; display:grid; grid-template-columns:1fr 1fr; gap:3mm; }
-.pf-dir{ display:flex; align-items:center; justify-content:center; gap:2mm; border:1pt solid #000; padding:1mm 2mm; font-size:10pt; font-weight:800; letter-spacing:.08em; }
-.pf-dir-arrow{ font-size:13pt; line-height:1; }
-.pf-dir.on{ border-width:2.6pt; }
-.pf-dir.off{ color:#888; border-color:#999; font-weight:600; }
-.pf-dir.off .pf-box{ border-color:#999; }
-.pf-numbox{ grid-column:2; grid-row:1 / 3; align-self:stretch; min-width:52mm; border:1.2pt solid #000; padding:1.5mm 3mm; display:flex; flex-direction:column; }
-.pf-num{ font:700 21pt/1.15 var(--font-mono); margin-top:1mm; }
-/* the staff's block: one row, dashed, for handwriting */
-.pf-staff{ margin-top:var(--pf-gap); border:1pt dashed #000; padding:1.2mm 2.5mm 2mm; }
-.pf-staff-head{ font-size:6.8pt; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
-.pf-staff-grid{ display:grid; grid-template-columns:1.3fr 1fr 1fr 1fr; gap:0 4mm; }
-.pf-staff-grid > div{ display:flex; flex-direction:column; min-width:0; }
-.pf-line{ border-bottom:.75pt solid #000; min-height:6.5mm; font-size:10pt; padding-top:1mm; }
-/* the rows of boxes */
-.pf-row{ display:grid; grid-template-columns:1fr; border:.75pt solid #000; border-top:none; }
-.pf-first{ margin-top:var(--pf-gap); border-top:.75pt solid #000; }
-.pf-ab{ grid-template-columns:.85fr 1.15fr; }
-.pf-2{ grid-template-columns:1fr 1fr; }
-.pf-3{ grid-template-columns:1.7fr 1.3fr .6fr; }
-.pf-4{ grid-template-columns:1fr .8fr 1fr .8fr; }
-.pf-cell{ padding:var(--pf-pad) 2.5mm; display:flex; flex-direction:column; gap:.5pt; min-width:0; }
-.pf-cell + .pf-cell{ border-left:.75pt solid #000; }
-.pf-inline{ flex-direction:row; flex-wrap:wrap; align-items:center; align-content:flex-start; gap:1pt 2.4mm; font-size:8.6pt; }
-.pf-inline > .pf-cap{ flex-basis:100%; }
-/* circle = choose one (filled by its border: no background needed);
-   square = an extra mark */
-.pf-opt{ white-space:nowrap; display:inline-flex; align-items:center; gap:1.2mm; }
-.pf-opt.on{ font-weight:700; }
-.pf-dot{ display:inline-block; box-sizing:border-box; width:8pt; height:8pt; border:.9pt solid #000; border-radius:50%; flex:none; }
-.pf-dot.on{ border-width:4pt; }
-.pf-box{ display:inline-grid; place-items:center; box-sizing:border-box; width:8.5pt; height:8.5pt; border:.9pt solid #000; font-size:7pt; font-weight:800; line-height:1; flex:none; }
-/* the choices (Übermittlung, Dringlichkeit, Meldungsart): each option a
-   tile big enough to tick by hand, the chosen one with a thick frame
-   (borders only, no filled areas) */
-.pf-choices{ flex-basis:100%; display:flex; flex-wrap:wrap; gap:1.3mm; margin-top:.6mm; }
-.pf-choices > .pf-opt{ border:.75pt solid #000; border-radius:2pt; padding:1.3mm 2.4mm; gap:1.8mm; font-size:9.5pt; }
-.pf-choices > .pf-opt.on{ border-width:2pt; padding:calc(1.3mm - 1.25pt) calc(2.4mm - 1.25pt); }
-.pf-choices .pf-dot{ width:10pt; height:10pt; }
-.pf-choices .pf-dot.on{ border-width:5pt; }
-/* the verbatim text gets all the room that is left */
-.pf-text{ flex:1; display:flex; flex-direction:column; border:.75pt solid #000; border-top:none; padding:var(--pf-pad) 2.5mm; min-height:30mm; }
-.pf-text p{ flex:1; margin:1mm 0 2mm; font-size:var(--pf-text); line-height:1.45; white-space:pre-wrap; overflow-wrap:anywhere; }
-.pf-foot{ display:flex; justify-content:space-between; gap:1em; font-size:7pt; color:#333; margin-top:1.5mm; }
-/* several pages: the number on top of each one (table header repeats) */
-.pf-pages{ width:100%; border-collapse:collapse; }
-.pf-pages > thead td{ padding:0 0 2mm; text-align:right; }
-.pf-pages > tbody > tr > td{ padding:0; }
-.pf-sheet.multi .pf-text{ flex:none; }
-/* the book: a table over as many pages as needed */
-.pb-sheet{ background:#fff; color:#000; font:9pt/1.3 var(--font-ui); }
-.pb-head{ display:flex; justify-content:space-between; align-items:flex-end; gap:1em; border-bottom:1.5pt solid #000; padding-bottom:5pt; margin-bottom:6pt; }
-.pb-head .pf-title{ font-size:15pt; }
-.pb-table{ width:100%; border-collapse:collapse; font-size:9pt; }
-.pb-table thead{ display:table-header-group; }
-.pb-table th{ text-align:left; font-size:7.5pt; text-transform:uppercase; letter-spacing:.04em; border-bottom:1.5pt solid #000; padding:3pt 4pt; }
-.pb-table td{ border-bottom:.75pt solid #000; padding:3pt 4pt; vertical-align:top; }
-.pb-table tr{ break-inside:avoid; }
-.pb-num{ font-family:var(--font-mono); font-weight:700; white-space:nowrap; }
-.pb-text{ white-space:pre-wrap; }
-.pb-prio{ font-weight:700; }

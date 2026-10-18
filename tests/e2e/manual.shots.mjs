@@ -122,16 +122,10 @@ test('Notfunk-Meldebuch', async ({ page }) => {
   await expect(page.locator('#msg-detail .detail-tags')).toContainText('GZ 0412');
   await shotAround(page, ['#view-msg'], 'notfunk-meldung-detail');
 
-  // the printout
+  // the printout is a PDF (docs/img/notfunk-ausdruck.png is a render of
+  // it, not a screenshot of the page): only check that it opens
+  await page.evaluate(() => { window.open = () => ({}); });
   await page.getByRole('button', { name: 'Ausdruck / PDF' }).click();
-  await expect(page.locator('#print-dlg')).toBeVisible();
-  await shot(page.locator('#print-dlg'), 'notfunk-druckhinweis');
-  await page.locator('#print-dlg-ok').click();
-  await page.setViewportSize({ width: 794, height: 1123 });
-  await page.emulateMedia({ media: 'print' });
-  await shot(page.locator('#print-sheet .pf-sheet'), 'notfunk-ausdruck');
-  await page.emulateMedia({ media: 'screen' });
-  await page.setViewportSize({ width: 1200, height: 860 });
 
   // the book
   await page.getByRole('button', { name: '← Meldebuch' }).click();

@@ -2,7 +2,7 @@
 // page sizes, a structurally valid file.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PDF_A4_LANDSCAPE, PDF_A4_PORTRAIT, PDF_MM, pdfCanvas, pdfDocument, pdfHex, pdfNum, pdfTextWidth } from '../tools/shared/js/pdf.js';
+import { PDF_A4_LANDSCAPE, PDF_A4_PORTRAIT, PDF_MM, pdfCanvas, pdfDocument, pdfHex, pdfNum, pdfTextWidth, pdfWrap } from '../tools/shared/js/pdf.js';
 
 const latin1 = bytes => String.fromCharCode(...bytes);
 
@@ -83,4 +83,62 @@ test('pdfCanvas: rect outlines and circle (four curves, stroked or filled)', () 
   assert.ok(cv.ops[2].endsWith(' c B'));
   // starts at the right-most point (cx + r, cy)
   assert.ok(cv.ops[1].includes(`${pdfNum(52 * PDF_MM)} ${pdfNum((297 - 60) * PDF_MM)} m`));
+});
+
+test('pdfDocument: several pages, Kids / Count and xref', () => {
+  const pages = ['A', 'B', 'C'].map(t => { const cv = pdfCanvas(PDF_A4_PORTRAIT); cv.text(t, 10, 20); return cv.ops.join('\n'); });
+  const pdf = latin1(pdfDocument(PDF_A4_PORTRAIT, pages, 'Drei'));
+  assert.match(pdf, /\/Type \/Pages \/Kids \[3 0 R 5 0 R 7 0 R\] \/Count 3/);
+  assert.equal((pdf.match(/\/Type \/Page \/Parent/g) || []).length, 3);
+  const start = Number(pdf.match(/startxref\n(\d+)\n/)[1]);
+  const entries = [...pdf.slice(start).matchAll(/(\d{10}) 00000 n /g)].map(m => Number(m[1]));
+  assert.equal(entries.length, 11); // catalog, pages, 3 x (page, stream), 2 fonts, info
+  entries.forEach((at, i) => assert.ok(pdf.slice(at).startsWith(`${i + 1} 0 obj\n`), `object ${i + 1}`));
+  assert.match(pdf, /\/Size 12 \/Root 1 0 R \/Info 11 0 R/);
+  // every page names the two fonts, which sit after the pages
+  assert.equal((pdf.match(/\/Font << \/F1 9 0 R \/F2 10 0 R >>/g) || []).length, 3);
+  assert.equal((pdf.match(/\/F1 (\d+) 0 R \/F2 (\d+) 0 R/g) || []).length, 3);
+  const f1 = Number(pdf.match(/\/F1 (\d+) 0 R/)[1]);
+  assert.ok(pdf.slice(entries[f1 - 1]).startsWith(`${f1} 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica `));
+  const streams = [...pdf.matchAll(/\/Length (\d+) >>\nstream\n([\s\S]*?)\nendstream/g)];
+  assert.equal(streams.length, 3);
+  streams.forEach(m => assert.equal(m[2].length, Number(m[1])));
+  // an array of one page is the single-string document
+  assert.equal(latin1(pdfDocument(PDF_A4_PORTRAIT, [pages[0]], 'x')), latin1(pdfDocument(PDF_A4_PORTRAIT, pages[0], 'x')));
+});
+
+test('pdfWrap: breaks at spaces, within the width, umlauts and line breaks kept', () => {
+  const text = 'Für die Übung am Wochenende werden alle Stationen gebeten, größere Abstände einzuhalten und die Ölstände zu melden.';
+  const lines = pdfWrap(text, 60, 10);
+  assert.ok(lines.length > 2);
+  for (const l of lines) assert.ok(pdfTextWidth(l, 10) <= 60, l);
+  assert.equal(lines.join(' '), text);
+  assert.deepEqual(pdfWrap('Zeile eins\nZeile zwei\r\n\nnach Leerzeile', 200, 10), ['Zeile eins', 'Zeile zwei', '', 'nach Leerzeile']);
+  assert.deepEqual(pdfWrap('', 50, 10), ['']);
+  assert.deepEqual(pdfWrap('kurz', 50, 10), ['kurz']);
+  // bold is wider
+  assert.ok(pdfWrap(text, 60, 10, true).length >= lines.length);
+});
+
+test('pdfWrap: a word wider than the line is broken hard, nothing lost', () => {
+  const word = 'Donaudampfschifffahrtsgesellschaftskapitänsmützenabzeichen';
+  const lines = pdfWrap(`vor ${word} nach`, 30, 10);
+  for (const l of lines) assert.ok(pdfTextWidth(l, 10) <= 30, l);
+  assert.equal(lines.join('').replace(/ /g, ''), `vor${word}nach`);
+  assert.ok(lines.length >= 3);
+  // a line narrower than one letter still advances (one character per line)
+  assert.deepEqual(pdfWrap('abc', 0.1, 10), ['a', 'b', 'c']);
+});
+
+test('pdfCanvas: a colour [r, g, b] for text and fills, gray stays the default', () => {
+  const cv = pdfCanvas(PDF_A4_PORTRAIT);
+  cv.text('NOTFALL', 10, 10, { color: [1, 1, 1] });
+  cv.fill(10, 10, 20, 5, [0.776, 0.157, 0.157]);
+  cv.text('Text', 10, 20);
+  cv.fill(10, 20, 5, 5, 0.5);
+  const ops = cv.ops.join('\n');
+  assert.match(ops, /\b1 1 1 rg\b/);
+  assert.match(ops, /\b0\.78 0\.16 0\.16 rg\b/);
+  assert.match(ops, /\b0 g\b/);
+  assert.match(ops, /\b0\.5 g\b/);
 });

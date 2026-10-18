@@ -54,7 +54,9 @@
     <button type="button" id="btn-old-remove">Alte Installation entfernen</button>
     <button type="button" id="btn-old-later">Später</button>
   </div>
-  <p class="banner draft no-print"><strong>Entwurf.</strong> Das Meldungsformat ist noch nicht mit dem Notfunkreferat Wien und dem Krisenstab abgestimmt; Felder und Bezeichnungen können sich ändern. Für Übungen gedacht.</p>
+  <!-- ✕ hides it until the next page load (js/app.js wire()) -->
+  <div id="draft-banner" class="banner draft no-print"><p><strong>Entwurf.</strong> Das Meldungsformat ist noch nicht mit dem Notfunkreferat Wien und dem Krisenstab abgestimmt; Felder und Bezeichnungen können sich ändern. Für Übungen gedacht.</p>
+    <button type="button" id="btn-draft-banner" class="banner-close" aria-label="Hinweis ausblenden" title="Hinweis ausblenden (bis zum nächsten Laden der Seite)">✕</button></div>
 
   <!-- ===== Einsätze ===== -->
   <!-- ===== Standortsuche (offline, Wien; shared js/locationui.js, as in Confirm) ===== -->
@@ -170,9 +172,9 @@
         <div class="field" role="group" aria-labelledby="pr-to-label"><span id="pr-to-label">Bis</span>
           <div class="dt-pair"><input id="pr-to-date" class="mono dt-date" inputmode="numeric" placeholder="JJJJ-MM-TT" maxlength="10" spellcheck="false" aria-label="Bis: Datum" aria-describedby="pr-help"><input id="pr-to-time" class="mono dt-time" inputmode="numeric" placeholder="HH:MM" maxlength="5" spellcheck="false" aria-label="Bis: Uhrzeit" aria-describedby="pr-help"></div></div>
       </div>
-      <p class="hint" id="pr-help">Zeitraum in Ortszeit: nur Datum = ganzer Tag, nur Uhrzeit = heute, leer = ganzer Einsatz. Als PDF: im Druckdialog „Als PDF sichern“ bzw. „Als PDF speichern“ wählen, „Kopf- und Fußzeilen“ ausschalten. Leeres Formular (PDF): öffnet das Blatt als PDF in einem neuen Tab, die Anzahl (Kopien) wählt man beim Drucken dort.</p>
+      <p class="hint" id="pr-help">Zeitraum in Ortszeit: nur Datum = ganzer Tag, nur Uhrzeit = heute, leer = ganzer Einsatz. Das Meldebuch wird ein PDF (A4 quer) und öffnet sich in einem neuen Tab; Drucken und Kopien dort im Druckdialog des PDF-Betrachters. Leeres Formular (PDF): öffnet das Blatt ebenso, die Anzahl (Kopien) wählt man beim Drucken dort.</p>
       <div class="toolbar form-foot">
-        <button type="submit" class="primary">Meldebuch drucken</button>
+        <button type="submit" class="primary">Meldebuch als PDF</button>
         <button type="button" id="btn-blank-form-book" title="Leeres Meldeaufnahmeformular als PDF mit dem Namen dieses Einsatzes; öffnet sich in einem neuen Tab, die Anzahl wählt man beim Drucken dort">Leeres Formular (PDF)</button>
         <button type="button" id="btn-print-cancel">Schließen</button>
         <span id="pr-status" class="hint err-text" role="status"></span>
@@ -364,7 +366,7 @@
     <div class="table-wrap sticky-head">
       <table class="book row-marks">
         <caption class="sr-only">Meldungen</caption>
-        <thead><tr><th scope="col">Nr.</th><th scope="col" title="Ortszeit Wien (MESZ/MEZ)">Zeit</th><th scope="col" title="Eingang oder Ausgang">Ein/Aus</th><th scope="col" title="Absender → Empfänger">Von → An</th><th scope="col">Betreff · Inhalt</th><th scope="col">Art · Dringlichkeit</th><th scope="col" title="Stand der Meldung und Zeit der letzten Statusänderung (Ortszeit Wien)">Status</th><th scope="col"><span class="sr-only">Aktion</span></th></tr></thead>
+        <thead><tr><th scope="col" title="Nummer, Zeit (Ortszeit Wien, MESZ/MEZ), Referenz und Bezug">Nr. · Zeit</th><th scope="col" title="Die andere Stelle: ↓ von (Eingang), ↑ an (Ausgang); die eigene Stelle nur, wo sie abweicht">Gegenstelle</th><th scope="col" title="Meldungsart, Dringlichkeit (wenn nicht Routine), Betreff und Inhalt">Betreff · Inhalt</th><th scope="col" title="Stand der Meldung">Status</th><th scope="col" title="Zeit und Operator der letzten Statusänderung (Ortszeit Wien)"><span class="sr-only">Zeit und Operator des Status</span></th><th scope="col"><span class="sr-only">Aktion</span></th></tr></thead>
         <tbody id="book-body"></tbody>
       </table>
     </div>
@@ -384,8 +386,6 @@
     <div id="msg-detail"></div>
   </section>
 
-  <!-- Print-only: filled right before window.print() (js/printview.js). -->
-  <div id="print-sheet" class="print-only"></div>
 </main>
 
 <!-- Help: "? Hilfe" in the header, F1, or ? outside text fields (shared
@@ -484,28 +484,6 @@
       </section>
     </div>
   </div>
-</dialog>
-
-<!-- Before printing a message: settings hint and, for a long text, how many
-     pages it takes. -->
-<dialog id="print-dlg" class="print-dlg" aria-labelledby="print-dlg-title">
-  <form method="dialog">
-    <h2 id="print-dlg-title">Ausdruck / PDF</h2>
-    <p id="print-dlg-long" class="banner warn" hidden></p>
-    <div id="print-dlg-hint">
-      <p>Im Druckdialog einstellen:</p>
-      <ul>
-        <li><b>Kopf- und Fußzeilen</b> ausschalten (sonst druckt der Browser Adresse, Datum und Seitenzahl dazu)</li>
-        <li>Papierformat <b>A4</b>, Skalierung <b>100 %</b> (bzw. „Standard“)</li>
-        <li>als PDF: Ziel „Als PDF sichern“ bzw. „Als PDF speichern“</li>
-      </ul>
-      <label class="check"><input type="checkbox" id="print-dlg-off"> Diesen Hinweis nicht mehr zeigen</label>
-    </div>
-    <div class="toolbar form-foot">
-      <button type="submit" value="print" id="print-dlg-ok" class="primary">Drucken / PDF</button>
-      <button type="submit" value="cancel">Abbrechen</button>
-    </div>
-  </form>
 </dialog>
 
 <footer class="no-print">

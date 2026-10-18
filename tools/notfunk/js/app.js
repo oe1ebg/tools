@@ -18,7 +18,7 @@ import { openNotfunkStorage } from './db.js';
 import { requestPersistence, ConflictError } from '../../shared/js/storage.js';
 import { openStorageWithNotices, offerFallbackMigration } from '../../shared/js/storageui.js';
 import { initHelpDialog } from '../../shared/js/helpdialog.js';
-import { $, el, fill, focusNext, submitForm, isComposing, trackExpanded, rowRoles, tableRoles, revertOnEscape } from '../../shared/js/dom.js';
+import { $, el, fill, focusNext, submitForm, isComposing, trackExpanded, rowRoles, tableRoles, revertOnEscape, popover } from '../../shared/js/dom.js';
 import { prefGet, prefSet } from '../../shared/js/prefs.js';
 import { loadDataFile } from '../../shared/js/data.js';
 import { buildCallbook, lookupCall, normalizeCall } from '../../shared/js/callbook.js';
@@ -45,16 +45,14 @@ import {
   emptyForm, setDirection, formToFields, formIsBlank, messageToForm, replyForm, nextStep, statusSteps, bookSummary, partyText,
   readDateTime, readClock, readBound, normDate, normTime, dateText, clockText, needsZone, upgradeForm, normalizeRef,
 } from './form.js';
-import { formSheet, bookSheet } from './print.js';
-import { fittedFormSheet, renderBookSheet, printSheet } from './printview.js';
-import { blankFormPdf } from './paperpdf.js';
+import { blankFormPdf, formPdf } from './paperpdf.js';
+import { bookPdf } from './bookpdf.js';
 import { pdfOpen } from '../../shared/js/pdf.js';
 import { attachDatePicker, attachTimePicker } from './picker.js';
 import { createRowCache, syncRows, resetRows } from '../../shared/js/rowcache.js';
 import { trackSiteHeaderHeight } from '../../shared/js/stickyhead.js';
 
 const LAST_OP_KEY = 'oe1ebg-notfunk-last-op';
-const PRINT_HINT_KEY = 'oe1ebg-notfunk-print-hint-off';
 
 const state = {
   store: null,
@@ -1307,6 +1305,24 @@ function renderSummary() {
     s.gaps.length ? el('span', { class: 'sum sum-err' }, `Lücke: ${s.gaps.join(', ')}`) : null);
 }
 
+// A party by its name (the callsign only when there is no name): the book
+// shows who, the message itself the callsign.
+function partyName(p) {
+  return p?.name || p?.call || '';
+}
+
+// The own side (recipient of incoming, sender of outgoing messages) that
+// most live messages have.
+function usualOwnSide(msgs) {
+  const count = new Map();
+  for (const m of msgs) {
+    if (m.deleted) continue;
+    const own = partyName(m.direction === 'in' ? m.to : m.from);
+    if (own) count.set(own, (count.get(own) || 0) + 1);
+  }
+  return [...count].sort((a, b) => b[1] - a[1])[0]?.[0] || '';
+}
+
 // The rows of the book (see renderBook).
 const bookRows = createRowCache();
 let bookOp = null;
@@ -1324,7 +1340,7 @@ function renderBook() {
   const body = $('#book-body');
   if (!list.length) {
     resetRows(bookRows);
-    fill(body, rowRoles(el('tr', {}, el('td', { colspan: '8', class: 'empty' }, state.msgs.some(m => !m.deleted) ? 'Keine Meldung passt zum Filter.' : 'Noch keine Meldungen. Die erste oben eintragen.'))));
+    fill(body, rowRoles(el('tr', {}, el('td', { colspan: '6', class: 'empty' }, state.msgs.some(m => !m.deleted) ? 'Keine Meldung passt zum Filter.' : 'Noch keine Meldungen. Die erste oben eintragen.'))));
   } else {
     // Rows are kept between renders (keyed by message id, signature = the
     // message's `updated` token): a new or changed message builds one row,
@@ -1334,29 +1350,44 @@ function renderBook() {
     // newest message's day (so a day change is visible without hovering).
     const today = viennaDate(list[0].ts);
     const dateOf = iso => { const d = viennaDate(iso); return d && d !== today ? d : ''; };
-    syncRows(body, bookRows, list, { key: m => m.id, sig: m => `${m.updated}|${m.deleted || ''}|${m.status.length}|${dateOf(m.ts)}|${dateOf(m.status[m.status.length - 1].at)}`, build: m => {
+    // the own side most messages have (in practice the Einsatz's "Für
+    // Stelle", which the form fills in); shown only where a message differs
+    const home = usualOwnSide(state.msgs) || state.op.home || '';
+    const numberOf = new Map(state.msgs.map(x => [x.id, x.number]));
+    syncRows(body, bookRows, list, { key: m => m.id, sig: m => `${m.updated}|${m.deleted || ''}|${m.status.length}|${dateOf(m.ts)}|${dateOf(m.status[m.status.length - 1].at)}|${home}|${numberOf.get(m.replyTo) || ''}`, build: m => {
       const step = nextStep(m);
       const last = m.status[m.status.length - 1];
       const dated = (iso, text) => {
         const d = dateOf(iso);
         return d ? [el('span', { class: 'date' }, d), ' ', text] : text;
       };
+      // the other party with the direction; the own post (the Einsatz's
+      // "Für Stelle") is the same in every row and shown only where it differs
+      const inbound = m.direction === 'in';
+      const peer = partyName(inbound ? m.from : m.to);
+      const own = partyName(inbound ? m.to : m.from);
+      const refTo = m.replyTo ? numberOf.get(m.replyTo) : m.refNumber;
       return rowRoles(el('tr', { 'data-id': m.id, class: m.priority === 'emergency' ? 'urgent' : null },
+        // Nr., the time, the reference (Meldesammelstelle's, the message it answers)
         el('td', { class: 'num' }, el('a', { href: `#/e/${state.op.id}/m/${m.id}` }, m.number),
-          m.staffRef ? el('div', { class: 'sub', title: 'Referenz der Meldesammelstelle' }, `Ref. ${m.staffRef}`) : null),
-        el('td', { class: 'mono', title: viennaStamp(m.ts) }, ...[dated(m.ts, viennaTime(m.ts))].flat()),
-        el('td', { class: 'nowrap' }, m.direction === 'in' ? '↓ Ein' : '↑ Aus'),
-        el('td', { class: 'parties' }, partyText(m.from), el('span', { class: 'dim' }, ' → '), partyText(m.to),
-          // below: by radio the Funkstelle and via relay or direct; else the channel
-          el('div', { class: 'sub' }, (m.channel === 'funk'
-            ? [m.peer, m.radio.via ? `via ${m.radio.via}` : 'direkt', fmtFreq(m.radio.freq)]
-            : [CHANNELS[m.channel]]).concat(m.stichzeit ? `Stichzeit ${viennaTime(m.stichzeit)}` : []).filter(Boolean).join(' · '))),
-        el('td', { class: 'content' }, el('b', {}, m.subject || ''), el('div', { class: 'sub clamp' }, m.text)),
-        el('td', { class: 'nowrap' }, MESSAGE_TYPES[m.type], el('div', {}, prioPill(m))),
-        el('td', { class: 'nowrap' }, statusPill(m), el('div', { class: 'sub mono', title: viennaStamp(last.at) }, ...[dated(last.at, `${viennaTime(last.at)} ${last.by}`)].flat())),
-        el('td', { class: 'act' },
-          step ? el('button', { type: 'button', class: 'mini', onclick: () => advance(m, step.state), 'aria-label': `${m.number} ${step.label}` }, step.label) : null,
-          el('button', { type: 'button', class: 'mini', onclick: () => printForm(m), 'aria-label': `Ausdruck ${m.number} (Meldeaufnahmeformular)` }, 'Ausdruck'))));
+          el('div', { class: 'when mono', title: viennaStamp(m.ts) }, ...[dated(m.ts, viennaTime(m.ts))].flat()),
+          m.staffRef ? el('div', { class: 'ref', title: 'Referenz der Meldesammelstelle' }, m.staffRef) : null,
+          refTo ? el('div', { class: 'ref', title: 'Bezug: Antwort auf diese Meldung' }, `↪ ${refTo}`) : null),
+        el('td', { class: 'peer' },
+          el('div', { class: 'peer-line', title: inbound ? 'Eingang: von' : 'Ausgang: an' },
+            // the arrow alone on screen; screen readers hear "von" / "an"
+            el('span', { class: 'arrow', 'aria-hidden': 'true' }, inbound ? '↓' : '↑'), el('span', {}, el('span', { class: 'sr-only' }, inbound ? 'von ' : 'an '), peer)),
+          own && own !== home ? el('div', { class: 'sub' }, inbound ? `an ${own}` : `von ${own}`) : null),
+        // the type always, as a label; the priority when not routine
+        el('td', { class: 'content' },
+          el('div', { class: 'subj' }, el('span', { class: 'kind', title: 'Meldungsart' }, MESSAGE_TYPES[m.type] || m.type),
+            m.priority === 'routine' ? null : prioPill(m), el('b', {}, m.subject || '')),
+          el('div', { class: 'sub clamp' }, m.text)),
+        el('td', { class: 'st' }, statusPill(m)),
+        el('td', { class: 'st-when mono', title: viennaStamp(last.at) }, el('span', {}, ...[dated(last.at, viennaTime(last.at))].flat()), el('br'), el('span', { class: 'by' }, last.by || '')),
+        el('td', { class: 'act' }, el('div', { class: 'act-stack' },
+          step ? el('button', { type: 'button', class: 'mini next', 'aria-haspopup': 'dialog', onclick: () => openStepDialog(m, step), 'aria-label': `${m.number} ${step.label} …` }, step.label) : null,
+          el('button', { type: 'button', class: 'mini', onclick: () => printForm(m), 'aria-label': `Ausdruck ${m.number} (Meldeaufnahmeformular)` }, 'Ausdruck')))));
     } });
   }
   markEditing();
@@ -1408,7 +1439,11 @@ function inlineForm(fields, button, onSubmit) {
       return el('label', { class: 'check', for: id }, inputs[f.key], ` ${f.label}`);
     }
     inputs[f.key] = el('input', { id, class: f.time ? 'mono dt-time' : f.mono ? 'mono' : null, inputmode: f.time ? 'numeric' : null, maxlength: f.time ? '5' : null, placeholder: f.time ? 'HH:MM' : f.placeholder || null, value: f.value || '', autocomplete: 'off' });
-    const row = el('label', { class: 'field', for: id }, el('span', {}, f.label, f.time ? el('span', { class: 'dim' }, ' (leer = jetzt)') : null), inputs[f.key]);
+    // names used before in this Einsatz: the app's own suggestion list (the
+    // same in every browser; a native datalist swallows Enter in Safari).
+    // Enter records, ↓ then Enter or a click takes a name.
+    const control = f.suggest?.length ? suggestNames(inputs[f.key], f.suggest) : inputs[f.key];
+    const row = el('label', { class: 'field', for: id }, el('span', {}, f.label, f.time ? el('span', { class: 'dim' }, ' (leer = jetzt)') : null), control);
     if (f.time) { attachTimePicker(inputs[f.key]); setLive(inputs[f.key], true); }
     return row;
   });
@@ -1423,6 +1458,28 @@ function inlineForm(fields, button, onSubmit) {
     err.textContent = await onSubmit(values) || '';
   });
   return form;
+}
+
+// A name field with suggestions (names used in this Einsatz): the field in
+// an .ac-wrap with its list, filtered by what is typed.
+function suggestNames(input, names) {
+  const pop = el('div', { class: 'ac-pop' });
+  const wrap = el('div', { class: 'ac-wrap' }, input, pop);
+  const ctl = popover(input, pop, { enterPicksFirst: false, label: 'Namen aus diesem Einsatz' });
+  const render = () => {
+    const q = input.value.trim().toLowerCase();
+    const hits = names.filter(n => n.toLowerCase() !== q && (!q || n.toLowerCase().includes(q))).slice(0, 8);
+    fill(pop, hits.map(n => el('button', { type: 'button', class: 'ac-item', onclick: () => { input.value = n; fill(pop); ctl.hide(); input.focus(); } }, n)));
+    ctl.update();
+  };
+  // only while typing, or with ↓: an open list never covers the buttons
+  // under the field when it gets the focus
+  input.addEventListener('input', render);
+  input.addEventListener('keydown', ev => {
+    if (ev.key === 'ArrowDown' && pop.hidden) { ev.preventDefault(); render(); pop.querySelector('button')?.focus(); }
+  });
+  input.addEventListener('blur', () => setTimeout(() => { if (!wrap.contains(document.activeElement)) fill(pop); }, 200));
+  return wrap;
 }
 
 // A time of day (the last one before now, so after midnight the day
@@ -1461,18 +1518,8 @@ function flowCard(m) {
   const stepForm = (state_) => {
     // only the next step gets a form (one at a time, in order)
     if (!editable || nextStep(m)?.state !== state_) return null;
-    const fields = state_ === 'forwarded'
-      ? [{ key: 'to', label: out ? 'Übertragen an' : 'Übergeben an', value: out ? m.peer : '', placeholder: out ? 'Funkstation' : 'Meldesammelstelle' },
-        { key: 'at', label: out ? 'Übertragungszeitpunkt' : 'Übergabezeitpunkt', time: true },
-        ...(out ? [{ key: 'readBack', label: readBackLabel('out'), check: true }] : [])]
-      : [{ key: 'who', label: out ? 'Empfang bestätigt durch' : 'Übernommen durch', value: out ? m.peer : '', placeholder: out ? 'Funkstation' : 'Name / Funktion' },
-        { key: 'at', label: 'Zeitpunkt', time: true }];
-    const button = state_ === 'forwarded' ? (out ? 'Übertragung eintragen' : 'Übergabe eintragen') : (out ? 'Empfang eintragen' : 'Übernahme eintragen');
-    return inlineForm(fields, button, async v => {
-      const t = stepTime(v.at);
-      if (t.error) return t.error;
-      return advance(m, state_, { at: t.at, to: v.to || '', who: v.who || '', readBack: !!v.readBack });
-    });
+    const { fields, button, submit } = stepInputs(m, state_);
+    return inlineForm(fields, button, submit);
   };
   items.push(item(!!fwd, out ? 'Übertragen' : 'Übergeben',
     fwd ? el('div', { class: 'sub mono' }, [fwd.to && `an ${fwd.to}`, when(fwd.at, fwd.by), fwd.readBack ? 'rückgelesen ✓' : ''].filter(Boolean).join(' · ')) : stepForm('forwarded')));
@@ -1495,27 +1542,116 @@ function flowCard(m) {
       : '„Übergeben“ heißt: die Meldung liegt bei der Meldesammelstelle. Es heißt nicht, dass ein Auftrag im Inhalt erledigt ist.'));
 }
 
+// A status step's inputs, the same in the detail view's Ablauf and in the
+// dialog from the book's step button: to whom (handed over / sent) or by
+// whom (taken over / receipt confirmed) and when; the Meldesammelstelle's
+// reference with the takeover of an incoming message (it usually comes
+// then). The name fields suggest the names used in this Einsatz.
+function stepInputs(m, state_) {
+  const out = m.direction === 'out';
+  const names = usedNames();
+  const fields = state_ === 'forwarded'
+    ? [{ key: 'to', label: out ? 'Übertragen an' : 'Übergeben an', value: out ? m.peer : lastUsed('forwarded', 'to', m.direction), placeholder: out ? 'Funkstation' : 'Meldesammelstelle', suggest: names },
+      { key: 'at', label: out ? 'Übertragungszeitpunkt' : 'Übergabezeitpunkt', time: true },
+      ...(out ? [{ key: 'readBack', label: readBackLabel('out'), check: true }] : [])]
+    : [{ key: 'who', label: out ? 'Empfang bestätigt durch' : 'Übernommen durch', value: out ? m.peer : '', placeholder: out ? 'Funkstation' : 'Name / Funktion', suggest: names },
+      { key: 'at', label: 'Zeitpunkt', time: true },
+      ...(!out ? [{ key: 'ref', label: 'Referenz der Meldesammelstelle (optional)', value: m.staffRef || '', mono: true }] : [])];
+  const button = state_ === 'forwarded' ? (out ? 'Übertragung eintragen' : 'Übergabe eintragen') : (out ? 'Empfang eintragen' : 'Übernahme eintragen');
+  const submit = async v => {
+    const t = stepTime(v.at);
+    if (t.error) return t.error;
+    const err = await advance(m, state_, { at: t.at, to: v.to || '', who: v.who || '', readBack: !!v.readBack });
+    if (err) return err;
+    const fresh = state.msgs.find(x => x.id === m.id) || m;
+    if (v.ref !== undefined && v.ref !== (fresh.staffRef || '')) return saveStaffRef(fresh, v.ref);
+    return '';
+  };
+  return { fields, button, submit };
+}
+
+// Names used in this Einsatz for whom a message went to or came from:
+// earlier handovers and takeovers, the own post, Verteiler, the parties;
+// the most used first.
+function usedNames() {
+  const count = new Map();
+  const add = v => { if (v && v.trim()) count.set(v.trim(), (count.get(v.trim()) || 0) + 1); };
+  add(state.op?.home);
+  for (const m of state.msgs) {
+    if (m.deleted) continue;
+    for (const s of m.status) { add(s.to); add(s.who); }
+    for (const d of m.distribution || []) add(d);
+    add(m.from?.name); add(m.to?.name);
+  }
+  return [...count].sort((a, b) => b[1] - a[1]).map(([v]) => v).slice(0, 30);
+}
+
+// The value given at this step last time (for incoming handovers: usually
+// the same Meldesammelstelle every time).
+function lastUsed(state_, key, direction) {
+  let best = null;
+  for (const m of state.msgs) {
+    if (m.deleted || m.direction !== direction) continue;
+    const s = statusEntry(m, state_);
+    if (s?.[key] && (!best || s.at > best.at)) best = s;
+  }
+  return best?.[key] || '';
+}
+
+// The book's step button: the step's inputs in a small dialog (the book
+// stays as it is behind it). Enter records, Esc closes.
+function openStepDialog(m, step) {
+  let dlg = $('#step-dlg');
+  if (!dlg) {
+    dlg = el('dialog', { id: 'step-dlg', class: 'step-dlg', 'aria-labelledby': 'step-dlg-title' });
+    document.body.append(dlg);
+  }
+  const { fields, button, submit } = stepInputs(m, step.state);
+  const form = inlineForm(fields, button, async v => {
+    const err = await submit(v);
+    if (!err) dlg.close();
+    return err;
+  });
+  form.querySelector('button[type=submit]').classList.add('primary');
+  form.querySelector('.inline-foot').classList.add('over-suggestions');
+  form.querySelector('.inline-foot').append(el('button', { type: 'button', onclick: () => dlg.close() }, 'Abbrechen'));
+  fill(dlg, el('div', { class: 'step-dlg-body' },
+    el('h2', { id: 'step-dlg-title' }, `${m.number}: ${step.label}`),
+    el('p', { class: 'sub' }, m.subject || ''),
+    form));
+  const opener = document.activeElement;
+  dlg.onclose = () => {
+    // back to the row (it may have been rebuilt meanwhile)
+    const row = $('#book-body')?.querySelector(`tr[data-id="${m.id}"]`);
+    (row?.querySelector('.act-stack button') || row?.querySelector('a') || opener)?.focus?.();
+  };
+  dlg.showModal();
+  form.querySelector('input:not([type=checkbox])')?.select();
+}
+
+// The Meldesammelstelle's reference (detail view and step dialog).
+async function saveStaffRef(m, ref) {
+  const meta = { revisionId: newId(), operator: state.op.operator || '', now: nowIso() };
+  try {
+    await updateMessage(state.store, m, cur => editMessage(cur, { staffRef: ref }, meta));
+  } catch (e) {
+    if (e instanceof ConflictError) await onConflict(m.number, false);
+    else showSaveError(e);
+    return 'nicht gespeichert';
+  }
+  await reloadMsgs();
+  bookStatus(`${m.number}: Referenz der Meldesammelstelle ${ref || 'entfernt'}`);
+  broadcast({ type: 'msgs', opId: state.op.id });
+  return '';
+}
+
 // The Meldesammelstelle's own number, to match the two lists. Changing it
 // keeps the previous version, like any edit.
 function staffRefCard(m) {
   return el('section', { class: 'staff-card', 'aria-label': 'Referenz der Meldesammelstelle' },
     el('h3', { class: 'cap' }, 'Referenz der Meldesammelstelle'),
     m.deleted ? el('p', {}, m.staffRef || '–') : inlineForm([{ key: 'ref', label: 'Referenz / Geschäftsbuch-Nr.', value: m.staffRef || '', mono: true }],
-      m.staffRef ? 'Referenz ändern' : 'Referenz eintragen', async v => {
-        if (v.ref === (m.staffRef || '')) return '';
-        const meta = { revisionId: newId(), operator: state.op.operator || '', now: nowIso() };
-        try {
-          await updateMessage(state.store, m, cur => editMessage(cur, { staffRef: v.ref }, meta));
-        } catch (e) {
-          if (e instanceof ConflictError) await onConflict(m.number, false);
-          else showSaveError(e);
-          return 'nicht gespeichert';
-        }
-        await reloadMsgs();
-        bookStatus(`${m.number}: Referenz der Meldesammelstelle ${v.ref || 'entfernt'}`);
-        broadcast({ type: 'msgs', opId: state.op.id });
-        return '';
-      }),
+      m.staffRef ? 'Referenz ändern' : 'Referenz eintragen', async v => (v.ref === (m.staffRef || '') ? '' : saveStaffRef(m, v.ref))),
     el('p', { class: 'hint' }, `Nur zum Zuordnen: die Nummer, unter der die Meldesammelstelle die Meldung führt. Nicht die Notfunk-Nr. ${m.number}.`));
 }
 
@@ -1530,7 +1666,10 @@ function renderDetail(id) {
   $('#msg-title').textContent = m.number;
   const byId = new Map(state.msgs.map(x => [x.id, x]));
   const revs = state.revisions.filter(r => r.messageId === m.id).sort((a, b) => (a.at < b.at ? 1 : -1));
-  const kv = (k, ...v) => [el('dt', {}, k), el('dd', {}, ...v)];
+  // a small block under the text: caption and value (left out when empty)
+  const fact = (cap, ...v) => (v.some(x => x != null && x !== '') ? el('div', { class: 'fact' }, el('div', { class: 'cap' }, cap), el('div', { class: 'val' }, ...v)) : null);
+  // a party: name, the callsign grey after it
+  const party = p => [p?.name || p?.call || '–', p?.name && p?.call && p.call !== p.name ? el('span', { class: 'call' }, ` ${p.call}`) : null];
   const link = x => el('a', { href: `#/e/${state.op.id}/m/${x.id}`, class: 'mono' }, x.number);
   const replies = repliesTo(state.msgs, m.id);
   const ref = m.replyTo && byId.get(m.replyTo);
@@ -1541,27 +1680,35 @@ function renderDetail(id) {
         m.deleted ? pill('st-deleted', 'gelöscht') : null,
         statusPill(m),
         m.priority !== 'routine' ? pill(`pr-${m.priority}`, PRIORITIES[m.priority]) : null,
-        el('span', { class: 'dim' }, `${m.direction === 'in' ? '↓' : '↑'} ${DIRECTIONS[m.direction]} · ${MESSAGE_TYPES[m.type]}`),
-        m.staffRef ? el('span', { class: 'chip' }, `Ref. ${m.staffRef}`) : null),
+        el('span', { class: 'kind', title: 'Meldungsart' }, MESSAGE_TYPES[m.type] || m.type),
+        el('span', { class: 'dim', title: timeLabel(m.direction) }, `${m.direction === 'in' ? '↓' : '↑'} ${DIRECTIONS[m.direction]} · `, el('span', { class: 'mono' }, fmtVienna(m.ts))),
+        m.staffRef ? el('span', { class: 'chip', title: 'Referenz der Meldesammelstelle' }, `Ref. ${m.staffRef}`) : null),
       el('h3', { class: 'detail-subject' }, m.subject || '(ohne Betreff)'),
+      // what the message refers to, right under its subject
+      ref ? el('div', { class: 'detail-bezug' }, `↪ ${refKind} `, link(ref), ` ${ref.subject || ''}`)
+        : m.refNumber ? el('div', { class: 'detail-bezug' }, `↪ ${refKind} `, el('span', { class: 'mono' }, m.refNumber)) : null,
+      // who to whom, as on the paper form; the Verteiler below
+      el('div', { class: 'route', role: 'group', 'aria-label': 'Von, an' },
+        el('div', {}, el('div', { class: 'side-cap' }, 'Von (Absender)'), el('div', { class: 'who' }, ...party(m.from))),
+        el('div', { class: 'arrow', 'aria-hidden': 'true' }, '→'),
+        el('div', {}, el('div', { class: 'side-cap' }, 'An (Adressat)'), el('div', { class: 'who' }, ...party(m.to))),
+        m.distribution.length ? el('div', { class: 'verteiler' }, `Verteiler: ${m.distribution.join(', ')}`) : null),
       el('section', { class: 'verbatim', 'aria-label': 'Inhalt, wörtlich' },
         el('div', { class: 'cap' }, 'Inhalt – wörtlich'),
         el('p', {}, m.text || '–'),
         el('div', { class: m.readBack ? 'sub ok' : 'sub' }, m.readBack ? `✓ ${readBackLabel(m.direction)}` : 'Rücklesen nicht vermerkt')),
-      el('dl', { class: 'kv' },
-        ...kv(timeLabel(m.direction), el('span', { class: 'mono' }, fmtVienna(m.ts))),
-        ...kv('Erfasst am', el('span', { class: 'mono' }, `${fmtVienna(m.created)} · ${m.operator || '–'}`)),
-        ...kv('Von (Absender)', partyText(m.from)),
-        ...kv('An (Adressat)', partyText(m.to)),
-        ...(m.peer ? kv('Funkstelle', el('span', { class: 'mono' }, m.peer), el('span', { class: 'dim' }, m.direction === 'out' ? ' (empfangende Funkstation)' : ' (übermittelnde Funkstation)')) : []),
-        ...(m.distribution.length ? kv('Verteiler', m.distribution.join(', ')) : []),
-        ...kv('Übermittlung', [CHANNELS[m.channel], m.radio.freq && `${fmtFreq(m.radio.freq)} MHz`, m.radio.via && `via ${m.radio.via}`].filter(Boolean).join(' · ')),
-        ...(m.location ? kv('Ort', describeLocation(m.location), ' ', mapLinks(m.location))
-          : m.locationText ? kv('Ort', m.locationText, el('span', { class: 'dim' }, ' (nicht zugeordnet)')) : []),
-        ...(m.stichzeit ? kv('Stichzeit', fmtVienna(m.stichzeit)) : []),
-        ...(m.origin.station || m.origin.place || m.origin.filed ? kv('Ursprung', [m.origin.station, m.origin.placeLoc ? describeLocation(m.origin.placeLoc) : m.origin.place, m.origin.filed && `aufgegeben ${fmtVienna(m.origin.filed)}`].filter(Boolean).join(' · ')) : []),
-        ...(ref ? kv('Bezug', `${refKind} `, link(ref), ` ${ref.subject}`) : m.refNumber ? kv('Bezug', `${refKind} ${m.refNumber}`) : []),
-        ...(m.remarks ? kv('Anmerkungen', m.remarks) : [])),
+      // the rest in small blocks ("Erfasst" is the Ablauf's first step)
+      el('div', { class: 'facts' },
+        fact('Übermittlung', [CHANNELS[m.channel], m.channel === 'funk' && m.radio.freq && `${fmtFreq(m.radio.freq)} MHz`,
+          m.channel === 'funk' ? (m.radio.via ? `via ${m.radio.via}` : 'direkt') : null].filter(Boolean).join(' · '),
+          m.peer ? el('div', {}, el('span', { class: 'dim', title: m.direction === 'out' ? 'die empfangende Funkstation' : 'die übermittelnde Funkstation' }, 'Funkstelle '), el('span', { class: 'mono' }, m.peer)) : null),
+        m.location ? fact('Ort', describeLocation(m.location), el('div', { class: 'links' }, mapLinks(m.location)))
+          : m.locationText ? fact('Ort', m.locationText, el('span', { class: 'dim' }, ' (nicht zugeordnet)')) : null,
+        m.stichzeit ? fact('Stichzeit', el('span', { class: 'mono' }, fmtVienna(m.stichzeit))) : null,
+        m.origin.station || m.origin.place || m.origin.filed ? fact('Ursprung',
+          [m.origin.station, m.origin.placeLoc ? describeLocation(m.origin.placeLoc) : m.origin.place].filter(Boolean).join(' · '),
+          m.origin.filed ? el('div', {}, el('span', { class: 'dim' }, 'aufgegeben '), el('span', { class: 'mono' }, fmtVienna(m.origin.filed))) : null) : null,
+        m.remarks ? el('div', { class: 'fact wide' }, el('div', { class: 'cap' }, 'Anmerkungen'), el('div', { class: 'val' }, m.remarks)) : null),
       el('div', { class: 'toolbar detail-actions' },
         m.deleted ? null : el('button', { type: 'button', onclick: () => startReply(m) }, 'Antwort erfassen'),
         m.deleted ? null : el('button', { type: 'button', onclick: () => startEdit(m) }, 'Bearbeiten'),
@@ -1587,29 +1734,13 @@ function renderDetail(id) {
 
 /* ---------------------------------------------------------------- print, exports, backup */
 
-// One message on one A4 page. Before printing, a dialog says how to set up
-// the print dialog (header and footer lines off, A4, 100 %; can be turned
-// off) and, when the text is too long for one page, how many pages it takes.
+// One message as a PDF (paperpdf.js): the filled Meldeaufnahmeformular on an
+// A4 page (more for a very long text), opened in a new tab to print at its
+// own size. The same in every browser: no print dialog settings to get right.
 function printForm(m) {
   const revisions = state.revisions.filter(r => r.messageId === m.id).length;
-  const { node, fit } = fittedFormSheet(formSheet(m, state.op, { now: nowIso(), revisions, byId: new Map(state.msgs.map(x => [x.id, x])) }));
-  const long = fit.pages > 1;
-  const hint = prefGet(PRINT_HINT_KEY) !== '1';
-  const kind = long ? 'book' : 'form';
-  if (!long && !hint) { printSheet(node, kind); return; }
-  const dlg = $('#print-dlg');
-  $('#print-dlg-long').hidden = !long;
-  setText($('#print-dlg-long'), long
-    ? `${m.number} ist zu lang für eine Seite: der Ausdruck hat ${fit.pages} Seiten, jede mit der Nummer oben. Nichts wird abgeschnitten.`
-    : '');
-  $('#print-dlg-hint').hidden = !hint;
-  $('#print-dlg-off').checked = false;
-  dlg.returnValue = '';
-  dlg.showModal();
-  dlg.addEventListener('close', () => {
-    if ($('#print-dlg-off').checked) prefSet(PRINT_HINT_KEY, '1');
-    if (dlg.returnValue === 'print') printSheet(node, kind);
-  }, { once: true });
+  const byId = new Map(state.msgs.map(x => [x.id, x]));
+  pdfOpen(formPdf(m, state.op, { now: nowIso(), revisions, byId }), `${fileStem()}_${m.number}.pdf`);
 }
 
 // An empty form (for a stack of paper forms) as a PDF (paperpdf.js), opened
@@ -1620,6 +1751,7 @@ function printBlankForm() {
   pdfOpen(blankFormPdf(state.op, { now: nowIso() }), state.op ? `${fileStem()}_Vordruck.pdf` : 'Notfunk_Vordruck.pdf');
 }
 
+// The book of a time range as a PDF (bookpdf.js), A4 landscape.
 function printBook() {
   const status = $('#pr-status');
   const now = nowIso();
@@ -1631,7 +1763,7 @@ function printBook() {
     return;
   }
   status.textContent = '';
-  printSheet(renderBookSheet(bookSheet(state.msgs, state.op, { now, fromIso, toIso })), 'book');
+  pdfOpen(bookPdf(state.msgs, state.op, { now, fromIso, toIso }), `${fileStem()}_Meldebuch.pdf`);
 }
 
 async function exportBackup() {
@@ -1809,6 +1941,8 @@ async function loadRepeaterFooter() {
 }
 
 function wire() {
+  // the "Entwurf" note: hidden for this page view, back on the next load
+  $('#btn-draft-banner').addEventListener('click', () => { $('#draft-banner').hidden = true; });
   $('#btn-new-op').addEventListener('click', () => ($('#new-op').hidden ? openNewOpForm() : ($('#new-op').hidden = true)));
   // one way to write a frequency: 145,500
   for (const sel of ['#n-freq', '#e-freq']) $(sel).addEventListener('change', () => { $(sel).value = fmtFreq($(sel).value); });

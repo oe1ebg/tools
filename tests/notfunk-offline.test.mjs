@@ -67,7 +67,7 @@ test('offline bundle builds into one self-contained, parseable file', () => {
   assert.ok(html.includes('.leaflet-control-layers-toggle{ background-image:none'), 'shared map CSS inlined');
   assert.match(html, /<details class="vendor-license"><summary>Lizenztext leaflet<\/summary><pre>BSD 2-Clause License/);
   assert.ok(scripts[0].includes('OE1EBG_THEME'), 'theme script inlined, first');
-  assert.ok(html.includes('.pf-sheet{'), 'tool CSS (with the print layout) inlined');
+  assert.ok(html.includes('.step-dlg{'), 'tool CSS inlined');
   assert.ok(html.includes('.ac-pop{'), 'shared form CSS inlined');
   assert.ok(!/(vendor|shared)\//.test(html.replace(/<script>[\s\S]*?<\/script>/g, '')), 'no reference to shared files left');
   const app = scripts[scripts.length - 1];
