@@ -285,7 +285,7 @@ test('template preview: every field has an example and an ADIF target', () => {
   const targets = Object.fromEntries(adifFieldTargets(templateFor('zivilschutz')));
   assert.equal(targets.PLZ, 'APP_OE1EBG_PLZ');
   assert.match(targets['Standort (Adresse, Ort, PLZ, Locator)'], /^APP_OE1EBG_ADDRESS, GRIDSQUARE, LAT, LON, APP_OE1EBG_UTM$/);
-  assert.equal(Object.fromEntries(adifFieldTargets(templateFor('rst')))['RST erh.'], 'RST_RCVD');
+  assert.equal(Object.fromEntries(adifFieldTargets(templateFor('rst')))['RST erhalten'], 'RST_RCVD');
 });
 
 test('signalling goes into CSV and ADIF, for repeater and direct lines', () => {

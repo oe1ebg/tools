@@ -14,7 +14,7 @@ import {
 } from './model.js';
 import { newId, nowIso, laterIso, splitUtc, splitTime, zoneLabel, zoneAbbr, parseTimeInput, isoUtc, localZoneAbbrText } from '../../shared/js/time.js';
 import { LOC_ORIGINS, locOrigin, locHints } from '../../shared/js/locmeta.js';
-import { TEMPLATES, templateFor, fieldVisible, fieldDisplay, fieldOptions, currentOptions, shortSummary, exampleValues, logColumns, chainValues, nameField } from './templates.js';
+import { TEMPLATES, templateFor, fieldVisible, fieldDisplay, fieldOptions, currentOptions, shortSummary, exampleValues, logColumns, chainValues, nameField, entryFields } from './templates.js';
 import { toCSV, toADIF, adifIssues, ADIF_MIME, toKML, KML_MIME, toSummary } from './export.js';
 import { loadDataFile } from '../../shared/js/data.js';
 import { buildCallbook, lookupCall, suggestCalls, normalizeCall, isPlausibleCall } from '../../shared/js/callbook.js';
@@ -119,8 +119,7 @@ function applyTimeMode() {
   // the local choice names the device's zone and its offset now
   const local = document.querySelector('#time-toggle button[data-time-mode="local"]');
   if (local) local.textContent = localZoneAbbrText('Lokal', nowIso());
-  $('#time-label').textContent = mode === 'local' ? `Zeit ${localZoneAbbrText('lokal', nowIso())}` : 'Zeit UTC';
-  $('#f-time').title = `Leer lassen = Zeitpunkt des Speicherns. Korrektur: HH:MM oder JJJJ-MM-TT HH:MM (${mode === 'local' ? 'Lokalzeit' : 'UTC'}). Gespeichert wird immer ein ISO-Zeitstempel.`;
+  $('#f-time').title = `Leer lassen = Zeitpunkt des Speicherns (die laufende Uhrzeit im Feld). Korrektur: HH:MM oder JJJJ-MM-TT HH:MM (${mode === 'local' ? `Lokalzeit, ${localZoneAbbrText('lokal', nowIso())}` : 'UTC'}). Gespeichert wird immer ein ISO-Zeitstempel.`;
   $('#time-help').textContent = $('#f-time').title;
   tickClock();
   if (state.event) {
@@ -130,8 +129,11 @@ function applyTimeMode() {
   }
 }
 
+// The time field's placeholder runs with the clock, with its zone
+// ("19:16:42 MESZ"): what an empty field saves.
 function tickClock() {
-  $('#clock').textContent = splitTime(nowIso(), timeMode()).time;
+  const now = nowIso();
+  $('#f-time').placeholder = `${splitTime(now, timeMode()).time} ${zoneOf(now)}`;
 }
 
 function initTimeMode() {
@@ -206,8 +208,8 @@ async function initPersistence() {
 const ROUTES = [['direct', 'direkt (Simplex)'], ['rpt', 'über Relais']];
 const HEADER_FIELDS = [
   { sub: 'Station' },
-  { key: 'operator', label: 'Operator', call: true, size: 9 },
-  { key: 'station', label: 'Station (für)', call: true, size: 9 },
+  { key: 'operator', label: 'Operator', call: true, size: 12 },
+  { key: 'station', label: 'Station (für)', call: true, size: 12 },
   { key: 'myQth', label: 'Eigener QTH', qth: true, size: 18, span: 2 },
   { key: 'myGrid', label: 'Eigener Locator', grid: true, size: 12, narrowSpan: 2 },
   { sub: 'Betriebsart' },
@@ -215,7 +217,7 @@ const HEADER_FIELDS = [
   { sub: 'Verbindung', note: 'Standard für neue Zeilen, pro Zeile umschaltbar' },
   { key: 'viaRepeater', label: 'Verbindung', radio: ROUTES, bool: ['direct', 'rpt'], bare: true },
   { key: 'freq', label: 'Frequenz MHz', size: 9, inputmode: 'decimal', route: 'direct' },
-  { key: 'repeaterCall', label: 'Relais', placeholder: 'Rufzeichen, Ort oder MHz', call: true, repeater: true, size: 11, route: 'rpt', span: 2 },
+  { key: 'repeaterCall', label: 'Relais', title: 'Rufzeichen, Ort oder Frequenz (MHz) eines Relais eingeben', call: true, repeater: true, size: 6, route: 'rpt', span: 2 },
   { key: 'repeaterFreq', label: 'Ausgabe MHz', size: 9, inputmode: 'decimal', route: 'rpt' },
   { key: 'repeaterShift', label: 'Shift MHz', size: 6, inputmode: 'decimal', route: 'rpt', txHint: true },
   // via repeater the signalling starts a row of its own (.sig-start)
@@ -279,7 +281,7 @@ function buildHeaderForm(container, header, onChange) {
     }
     const input = el('input', {
       id: id(f.key), 'data-hkey': f.key, value: header[f.key] || '', size: f.size, inputmode: f.inputmode,
-      spellcheck: 'false', autocomplete: 'off', class: f.call ? 'call-input' : f.grid ? 'grid-input' : null, placeholder: f.placeholder,
+      spellcheck: 'false', autocomplete: 'off', class: f.call ? 'call-input' : f.grid ? 'grid-input' : null, placeholder: f.placeholder, title: f.title,
       autocapitalize: f.call || f.grid ? 'characters' : null, autocorrect: f.call || f.grid ? 'off' : null,
       enterkeyhint: 'next',
     });
@@ -383,8 +385,8 @@ function setSaveLabel(text) {
 }
 
 // Column header cell; `title`: the full name (the visible one is short).
-function th(text, title) {
-  return el('th', { scope: 'col', title }, text);
+function th(text, title, cls = null) {
+  return el('th', { scope: 'col', title, class: cls }, text);
 }
 
 // aria-live lines are read out on every write: only write real changes.
@@ -605,18 +607,17 @@ function renderTemplatePreview(key) {
   const tpl = templateFor(key);
   const values = exampleValues(tpl);
   const columns = logColumns(tpl);
-  const nf = nameField(tpl);
   const sample = { id: 'sample', call: 'OE1ABC', fields: values, loc: null };
   // The <summary> is static in index.html (a <details> without one is invalid).
   fill($('#new-template-sample'),
     el('div', { class: 'scroll' }, el('table', { class: 'sample' },
       el('tr', {}, ['Nr', 'Zeit', 'Rufzeichen'].map(t => el('th', {}, t)),
-        columns.map(c => el('th', { class: 'tpl', title: c.title }, c.head)), el('th', {}, 'Notiz')),
+        columns.map(c => el('th', { class: 'tpl', title: c.title }, c.head)), el('th', {}, 'Relais'), el('th', {}, 'Notiz')),
       el('tr', {}, el('td', { class: 'mono' }, '1'), el('td', { class: 'mono' }, '18:42Z'),
-        el('td', { class: 'call' }, 'OE1ABC', nf && values[nf.key] ? el('div', { class: 'op-name' }, values[nf.key]) : null),
+        el('td', { class: 'call' }, 'OE1ABC'),
         // the place as typed (a sample is not looked up)
-        columns.map(c => el('td', { class: `tpl col-${c.kind}` }, c.kind === 'location' ? values[c.fields[0].key] || '' : columnCell(c, sample, tpl))),
-        el('td', {}, '')))));
+        columns.map(c => el('td', { class: `tpl col-${c.kind}` }, c.kind === 'location' || c.kind === 'name' ? values[c.fields[0].key] || '' : columnCell(c, sample, tpl))),
+        el('td', { class: 'mono' }, 'OE1XUU'), el('td', {}, '')))));
 }
 
 // Pre-fill a new event with the header of the most recently created one —
@@ -897,7 +898,7 @@ function buildEntryFields() {
   const tpl = templateFor(state.event.template);
   const box = $('#f-fields');
   box.replaceChildren();
-  for (const f of tpl.fields) {
+  for (const f of entryFields(tpl)) {
     let control;
     if (f.type === 'radio') {
       const hintId = f.hint ? `f_${f.key}-hint` : null;
@@ -938,13 +939,37 @@ function buildEntryFields() {
       control.setAttribute('aria-describedby', `${control.id}-info`);
       continue;
     }
+    // RST fields: one group under the caption "RST", the placeholder says
+    // whose report ("gegeben", "erhalten"); "/" in one goes on to the next,
+    // so "57/59" is typed straight through.
+    if (f.type === 'rst') {
+      control.placeholder = f.placeholder || '';
+      control.setAttribute('aria-label', f.hint ? `${f.label} (${f.hint})` : f.label);
+      control.title = f.hint || f.label;
+      control.addEventListener('keydown', ev => {
+        if (ev.key !== '/' || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+        const next = control.closest('.rst-group')?.querySelectorAll('input')[1];
+        if (!next || next === control) return;
+        ev.preventDefault();
+        next.focus();
+        next.select();
+      });
+      let group = box.lastElementChild?.matches('.rst-group') ? box.lastElementChild : null;
+      if (!group) {
+        group = el('div', { class: 'field rst-group', 'data-field': f.key, role: 'group', 'aria-labelledby': 'rst-caption' },
+          el('span', { id: 'rst-caption' }, 'RST'), el('div', { class: 'rst-inputs' }));
+        box.append(group);
+      }
+      group.querySelector('.rst-inputs').append(control);
+      continue;
+    }
     // Fields of a group ("Sirene") get short captions: "Sirene zu",
     // "offen", "außen"; the full question stays their name, after the
     // visible words (WCAG 2.5.3).
     const prev = tpl.fields[tpl.fields.indexOf(f) - 1];
     const caption = f.group && f.short ? (prev?.group === f.group ? f.short : `${f.group} ${f.short}`) : f.label;
     if (caption !== f.label && f.type === 'radio') control.setAttribute('aria-label', `${caption} (${f.label})`);
-    const node = el(f.type === 'radio' ? 'div' : 'label', { class: 'field', 'data-field': f.key, title: caption !== f.label ? f.label : null }, el('span', {}, caption), control);
+    const node = el(f.type === 'radio' ? 'div' : 'label', { class: 'field', 'data-field': f.key, title: caption !== f.label ? f.label : f.type === 'radio' ? null : f.hint || null }, el('span', {}, caption), control);
     // A field shown by another one's answer (AT-Alert fehlt -> Handy ->
     // Version) goes under it, in one block (placeChains()).
     const parent = f.showIf && box.querySelector(`[data-field="${f.showIf[0]}"]`);
@@ -1101,7 +1126,6 @@ function placeChains() {
 function updateRepeaterDefault() {
   const h = state.event.header || {};
   state.lineRpt?.refreshDefault();
-  if (!state.editingId && !$('#f-rpt').dataset.touched) $('#f-rpt').checked = !!h.viaRepeater;
 }
 
 function readForm() {
@@ -1112,7 +1136,7 @@ function readForm() {
     category: state.commentMode && cat ? cat.value : '',
     call: normalizeCall($('#f-call').value),
     fields: readFields(),
-    viaRepeater: $('#f-rpt').checked,
+    viaRepeater: state.lineRpt ? state.lineRpt.via() : !!state.event?.header?.viaRepeater,
     rptOverride: state.lineRpt ? state.lineRpt.get() : null,
     note: $('#f-note').value.trim(),
     time: $('#f-time').value.trim(),
@@ -1208,7 +1232,6 @@ function clearForm() {
   $('#f-time').value = '';
   writeFields({});
   state.locField?.clear();
-  delete $('#f-rpt').dataset.touched;
   state.lineRpt?.reset();
   state.editingId = null;
   $('#entry-form').classList.remove('editing');
@@ -1688,9 +1711,7 @@ function startEdit(id, { focus = true, scroll = true } = {}) {
   $('#f-call').value = e.call;
   writeFields(e.fields);
   state.locField?.set(e.loc);
-  $('#f-rpt').checked = !!e.viaRepeater;
-  $('#f-rpt').dataset.touched = '1';
-  state.lineRpt?.set(overrideOf(e.snap));
+  state.lineRpt?.set(overrideOf(e.snap), !!e.viaRepeater);
   $('#f-note').value = e.note || '';
   const { date, time } = splitTime(e.ts, timeMode());
   $('#f-time').value = `${date} ${time}`;
@@ -1784,9 +1805,7 @@ function applyFormState(form, editingId) {
   $('#f-call').value = form.call || '';
   writeFields(form.fields);
   state.locField?.set(form.loc);
-  $('#f-rpt').checked = !!form.viaRepeater;
-  $('#f-rpt').dataset.touched = '1';
-  state.lineRpt?.set(form.rptOverride);
+  state.lineRpt?.set(form.rptOverride, form.viaRepeater !== false);
   $('#f-note').value = form.note || '';
   $('#f-time').value = form.time || '';
   updateFieldVisibility();
@@ -1861,14 +1880,15 @@ function renderLog(highlightCall) {
   const columns = logColumns(tpl);
   fill($('#log-head'), rowRoles(el('tr', {},
     // UTC times end in Z; local ones are the zone in the header's switch
-    th('Nr', 'laufende Nummer im Log'), th('Zeit', timeMode() === 'local' ? `Ortszeit (${zoneAbbr(nowIso())})` : 'UTC'),
-    th('Rufzeichen', nameField(tpl) ? 'Rufzeichen der Gegenstation, darunter der Name' : 'Rufzeichen der Gegenstation'),
-    columns.map(c => th(c.head, c.title)),
-    th('Notiz', 'Notiz; Relais und Operator nur, wenn sie vom Betrieb des Logs abweichen'),
+    th('Nr', 'laufende Nummer im Log', 'col-nr'), th('Zeit', timeMode() === 'local' ? `Ortszeit (${zoneAbbr(nowIso())})` : 'UTC', 'col-time'),
+    th('Rufzeichen', nameField(tpl) ? 'Rufzeichen der Gegenstation' : 'Rufzeichen der Gegenstation, darunter der Name laut Rufzeichenliste', 'col-call'),
+    columns.map(c => th(c.head, c.title, `col-${c.kind}`)),
+    th('Relais', 'Über welches Relais die Station kam, oder direkt; gestrichelt umrandet: anders als im Betrieb', 'col-rpt'),
+    th('Notiz', 'Notiz; der Operator nur, wenn er vom Betrieb des Logs abweicht', 'col-note'),
     el('th', { scope: 'col', class: 'act' }, el('span', { class: 'sr-only' }, 'Aktionen')))));
 
   const body = $('#log-body');
-  const cols = columns.length + 5;
+  const cols = columns.length + 6;
   if (!live.length) {
     resetRows(rowCache);
     rowsByCall = new Map();
@@ -1987,13 +2007,16 @@ function buildLogRow(e, { tpl, columns, n, cols }) {
     const cb = callbookName(e.call);
     return el('tr', { 'data-id': e.id },
       // Nr first, as everywhere the log is shown (paper, print)
-      el('td', { class: 'mono' }, String(e.seq)),
-      el('td', { class: 'mono', title: fullTime(e.ts) }, timeBits),
-      el('td', { class: 'call' }, e.call, n > 1 ? el('span', { class: 'badge', title: `Check-in Nr. ${n}` }, `${n}×`) : null,
-        name ? el('div', { class: 'op-name' }, name) : null,
-        cb && cb !== name ? el('div', { class: 'cb-name', title: 'laut Rufzeichenliste' }, cb) : null),
-      columns.map(c => el('td', { 'data-label': c.head, class: `col-${c.kind}` }, columnCell(c, e, tpl))),
-      el('td', { 'data-label': 'Notiz' }, deviations(e), e.note || ''),
+      el('td', { class: 'mono col-nr' }, String(e.seq)),
+      el('td', { class: 'mono col-time', title: fullTime(e.ts) }, timeBits),
+      // the name from the callsign list under the callsign, where the
+      // template has no Name column (there it stands in that column)
+      el('td', { class: 'call col-call' }, e.call, n > 1 ? el('span', { class: 'badge', title: `Check-in Nr. ${n}` }, `${n}×`) : null,
+        !nf && cb ? el('div', { class: 'cb-name', title: 'laut Rufzeichenliste' }, cb) : null),
+      columns.map(c => el('td', { 'data-label': c.head, class: `col-${c.kind}` },
+        c.kind === 'name' ? [name || '', cb && cb !== name ? el('div', { class: 'cb-name', title: 'laut Rufzeichenliste' }, cb) : null] : columnCell(c, e, tpl))),
+      el('td', { 'data-label': 'Relais', class: 'col-rpt' }, routeCell(e)),
+      el('td', { 'data-label': 'Notiz', class: 'col-note' }, deviations(e), e.note || ''),
       el('td', { class: 'act' }, actions),
     );
 }
@@ -2009,8 +2032,9 @@ function fullTime(iso) {
 function columnCell(c, e, tpl) {
   const v = e.fields || {};
   if (c.kind === 'rst') {
-    const [rcvd, sent] = c.fields.map(f => v[f.key] || '–');
-    return el('span', { class: 'mono', title: `erhalten ${rcvd} / gegeben ${sent}` }, `${rcvd} / ${sent}`);
+    // ours first (the form's order): "57 / 59"
+    const [first, second] = c.fields.map(f => v[f.key] || '–');
+    return el('span', { class: 'mono', title: c.fields.map(f => `${f.label}: ${v[f.key] || '–'}`).join(' · ') }, `${first} / ${second}`);
   }
   if (c.kind === 'location') return locationCell(c.fields[0], e, tpl);
   if (c.kind === 'grades') {
@@ -2063,16 +2087,27 @@ function opText(s) {
 
 // Relais and operator are the log's (its Betrieb, the header) for most check-ins:
 // only a check-in that differs says so, at the start of its note.
+// The Relais cell: the relay the station came through (the Betrieb's one
+// too), or "direkt"; framed (dashed, and said in the title) where the line
+// differs from the Betrieb: another relay, or direct while the Betrieb
+// runs via one, or the other way round.
+function routeCell(e) {
+  const h = state.event?.header || {};
+  const s = e.snap || {};
+  const differs = !!e.viaRepeater !== !!h.viaRepeater || (e.viaRepeater && s.repeaterOverride);
+  const why = !differs ? (e.viaRepeater ? 'Relais aus dem Betrieb' : 'direkt, wie im Betrieb')
+    : e.viaRepeater ? (h.viaRepeater ? 'ein anderes Relais als im Betrieb' : 'über ein Relais, der Betrieb ist direkt')
+      : 'direkt, nicht über das Relais im Betrieb';
+  const title = [why, e.viaRepeater && s.repeaterFreq && `${s.repeaterFreq} MHz`, e.viaRepeater && s.repeaterShift && `Shift ${s.repeaterShift}`,
+    e.viaRepeater && signallingText(s)].filter(Boolean).join(' · ');
+  const text = e.viaRepeater ? s.repeaterCall || 'Relais' : 'direkt';
+  return el('span', { class: `${differs ? 'dev' : 'route'}${e.viaRepeater ? ' mono' : ''}`, title }, text);
+}
+
 function deviations(e) {
   const h = state.event?.header || {};
   const s = e.snap || {};
   const out = [];
-  if (!!e.viaRepeater !== !!h.viaRepeater || (e.viaRepeater && s.repeaterOverride)) {
-    out.push(el('span', {
-      class: 'dev', title: [e.viaRepeater ? 'über ein anderes Relais als im Betrieb' : 'direkt, nicht über das Relais im Betrieb',
-        s.repeaterFreq && `${s.repeaterFreq} MHz`, s.repeaterShift && `Shift ${s.repeaterShift}`, signallingText(s)].filter(Boolean).join(' · '),
-    }, e.viaRepeater ? `über ${s.repeaterCall || 'Relais'}` : 'direkt'));
-  }
   const op = opText(s);
   if (op && op !== opText(h)) out.push(el('span', { class: 'dev mono', title: 'Operator dieses Check-ins (abweichend vom Betrieb)' }, `Op ${op}`));
   return out.flatMap(x => [x, ' ']);
@@ -2605,11 +2640,10 @@ function wire() {
       $('#f-call').focus();
     }
   });
-  $('#f-rpt').addEventListener('change', () => { $('#f-rpt').dataset.touched = '1'; });
   // Typo suggestions are guesses: Enter takes one only after ↓.
   state.callPop = popover($('#f-call'), $('#call-suggest'), { enterPicksFirst: false });
   state.lineRpt = createLineRepeater({
-    checkbox: $('#f-rpt'), input: $('#f-rpt-q'), sug: $('#f-rpt-sug'),
+    input: $('#f-rpt-q'), sug: $('#f-rpt-sug'),
     getHeader: () => state.event?.header || emptyHeader(),
     onChange: scheduleDraft,
   });

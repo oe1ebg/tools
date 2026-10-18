@@ -13,6 +13,9 @@
 // views (map cards; '' = value only, missing = left out there); fields with
 // the same `group` are shown together under that name. `example` is a
 // sample value for the template preview in "+ Neues Log" (exampleValues()).
+// A template's `formOrder` (field keys) is the order of the entry form and
+// the log's cells (entryFields()); `fields` keeps the stored and exported
+// order. `hint` is the field's title (for radio groups also its description).
 
 // School grades for the siren test: 1 = sehr gut hörbar ... 5 = nicht hörbar.
 const GRADES = [['1', '1'], ['2', '2'], ['3', '3'], ['4', '4'], ['5', '5']];
@@ -42,11 +45,16 @@ export const TEMPLATES = [
     label: 'Rufzeichen + RST',
     hint: 'Rapport, optional Name und QTH',
     fields: [
-      { key: 'rst_rcvd', label: 'RST erh.', type: 'rst', adif: 'RST_RCVD', short: 'erh.', example: '59' },
-      { key: 'rst_sent', label: 'RST geg.', type: 'rst', adif: 'RST_SENT', short: 'geg.', example: '57' },
-      { key: 'name', label: 'Name', type: 'text', adif: 'NAME', short: '', example: 'Karl' },
+      // (stored and exported in this order; the form asks name first, then
+      // the report we give, which is the one usually taken: formOrder)
+      { key: 'rst_rcvd', label: 'RST erhalten', placeholder: 'erh', type: 'rst', adif: 'RST_RCVD', short: 'erh.', example: '59',
+        hint: 'wie die Station uns hört' },
+      { key: 'rst_sent', label: 'RST gegeben', placeholder: 'geg', type: 'rst', adif: 'RST_SENT', short: 'geg.', example: '57',
+        hint: 'wie wir die Station hören' },
+      { key: 'name', label: 'Name', type: 'text', size: 18, adif: 'NAME', short: '', example: 'Karl' },
       { key: 'qth', label: 'QTH / Standort', type: 'location', size: 22, adif: 'QTH', example: 'Mödling' },
     ],
+    formOrder: ['name', 'rst_sent', 'rst_rcvd', 'qth'],
   },
   {
     key: 'zivilschutz',
@@ -134,7 +142,7 @@ export function fieldDisplay(field, value, { screen = false } = {}) {
 export function shortSummary(tpl, values) {
   const parts = [];
   let group = null;
-  for (const f of tpl.fields) {
+  for (const f of entryFields(tpl)) {
     if (f.short === undefined || !fieldVisible(f, values, tpl)) continue;
     const v = fieldDisplay(f, values?.[f.key], { screen: true });
     if (!v) continue;
@@ -160,10 +168,21 @@ export function shortSummary(tpl, values) {
 //            Android 15"; a value the next one repeats is left out)
 // Any other field is its own column. -> [{ key, head, title, kind, fields }]
 const LOG_COLUMNS = {
-  rst: { head: 'RST', title: 'RST erhalten / gegeben' },
+  name: { head: 'Name', title: 'Name, wie genannt; darunter grau der Name laut Rufzeichenliste, wo er anders ist' },
+  rst: { head: 'RST', title: 'RST gegeben (wie wir die Station hören) / erhalten (wie sie uns hört)' },
   location: { head: 'Standort', title: 'Standort, wie gehört; darunter PLZ, Locator und woher der Standort stammt' },
   grades: { head: 'Sirene', title: `Sirene: innen Fenster zu · innen Fenster offen · im Freien (${GRADE_HINT})` },
 };
+// The fields in the order the entry form and the log show them.
+export function entryFields(tpl) {
+  if (!tpl.formOrder) return tpl.fields;
+  const rank = k => {
+    const i = tpl.formOrder.indexOf(k);
+    return i < 0 ? tpl.formOrder.length : i;
+  };
+  return [...tpl.fields].sort((a, b) => rank(a.key) - rank(b.key));
+}
+
 export function logColumns(tpl) {
   const cols = [];
   const byKey = new Map();
@@ -175,9 +194,9 @@ export function logColumns(tpl) {
     }
     byKey.get(key).fields.push(f);
   };
-  for (const f of tpl.fields) {
-    if (f.key === 'name') continue; // under the callsign
-    if (f.type === 'rst') add('rst', 'rst', f);
+  for (const f of entryFields(tpl)) {
+    if (f.key === 'name') add('name', 'name', f);
+    else if (f.type === 'rst') add('rst', 'rst', f);
     else if (f.type === 'location') add(f.key, 'location', f);
     else if (tpl.fields.some(l => l.plzKey === f.key)) continue; // in the location cell
     else if (f.grade) add(`grades-${f.group}`, 'grades', f, { head: f.group || LOG_COLUMNS.grades.head });

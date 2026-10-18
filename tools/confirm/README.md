@@ -519,8 +519,10 @@ voice repeaters, 54 KiB) from the **ÖVSV repeater database**
     frequency, shift, CTCSS and colour code (`REPEATER_KEYS`,
     `repeaterOverride: true`), so ADIF
     `FREQ`/`FREQ_RX` are correct per line.
-  - After saving, the field goes back to the header default. A line that
-    uses a different repeater is highlighted in the log. When editing, the
+  - After saving, the field goes back to the header default. The log's Relais
+    column shows each line's repeater (the header's too) or "direkt"; a
+    line that differs from the header (another repeater, direct instead of
+    via one or the other way round) is framed dashed. When editing, the
     line's own repeater is shown; clearing the field reverts to the header
     repeater.
   - CSV column `relais_quelle` is `Vorgaben` or `Zeile`. The summary lists

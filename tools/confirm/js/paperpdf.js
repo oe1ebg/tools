@@ -11,7 +11,7 @@
 // grade and AT-Alert's "ok" / "fehlt" a cell of its own to tick or cross,
 // the full line between the groups, dotted lines inside.
 
-import { logColumns, nameField } from './templates.js';
+import { logColumns } from './templates.js';
 import { PDF_A4_LANDSCAPE, pdfCanvas, pdfDocument, pdfTextWidth } from '../../shared/js/pdf.js';
 
 // 15 lines of 11.3 mm: room to write by hand on a clipboard, outdoors,
@@ -28,10 +28,11 @@ function paperColumns(tpl) {
   const cols = [
     { w: 4, head: 'Nr' },
     { w: 6.5, head: 'Zeit' },
-    { w: 10, head: nameField(tpl) ? 'Rufzeichen / Name' : 'Rufzeichen' },
+    { w: 10, head: 'Rufzeichen' },
   ];
   for (const c of logColumns(tpl)) {
-    if (c.kind === 'rst') cols.push({ w: 9, head: 'RST erh/geg', cell: { text: '/' } });
+    if (c.kind === 'name') cols.push({ w: 10, head: c.head });
+    else if (c.kind === 'rst') cols.push({ w: 9, head: 'RST geg/erh', cell: { text: '/' } });
     else if (c.kind === 'location') cols.push({ w: 19, head: c.head });
     else if (c.kind === 'grades') {
       c.fields.forEach((f, i) => {
