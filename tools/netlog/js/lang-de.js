@@ -8,7 +8,7 @@ export const LANG_DE = {
 
   'header.allTools': '← Alle Tools',
   'header.clockLabel': 'Uhrzeit ({zone})',
-  'header.update': 'Update verfügbar',
+  'header.update': 'Neue Version verwenden',
   'header.language': 'Sprache',
   'header.theme': 'Farbschema',
   'header.light': 'hell',
@@ -476,6 +476,9 @@ export const LANG_DE = {
   'offline.waiting': 'Update wartet: Eingabe klären',
   'offline.reloadIntro': 'Ein anderes Fenster dieses Werkzeugs hat ein Update installiert; diese Seite läuft noch mit der alten Version und muss neu laden, sobald die Eingabe geklärt ist. ',
   'offline.updateIntro': 'Ein Update wartet; bevor die Seite neu lädt, muss die Eingabe geklärt sein. ',
+  'offline.updateReady': 'Neue Version bereit',
+  'offline.useNow': 'Jetzt verwenden',
+  'offline.later': 'Später',
   'offline.oldRemoved': 'Alte Installation entfernt.',
   'offline.ok': 'OK',
 

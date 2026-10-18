@@ -843,7 +843,7 @@ function retranslateOffline(before) {
 function offlineStrings() {
   const keys = ['ready', 'incomplete', 'incompleteTitle', 'dev', 'devTitle', 'broken', 'brokenTitle', 'noAnswer', 'file', 'unsupported',
     'setupFailed', 'setupFailedTitle', 'loading', 'repairing', 'newer', 'repairFailed', 'updateFailed', 'updateFailedTitle', 'checkFailed',
-    'checkFailedTitle', 'copyLabel', 'actionFailed', 'update', 'reload', 'saveFailed', 'keepInput', 'retry', 'anyway', 'discardsDefault',
+    'checkFailedTitle', 'copyLabel', 'actionFailed', 'update', 'updateReady', 'useNow', 'later', 'reload', 'saveFailed', 'keepInput', 'retry', 'anyway', 'discardsDefault',
     'waiting', 'reloadIntro', 'updateIntro', 'oldRemoved', 'ok'];
   const out = Object.fromEntries(keys.map(k => [k, t(`offline.${k}`)]));
   out.notDone = what => t('offline.notDone', { what });

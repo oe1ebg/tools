@@ -60,8 +60,10 @@ Ob die Datei vollständig angekommen ist und noch irgendwo liegt, kann das
 Meldebuch nicht wissen; siehe
 [Gespeichert, Entwurf und Sicherung](#gespeichert-entwurf-und-sicherung).
 
-**Neue Version.** Erscheint „Update verfügbar“, ist eine neue Version
-geladen. Sie wird erst nach einem Klick darauf aktiv, nicht von selbst. Der
+**Neue Version.** Erscheint oben der Balken „Neue Version bereit“, ist eine
+neue Version schon geladen. Sie wird erst mit „Jetzt verwenden“ aktiv, nicht
+von selbst; „Später“ schließt den Balken, und „Neue Version verwenden“ in
+der Kopfzeile erinnert bis zum nächsten Öffnen daran. Der
 Klick lädt aber **alle** offenen Tabs und Fenster des Meldebuchs neu; einen
 Aufschub, den man je Tab wählen kann, gibt es nicht. Gespeicherte Meldungen
 und die vergebenen Nummern bleiben unverändert. Vor dem Neuladen sichert

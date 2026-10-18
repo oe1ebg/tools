@@ -7,7 +7,7 @@ export const LANG_EN = {
 
   'header.allTools': '← All tools',
   'header.clockLabel': 'Time ({zone})',
-  'header.update': 'Update available',
+  'header.update': 'Use the new version',
   'header.language': 'Language',
   'header.theme': 'Colour scheme',
   'header.light': 'light',
@@ -475,6 +475,9 @@ export const LANG_EN = {
   'offline.waiting': 'Update waiting: check your input',
   'offline.reloadIntro': 'Another window of this tool installed an update; this page still runs the old version and must reload once the input is safe. ',
   'offline.updateIntro': 'An update is waiting; before the page reloads, the input must be safe. ',
+  'offline.updateReady': 'A new version is ready',
+  'offline.useNow': 'Use it now',
+  'offline.later': 'Later',
   'offline.oldRemoved': 'Old installation removed.',
   'offline.ok': 'OK',
 

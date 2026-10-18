@@ -81,6 +81,13 @@
 :root button[data-theme-choice], :root button[data-time-choice], :root button[data-time-mode],
 :root button[data-lang], :root #btn-help{ min-height:24px; min-width:24px; }
 
+/* A waiting update (offline.js): a bar over the top of the page, above the
+   sticky header; not modal ("Später" puts the button back in the header). */
+.update-bar{ position:fixed; top:0; left:0; right:0; z-index:40; display:flex; flex-wrap:wrap; align-items:center; justify-content:center;
+  gap:.5em 1em; padding:.55em 1em; background:var(--bg-raised); color:var(--text); border-bottom:2px solid var(--accent); box-shadow:0 2px 12px #0004; }
+.update-bar-text{ font-weight:600; }
+.update-bar button{ min-height:32px; }
+
 /* The way back to the overview: a target of at least 24 px too. */
 :root #back-link, :root #home-link{ display:inline-flex; align-items:center; min-height:24px; }
 
