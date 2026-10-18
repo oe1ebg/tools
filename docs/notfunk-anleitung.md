@@ -305,15 +305,15 @@ Suche (Nummer, Referenz, Betreff, Station, Text).
 
 ![Karte der Meldungen](img/notfunk-karte.png)
 
-**Karte.** „Karte“ zeigt die Meldungen der aktuellen Auswahl (Filter und
-Suche) an ihrem Ort, auf einer Offline-Karte von Wien mit Bezirken,
+**Karte.** „Karte“ (neben der Suche, über der Liste) zeigt die Meldungen
+der aktuellen Auswahl (Filter und Suche) direkt über der Liste an ihrem Ort, auf einer Offline-Karte von Wien mit Bezirken,
 Gewässern, Hauptstraßen, Locator- und UTM-Raster (wie im
 Bestätigungsverkehr; es wird nichts aus dem Internet geladen). Die Farbe
 eines Punkts ist die höchste Dringlichkeit seiner Meldungen (rot Notfall,
 gelb Dringend); eine Zahl darauf heißt, dass mehrere Meldungen denselben Ort
 haben. Mit der Maus darüber (oder antippen) erscheinen Nummer, Zeit,
 Richtung, Betreff und Status; im angetippten Kärtchen führt die Nummer zur
-Meldung. Der Stern ist der Standort der eigenen Station. Ein Ort, der nur
+Meldung. Der Stern (dunkle Scheibe) ist der Standort der eigenen Station. Ein Ort, der nur
 als Text gespeichert ist, wird auf der Karte nachgeschlagen und nur bei
 sicherem Treffer gezeigt; unter der Karte steht, welche Meldungen keinen
 zugeordneten Ort haben.

@@ -167,14 +167,21 @@ div.field > label.check{ text-transform:none; letter-spacing:0; color:var(--text
 .leaflet-tooltip.map-district{ background:none; border:none; box-shadow:none; color:var(--text-dim); font-weight:700; font-size:13px; }
 .leaflet-tooltip.map-grid-label{ background:none; border:none; box-shadow:none; color:var(--accent-text); font-family:var(--font-mono); font-size:10px; opacity:.8; }
 .leaflet-tooltip.map-district::before, .leaflet-tooltip.map-grid-label::before{ display:none; }
-.map-pin{ border-radius:50%; background:var(--accent); border:2px solid var(--bg); box-shadow:0 0 0 1px var(--accent);
-  display:flex !important; align-items:center; justify-content:center; color:#fff; font:700 10px var(--font-ui); }
+/* Pins stand out on any part of the map, in both themes: a white ring
+   and a dark outer ring (one of them always contrasts, also on water and
+   roads), and a shadow. 22 px (iconSize in the mapviews). */
+.map-pin{ border-radius:50%; background:var(--accent); border:2px solid #fff; box-shadow:0 0 0 1.5px #000c, 0 1px 5px #0009;
+  display:flex !important; align-items:center; justify-content:center; color:#fff; font:700 11px var(--font-ui); }
 /* Notfunk: the most pressing priority of a pin's messages */
-.map-pin.prio-priority{ background:var(--warn); box-shadow:0 0 0 1px var(--warn); }
-.map-pin.prio-emergency{ background:var(--err); box-shadow:0 0 0 1px var(--err); }
-.map-pin.weak{ background:var(--bg); border:2px dashed var(--warn); box-shadow:none; color:var(--warn); }
-.map-own{ border-radius:50%; background:var(--warn); border:3px solid var(--bg); box-shadow:0 0 0 3px var(--warn), 0 2px 8px #0006;
-  display:flex !important; align-items:center; justify-content:center; color:#fff; font-size:15px; }
+/* fills, not text colours: a clear amber (dark number) and red; the rings
+   give the contrast against the map */
+.map-pin.prio-priority{ background:#f2a900; color:#1a1a1a; }
+.map-pin.prio-emergency{ background:#d7261e; }
+/* an uncertain place: hollow, dashed */
+.map-pin.weak{ background:var(--bg); border:2.5px dashed var(--warn); color:var(--text); }
+/* the own station: a neutral disc with a star, never a pin's colour */
+.map-own{ border-radius:50%; background:var(--text); border:3px solid var(--bg); box-shadow:0 0 0 2px var(--text), 0 2px 8px #0008;
+  display:flex !important; align-items:center; justify-content:center; color:var(--bg); font-size:15px; }
 .leaflet-tooltip.pin-tip, .pin-tip .leaflet-popup-content-wrapper{ background:var(--bg); color:var(--text); border:1px solid var(--accent); }
 .pin-tip-body{ font-size:12px; width:max-content; max-width:260px; white-space:normal; }
 .pin-tip-head{ font-size:13px; }

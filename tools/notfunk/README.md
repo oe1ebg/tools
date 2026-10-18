@@ -164,7 +164,8 @@ name, and a distribution list ("Verteiler").
   the lookup doesn't resolve is stored as text (`locationText`; `''` when
   `location` holds the resolved snapshot, whose `input`/`label` keep the
   text). Messages saved before this kept no text for an unresolved Ort.
-  **"Karte"** in the book shows the messages of the book's current list
+  **"Karte"** (in the filter bar, so the map opens right there, above the
+  list; the form stays on top) shows the messages of the book's current list
   (filter, search) at their Ort on the shared offline map
   (`../shared/js/basemap.js`, `js/mapview.js`; which messages and where:
   `js/mapdata.js`, node-tested): one pin per place, coloured by the most

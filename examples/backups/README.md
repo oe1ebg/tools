@@ -32,8 +32,9 @@ after-net tasks and edited-note revisions. Nine sessions are finished;
 three are left open to try the live controls. Undo history and unfinished
 editor drafts are empty.
 
-**Confirm:** the reception logs contain brief check-ins, names, fictional
-QTH values, varied sent/received reports and repeat check-ins. The fourth
+**Confirm:** the reception logs contain brief check-ins, names, QTHs with
+their place on the map ("Karte"; two stay unresolved), varied
+sent/received reports and repeat check-ins. The fourth
 log uses the Zivilschutz-Probealarm template with simulated siren grades
 and AT-Alert answers. Operator comments identify the exercise and mark
 the beginning and end. This dataset is for confirmations and structured
@@ -41,7 +42,8 @@ observations rather than long conversations.
 
 **Notfunk:** an explicitly fictional logistics exercise at a model park
 contains incoming requests, outgoing replies and follow-up reports. Try
-the message references, delivery-state filters, read-back flags, a failed
+the map ("Karte": the Ort of the incoming messages, some unresolved, the
+Dringend chain in amber), the message references, delivery-state filters, read-back flags, a failed
 transmission attempt and radio/telephone/messenger channels. Message
 numbers and the staff's separate reference numbers are both populated.
 The next message number is `D1-031` in the full exercise and `D1-007` in the
@@ -60,9 +62,21 @@ included.
 
 The callsigns follow Netlog's `OE0QX…` example convention and are not
 presented as assigned callsigns. A fictional name, QTH and member code
-stay attached to each synthetic identity across the three tools. No real
-coordinates, locators, postal addresses, phone numbers, email addresses or
-source URLs are included. All scenario timestamps are invented and stored
+stay attached to each synthetic identity across the three tools.
+
+**Places.** So that the maps of Confirm and Notfunk show something
+realistic, most QTHs and the Notfunk Ort values are public places in
+Vienna: streets, squares, crossings, a postcode area, stations, parks and
+public buildings (the Notfunk station is `Am Spitz 1`, the Floridsdorf
+district office). They are not where anybody lives; no station has a
+house address. They were resolved with the tools' own offline lookup and
+are stored as the location field stores them (some matched
+automatically, some chosen from the suggestions; later check-ins take the
+place over from an earlier log). A few stay fictional text marked
+`(fiktiv)`, to show places the lookup can't resolve ("nicht zugeordnet").
+`scripts/example_places.mjs` writes them (needs the built location data);
+re-run it after changing the place lists there. No phone numbers, email
+addresses or source URLs are included. All scenario timestamps are invented and stored
 in UTC. The German notes are intentional user content and are not
 translated by switching the app language.
 

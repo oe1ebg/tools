@@ -85,12 +85,23 @@ for (const size of ['example', 'full']) {
   });
 }
 
+// Places in the examples (scripts/example_places.mjs): resolved public
+// places in Vienna, never a house address for a station; or fictional
+// text without a location.
+const inVienna = loc => loc.lat > 48.11 && loc.lat < 48.33 && loc.lon > 16.18 && loc.lon < 16.58;
+function assertPlace(text, loc, what) {
+  if (loc === null) return assert.match(text, /\(fiktiv\)$/, `${what}: unresolved text is fictional`);
+  assert.ok(inVienna(loc), `${what}: ${loc.label} in Vienna`);
+  assert.ok(['search', 'previous'].includes(loc.origin), what);
+  assert.ok(loc.input === text || loc.label === text || loc.origin === 'previous' || text === `${loc.postcode} Wien` || text === loc.label, `${what}: text and location agree`);
+}
+
 test('demo identities are fictional and consistent across tools and profile snapshots', async () => {
   const identities = new Map();
   const remember = (call, name, qth) => {
     assert.match(call, /^OE0QX[A-N]$/);
     assert.ok(name);
-    assert.match(qth, /\(fiktiv\)$/);
+    assert.ok(qth);
     const identity = { name, qth };
     if (identities.has(call)) assert.deepEqual(identity, identities.get(call), call);
     else identities.set(call, identity);
@@ -105,13 +116,27 @@ test('demo identities are fictional and consistent across tools and profile snap
     if (e.kind) continue;
     const identity = identities.get(e.call);
     assert.ok(identity, e.call);
-    if (event.template === 'rst') remember(e.call, e.fields.name, e.fields.qth);
-    else assert.equal(e.fields.address, identity.qth);
-    assert.equal(e.loc, null);
+    const text = event.template === 'rst' ? e.fields.qth : e.fields.address;
+    if (event.template === 'rst') remember(e.call, e.fields.name, text);
+    else assert.equal(text, identity.qth);
+    assertPlace(text, e.loc, e.id);
+    if (e.loc) assert.notEqual(e.loc.type, 'address', `${e.id}: no house address for a station`);
   }
+  // the map has places to show, and a few that it can't place
+  const checkins = confirm.events.flatMap(x => x.entries).filter(e => e.call);
+  assert.ok(checkins.filter(e => e.loc).length >= checkins.length * 0.7);
+  assert.ok(checkins.some(e => !e.loc));
   const notfunk = await load('notfunk-full');
   for (const m of notfunk.messages) for (const party of [m.from, m.to]) {
     assert.equal(party.name, `${identities.get(party.call)?.name} / Übungsstation`);
     assert.equal(party.contact, '');
+  }
+  for (const name of ['notfunk-full', 'notfunk-example']) {
+    const nf = await load(name);
+    for (const m of nf.messages) {
+      if (m.location) assertPlace(m.location.input, m.location, m.number);
+      else if (m.locationText) assertPlace(m.locationText, null, m.number);
+    }
+    assert.ok(nf.messages.some(m => m.location) && nf.messages.some(m => m.locationText) && nf.messages.some(m => !m.location && !m.locationText), name);
   }
 });

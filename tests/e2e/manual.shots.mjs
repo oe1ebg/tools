@@ -143,7 +143,7 @@ test('Notfunk-Meldebuch', async ({ page }) => {
   await page.getByRole('button', { name: 'Karte' }).click();
   await expect(page.locator('#map .map-pin').first()).toBeVisible({ timeout: 30_000 });
   await page.waitForTimeout(500); // the fit animation
-  await shotAround(page, ['#map-panel'], 'notfunk-karte');
+  await shotAround(page, ['#view-book .filter-bar', '#map-panel'], 'notfunk-karte');
   await page.getByRole('button', { name: 'Karte' }).click();
 
   // the help
