@@ -48,7 +48,8 @@ test('paperPdf: the Zivilschutz sheet has its columns, 15 lines and no log data'
 
 test('paperPdf: Rufzeichen + RST names the column and has the slash per line', () => {
   const t = texts(latin1(paperPdf(TEMPLATES.find(x => x.key === 'rst'))));
-  assert.ok(t.includes('RUFZEICHEN / NAME'));
-  assert.ok(t.includes('RST ERH/GEG'));
+  assert.ok(t.includes('RUFZEICHEN'));
+  assert.ok(t.includes('NAME'));
+  assert.ok(t.includes('RST GEG/ERH'));
   assert.equal(t.filter(x => x === '/').length, 15);
 });

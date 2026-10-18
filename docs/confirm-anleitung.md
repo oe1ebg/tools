@@ -168,7 +168,7 @@ Speicher; zum Umziehen die Sicherung verwenden. Der Verlauf der Änderungen
 - **Titel**, z. B. „Rundspruch OE1 – Bestätigungsverkehr“.
 - **Vorlage:** welche Felder eine Zeile hat.
   - *Bestätigungsverkehr:* Rufzeichen und QTH / Standort.
-  - *Rufzeichen + RST:* RST erhalten / gegeben, Name, QTH.
+  - *Rufzeichen + RST:* Name, RST gegeben (wie wir die Station hören) und erhalten (wie sie uns hört), QTH; „/“ im ersten RST-Feld springt ins zweite.
   - *Zivilschutz-Probealarm:* Standort mit PLZ, Hörbarkeit der Sirene
     (Schulnote 1–5) innen bei geschlossenem und offenem Fenster und im
     Freien, AT-Alert erhalten, sonst Handy und Version.
@@ -196,7 +196,7 @@ vom Zeitpunkt des Eintrags.
 | Betriebsart | FM, DMR, C4FM, D-STAR, M17, TETRA, SSB … | FM |
 | Verbindung | direkt (Simplex) oder über Relais | über Relais |
 | Frequenz MHz | bei direkt | 145,500 |
-| Relais | Rufzeichen, Ort oder Frequenz (MHz) eines Relais aus der ÖVSV-Liste, Platzhalter „Rufzeichen, Ort oder MHz“; setzt Ausgabe, Shift und Signalisierung | OE1XUU |
+| Relais | Rufzeichen, Ort oder Frequenz (MHz) eines Relais aus der ÖVSV-Liste (das Feld zeigt dann sein Rufzeichen); setzt Ausgabe, Shift und Signalisierung | OE1XUU |
 
 Ein **Wechsel von Operator oder Relais/Frequenz** schreibt automatisch eine
 Markierung ins Log („OE1XYZ übernimmt von OE1ABC“, „OE1XUU → direkt“). Ihr
@@ -214,7 +214,7 @@ nicht bearbeitet wurde.
 
 ![Eingabe mit Rufzeichenvorschlägen](img/confirm-eingabe.png)
 
-- **Rufzeichen Gegenstation** eintippen. Die Vorschläge kommen aus diesem und
+- **Rufzeichen** (der Gegenstation) eintippen. Die Vorschläge kommen aus diesem und
   früheren Logs und aus der Rufzeichenliste (Name und Ort stehen darunter).
   <kbd>↓</kbd> und <kbd>Enter</kbd> übernimmt einen Vorschlag. Ohne Markierung
   übernimmt <kbd>Enter</kbd> nur einen Vorschlag, der das Getippte vervollständigt;
@@ -222,9 +222,10 @@ nicht bearbeitet wurde.
 - **Zeit:** leer = Zeitpunkt des Speicherns. Korrektur als `19:42` oder
   `2026-10-08 19:42`, in der oben gewählten Zeitzone (UTC oder lokal).
 - **QTH / Standort** (siehe [Standort](#standort)).
-- **Relais:** ist mit dem Relais aus dem Betrieb vorbelegt; „über“
-  angehakt = die Station kommt über dieses Relais. Für ein anderes Relais
-  dessen Rufzeichen, Ort oder Frequenz eintragen (dann orange markiert).
+- **Relais:** ist mit dem Relais aus dem Betrieb vorbelegt. Leer = die
+  Station kam direkt (ohne Relais; das leere Feld zeigt „direkt“). Für ein
+  anderes Relais dessen Rufzeichen, Ort oder Frequenz eintragen (dann orange
+  markiert); <kbd>Esc</kbd> stellt das Relais aus dem Betrieb wieder her.
 - **Notiz:** freier Text.
 - <kbd>⇧</kbd>+<kbd>Enter</kbd> speichert, aus jedem Feld. <kbd>Esc</kbd> verwirft die Zeile, mit
   „Rückgängig“.
@@ -258,10 +259,11 @@ Standort darunter klein PLZ, Locator und woher der Standort kommt: *Suche*
 aus der Rufzeichenliste); grau „nicht zugeordnet“ heißt, der Text wurde
 keinem Ort zugeordnet. Beim Zivilschutz-Probealarm zeigt **Sirene** die drei
 Schulnoten (zu · offen · außen, grün bis rot) und **AT-Alert** „✓ erhalten“
-oder „✕ fehlt“ mit Handy und Version. **Relais und Operator** sind
-meist die aus dem Betrieb und stehen dann nicht in jeder Zeile; nur eine
-abweichende Zeile sagt es am Anfang der Notiz („direkt“, „über OE1XYZ“,
-„Op OE1ABC“). Die Spaltennamen sind kurz; mit der Maus darüber steht die
+oder „✕ fehlt“ mit Handy und Version. **Relais** zeigt in jeder Zeile
+das Relais, über das die Station kam, oder „direkt“; gestrichelt umrandet,
+wo die Zeile vom Betrieb abweicht (ein anderes Relais, direkt statt über das
+Relais oder umgekehrt). Der **Operator** steht nur in einer abweichenden
+Zeile, am Anfang der Notiz („Op OE1ABC“). Die Spaltennamen sind kurz; mit der Maus darüber steht die
 Erklärung.
 
 Am Handy ist jede Zeile eine Karte: oben Zeit, Nummer, Rufzeichen und die

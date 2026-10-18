@@ -146,7 +146,7 @@ test('templates: short summary for map cards', async () => {
   // on screen "fehlt", in the exports still "nicht erhalten"
   assert.equal(fieldDisplay(z.fields.find(x => x.key === 'atalert'), 'nein'), 'nicht erhalten');
   assert.equal(fieldDisplay(z.fields.find(x => x.key === 'atalert'), 'nein', { screen: true }), 'fehlt');
-  assert.equal(shortSummary(templateFor('rst'), { rst_rcvd: '59', rst_sent: '57', name: 'Franz', qth: 'Wien' }), 'erh. 59 · geg. 57 · Franz');
+  assert.equal(shortSummary(templateFor('rst'), { rst_rcvd: '59', rst_sent: '57', name: 'Franz', qth: 'Wien' }), 'Franz · geg. 57 · erh. 59');
   assert.equal(shortSummary(templateFor('calls'), { qth: 'Wien' }), '');
 });
 

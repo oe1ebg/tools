@@ -188,12 +188,14 @@
         <button type="button" data-mode="comment" aria-pressed="false" title="Operator-Kommentar: Operatorwechsel, Frequenzwechsel, Unterbrechung … (auch: ! am Anfang des Rufzeichens)">Kommentar</button>
       </div>
       <div class="row">
-        <label class="field"><span><span id="time-label">Zeit UTC</span> <span class="clock" id="clock" aria-hidden="true"></span></span>
+        <!-- empty = the time of saving; the placeholder runs with the clock
+             and names the zone (js/app.js tickClock()) -->
+        <label class="field"><span id="time-label">Zeit</span>
           <input id="f-time" placeholder="jetzt" aria-describedby="time-help" autocomplete="off" enterkeyhint="next">
           <span id="time-help" class="sr-only"></span>
           <span class="ac-hints" aria-hidden="true"></span>
         </label>
-        <div class="field ac-field ci-only"><label for="f-call">Rufzeichen Gegenstation</label>
+        <div class="field ac-field ci-only"><label for="f-call" title="Rufzeichen der Gegenstation">Rufzeichen</label>
           <div class="ac-wrap">
             <input id="f-call" autocapitalize="characters" autocorrect="off" spellcheck="false" autocomplete="off" enterkeyhint="next" aria-describedby="call-info call-warn" title="Rufzeichen der Station, die sich meldet. Mit ! beginnen = Operator-Kommentar (Frequenzwechsel, Übergabe, Unterbrechung …)">
             <div id="call-suggest" class="ac-pop"></div>
@@ -214,9 +216,8 @@
         <div id="f-fields" class="row ci-only"></div>
         <div class="field rpt-line ci-only"><span id="f-rpt-label">Relais</span>
           <div class="rpt-line-row">
-            <label class="check" title="Diese Station kommt über ein Relais"><input type="checkbox" id="f-rpt"> über</label>
             <div class="ac-wrap">
-              <input id="f-rpt-q" size="11" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" enterkeyhint="next" aria-labelledby="f-rpt-label" title="Vorbelegt mit dem Relais aus „Betrieb“. Anderes Relais für diese Zeile: Rufzeichen, Ort oder Frequenz eingeben.">
+              <input id="f-rpt-q" size="11" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" enterkeyhint="next" aria-labelledby="f-rpt-label" placeholder="direkt" title="Vorbelegt mit dem Relais aus „Betrieb“; leer = direkt (ohne Relais). Anderes Relais für diese Zeile: Rufzeichen, Ort oder Frequenz eingeben.">
               <div id="f-rpt-sug" class="ac-pop"></div>
             </div>
           </div>
@@ -279,7 +280,7 @@
           <dt><kbd>Esc</kbd></dt><dd>Zeile verwerfen (mit „Rückgängig“); in dieser Hilfe: schließt sie</dd>
           <dt><strong>!</strong> im Rufzeichen</dt><dd>Operator-Kommentar statt Check-in (Frequenzwechsel, Übergabe, Unterbrechung …); zählt nicht als Station</dd>
           <dt>Zeit</dt><dd>leer = Zeitpunkt des Speicherns; Korrektur als HH:MM oder JJJJ-MM-TT HH:MM (in der oben gewählten Zeitzone)</dd>
-          <dt>Relais</dt><dd>„über“ angehakt = die Station kommt über ein Relais (aus „Betrieb“); vorbelegt mit dem Relais aus „Betrieb“, sonst Rufzeichen, Ort oder Frequenz eines anderen Relais</dd>
+          <dt>Relais</dt><dd>vorbelegt mit dem Relais aus „Betrieb“; leer = direkt (ohne Relais); sonst Rufzeichen, Ort oder Frequenz eines anderen Relais</dd>
           <dt><kbd>?</kbd></dt><dd>diese Hilfe öffnen (außerhalb von Textfeldern); die Eingabe bleibt, wie sie ist</dd>
         </dl>
       </section>

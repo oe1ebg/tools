@@ -84,6 +84,10 @@ main{ max-width:1200px; margin:0 auto; padding:1em; }
 #log-header > .span-2, #new-header > .span-2{ grid-column:span 2; }
 #log-header.route-rpt > .sig-start, #new-header.route-rpt > .sig-start{ grid-column-start:1; }
 #log-header input:not([type]), #new-header input:not([type]){ width:100%; box-sizing:border-box; }
+/* callsigns as wide as the longest: 12 characters ("PP/AA0BBB/SS"), a
+   repeater's 6 */
+#log-header input.call-input, #new-header input.call-input{ width:calc(12ch + 1em); max-width:100%; }
+#log-header input[data-hkey="repeaterCall"], #new-header input[data-hkey="repeaterCall"]{ width:calc(6ch + 1.6em); }
 /* phones: two columns; the locator gets a whole row (narrowSpan) */
 @media (max-width: 640px){
   #log-header, #new-header{ grid-template-columns:repeat(2, minmax(0, 1fr)); }
@@ -158,6 +162,21 @@ details.hdr .body{ padding:0 1em 1em; }
 #entry-form .chain-more{ contain:inline-size; display:flex; justify-content:flex-end; gap:calc(var(--hint-h) + .3em) .9em; }
 #entry-form .chain-more > .field{ flex:none; width:max-content; }
 #entry-form #f-fields > .field-chain.chain-left{ flex:1 1 auto; }
+/* wide screens: the room the short fields (time, callsigns, RST) leave
+   goes to Name and the place (QTH / Standort) */
+@media (min-width: 641px){
+  #entry-form .row > #f-fields{ flex:1 1 24em; min-width:0; }
+  /* a few fields (Name, RST, QTH) stay on one line together: the note
+     wraps first. Many fields (Zivilschutz) may wrap. */
+  #entry-form #f-fields:not(:has(> :nth-child(5))){ flex-wrap:nowrap; min-width:min-content; }
+  #entry-form #f-fields > .field[data-field="name"]{ flex:1 1 9em; min-width:7em; }
+  #entry-form #f-fields > .field[data-field="name"] input{ width:100%; box-sizing:border-box; }
+  #entry-form #f-fields > .ac-field{ flex:2 1 14em; min-width:10em; }
+  #entry-form #f-fields > .ac-field .ac-wrap, #entry-form #f-fields > .ac-field input{ width:100%; box-sizing:border-box; }
+  /* the note: free text, a line of its own (readable) */
+  #entry-form .row > label.field:has(#f-note){ flex:1 1 100%; }
+  #f-note{ width:100%; box-sizing:border-box; }
+}
 #entry-form .chain-left .chain-more{ justify-content:flex-start; flex-wrap:wrap; }
 #entry-form .chain-left .chain-more > .field{ flex:0 1 auto; width:auto; }
 .entry-actions{ display:flex; flex-wrap:wrap; gap:.4em .6em; align-items:center; margin-top:.5em; padding-top:.6em; border-top:1px solid var(--line); }
@@ -186,10 +205,17 @@ table.log tr.fresh td:first-child{ box-shadow:inset 3px 0 0 var(--ok); }
 .c-text{ flex:1; min-width:16em; }
 #f-call{
   font-family:var(--font-mono); font-size:24px; font-weight:600;
-  text-transform:uppercase; width:9em; padding:.2em .4em;
+  /* the longest callsign: "PP/AA0BBB/SS", 12 characters */
+  text-transform:uppercase; width:calc(12ch + 1em); box-sizing:border-box; padding:.2em .4em;
 }
 #f-call::placeholder{ font-family:var(--font-ui); font-size:14.5px; font-weight:400; text-transform:none; color:var(--text-dim); }
-#f-time{ font-family:var(--font-mono); width:12em; }
+/* RST gegeben / erhalten: one group, two narrow fields (59, 599 for CW;
+   placeholder "geg" / "erh"; on phones wider, see below); "/" goes from the first to the second */
+.rst-inputs{ display:flex; gap:.4em; }
+.rst-inputs input{ width:calc(3ch + .8em); padding-left:.3em; padding-right:.3em; box-sizing:border-box; font-family:var(--font-mono); }
+.rst-inputs input::placeholder{ font-family:var(--font-ui); }
+/* "19:16:42 MESZ": the time and a zone of up to 4 letters (a typed date scrolls) */
+#f-time{ font-family:var(--font-mono); width:calc(13ch + 1.4em); box-sizing:border-box; }
 .clock{ font-family:var(--font-mono); font-size:13.5px; color:var(--text-dim); }
 .radio-group.grade label{ min-width:2.1em; text-align:center; font-family:var(--font-mono); font-weight:600; }
 /* a light tint for what an answer means, as in the log (green good, amber
@@ -276,6 +302,20 @@ table.log td.col-rst{ white-space:nowrap; }
 .no{ color:var(--err); }
 .yes > .mark, .no > .mark{ font-weight:700; font-size:1.1em; }
 .chain-sub{ white-space:nowrap; }
+/* Column widths (every template): the short columns as wide as their
+   content (width:1% + nowrap), Standort and Notiz share the rest. Wide
+   screens only: phones show cards. */
+@media (min-width: 641px){
+  table.log :is(th, td):is(.col-nr, .col-time, .col-call, .col-rst, .col-rpt, .col-grades){ width:1%; white-space:nowrap; }
+  table.log :is(th, td).col-name{ width:1%; min-width:6em; max-width:12em; }
+  table.log :is(th, td).col-chain{ width:1%; }
+  table.log :is(th, td).col-location{ width:26%; min-width:12em; }
+  table.log :is(th, td).col-note{ min-width:14em; }
+}
+/* the Relais cell: the relay or "direkt" (dim); .dev where it differs */
+table.log td.col-rpt{ white-space:nowrap; }
+.route{ color:var(--text-dim); }
+.route.mono{ color:var(--text); }
 /* a check-in that differs from the log's Betrieb (relay, operator) */
 .dev{ display:inline-block; font-size:12.5px; line-height:1.5; padding:0 .4em; border-radius:3px; border:1px dashed var(--warn); color:var(--warn); white-space:nowrap; }
 
@@ -288,7 +328,10 @@ button.mini{ font-size:13.5px; padding:.15em .55em; }
 /* External map links lead nowhere offline: hidden (js/sources.js trackOnline()). */
 :root.offline .online-only{ display:none !important; }
 .rpt-line-row{ display:flex; gap:.4em; align-items:center; }
-#f-rpt-q{ font-family:var(--font-mono); text-transform:uppercase; }
+/* a repeater callsign has at most 6 characters (a typed place or frequency scrolls) */
+#f-rpt-q{ font-family:var(--font-mono); text-transform:uppercase; width:calc(6ch + 1.2em); box-sizing:border-box; }
+/* empty = direkt: the placeholder in plain dim text, not like a callsign */
+#f-rpt-q::placeholder{ text-transform:none; font-family:var(--font-ui); color:var(--text-dim); }
 #f-rpt-q.override{ border-color:var(--warn); color:var(--warn); font-weight:600; }
 .rpt.override{ color:var(--warn); font-weight:600; }
 .ac-info.conf-exact, .ac-info.conf-high{ color:var(--ok); }
