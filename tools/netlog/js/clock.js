@@ -2,10 +2,12 @@
 // switched in the header (pref oe1ebg-netlog-time). Storage is always ISO
 // 8601 UTC; the mode only changes what is shown and how a typed time
 // (a handover correction) is read. Every shown time carries its zone
-// ("19:42 UTC", "21:42 UTC+2"), ISO order and 24 hours in both modes.
+// ("19:42 UTC", "21:42 MESZ" / "21:42 CEST" in the interface language),
+// ISO order and 24 hours in both modes.
 
 import { prefGet, prefSet } from '../../shared/js/prefs.js';
-import { splitTime, zoneLabel, parseTimeInput, localZoneText } from '../../shared/js/time.js';
+import { splitTime, parseTimeInput, zoneAbbr, localZoneAbbrText } from '../../shared/js/time.js';
+import { lang } from './i18n.js';
 
 export const TIME_PREF = 'oe1ebg-netlog-time';
 let shownMode = prefGet(TIME_PREF, 'utc') === 'local' ? 'local' : 'utc';
@@ -20,9 +22,9 @@ export function setTimeMode(m) {
   return shownMode;
 }
 
-// The local choice of the switch: "Europe/Vienna (UTC+2)".
+// The local choice of the switch: "Europe/Vienna (MESZ)".
 export function localChoiceText(fallback, iso = null) {
-  return localZoneText(fallback, iso);
+  return localZoneAbbrText(fallback, iso, lang());
 }
 
 // "HH:MM" of an instant in the current mode ('' for none).
@@ -35,12 +37,15 @@ export function hms(iso) {
   return iso ? splitTime(iso, shownMode).time : '';
 }
 
-// The zone of an instant in the current mode: "UTC" or "UTC+2".
+// The zone of an instant in the current mode: "UTC", or the local zone's
+// short name at that instant in the interface language ("MESZ"/"MEZ",
+// "CEST"/"CET"; "UTC+3" where a zone has no name). Per instant, so a time
+// before a DST change keeps its own name.
 export function zone(iso = null) {
-  return zoneLabel(iso || new Date().toISOString(), shownMode);
+  return shownMode === 'local' ? zoneAbbr(iso || new Date().toISOString(), lang()) : 'UTC';
 }
 
-// "HH:MM UTC" / "HH:MM UTC+2"
+// "HH:MM UTC" / "HH:MM MESZ"
 export function hmz(iso) {
   return iso ? `${hm(iso)} ${zone(iso)}` : '';
 }

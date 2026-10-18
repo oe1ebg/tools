@@ -679,6 +679,7 @@ function initHeader() {
     applyI18n(document);
     retranslateOffline(before);
     for (const fn of app.langHooks) fn();
+    tick();
     render();
     renderMode(isEditableActive() ? 'edit' : 'nav');
     b.focus();
