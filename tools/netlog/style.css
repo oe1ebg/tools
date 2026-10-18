@@ -14,7 +14,6 @@ body{
 .mono{ font-family:var(--font-mono); }
 .err-text{ color:var(--err); font-size:13.5px; margin:.4em 0; }
 .err-text:empty{ display:none; }
-.call-input{ text-transform:uppercase; }
 kbd{ font:12.5px var(--font-mono); border:1px solid var(--line-strong); border-bottom-width:2px; border-radius:3px; padding:0 .3em; white-space:nowrap; }
 :focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
 button.mini{ font-size:13.5px; padding:.15em .55em; }

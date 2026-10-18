@@ -44,6 +44,9 @@ input[type=text], input[type=search], input:not([type]), select, textarea{
   font:inherit; font-size:15px; color:var(--text); background:var(--bg);
   border:1px solid var(--line-strong); border-radius:4px; padding:.35em .5em;
 }
+/* callsign fields show capitals while typing; the placeholder keeps its own case */
+.call-input{ text-transform:uppercase; }
+.call-input::placeholder{ text-transform:none; }
 input:focus, select:focus, textarea:focus{ outline:2px solid var(--accent); outline-offset:-1px; }
 label.field, div.field{ display:flex; flex-direction:column; gap:.2em; font-size:12.5px; color:var(--text-dim); }
 label.field > span, div.field > span, div.field > label{ text-transform:uppercase; letter-spacing:.04em; font-weight:500; }
@@ -193,3 +196,13 @@ div.field > label.check{ text-transform:none; letter-spacing:0; color:var(--text
 .pin-tip-warn{ color:var(--warn); }
 .pin-tip-body .map-links{ display:flex; margin:.3em 0 0; }
 #btn-map.active{ border-color:var(--accent); color:var(--accent-text); }
+
+/* .over-suggestions: the action row under a field with an .ac-pop list
+   (Save, Discard …). With a mouse the open list (z-index 30) lies over it:
+   the whole list stays readable. On touch screens and phones the row stays
+   above the list: a tap on Save must never pick a suggestion that happens
+   to lie under it. */
+.over-suggestions{ background:var(--bg-raised); }
+@media (max-width: 640px), (pointer: coarse){
+  .over-suggestions{ position:relative; z-index:31; }
+}

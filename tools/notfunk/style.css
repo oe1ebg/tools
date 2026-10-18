@@ -16,7 +16,6 @@ body{
 .accent{ color:var(--accent-text); }
 .nowrap{ white-space:nowrap; }
 .err-text{ color:var(--err); }
-.call-input{ text-transform:uppercase; }
 kbd{ font:12.5px var(--font-mono); border:1px solid var(--line-strong); border-bottom-width:2px; border-radius:3px; padding:0 .3em; }
 
 /* ---------- header ---------- */

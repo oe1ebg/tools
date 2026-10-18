@@ -6,74 +6,20 @@
 //
 // A PDF and not the page printed by the browser: every browser's print
 // engine scales, breaks and pads differently; a PDF prints the same at its
-// own size everywhere. Written here, without a library: lines, rectangles
-// and text in the PDF's built-in Helvetica (no font embedded), Latin-1 /
-// WinAnsi text. The columns follow the log's (logColumns()): each siren
+// own size everywhere. Written with the shared PDF writer
+// (../../shared/js/pdf.js). The columns follow the log's (logColumns()): each siren
 // grade and AT-Alert's "ok" / "fehlt" a cell of its own to tick or cross,
 // the full line between the groups, dotted lines inside.
 
 import { logColumns, nameField } from './templates.js';
+import { PDF_A4_LANDSCAPE, pdfCanvas, pdfDocument, pdfTextWidth } from '../../shared/js/pdf.js';
 
 // 15 lines of 11.3 mm: room to write by hand on a clipboard, outdoors,
 // in a hurry (ruled paper is 7-9 mm; forms for handwriting want 10 mm+)
 export const PAPER_LINES = 15;
 
-const PDF_MM = 72 / 25.4;
-const PDF_PAGE_W = 297, PDF_PAGE_H = 210; // A4 landscape, mm
-const PDF_MARGIN = 7;
-
-// Helvetica / Helvetica-Bold advance widths (1/1000 em) for ASCII 32..126
-// (Adobe's AFM files); other characters use the width of their base letter.
-const PDF_HELV = '278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,1015,667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,556,333,556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,500,500,500,334,260,334,584'.split(',').map(Number);
-const PDF_HELV_BOLD = '278,333,474,556,556,889,722,238,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,333,333,584,584,584,611,975,722,722,722,722,667,611,778,722,278,556,722,611,833,722,778,667,778,722,667,611,722,667,944,667,667,611,333,278,333,584,556,333,556,611,556,611,556,333,611,611,278,278,556,278,889,611,611,611,611,389,556,333,611,556,778,556,556,500,389,280,389,584'.split(',').map(Number);
-// WinAnsi codes outside Latin-1 that German text needs
-const PDF_WIN_ANSI = { '–': 0x96, '—': 0x97, '…': 0x85, '„': 0x84, '“': 0x93, '”': 0x94, '‚': 0x82, '‘': 0x91, '’': 0x92, '€': 0x80 };
-const PDF_BASE_LETTER = { 'Ä': 'A', 'Ö': 'O', 'Ü': 'U', 'ä': 'a', 'ö': 'o', 'ü': 'u', 'ß': 'B', 'é': 'e', 'è': 'e' };
-
-function pdfCode(ch) {
-  if (PDF_WIN_ANSI[ch]) return PDF_WIN_ANSI[ch];
-  const c = ch.charCodeAt(0);
-  return c < 256 ? c : 0x3f; // "?"
-}
-
-// Width of a text in mm at `size` pt.
-function pdfTextWidth(text, size, bold = false) {
-  const table = bold ? PDF_HELV_BOLD : PDF_HELV;
-  let units = 0;
-  for (const ch of text) {
-    const base = PDF_BASE_LETTER[ch] || ch;
-    const c = base.charCodeAt(0);
-    units += c >= 32 && c <= 126 ? table[c - 32] : ch === '…' ? 1000 : 556;
-  }
-  return units / 1000 * size / PDF_MM;
-}
-
-function pdfHex(text) {
-  return [...text].map(ch => pdfCode(ch).toString(16).padStart(2, '0')).join('');
-}
-
-const pdfNum = v => (Math.round(v * 100) / 100).toString();
-
-// A content stream drawn in mm from the top left of the page.
-function pdfCanvas() {
-  const ops = [];
-  const X = x => pdfNum(x * PDF_MM), Y = y => pdfNum((PDF_PAGE_H - y) * PDF_MM);
-  return {
-    ops,
-    line(x1, y1, x2, y2, { width = 0.6, gray = 0, dash = null } = {}) {
-      ops.push(`${pdfNum(width)} w ${pdfNum(gray)} G ${dash ? `[${dash.join(' ')}] 0 d` : '[] 0 d'} ${X(x1)} ${Y(y1)} m ${X(x2)} ${Y(y2)} l S`);
-    },
-    fill(x, y, w, h, gray) {
-      ops.push(`${pdfNum(gray)} g ${X(x)} ${Y(y + h)} ${pdfNum(w * PDF_MM)} ${pdfNum(h * PDF_MM)} re f`);
-    },
-    // baseline at y; align: left | center | right of x
-    text(str, x, y, { size = 9, bold = false, gray = 0, align = 'left' } = {}) {
-      const w = pdfTextWidth(str, size, bold);
-      const left = align === 'center' ? x - w / 2 : align === 'right' ? x - w : x;
-      ops.push(`BT /${bold ? 'F2' : 'F1'} ${pdfNum(size)} Tf ${pdfNum(gray)} g ${X(left)} ${Y(y)} Td <${pdfHex(str)}> Tj ET`);
-    },
-  };
-}
+const PAPER_PAGE = PDF_A4_LANDSCAPE;
+const PAPER_MARGIN = 7;
 
 // Columns of the sheet: [{ w (% of the width), head, group, cell }]. A
 // group's sub-columns share one heading; `cell` is what each empty line
@@ -105,13 +51,13 @@ function paperColumns(tpl) {
 
 // The page's content stream.
 function paperContent(tpl, lines) {
-  const cv = pdfCanvas();
-  const x0 = PDF_MARGIN, x1 = PDF_PAGE_W - PDF_MARGIN, width = x1 - x0;
+  const cv = pdfCanvas(PAPER_PAGE);
+  const x0 = PAPER_MARGIN, x1 = PAPER_PAGE.width - PAPER_MARGIN, width = x1 - x0;
   const label = (text, x, y) => { cv.text(text.toUpperCase(), x, y, { size: 7 }); return x + pdfTextWidth(text.toUpperCase(), 7) + 1.2; };
   const blank = (xa, xb, y) => cv.line(xa, y + 0.6, xb, y + 0.6, { width: 0.6 });
 
   // the title line: the template, the log's name and the sheet number to fill in
-  let y = PDF_MARGIN + 5;
+  let y = PAPER_MARGIN + 5;
   const title = `${tpl.label} – Log`;
   cv.text(title, x0, y, { size: 12, bold: true });
   const sheetBlank = 16;
@@ -138,7 +84,7 @@ function paperContent(tpl, lines) {
   let cx = x0;
   for (const c of cols) { c.x = cx; c.width = c.w / total * width; cx += c.width; }
   const top = y + 4, headH = 5.5;
-  const foot = PDF_PAGE_H - PDF_MARGIN - 1;
+  const foot = PAPER_PAGE.height - PAPER_MARGIN - 1;
   const bottom = foot - 3.5;
   const rowH = (bottom - top - headH) / lines;
 
@@ -181,27 +127,5 @@ function paperContent(tpl, lines) {
 
 // -> the PDF file as bytes (Uint8Array). tpl: the template.
 export function paperPdf(tpl, { lines = PAPER_LINES } = {}) {
-  const content = paperContent(tpl, lines);
-  const objects = [
-    '<< /Type /Catalog /Pages 2 0 R >>',
-    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
-    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pdfNum(PDF_PAGE_W * PDF_MM)} ${pdfNum(PDF_PAGE_H * PDF_MM)}] /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> /Contents 4 0 R >>`,
-    `<< /Length ${content.length} >>\nstream\n${content}\nendstream`,
-    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
-    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>',
-    `<< /Title <${pdfHex(`${tpl.label} – Leerformular`)}> /Producer (oe1ebg tools) >>`,
-  ];
-  // All ASCII (text as hex strings): string length = byte length.
-  let out = '%PDF-1.4\n';
-  const offsets = objects.map((body, i) => {
-    const at = out.length;
-    out += `${i + 1} 0 obj\n${body}\nendobj\n`;
-    return at;
-  });
-  const xref = out.length;
-  out += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n${offsets.map(o => `${String(o).padStart(10, '0')} 00000 n \n`).join('')}`;
-  out += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R /Info ${objects.length} 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
-  const bytes = new Uint8Array(out.length);
-  for (let i = 0; i < out.length; i++) bytes[i] = out.charCodeAt(i);
-  return bytes;
+  return pdfDocument(PAPER_PAGE, paperContent(tpl, lines), `${tpl.label} – Leerformular`);
 }

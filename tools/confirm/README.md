@@ -413,8 +413,9 @@ also shows in print).
   [Operator comments](#operator-comments-and-log-markers-issue-32).
 - **Leerformular (PDF).** An empty sheet in a template's columns, printed
   in advance for a net without a device (or when one fails): one A4
-  landscape page with 15 lines, nothing filled in. `js/paperpdf.js` writes
-  the PDF itself on click (no library: lines and text in the PDF's
+  landscape page with 15 lines, nothing filled in. `js/paperpdf.js` lays out
+  the sheet and writes the PDF itself on click with the shared writer
+  `../shared/js/pdf.js` (no library: lines and text in the PDF's
   built-in Helvetica, WinAnsi text), opened in a new tab, downloaded where
   the tab is blocked. A PDF rather than the printed page, because every
   browser's print engine scales and breaks pages differently; the PDF
@@ -1011,7 +1012,7 @@ any tiles**.
   operator comments and automatic header-change markers).
 - `js/templates.js`: the template field definitions.
 - `js/export.js`: CSV, ADIF, KML and summary output.
-- `js/paperpdf.js`: the Leerformular as a PDF (its own minimal PDF writer).
+- `js/paperpdf.js`: the Leerformular's layout (the PDF primitives are `../shared/js/pdf.js`).
 - `js/mapdata.js` / `js/mapview.js`: the map view (pure helpers / the
   station pins), on the shared base map `../shared/js/basemap.js` (with
   `mapgrid.js`, also used by Notfunk); Leaflet 1.9.4, unmodified, is in

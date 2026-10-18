@@ -30,6 +30,8 @@ browser loads.
 | `js/helpdialog.js` | the help dialog: `#btn-help` in the header, ? outside text fields (more keys per tool), Esc closes, focus returns | confirm, notfunk, adif, sota-alerts (netlog: own `help.js`, same button and key) |
 | `js/time.js` | ids, "now", ISO UTC timestamps shown/typed in UTC or local time (the device's or a named zone via Intl, incl. the repeated/skipped hour at the DST change), `laterIso()` (a changed record's `updated`, always after the previous one: row caches compare it) | confirm, notfunk, netlog |
 | `js/isodate.js` | ISO dates in text fields: `isoDateFromText()` (pure), and `isoBindDateField()` for a field and its calendar button, which opens the browser's date picker through `showPicker()` on a hidden `<input type="date">` and only takes its value (UI) | adif, sota-alerts, netlog |
+| `js/stickyhead.js` | `trackSiteHeaderHeight()`: keeps `--site-header-h` (height of `#site-header`) current so sticky table heads sit below the page header; use with `.sticky-head` (see *Shared UI classes*) | confirm |
+| `js/pdf.js` | minimal PDF writer for paper forms: `pdfCanvas(page)`, `pdfDocument(page, content, title)`, `pdfOpen(bytes, filename)`, text metrics/encoding (see *Shared UI classes*) | confirm (notfunk next) |
 | `js/locmeta.js` | where a resolved location came from and how it was named (`LOC_ORIGINS`, …) | confirm, notfunk |
 | `js/prefs.js` | `prefGet`/`prefSet`: per-browser settings in localStorage, errors swallowed | confirm, notfunk, netlog |
 | `js/theme.js` | light/auto/dark theme (classic script, first in every page's `<head>`) | all tools |
@@ -402,6 +404,58 @@ service workers are missing on plain `http://` and `file://`.
   `application/octet-stream` (Safari appends ".txt" to `text/plain`);
   ADI values ASCII only (`adifAscii()`), as ADIF 3.1.8 requires. CSV for
   spreadsheets only through `js/csv.js` (see *CSV exports*).
+
+## Shared UI classes and the PDF writer
+
+Opt-in classes in `css/tools.css` / `css/forms.css`; a tool adds the class,
+the rules are not repeated in its `style.css`.
+
+- **`.table-wrap.sticky-head`** (tools.css): on the wrapper around a table;
+  its `th` stay in view below the sticky page header (bold, opaque
+  background, 2px rule). The wrapper clips (`overflow-x: clip`) instead of
+  scrolling, because a scroll container would hold the sticky head, so the
+  columns must fit (browsers without `overflow: clip` keep the scrolling
+  wrapper and a head that scrolls away). Call `trackSiteHeaderHeight()`
+  (`js/stickyhead.js`) once at start: it sets `--site-header-h` on `:root`
+  from `#site-header`, kept current on resize and header changes. In print
+  rules set `.sticky-head th{ position:static; }`.
+- **`table.row-marks` + `tr.row-editing`** (tools.css): the row whose record
+  is in the edit form gets a 2px warn frame, a warn-soft background, an
+  inset 4px bar and a "✎ " before the first cell (alt text "wird
+  bearbeitet: " for screen readers; German, as all tools are). The tool
+  toggles `.row-editing` on the `<tr>`. Layouts that restyle rows (Confirm's
+  phone cards) override with a selector of equal or higher specificity.
+- **`.call-input`** (forms.css): capitals while typing, the placeholder in
+  its own case. Put it on every callsign field.
+- **`.over-suggestions`** (forms.css): on the action row (Save, Discard …)
+  under a field with an `.ac-pop` suggestion list. With a mouse the open list
+  (z-index 30) lies over it, so the whole list stays readable; on touch
+  screens and phones (`max-width: 640px`, `pointer: coarse`) the row is
+  raised above the list (z-index 31, opaque), so a tap on Save never picks a
+  suggestion that lies under it.
+
+### PDF writer (`js/pdf.js`)
+
+Paper forms as a PDF written without a library: built-in Helvetica /
+Helvetica-Bold (no font embedded), WinAnsi text (ä ö ü ß – „ “ …), mm from the
+top left of a page. A PDF prints the same everywhere; the browser's print
+engine does not.
+
+- `PDF_A4_LANDSCAPE` = `{ width: 297, height: 210 }`, `PDF_A4_PORTRAIT` =
+  `{ width: 210, height: 297 }` (mm), `PDF_MM` (points per mm).
+- `pdfCanvas(page)` → `{ ops, line(x1, y1, x2, y2, { width, gray, dash }),
+  fill(x, y, w, h, gray), text(str, x, y, { size, bold, gray, align }) }`
+  (`y` of text is the baseline; `align`: left, center, right).
+- `pdfDocument(page, content, title)` → `Uint8Array` of a one-page PDF;
+  `content` is `canvas.ops.join('\n')`.
+- `pdfOpen(bytes, filename)` (UI): opens the PDF in a new tab, downloads it
+  where the tab is blocked.
+- `pdfTextWidth(text, sizePt, bold)` → mm; `pdfHex(text)`, `pdfNum(n)`.
+
+Used by Confirm's Leerformular (`confirm/js/paperpdf.js`, landscape).
+Tests: `tests/pdf.test.mjs`. The module is picked up by the single-file
+bundler and the precache lists through its import; its top-level names all
+start with `pdf`/`PDF_`.
 
 ## CSV exports (`js/csv.js`, issue #12)
 
