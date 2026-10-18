@@ -2,6 +2,8 @@
 // band/mode facets and own-callsign matching. Pure (no DOM, no fetch), so
 // the node tests can import it (tests/sota-alerts.test.mjs).
 
+import { tx } from '../../shared/js/i18n.js';
+
 export const DEFAULT_RANGE_DAYS = 14; // default window width; see capDefaultToDate()
 
 const str = v => (typeof v === 'string' ? v : v == null ? '' : String(v));
@@ -39,9 +41,9 @@ export function isValidAlert(raw){
 // hide the others), but if every item is malformed the response is
 // treated as broken and throws too. An empty array is a valid, empty feed.
 export function parseAlerts(data){
-  if (!Array.isArray(data)) throw new Error('unexpected response (not a list of alerts)');
+  if (!Array.isArray(data)) throw new Error(tx('unexpected response (not a list of alerts)', 'unerwartete Antwort (keine Liste von Alerts)'));
   const alerts = data.filter(isValidAlert).map(normalizeAlert);
-  if (data.length && !alerts.length) throw new Error('unexpected response (no valid alerts)');
+  if (data.length && !alerts.length) throw new Error(tx('unexpected response (no valid alerts)', 'unerwartete Antwort (keine gültigen Alerts)'));
   return { alerts, skipped: data.length - alerts.length };
 }
 

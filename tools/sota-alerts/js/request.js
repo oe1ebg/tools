@@ -12,6 +12,8 @@
 // summits.json ~17.7MB uncompressed) and may legitimately take minutes on
 // a slow mobile link, so they get no total deadline, only a stall timeout:
 // DATA_STALL_MS without a single byte arriving.
+import { tx } from '../../shared/js/i18n.js';
+
 export const ALERTS_TIMEOUT_MS = 20_000;
 export const SUMMIT_TIMEOUT_MS = 15_000;
 export const SEARCH_TIMEOUT_MS = 15_000;
@@ -19,7 +21,7 @@ export const DATA_STALL_MS = 30_000;
 
 export class TimeoutError extends Error {
   constructor(ms, stalled = false){
-    super(stalled ? `no data for ${Math.round(ms / 1000)} s` : `timed out after ${Math.round(ms / 1000)} s`);
+    super(stalled ? tx(`no data for ${Math.round(ms / 1000)} s`, `${Math.round(ms / 1000)} s lang keine Daten`) : tx(`timed out after ${Math.round(ms / 1000)} s`, `nach ${Math.round(ms / 1000)} s abgebrochen`));
     this.name = 'TimeoutError';
   }
 }

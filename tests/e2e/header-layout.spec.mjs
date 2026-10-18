@@ -9,7 +9,7 @@ const TOOLS = [
   { path: 'tools/notfunk/', flag: 'NOTFUNK_READY', help: /Hilfe/ },
   { path: 'tools/netlog/', flag: 'NETLOG_READY', help: /Help|Hilfe/ },
   { path: 'tools/adif/', help: /Help|Hilfe/ },
-  { path: 'tools/sota-alerts/', help: /Help/, sota: true },
+  { path: 'tools/sota-alerts/', help: /Help|Hilfe/, sota: true },
 ];
 
 // SOTA: no network in the tests (sota-alerts.spec.mjs stubs the same way)

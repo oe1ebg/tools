@@ -6,6 +6,7 @@ import { alertPopup, allSummitPopup } from './view.js';
 import { isOwnAlert } from './alerts.js';
 import { sotlasPointsColor, sotlasMapUrl, splitSummitKey } from './summits.js';
 import { loadMapView, saveMapView, loadBaseLayer, saveBaseLayer } from './store.js';
+import { tx } from '../../shared/js/i18n.js';
 
 export const USER_LOCATION_ZOOM = 9; // regional view, not street-level — shared by every "center on me" case (initial geolocation, empty-state fallback, the "locate me" button) so they stay consistent
 const ALL_SUMMITS_MIN_ZOOM = 9; // below this, a viewport can contain tens of thousands of summits — ask to zoom in rather than choke the renderer
@@ -15,7 +16,7 @@ const PIN_SVG = '<svg viewBox="0 0 26 34" xmlns="http://www.w3.org/2000/svg">' +
   '<path d="M13 0C5.8 0 0 5.8 0 13c0 9 13 21 13 21s13-12 13-21C26 5.8 20.2 0 13 0z" stroke="#fff" stroke-width="1.5"/>' +
   '<circle cx="13" cy="13" r="5"/></svg>';
 
-const SOTA_CREDIT = 'alert &amp; summit data via SOTA (unofficial)';
+const sotaCredit = () => tx('alert &amp; summit data via SOTA (unofficial)', 'Alert- und Gipfeldaten über SOTA (inoffiziell)');
 
 function cssVar(name){
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -66,13 +67,10 @@ export function createMap(container, app){
   const topo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
     maxZoom: 17,
     subdomains: 'abc',
-    attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors, SRTM · ' +
-      'map style: &copy; <a href="https://opentopomap.org/" target="_blank" rel="noopener">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener">CC-BY-SA</a>) · ' + SOTA_CREDIT,
   });
   // OSM serves its tiles from one host; the a/b/c subdomains are deprecated.
   const streets = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors · ' + SOTA_CREDIT,
   });
   // basemap.at: Austria's official survey basemap (BEV/geoland), free,
   // key-less, CORS-open — but Austria-only, so it's an alternate choice
@@ -89,14 +87,55 @@ export function createMap(container, app){
   const basemapAt = L.tileLayer('https://mapsneu.wien.gv.at/basemap/geolandbasemap/normal/google3857/{z}/{y}/{x}.png', {
     maxZoom: 19,
     bounds: L.latLngBounds([46.3, 9.4], [49.1, 17.3]),
-    attribution: 'Grundkarte: <a href="https://basemap.at/" target="_blank" rel="noopener">basemap.at</a> · ' + SOTA_CREDIT,
   });
 
-  const baseLayers = { 'Outdoor (OpenTopoMap)': topo, 'Streets (OpenStreetMap)': streets, 'Austria (basemap.at)': basemapAt };
+  // The base layers: the saved choice is the English name (store.js, kept
+  // as it was); the control and the credits show the page's language.
+  const LAYERS = [
+    { name: 'Outdoor (OpenTopoMap)', layer: topo, label: () => tx('Outdoor (OpenTopoMap)', 'Gelände (OpenTopoMap)'),
+      credit: () => tx('Map data: ', 'Kartendaten: ') + '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>' + tx(' contributors', '-Mitwirkende') + ', SRTM · ' +
+        tx('map style: ', 'Kartenstil: ') + '&copy; <a href="https://opentopomap.org/" target="_blank" rel="noopener">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener">CC-BY-SA</a>) · ' + sotaCredit() },
+    { name: 'Streets (OpenStreetMap)', layer: streets, label: () => tx('Streets (OpenStreetMap)', 'Straßen (OpenStreetMap)'),
+      credit: () => '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>' + tx(' contributors', '-Mitwirkende') + ' · ' + sotaCredit() },
+    { name: 'Austria (basemap.at)', layer: basemapAt, label: () => tx('Austria (basemap.at)', 'Österreich (basemap.at)'),
+      credit: () => 'Grundkarte: <a href="https://basemap.at/" target="_blank" rel="noopener">basemap.at</a> · ' + sotaCredit() },
+  ];
+  for (const l of LAYERS) l.layer.options.attribution = l.credit();
   const savedLayerName = loadBaseLayer();
-  (Object.hasOwn(baseLayers, savedLayerName) ? baseLayers[savedLayerName] : topo).addTo(map);
-  L.control.layers(baseLayers, null, { position: 'topright' }).addTo(map);
-  map.on('baselayerchange', e => saveBaseLayer(e.name));
+  (LAYERS.find(l => l.name === savedLayerName)?.layer || topo).addTo(map);
+  let layerControl = null;
+  const buildLayerControl = () => {
+    layerControl?.remove();
+    layerControl = L.control.layers(Object.fromEntries(LAYERS.map(l => [l.label(), l.layer])), null, { position: 'topright' }).addTo(map);
+  };
+  buildLayerControl();
+  map.on('baselayerchange', e => saveBaseLayer(LAYERS.find(l => l.layer === e.layer)?.name || e.name));
+  // Leaflet's own control texts (zoom, layers, the popup's close button,
+  // the attribution prefix) in the page's language.
+  const leafletTexts = () => {
+    const c = map.getContainer();
+    const set = (sel, attr, text) => { for (const n of c.querySelectorAll(sel)) n.setAttribute(attr, text); };
+    set('.leaflet-control-zoom-in', 'title', tx('Zoom in', 'Hineinzoomen'));
+    set('.leaflet-control-zoom-in', 'aria-label', tx('Zoom in', 'Hineinzoomen'));
+    set('.leaflet-control-zoom-out', 'title', tx('Zoom out', 'Herauszoomen'));
+    set('.leaflet-control-zoom-out', 'aria-label', tx('Zoom out', 'Herauszoomen'));
+    set('.leaflet-control-layers-toggle', 'title', tx('Layers', 'Kartenebenen'));
+    set('.leaflet-control-layers-toggle', 'aria-label', tx('Layers', 'Kartenebenen'));
+    set('.leaflet-popup-close-button', 'aria-label', tx('Close popup', 'Karte schließen'));
+    map.attributionControl.setPrefix(`<a href="https://leafletjs.com" title="${tx('A JavaScript library for interactive maps', 'Eine JavaScript-Bibliothek für interaktive Karten')}" target="_blank" rel="noopener">Leaflet</a>`);
+  };
+  map.on('popupopen', leafletTexts);
+  // After a change of language: the control's names and the credits.
+  const relabelLayers = () => {
+    for (const l of LAYERS){
+      const old = l.layer.options.attribution;
+      l.layer.options.attribution = l.credit();
+      if (map.hasLayer(l.layer)) map.attributionControl.removeAttribution(old).addAttribution(l.layer.options.attribution);
+    }
+    buildLayerControl();
+    leafletTexts();
+  };
+  leafletTexts();
 
   const markerLayer = L.layerGroup().addTo(map);
 
@@ -184,7 +223,7 @@ export function createMap(container, app){
       // Leaflet makes the marker a focusable button (keyboard: true); give
       // it a name, since the pin itself is only an SVG.
       marker.getElement()?.setAttribute('aria-label',
-        `${group.key}: ${group.alerts.length} alert${group.alerts.length === 1 ? '' : 's'} — Enter shows details`);
+        tx(`${group.key}: ${group.alerts.length} alert${group.alerts.length === 1 ? '' : 's'} — Enter shows details`, `${group.key}: ${group.alerts.length} Alert${group.alerts.length === 1 ? '' : 's'} — Enter zeigt Einzelheiten`));
       // Hovering shows the full info card, not just a click — opens on
       // mouseover, closes (debounced) on mouseout so moving the cursor
       // from the marker into the popup itself to click a link/button
@@ -257,7 +296,7 @@ export function createMap(container, app){
     const data = app.allSummits();
     if (!allSummitsEnabled || !data){ app.setAllSummitsNote(''); return; }
     if (map.getZoom() < ALL_SUMMITS_MIN_ZOOM){
-      app.setAllSummitsNote('zoom in further to show all summits here');
+      app.setAllSummitsNote(tx('zoom in further to show all summits here', 'weiter hineinzoomen, um hier alle Gipfel zu zeigen'));
       return;
     }
     const bounds = map.getBounds();
@@ -266,7 +305,7 @@ export function createMap(container, app){
     // showing a second dim dot underneath would just be visual clutter.
     const inView = data.filter(s => bounds.contains([s.lat, s.lon]) && !state.summitMap.has(s.key));
     if (inView.length > ALL_SUMMITS_MAX_MARKERS){
-      app.setAllSummitsNote(`${inView.length} summits in view — zoom in further to show them`);
+      app.setAllSummitsNote(tx(`${inView.length} summits in view — zoom in further to show them`, `${inView.length} Gipfel im Ausschnitt — weiter hineinzoomen, um sie zu zeigen`));
       return;
     }
     app.setAllSummitsNote('');
@@ -311,6 +350,7 @@ export function createMap(container, app){
     renderAllSummitsOverlay,
     setAllSummits,
     hasMarkers: () => markerLayer.getLayers().length > 0,
+    relabel: relabelLayers,
     sotlasUrl: () => { const c = map.getCenter(); return sotlasMapUrl(c.lat, c.lng, map.getZoom()); },
   };
 }
