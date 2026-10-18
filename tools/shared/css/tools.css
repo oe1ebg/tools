@@ -25,6 +25,7 @@
   --accent-dim: #5563c0;
   --accent-soft: #4560f01a;
   --ok: #2e7d32;
+  --ok-soft: #2e7d321a;
   /* warning text, also on --warn-soft: >= 4.5:1 */
   --warn: #8f5f00;
   --warn-soft: #f9a8251f;
@@ -48,6 +49,7 @@
   --accent-dim: #9aa8f5;
   --accent-soft: #4560f02e;
   --ok: #7bc47f;
+  --ok-soft: #7bc47f24;
   --warn: #e0b35c;
   --warn-soft: #e0b35c1f;
   --err: #e0776b;

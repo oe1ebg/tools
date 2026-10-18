@@ -74,7 +74,7 @@ export function validateBackup(data, limit = 20, opts = {}) {
     if (!isId(ev.id)) return bad(`${where}: Kennung fehlt oder ist ungültig`);
     const w = `Log „${typeof ev.title === 'string' ? ev.title : ev.id}“`;
     if (ev.title !== undefined && typeof ev.title !== 'string') warn(`${w}: Titel ist kein Text (wird „Log“)`);
-    if (ev.header !== undefined && ev.header !== null && !isObj(ev.header)) bad(`${w}: Kopfdaten ungültig`);
+    if (ev.header !== undefined && ev.header !== null && !isObj(ev.header)) bad(`${w}: Betrieb ungültig`);
     if (ev.nextSeq !== undefined && ev.nextSeq !== null && !isSeq(ev.nextSeq)) warn(`${w}: nächste Nummer ungültig (${String(ev.nextSeq).slice(0, 30)}; wird neu berechnet)`);
     for (const k of ['created', 'updated', 'deleted']) if (!timeOk(ev[k])) warn(`${w}: Zeitstempel „${k}“ ungültig`);
     for (const k of ['entries', 'revisions']) {

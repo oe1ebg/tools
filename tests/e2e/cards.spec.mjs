@@ -57,7 +57,7 @@ test('Confirm on a phone: each check-in is a card with callsign, buttons and nam
 
   // still a table for assistive technology
   const table = page.getByRole('table');
-  await expect(table.getByRole('columnheader', { name: 'Rufzeichen Gegenstation' })).toHaveCount(1);
+  await expect(table.getByRole('columnheader', { name: 'Rufzeichen' })).toHaveCount(1);
   await expect(table.getByRole('row')).toHaveCount(16); // head + 15
   await expect(row.getByRole('cell').first()).toBeVisible();
 });
@@ -88,6 +88,24 @@ test('Notfunk on a phone: each message is a card with number, status, subject an
   const table = page.getByRole('table', { name: 'Meldungen' });
   await expect(table.getByRole('columnheader', { name: 'Status' })).toHaveCount(1);
   await expect(table.getByRole('row')).toHaveCount(31);
+});
+
+// Wide screens: the log's column names stay in view while scrolling, right
+// below the sticky page header (not under it).
+test('Confirm on a wide screen: the column names stay in view while scrolling', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name.startsWith('mobile'), 'cards on phones');
+  await page.setViewportSize({ width: 1200, height: 600 });
+  await ready(page, 'confirm', 'CONFIRM_READY');
+  await page.locator('#import-file').setInputFiles(`${EXAMPLES}confirm-full.json`);
+  await expect(page.locator('#import-msg')).toContainText('4 Logs importiert');
+  await page.getByText('DEMO · Rundspruch-Bestätigungen 1').first().click();
+  await expect(page.locator('#log-body tr[data-id]')).toHaveCount(15);
+  await page.locator('#log-body tr[data-id]').last().scrollIntoViewIfNeeded();
+  const hdr = await page.locator('#site-header').boundingBox();
+  await expect.poll(async () => Math.abs((await page.locator('table.log thead th').first().boundingBox()).y - (hdr.y + hdr.height))).toBeLessThan(2);
+  // one line of column names
+  const th = await page.locator('table.log thead th').first().boundingBox();
+  expect(th.height).toBeLessThan(40);
 });
 
 test('on a wide screen both stay ordinary tables', async ({ page }) => {

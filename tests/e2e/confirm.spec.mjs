@@ -314,6 +314,46 @@ test('an edit made at an unchanged clock time still replaces the row (note and c
   await expect(page.locator('#log-body')).not.toContainText('145.500');
 });
 
+// The switch above the form: Check-in | Kommentar (besides "!" in the
+// callsign field). Typed input of the other kind is never thrown away.
+test('the form switches between check-in and operator comment', async ({ page }) => {
+  await openNewLog(page, 'E2E Umschalter');
+  const mode = page.getByRole('group', { name: 'Art der Zeile' });
+  const checkin = mode.getByRole('button', { name: 'Check-in' });
+  const comment = mode.getByRole('button', { name: 'Kommentar' });
+  await expect(checkin).toHaveAttribute('aria-pressed', 'true');
+
+  // a half-typed check-in stays: save or discard it first
+  await page.locator('#f-call').fill('OE1ABC');
+  await comment.click();
+  await expect(page.locator('#log-status')).toContainText('erst diese Zeile speichern oder verwerfen');
+  await expect(page.locator('#f-ctext')).toBeHidden();
+  await expect(page.locator('#f-call')).toHaveValue('OE1ABC');
+  await page.locator('#f-call').fill('');
+
+  const height = async () => (await page.locator('#entry-form').boundingBox()).height;
+  const before = await height();
+  await comment.click();
+  await expect(comment).toHaveAttribute('aria-pressed', 'true');
+  // the form keeps its height: the log below doesn't move
+  expect(Math.abs(await height() - before)).toBeLessThan(2);
+  await checkin.click(); // empty comment: back without a question
+  expect(Math.abs(await height() - before)).toBeLessThan(2);
+  await comment.click();
+  await expect(page.locator('#log-status')).toHaveText('');
+  await expect(page.locator('#f-ctext')).toBeFocused();
+  await expect(page.locator('#f-call')).toBeHidden();
+  await page.locator('#f-ctext').fill('Operatorwechsel auf OE1XYZ');
+  await checkin.click();
+  await expect(page.locator('#log-status')).toContainText('Erst den Kommentar speichern');
+  await expect(page.locator('#f-ctext')).toHaveValue('Operatorwechsel auf OE1XYZ');
+  await page.locator('#btn-save').click();
+  await expect(page.locator('#log-body tr.marker')).toContainText('Operatorwechsel auf OE1XYZ');
+  // after saving: back to check-ins
+  await expect(checkin).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#f-call')).toBeVisible();
+});
+
 test('a re-render after a highlight set from outside the field leaves no stale match', async ({ page }) => {
   await openNewLog(page, 'E2E Match');
   await logCall(page, 'OE1ABC');
@@ -442,9 +482,9 @@ test('a note beyond the per-file limit is chunked across the parts and restored 
   }
 });
 
-test('the local time choice names the zone and its offset', async ({ page }) => {
+test('the local time choice names the zone and its short name', async ({ page }) => {
   await page.goto('tools/confirm/');
   await expect.poll(() => page.evaluate(() => globalThis.CONFIRM_READY === true)).toBe(true);
   // the test browsers run in Europe/Vienna
-  await expect(page.locator('#time-toggle button[data-time-mode="local"]')).toHaveText(/^Europe\/Vienna \(UTC\+[12]\)$/);
+  await expect(page.locator('#time-toggle button[data-time-mode="local"]')).toHaveText(/^Europe\/Vienna \((MESZ|MEZ)\)$/);
 });

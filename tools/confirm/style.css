@@ -24,8 +24,24 @@ main{ max-width:1200px; margin:0 auto; padding:1em; }
 .ac-info.prefilled{ color:var(--accent-text); font-style:italic; }
 /* fixed-height slot for the info lines in the entry form: appearing or
    changing hints never move any input (full text in the title) */
-.ac-hints{ width:0; min-width:100%; height:calc(2 * 1.35 * 13.5px); overflow:hidden; font-size:13.5px; line-height:1.35; }
-.ac-hints .ac-info{ display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; overflow-wrap:anywhere; }
+.ac-hints{ width:0; min-width:100%; height:calc(1.35 * 13.5px); overflow:hidden; font-size:13.5px; line-height:1.35; }
+.ac-hints .ac-info{ display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:1; overflow:hidden; overflow-wrap:anywhere; }
+/* wide screens: the place's line may run on under the fields next to it
+   (they have no hints), instead of being cut at the field's width */
+@media (min-width: 641px){
+  #entry-form .ac-field .ac-hints:has(.loc-chip){ overflow:visible; z-index:1; }
+  #entry-form .loc-chip{ display:block; white-space:nowrap; width:max-content; max-width:calc(100vw - 6em); overflow:hidden; text-overflow:ellipsis; }
+  #entry-form .loc-hints{ width:max-content; max-width:calc(100vw - 6em); }
+  #entry-form .loc-hints .loc-chip{ flex:0 1 auto; }
+}
+/* the PLZ note follows the location's line (js/app.js updatePlzNote) */
+#entry-form .loc-hints{ display:flex; gap:.6em; }
+/* (explicit widths: a line-clamped box counts as 0 wide in a flex row) */
+#entry-form .loc-hints .loc-chip{ min-width:0; flex:1 1 0; }
+#entry-form .loc-hints .plz-note{ display:block; flex:none; width:max-content; min-width:0; white-space:nowrap; }
+#entry-form .plz-note:empty{ display:none; }
+/* one line: a warning about the callsign wins over its info */
+.ac-hints:has(#call-warn:not(:empty)) #call-info{ display:none; }
 .ac-hints .ac-info:empty{ display:none; }
 #call-info, #call-warn{ -webkit-line-clamp:1; }
 
@@ -66,6 +82,7 @@ main{ max-width:1200px; margin:0 auto; padding:1em; }
 #log-header > *, #new-header > *{ min-width:0; }
 #log-header > .sub, #new-header > .sub, #log-header > .wide, #new-header > .wide{ grid-column:1 / -1; }
 #log-header > .span-2, #new-header > .span-2{ grid-column:span 2; }
+#log-header.route-rpt > .sig-start, #new-header.route-rpt > .sig-start{ grid-column-start:1; }
 #log-header input:not([type]), #new-header input:not([type]){ width:100%; box-sizing:border-box; }
 /* phones: two columns; the locator gets a whole row (narrowSpan) */
 @media (max-width: 640px){
@@ -88,6 +105,7 @@ main{ max-width:1200px; margin:0 auto; padding:1em; }
 .tpl-preview .tpl{ color:var(--accent-text); }
 .call-input, .grid-input{ font-family:var(--font-mono); }
 .call-input{ text-transform:uppercase; }
+.call-input::placeholder{ text-transform:none; }
 .grid-form .sub{ width:100%; font-size:12.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.06em; margin-top:.4em; }
 .grid-form .sub .sub-note{ text-transform:none; letter-spacing:0; }
 .grid-form .field.wide{ width:100%; }
@@ -114,19 +132,45 @@ details.hdr > summary::-webkit-details-marker{ display:none; }
 details.hdr > summary::before{ content:"▸"; color:var(--text-dim); }
 details.hdr[open] > summary::before{ content:"▾"; }
 details.hdr .body{ padding:0 1em 1em; }
+.hdr-actions{ margin-top:1em; }
 .hdr-sum{ font-family:var(--font-mono); font-size:14.5px; }
 
 #entry-form{
-  border:2px solid var(--accent); border-radius:8px; padding:.8em 1em; margin-bottom:1em;
+  border:2px solid var(--accent); border-radius:8px; padding:.6em .9em; margin-bottom:1em;
   background:var(--bg-raised);
+  /* its layers (suggestions) stay below the page header (z-index 10), and
+     an open suggestion list lies over the log table below the form */
+  position:relative; z-index:3;
 }
 #entry-form.editing{ border-color:var(--warn); }
-/* top-aligned: hints under one field never shift the inputs next to it */
-/* bottom-aligned: every field ends in the same fixed-height hint slot, so
-   all inputs sit on one line (the callsign field is just taller) */
-#entry-form .row{ display:flex; flex-wrap:wrap; gap:.6em 1em; align-items:flex-end; }
-#entry-form .ac-hints:empty{ display:block; }
+/* top-aligned: every caption is one line, so the inputs line up. The hints
+   under a field (callsign, place) sit in the gap below it, which is one
+   hint line high between all rows: the rows are evenly spaced, and a hint
+   appearing never moves anything */
+#entry-form{ --hint-h:calc(1.35 * 13.5px); }
+#entry-form .row{ display:flex; flex-wrap:wrap; gap:calc(var(--hint-h) + .3em) .9em; align-items:flex-start; }
+#entry-form .field{ position:relative; }
+#entry-form .ac-hints{ position:absolute; top:100%; left:0; margin-top:.1em; }
+#entry-form .ac-hints[aria-hidden="true"]{ display:none; }
+#entry-form label.field, #entry-form div.field{ gap:.1em; }
+/* AT-Alert and the fields its answer shows (js/app.js placeChains()): the
+   block is as wide as AT-Alert; the fields under it end at its right edge
+   and reach left (.chain-more counts as 0 wide: contain) */
+#entry-form .field-chain{ display:flex; flex-direction:column; row-gap:calc(var(--hint-h) + .3em); }
+#entry-form .chain-more{ contain:inline-size; display:flex; justify-content:flex-end; gap:calc(var(--hint-h) + .3em) .9em; }
+#entry-form .chain-more > .field{ flex:none; width:max-content; }
+#entry-form #f-fields > .field-chain.chain-left{ flex:1 1 auto; }
+#entry-form .chain-left .chain-more{ justify-content:flex-start; flex-wrap:wrap; }
+#entry-form .chain-left .chain-more > .field{ flex:0 1 auto; width:auto; }
 .entry-actions{ display:flex; flex-wrap:wrap; gap:.4em .6em; align-items:center; margin-top:.5em; padding-top:.6em; border-top:1px solid var(--line); }
+/* With a mouse an open suggestion list (z-index 30) lies over Save and
+   Discard: the whole list stays readable. On touch screens and phones Save
+   and Discard stay above it: a tap on Save must never pick a suggestion
+   that happens to lie under it. */
+.entry-actions{ background:var(--bg-raised); }
+@media (max-width: 640px), (pointer: coarse){
+  .entry-actions{ position:relative; z-index:31; }
+}
 .entry-actions .kbd-hint{ flex:1 1 24em; margin:0; }
 .entry-actions #form-status{ margin:0; min-height:0; }
 .entry-actions #form-status:empty{ display:none; }
@@ -143,6 +187,10 @@ table.log tr.fresh td:first-child{ box-shadow:inset 3px 0 0 var(--ok); }
 .form-actions .rpt-line-row{ gap:.6em; }
 /* operator comment mode ("!" in the callsign field): check-in fields hidden */
 #entry-form.comment-mode .ci-only, #entry-form:not(.comment-mode) .c-only{ display:none; }
+/* Check-in | Kommentar: a control of the form, larger than the header's */
+.toggle.entry-mode{ margin-bottom:.5em; vertical-align:middle; }
+.mode-warn{ color:var(--warn); }
+.toggle.entry-mode button{ font-size:14px; padding:.25em .9em; min-height:28px; }
 #entry-form.comment-mode:not(.editing){ border-style:dashed; }
 #f-ctext{ width:100%; font-size:16px; padding:.25em .4em; }
 .c-text{ flex:1; min-width:16em; }
@@ -154,6 +202,23 @@ table.log tr.fresh td:first-child{ box-shadow:inset 3px 0 0 var(--ok); }
 #f-time{ font-family:var(--font-mono); width:12em; }
 .clock{ font-family:var(--font-mono); font-size:13.5px; color:var(--text-dim); }
 .radio-group.grade label{ min-width:2.1em; text-align:center; font-family:var(--font-mono); font-weight:600; }
+/* a light tint for what an answer means, as in the log (green good, amber
+   middling, red bad); the chosen one keeps the accent outline and gets a
+   stronger tint. The text says it too (the number, the word). */
+.radio-group.grade label[data-value="1"], .radio-group.grade label[data-value="2"],
+.radio-group[data-key="atalert"] label[data-value="ja"]{ background:var(--ok-soft); }
+.radio-group.grade label[data-value="3"]{ background:var(--warn-soft); }
+/* the same marks as in the log, as shapes (not read out: the word says it) */
+.radio-group[data-key="atalert"] label[data-value="ja"] span::before{ content:"✓ "; content:"✓ " / ""; font-weight:700; }
+.radio-group[data-key="atalert"] label[data-value="nein"] span::before{ content:"✕ "; content:"✕ " / ""; font-weight:700; }
+.radio-group.grade label[data-value="4"], .radio-group.grade label[data-value="5"],
+.radio-group[data-key="atalert"] label[data-value="nein"]{ background:var(--err-soft); }
+.radio-group.grade label:has(input:checked), .radio-group[data-key="atalert"] label:has(input:checked){ box-shadow:inset 0 0 0 1px var(--accent); }
+.radio-group.grade label[data-value="1"]:has(input:checked), .radio-group.grade label[data-value="2"]:has(input:checked),
+.radio-group[data-key="atalert"] label[data-value="ja"]:has(input:checked){ background:#2e7d3240; }
+.radio-group.grade label[data-value="3"]:has(input:checked){ background:#f9a82550; }
+.radio-group.grade label[data-value="4"]:has(input:checked), .radio-group.grade label[data-value="5"]:has(input:checked),
+.radio-group[data-key="atalert"] label[data-value="nein"]:has(input:checked){ background:#c6282840; }
 #form-status{ font-size:14.5px; }
 #form-status.ok{ color:var(--ok); }
 #form-status.err{ color:var(--err); font-weight:600; }
@@ -167,16 +232,32 @@ table.log tr.fresh td:first-child{ box-shadow:inset 3px 0 0 var(--ok); }
 .edit-tag{ font-weight:700; color:var(--warn); }
 
 .table-wrap{ overflow-x:auto; border:1px solid var(--line); border-radius:6px; position:relative; } /* positioned: hidden button texts (.sr-only) stay inside the scrolling */
+/* the log's column names stay in view while scrolling, right below the
+   page header: the wrapper clips instead of scrolling (a scroll container
+   would hold the sticky header); the compact columns fit. Browsers without
+   overflow: clip keep the scrolling wrapper and a header that scrolls away. */
+@supports (overflow: clip){
+  #view-log .table-wrap{ overflow-x:clip; }
+}
 table.log{ width:100%; border-collapse:collapse; font-size:14.5px; }
 table.log th, table.log td{ padding:.35em .6em; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
-table.log th{ font-size:12.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-dim); background:var(--bg-raised); position:sticky; top:0; }
+/* one line: short names (the full one is the title); clearly a header,
+   stronger than the comment rows */
+table.log th{ font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--text);
+  background:linear-gradient(var(--line), var(--line)) var(--bg); /* opaque while it sticks over rows */
+  border-bottom:2px solid var(--text-dim); position:sticky; top:var(--site-header-h, 0px); z-index:2; white-space:nowrap; }
+/* the line under the header stays with it while it sticks */
+table.log thead th{ box-shadow:0 1px 0 var(--text-dim); }
 table.log td.mono{ font-family:var(--font-mono); white-space:nowrap; }
 table.log td.call{ font-family:var(--font-mono); font-weight:600; font-size:14px; white-space:nowrap; }
 table.log tr.match td{ background:var(--warn-soft); }
-table.log tr.editing td{ background:var(--accent-soft); }
+/* the line in the form (Bearbeiten): framed in the form's editing colour
+   and marked ✎ (not by colour alone: comment rows are tinted too) */
+table.log tr.editing td{ background:var(--warn-soft); border-top:2px solid var(--warn); border-bottom:2px solid var(--warn); }
+table.log tr.editing > td:first-child{ box-shadow:inset 4px 0 0 var(--warn); }
+table.log tr.editing > td:first-child::before{ content:"✎ "; content:"✎ " / "wird bearbeitet: "; color:var(--warn); font-weight:700; }
 table.log td.act{ white-space:nowrap; text-align:right; }
 /* location source: own fixed-width column, so labels never shift the text */
-table.log th.origin, table.log td.origin{ width:4.5em; padding-right:0; }
 .src{ display:inline-block; min-width:3.8em; text-align:center; font-size:12.5px; line-height:1.5; padding:0 .3em; border-radius:3px; border:1px solid var(--line); color:var(--text-dim); white-space:nowrap; }
 .src.src-search{ color:var(--ok); border-color:currentColor; }
 .src.src-callbook{ color:var(--warn); border-color:currentColor; border-style:dashed; }
@@ -184,15 +265,15 @@ table.log th.origin, table.log td.origin{ width:4.5em; padding-right:0; }
 table.log td.act button{ padding:.1em .45em; font-size:13.5px; }
 /* operator comments / log markers: full-width banner rows */
 table.log tr.marker td{
-  background:var(--accent-soft); border-top:2px solid var(--accent); border-bottom:2px solid var(--accent);
-  border-left:6px solid var(--accent); padding:.45em .6em;
+  background:var(--accent-soft); padding:.35em .6em;
 }
-table.log tr.marker.editing td{ border-color:var(--warn); }
+table.log tr.marker.editing td{ background:var(--warn-soft); }
+table.log tr.marker.editing .marker-row::before{ content:"✎"; content:"✎" / "wird bearbeitet"; color:var(--warn); font-weight:700; }
 .marker-row{ display:flex; flex-wrap:wrap; gap:.3em .9em; align-items:baseline; }
 .marker-time{ font-family:var(--font-mono); white-space:nowrap; }
 .marker-cat{ font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--accent-text);
   border:1px solid var(--accent); border-radius:4px; padding:0 .4em; white-space:nowrap; }
-.marker-text{ flex:1; min-width:12em; font-weight:600; }
+.marker-text{ flex:1; min-width:12em; font-weight:500; }
 .marker-op{ font-family:var(--font-mono); font-size:13.5px; color:var(--text-dim); white-space:nowrap; }
 .marker-row .act{ white-space:nowrap; }
 .marker-row .act button{ padding:.1em .45em; font-size:13.5px; }
@@ -201,6 +282,29 @@ table.log tr.marker.editing td{ border-color:var(--warn); }
   font-size:12.5px; font-weight:700; background:var(--warn); color:var(--bg);
 }
 .rpt{ font-size:12.5px; color:var(--accent-text); }
+/* the log's compact cells (logColumns(), app.js columnCell()) */
+.op-name{ font-family:var(--font-ui); font-weight:400; font-size:14px; white-space:normal; }
+table.log td.col-rst{ white-space:nowrap; }
+.gchips{ display:inline-flex; gap:.25em; white-space:nowrap; }
+/* a school grade: the number always (not colour alone), green to red */
+.gchip{ display:inline-block; font-size:12.5px; line-height:1.5; padding:0 .4em; border-radius:3px; border:1px solid var(--line); color:var(--text-dim); white-space:nowrap; }
+.gchip b{ font-size:13.5px; color:var(--text); }
+.gchip.g1, .gchip.g2{ border-color:var(--ok); background:var(--ok-soft); }
+.gchip.g1 b, .gchip.g2 b{ color:var(--ok); }
+.gchip.g3{ border-color:var(--warn); background:var(--warn-soft); }
+.gchip.g3 b{ color:var(--warn); }
+.gchip.g4, .gchip.g5{ border-color:var(--err); background:var(--err-soft); }
+.gchip.g4 b, .gchip.g5 b{ color:var(--err); }
+.gchip.none{ border-style:dashed; opacity:.6; }
+/* yes / no: a shape (✓ / ✕), not only the colour (red and green look alike
+   to many) */
+.yes, .no{ white-space:nowrap; }
+.yes{ color:var(--ok); }
+.no{ color:var(--err); }
+.yes > .mark, .no > .mark{ font-weight:700; font-size:1.1em; }
+.chain-sub{ white-space:nowrap; }
+/* a check-in that differs from the log's Betrieb (relay, operator) */
+.dev{ display:inline-block; font-size:12.5px; line-height:1.5; padding:0 .4em; border-radius:3px; border:1px dashed var(--warn); color:var(--warn); white-space:nowrap; }
 
 /* ---------- location lookup ---------- */
 .hint.ok{ color:var(--ok); }
@@ -218,6 +322,7 @@ button.mini{ font-size:13.5px; padding:.15em .55em; }
 .ac-info.conf-likely{ color:var(--accent-text); }
 .ac-info.conf-ambiguous, .ac-info.conf-low, .ac-info.unresolved{ color:var(--warn); }
 .loc-sub{ font-size:12.5px; color:var(--text-dim); }
+.loc-sub .src{ min-width:0; padding:0 .25em; line-height:1.35; }
 /* muted, not a warning: in many logs most places are typed text (#108 B5) */
 .loc-sub.unresolved{ color:var(--text-dim); font-style:italic; }
 details.misc{ margin-top:1.2em; }
@@ -273,7 +378,17 @@ footer details.vendor-license pre{ white-space:pre-wrap; }
   main{ padding:.6em; }
   #f-call{ width:100%; }
   /* entry form: one field per row, full width (easy to hit, easy to read) */
-  #entry-form .row > .field, #entry-form #f-fields > .field{ flex:1 1 100%; min-width:0; }
+  #entry-form .row > .field, #entry-form #f-fields > .field, #entry-form #f-fields > .field-chain{ flex:1 1 100%; min-width:0; }
+  #entry-form .chain-more{ contain:none; flex-direction:column; }
+  #entry-form .chain-more > .field{ width:auto; }
+  /* narrow: the place's line ("✓ …, PLZ · locator (automatisch) ändern") gets two lines */
+  #entry-form .ac-field .ac-hints:has(.loc-chip){ height:calc(2 * var(--hint-h)); }
+  #entry-form .loc-chip{ -webkit-line-clamp:2; }
+  #entry-form .ac-field:has(.loc-chip){ margin-bottom:var(--hint-h); }
+  /* short fields and button groups keep their size (RST erh. and geg. side by side) */
+  #entry-form #f-fields > div.field:not(.ac-field), #entry-form #f-fields > .field[data-field="plz"],
+  #entry-form #f-fields > .field[data-field^="rst_"]{ flex:0 1 auto; }
+  #entry-form #f-fields > .field[data-field="plz"] input, #entry-form #f-fields > .field[data-field^="rst_"] input{ width:6em; }
   #entry-form .row input:not([type=checkbox]):not([type=radio]){ width:100%; box-sizing:border-box; }
   #entry-form .rpt-line-row .ac-wrap{ flex:1; }
   #entry-form .row > #f-fields{ flex:1 1 100%; }
@@ -293,19 +408,30 @@ footer details.vendor-license pre{ white-space:pre-wrap; }
   table.log tr > td.act{ order:1; margin-left:auto; align-self:center; }
   table.log tr::after{ content:""; order:1; flex-basis:100%; } /* the details start on a new line */
   table.log tr > td.empty, table.log tr.marker > td{ flex:1 1 100%; }
+  table.log tr.marker > td.marker-nr{ display:none; }
   table.log tr.marker::after{ content:none; }
   table.log tr > td:empty{ display:none; }
   table.log td[data-label]::before{ content:attr(data-label) ": "; content:attr(data-label) ": " / ""; color:var(--text-dim); font-size:12.5px; }
-  table.log th.origin, table.log td.origin{ width:auto; padding:0; }
   table.log tr.fresh{ background:var(--accent-soft); box-shadow:inset 3px 0 0 var(--ok); }
   table.log tr.match{ background:var(--warn-soft); }
-  table.log tr.editing{ background:var(--accent-soft); }
+  table.log tr.editing{ background:var(--warn-soft); box-shadow:inset 4px 0 0 var(--warn), inset 0 0 0 2px var(--warn); }
+  table.log tr.editing td{ border:none; }
+  table.log tr.editing > td:first-child{ box-shadow:none; }
   table.log tr.marker{ padding:0; border-bottom:none; }
 }
+/* the log on paper: landscape by default (the columns side by side; the
+   print dialog can still switch) */
+@page{ size:A4 landscape; margin:8mm; }
+@media screen{ .print-only{ display:none !important; } }
+@media print{
+  .print-only{ display:block; }
+  #print-meta{ font-size:9pt; margin:0 0 1mm; }
+}
+
 @media print{
   #site-header, .toolbar button, #entry-form, details.hdr > summary::before, .no-print, footer, table.log td.act, table.log th.act, .marker-row .act{ display:none !important; }
   /* markers stay visible on paper without background colours */
-  table.log tr.marker td{ background:none; border:2px solid #000; border-left-width:6px; break-inside:avoid; }
+  table.log tr.marker td{ background:none; border-top:1pt solid #000; border-bottom:1pt solid #000; break-inside:avoid; }
   .marker-cat{ color:#000; border-color:#000; }
   .marker-op{ color:#000; }
   details.hdr .body{ display:none; }

@@ -1,7 +1,9 @@
 // Per-line repeater in the entry form. The log header's repeater is the
-// default; for exercises over a linked repeater network, a different one
-// can be chosen for each line (search the ÖVSV list, or type any call).
-// After saving, the field returns to the header default.
+// default and stands in the field (not just as a placeholder), so the form
+// shows what will be saved; for exercises over a linked repeater network, a
+// different one can be chosen for each line (search the ÖVSV list, or type
+// any call). After saving, the field returns to the header's repeater; an
+// emptied field means the header's too and is refilled on leaving it.
 
 import { el, fill, popover } from '../../shared/js/dom.js';
 import { loadRepeaterIndex, describeRepeater } from '../../shared/js/repeaterui.js';
@@ -14,20 +16,23 @@ export function createLineRepeater({ checkbox, input, sug, getHeader, onChange }
   let override = null; // null = use the header's repeater
   let timer = null;
 
+  // the Betrieb's relay, only when the log runs over it ("direkt" with a
+  // relay call left over from before is no relay)
   function headerCall() {
-    return getHeader().repeaterCall || '';
+    const h = getHeader();
+    return h.viaRepeater ? h.repeaterCall || '' : '';
   }
 
   function refreshDefault() {
-    const call = headerCall();
-    input.placeholder = call ? `${call} (Kopfdaten)` : 'Relais';
+    // not while the field is being typed in
+    if (!override && document.activeElement !== input) input.value = headerCall();
     input.classList.toggle('override', !!override);
   }
 
   function apply(ov) {
     // Choosing the header's own repeater is not an override.
     override = ov && ov.repeaterCall !== headerCall() ? ov : null;
-    input.value = override ? override.repeaterCall : '';
+    input.value = override ? override.repeaterCall : headerCall();
     if (ov) {
       checkbox.checked = true;
       checkbox.dataset.touched = '1';
@@ -68,6 +73,9 @@ export function createLineRepeater({ checkbox, input, sug, getHeader, onChange }
     pop.update();
   }
 
+  input.addEventListener('blur', () => {
+    if (!input.value.trim() && !override) input.value = headerCall();
+  });
   input.addEventListener('input', () => {
     override = null;
     clearTimeout(timer);
@@ -96,7 +104,7 @@ export function createLineRepeater({ checkbox, input, sug, getHeader, onChange }
     set(ov) {
       clearTimeout(timer);
       override = ov || null;
-      input.value = override ? override.repeaterCall : '';
+      input.value = override ? override.repeaterCall : headerCall();
       sug.replaceChildren();
       refreshDefault();
     },

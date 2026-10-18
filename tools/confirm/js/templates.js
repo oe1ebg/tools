@@ -2,7 +2,8 @@
 // repeater flag and note. Field `adif` names a standard ADIF field; fields
 // without one are exported as APP_OE1EBG_<KEY> (see export.js).
 //
-// Field types: text, rst, radio (options [value, label]), location (free
+// Field types: text, rst, radio (options [value, label] or [value, label,
+// label on screen] when the screen says it shorter than the exports), location (free
 // text resolved with the offline Vienna lookup; the resolution is stored on
 // the line as `loc`, and `plzKey` names a field that gets the resolved PLZ).
 // `showIf` hides a field unless another field has the given value (or one
@@ -52,7 +53,7 @@ export const TEMPLATES = [
     label: 'Zivilschutz-Probealarm',
     hint: 'Standort/PLZ (Wien offline aufgelöst), Sirene, AT-Alert',
     fields: [
-      { key: 'address', label: 'Standort (Adresse, Ort, PLZ, Locator)', type: 'location', size: 28, plzKey: 'plz', example: 'Favoritenstraße 10' },
+      { key: 'address', label: 'Standort (Adresse, Ort, PLZ, Locator)', caption: 'Standort', type: 'location', size: 28, plzKey: 'plz', example: 'Favoritenstraße 10' },
       { key: 'plz', label: 'PLZ', type: 'text', size: 5, inputmode: 'numeric', example: '1040' },
       // Audibility of the warning siren, one school grade (1-5) per situation.
       { key: 'siren_closed', label: 'Sirene innen, Fenster zu', type: 'radio', options: GRADES, grade: true, hint: GRADE_HINT, group: 'Sirene', short: 'zu', example: '2' },
@@ -60,7 +61,10 @@ export const TEMPLATES = [
       { key: 'siren_outside', label: 'Sirene im Freien', type: 'radio', options: GRADES, grade: true, hint: GRADE_HINT, group: 'Sirene', short: 'außen', example: '1' },
       {
         key: 'atalert', label: 'AT-Alert', type: 'radio', short: 'AT-Alert', example: 'nein',
-        options: [['ja', 'erhalten'], ['nein', 'nicht erhalten']],
+        // [value, label in the exports, label on screen]: short on screen
+        // ("✓ ok", "✕ fehlt": the alert should have come); the exports keep
+        // "erhalten" / "nicht erhalten"
+        options: [['ja', 'erhalten', 'ok'], ['nein', 'nicht erhalten', 'fehlt']],
       },
       {
         key: 'platform', label: 'Handy', type: 'radio', showIf: ['atalert', 'nein'], short: '', example: 'android',
@@ -112,17 +116,19 @@ export function currentOptions(field, values) {
 }
 
 // Human-readable value of a field ("innen, Fenster zu" instead of "innen_zu").
-export function fieldDisplay(field, value) {
+// screen: the label on screen (an option's third entry), not the one the
+// exports write.
+export function fieldDisplay(field, value, { screen = false } = {}) {
   if (value === undefined || value === null || value === '') return '';
   if (field.type === 'radio') {
     const opt = fieldOptions(field).find(o => o[0] === value);
-    return opt ? opt[1] : String(value);
+    return opt ? (screen && opt[2]) || opt[1] : String(value);
   }
   return String(value);
 }
 
 // Compact one-line summary of a line's values for the map cards, e.g.
-// "Sirene zu 2 offen 1 außen 1 · AT-Alert nicht erhalten · Android 14".
+// "Sirene zu 2 offen 1 außen 1 · AT-Alert fehlt · Android 14".
 // Only fields with a `short` label; a value that the next one repeats
 // ("Android", then "Android 14") is dropped.
 export function shortSummary(tpl, values) {
@@ -130,7 +136,7 @@ export function shortSummary(tpl, values) {
   let group = null;
   for (const f of tpl.fields) {
     if (f.short === undefined || !fieldVisible(f, values, tpl)) continue;
-    const v = fieldDisplay(f, values?.[f.key]);
+    const v = fieldDisplay(f, values?.[f.key], { screen: true });
     if (!v) continue;
     const text = f.short ? `${f.short} ${v}` : v;
     if (f.group && group === f.group) {
@@ -141,4 +147,58 @@ export function shortSummary(tpl, values) {
     parts.push(f.group ? `${f.group} ${text}` : text);
   }
   return parts.filter((p, i) => !(parts[i + 1] || '').startsWith(p)).join(' · ');
+}
+
+// The log's columns (display only; the form and the exports keep one field
+// each). Fields that belong together share a cell, so the header is one
+// line and a check-in takes few lines:
+//   call     shown under the callsign (the name)
+//   rst      "55 / 59" (received / sent)
+//   location the place: text, then PLZ · locator · where it came from
+//   grades   school grades as small chips (the siren test)
+//   chain    a value and the ones that depend on it ("fehlt ·
+//            Android 15"; a value the next one repeats is left out)
+// Any other field is its own column. -> [{ key, head, title, kind, fields }]
+const LOG_COLUMNS = {
+  rst: { head: 'RST', title: 'RST erhalten / gegeben' },
+  location: { head: 'Standort', title: 'Standort, wie gehört; darunter PLZ, Locator und woher der Standort stammt' },
+  grades: { head: 'Sirene', title: `Sirene: innen Fenster zu · innen Fenster offen · im Freien (${GRADE_HINT})` },
+};
+export function logColumns(tpl) {
+  const cols = [];
+  const byKey = new Map();
+  const add = (key, kind, f, extra = {}) => {
+    if (!byKey.has(key)) {
+      const c = { key, kind, fields: [], ...LOG_COLUMNS[kind], ...extra };
+      byKey.set(key, c);
+      cols.push(c);
+    }
+    byKey.get(key).fields.push(f);
+  };
+  for (const f of tpl.fields) {
+    if (f.key === 'name') continue; // under the callsign
+    if (f.type === 'rst') add('rst', 'rst', f);
+    else if (f.type === 'location') add(f.key, 'location', f);
+    else if (tpl.fields.some(l => l.plzKey === f.key)) continue; // in the location cell
+    else if (f.grade) add(`grades-${f.group}`, 'grades', f, { head: f.group || LOG_COLUMNS.grades.head });
+    else if (f.showIf && byKey.has(`chain-${f.showIf[0]}`)) {
+      // depends on a field already in a chain: same cell
+      const c = byKey.get(`chain-${f.showIf[0]}`);
+      c.fields.push(f);
+      byKey.set(`chain-${f.key}`, c);
+    } else add(`chain-${f.key}`, 'chain', f, { head: f.label, title: f.label });
+  }
+  return cols;
+}
+
+// The visible values of a chain column, without one the next repeats
+// ("Android", "Android 15" -> "Android 15").
+export function chainValues(col, values, tpl) {
+  const vs = col.fields.filter(f => fieldVisible(f, values, tpl)).map(f => fieldDisplay(f, values?.[f.key], { screen: true })).filter(Boolean);
+  return vs.filter((v, i) => !(vs[i + 1] || '').startsWith(v));
+}
+
+// The name a station gave (the template's `name` field), if any.
+export function nameField(tpl) {
+  return tpl.fields.find(f => f.key === 'name') || null;
 }
