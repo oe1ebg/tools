@@ -71,7 +71,7 @@ export function formSheet(msg, op, { now, revisions = 0, byId = new Map() }) {
     peer: msg.peer || '',
     distribution: (msg.distribution || []).join(', '),
     subject: msg.subject,
-    location: locationLine(msg.location),
+    location: locationLine(msg.location) || msg.locationText || '',
     ref: ref ? `${REF_KINDS[msg.refKind] || REF_KINDS.antwort} ${ref}` : '',
     text: msg.text,
     readBack: !!msg.readBack,

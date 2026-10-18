@@ -840,7 +840,7 @@ function applyDraft(d) {
 const FIELD_LABELS = {
   direction: 'Richtung', ts: 'Zeit', channel: 'Übermittlung', radio: 'Frequenz/Relais', peer: 'Funkstelle', type: 'Art', priority: 'Dringlichkeit',
   from: 'Absender', to: 'Adressat', distribution: 'Verteiler', subject: 'Betreff', text: 'Inhalt', stichzeit: 'Stichzeit', origin: 'Ursprung',
-  readBack: 'Rücklesen', location: 'Ort', replyTo: 'Bezug', refKind: 'Bezug', refNumber: 'Bezug', remarks: 'Anmerkungen',
+  readBack: 'Rücklesen', location: 'Ort', locationText: 'Ort', replyTo: 'Bezug', refKind: 'Bezug', refNumber: 'Bezug', remarks: 'Anmerkungen',
 };
 
 // The message changed after this (older) edit draft was saved: say which
@@ -1483,7 +1483,8 @@ function renderDetail(id) {
         ...(m.peer ? kv('Funkstelle', el('span', { class: 'mono' }, m.peer), el('span', { class: 'dim' }, m.direction === 'out' ? ' (empfangende Funkstation)' : ' (übermittelnde Funkstation)')) : []),
         ...(m.distribution.length ? kv('Verteiler', m.distribution.join(', ')) : []),
         ...kv('Übermittlung', [CHANNELS[m.channel], m.radio.freq && `${fmtFreq(m.radio.freq)} MHz`, m.radio.via && `via ${m.radio.via}`].filter(Boolean).join(' · ')),
-        ...(m.location ? kv('Ort', describeLocation(m.location), ' ', mapLinks(m.location)) : []),
+        ...(m.location ? kv('Ort', describeLocation(m.location), ' ', mapLinks(m.location))
+          : m.locationText ? kv('Ort', m.locationText, el('span', { class: 'dim' }, ' (nicht zugeordnet)')) : []),
         ...(m.stichzeit ? kv('Stichzeit', fmtVienna(m.stichzeit)) : []),
         ...(m.origin.station || m.origin.place || m.origin.filed ? kv('Ursprung', [m.origin.station, m.origin.placeLoc ? describeLocation(m.origin.placeLoc) : m.origin.place, m.origin.filed && `aufgegeben ${fmtVienna(m.origin.filed)}`].filter(Boolean).join(' · ')) : []),
         ...(ref ? kv('Bezug', `${refKind} `, link(ref), ` ${ref.subject}`) : m.refNumber ? kv('Bezug', `${refKind} ${m.refNumber}`) : []),

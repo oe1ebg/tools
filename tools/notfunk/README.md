@@ -160,7 +160,10 @@ name, and a distribution list ("Verteiler").
   ("→ W1-008") but taken only on saving. Von/An are free text (no
   callsign search); Funkstelle/Ursprungsstation complete from the
   stations heard in this operation and the callsign list, Relais from the ÖVSV list, Ort and Ursprungsort
-  from the offline location lookup (which never changes the text).
+  from the offline location lookup (which never changes the text). An Ort
+  the lookup doesn't resolve is stored as text (`locationText`; `''` when
+  `location` holds the resolved snapshot, whose `input`/`label` keep the
+  text). Messages saved before this kept no text for an unresolved Ort.
   **"Karte"** in the book shows the messages of the book's current list
   (filter, search) at their Ort on the shared offline map
   (`../shared/js/basemap.js`, `js/mapview.js`; which messages and where:

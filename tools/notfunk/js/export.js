@@ -59,7 +59,7 @@ export function toGeschaeftsbuchCSV(msgs, sep = ';', stats) {
       m.readBack ? 'ja' : '', statusLabel(currentStatus(m), m.direction),
       fwd?.to || '', fwd ? viennaTime(fwd.at) : '', ack ? [ack.who, viennaTime(ack.at)].filter(Boolean).join(' ') : '',
       ref ? `${REF_KINDS[m.refKind] || REF_KINDS.antwort} ${ref}` : '',
-      m.location ? m.location.label || `${m.location.lat}, ${m.location.lon}` : '', m.operator, m.stationCall || '', fmtVienna(m.created), m.remarks,
+      m.location ? m.location.label || `${m.location.lat}, ${m.location.lon}` : m.locationText || '', m.operator, m.stationCall || '', fmtVienna(m.created), m.remarks,
     ]);
   }
   return '\ufeff' + csvSafeRows(rows, sep, stats) + '\r\n';
