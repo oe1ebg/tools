@@ -8,6 +8,7 @@
 export const LOC_ORIGINS = {
   search: { label: 'Suche', text: 'Suche', title: 'aus der Standortsuche (Adressen, Orte, PLZ)' },
   callbook: { label: 'Call', text: 'Rufzeichenliste, Lizenzadresse', title: 'Wohnort laut Rufzeichenliste (Lizenzadresse), nicht von der Station bestätigt' },
+  list: { label: 'Liste', text: 'eigene Rufzeichenliste', title: 'Ort laut einer eigenen Rufzeichenliste, nicht von der Station bestätigt' },
   previous: { label: 'früher', text: 'früheres Log', title: 'von einem früheren Check-in übernommen' },
   text: { label: 'Text', text: 'Freitext', title: 'Freitext, keinem Ort zugeordnet' },
 };

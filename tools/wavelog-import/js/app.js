@@ -6,6 +6,7 @@
 import { $, el, fill } from '../../shared/js/dom.js';
 import { prefGet, prefSet } from '../../shared/js/prefs.js';
 import { tx, uiLang, i18nInit, i18nApply, i18nToggle } from '../../shared/js/i18n.js';
+import { createCallsignService } from '../../shared/js/callsign-service.js';
 import { createCallsignLists } from '../../shared/js/callsignlists.js';
 import { callsignQsoFromWavelog, summarizeCallsignQsos } from '../../shared/js/callsign-qsos.js';
 import {
@@ -23,7 +24,8 @@ let logbooks = [];
 let base = '';
 let running = null;   // AbortController of the import in progress
 // the shared dialog of the lists (order, switches, erase), as in every tool
-const lists = createCallsignLists({ getLang: uiLang });
+const calls = createCallsignService({ getLang: uiLang });
+const lists = createCallsignLists({ service: calls, getLang: uiLang });
 
 i18nInit(LANG_PREF);
 
@@ -198,12 +200,12 @@ async function runImport() {
     status(`${errorText(failure)} ${tx(`${stored} QSOs were stored; run the import again to complete it.`, `${stored} QSOs sind gespeichert; den Import noch einmal starten, um ihn zu vervollständigen.`)}`, 'err');
   }
   await renderSources();
-  await lists.refresh();
+  await calls.reload();
 }
 
 async function init() {
   i18nApply();
-  i18nToggle(LANG_PREF, () => { i18nApply(); renderLogbooks(); showStations(); renderSources(); lists.relabel(); });
+  i18nToggle(LANG_PREF, () => { i18nApply(); renderLogbooks(); showStations(); renderSources(); calls.relabel(); });
   $('#btn-lists').addEventListener('click', ev => lists.open(ev.currentTarget));
   $('#wl-url').value = String(prefGet(URL_PREF, '') || '');
   $('#conn-form').addEventListener('submit', loadLogbooks);
@@ -231,7 +233,7 @@ async function init() {
     await eraseCallsignSource(storage, s.id);
     status(tx(`"${s.name}" erased.`, `„${s.name}“ gelöscht.`), 'ok');
     await renderSources();
-    await lists.refresh();
+    await calls.reload();
   });
   try {
     storage = await openCallsignStorage();
@@ -240,7 +242,7 @@ async function init() {
     console.warn(e);
     storage = null;
   }
-  await lists.init();
+  await calls.init();
   await renderSources();
   globalThis.WAVELOG_IMPORT_READY = true;
 }

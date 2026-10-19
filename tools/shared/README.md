@@ -212,6 +212,19 @@ fallback; without it the tools keep the bundled Austrian list.
   Files over 8 MB or 200,000 entries are refused before anything is
   written. No format specification of PoLo exists; the rules follow its
   documentation and the published Hams-of-Note file.
+- **One lookup for every tool** (`callsign-service.js`,
+  `createCallsignService()`): loads the Austrian list, opens the store and
+  builds the merged directory; no DOM. Tools call `entry(call)` (merged,
+  with the list to name when it is not the Austrian one), `search(text, n)`
+  (the callsign field's search), `has`, `label` (for printouts) and
+  `official(call)` (the Austrian list alone, with `enabled`: the typo
+  warning "not in the list" must only be given when it is on, and a user
+  list never makes a call "listed"). Lookups are synchronous; before `init()`
+  or without IndexedDB they answer from what is loaded. `version()` and
+  `onChange` tell a tool when to redraw rows; `watchFocus()` re-reads the
+  lists when the window is looked at again (a change made in another tab
+  or tool), and only if they differ. Tools never import `lookupCall`,
+  `suggestCalls` or `searchCallbook` themselves any more.
 - **One dialog for every tool** (`callsignlists.js`, `createCallsignLists()`):
   the lists, their order, switches, replace/undo, delete and erase live in
   one shared `<dialog>` that a tool opens from a button, as an aligned table
@@ -222,7 +235,7 @@ fallback; without it the tools keep the bundled Austrian list.
   (`directory().search()`: partial callsigns with ? and *, short forms, one-edit
   typos, names, places, notes), showing the merged result the tools would see
   in a panel of its own (every value with the list it comes from) above one
-  row per list entry; the tool reads the
+  row per list entry; the dialog works on the tool's service; the tool reads the
   merged view through `directory()` and re-renders on `onChange`. The dialog
   says first that the data is shared by all tools of the same address (in a
   `file://` single-file bundle: that the file keeps its own data). Texts

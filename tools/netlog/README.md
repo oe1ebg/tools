@@ -302,7 +302,10 @@ offers the export, as on any other page without IndexedDB.
   dialog says first. Each list is a source of its own and stays unchanged;
   at check-in and in the callsign info line the first list in the shown
   order that has a name or QTH decides, and the notes of all lists are
-  shown (PoLo markdown such as links appears as plain text). Reorder with
+  shown (PoLo markdown such as links appears as plain text); a value from
+  a list other than the Austrian one is named in the info line ("aus „X“").
+  A change made in another tab or tool shows when the window is looked at
+  again. Reorder with
   ↑/↓, switch lists off (the Austrian one too), replace one with a new file
   (undoable), delete (reversible) or erase for good. The lists are not part
   of any backup; keep the original files. See `tools/shared/README.md`,

@@ -95,6 +95,7 @@ export const LANG_EN = {
   'field.repeaterSource': 'Austrian repeater list (ÖVSV, offline); ↓, Enter:',
   'checkin.fromCallbook': 'callsign list',
   'checkin.inCallbook': 'Callsign list: {name}',
+  'checkin.fromList': 'from “{list}”',
 
   'status.active': 'active (checked in)',
   'status.paused': 'paused / away',

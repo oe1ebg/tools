@@ -80,15 +80,18 @@ export function buildCallsignDirectory({ sources = [], records = [], callbook = 
   }
 
   function merge(base, entries) {
-    const out = { base, listed: true, name: '', qth: '', grid: '', from: {}, notes: [], entries };
+    // from: the list each value comes from; fromKind: that list's kind
+    // ('builtin' for the Austrian list); official: its own entry, if any
+    const out = { base, listed: true, name: '', qth: '', grid: '', from: {}, fromKind: {}, official: entries.find(x => x.kind === 'builtin') || null, notes: [], entries };
     for (const f of ['name', 'qth', 'grid']) {
       const e = entries.find(x => x[f]);
-      if (e) { out[f] = e[f]; out.from[f] = e.source; }
+      if (e) { out[f] = e[f]; out.from[f] = e.source; out.fromKind[f] = e.kind; }
     }
     for (const e of entries) if (e.note) out.notes.push({ text: callsignNoteText(e.note), raw: e.note, source: e.source });
     return out;
   }
 
+  const memo = new Map();
   // All callsigns of the enabled sources, sorted; and OE calls by suffix.
   let callsCache = null;
   let suffixCache = null;
@@ -125,15 +128,24 @@ export function buildCallsignDirectory({ sources = [], records = [], callbook = 
   return {
     sources: active,
     // The merged answer for a callsign (portable parts ignored), or null.
+    // Remembered: a directory never changes, a changed list builds a new one.
     lookup(call) {
       const base = baseCall(call);
-      const entries = base ? entriesFor(base) : [];
-      return entries.length ? merge(base, entries) : null;
+      if (!base) return null;
+      if (memo.has(base)) return memo.get(base);
+      const entries = entriesFor(base);
+      const m = entries.length ? merge(base, entries) : null;
+      memo.set(base, m);
+      return m;
     },
+    // Is the callsign in any list that is switched on?
+    has: call => { const b = baseCall(call); return !!b && has(b); },
+    // The Austrian list is on and loaded; its date of issue.
+    official: { enabled: !!(builtin && callbook), stand: builtin && callbook ? callbook.stand : '' },
     // Every callsign of an enabled source, sorted.
     callsigns: allCalls,
     // The search of the callsign field, over every list that is switched
-    // on: [{ call, name, qth, from }], best first, at most max. A partial
+    // on: [{ call, name, qth, from, fromKind }], best first, at most max. A partial
     // callsign with ? or * ("OE0QX?", "?QXB": each run stands for one or
     // more characters) gives the callsigns it fits; otherwise, in this
     // order: the exact callsign, callsigns starting with the input, short
@@ -149,7 +161,7 @@ export function buildCallsignDirectory({ sources = [], records = [], callbook = 
         if (!base || seen.has(base) || out.length >= max) return;
         seen.add(base);
         const m = merge(base, entriesFor(base));
-        out.push({ call: base, name: m.name, qth: m.qth, from: m.from.name || m.from.qth || '' });
+        out.push({ call: base, name: m.name, qth: m.qth, from: m.from.name || m.from.qth || '', fromKind: m.fromKind.name || m.fromKind.qth || '' });
       };
       const calls = allCalls();
       if (/^[A-Z0-9/?*]+$/.test(up) && /[?*]/.test(up)) {

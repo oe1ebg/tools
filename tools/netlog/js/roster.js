@@ -8,12 +8,11 @@
 import { $, el, fill, popover, isComposing } from '../../shared/js/dom.js';
 import { t } from './i18n.js';
 import { keyedList, setText, setAttr, setValue } from './keyed.js';
-import { rosterSorted, rosterStats, isUnresolved, callCandidates, callPattern, normCall, callBase, STATUSES, FLAGS, live, ncsFirst } from './model.js';
+import { rosterSorted, rosterStats, isUnresolved, callCandidates, normCall, callBase, STATUSES, FLAGS, live, ncsFirst } from './model.js';
 import { addParticipant, updateParticipant, setStatus, setFlag, moveParticipant, setNcs, mergePreview, mergeParticipants, saveProfile, deleteParticipant } from './ops.js';
 import { stationLinks } from './links.js';
 import { hm, hmz, zone } from './clock.js';
 import { turnMark } from './speak.js';
-import { lookupCall, searchCallbook } from '../../shared/js/callbook.js';
 
 // "OE0QXA" or the provisional "?" marked as unresolved.
 export function callText(p) {
@@ -43,38 +42,20 @@ function candidatePool(app) {
   return pool;
 }
 
-// The Austrian callsign list (shared data, offline) for a complete
-// callsign: { call, name, qth } or null.
-// With callsign lists imported (callsignui.js) it is their merged view.
+// What the callsign lists say about a complete callsign (merged over the
+// lists that are switched on): { call, name, qth, note, source } or null.
+// `source` names the list, unless it is the Austrian one.
 export function callbookEntry(app, call) {
-  if (!call || isUnresolved(call)) return null;
-  const dir = app.data.directory;
-  if (dir) {
-    const h = dir.lookup(call);
-    return h ? { call: h.base, name: h.name, qth: h.qth, note: h.notes.length ? h.notes[0].text : '' } : null;
-  }
-  if (!app.data.callbook) return null;
-  const e = lookupCall(app.data.callbook, call).entry;
-  return e ? { call: e[0], name: e[1] || '', qth: e[2] || '', note: '' } : null;
+  if (!call || isUnresolved(call) || !app.calls) return null;
+  const e = app.calls.entry(call);
+  return e ? { call: e.call, name: e.name, qth: e.qth, note: e.note, source: e.source } : null;
 }
 
 // Callbook entries for what is typed: part of a callsign, a name or a
 // place; for a partial callsign (OE0QX?) those its pattern fits.
 function callbookCandidates(app, text, limit = 6) {
-  const dir = app.data.directory;
-  if (dir) return dir.search(text, limit).map(m => ({ call: m.call, name: m.name, qth: m.qth, from: 'callbook' }));
-  // before the lists are loaded: the bundled Austrian list alone
-  const book = app.data.callbook;
-  if (!book) return [];
-  const call = normCall(text);
-  let rows;
-  if (isUnresolved(call)) {
-    const re = callPattern(call);
-    rows = re ? book.calls.filter(c => re.test(c[0])).slice(0, limit) : [];
-  } else {
-    rows = searchCallbook(book, text, limit);
-  }
-  return rows.map(c => ({ call: c[0], name: c[1] || '', qth: c[2] || '', from: 'callbook' }));
+  if (!app.calls) return [];
+  return app.calls.search(text, limit).map(m => ({ call: m.call, name: m.name, qth: m.qth, from: 'callbook' }));
 }
 
 const FROM_KEY = { profile: 'checkin.fromProfile', history: 'checkin.fromHistory', callbook: 'checkin.fromCallbook' };
@@ -97,7 +78,8 @@ export function candidateButtons(app, input, onPick) {
 // The info line under a callsign field: what the callsign list says.
 function callbookInfo(app, field, info) {
   const e = callbookEntry(app, normCall(field.value));
-  setText(info, e ? t('checkin.inCallbook', { name: [e.name, e.qth, e.note].filter(Boolean).join(' · ') || e.call }) : '');
+  const text = e ? [e.name, e.qth, e.note].filter(Boolean).join(' · ') || e.call : '';
+  setText(info, e ? t('checkin.inCallbook', { name: e.source ? `${text} (${t('checkin.fromList', { list: e.source })})` : text }) : '');
   info.className = `ac-info${e ? ' known' : ''}`;
 }
 
