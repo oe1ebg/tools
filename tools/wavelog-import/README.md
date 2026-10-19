@@ -9,9 +9,16 @@ Netlog stay offline. Nothing is written to Wavelog.
 
 ## Using it
 
-1. In Wavelog: user menu → API → create a **v2 token** with exactly the
-   scopes `logbook:read` and `qso:read` and an expiry. Wavelog 3.1.0 or
-   later (older v1 keys are not accepted by the v2 API).
+1. In Wavelog create an **API v2 token** (user menu → API; it starts with
+   `wl2_`; Wavelog 3.1.0 or later; the older v1 API keys are not accepted).
+   Required scopes: **`logbook:read`** (list the logbooks and their station
+   locations) and **`qso:read`** (read the QSOs). Nothing else is used. A
+   ready-made token preset works if it includes both; the Wavelog docs do not
+   name presets, so this is not verified for any particular one. The page
+   refuses a token that does not start with `wl2_` before sending anything,
+   names missing scopes after "Load logbooks" (read from `GET api/v2/token`,
+   best effort) and points out write/delete scopes the import does not need.
+   Safest is a token with just the two scopes and an expiry date.
 2. Open the page, enter the address of your instance (https; http only for
    localhost, no user name or password) and the token, "Load logbooks".
 3. Choose a logbook, "Import". A cancelled or failed import keeps what was

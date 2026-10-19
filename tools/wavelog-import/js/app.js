@@ -82,7 +82,9 @@ async function loadLogbooks(ev) {
   const b = wavelogBase($('#wl-url').value);
   if (!b) { fieldError('wl-url-err', tx('That is no usable address (https://…, http:// only for localhost, no user name or password).', 'Das ist keine brauchbare Adresse (https://…, http:// nur für localhost, ohne Benutzername oder Passwort).')); $('#wl-url').focus(); return; }
   const token = $('#wl-token').value.trim();
-  if (!token) { fieldError('wl-token-err', tx('Enter the API token.', 'Das API-Token eintragen.')); $('#wl-token').focus(); return; }
+  if (!token) { fieldError('wl-token-err', tx('Enter the API v2 token.', 'Das API-v2-Token eintragen.')); $('#wl-token').focus(); return; }
+  // nothing leaves the page with a key the v2 API would refuse anyway
+  if (!token.startsWith('wl2_')) { fieldError('wl-token-err', tx('That is not an API v2 token: v2 tokens start with wl2_. Older API keys (v1) do not work here; create a v2 token in Wavelog (user menu → API).', 'Das ist kein API-v2-Token: v2-Token beginnen mit wl2_. Ältere API-Schlüssel (v1) funktionieren hier nicht; in Wavelog (Benutzermenü → API) ein v2-Token anlegen.')); $('#wl-token').focus(); return; }
   prefSet(URL_PREF, b);
   $('#btn-logbooks').disabled = true;
   status(tx('Loading logbooks…', 'Logbücher werden geladen…'));
@@ -95,9 +97,13 @@ async function loadLogbooks(ev) {
     $('#import-card').hidden = false;
     showStations();
     const missing = scopes ? ['qso:read', 'logbook:read'].filter(s => !scopes.includes(s)) : [];
+    const extra = scopes ? scopes.filter(s => /:(write|delete)$/.test(s)) : [];
+    const found = tx(`${logbooks.length} logbook(s) found.`, `${logbooks.length} Logbuch/Logbücher gefunden.`);
+    const note = extra.length
+      ? ` ${tx(`Note: the token also allows ${extra.join(', ')}, which is not needed; a token with only logbook:read and qso:read is safer.`, `Hinweis: das Token erlaubt auch ${extra.join(', ')}, das wird nicht gebraucht; ein Token nur mit logbook:read und qso:read ist sicherer.`)}` : '';
     status(missing.length
       ? tx(`Logbooks loaded, but the token lacks ${missing.join(', ')}.`, `Logbücher geladen, aber dem Token fehlt ${missing.join(', ')}.`)
-      : tx(`${logbooks.length} logbook(s) found.`, `${logbooks.length} Logbuch/Logbücher gefunden.`), missing.length ? 'err' : 'ok');
+      : found + note, missing.length ? 'err' : 'ok');
     $('#wl-logbook').focus();
   } catch (e) {
     $('#import-card').hidden = true;
