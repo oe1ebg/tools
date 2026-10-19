@@ -43,7 +43,8 @@
       <p id="wl-url-hint" class="hint" data-de="https:// (http:// nur für localhost), ohne Benutzername oder Passwort. Wird gemerkt; Netlog verwendet sie für den „Wavelog“-Link bei einer Station.">https:// (http:// only for localhost), without user name or password. It is remembered; Netlog uses it for the "Wavelog" link at a station.</p>
       <p id="wl-url-err" class="field-err" role="alert"></p>
       <label class="field"><span data-de="API-v2-Token (wl2_…)">API v2 token (wl2_…)</span>
-        <input id="wl-token" type="password" autocorrect="off" autocapitalize="off" spellcheck="false" autocomplete="off" aria-describedby="wl-token-hint wl-token-err" required></label>
+        <input id="wl-token" type="password" autocorrect="off" autocapitalize="off" spellcheck="false" autocomplete="off" aria-describedby="wl-token-note wl-token-hint wl-token-err" required></label>
+      <p id="wl-token-note" class="hint token-note" data-de="Das Token wird in dieser Web-App nicht gespeichert: Es bleibt nur in diesem Feld, wird nach dem Import gelöscht und ist nach einem Neuladen der Seite weg.">The token is not stored in this web app: it stays in this field only, is cleared after the import, and is gone when the page is reloaded.</p>
       <div id="wl-token-hint" class="hint token-help">
         <p><b data-de="Es muss ein API-v2-Token sein.">It must be an API v2 token.</b> <span data-de="Es beginnt mit wl2_. Ältere API-Schlüssel (v1) nimmt die v2-API nicht an; Wavelog ab Version 3.1.0.">It starts with wl2_. Older API keys (v1) are not accepted by the v2 API; Wavelog 3.1.0 or later.</span></p>
         <p data-de="Anlegen: in Wavelog Benutzermenü → API → neues API-v2-Token (Name, Rechte, Ablaufdatum).">Create it in Wavelog: user menu → API → new API v2 token (name, scopes, expiry).</p>

@@ -101,6 +101,8 @@ test('import a logbook page by page; token not kept; Netlog reads the result; er
   await expect.poll(() => page.evaluate(() => globalThis.WAVELOG_IMPORT_READY === true)).toBe(true);
   await page.locator('#btn-lists').click();
   await expect(page.locator('#callsign-lists-dlg .cl-shared')).toContainText('Gemeinsam für alle Tools');
+  // this page passes no callsign list: the dialog loads the Austrian one itself
+  await expect(page.locator('#callsign-lists-dlg tbody tr').last().locator('td.cl-num')).not.toHaveText('0');
   await expect(page.locator('#callsign-lists-dlg .cl-main-body tbody tr')).toHaveCount(2);
   await page.keyboard.press('Escape');
   page.on('dialog', d => d.accept());
@@ -158,6 +160,7 @@ test('the token must be a v2 token (wl2_…): refused before any request; extra 
     return json({ data: { scopes: ['logbook:read', 'qso:read', 'qso:write', 'station:delete'] } });
   });
   await open(page);
+  await expect(page.locator('#wl-token-note')).toContainText('nicht gespeichert');
   await expect(page.locator('#wl-token-hint')).toContainText('wl2_');
   await expect(page.locator('#wl-token-hint')).toContainText('logbook:read');
   await expect(page.locator('#wl-token-hint')).toContainText('qso:read');
