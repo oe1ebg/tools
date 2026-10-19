@@ -243,8 +243,6 @@ input[aria-invalid="true"]{ border-color:var(--err); }
 .profile-list{ list-style:none; margin:0; padding:0; }
 .profile-row{ padding:.25em 0; border-top:1px solid var(--line); }
 .profile-row:first-child{ border-top:0; }
-.wavelog-field{ max-width:30em; }
-.wavelog-field input{ width:100%; }
 .station-links{ margin:.2em 0 .4em; font-size:14px; }
 .station-links a{ color:var(--accent-text); margin-right:.4em; white-space:nowrap; }
 /* online-only links disappear while the browser is offline (trackOnline) */
