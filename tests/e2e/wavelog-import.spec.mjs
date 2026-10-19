@@ -37,8 +37,9 @@ async function open(page) {
   await expect.poll(() => page.evaluate(() => globalThis.WAVELOG_IMPORT_READY === true)).toBe(true);
 }
 
-test('errors stay next to their field and nothing is imported', async ({ page, expectConsoleError }) => {
-  expectConsoleError(/Failed to load resource.*401/);   // the browser's own line for a refused request
+test('errors stay next to their field and nothing is imported', async ({ page, browserName, expectConsoleError }) => {
+  // the browser's own line for a refused request (Firefox logs none)
+  if (browserName !== 'firefox') expectConsoleError(/Failed to load resource.*401/);
   await stub(page);
   await open(page);
   await page.locator('#wl-url').fill('http://wl.example.org');
@@ -112,8 +113,8 @@ test('import a logbook page by page; token not kept; Netlog reads the result; er
   await expect(page.locator('#callsign-lists-dlg table[aria-labelledby=cl-title] tbody tr')).toHaveCount(1);
 });
 
-test('a token without the needed scope is named in the message', async ({ page, expectConsoleError }) => {
-  expectConsoleError(/Failed to load resource.*403/);
+test('a token without the needed scope is named in the message', async ({ page, browserName, expectConsoleError }) => {
+  if (browserName !== 'firefox') expectConsoleError(/Failed to load resource.*403/);
   await page.route(`${HOST}/api/v2/**`, route => {
     if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });
     return route.fulfill({ status: 403, headers: { ...CORS, 'content-type': 'application/json' }, body: JSON.stringify({ error: { code: 'insufficient_scope', message: 'x', details: { required_scope: 'logbook:read' } } }) });
