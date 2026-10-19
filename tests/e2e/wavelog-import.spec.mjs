@@ -61,8 +61,11 @@ test('import a logbook page by page; token not kept; Netlog reads the result; er
   await page.locator('#wl-token').fill('wl2_good');
   await page.locator('#btn-logbooks').click();
   await expect(page.locator('#import-card')).toBeVisible();
-  await expect(page.locator('#wl-logbook')).toHaveText('Contest');
-  await expect(page.locator('#wl-stations')).toContainText('1, 4');
+  await expect(page.locator('#wl-logbook')).toHaveText('Contest (2 Stationsstandorte)');
+  await expect(page.locator('#wl-stations')).toContainText('2 Stationsstandorte');
+  await page.locator('#lang-toggle button[data-lang=en]').click();
+  await expect(page.locator('#wl-logbook')).toHaveText('Contest (2 station locations)');
+  await page.locator('#lang-toggle button[data-lang=de]').click();
   await page.locator('#btn-import').click();
   await expect(page.locator('#wl-status')).toContainText('Fertig: 4 QSOs, 3 Rufzeichen');
   await expect(page.locator('#wl-token')).toHaveValue('');

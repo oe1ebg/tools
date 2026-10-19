@@ -93,7 +93,7 @@ async function loadLogbooks(ev) {
     base = b;
     const scopes = await wavelogTokenScopes(b, { token });
     if (!logbooks.length) { status(tx('This Wavelog has no logbook.', 'Dieses Wavelog hat kein Logbuch.'), 'err'); $('#import-card').hidden = true; return; }
-    fill($('#wl-logbook'), ...logbooks.map(l => el('option', { value: String(l.id) }, l.name)));
+    renderLogbooks();
     $('#import-card').hidden = false;
     showStations();
     const missing = scopes ? ['qso:read', 'logbook:read'].filter(s => !scopes.includes(s)) : [];
@@ -117,9 +117,23 @@ async function loadLogbooks(ev) {
 
 const selected = () => logbooks.find(l => String(l.id) === $('#wl-logbook').value);
 
+// "2 station locations": the number says more than their ids (the names
+// would need the station:read scope, which the import does not ask for).
+const stationCount = n => (n === 0 ? tx('no station location', 'kein Stationsstandort')
+  : n === 1 ? tx('1 station location', '1 Stationsstandort') : tx(`${n} station locations`, `${n} Stationsstandorte`));
+
+function renderLogbooks() {
+  const sel = $('#wl-logbook');
+  const keep = sel.value;
+  fill(sel, ...logbooks.map(l => el('option', { value: String(l.id) }, `${l.name} (${stationCount(l.stationIds.length)})`)));
+  if (keep && logbooks.some(l => String(l.id) === keep)) sel.value = keep;
+}
+
 function showStations() {
   const l = selected();
-  $('#wl-stations').textContent = l ? tx(`Station locations: ${l.stationIds.join(', ') || '–'}`, `Stationsstandorte: ${l.stationIds.join(', ') || '–'}`) : '';
+  $('#wl-stations').textContent = l
+    ? tx(`This logbook has ${stationCount(l.stationIds.length)}; the import takes the QSOs of all of them.`, `Dieses Logbuch hat ${stationCount(l.stationIds.length)}; der Import holt die QSOs von allen.`)
+    : '';
 }
 
 function setRunning(on) {
@@ -134,7 +148,7 @@ async function runImport() {
   const l = selected();
   if (!l) return;
   if (!storage) { status(tx('The callsign store needs IndexedDB, which this browser does not offer.', 'Der Rufzeichen-Speicher braucht IndexedDB, das dieser Browser nicht bietet.'), 'err'); return; }
-  if (!l.stationIds.length) { status(tx('This logbook has no station location.', 'Dieses Logbuch hat keinen Stationsstandort.'), 'err'); return; }
+  if (!l.stationIds.length) { status(tx('This logbook has no station location, so there are no QSOs to import.', 'Dieses Logbuch hat keinen Stationsstandort, also gibt es keine QSOs zu importieren.'), 'err'); return; }
   const token = $('#wl-token').value.trim();
   const sid = sourceId(base, l.id);
   const name = `Wavelog ${base.replace(/^https?:\/\//, '').replace(/\/$/, '')} – ${l.name}`;
@@ -189,7 +203,7 @@ async function runImport() {
 
 async function init() {
   i18nApply();
-  i18nToggle(LANG_PREF, () => { i18nApply(); showStations(); renderSources(); lists.relabel(); });
+  i18nToggle(LANG_PREF, () => { i18nApply(); renderLogbooks(); showStations(); renderSources(); lists.relabel(); });
   $('#btn-lists').addEventListener('click', ev => lists.open(ev.currentTarget));
   $('#wl-url').value = String(prefGet(URL_PREF, '') || '');
   $('#conn-form').addEventListener('submit', loadLogbooks);
