@@ -295,6 +295,15 @@ offers the export, as on any other page without IndexedDB.
   steps may hold copies), a deleted session with everything it owns, a
   station profile, or all Netlog data on the device. A backup is plaintext,
   and erasing here never touches files exported before.
+- **Callsign lists** ("Backup and data"): add your own lists, a text file in
+  the Ham2K PoLo format or a CSV (callsign, name, QTH), next to the
+  Austrian list. Each list is a source of its own and stays unchanged; at
+  check-in and in the callsign info line the first list in the shown order
+  that has a name or QTH decides, and the notes of all lists are shown.
+  Reorder with ↑/↓, switch lists off (the Austrian one too), replace one
+  with a new file (undoable), delete (reversible) or erase for good. The
+  data is stored in the shared callsign store (`tools/shared/README.md`) and
+  is not part of the Netlog backup yet; keep the original files.
 - **Station lookup links** (online only, hidden offline): QRZ.com, HamQTH,
   QRZCQ and APRS.fi for a resolved callsign (never for `OE0QX?`), and the
   address of your own Wavelog if you set one ("Backup and data"; the

@@ -1439,3 +1439,65 @@ test('series cards: collapsed with a summary, remembered; back up and restore on
   await expect(workshop.locator('.card-msg')).toContainText('not a backup of this series');
   expect(await page.evaluate(() => globalThis.NETLOG_APP.data.sessions.length)).toBe(3);
 });
+
+// Callsign lists (#81): an own CSV and a PoLo notes file next to the
+// Austrian list; sources stay separate, order and switches decide, and the
+// check-in suggestions and the info line read the merged view.
+test('callsign lists: import, merge order, switch off, replace and undo, delete and restore', async ({ page }) => {
+  await open(page);
+  await page.locator('#tab-series').click();
+  const dir = await mkdtemp(pathJoin(tmpdir(), 'netlog-lists-'));
+  const csv = pathJoin(dir, 'meine.csv');
+  const notes = pathJoin(dir, 'noten.txt');
+  await writeFile(csv, 'call;name;qth\nOE0QXA;Anna Privat;Graz\nOE0QXB;Bernd\n');
+  await writeFile(notes, '# TITLE: Hams of Note\nOE0QXA 🤩 Elmer\nOE0QXB 🌳 POTA\n');
+  const rows = page.locator('#lists-list .list-row');
+  await expect(rows).toHaveCount(1);                       // the Austrian list
+  await page.locator('#list-file').setInputFiles(csv);
+  await expect(page.locator('#lists-msg')).toContainText('2 Einträge');
+  await page.locator('#list-file').setInputFiles(notes);
+  await expect(rows).toHaveCount(3);
+  await expect(rows.nth(1)).toContainText('Hams of Note');
+  await expect(rows.nth(2)).toContainText('Österreichische Rufzeichenliste');
+  await expect(page.locator('#lists-list .list-row [data-act=up]').first()).toBeDisabled();
+
+  await startSession(page);
+  await page.locator('#checkin-call').fill('OE0QXA');
+  await expect(page.locator('#checkin-info')).toContainText('Anna Privat');
+  await expect(page.locator('#checkin-info')).toContainText('Elmer');
+  await page.locator('#checkin-call').fill('OE0QX');          // suggestions come from the lists
+  await expect(page.locator('#checkin-pop')).toContainText('Bernd');
+  await expect(page.locator('#checkin-pop')).toContainText('Anna Privat');
+
+  await page.locator('#tab-series').click();
+  await rows.nth(1).locator('[data-act=up]').click();      // notes list first: still no name there
+  await expect(rows.first()).toContainText('Hams of Note');
+  await rows.first().locator('input[data-act=enable]').uncheck();
+  await expect(rows.first().locator('input[data-act=enable]')).not.toBeChecked();
+
+  // replace a list; undo brings the previous version back
+  await rows.nth(1).locator('[data-act=replace]').click();
+  await page.locator('#list-file').setInputFiles(csv);
+  await expect(page.locator('#lists-msg')).toContainText('ersetzt');
+  await expect(rows.nth(1).locator('[data-act=undo]')).toBeVisible();
+  await rows.nth(1).locator('[data-act=undo]').click();
+  await expect(page.locator('#lists-msg')).toContainText('wiederhergestellt');
+
+  // delete is reversible
+  await rows.nth(1).locator('[data-act=delete]').click();
+  await expect(page.locator('#lists-msg')).toContainText('gelöscht');
+  await expect(rows.last().locator('[data-act=restore]')).toBeVisible();
+  await rows.last().locator('[data-act=restore]').click();
+  await expect(page.locator('#lists-msg')).toContainText('wiederhergestellt');
+});
+
+test('callsign lists: a file without callsigns changes nothing and says why', async ({ page }) => {
+  await open(page);
+  await page.locator('#tab-series').click();
+  const dir = await mkdtemp(pathJoin(tmpdir(), 'netlog-lists-'));
+  const bad = pathJoin(dir, 'leer.txt');
+  await writeFile(bad, 'nichts\nhier\n');
+  await page.locator('#list-file').setInputFiles(bad);
+  await expect(page.locator('#lists-msg')).toContainText('enthält kein Rufzeichen');
+  await expect(page.locator('#lists-list .list-row')).toHaveCount(1);
+});
