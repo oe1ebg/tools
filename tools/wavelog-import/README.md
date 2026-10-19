@@ -16,8 +16,11 @@ Netlog stay offline. Nothing is written to Wavelog.
    localhost, no user name or password) and the token, "Load logbooks".
 3. Choose a logbook, "Import". A cancelled or failed import keeps what was
    stored; run it again to complete it (the same QSO replaces its record).
-4. In Netlog, "Backup and data" → "Callsign lists" shows the import as a
-   list of its own; order, switching off and erasing work like for any list.
+4. The import appears as a list of its own in the shared callsign-lists
+   dialog (button on this page, or in Netlog under "Backup and data"): order,
+   switching off and erasing work like for any list. The lists apply to all
+   tools on this device; tools that are already open pick them up when the
+   page is reloaded.
 
 The token lives in its input field only: it is not written to IndexedDB,
 localStorage or any backup, and is cleared after a successful import. The
