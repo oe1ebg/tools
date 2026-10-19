@@ -1,5 +1,13 @@
 /* Wavelog import: the shared tokens (../shared/css/tools.css, forms.css)
    plus a narrow single column. */
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-ui);
+  font-size:15px;
+  line-height:1.45;
+}
 .page{ max-width:44rem; margin:0 auto; padding:1rem 16px 3rem; }
 .card{ margin:0 0 1rem; }
 .field-err{ margin:.25em 0 0; color:var(--err); min-height:0; }
