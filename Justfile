@@ -124,6 +124,13 @@ build-netlog: fetch-callsigns fetch-repeaters
 build-adif:
     GIT_SHA={{git_sha}} TOOLS_VERSION={{version}} BUILD_RUN_URL={{quote(build_run)}} uv run python scripts/build_adif.py
 
+# Link-preview cards (tools/<tool>/og-card.png, 1200x630), drawn from the
+# tools' icons and taglines in scripts/make_og_cards.py. Committed output like
+# the icons; needs rsvg-convert (librsvg). Re-run after changing a tagline.
+[doc("Regenerate the Open Graph link-preview cards (tools/*/og-card.png)")]
+og-cards:
+    uv run python scripts/make_og_cards.py
+
 # Assemble site/tools/ (scripts/build_site.py): the tools without Markdown,
 # the rendered manuals, the overview page and manifest.json. Re-run after
 # editing anything in tools/ or docs/.
