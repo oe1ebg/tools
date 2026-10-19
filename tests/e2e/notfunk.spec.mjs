@@ -984,6 +984,8 @@ async function addOwnList(page) {
   await dlg.locator('input[type=file]').setInputFiles(csv);
   await expect(dlg.locator('table[aria-labelledby=cl-title] tbody tr')).toHaveCount(2);
   await page.keyboard.press('Escape');
+  await expect(page.locator('#callsign-lists-dlg')).toBeHidden();
+  await expect(page.locator('#btn-lists-open')).toBeFocused();      // the dialog gives the focus back, then we type
 }
 
 test('callsign lists: own lists answer in the info line and the completion, named when not the Austrian one', async ({ page }) => {
@@ -1033,6 +1035,8 @@ test('callsign lists: no guesses from the lists for the own post (the operation\
   await page.locator('#callsign-lists-dlg input[type=file]').setInputFiles(csv);
   await expect(page.locator('#callsign-lists-dlg table[aria-labelledby=cl-title] tbody tr')).toHaveCount(2);
   await page.keyboard.press('Escape');
+  await expect(page.locator('#callsign-lists-dlg')).toBeHidden();
+  await expect(page.locator('#btn-lists-open')).toBeFocused();      // the dialog gives the focus back, then we type
   const peer = page.locator('#m-peer');
   await peer.fill('stabsfeld');                       // not the own post: the lists answer
   await expect(page.locator('#m-peer-pop')).toContainText('OE0QXS');
