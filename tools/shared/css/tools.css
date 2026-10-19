@@ -164,21 +164,23 @@ dl.kb dd{ margin:0; color:var(--text-dim); }
 }
 
 /* ---------- the callsign lists dialog (js/callsignlists.js) ---------- */
-.cl-dlg{ width:min(860px, calc(100vw - 2em)); }
+.cl-dlg{ width:min(980px, calc(100vw - 2em)); }
 .cl-body{ padding:.6em 1em 1em; overflow:auto; }
 .cl-shared{ margin:0 0 .8em; padding:.5em .7em; border:1px solid var(--accent); border-radius:6px; background:var(--accent-soft); color:var(--text); }
 .cl-wrap{ overflow-x:auto; margin:0 0 .8em; }
 .cl-table{ width:100%; border-collapse:collapse; font-size:14.5px; }
-.cl-table th{ text-align:left; font-weight:700; padding:.4em .6em; border-bottom:2px solid var(--text-dim); white-space:nowrap; }
-.cl-table td{ padding:.4em .6em; border-top:1px solid var(--line); vertical-align:middle; }
+.cl-table th{ text-align:left; font-weight:700; padding:.4em .45em; border-bottom:2px solid var(--text-dim); white-space:nowrap; }
+.cl-table td{ padding:.4em .45em; border-top:1px solid var(--line); vertical-align:middle; }
 .cl-table tbody tr:first-child td{ border-top:0; }
 .cl-table .cl-num{ text-align:right; font-variant-numeric:tabular-nums; }
 .cl-table .cl-on{ width:2.5em; text-align:center; }
 .cl-table .cl-date{ white-space:nowrap; font-variant-numeric:tabular-nums; }
 .cl-table .cl-order{ white-space:nowrap; }
-.cl-table .cl-actions{ text-align:right; white-space:nowrap; }
-.cl-table .cl-actions button{ margin:.1em 0 .1em .25em; }
-.cl-table .cl-title{ font-weight:600; }
+.cl-table .cl-act{ white-space:nowrap; text-align:left; }
+.cl-table .cl-act:empty{ padding:0; }
+.cl-table .cl-name{ width:99%; min-width:13em; }
+.cl-table .cl-off .cl-title{ color:var(--text-dim); }
+.cl-table .cl-title{ font-weight:600; overflow-wrap:anywhere; }
 .cl-table .cl-meta{ display:block; color:var(--text-dim); }
 .cl-table .cl-deleted .cl-title{ text-decoration:line-through; }
 .cl-table .cl-call{ font-weight:600; white-space:nowrap; }
@@ -197,8 +199,11 @@ dl.kb dd{ margin:0; color:var(--text-dim); }
   .cl-table tbody tr:first-child{ border-top:0; }
   .cl-table td{ border:0; padding:.15em 0; text-align:left; display:flex; gap:.6em; align-items:baseline; }
   .cl-table td::before{ content:attr(data-label); flex:0 0 7em; color:var(--text-dim); font-size:13px; }
-  .cl-table .cl-on, .cl-table .cl-num, .cl-table .cl-actions{ width:auto; text-align:left; }
-  .cl-table .cl-actions{ flex-wrap:wrap; white-space:normal; }
+  .cl-table .cl-on, .cl-table .cl-num{ width:auto; text-align:left; }
+  .cl-table .cl-name{ width:auto; min-width:0; }
+  .cl-table .cl-act{ display:inline-flex; padding:.15em .5em .15em 0; }
+  .cl-table .cl-act::before{ display:none; }
+  .cl-table .cl-act:empty{ display:none; }
   .cl-entries td:empty{ display:none; }
 }
 
