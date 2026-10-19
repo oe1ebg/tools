@@ -15,13 +15,13 @@ from pathlib import Path
 
 TOOLS_DIR = Path(__file__).resolve().parent.parent / "tools"
 
-# tool -> (title, tagline lines, badge text)
+# tool -> (title, tagline lines)
 CARDS = {
-    "confirm": ("Bestätigungsverkehr", ["Offline-Logbuch für Bestätigungs-", "und Check-in-Runden"], "funktioniert offline"),
-    "notfunk": ("Notfunk-Meldebuch", ["Offline-Meldebuch für den Notfunk", "mit Ausdruck und Karte"], "funktioniert offline"),
-    "netlog": ("Netlog", ["Notizen für Funkrunden:", "Stationen, Live-Notizen, Rundenleitung"], "funktioniert offline"),
-    "adif": ("ADIF-Editor", ["ADIF-Logs (.adi) ansehen,", "prüfen und bearbeiten"], "im Browser, ohne Upload"),
-    "sota-alerts": ("SOTA Alerts Map", ["SOTA alerts on a map", "inoffiziell, braucht Internet"], "online only"),
+    "confirm": ("Bestätigungsverkehr", ["Offline-Logbuch für Bestätigungs-", "und Check-in-Runden"]),
+    "notfunk": ("Notfunk-Meldebuch", ["Offline-Meldebuch für den Notfunk", "mit Ausdruck und Karte"]),
+    "netlog": ("Netlog", ["Notizen für Funkrunden:", "Stationen, Live-Notizen, Rundenleitung"]),
+    "adif": ("ADIF-Editor", ["ADIF-Logs (.adi) ansehen,", "prüfen und bearbeiten"]),
+    "sota-alerts": ("SOTA Alerts Map", ["SOTA alerts on a map"]),
 }
 
 GLYPHS = {
@@ -42,7 +42,7 @@ def icon_inner(tool: str) -> str:
 
 
 def card(tool: str) -> str:
-    title, lines, badge = CARDS[tool]
+    title, lines = CARDS[tool]
     tag = "".join(
         f'<text x="80" y="{380 + i * 52}" font-size="40" fill="#dfe5ff">{html.escape(t)}</text>'
         for i, t in enumerate(lines))
@@ -56,8 +56,6 @@ def card(tool: str) -> str:
   <text x="80" y="140" font-size="30" font-weight="700" letter-spacing="3" fill="#aab6ff">OE1EBG · TOOLS</text>
   <text x="80" y="290" font-size="84" font-weight="700" fill="#fff">{html.escape(title)}</text>
   {tag}
-  <rect x="80" y="520" rx="26" width="{40 + 17 * len(badge)}" height="52" fill="#fff" fill-opacity=".16"/>
-  <text x="100" y="556" font-size="28" fill="#fff">{html.escape(badge)}</text>
 </svg>
 """
 
