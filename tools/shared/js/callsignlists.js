@@ -109,7 +109,7 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = () => 
       await reload();
       const skipped = Object.values(parsed.skipped || {}).reduce((a, b) => a + b, 0);
       say(targetId
-        ? tx(`List "${src.name}" replaced: ${parsed.rows.length} entries (${skipped} lines skipped). "Undo replace" brings the previous version back.`, `Liste „${src.name}“ ersetzt: ${parsed.rows.length} Einträge (${skipped} Zeilen übersprungen). „Ersetzen rückgängig“ holt die vorige Fassung zurück.`)
+        ? tx(`List "${src.name}" replaced: ${parsed.rows.length} entries (${skipped} lines skipped). "Undo" brings the previous version back.`, `Liste „${src.name}“ ersetzt: ${parsed.rows.length} Einträge (${skipped} Zeilen übersprungen). „Rückgängig“ holt die vorige Fassung zurück.`)
         : tx(`List "${src.name}" added: ${parsed.rows.length} entries (${skipped} lines skipped).`, `Liste „${src.name}“ hinzugefügt: ${parsed.rows.length} Einträge (${skipped} Zeilen übersprungen).`), 'ok');
     } catch (e) {
       console.warn(e);
@@ -285,31 +285,36 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = () => 
     const book = getCallbook();
     const count = builtin ? (book ? book.calls.length : 0) : s.count;
     const date = builtin ? (book && book.stand ? String(book.stand).slice(0, 10) : '–') : (callsignListsDate(s.importedAt) || '–');
-    const acts = [];
+    // Three action columns, so the buttons of all rows line up: look at the
+    // list (also when it is switched off or deleted), replace (with its
+    // undo), delete (or restore and erase for a deleted one).
+    let view = null; let change = []; let remove = null;
+    view = btn('view', tx('View', 'Ansehen'), tx('View the entries of the list', 'Einträge der Liste ansehen'));
     if (!s.deleted) {
-      acts.push(btn('view', tx('View', 'Ansehen'), tx('View the entries of the list', 'Einträge der Liste ansehen')));
-      if (!builtin && s.kind !== 'wavelog') acts.push(btn('replace', tx('Replace…', 'Ersetzen…'), tx('Replace the list with a new file', 'Liste durch eine neue Datei ersetzen')));
-      if (!builtin && s.prevGen != null) acts.push(btn('undo', tx('Undo replace', 'Ersetzen rückgängig'), tx('Undo or redo the last replacement', 'Letztes Ersetzen rückgängig machen oder wiederholen')));
-      if (!builtin) acts.push(btn('delete', tx('Delete', 'Löschen'), tx('Delete list', 'Liste löschen'), { cls: ' danger' }));
+      if (!builtin && s.kind !== 'wavelog') change.push(btn('replace', tx('Replace…', 'Ersetzen…'), tx('Replace the list with a new file', 'Liste durch eine neue Datei ersetzen')));
+      if (!builtin && s.prevGen != null) change.push(btn('undo', tx('Undo', 'Rückgängig'), tx('Undo or redo the last replacement', 'Letztes Ersetzen rückgängig machen oder wiederholen')));
+      if (!builtin) remove = btn('delete', tx('Delete', 'Löschen'), tx('Delete list', 'Liste löschen'), { cls: ' danger' });
     } else {
-      acts.push(btn('restore', tx('Restore', 'Wiederherstellen'), tx('Restore list', 'Liste wiederherstellen')));
-      if (!builtin) acts.push(btn('erase', tx('Erase permanently', 'Endgültig löschen'), tx('Erase list permanently', 'Liste endgültig löschen'), { cls: ' danger' }));
+      change.push(btn('restore', tx('Restore', 'Wiederherstellen'), tx('Restore list', 'Liste wiederherstellen')));
+      if (!builtin) remove = btn('erase', tx('Erase permanently', 'Endgültig löschen'), tx('Erase list permanently', 'Liste endgültig löschen'), { cls: ' danger' });
     }
     const label = i => ({ 'data-label': COLS()[i] });
-    const tr = el('tr', { class: s.deleted ? 'cl-deleted' : '' },
+    const tr = el('tr', { class: s.deleted ? 'cl-deleted' : (s.enabled === false ? 'cl-off' : '') },
       el('td', { ...label(0), class: 'cl-on' }, el('input', { type: 'checkbox', 'data-act': 'enable', 'data-id': s.id, checked: s.enabled !== false, disabled: !!s.deleted, 'aria-label': tx(`Use ${name}`, `${name} verwenden`) })),
       el('td', { ...label(1), class: 'cl-name' }, el('span', { class: 'cl-title' }, name), ' ',
-        el('small', { class: 'cl-meta' }, s.deleted ? `${callsignListsKind(s.kind)} · ${tx('deleted', 'gelöscht')}` : callsignListsKind(s.kind))),
+        el('small', { class: 'cl-meta' }, [callsignListsKind(s.kind), s.deleted ? tx('deleted', 'gelöscht') : (s.enabled === false ? tx('switched off', 'ausgeschaltet') : null)].filter(Boolean).join(' · '))),
       el('td', { ...label(2), class: 'cl-num' }, String(count)),
       el('td', { ...label(3), class: 'cl-date' }, date),
       el('td', { ...label(4), class: 'cl-order' }, s.deleted ? '' : [
         btn('up', '↑', tx('Move up', 'Nach oben'), { disabled: idx <= 0 }), ' ',
         btn('down', '↓', tx('Move down', 'Nach unten'), { disabled: idx >= visible.length - 1 })]),
-      el('td', { ...label(5), class: 'cl-actions' }, acts.flatMap((a, i) => (i ? [' ', a] : [a]))));
+      el('td', { class: 'cl-act' }, view),
+      el('td', { class: 'cl-act' }, change.flatMap((x, i) => (i ? [' ', x] : [x]))),
+      el('td', { class: 'cl-act' }, remove));
     return rowRoles(tr);
   }
 
-  const COLS = () => [tx('On', 'An'), tx('List', 'Liste'), tx('Entries', 'Einträge'), tx('Imported', 'Stand'), tx('Order', 'Reihenfolge'), tx('Actions', 'Aktionen')];
+  const COLS = () => [tx('Active', 'Aktiv'), tx('List', 'Liste'), tx('Entries', 'Einträge'), tx('Imported', 'Stand'), tx('Order', 'Reihenfolge'), tx('Actions', 'Aktionen')];
 
   function render() {
     if (!dlg) return;
@@ -336,7 +341,7 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = () => 
     }
     ui.empty.hidden = true;
     ui.list.hidden = false;
-    fill(ui.head, COLS().map((c, i) => el('th', { scope: 'col', class: i === 2 ? 'cl-num' : '' }, c)));
+    fill(ui.head, COLS().map((c, i) => el('th', { scope: 'col', class: i === 2 ? 'cl-num' : '', colspan: i === 5 ? 3 : null }, c)));
     tableRoles(ui.table);
     const sorted = sources.slice().sort((a, b) => (Number(!!a.deleted) - Number(!!b.deleted)) || (a.rank - b.rank));
     const visible = sorted.filter(s => !s.deleted);

@@ -1536,7 +1536,7 @@ test('callsign lists: quick view of a list with search; columns are aligned', as
   // the numbers sit in one column, right-aligned, with the column names above (wide screens)
   if (!info.project.name.startsWith('mobile')) {
     const heads = await dlg.locator('.cl-main-body thead th').allTextContents();
-    expect(heads).toEqual(['An', 'Liste', 'Einträge', 'Stand', 'Reihenfolge', 'Aktionen']);
+    expect(heads).toEqual(['Aktiv', 'Liste', 'Einträge', 'Stand', 'Reihenfolge', 'Aktionen']);
     const xs = await rows.locator('td.cl-num').evaluateAll(n => n.map(c => Math.round(c.getBoundingClientRect().right)));
     expect(new Set(xs).size).toBe(1);
   }
@@ -1560,6 +1560,26 @@ test('callsign lists: quick view of a list with search; columns are aligned', as
   await view.getByRole('button', { name: /Zurück zu den Listen/ }).click();
   await expect(dlg.locator('.cl-main-body')).toBeVisible();
   await expect(rows.first().locator('[data-act=view]')).toBeFocused();
+  // the buttons of every row sit in the same columns
+  if (!info.project.name.startsWith('mobile')) {
+    const lefts = sel => rows.locator(sel).evaluateAll(n => n.map(b => Math.round(b.getBoundingClientRect().left)));
+    expect(new Set(await lefts('[data-act=view]')).size).toBe(1);
+    expect(new Set(await lefts('[data-act=up]')).size).toBe(1);
+  }
+  // looking at a list works while it is switched off, and while it is deleted
+  await rows.first().locator('input[data-act=enable]').uncheck();
+  await expect(rows.first()).toContainText('ausgeschaltet');
+  await rows.first().locator('[data-act=view]').click();
+  await expect(dlg.locator('#cl-view-search')).toBeFocused();
+  await expect(dlg.locator('.cl-count')).toContainText('301 Einträge');
+  await view.getByRole('button', { name: /Zurück zu den Listen/ }).click();
+  await rows.first().locator('[data-act=delete]').click();
+  const deleted = rows.last();
+  await expect(deleted.locator('[data-act=restore]')).toBeVisible();
+  await deleted.locator('[data-act=view]').click();
+  await expect(dlg.locator('.cl-count')).toContainText('301 Einträge');
+  await view.getByRole('button', { name: /Zurück zu den Listen/ }).click();
+  await rows.last().locator('[data-act=restore]').click();
   // the Austrian list can be looked at too
   await rows.nth(1).locator('[data-act=view]').click();
   await dlg.locator('#cl-view-search').fill('OE1');
