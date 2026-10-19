@@ -13,13 +13,15 @@
 //   lists.summary()                // { available, active, total }
 //
 // getLang(): 'de' | 'en' of the tool; getCallbook(): the bundled Austrian
-// list; onChange(): after any change of the lists (the tool re-renders).
+// list (optional: without it the module loads the list itself); onChange(): after any change of the lists (the tool re-renders).
 // Texts: tx(en, de) of i18n.js. Top-level names start with "callsignLists"
 // (the single-file bundles share one scope).
 
 import { el, fill, rowRoles, tableRoles } from './dom.js';
 import { tx, setUiLang } from './i18n.js';
 import { buildCallsignDirectory, callsignNoteText, CALLSIGN_BUILTIN_ID } from './callsign-merge.js';
+import { buildCallbook } from './callbook.js';
+import { loadDataFile } from './data.js';
 import {
   openCallsignStorage, ensureBuiltinSource, loadCallsignStore, importCallsignSource, swapCallsignGeneration,
   setCallsignSourceEnabled, deleteCallsignSource, restoreCallsignSource, moveCallsignSource, eraseCallsignSource,
@@ -44,7 +46,12 @@ function callsignListsFold(s) {
 // How many rows the quick view draws at once; the search narrows the rest.
 const CALLSIGN_LISTS_VIEW_MAX = 200;
 
-export function createCallsignLists({ getLang = () => 'de', getCallbook = () => null, onChange = () => {} } = {}) {
+export function createCallsignLists({ getLang = () => 'de', getCallbook = null, onChange = () => {} } = {}) {
+  // A tool that has the Austrian list loaded passes it; a page that does
+  // not (the Wavelog import) gets it loaded here, so its entry count and
+  // quick view are not empty.
+  let ownBook = null;
+  const book = () => (getCallbook ? getCallbook() : ownBook);
   let store = null;
   let sources = [];
   let records = [];
@@ -62,7 +69,7 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = () => 
     const srcs = store
       ? sources.map(s => (s.id === CALLSIGN_BUILTIN_ID ? { ...s, name: callsignListsBuiltinName() } : s))
       : [{ id: CALLSIGN_BUILTIN_ID, kind: 'builtin', name: callsignListsBuiltinName(), enabled: true, rank: 1000, gen: 1 }];
-    dir = buildCallsignDirectory({ sources: srcs, records: store ? records : [], callbook: getCallbook() });
+    dir = buildCallsignDirectory({ sources: srcs, records: store ? records : [], callbook: book() });
     onChange();
   }
 
@@ -80,6 +87,7 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = () => 
       await ensureBuiltinSource(s, callsignListsBuiltinName());
       store = s;
       ({ sources, records } = await loadCallsignStore(s));
+      if (!getCallbook) ownBook = buildCallbook(await loadDataFile('callsigns-oe.json'));
     } catch (e) {
       console.warn('Rufzeichenlisten nicht verfügbar', e);
       store = null;
@@ -215,8 +223,8 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = () => 
     const src = sources.find(x => x.id === id);
     if (!src) return [];
     if (id === CALLSIGN_BUILTIN_ID) {
-      const book = getCallbook();
-      return book ? book.calls.map(c => ({ call: c[0], name: c[1] || '', qth: c[2] || '', grid: '', note: '' })) : [];
+      const b = book();
+      return b ? b.calls.map(c => ({ call: c[0], name: c[1] || '', qth: c[2] || '', grid: '', note: '' })) : [];
     }
     return records.filter(r => r.source === id && r.gen === src.gen);
   }
@@ -282,9 +290,9 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = () => 
     const btn = (act, label, aria, { cls = '', disabled = false } = {}) => el('button', {
       type: 'button', class: `mini${cls}`, 'data-act': act, 'data-id': s.id, 'aria-label': `${aria} – ${name}`, disabled,
     }, label);
-    const book = getCallbook();
-    const count = builtin ? (book ? book.calls.length : 0) : s.count;
-    const date = builtin ? (book && book.stand ? String(book.stand).slice(0, 10) : '–') : (callsignListsDate(s.importedAt) || '–');
+    const b = book();
+    const count = builtin ? (b ? b.calls.length : 0) : s.count;
+    const date = builtin ? (b && b.stand ? String(b.stand).slice(0, 10) : '–') : (callsignListsDate(s.importedAt) || '–');
     // Three action columns, so the buttons of all rows line up: look at the
     // list (also when it is switched off or deleted), replace (with its
     // undo), delete (or restore and erase for a deleted one).
