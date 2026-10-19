@@ -214,7 +214,9 @@ fallback; without it the tools keep the bundled Austrian list.
   one shared `<dialog>` that a tool opens from a button, as an aligned table
   (one card per list on phones) with a searchable quick view of each list's
   entries (first 200 matches; umlauts and case folded, every word must
-  match); the tool reads the
+  match), and a test search over all lists that are switched on (callsign,
+  name, QTH or note) with one row per list entry and the name of its list,
+  plus the merged result the tools would see; the tool reads the
   merged view through `directory()` and re-renders on `onChange`. The dialog
   says first that the data is shared by all tools of the same address (in a
   `file://` single-file bundle: that the file keeps its own data). Texts

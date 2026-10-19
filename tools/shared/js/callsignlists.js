@@ -140,6 +140,15 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = null, 
     ui.vRows = el('tbody', {});
     ui.vTable = el('table', { class: 'cl-table cl-entries', 'aria-labelledby': 'cl-view-title' }, el('thead', {}, ui.vHead), ui.vRows);
     ui.vWrap = el('div', { class: 'table-wrap cl-wrap' }, ui.vTable);
+    ui.sLabel = el('label', { for: 'cl-test-search' });
+    ui.sSearch = el('input', { type: 'search', id: 'cl-test-search', autocomplete: 'off', spellcheck: 'false' });
+    ui.sCount = el('p', { class: 'cl-count', role: 'status' });
+    ui.sMerged = el('p', { class: 'cl-merged' });
+    ui.sHead = el('tr', {});
+    ui.sRows = el('tbody', {});
+    ui.sTable = el('table', { class: 'cl-table cl-entries', 'aria-labelledby': 'cl-test-title' }, el('thead', {}, ui.sHead), ui.sRows);
+    ui.sWrap = el('div', { class: 'table-wrap cl-wrap' }, ui.sTable);
+    ui.sTitle = el('h3', { id: 'cl-test-title' });
     ui.view = el('div', { class: 'cl-view', hidden: true },
       el('div', { class: 'toolbar' }, ui.vBack), ui.vTitle,
       el('div', { class: 'field' }, ui.vLabel, ui.vSearch), ui.vCount, ui.vWrap);
@@ -188,10 +197,13 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = null, 
     dlg = el('dialog', { id: 'callsign-lists-dlg', class: 'help-dlg cl-dlg', 'aria-labelledby': 'cl-title' },
       el('div', { class: 'help-head' }, ui.title, ui.close),
       el('div', { class: 'cl-body' }, ui.shared,
-        el('div', { class: 'cl-main-body' }, ui.empty, ui.list, el('div', { class: 'toolbar' }, ui.add, ui.wavelog), ui.file, ui.msg, ui.hint),
+        el('div', { class: 'cl-main-body' }, ui.empty, ui.list, el('div', { class: 'toolbar' }, ui.add, ui.wavelog), ui.file, ui.msg, ui.hint,
+          el('section', { class: 'cl-test', 'aria-labelledby': 'cl-test-title' }, ui.sTitle, el('div', { class: 'field' }, ui.sLabel, ui.sSearch), ui.sCount, ui.sMerged, ui.sWrap)),
         ui.view));
     ui.mainBody = dlg.querySelector('.cl-main-body');
     ui.vBack.addEventListener('click', closeView);
+    ui.sSearch.addEventListener('input', () => { clearTimeout(ui.sTimer); ui.sTimer = setTimeout(renderTest, 120); });
+    ui.sSearch.addEventListener('keydown', ev => { if (ev.key === 'Escape' && ui.sSearch.value) { ev.stopPropagation(); ev.preventDefault(); ui.sSearch.value = ''; renderTest(); } });
     ui.vSearch.addEventListener('input', () => { clearTimeout(ui.vTimer); ui.vTimer = setTimeout(renderEntries, 120); });
     ui.vSearch.addEventListener('keydown', ev => { if (ev.key === 'Escape' && ui.vSearch.value) { ev.stopPropagation(); ev.preventDefault(); ui.vSearch.value = ''; renderEntries(); } });
     dlg.addEventListener('close', () => { if (opener && opener.isConnected) opener.focus(); opener = null; });
@@ -283,6 +295,46 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = null, 
     }));
   }
 
+  // The test search: what the lookup finds in the lists that are switched
+  // on, one row per list that has the callsign, with that list's name.
+  function renderTest() {
+    if (!dlg) return;
+    lang();
+    const q = ui.sSearch.value.trim();
+    const active = dir ? dir.sources.length : 0;
+    ui.sTitle.textContent = tx('Search callsigns', 'Rufzeichen suchen');
+    ui.sLabel.textContent = tx('Callsign, name, QTH or note – in all lists that are switched on', 'Rufzeichen, Name, QTH oder Notiz – in allen eingeschalteten Listen');
+    const cols = [tx('Callsign', 'Rufzeichen'), tx('Name', 'Name'), 'QTH', tx('Note', 'Notiz'), tx('List', 'Liste')];
+    fill(ui.sHead, cols.map(c => el('th', { scope: 'col' }, c)));
+    tableRoles(ui.sTable);
+    ui.sMerged.textContent = '';
+    if (!q || !dir) {
+      ui.sCount.textContent = tx(`Searches ${active} list(s) that are switched on.`, `Durchsucht ${active} eingeschaltete Liste(n).`);
+      fill(ui.sRows, []);
+      return;
+    }
+    const found = dir.search(q, 30);
+    const rowsOut = [];
+    for (const m of found) {
+      const hit = dir.lookup(m.call);
+      if (hit) for (const e of hit.entries) rowsOut.push({ e, base: hit.base });
+    }
+    const shown = rowsOut.slice(0, 100);
+    ui.sCount.textContent = !found.length ? tx(`No match in ${active} list(s) that are switched on.`, `Kein Treffer in ${active} eingeschalteten Liste(n).`)
+      : tx(`${found.length} callsign(s), ${rowsOut.length} list entries${rowsOut.length > shown.length ? ` (first ${shown.length} shown)` : ''}.`, `${found.length} Rufzeichen, ${rowsOut.length} Listeneinträge${rowsOut.length > shown.length ? ` (die ersten ${shown.length} angezeigt)` : ''}.`);
+    if (found.length === 1) {
+      const m = dir.lookup(found[0].call);
+      const part = (label, v, from) => (v ? `${label}: ${v} (${from})` : null);
+      const parts = [part(tx('Name', 'Name'), m.name, m.from.name), part('QTH', m.qth, m.from.qth), part(tx('Locator', 'Locator'), m.grid, m.from.grid)].filter(Boolean);
+      ui.sMerged.textContent = `${tx('The tools see for', 'Die Tools sehen für')} ${m.base}: ${parts.length ? parts.join(' · ') : tx('no name or QTH, only the list entry', 'keinen Namen oder QTH, nur den Listeneintrag')}.`;
+    }
+    fill(ui.sRows, shown.map(({ e }) => {
+      const cells = [e.call, e.name, e.qth, callsignNoteText(e.note), e.source];
+      const tr = el('tr', {}, cells.map((c, i) => el('td', { 'data-label': cols[i], class: i === 0 ? 'cl-call' : '' }, c)));
+      return rowRoles(tr);
+    }));
+  }
+
   function row(s, visible) {
     const builtin = s.id === CALLSIGN_BUILTIN_ID;
     const name = builtin ? callsignListsBuiltinName() : s.name;
@@ -345,6 +397,7 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = null, 
       ui.empty.textContent = tx('Your own lists need IndexedDB, which this browser does not offer. The built-in list keeps working.', 'Eigene Listen brauchen IndexedDB, das dieser Browser nicht bietet. Die eingebaute Liste funktioniert weiter.');
       ui.empty.hidden = false;
       ui.list.hidden = true;
+      renderTest();
       return;
     }
     ui.empty.hidden = true;
@@ -354,6 +407,7 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = null, 
     const sorted = sources.slice().sort((a, b) => (Number(!!a.deleted) - Number(!!b.deleted)) || (a.rank - b.rank));
     const visible = sorted.filter(s => !s.deleted);
     fill(ui.rows, sorted.map(s => row(s, visible)));
+    renderTest();
   }
 
   return {

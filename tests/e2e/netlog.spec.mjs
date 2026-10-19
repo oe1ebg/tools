@@ -1462,7 +1462,7 @@ test('callsign lists: shared dialog; import, merge order, switch off, replace an
   const notes = pathJoin(tmp, 'noten.txt');
   await writeFile(csv, 'call;name;qth\nOE0QXA;Anna Privat;Graz\nOE0QXB;Bernd\n');
   await writeFile(notes, '# TITLE: Hams of Note\nOE0QXA 🤩 [Elmer](https://example.org/e)\nOE0QXB 🌳 POTA\n');
-  const rows = dlg.locator('.cl-main-body tbody tr');
+  const rows = dlg.locator('table[aria-labelledby=cl-title] tbody tr');
   await expect(rows).toHaveCount(1);                       // the Austrian list
   await dlg.locator('input[type=file]').setInputFiles(csv);
   await expect(dlg.locator('.cl-msg')).toContainText('2 Einträge');
@@ -1518,7 +1518,7 @@ test('callsign lists: a file without callsigns changes nothing and says why; Eng
   await writeFile(bad, 'nichts\nhier\n');
   await dlg.locator('input[type=file]').setInputFiles(bad);
   await expect(dlg.locator('.cl-msg')).toContainText('contains no callsign');
-  await expect(dlg.locator('.cl-main-body tbody tr')).toHaveCount(1);
+  await expect(dlg.locator('table[aria-labelledby=cl-title] tbody tr')).toHaveCount(1);
 });
 
 test('callsign lists: quick view of a list with search; columns are aligned', async ({ page }, info) => {
@@ -1531,11 +1531,11 @@ test('callsign lists: quick view of a list with search; columns are aligned', as
   lines.push('OE0QXZ;Jürgen Müller;Graz');
   await writeFile(csv, lines.join('\n'));
   await dlg.locator('input[type=file]').setInputFiles(csv);
-  const rows = dlg.locator('.cl-main-body tbody tr');
+  const rows = dlg.locator('table[aria-labelledby=cl-title] tbody tr');
   await expect(rows).toHaveCount(2);
   // the numbers sit in one column, right-aligned, with the column names above (wide screens)
   if (!info.project.name.startsWith('mobile')) {
-    const heads = await dlg.locator('.cl-main-body thead th').allTextContents();
+    const heads = await dlg.locator('table[aria-labelledby=cl-title] thead th').allTextContents();
     expect(heads).toEqual(['Aktiv', 'Liste', 'Einträge', 'Stand', 'Reihenfolge', 'Aktionen']);
     const xs = await rows.locator('td.cl-num').evaluateAll(n => n.map(c => Math.round(c.getBoundingClientRect().right)));
     expect(new Set(xs).size).toBe(1);
@@ -1546,14 +1546,14 @@ test('callsign lists: quick view of a list with search; columns are aligned', as
   await expect(view).toBeVisible();
   await expect(dlg.locator('.cl-main-body')).toBeHidden();
   await expect(dlg.locator('#cl-view-search')).toBeFocused();
-  await expect(dlg.locator('.cl-count')).toContainText('200 von 301 Treffern angezeigt');
+  await expect(dlg.locator('.cl-view .cl-count')).toContainText('200 von 301 Treffern angezeigt');
   await expect(view.locator('tbody tr')).toHaveCount(200);
   await dlg.locator('#cl-view-search').fill('muller graz');
   await expect(view.locator('tbody tr')).toHaveCount(1);
   await expect(view.locator('tbody tr')).toContainText('OE0QXZ');
-  await expect(dlg.locator('.cl-count')).toContainText('1 von 301 Einträgen');
+  await expect(dlg.locator('.cl-view .cl-count')).toContainText('1 von 301 Einträgen');
   await dlg.locator('#cl-view-search').fill('kein-treffer-xyz');
-  await expect(dlg.locator('.cl-count')).toContainText('Kein Treffer');
+  await expect(dlg.locator('.cl-view .cl-count')).toContainText('Kein Treffer');
   await dlg.locator('#cl-view-search').press('Escape');             // clears the search first
   await expect(dlg).toBeVisible();
   await expect(dlg.locator('#cl-view-search')).toHaveValue('');
@@ -1571,13 +1571,13 @@ test('callsign lists: quick view of a list with search; columns are aligned', as
   await expect(rows.first()).toContainText('ausgeschaltet');
   await rows.first().locator('[data-act=view]').click();
   await expect(dlg.locator('#cl-view-search')).toBeFocused();
-  await expect(dlg.locator('.cl-count')).toContainText('301 Einträge');
+  await expect(dlg.locator('.cl-view .cl-count')).toContainText('301 Einträge');
   await view.getByRole('button', { name: /Zurück zu den Listen/ }).click();
   await rows.first().locator('[data-act=delete]').click();
   const deleted = rows.last();
   await expect(deleted.locator('[data-act=restore]')).toBeVisible();
   await deleted.locator('[data-act=view]').click();
-  await expect(dlg.locator('.cl-count')).toContainText('301 Einträge');
+  await expect(dlg.locator('.cl-view .cl-count')).toContainText('301 Einträge');
   await view.getByRole('button', { name: /Zurück zu den Listen/ }).click();
   await rows.last().locator('[data-act=restore]').click();
   // the Austrian list can be looked at too, and it has entries
@@ -1585,4 +1585,40 @@ test('callsign lists: quick view of a list with search; columns are aligned', as
   await rows.nth(1).locator('[data-act=view]').click();
   await dlg.locator('#cl-view-search').fill('OE1');
   await expect(view.locator('tbody tr').first()).toContainText('OE1');
+});
+
+test('callsign lists: the test search covers the active lists and names the list of each entry', async ({ page }) => {
+  await open(page);
+  const dlg = await openLists(page);
+  const tmp = await mkdtemp(pathJoin(tmpdir(), 'netlog-lists-'));
+  const csv = pathJoin(tmp, 'meine.csv');
+  const notes = pathJoin(tmp, 'noten.txt');
+  await writeFile(csv, 'call;name;qth\nOE0QXA;Anna Privat;Graz\nOE0QXB;Bernd\n');
+  await writeFile(notes, '# TITLE: Hams of Note\nOE0QXA 🤩 [Elmer](https://example.org/e)\n');
+  await dlg.locator('input[type=file]').setInputFiles(csv);
+  await expect(dlg.locator('table[aria-labelledby=cl-title] tbody tr')).toHaveCount(2);
+  await dlg.locator('input[type=file]').setInputFiles(notes);
+  await expect(dlg.locator('table[aria-labelledby=cl-title] tbody tr')).toHaveCount(3);
+  const search = dlg.locator('#cl-test-search');
+  await expect(dlg.locator('.cl-test .cl-count')).toContainText('Durchsucht 3 eingeschaltete');
+  await search.fill('oe0qxa');
+  const rows = dlg.locator('.cl-test tbody tr');
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(0)).toContainText('Anna Privat');
+  await expect(rows.nth(0)).toContainText('meine');          // the list it comes from
+  await expect(rows.nth(1)).toContainText('Elmer');
+  await expect(rows.nth(1)).toContainText('Hams of Note');
+  await expect(dlg.locator('.cl-merged')).toContainText('Name: Anna Privat (meine)');
+  await expect(dlg.locator('.cl-merged')).toContainText('QTH: Graz (meine)');
+  await search.fill('elmer');                                 // notes are searched too
+  await expect(rows).toHaveCount(2);
+  // a list that is switched off drops out of the results
+  await dlg.locator('table[aria-labelledby=cl-title] tbody tr').nth(1).locator('input[data-act=enable]').uncheck();   // Hams of Note
+  await expect(rows).toHaveCount(0);
+  await expect(dlg.locator('.cl-test .cl-count')).toContainText('Kein Treffer in 2 eingeschalteten');
+  await search.fill('OE0QXB');
+  await expect(rows).toHaveCount(1);
+  await search.press('Escape');
+  await expect(search).toHaveValue('');
+  await expect(dlg).toBeVisible();
 });
