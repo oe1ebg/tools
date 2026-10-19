@@ -215,7 +215,8 @@ nicht bearbeitet wurde.
 ![Eingabe mit Rufzeichenvorschlägen](img/confirm-eingabe.png)
 
 - **Rufzeichen** (der Gegenstation) eintippen. Die Vorschläge kommen aus diesem und
-  früheren Logs und aus der Rufzeichenliste (Name und Ort stehen darunter).
+  früheren Logs und aus den Rufzeichenlisten (Name und Ort stehen darunter; stammt
+  ein Wert aus einer eigenen Liste, steht ihr Name dabei: „aus „meine““).
   <kbd>↓</kbd> und <kbd>Enter</kbd> übernimmt einen Vorschlag. Ohne Markierung
   übernimmt <kbd>Enter</kbd> nur einen Vorschlag, der das Getippte vervollständigt;
   ein vollständig getipptes, unbekanntes Rufzeichen bleibt, wie es ist.
@@ -242,6 +243,23 @@ pausiert“). Eine halb getippte Zeile der anderen Art geht dabei nie
 verloren: erst speichern oder verwerfen. Eine Kategorie (Frequenzwechsel, Schichtwechsel /
 Übergabe, Unterbrechung, Technik, Sonstiges) wählt man mit den Ziffern
 <kbd>1</kbd>–<kbd>5</kbd>. Kommentare zählen nicht als Station und kommen nie ins ADIF.
+
+
+### Eigene Rufzeichenlisten
+
+Neben der österreichischen Rufzeichenliste kann man eigene Listen verwenden, zum
+Beispiel die Mitglieder des Ortsverbands (Textdatei im Ham2K-PoLo-Format oder CSV
+mit Rufzeichen, Name, QTH). Unten auf der Seite: **Rufzeichenlisten – verwalten…**.
+Das Fenster sagt zuerst, dass die Listen **gemeinsam für alle Tools** auf diesem Gerät
+gelten (Bestätigungsverkehr, Notfunk-Meldebuch, Netlog). Dort lassen sich Listen
+hinzufügen, ansehen, ein- und ausschalten, in der Rangfolge verschieben, ersetzen und
+löschen, und im Feld „Rufzeichen suchen“ kann man ausprobieren, was die Tools für ein
+Rufzeichen sehen. Die oberste Liste mit einem Namen oder Ort gewinnt, die anderen
+ergänzen. Die Warnung „nicht in der Rufzeichenliste – Tippfehler?“ gilt weiterhin nur
+für die österreichische Liste (und entfällt, wenn sie ausgeschaltet ist). Der Ort aus
+einer eigenen Liste wird im Ortsfeld als „laut Liste „…““ angeboten. Die Listen sind in
+keiner Sicherung enthalten: die Originaldateien aufbewahren. Eine Änderung in einem
+anderen Tab oder Tool wird beim Zurückkehren ins Fenster übernommen.
 
 ## Das Log
 

@@ -2,6 +2,9 @@
 // logged, the offline location search answers, CSV and ADIF export download
 // and the ADI file passes the strict ADIF 3.1.7 reader the unit tests use.
 import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join as pathJoin } from 'node:path';
 import { test, expect, downloadText, offlineSettled } from './fixtures.mjs';
 import { readADI } from '../adif-spec.mjs';
 
@@ -563,4 +566,65 @@ test('the local time choice names the zone and its short name', async ({ page })
   await expect.poll(() => page.evaluate(() => globalThis.CONFIRM_READY === true)).toBe(true);
   // the test browsers run in Europe/Vienna
   await expect(page.locator('#time-toggle button[data-time-mode="local"]')).toHaveText(/^Europe\/Vienna \((MESZ|MEZ)\)$/);
+});
+
+// The callsign lists (shared callsign service, #81): own lists next to the
+// Austrian list in the info line and the suggestions; the typo warning "not
+// in the list" stays about the Austrian list only.
+test('callsign lists: own lists answer in the info line; the typo warning stays about the official list', async ({ page }) => {
+  await openNewLog(page, 'E2E Listen');
+  const info = page.locator('#call-info');
+  const call = page.locator('#f-call');
+  // the Austrian list as before, without a list name
+  await call.fill('OE1AAB');
+  await expect(info).toContainText('Alexander Aranyos');
+  await expect(info).not.toContainText('aus „');
+  await call.fill('OE0QXA');
+  await expect(info).toContainText('Tippfehler');
+  await expect(page.locator('#lists-summary')).toContainText('1 von 1 eingeschaltet');
+
+  // an own list, added in the shared dialog from the footer
+  await page.locator('#btn-lists-open').click();
+  const dlg = page.locator('#callsign-lists-dlg');
+  await expect(dlg.locator('.cl-shared')).toContainText('Gemeinsam für alle Tools');
+  const csv = pathJoin(mkdtempSync(pathJoin(tmpdir(), 'confirm-lists-')), 'meine.csv');
+  writeFileSync(csv, 'call;name;qth\nOE0QXA;Anna Privat;Graz\nOE0QXB;Bernd Muster;Linz\n');
+  await dlg.locator('input[type=file]').setInputFiles(csv);
+  const rows = dlg.locator('table[aria-labelledby=cl-title] tbody tr');
+  await expect(rows).toHaveCount(2);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#lists-summary')).toContainText('2 von 2 eingeschaltet');
+  // redrawn by itself: the list names, the warning is still about the official list
+  await expect(info).toContainText('Anna Privat · Graz (aus „meine“)');
+  await expect(info).toContainText('nicht in der Rufzeichenliste (Stand');
+  await expect(info).toHaveClass(/unknown/);
+  // a typo of an own-list call is offered with its list
+  await call.fill('OE0QXC');
+  await expect(page.locator('#call-suggest')).toContainText('OE0QXA');
+  await expect(page.locator('#call-suggest')).toContainText('aus „meine“');
+
+  // the Austrian list switched off: no warning at all, the own list still answers
+  await page.locator('#btn-lists-open').click();
+  await rows.last().locator('input[data-act=enable]').uncheck();
+  await page.keyboard.press('Escape');
+  await call.fill('OE0QXA');
+  await expect(info).toContainText('Anna Privat');
+  await expect(info).not.toContainText('nicht in');
+  await expect(info).toHaveClass(/known/);
+  await call.fill('OE0QXZ');
+  await expect(info).toHaveText('');
+  await call.fill('OE1AAB');
+  await expect(info).toHaveText('');                                  // nothing from the switched-off list
+});
+
+test('callsign lists: the name from the lists shows in the log row and the location offers the list\'s city', async ({ page }) => {
+  await openNewLog(page, 'E2E Zeilen');
+  await page.locator('#btn-lists-open').click();
+  const csv = pathJoin(mkdtempSync(pathJoin(tmpdir(), 'confirm-lists-')), 'meine.csv');
+  writeFileSync(csv, 'call;name;qth\nOE0QXA;Anna Privat;Graz\n');
+  await page.locator('#callsign-lists-dlg input[type=file]').setInputFiles(csv);
+  await expect(page.locator('#callsign-lists-dlg table[aria-labelledby=cl-title] tbody tr')).toHaveCount(2);
+  await page.keyboard.press('Escape');
+  await logCall(page, 'OE0QXA');
+  await expect(page.locator('#log-body')).toContainText('Anna Privat');          // the row redraws with the merged name
 });

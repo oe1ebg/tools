@@ -480,6 +480,22 @@ builds `tools/shared/data/callsigns-oe.json` at build time. It is about
   - The name and location are also shown under each call in the log.
   - Portable forms (`OE1EBG/P`, `HB9/OE1EBG`) are looked up by their base
     call.
+  - **Own lists** (issue #81): the lookup is the shared callsign service
+    (`tools/shared/js/callsign-service.js`, see `tools/shared/README.md`,
+    "Callsign store"): the Austrian list and the user's own lists, opened
+    from the footer ("Rufzeichenlisten – verwalten…", the shared dialog,
+    which says the lists are shared by all tools). Name and location come
+    from the first list in their order that has one; a value from a list
+    other than the Austrian one is named in the info line ("(aus „X“)") and
+    in the suggestions. **The typo warning stays about the Austrian list
+    only**: a call that only an own list has still gets it, and it is not
+    given at all while the Austrian list is switched off. The city of the
+    Austrian list is offered as "laut Rufzeichenliste" (licence address), a
+    city of another list as "laut Liste „X“" with the origin `list`
+    (`standort_quelle` "eigene Rufzeichenliste"; older app versions show no
+    label for an unknown origin). The log rows and the printed log use the
+    merged name and location, so names from own lists can appear on paper.
+    The lists are read again when the window is looked at again.
 
 ## Repeater list (all of Austria)
 
