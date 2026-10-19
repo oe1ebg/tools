@@ -1,34 +1,28 @@
 // The callsign lists of this device (shared callsign store) with their
-// dialog, one for every tool: Netlog today, Confirm and Notfunk can open
-// the same. The data is shared by all tools of the same address, so the
-// dialog says so first thing. It adds, orders, switches, replaces, deletes
-// and erases lists; the tool reads the merged view through directory().
+// dialog, one for every tool. The data is shared by all tools of the same
+// address, so the dialog says so first thing. It adds, orders, switches,
+// replaces, deletes and erases lists, looks into them and tests the
+// lookup. The lists and the lookup themselves are the tool's
+// callsign-service.js object, which the dialog changes and shows.
 // Nothing here makes a request (the online Wavelog import is a page of its
 // own, ../wavelog-import/, linked from the dialog).
 //
-//   const lists = createCallsignLists({ getLang, getCallbook, onChange });
-//   await lists.init();            // opens the store; failing is not fatal
-//   lists.directory()              // buildCallsignDirectory() view, always
-//   lists.open(opener)             // the dialog; focus returns to opener
-//   lists.summary()                // { available, active, total }
+//   const lists = createCallsignLists({ service, getLang });
+//   lists.open(opener)            // the dialog; focus returns to opener
 //
-// getLang(): 'de' | 'en' of the tool; getCallbook(): the bundled Austrian
-// list (optional: without it the module loads the list itself); onChange(): after any change of the lists (the tool re-renders).
 // Texts: tx(en, de) of i18n.js. Top-level names start with "callsignLists"
 // (the single-file bundles share one scope).
 
 import { el, fill, rowRoles, tableRoles } from './dom.js';
 import { tx, setUiLang } from './i18n.js';
-import { buildCallsignDirectory, callsignNoteText, callsignSourceOrder, CALLSIGN_BUILTIN_ID } from './callsign-merge.js';
-import { buildCallbook } from './callbook.js';
-import { loadDataFile } from './data.js';
+import { callsignNoteText, callsignSourceOrder, CALLSIGN_BUILTIN_ID } from './callsign-merge.js';
+import { callsignBuiltinName } from './callsign-service.js';
 import {
-  openCallsignStorage, ensureBuiltinSource, loadCallsignStore, importCallsignSource, swapCallsignGeneration,
+  importCallsignSource, swapCallsignGeneration,
   setCallsignSourceEnabled, deleteCallsignSource, restoreCallsignSource, moveCallsignSource, eraseCallsignSource,
 } from './callsign-store.js';
 import { parseCallsignFile, CALLSIGN_IMPORT_MAX_BYTES, CALLSIGN_IMPORT_MAX_ROWS } from './callsign-import.js';
 
-const callsignListsBuiltinName = () => tx('Austrian callsign list (Fernmeldebüro)', 'Österreichische Rufzeichenliste (Fernmeldebüro)');
 const callsignListsDate = iso => (iso ? String(iso).slice(0, 10) : '');
 const callsignListsIsFile = () => globalThis.location && globalThis.location.protocol === 'file:';
 
@@ -46,16 +40,7 @@ function callsignListsFold(s) {
 // How many rows the quick view draws at once; the search narrows the rest.
 const CALLSIGN_LISTS_VIEW_MAX = 200;
 
-export function createCallsignLists({ getLang = () => 'de', getCallbook = null, onChange = () => {} } = {}) {
-  // A tool that has the Austrian list loaded passes it; a page that does
-  // not (the Wavelog import) gets it loaded here, so its entry count and
-  // quick view are not empty.
-  let ownBook = null;
-  const book = () => (getCallbook ? getCallbook() : ownBook);
-  let store = null;
-  let sources = [];
-  let records = [];
-  let dir = null;
+export function createCallsignLists({ service, getLang = () => 'de' } = {}) {
   let dlg = null;
   let opener = null;
   let replaceId = null;
@@ -63,37 +48,7 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = null, 
   const ui = {};
 
   const lang = () => setUiLang(getLang());
-
-  function rebuild() {
-    lang();
-    const srcs = store
-      ? sources.map(s => (s.id === CALLSIGN_BUILTIN_ID ? { ...s, name: callsignListsBuiltinName() } : s))
-      : [{ id: CALLSIGN_BUILTIN_ID, kind: 'builtin', name: callsignListsBuiltinName(), enabled: true, rank: 1000, gen: 1 }];
-    dir = buildCallsignDirectory({ sources: srcs, records: store ? records : [], callbook: book() });
-    onChange();
-  }
-
-  async function reload() {
-    ({ sources, records } = await loadCallsignStore(store));
-    rebuild();
-    render();
-  }
-
-  async function init() {
-    try {
-      const s = await openCallsignStorage();
-      if (!s) throw new Error('no IndexedDB');
-      lang();
-      await ensureBuiltinSource(s, callsignListsBuiltinName());
-      store = s;
-      ({ sources, records } = await loadCallsignStore(s));
-      if (!getCallbook) ownBook = buildCallbook(await loadDataFile('callsigns-oe.json'));
-    } catch (e) {
-      console.warn('Rufzeichenlisten nicht verfügbar', e);
-      store = null;
-    }
-    rebuild();
-  }
+  const reload = () => service.reload();   // rebuilds the lookup, which redraws the dialog (see below)
 
   const say = (text, kind = '') => {
     if (!ui.msg) return;
@@ -113,7 +68,7 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = null, 
     }
     const name = parsed.title || file.name.replace(/\.[^.]+$/, '');
     try {
-      const src = await importCallsignSource(store, { kind: parsed.kind, name, fileName: file.name, rows: parsed.rows, replaceId: targetId });
+      const src = await importCallsignSource(service.store(), { kind: parsed.kind, name, fileName: file.name, rows: parsed.rows, replaceId: targetId });
       await reload();
       const skipped = Object.values(parsed.skipped || {}).reduce((a, b) => a + b, 0);
       say(targetId
@@ -176,27 +131,27 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = null, 
     ui.close.addEventListener('click', () => dlg.close());
     ui.rows.addEventListener('change', async ev => {
       const box = ev.target.closest('input[data-act=enable]');
-      if (!box || !store) return;
-      await run(() => setCallsignSourceEnabled(store, box.dataset.id, box.checked), null, box);
+      if (!box || !service.store()) return;
+      await run(() => setCallsignSourceEnabled(service.store(), box.dataset.id, box.checked), null, box);
     });
     ui.rows.addEventListener('click', async ev => {
       const b = ev.target.closest('button[data-act]');
-      if (!b || !store) return;
+      if (!b || !service.store()) return;
       const id = b.dataset.id;
-      const s = sources.find(x => x.id === id);
+      const s = service.sources().find(x => x.id === id);
       if (!s) return;
-      const name = s.id === CALLSIGN_BUILTIN_ID ? callsignListsBuiltinName() : s.name;
+      const name = s.id === CALLSIGN_BUILTIN_ID ? callsignBuiltinName() : s.name;
       const act = b.dataset.act;
       lang();
       if (act === 'view') { openView(id, b); return; }
       if (act === 'replace') { replaceId = id; ui.file.click(); return; }
-      if (act === 'up' || act === 'down') { await run(() => moveCallsignSource(store, id, act === 'up' ? -1 : 1), null, b); return; }
-      if (act === 'undo') { await run(() => swapCallsignGeneration(store, id), tx(`List "${name}": other version restored.`, `Liste „${name}“: andere Fassung wiederhergestellt.`), b); return; }
-      if (act === 'delete') { await run(() => deleteCallsignSource(store, id), tx(`List "${name}" deleted. It can be restored.`, `Liste „${name}“ gelöscht. Wiederherstellen ist möglich.`), b); return; }
-      if (act === 'restore') { await run(() => restoreCallsignSource(store, id), tx(`List "${name}" restored.`, `Liste „${name}“ wiederhergestellt.`), b); return; }
+      if (act === 'up' || act === 'down') { await run(() => moveCallsignSource(service.store(), id, act === 'up' ? -1 : 1), null, b); return; }
+      if (act === 'undo') { await run(() => swapCallsignGeneration(service.store(), id), tx(`List "${name}": other version restored.`, `Liste „${name}“: andere Fassung wiederhergestellt.`), b); return; }
+      if (act === 'delete') { await run(() => deleteCallsignSource(service.store(), id), tx(`List "${name}" deleted. It can be restored.`, `Liste „${name}“ gelöscht. Wiederherstellen ist möglich.`), b); return; }
+      if (act === 'restore') { await run(() => restoreCallsignSource(service.store(), id), tx(`List "${name}" restored.`, `Liste „${name}“ wiederhergestellt.`), b); return; }
       if (act === 'erase') {
         if (!globalThis.confirm(tx(`Erase the list "${name}" from this device for good? This cannot be undone; the original file is not touched.`, `Die Liste „${name}“ endgültig von diesem Gerät löschen? Das lässt sich nicht rückgängig machen; die Originaldatei bleibt unberührt.`))) return;
-        await run(() => eraseCallsignSource(store, id), tx(`List "${name}" erased for good.`, `Liste „${name}“ endgültig gelöscht.`), b);
+        await run(() => eraseCallsignSource(service.store(), id), tx(`List "${name}" erased for good.`, `Liste „${name}“ endgültig gelöscht.`), b);
       }
     });
     dlg = el('dialog', { id: 'callsign-lists-dlg', class: 'help-dlg cl-dlg', 'aria-labelledby': 'cl-title' },
@@ -237,20 +192,20 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = null, 
 
   // The entries of a list for the quick view.
   function entriesOf(id) {
-    const src = sources.find(x => x.id === id);
+    const src = service.sources().find(x => x.id === id);
     if (!src) return [];
     if (id === CALLSIGN_BUILTIN_ID) {
-      const b = book();
+      const b = service.callbook();
       return b ? b.calls.map(c => ({ call: c[0], name: c[1] || '', qth: c[2] || '', grid: '', note: '' })) : [];
     }
-    return records.filter(r => r.source === id && r.gen === src.gen);
+    return service.records().filter(r => r.source === id && r.gen === src.gen);
   }
 
   function openView(id, from) {
     lang();
-    const src = sources.find(x => x.id === id);
+    const src = service.sources().find(x => x.id === id);
     if (!src) return;
-    viewing = { id, from, name: id === CALLSIGN_BUILTIN_ID ? callsignListsBuiltinName() : src.name,
+    viewing = { id, from, name: id === CALLSIGN_BUILTIN_ID ? callsignBuiltinName() : src.name,
       rows: entriesOf(id).map(r => ({ ...r, text: callsignNoteText(r.note), hay: callsignListsFold(`${r.call} ${r.name} ${r.qth} ${r.grid} ${callsignNoteText(r.note)}`) })) };
     ui.vSearch.value = '';
     ui.mainBody.hidden = true;
@@ -306,7 +261,8 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = null, 
     if (!dlg) return;
     lang();
     const q = ui.sSearch.value.trim();
-    const active = dir ? dir.sources.length : 0;
+    const dir = service.directory();
+    const active = dir.sources.length;
     ui.sTitle.textContent = tx('Search callsigns', 'Rufzeichen suchen');
     ui.sLabel.textContent = tx('Callsign (also partial: OE1AB, 1ABC, OE1A?…), name, QTH or note – in all lists that are switched on', 'Rufzeichen (auch teilweise: OE1AB, 1ABC, OE1A?…), Name, QTH oder Notiz – in allen eingeschalteten Listen');
     ui.mTitle.textContent = tx('Result – what the tools see (all lists combined)', 'Ergebnis – das sehen die Tools (alle Listen zusammengeführt)');
@@ -316,14 +272,14 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = null, 
     tableRoles(ui.sTable);
     ui.sMerged.hidden = true;
     ui.eTitle.hidden = true;
-    if (!q || !dir) {
+    if (!q) {
       ui.sCount.textContent = tx(`Searches ${active} list(s) that are switched on.`, `Durchsucht ${active} eingeschaltete Liste(n).`);
       fill(ui.sRows, []);
       fill(ui.mRows, []);
       return;
     }
-    const found = dir.search(q, 30);
-    const merged = found.map(m => dir.lookup(m.call)).filter(Boolean);
+    const found = service.search(q, 30);
+    const merged = found.map(m => service.lookup(m.call)).filter(Boolean);
     const rowsOut = merged.flatMap(hit => hit.entries.map(e => ({ e })));
     const shown = rowsOut.slice(0, 100);
     ui.sCount.textContent = !found.length ? tx(`No match in ${active} list(s) that are switched on.`, `Kein Treffer in ${active} eingeschalteten Liste(n).`)
@@ -355,12 +311,12 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = null, 
 
   function row(s, visible) {
     const builtin = s.id === CALLSIGN_BUILTIN_ID;
-    const name = builtin ? callsignListsBuiltinName() : s.name;
+    const name = builtin ? callsignBuiltinName() : s.name;
     const idx = visible.indexOf(s);
     const btn = (act, label, aria, { cls = '', disabled = false } = {}) => el('button', {
       type: 'button', class: `mini${cls}`, 'data-act': act, 'data-id': s.id, 'aria-label': `${aria} – ${name}`, disabled,
     }, label);
-    const b = book();
+    const b = service.callbook();
     const count = builtin ? (b ? b.calls.length : 0) : s.count;
     const date = builtin ? (b && b.stand ? String(b.stand).slice(0, 10) : '–') : (callsignListsDate(s.importedAt) || '–');
     // Three action columns, so the buttons of all rows line up: look at the
@@ -406,12 +362,12 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = null, 
       ? tx('This offline file keeps its own data; lists added in the installed version or in another file are not visible here, and the other way round.', 'Diese Offline-Datei hat einen eigenen Speicher; Listen aus der installierten Version oder aus einer anderen Datei sind hier nicht sichtbar und umgekehrt.')
       : tx('These lists apply to Confirm, Notfunk and Netlog on this device (same address in this browser). A change here takes effect everywhere.', 'Diese Listen gelten für Bestätigungsverkehr, Notfunk-Meldebuch und Netlog auf diesem Gerät (gleiche Adresse in diesem Browser). Eine Änderung hier wirkt überall.'));
     ui.add.textContent = tx('Add list…', 'Liste hinzufügen…');
-    ui.add.disabled = !store;
+    ui.add.disabled = !service.store();
     ui.wavelog.textContent = tx('Get QSOs from Wavelog (online) ↗', 'QSOs aus Wavelog holen (online) ↗');
     ui.wavelog.hidden = callsignListsIsFile();
     ui.hint.textContent = tx('A list is a text file in the Ham2K PoLo format (callsign, then text) or a CSV (callsign, name, QTH). Every list is kept as it is. The order is the priority: for a callsign the topmost list that has a name or QTH decides (the others fill in what is missing); the notes of all lists are shown. The lists are not part of any backup: keep the original files.', 'Eine Liste ist eine Textdatei im Ham2K-PoLo-Format (Rufzeichen, danach Text) oder eine CSV (Rufzeichen, Name, QTH). Jede Liste bleibt für sich erhalten. Die Reihenfolge ist die Rangfolge: Für ein Rufzeichen entscheidet die oberste Liste, die einen Namen oder QTH hat (die anderen ergänzen, was fehlt); die Notizen aller Listen werden angezeigt. Die Listen sind in keiner Sicherung enthalten: die Originaldateien aufbewahren.');
     if (viewing) renderView();
-    if (!store) {
+    if (!service.store()) {
       ui.empty.textContent = tx('Your own lists need IndexedDB, which this browser does not offer. The built-in list keeps working.', 'Eigene Listen brauchen IndexedDB, das dieser Browser nicht bietet. Die eingebaute Liste funktioniert weiter.');
       ui.empty.hidden = false;
       ui.list.hidden = true;
@@ -422,19 +378,17 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = null, 
     ui.list.hidden = false;
     fill(ui.head, COLS().map((c, i) => el('th', { scope: 'col', class: i === 2 ? 'cl-num' : '', colspan: i === 5 ? 3 : null }, c)));
     tableRoles(ui.table);
-    const sorted = sources.slice().sort((a, b) => (Number(!!a.deleted) - Number(!!b.deleted)) || callsignSourceOrder(a, b));
+    const sorted = service.sources().slice().sort((a, b) => (Number(!!a.deleted) - Number(!!b.deleted)) || callsignSourceOrder(a, b));
     const visible = sorted.filter(s => !s.deleted);
     fill(ui.rows, sorted.map(s => row(s, visible)));
     renderTest();
   }
 
+  // Redraw whenever the lists or the lookup change (here, in another tab,
+  // after a language change).
+  service.onChange(() => { render(); });
+
   return {
-    init,
-    directory: () => dir,
-    summary: () => {
-      const total = sources.filter(s => !s.deleted).length;
-      return { available: !!store, active: sources.filter(s => !s.deleted && s.enabled !== false).length, total };
-    },
     open(from) {
       if (!dlg) build();
       opener = from || document.activeElement;
@@ -446,9 +400,5 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = null, 
       dlg.showModal();
       ui.add.focus();
     },
-    // After a language change of the tool.
-    relabel() { rebuild(); render(); },
-    // After another page changed the store (the Wavelog import).
-    refresh: async () => { if (store) await reload(); },
   };
 }

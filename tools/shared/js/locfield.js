@@ -76,16 +76,21 @@ export function previousLocation(loc, at) {
 }
 
 // Dropdown suggestions for a station: its last logged location (stations
-// store) and the city from the callsign list, unless that is the same text.
-export function locationOptions(rec, listedCity) {
+// store) and the city from the callsign lists, unless that is the same text.
+// listed: the city as text (the Austrian list), or { city, list } with the
+// name of the list when it is not the Austrian one.
+export function locationOptions(rec, listed) {
   const out = [];
   if (rec?.loc) {
     out.push({ label: `zuletzt: ${locationFieldText(rec.loc)}`, detail: [fmtDay(rec.at), describeLocation(rec.loc)].filter(Boolean).join(' · '), loc: rec.loc, at: rec.at });
   }
-  const city = (listedCity || '').trim();
+  const city = String(typeof listed === 'object' && listed ? listed.city : listed || '').trim();
+  const list = typeof listed === 'object' && listed ? listed.list || '' : '';
   const same = t => (t || '').trim().toLowerCase() === city.toLowerCase();
   if (city && !(rec?.loc && (same(locationFieldText(rec.loc)) || same(rec.loc.input)))) {
-    out.push({ label: `laut Rufzeichenliste: ${city}`, detail: 'Wohnort laut Lizenz', text: city, origin: 'callbook' });
+    out.push(list
+      ? { label: `laut Liste „${list}“: ${city}`, detail: 'Ort aus einer eigenen Rufzeichenliste', text: city, origin: 'list' }
+      : { label: `laut Rufzeichenliste: ${city}`, detail: 'Wohnort laut Lizenz', text: city, origin: 'callbook' });
   }
   return out;
 }

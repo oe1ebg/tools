@@ -10,7 +10,6 @@ import { openStorageWithNotices } from '../../shared/js/storageui.js';
 import { requestPersistence, StorageClosedError } from '../../shared/js/storage.js';
 import { repoLink, trackOnline, extLink, DATA_SOURCES } from '../../shared/js/sources.js';
 import { loadDataFile } from '../../shared/js/data.js';
-import { buildCallbook } from '../../shared/js/callbook.js';
 import { loadRepeaterIndex } from '../../shared/js/repeaterui.js';
 import { newId } from '../../shared/js/time.js';
 import { t, initLang, setLang, lang, applyI18n } from './i18n.js';
@@ -36,7 +35,7 @@ import { initSearch } from './searchui.js';
 import { initSpeak, renderSpeak, nextSpeaker } from './speak.js';
 import { initHistory, renderHistory, historyStale } from './historyui.js';
 import { initData, renderData, exportBackup } from './dataui.js';
-import { initCallsigns, rebuildCallsignDirectory } from './callsignui.js';
+import { initCallsigns } from './callsignui.js';
 import { undo, undoStep } from './ops.js';
 
 const VIEWS = ['live', 'turn', 'log', 'control', 'series'];
@@ -810,16 +809,17 @@ async function main() {
   globalThis.NETLOG_READY = true;
 }
 
-// The Austrian callsign list (shared data, offline, precached): fills
-// name and QTH at check-in and suggests callsigns.
+// The callsign lookup (shared callsign service): the Austrian list (shared
+// data, offline, precached) and the user's own lists. Fills name and QTH at
+// check-in and suggests callsigns.
 async function loadCallbook() {
-  app.data.callbook = buildCallbook(await loadDataFile('callsigns-oe.json'));
-  renderCallbookSource();
-  rebuildCallsignDirectory(app);
-  await initCallsigns(app);
+  app.calls = null;
+  const done = initCallsigns(app);
+  app.calls.onChange(renderCallbookSource);
+  await done;
 }
 function renderCallbookSource() {
-  const book = app.data.callbook;
+  const book = app.calls && app.calls.callbook();
   const src = DATA_SOURCES.callsigns;
   fill($('#st-callbook'), book
     ? [t('footer.callbook', { n: book.calls.length, stand: book.stand || '?' }), ' (', extLink(src.url, t('footer.callbookSource')), ')']

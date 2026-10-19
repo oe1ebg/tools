@@ -1479,6 +1479,7 @@ test('callsign lists: shared dialog; import, merge order, switch off, replace an
   await startSession(page);
   await page.locator('#checkin-call').fill('OE0QXA');
   await expect(page.locator('#checkin-info')).toContainText('Anna Privat');
+  await expect(page.locator('#checkin-info')).toContainText('aus „meine“');          // a list other than the Austrian one is named
   await expect(page.locator('#checkin-info')).toContainText('Elmer');
   await expect(page.locator('#checkin-info')).not.toContainText('https://');
   await page.locator('#checkin-call').fill('OE0QX');          // suggestions come from the lists
@@ -1654,4 +1655,27 @@ test('callsign lists: the test search covers the active lists and names the list
   const entries = dlg.locator('.cl-test table[aria-labelledby=cl-entries-title] tbody tr');
   await expect(entries.nth(0)).toContainText('zweite');             // the entries follow the same order
   await expect(entries.nth(1)).toContainText('meine');
+});
+
+test('callsign lists: a change made in another tab shows when the window is looked at again', async ({ page }) => {
+  await open(page);
+  await page.locator('#tab-series').click();
+  await expect(page.locator('#lists-summary')).toContainText('1 von 1 Listen');
+  const other = await page.context().newPage();
+  await other.goto('tools/netlog/');
+  await expect.poll(() => other.evaluate(() => globalThis.NETLOG_READY === true)).toBe(true);
+  await other.locator('#tab-series').click();
+  await other.locator('#btn-lists-open').click();
+  const tmp = await mkdtemp(pathJoin(tmpdir(), 'netlog-lists-'));
+  const csv = pathJoin(tmp, 'drueben.csv');
+  await writeFile(csv, 'call;name;qth\nOE0QXA;Anna Drüben;Steyr\n');
+  await other.locator('#callsign-lists-dlg input[type=file]').setInputFiles(csv);
+  await expect(other.locator('#callsign-lists-dlg table[aria-labelledby=cl-title] tbody tr')).toHaveCount(2);
+  await other.close();
+  await page.bringToFront();
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));       // what the browser does on returning to the window
+  await expect(page.locator('#lists-summary')).toContainText('2 von 2 Listen');
+  await startSession(page);
+  await page.locator('#checkin-call').fill('OE0QXA');
+  await expect(page.locator('#checkin-info')).toContainText('Anna Drüben');
 });

@@ -17,10 +17,11 @@ export function enterTakes(typed, call) {
   return !isPlausibleCall(q) || call.startsWith(q);
 }
 
-// getBook(): the callbook (or null while loading); recent(): [{ call,
+// getCalls(): the tool's callsign service (callsign-service.js; null: no
+// suggestions from the lists); the older getBook(): the plain callbook; recent(): [{ call,
 // title }] from earlier logs, newest first; onPick(call): after the field
 // got the callsign.
-export function attachCallSearch({ input, pop, getBook, recent, onPick }) {
+export function attachCallSearch({ input, pop, getBook, getCalls, recent, onPick }) {
   const dd = popover(input, pop, {
     label: 'Rufzeichen-Vorschläge',
     enterPicksFirst: first => enterTakes(input.value, first.dataset.call),
@@ -29,12 +30,19 @@ export function attachCallSearch({ input, pop, getBook, recent, onPick }) {
 
   function suggest() {
     const q = input.value.trim();
-    const book = getBook();
+    const calls = getCalls ? getCalls() : null;
+    const book = getCalls ? null : getBook();
     const qCall = normalizeCall(q);
+    // one shape for both: [call, name, qth, listName] (listName: only for lists other than the Austrian one)
+    const has = c => (calls ? calls.has(c) : book?.byCall.has(c));
+    const find = (text, n) => (calls
+      ? calls.search(text, n).map(m => [m.call, m.name, m.qth, m.fromKind === 'builtin' ? '' : m.from])
+      : searchCallbook(book, text, n));
+    const stand = calls ? calls.stand() : book?.stand;
     const used = recent().filter(r => !q || r.call.startsWith(qCall)).slice(0, q ? 3 : 5);
     // the field already holds a complete callsign: nothing to offer
-    const done = qCall && (used.some(r => r.call === qCall) || book?.byCall.has(qCall)) && !used.some(r => r.call !== qCall);
-    const fromBook = q && !done ? searchCallbook(book, q, 8).filter(c => !used.some(r => r.call === c[0])) : [];
+    const done = qCall && (used.some(r => r.call === qCall) || has(qCall)) && !used.some(r => r.call !== qCall);
+    const fromBook = q && !done ? find(q, 8).filter(c => !used.some(r => r.call === c[0])) : [];
     const item = (call, detail) => el('button', {
       type: 'button', class: 'ac-item', 'data-call': call,
       onclick: () => {
@@ -45,15 +53,19 @@ export function attachCallSearch({ input, pop, getBook, recent, onPick }) {
         input.focus();
       },
     }, el('b', {}, call), detail ? el('small', {}, detail) : null);
-    const lookup = call => book?.byCall.get(call);
+    const lookup = call => {
+      if (!calls) return book?.byCall.get(call);
+      const e = calls.entry(call);
+      return e ? [e.call, e.name, e.qth] : null;
+    };
     const usedItems = done ? [] : used.map(r => {
       const c = lookup(r.call);
       return item(r.call, [c?.[1], c?.[2], `zuletzt in „${r.title}“`].filter(Boolean).join(' · '));
     });
     fill(pop,
       usedItems.length ? [el('div', { class: 'ac-head' }, 'Zuletzt verwendet:'), usedItems] : null,
-      fromBook.length ? [el('div', { class: 'ac-head' }, `Rufzeichenliste${book.stand ? ` (Stand ${book.stand.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$3.$2.$1')})` : ''}; ↓, Enter:`),
-        fromBook.map(c => item(c[0], [c[1], c[2]].filter(Boolean).join(' · ')))] : null);
+      fromBook.length ? [el('div', { class: 'ac-head' }, `${calls ? 'Rufzeichenlisten' : 'Rufzeichenliste'}${stand ? ` (Stand ${stand.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$3.$2.$1')})` : ''}; ↓, Enter:`),
+        fromBook.map(c => item(c[0], [c[1], c[2], c[3] ? `aus „${c[3]}“` : ''].filter(Boolean).join(' · ')))] : null);
     dd.update();
   }
 

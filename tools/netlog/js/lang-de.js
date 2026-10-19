@@ -96,6 +96,7 @@ export const LANG_DE = {
   'field.repeaterSource': 'Österreichische Relaisliste (ÖVSV, offline); ↓, Enter:',
   'checkin.fromCallbook': 'Rufzeichenliste',
   'checkin.inCallbook': 'Rufzeichenliste: {name}',
+  'checkin.fromList': 'aus „{list}“',
 
   'status.active': 'aktiv (angemeldet)',
   'status.paused': 'Pause / kurz weg',
