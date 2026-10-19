@@ -17,7 +17,9 @@ import { LOC_ORIGINS, locOrigin, locHints } from '../../shared/js/locmeta.js';
 import { TEMPLATES, templateFor, fieldVisible, fieldDisplay, fieldOptions, currentOptions, shortSummary, exampleValues, logColumns, chainValues, nameField, entryFields } from './templates.js';
 import { toCSV, toADIF, adifIssues, ADIF_MIME, toKML, KML_MIME, toSummary } from './export.js';
 import { loadDataFile } from '../../shared/js/data.js';
-import { buildCallbook, lookupCall, suggestCalls, normalizeCall, isPlausibleCall } from '../../shared/js/callbook.js';
+import { normalizeCall, isPlausibleCall } from '../../shared/js/callbook.js';
+import { createCallsignService } from '../../shared/js/callsign-service.js';
+import { createCallsignLists } from '../../shared/js/callsignlists.js';
 import { initHelpDialog } from '../../shared/js/helpdialog.js';
 import { $, el, fill, copyToClipboard, popover, focusNext, submitForm, isComposing, trackExpanded, rowRoles, tableRoles, revertOnEscape } from '../../shared/js/dom.js';
 import { prefGet, prefSet } from '../../shared/js/prefs.js';
@@ -60,7 +62,9 @@ const state = {
   headerTimer: null,
   headerFlushing: 0, // header/title writes in flight (their values are still only in state.event)
   channel: null,
-  callbook: null,     // Austrian callsign list (data/callsigns-oe.json), null until loaded
+  // The callsign lookup (shared/js/callsign-service.js): the Austrian list
+  // (data/callsigns-oe.json) and the user's own lists; redraws via onCallsigns().
+  calls: createCallsignService({ getLang: () => 'de', onChange: () => onCallsigns() }),
   stations: new Map(), // call -> { call, loc, at, eventTitle }: last known location per station
   locField: null,     // controller of the template's location field, if any
   lineRpt: null,      // per-line repeater override (entry form)
@@ -315,7 +319,7 @@ function buildHeaderForm(container, header, onChange) {
     if (f.call) {
       attachCallSearch({
         input, pop,
-        getBook: () => state.callbook,
+        getCalls: () => state.calls,
         recent: () => cachedHeaderCalls,
         onPick: () => {
           emit();
@@ -1327,27 +1331,31 @@ function fmtStand(iso) {
   return m ? `${m[3]}.${m[2]}.${m[1]}` : iso || '?';
 }
 
-// The callsign list's line for a call: { cls, text, title }.
+// The callsign lists' line for a call: { cls, text, title }. What is known
+// comes from every list that is switched on (the list is named when it is
+// not the Austrian one); the typo warning "not in the list" is about the
+// Austrian list only, so a call that only an own list has still gets it.
 function callbookLine(call) {
-  const book = state.callbook;
-  if (!book || !call) return { cls: '', text: '' };
-  const { entry, base, isOE } = lookupCall(book, call);
-  if (entry) {
-    return {
-      cls: 'known',
-      text: entry[1] || entry[2]
-        ? `${entry[0]} · ${[entry[1], entry[2]].filter(Boolean).join(' · ')}`
-        : `${entry[0]} · in der Rufzeichenliste (Angaben nicht veröffentlicht)`,
-    };
+  if (!call) return { cls: '', text: '' };
+  const m = state.calls.entry(call);
+  const o = state.calls.official(call);
+  const typo = o.enabled && o.isOE && o.base.length >= 4 && !o.entry;
+  const from = m && m.source ? ` (aus „${m.source}“)` : '';
+  let info = '';
+  if (m) {
+    info = m.name || m.qth
+      ? `${m.call} · ${[m.name, m.qth].filter(Boolean).join(' · ')}${from}`
+      : m.note ? `${m.call} · ${m.note}${from}` : `${m.call} · in der Rufzeichenliste (Angaben nicht veröffentlicht)`;
   }
-  if (isOE && base.length >= 4) {
+  if (typo) {
+    const stand = fmtStand(o.stand);
     return {
       cls: 'unknown',
-      text: `nicht in Rufzeichenliste (${fmtStand(book.stand)}) – Tippfehler?`,
-      title: `${base} ist nicht in der Rufzeichenliste (Stand ${fmtStand(book.stand)}) – Tippfehler? Speichern ist trotzdem möglich.`,
+      text: m ? `${info} – nicht in der Rufzeichenliste (Stand ${stand})` : `nicht in Rufzeichenliste (Stand ${stand}) – Tippfehler?`,
+      title: `${o.base} ist nicht in der Rufzeichenliste (Stand ${stand}) – Tippfehler? Speichern ist trotzdem möglich.`,
     };
   }
-  return { cls: '', text: '' };
+  return m ? { cls: 'known', text: info } : { cls: '', text: '' };
 }
 
 // Name/location from the callsign list under the call field, typo
@@ -1359,29 +1367,30 @@ function renderCallbookInfo(call) {
   info.title = '';
   sug.replaceChildren();
   state.callPop?.update();
-  const book = state.callbook;
-  if (!book || !call) {
+  if (!call) {
     info.textContent = '';
     autofillFromCallbook(null);
     return;
   }
-  const { entry } = lookupCall(book, call);
+  const entry = state.calls.entry(call);
   const line = callbookLine(call);
   info.className = `ac-info ${line.cls}`.trim();
   info.textContent = line.text;
   info.title = line.title || line.text;
   autofillFromCallbook(entry);
-  if (!entry && !state.readOnly) {
-    const list = suggestCalls(book, call, 8);
+  const o = state.calls.official(call);
+  const typo = o.enabled && o.isOE && o.base.length >= 4 && !o.entry;
+  if ((!entry || typo) && !state.readOnly) {
+    const list = state.calls.search(call, 9).filter(c => c.call !== o.base).slice(0, 8);
     if (list.length) {
       fill(sug, el('div', { class: 'ac-head' }, 'Meinten Sie (↓, Enter):'),
         list.map(c => el('button', { type: 'button', class: 'ac-item', onclick: () => {
-          $('#f-call').value = c[0];
+          $('#f-call').value = c.call;
           onFormInput();
           prefillLocation();
           state.callPop.hide();
           $('#f-call').focus();
-        } }, el('b', {}, c[0]), el('small', {}, [c[1], c[2]].filter(Boolean).join(' · ') || 'Angaben nicht veröffentlicht'))));
+        } }, el('b', {}, c.call), el('small', {}, [c.name, c.qth, c.fromKind && c.fromKind !== 'builtin' ? `aus „${c.from}“` : ''].filter(Boolean).join(' · ') || 'Angaben nicht veröffentlicht'))));
     }
     state.callPop?.update();
   }
@@ -1391,7 +1400,7 @@ function renderCallbookInfo(call) {
 // are empty or still hold a previous auto-filled value — never overwrite
 // what the operator typed.
 function autofillFromCallbook(entry) {
-  const map = { name: entry ? entry[1] : '', qth: entry ? entry[2] : '' };
+  const map = { name: entry ? entry.name : '', qth: entry ? entry.qth : '' };
   for (const [key, value] of Object.entries(map)) {
     const input = document.querySelector(`#f-fields input[name="f_${key}"]`);
     // A location field is the station's current QTH, not its licence
@@ -1410,8 +1419,9 @@ function updateLocationOptions(call) {
   const lf = state.locField;
   if (!lf) return; // template without a location field
   const rec = call && !state.readOnly ? state.stations.get(call) : null;
-  const listed = call && !state.readOnly && state.callbook && lookupCall(state.callbook, call).entry;
-  lf.setOptions(locationOptions(rec, listed ? listed[2] : ''));
+  const listed = call && !state.readOnly ? state.calls.entry(call) : null;
+  // the city of the Austrian list is the licence address; another list is named
+  lf.setOptions(locationOptions(rec, listed && listed.qth ? (listed.qthOfficial ? listed.qth : { city: listed.qth, list: listed.from.qth }) : ''));
 }
 
 // When the callsign field is left: put the station's last location into an
@@ -1426,8 +1436,7 @@ function prefillLocation() {
 }
 
 function callbookName(call) {
-  const e = state.callbook && lookupCall(state.callbook, call).entry;
-  return e ? [e[1], e[2]].filter(Boolean).join(', ') : '';
+  return state.calls.label(call);
 }
 
 function describeEntry(e, tpl) {
@@ -1902,11 +1911,11 @@ function renderLog(highlightCall) {
   // of the context all rows share (template, time mode, callsign list, ...)
   // rebuilds all.
   const ctx = [timeMode(), zoneLabel(nowIso(), 'local'), state.readOnly, logUtmDigits(), state.event.template, state.event.id].join('|');
-  if (ctx !== rowCtx || tpl !== rowTpl || state.callbook !== rowBook) {
+  if (ctx !== rowCtx || tpl !== rowTpl || state.calls.version() !== rowCalls) {
     resetRows(rowCache);
     rowCtx = ctx;
     rowTpl = tpl;
-    rowBook = state.callbook;
+    rowCalls = state.calls.version();
   }
   syncRows(body, rowCache, live, {
     key: e => e.id,
@@ -1926,7 +1935,7 @@ function renderLog(highlightCall) {
 
 // The rows of the log (see renderLog): by callsign, and the ones marked now.
 const rowCache = createRowCache();
-let rowCtx = '', rowTpl = null, rowBook = null;
+let rowCtx = '', rowTpl = null, rowCalls = -1;
 let rowsByCall = new Map();
 let matched = [];
 
@@ -2638,18 +2647,28 @@ function wire() {
   window.addEventListener('hashchange', route);
 }
 
-async function loadCallbook() {
-  const data = await loadDataFile('callsigns-oe.json');
-  state.callbook = buildCallbook(data);
-  fill($('#st-callbook'), state.callbook
-    ? sourceItem('callsigns', `Stand ${fmtStand(state.callbook.stand)}, ${state.callbook.calls.length} OE-Rufzeichen`)
+// The callsign lists changed (loaded, switched, another tab): redraw what
+// shows them. Also the first time, when the Austrian list has been read.
+function onCallsigns() {
+  const book = state.calls.callbook();
+  fill($('#st-callbook'), book
+    ? sourceItem('callsigns', `Stand ${fmtStand(book.stand)}, ${book.calls.length} OE-Rufzeichen`)
     : 'Rufzeichenliste nicht verfügbar');
+  const s = state.calls.summary();
+  $('#lists-summary').textContent = s.available ? `(${s.active} von ${s.total} eingeschaltet)` : '(eigene Listen brauchen IndexedDB)';
   renderHeaderHints($('#new-header'));
   renderHeaderHints($('#log-header'));
   if (state.event) {
     updateCallFeedback();
     renderLog();
   }
+}
+
+async function loadCallbook() {
+  const lists = createCallsignLists({ service: state.calls, getLang: () => 'de' });
+  $('#btn-lists-open').addEventListener('click', ev => lists.open(ev.currentTarget));
+  state.calls.watchFocus();
+  await state.calls.init();
 }
 
 async function loadRepeaterFooter() {
