@@ -79,10 +79,12 @@ test('import a logbook page by page; token not kept; Netlog reads the result; er
   await page.goto('tools/netlog/');
   await expect.poll(() => page.evaluate(() => globalThis.NETLOG_READY === true)).toBe(true);
   await page.locator('#tab-series').click();
-  const rows = page.locator('#lists-list .list-row');
+  await page.locator('#btn-lists-open').click();
+  const rows = page.locator('#callsign-lists-dlg .cl-row');
   await expect(rows).toHaveCount(2);
   await expect(rows.first()).toContainText('Wavelog-Import');
-  await expect(rows.first().locator('[data-act=replace]')).toBeHidden();
+  await expect(rows.first().locator('[data-act=replace]')).toHaveCount(0);   // refreshed by the import, not by a file
+  await page.keyboard.press('Escape');
   await page.locator('#btn-new-session').click();
   await page.locator('#sf-own').fill('OE0QXZ');
   await page.locator('#session-form button[type=submit]').click();
@@ -91,12 +93,18 @@ test('import a logbook page by page; token not kept; Netlog reads the result; er
   await expect(page.locator('#checkin-info')).toContainText('Graz');
   await expect(page.locator('#checkin-info')).toContainText('2 QSO, 2026-03-01');
 
-  // erase for good
+  // the page opens the same shared dialog, and erasing there is the same
   await page.goto('tools/wavelog-import/');
   await expect.poll(() => page.evaluate(() => globalThis.WAVELOG_IMPORT_READY === true)).toBe(true);
+  await page.locator('#btn-lists').click();
+  await expect(page.locator('#callsign-lists-dlg .cl-shared')).toContainText('Gemeinsam für alle Tools');
+  await expect(page.locator('#callsign-lists-dlg .cl-row')).toHaveCount(2);
+  await page.keyboard.press('Escape');
   page.on('dialog', d => d.accept());
   await page.locator('#wl-sources button[data-erase]').click();
   await expect(page.locator('#wl-sources')).toContainText('Noch nichts importiert');
+  await page.locator('#btn-lists').click();
+  await expect(page.locator('#callsign-lists-dlg .cl-row')).toHaveCount(1);
 });
 
 test('a token without the needed scope is named in the message', async ({ page, expectConsoleError }) => {
