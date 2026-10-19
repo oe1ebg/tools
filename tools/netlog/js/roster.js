@@ -62,17 +62,11 @@ export function callbookEntry(app, call) {
 // place; for a partial callsign (OE0QX?) those its pattern fits.
 function callbookCandidates(app, text, limit = 6) {
   const dir = app.data.directory;
-  const call = normCall(text);
-  if (dir) {
-    if (isUnresolved(call)) {
-      const re = callPattern(call);
-      return (re ? dir.callsigns().filter(c => re.test(c)).slice(0, limit) : [])
-        .map(c => ({ call: c, name: dir.lookup(c).name, qth: dir.lookup(c).qth, from: 'callbook' }));
-    }
-    return dir.search(text, limit).map(m => ({ call: m.call, name: m.name, qth: m.qth, from: 'callbook' }));
-  }
+  if (dir) return dir.search(text, limit).map(m => ({ call: m.call, name: m.name, qth: m.qth, from: 'callbook' }));
+  // before the lists are loaded: the bundled Austrian list alone
   const book = app.data.callbook;
   if (!book) return [];
+  const call = normCall(text);
   let rows;
   if (isUnresolved(call)) {
     const re = callPattern(call);

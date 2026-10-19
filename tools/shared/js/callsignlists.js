@@ -143,10 +143,15 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = null, 
     ui.sLabel = el('label', { for: 'cl-test-search' });
     ui.sSearch = el('input', { type: 'search', id: 'cl-test-search', autocomplete: 'off', spellcheck: 'false' });
     ui.sCount = el('p', { class: 'cl-count', role: 'status' });
-    ui.sMerged = el('p', { class: 'cl-merged' });
+    ui.mTitle = el('h4', { id: 'cl-merged-title' });
+    ui.mHead = el('tr', {});
+    ui.mRows = el('tbody', {});
+    ui.mTable = el('table', { class: 'cl-table cl-entries cl-merged-table', 'aria-labelledby': 'cl-merged-title' }, el('thead', {}, ui.mHead), ui.mRows);
+    ui.sMerged = el('div', { class: 'cl-merged-box', hidden: true }, ui.mTitle, el('div', { class: 'table-wrap cl-wrap' }, ui.mTable));
+    ui.eTitle = el('h4', { id: 'cl-entries-title' });
     ui.sHead = el('tr', {});
     ui.sRows = el('tbody', {});
-    ui.sTable = el('table', { class: 'cl-table cl-entries', 'aria-labelledby': 'cl-test-title' }, el('thead', {}, ui.sHead), ui.sRows);
+    ui.sTable = el('table', { class: 'cl-table cl-entries', 'aria-labelledby': 'cl-entries-title' }, el('thead', {}, ui.sHead), ui.sRows);
     ui.sWrap = el('div', { class: 'table-wrap cl-wrap' }, ui.sTable);
     ui.sTitle = el('h3', { id: 'cl-test-title' });
     ui.view = el('div', { class: 'cl-view', hidden: true },
@@ -198,7 +203,7 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = null, 
       el('div', { class: 'help-head' }, ui.title, ui.close),
       el('div', { class: 'cl-body' }, ui.shared,
         el('div', { class: 'cl-main-body' }, ui.empty, ui.list, el('div', { class: 'toolbar' }, ui.add, ui.wavelog), ui.file, ui.msg, ui.hint,
-          el('section', { class: 'cl-test', 'aria-labelledby': 'cl-test-title' }, ui.sTitle, el('div', { class: 'field' }, ui.sLabel, ui.sSearch), ui.sCount, ui.sMerged, ui.sWrap)),
+          el('section', { class: 'cl-test', 'aria-labelledby': 'cl-test-title' }, ui.sTitle, el('div', { class: 'field' }, ui.sLabel, ui.sSearch), ui.sCount, ui.sMerged, ui.eTitle, ui.sWrap)),
         ui.view));
     ui.mainBody = dlg.querySelector('.cl-main-body');
     ui.vBack.addEventListener('click', closeView);
@@ -303,31 +308,44 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = null, 
     const q = ui.sSearch.value.trim();
     const active = dir ? dir.sources.length : 0;
     ui.sTitle.textContent = tx('Search callsigns', 'Rufzeichen suchen');
-    ui.sLabel.textContent = tx('Callsign, name, QTH or note – in all lists that are switched on', 'Rufzeichen, Name, QTH oder Notiz – in allen eingeschalteten Listen');
+    ui.sLabel.textContent = tx('Callsign (also partial: OE1AB, 1ABC, OE1A?…), name, QTH or note – in all lists that are switched on', 'Rufzeichen (auch teilweise: OE1AB, 1ABC, OE1A?…), Name, QTH oder Notiz – in allen eingeschalteten Listen');
+    ui.mTitle.textContent = tx('Result – what the tools see (all lists combined)', 'Ergebnis – das sehen die Tools (alle Listen zusammengeführt)');
+    ui.eTitle.textContent = tx('Entries per list', 'Einträge je Liste');
     const cols = [tx('Callsign', 'Rufzeichen'), tx('Name', 'Name'), 'QTH', tx('Note', 'Notiz'), tx('List', 'Liste')];
     fill(ui.sHead, cols.map(c => el('th', { scope: 'col' }, c)));
     tableRoles(ui.sTable);
-    ui.sMerged.textContent = '';
+    ui.sMerged.hidden = true;
+    ui.eTitle.hidden = true;
     if (!q || !dir) {
       ui.sCount.textContent = tx(`Searches ${active} list(s) that are switched on.`, `Durchsucht ${active} eingeschaltete Liste(n).`);
       fill(ui.sRows, []);
+      fill(ui.mRows, []);
       return;
     }
     const found = dir.search(q, 30);
-    const rowsOut = [];
-    for (const m of found) {
-      const hit = dir.lookup(m.call);
-      if (hit) for (const e of hit.entries) rowsOut.push({ e, base: hit.base });
-    }
+    const merged = found.map(m => dir.lookup(m.call)).filter(Boolean);
+    const rowsOut = merged.flatMap(hit => hit.entries.map(e => ({ e })));
     const shown = rowsOut.slice(0, 100);
     ui.sCount.textContent = !found.length ? tx(`No match in ${active} list(s) that are switched on.`, `Kein Treffer in ${active} eingeschalteten Liste(n).`)
       : tx(`${found.length} callsign(s), ${rowsOut.length} list entries${rowsOut.length > shown.length ? ` (first ${shown.length} shown)` : ''}.`, `${found.length} Rufzeichen, ${rowsOut.length} Listeneinträge${rowsOut.length > shown.length ? ` (die ersten ${shown.length} angezeigt)` : ''}.`);
-    if (found.length === 1) {
-      const m = dir.lookup(found[0].call);
-      const part = (label, v, from) => (v ? `${label}: ${v} (${from})` : null);
-      const parts = [part(tx('Name', 'Name'), m.name, m.from.name), part('QTH', m.qth, m.from.qth), part(tx('Locator', 'Locator'), m.grid, m.from.grid)].filter(Boolean);
-      ui.sMerged.textContent = `${tx('The tools see for', 'Die Tools sehen für')} ${m.base}: ${parts.length ? parts.join(' · ') : tx('no name or QTH, only the list entry', 'keinen Namen oder QTH, nur den Listeneintrag')}.`;
-    }
+    // the combined result, one row per callsign, each value with its list
+    const from = name => el('small', { class: 'cl-from' }, tx(`from ${name}`, `aus ${name}`));
+    const val = (v, name) => (v ? [el('span', { class: 'cl-val' }, v), from(name)] : '–');
+    const hasGrid = merged.some(m => m.grid);
+    const mcols = [cols[0], cols[1], 'QTH', ...(hasGrid ? [tx('Locator', 'Locator')] : []), cols[3]];
+    fill(ui.mHead, mcols.map(c => el('th', { scope: 'col' }, c)));
+    tableRoles(ui.mTable);
+    fill(ui.mRows, merged.map(m => {
+      const cells = [
+        el('span', { class: 'cl-val' }, m.base),
+        val(m.name, m.from.name), val(m.qth, m.from.qth), ...(hasGrid ? [val(m.grid, m.from.grid)] : []),
+        m.notes.length ? el('div', { class: 'cl-notes' }, m.notes.map(n => el('div', { class: 'cl-note' }, n.text, from(n.source)))) : '–',
+      ];
+      const tr = el('tr', {}, cells.map((c, i) => el('td', { 'data-label': mcols[i], class: i === 0 ? 'cl-call' : '' }, c)));
+      return rowRoles(tr);
+    }));
+    ui.sMerged.hidden = !merged.length;
+    ui.eTitle.hidden = !merged.length;
     fill(ui.sRows, shown.map(({ e }) => {
       const cells = [e.call, e.name, e.qth, callsignNoteText(e.note), e.source];
       const tr = el('tr', {}, cells.map((c, i) => el('td', { 'data-label': cols[i], class: i === 0 ? 'cl-call' : '' }, c)));

@@ -194,7 +194,7 @@ fallback; without it the tools keep the bundled Austrian list.
   by `rank`; per field (`name`, `qth`, `grid`) the first non-empty value of
   an enabled source wins and the answer names the source; the notes of
   every enabled source are listed. `lookup(call)`, `search(text)` (callsign
-  prefix, or name/QTH from three letters) and `callsigns()` are synchronous
+  prefix, short forms, typos, `?`/`*` patterns, or name/QTH/note from three letters) and `callsigns()` are synchronous
   on an in-memory index built from the store; rebuild it after a change.
 - **Generations.** Replacing a source writes records as a new generation
   and keeps the one before (undo/redo is swapping `gen` and `prevGen`);
@@ -215,8 +215,11 @@ fallback; without it the tools keep the bundled Austrian list.
   (one card per list on phones) with a searchable quick view of each list's
   entries (first 200 matches; umlauts and case folded, every word must
   match), and a test search over all lists that are switched on (callsign,
-  name, QTH or note) with one row per list entry and the name of its list,
-  plus the merged result the tools would see; the tool reads the
+  name, QTH or note) that is the very search of the callsign field
+  (`directory().search()`: partial callsigns with ? and *, short forms, one-edit
+  typos, names, places, notes), showing the merged result the tools would see
+  in a panel of its own (every value with the list it comes from) above one
+  row per list entry; the tool reads the
   merged view through `directory()` and re-renders on `onChange`. The dialog
   says first that the data is shared by all tools of the same address (in a
   `file://` single-file bundle: that the file keeps its own data). Texts
