@@ -96,7 +96,7 @@ export function buildCallsignDirectory({ sources = [], records = [], callbook = 
       if (builtin && callbook) for (const c of callbook.calls) all.add(c[0]);
       return [...all].sort();
     },
-    // Callsigns starting with the text, or whose name/QTH contain it
+    // Callsigns starting with the text, or whose name/QTH/note contain it
     // (3+ letters): [{ call, name, qth, from }] by callsign, at most max.
     search(text, max = 8) {
       const q = String(text || '').trim();
@@ -116,7 +116,7 @@ export function buildCallsignDirectory({ sources = [], records = [], callbook = 
       if (/^[A-Z0-9/]+$/.test(up)) for (const b of calls) if (b.startsWith(up)) consider(b);
       if (needle.length >= 3 && /[a-z]/.test(needle)) {
         for (const [base, list] of byBase) {
-          if (list.some(e => callsignFold(e.name).includes(needle) || callsignFold(e.qth).includes(needle))) consider(base);
+          if (list.some(e => callsignFold(e.name).includes(needle) || callsignFold(e.qth).includes(needle) || callsignFold(callsignNoteText(e.note)).includes(needle))) consider(base);
         }
         if (builtin && callbook) {
           for (const c of callbook.calls) if (callsignFold(c[1]).includes(needle) || callsignFold(c[2]).includes(needle)) consider(c[0]);

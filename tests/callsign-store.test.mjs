@@ -141,3 +141,13 @@ test('notes show without PoLo markdown; stored notes stay verbatim', async () =>
   assert.deepEqual(hit.notes.map(n => [n.text, n.raw]), [['Club', '[Club](https://example.org/a)']]);
   assert.equal((await s.getAll('records'))[0].note, '[Club](https://example.org/a)');
 });
+
+test('search also finds notes (from three letters), and entries keep their list', async () => {
+  const s = await fresh();
+  await importCallsignSource(s, { kind: 'polo', name: 'Notes', rows: [row('OE0QXB', { note: '🌳 [POTA Austria](https://example.org) Map Rep' })] });
+  await importCallsignSource(s, { kind: 'csv', name: 'Mine', rows: [row('OE0QXB', { name: 'Bernd' })] });
+  const d = await dir(s);
+  assert.deepEqual(d.search('map rep').map(m => m.call), ['OE0QXB']);
+  assert.deepEqual(d.search('https').map(m => m.call), []);          // markdown syntax is not searched
+  assert.deepEqual(d.lookup('OE0QXB').entries.map(e => e.source), ['Notes', 'Mine']);
+});

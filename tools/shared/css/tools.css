@@ -187,6 +187,10 @@ dl.kb dd{ margin:0; color:var(--text-dim); }
 .cl-entries td{ overflow-wrap:anywhere; }
 .cl-count{ margin:.3em 0; color:var(--text-dim); min-height:1.4em; }
 .cl-view .field{ margin:.4em 0; }
+.cl-test{ margin-top:1.2em; padding-top:.2em; border-top:1px solid var(--line-strong); }
+.cl-test h3{ margin:.5em 0 .3em; font-size:16px; }
+.cl-merged{ margin:.3em 0; font-weight:600; }
+.cl-merged:empty{ display:none; }
 .cl-msg{ min-height:1.4em; margin:.4em 0; }
 .cl-msg.ok::before{ content:"✔ "; }
 .cl-msg.err{ color:var(--err); }
