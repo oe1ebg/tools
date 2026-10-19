@@ -143,3 +143,28 @@ test('the address is saved on this page and is what Netlog\'s Wavelog station li
   await page.locator('#roster button.person').first().click();
   await expect(page.locator('#station-links a[href="https://wl.example.org/"]')).toHaveText('Wavelog ↗');
 });
+
+test('the token must be a v2 token (wl2_…): refused before any request; extra scopes are pointed out', async ({ page }) => {
+  const seen = [];
+  await page.route(`${HOST}/api/v2/**`, route => {
+    const req = route.request();
+    if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });
+    seen.push(req.url());
+    const json = body => route.fulfill({ status: 200, headers: { ...CORS, 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    if (req.url().includes('/logbook')) return json({ data: [{ id: 1, name: 'Home', station_ids: [1] }] });
+    return json({ data: { scopes: ['logbook:read', 'qso:read', 'qso:write', 'station:delete'] } });
+  });
+  await open(page);
+  await expect(page.locator('#wl-token-hint')).toContainText('wl2_');
+  await expect(page.locator('#wl-token-hint')).toContainText('logbook:read');
+  await expect(page.locator('#wl-token-hint')).toContainText('qso:read');
+  await page.locator('#wl-url').fill(HOST);
+  await page.locator('#wl-token').fill('0123456789abcdef');          // an old v1 key
+  await page.locator('#btn-logbooks').click();
+  await expect(page.locator('#wl-token-err')).toContainText('kein API-v2-Token');
+  expect(seen).toEqual([]);
+  await page.locator('#wl-token').fill('wl2_broad');
+  await page.locator('#btn-logbooks').click();
+  await expect(page.locator('#wl-status')).toContainText('qso:write, station:delete');
+  await expect(page.locator('#wl-status')).toHaveClass(/ok/);
+});

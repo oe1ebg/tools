@@ -22,3 +22,6 @@ body{
 .profile-list{ list-style:none; margin:0; padding:0; }
 .profile-row{ padding:.25em 0; border-top:1px solid var(--line); }
 .profile-row:first-child{ border-top:0; }
+.token-help p{ margin:.3em 0; }
+.token-help ul{ margin:.3em 0; padding-left:1.4em; }
+.token-help code{ font-family:var(--font-mono); font-size:.95em; }

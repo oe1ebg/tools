@@ -42,9 +42,18 @@
         <input id="wl-url" type="url" inputmode="url" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="https://…" aria-describedby="wl-url-hint wl-url-err" required></label>
       <p id="wl-url-hint" class="hint" data-de="https:// (http:// nur für localhost), ohne Benutzername oder Passwort. Wird gemerkt; Netlog verwendet sie für den „Wavelog“-Link bei einer Station.">https:// (http:// only for localhost), without user name or password. It is remembered; Netlog uses it for the "Wavelog" link at a station.</p>
       <p id="wl-url-err" class="field-err" role="alert"></p>
-      <label class="field"><span data-de="API-Token (wl2_…)">API token (wl2_…)</span>
+      <label class="field"><span data-de="API-v2-Token (wl2_…)">API v2 token (wl2_…)</span>
         <input id="wl-token" type="password" autocorrect="off" autocapitalize="off" spellcheck="false" autocomplete="off" aria-describedby="wl-token-hint wl-token-err" required></label>
-      <p id="wl-token-hint" class="hint" data-de="In Wavelog: Benutzermenü → API → neues v2-Token mit genau den Rechten logbook:read und qso:read, mit Ablaufdatum. Wavelog ab Version 3.1.0.">In Wavelog: user menu → API → new v2 token with exactly the scopes logbook:read and qso:read, with an expiry. Wavelog 3.1.0 or later.</p>
+      <div id="wl-token-hint" class="hint token-help">
+        <p><b data-de="Es muss ein API-v2-Token sein.">It must be an API v2 token.</b> <span data-de="Es beginnt mit wl2_. Ältere API-Schlüssel (v1) nimmt die v2-API nicht an; Wavelog ab Version 3.1.0.">It starts with wl2_. Older API keys (v1) are not accepted by the v2 API; Wavelog 3.1.0 or later.</span></p>
+        <p data-de="Anlegen: in Wavelog Benutzermenü → API → neues API-v2-Token (Name, Rechte, Ablaufdatum).">Create it in Wavelog: user menu → API → new API v2 token (name, scopes, expiry).</p>
+        <p data-de="Erforderliche Rechte (Scopes):">Required scopes:</p>
+        <ul>
+          <li><code>logbook:read</code> – <span data-de="Logbücher und ihre Stationsstandorte auflisten">list the logbooks and their station locations</span></li>
+          <li><code>qso:read</code> – <span data-de="die QSOs lesen">read the QSOs</span></li>
+        </ul>
+        <p data-de="Mehr wird nicht gebraucht, Schreib- und Löschrechte bleiben ungenutzt. Ein fertiges Preset funktioniert, wenn es diese beiden Rechte enthält; die Seite prüft das Token nach „Logbücher laden“, nennt fehlende Rechte und weist auf überflüssige Schreib- und Löschrechte hin. Am sichersten: nur diese zwei Rechte und ein Ablaufdatum.">Nothing more is needed; write and delete scopes stay unused. A ready-made preset works if it includes these two scopes; after "Load logbooks" the page checks the token, names missing scopes and points out unneeded write and delete scopes. Safest: just these two scopes and an expiry date.</p>
+      </div>
       <p id="wl-token-err" class="field-err" role="alert"></p>
       <div class="toolbar">
         <button type="submit" id="btn-logbooks" class="primary" data-de="Logbücher laden">Load logbooks</button>
