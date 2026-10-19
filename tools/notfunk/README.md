@@ -167,7 +167,7 @@ name, and a distribution list ("Verteiler").
   keep); "Rückgängig" after discarding. The next number is shown
   ("→ W1-008") but taken only on saving. Von/An are free text (no
   callsign search); Funkstelle/Ursprungsstation complete from the
-  stations heard in this operation and the callsign list, Relais from the ÖVSV list, Ort and Ursprungsort
+  stations heard in this operation and the callsign lists, Relais from the ÖVSV list, Ort and Ursprungsort
   from the offline location lookup (which never changes the text). An Ort
   the lookup doesn't resolve is stored as text (`locationText`; `''` when
   `location` holds the resolved snapshot, whose `input`/`label` keep the
@@ -185,6 +185,16 @@ name, and a distribution list ("Verteiler").
   settings are the shared location prefs, so they apply in both tools).
   Frequencies take a comma or a point and are shown as `145,500`. The
   half-typed message is kept as a draft ("✓ Entwurf gesichert").
+- **Callsign lists** (issue #81). The lookup is the shared callsign service
+  (`tools/shared/js/callsign-service.js`, see `tools/shared/README.md`,
+  "Callsign store"): the Austrian list and the user's own lists, managed in
+  the shared dialog opened from the footer ("Rufzeichenlisten – verwalten…",
+  which says the lists are shared by all tools). They feed the completion
+  of Funkstelle/Ursprungsstation and of the operator fields and the info
+  lines under them; a value from a list other than the Austrian one is
+  named ("(aus „X“)"). The own post ("Für Stelle", e.g. "Stab") still gets
+  no guesses from the lists. The lists are read again when the window is
+  looked at again.
 - **Saved / draft / backup wording.** Same contract as the confirmation log
   (`../confirm/README.md`, Persistence). Notices in the banner, as of the
   storage/recovery work: "NICHT GESPEICHERT – … wurde inzwischen geändert"
