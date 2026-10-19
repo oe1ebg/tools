@@ -1,6 +1,6 @@
 // Backup and data (Sessions & series): JSON export of everything or one
 // session, import of a backup (checked as a whole first, applied in one
-// transaction, copies on clashes), station profiles, the Wavelog address,
+// transaction, copies on clashes), station profiles,
 // permanent erasure. A started download is not proof that a backup was
 // kept: the message says to check the file.
 
@@ -10,7 +10,6 @@ import { keyedList, setText, setValue } from './keyed.js';
 import { toBackup, backupText, checkBackup, BACKUP_MAX_BYTES } from './backup.js';
 import { readAll, importBackup, eraseSession, eraseProfile, eraseAll, markBackup } from './ops.js';
 import { liveOf, cmp, sessionLabel } from './model.js';
-import { getWavelog, setWavelog } from './links.js';
 
 // msg: where to say it (a series card's own line), else the data section.
 function say(text, kind = '', msg = null) {
@@ -105,16 +104,6 @@ export function initData(app) {
     ev.target.value = '';
     await importFile(app, f);
   });
-  const wl = $('#wavelog-url');
-  wl.value = getWavelog();
-  wl.addEventListener('change', () => {
-    const u = setWavelog(wl.value);
-    if (wl.value.trim() && !u) { wl.setAttribute('aria-invalid', 'true'); say(t('data.wavelogBad'), 'err'); return; }
-    wl.removeAttribute('aria-invalid');
-    wl.value = u;
-    say(u ? t('data.wavelogSaved') : t('data.wavelogCleared'), 'ok');
-    app.render();
-  });
   $('#profile-list').addEventListener('click', async ev => {
     const b = ev.target.closest('button[data-act=erase-profile]');
     if (!b) return;
@@ -158,5 +147,4 @@ export function renderData(app) {
     },
   });
   if (!profiles.length) fill($('#profile-list'), el('li', { class: 'hint', 'data-key': '' }, t('data.noProfiles')));
-  setValue($('#wavelog-url'), getWavelog());
 }

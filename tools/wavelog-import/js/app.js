@@ -187,6 +187,18 @@ async function init() {
   $('#btn-lists').addEventListener('click', ev => lists.open(ev.currentTarget));
   $('#wl-url').value = String(prefGet(URL_PREF, '') || '');
   $('#conn-form').addEventListener('submit', loadLogbooks);
+  // The address is also what Netlog's "Wavelog" station link opens
+  // (the stored key stays oe1ebg-netlog-wavelog): saved as soon as it is
+  // valid, removed when emptied.
+  $('#wl-url').addEventListener('input', () => fieldError('wl-url-err', ''));
+  // An error is not cleared when the field loses focus: the controls below
+  // would move under the pointer and swallow the click on the button.
+  $('#wl-url').addEventListener('change', () => {
+    const v = $('#wl-url').value.trim();
+    const b = wavelogBase(v);
+    if (!v) { prefSet(URL_PREF, ''); return; }
+    if (b) { prefSet(URL_PREF, b); $('#wl-url').value = b; } else fieldError('wl-url-err', tx('That is no usable address (https://…, http:// only for localhost, no user name or password).', 'Das ist keine brauchbare Adresse (https://…, http:// nur für localhost, ohne Benutzername oder Passwort).'));
+  });
   $('#wl-logbook').addEventListener('change', showStations);
   $('#btn-import').addEventListener('click', runImport);
   $('#btn-cancel').addEventListener('click', () => { if (running) running.abort(); });

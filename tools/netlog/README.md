@@ -309,7 +309,8 @@ offers the export, as on any other page without IndexedDB.
   "Callsign store".
 - **Station lookup links** (online only, hidden offline): QRZ.com, HamQTH,
   QRZCQ and APRS.fi for a resolved callsign (never for `OE0QX?`), and the
-  address of your own Wavelog if you set one ("Backup and data"; the
+  address of your own Wavelog if you set one (on the Wavelog import page,
+  `tools/wavelog-import/`, under the same stored key; the
   instance only, no deep link, no credentials). They open in a new tab; Netlog
   never fetches from them and never overwrites a station with what they
   show.
@@ -576,7 +577,7 @@ Never rename (root `README.md`, "Stable identifiers"):
 | `js/nav.js` | return navigation (origin stack, focus restore) |
 | `js/clog.js` | Continuous Log |
 | `js/backup.js` | backup format, checks, import plan (pure, node-tested) |
-| `js/dataui.js` | backup and data: export, import, profiles, Wavelog address, erasure |
+| `js/dataui.js` | backup and data: export, import, profiles, erasure |
 | `js/links.js` | station lookup links (the only module with external URLs) |
 | `js/clock.js` | time display mode (UTC/local), formatting with the zone |
 | `js/fieldsearch.js` | repeater and callsign completion for single fields |
@@ -610,7 +611,7 @@ shared `callbook.js` `baseCall()` on purpose; the names must stay apart.
   history, response state and order, the open turn, drafts), copies with
   remapped references on clashes, rejected files, size limits (below and
   above, multi-byte text), a failing import changes nothing, erasure.
-- `tests/netlog-links.test.mjs`: lookup links and the Wavelog address.
+- `tests/netlog-links.test.mjs`: lookup links and how a Wavelog address is read.
 - In `tests/e2e/netlog.spec.mjs` also: backup export, erase all, import,
   re-import and bad files; a failed save (storage full) that keeps the text
   and never says "saved"; no IndexedDB (memory mode with export); a

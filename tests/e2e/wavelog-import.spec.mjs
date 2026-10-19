@@ -119,3 +119,27 @@ test('a token without the needed scope is named in the message', async ({ page, 
   await page.locator('#btn-logbooks').click();
   await expect(page.locator('#wl-token-err')).toContainText('logbook:read');
 });
+
+test('the address is saved on this page and is what Netlog\'s Wavelog station link opens; Netlog has no form for it', async ({ page }) => {
+  await open(page);
+  await page.locator('#wl-url').fill('not an address');
+  await page.locator('#wl-url').blur();
+  await expect(page.locator('#wl-url-err')).toContainText('keine brauchbare Adresse');
+  await page.locator('#wl-url').fill('https://wl.example.org');
+  await page.locator('#wl-url').blur();
+  await expect(page.locator('#wl-url')).toHaveValue('https://wl.example.org/');
+  await expect(page.locator('#wl-url-err')).toHaveText('');
+  expect(await page.evaluate(() => localStorage.getItem('oe1ebg-netlog-wavelog'))).toContain('https://wl.example.org/');
+
+  await page.goto('tools/netlog/');
+  await expect.poll(() => page.evaluate(() => globalThis.NETLOG_READY === true)).toBe(true);
+  await page.locator('#tab-series').click();
+  await expect(page.locator('#wavelog-url')).toHaveCount(0);
+  await page.locator('#btn-new-session').click();
+  await page.locator('#sf-own').fill('OE0QXZ');
+  await page.locator('#session-form button[type=submit]').click();
+  await page.locator('#checkin-call').fill('OE0QXA');
+  await page.locator('#checkin-name').press('Enter');
+  await page.locator('#roster button.person').first().click();
+  await expect(page.locator('#station-links a[href="https://wl.example.org/"]')).toHaveText('Wavelog ↗');
+});

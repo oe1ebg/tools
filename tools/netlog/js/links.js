@@ -3,11 +3,12 @@
 // never fetches anything from them, never sends a query by itself and
 // never overwrites a station with what they show. Only verified URL forms
 // (the station page of each site, checked 2026-10 with a real callsign);
-// for Wavelog only the configured instance's address (no deep link).
+// for Wavelog only the instance's address (no deep link), set on the
+// Wavelog import page (tools/wavelog-import/, the same stored key).
 // The callsign goes in URL-encoded. The only Netlog module with external
 // URLs (tests/netlog-offline.test.mjs).
 
-import { prefGet, prefSet } from '../../shared/js/prefs.js';
+import { prefGet } from '../../shared/js/prefs.js';
 import { callBase, isUnresolved } from './model.js';
 
 export const WAVELOG_PREF = 'oe1ebg-netlog-wavelog';
@@ -34,12 +35,6 @@ export function wavelogUrl(text) {
 
 export function getWavelog() {
   return wavelogUrl(prefGet(WAVELOG_PREF, ''));
-}
-
-export function setWavelog(text) {
-  const u = wavelogUrl(text);
-  prefSet(WAVELOG_PREF, u);
-  return u;
 }
 
 // [{ label, href }] for a participant's callsign; none for an unresolved
