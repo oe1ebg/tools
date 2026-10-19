@@ -1594,7 +1594,7 @@ test('callsign lists: the test search covers the active lists and names the list
   const csv = pathJoin(tmp, 'meine.csv');
   const notes = pathJoin(tmp, 'noten.txt');
   await writeFile(csv, 'call;name;qth\nOE0QXA;Anna Privat;Graz\nOE0QXB;Bernd\n');
-  await writeFile(notes, '# TITLE: Hams of Note\nOE0QXA 🤩 [Elmer](https://example.org/e)\n');
+  await writeFile(notes, '# TITLE: Hams of Note\nOE0QXA 🤩 [Quirlmeister](https://example.org/e)\n');
   await dlg.locator('input[type=file]').setInputFiles(csv);
   await expect(dlg.locator('table[aria-labelledby=cl-title] tbody tr')).toHaveCount(2);
   await dlg.locator('input[type=file]').setInputFiles(notes);
@@ -1602,22 +1602,34 @@ test('callsign lists: the test search covers the active lists and names the list
   const search = dlg.locator('#cl-test-search');
   await expect(dlg.locator('.cl-test .cl-count')).toContainText('Durchsucht 3 eingeschaltete');
   await search.fill('oe0qxa');
-  const rows = dlg.locator('.cl-test tbody tr');
-  await expect(rows).toHaveCount(2);
+  const rows = dlg.locator('.cl-test table[aria-labelledby=cl-entries-title] tbody tr');   // entries per list
+  // the exact callsign first, then similar ones (one edit away), as in the check-in field
+  await expect(rows.filter({ hasText: 'OE0QXA' })).toHaveCount(2);
   await expect(rows.nth(0)).toContainText('Anna Privat');
   await expect(rows.nth(0)).toContainText('meine');          // the list it comes from
-  await expect(rows.nth(1)).toContainText('Elmer');
+  await expect(rows.nth(1)).toContainText('Quirlmeister');
   await expect(rows.nth(1)).toContainText('Hams of Note');
-  await expect(dlg.locator('.cl-merged')).toContainText('Name: Anna Privat (meine)');
-  await expect(dlg.locator('.cl-merged')).toContainText('QTH: Graz (meine)');
-  await search.fill('elmer');                                 // notes are searched too
+  const box = dlg.locator('.cl-merged-box');                // the combined result, apart from the entries
+  await expect(box).toBeVisible();
+  await expect(box).toContainText('das sehen die Tools');
+  const first = box.locator('tbody tr').first();               // the exact callsign comes first
+  await expect(first).toContainText('OE0QXA');
+  await expect(first).toContainText('Anna Privat');
+  await expect(first).toContainText('aus meine');       // name and QTH from the CSV
+  await expect(first).toContainText('Quirlmeister');
+  await expect(first).toContainText('aus Hams of Note');
+  await search.fill('oe0qx?');                                 // partial callsign, as in the check-in field
+  await expect(box.locator('tbody tr').filter({ hasText: 'OE0QXA' })).toHaveCount(1);   // the pattern fits both of ours (and real ones of the Austrian list)
+  await expect(box.locator('tbody tr').filter({ hasText: 'OE0QXB' })).toHaveCount(1);
+  await search.fill('oe0qxa');
+  await search.fill('quirlmeister');                                 // notes are searched too
   await expect(rows).toHaveCount(2);
   // a list that is switched off drops out of the results
   await dlg.locator('table[aria-labelledby=cl-title] tbody tr').nth(1).locator('input[data-act=enable]').uncheck();   // Hams of Note
   await expect(rows).toHaveCount(0);
   await expect(dlg.locator('.cl-test .cl-count')).toContainText('Kein Treffer in 2 eingeschalteten');
   await search.fill('OE0QXB');
-  await expect(rows).toHaveCount(1);
+  await expect(rows.filter({ hasText: 'OE0QXB' })).toHaveCount(1);
   await search.press('Escape');
   await expect(search).toHaveValue('');
   await expect(dlg).toBeVisible();

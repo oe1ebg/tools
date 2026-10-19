@@ -12,7 +12,7 @@
 // Top-level names start with "callsign"/"CALLSIGN_": the single-file
 // bundles share one scope with the tools' own modules.
 
-import { baseCall } from './callbook.js';
+import { baseCall, withinOneEdit } from './callbook.js';
 
 export const CALLSIGN_BUILTIN_ID = 'builtin:oe-callbook';
 
@@ -82,6 +82,39 @@ export function buildCallsignDirectory({ sources = [], records = [], callbook = 
     return out;
   }
 
+  // All callsigns of the enabled sources, sorted; and OE calls by suffix.
+  let callsCache = null;
+  let suffixCache = null;
+  function allCalls() {
+    if (!callsCache) {
+      const all = new Set(byBase.keys());
+      if (builtin && callbook) for (const c of callbook.calls) all.add(c[0]);
+      callsCache = [...all].sort();
+    }
+    return callsCache;
+  }
+  function suffixes() {
+    if (!suffixCache) {
+      suffixCache = new Map();
+      for (const c of allCalls()) {
+        const m = /^OE\d([A-Z0-9]+)$/.exec(c);
+        if (!m) continue;
+        if (!suffixCache.has(m[1])) suffixCache.set(m[1], []);
+        suffixCache.get(m[1]).push(c);
+      }
+    }
+    return suffixCache;
+  }
+  const has = base => byBase.has(base) || !!(builtin && callbook && callbook.byCall.has(base));
+  function lowerBound(list, key) {
+    let lo = 0, hi = list.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (list[mid] < key) lo = mid + 1; else hi = mid;
+    }
+    return lo;
+  }
+
   return {
     sources: active,
     // The merged answer for a callsign (portable parts ignored), or null.
@@ -91,38 +124,71 @@ export function buildCallsignDirectory({ sources = [], records = [], callbook = 
       return entries.length ? merge(base, entries) : null;
     },
     // Every callsign of an enabled source, sorted.
-    callsigns() {
-      const all = new Set(byBase.keys());
-      if (builtin && callbook) for (const c of callbook.calls) all.add(c[0]);
-      return [...all].sort();
-    },
-    // Callsigns starting with the text, or whose name/QTH/note contain it
-    // (3+ letters): [{ call, name, qth, from }] by callsign, at most max.
+    callsigns: allCalls,
+    // The search of the callsign field, over every list that is switched
+    // on: [{ call, name, qth, from }], best first, at most max. A partial
+    // callsign with ? or * ("OE0QX?", "?QXB": each run stands for one or
+    // more characters) gives the callsigns it fits; otherwise, in this
+    // order: the exact callsign, callsigns starting with the input, short
+    // forms ("ABC", "1ABC" for OE1ABC…), one-edit typos, then names, places
+    // and notes containing the input (3+ letters). Needs 2+ characters.
     search(text, max = 8) {
       const q = String(text || '').trim();
-      if (!q) return [];
+      if (q.length < 2) return [];
       const up = q.toUpperCase().replace(/\s+/g, '');
-      const needle = callsignFold(q);
-      const bases = new Set();
-      const matches = [];
-      const consider = base => {
-        if (bases.has(base)) return;
-        bases.add(base);
+      const out = [];
+      const seen = new Set();
+      const add = base => {
+        if (!base || seen.has(base) || out.length >= max) return;
+        seen.add(base);
         const m = merge(base, entriesFor(base));
-        matches.push({ call: base, name: m.name, qth: m.qth, from: m.from.name || m.from.qth || '' });
+        out.push({ call: base, name: m.name, qth: m.qth, from: m.from.name || m.from.qth || '' });
       };
-      const calls = new Set(byBase.keys());
-      if (builtin && callbook) for (const c of callbook.calls) calls.add(c[0]);
-      if (/^[A-Z0-9/]+$/.test(up)) for (const b of calls) if (b.startsWith(up)) consider(b);
-      if (needle.length >= 3 && /[a-z]/.test(needle)) {
-        for (const [base, list] of byBase) {
-          if (list.some(e => callsignFold(e.name).includes(needle) || callsignFold(e.qth).includes(needle) || callsignFold(callsignNoteText(e.note)).includes(needle))) consider(base);
+      const calls = allCalls();
+      if (/^[A-Z0-9/?*]+$/.test(up) && /[?*]/.test(up)) {
+        const src = baseCall(up).split(/[?*]+/).map(s => s.replace(/[^A-Z0-9]/g, '')).join('[A-Z0-9]+');
+        const re = new RegExp(`^${src}$`);
+        for (const c of calls) { if (re.test(c)) add(c); if (out.length >= max) break; }
+        return out;
+      }
+      if (/^[A-Z0-9/]+$/.test(up)) {
+        const call = baseCall(up);
+        if (calls.length && has(call)) add(call);
+        for (let i = lowerBound(calls, call); i < calls.length && calls[i].startsWith(call); i++) add(calls[i]);
+        const short = /^(\d)?([A-Z][A-Z0-9]{0,4})$/.exec(call);
+        if (short && !call.startsWith('OE')) {
+          const [, digit, suffix] = short;
+          if (digit && has(`OE${call}`)) add(`OE${call}`);
+          for (const c of suffixes().get(suffix) || []) add(c);
+          if (suffix.length >= 2) {
+            const wanted = digit ? `OE${call}` : null;
+            for (let i = wanted ? lowerBound(calls, wanted) : 0; i < calls.length && out.length < max; i++) {
+              const c = calls[i];
+              if (wanted && !c.startsWith(wanted)) break;
+              const m = /^OE\d(.*)$/.exec(c);
+              if (m && m[1].startsWith(suffix)) add(c);
+            }
+          }
         }
-        if (builtin && callbook) {
-          for (const c of callbook.calls) if (callsignFold(c[1]).includes(needle) || callsignFold(c[2]).includes(needle)) consider(c[0]);
+        for (const c of calls) {
+          if (out.length >= max) break;
+          if (Math.abs(c.length - call.length) <= 1 && withinOneEdit(call, c)) add(c);
         }
       }
-      return matches.sort((a, b) => (a.call < b.call ? -1 : a.call > b.call ? 1 : 0)).slice(0, max);
+      const needle = callsignFold(q);
+      if (needle.length >= 3 && /[a-z]/.test(needle)) {
+        for (const [base, list] of byBase) {
+          if (out.length >= max) break;
+          if (list.some(e => callsignFold(e.name).includes(needle) || callsignFold(e.qth).includes(needle) || callsignFold(callsignNoteText(e.note)).includes(needle))) add(base);
+        }
+        if (builtin && callbook) {
+          for (const c of callbook.calls) {
+            if (out.length >= max) break;
+            if (callsignFold(c[1]).includes(needle) || callsignFold(c[2]).includes(needle)) add(c[0]);
+          }
+        }
+      }
+      return out;
     },
   };
 }

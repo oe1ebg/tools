@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { memoryStore } from '../tools/netlog/js/memstore.js';
-import { buildCallbook } from '../tools/shared/js/callbook.js';
+import { buildCallbook, searchCallbook } from '../tools/shared/js/callbook.js';
 import { buildCallsignDirectory, callsignNoteText, CALLSIGN_BUILTIN_ID } from '../tools/shared/js/callsign-merge.js';
 import {
   CALLSIGN_STORES, CALLSIGN_SCHEMA, ensureBuiltinSource, loadCallsignStore, importCallsignSource,
@@ -150,4 +150,34 @@ test('search also finds notes (from three letters), and entries keep their list'
   assert.deepEqual(d.search('map rep').map(m => m.call), ['OE0QXB']);
   assert.deepEqual(d.search('https').map(m => m.call), []);          // markdown syntax is not searched
   assert.deepEqual(d.lookup('OE0QXB').entries.map(e => e.source), ['Notes', 'Mine']);
+});
+
+// The test search and the check-in field are one search (issue #81): over
+// the bundled list alone it finds what searchCallbook() always found, and it
+// adds partial callsigns with ? and * and the other lists.
+const bigBook = buildCallbook({ calls: [
+  ['OE0QXA', 'Anna Amtlich', '1010 Wien'], ['OE0QXB', 'Bernd Berger', '8010 Graz'], ['OE0QXD', '', ''],
+  ['OE1ABC', 'Carla Cäsar', '1020 Wien'], ['OE3ABC', 'Dora Dorn', '3100 St. Pölten'], ['OE3ABD', 'Egon Egger', '3100 St. Pölten'],
+  ['OE5XYZ', 'Frieda Fuchs', '4020 Linz'], ['OE5XZZ', '', '4020 Linz'],
+] });
+
+test('over the bundled list alone the directory finds what the callbook search finds, in the same order', async () => {
+  const s = await fresh();
+  const d = await dir(s, bigBook);
+  for (const q of ['OE0QX', 'OE3AB', 'ABC', '1ABC', 'OE1ABX', 'OE5XYS', 'OE3', 'linz', 'polten', 'cäsar', 'OE0QXA', 'xx', 'o']) {
+    assert.deepEqual(d.search(q, 8).map(c => c.call), searchCallbook(bigBook, q, 8).map(c => c[0]), q);
+  }
+});
+
+test('partial callsigns with ? and *, across all lists that are switched on', async () => {
+  const s = await fresh();
+  await importCallsignSource(s, { kind: 'csv', name: 'Mine', rows: [row('OE0QXE', { name: 'Eva' }), row('DL1ABC', { name: 'Dieter' })] });
+  const d = await dir(s, bigBook);
+  assert.deepEqual(d.search('OE0QX?').map(c => c.call), ['OE0QXA', 'OE0QXB', 'OE0QXD', 'OE0QXE']);
+  assert.deepEqual(d.search('?ABC').map(c => c.call), ['DL1ABC', 'OE1ABC', 'OE3ABC']);
+  assert.deepEqual(d.search('oe3*').map(c => c.call), ['OE3ABC', 'OE3ABD']);
+  assert.deepEqual(d.search('OE0QXA?').map(c => c.call), []);            // a complete call is no pattern fit with an extra character
+  assert.deepEqual(d.search('OE0QX?', 2).map(c => c.call), ['OE0QXA', 'OE0QXB']);
+  await setCallsignSourceEnabled(s, (await s.getAll('sources')).find(x => x.name === 'Mine').id, false);
+  assert.deepEqual((await dir(s, bigBook)).search('OE0QX?').map(c => c.call), ['OE0QXA', 'OE0QXB', 'OE0QXD']);
 });
