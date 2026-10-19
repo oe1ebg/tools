@@ -1440,64 +1440,83 @@ test('series cards: collapsed with a summary, remembered; back up and restore on
   expect(await page.evaluate(() => globalThis.NETLOG_APP.data.sessions.length)).toBe(3);
 });
 
-// Callsign lists (#81): an own CSV and a PoLo notes file next to the
-// Austrian list; sources stay separate, order and switches decide, and the
-// check-in suggestions and the info line read the merged view.
-test('callsign lists: import, merge order, switch off, replace and undo, delete and restore', async ({ page }) => {
-  await open(page);
+// Callsign lists (#81): the shared dialog (shared/js/callsignlists.js)
+// opened from "Backup and data": an own CSV and a PoLo notes file next to
+// the Austrian list; sources stay separate, order and switches decide, and
+// the check-in suggestions and the info line read the merged view. The
+// dialog says first that the data is shared by all tools.
+async function openLists(page) {
   await page.locator('#tab-series').click();
-  const dir = await mkdtemp(pathJoin(tmpdir(), 'netlog-lists-'));
-  const csv = pathJoin(dir, 'meine.csv');
-  const notes = pathJoin(dir, 'noten.txt');
+  await page.locator('#btn-lists-open').click();
+  const dlg = page.locator('#callsign-lists-dlg');
+  await expect(dlg).toBeVisible();
+  return dlg;
+}
+
+test('callsign lists: shared dialog; import, merge order, switch off, replace and undo, delete and restore', async ({ page }) => {
+  await open(page);
+  const dlg = await openLists(page);
+  await expect(dlg.locator('.cl-shared')).toContainText('Gemeinsam für alle Tools');
+  const tmp = await mkdtemp(pathJoin(tmpdir(), 'netlog-lists-'));
+  const csv = pathJoin(tmp, 'meine.csv');
+  const notes = pathJoin(tmp, 'noten.txt');
   await writeFile(csv, 'call;name;qth\nOE0QXA;Anna Privat;Graz\nOE0QXB;Bernd\n');
-  await writeFile(notes, '# TITLE: Hams of Note\nOE0QXA 🤩 Elmer\nOE0QXB 🌳 POTA\n');
-  const rows = page.locator('#lists-list .list-row');
+  await writeFile(notes, '# TITLE: Hams of Note\nOE0QXA 🤩 [Elmer](https://example.org/e)\nOE0QXB 🌳 POTA\n');
+  const rows = dlg.locator('.cl-row');
   await expect(rows).toHaveCount(1);                       // the Austrian list
-  await page.locator('#list-file').setInputFiles(csv);
-  await expect(page.locator('#lists-msg')).toContainText('2 Einträge');
-  await page.locator('#list-file').setInputFiles(notes);
+  await dlg.locator('input[type=file]').setInputFiles(csv);
+  await expect(dlg.locator('.cl-msg')).toContainText('2 Einträge');
+  await dlg.locator('input[type=file]').setInputFiles(notes);
   await expect(rows).toHaveCount(3);
   await expect(rows.nth(1)).toContainText('Hams of Note');
   await expect(rows.nth(2)).toContainText('Österreichische Rufzeichenliste');
-  await expect(page.locator('#lists-list .list-row [data-act=up]').first()).toBeDisabled();
+  await expect(rows.first().locator('[data-act=up]')).toBeDisabled();
+  await expect(page.locator('#lists-summary')).toContainText('3 von 3 Listen');
+  await page.keyboard.press('Escape');
+  await expect(dlg).toBeHidden();
+  await expect(page.locator('#btn-lists-open')).toBeFocused();
 
   await startSession(page);
   await page.locator('#checkin-call').fill('OE0QXA');
   await expect(page.locator('#checkin-info')).toContainText('Anna Privat');
   await expect(page.locator('#checkin-info')).toContainText('Elmer');
+  await expect(page.locator('#checkin-info')).not.toContainText('https://');
   await page.locator('#checkin-call').fill('OE0QX');          // suggestions come from the lists
   await expect(page.locator('#checkin-pop')).toContainText('Bernd');
   await expect(page.locator('#checkin-pop')).toContainText('Anna Privat');
 
-  await page.locator('#tab-series').click();
+  await openLists(page);
   await rows.nth(1).locator('[data-act=up]').click();      // notes list first: still no name there
   await expect(rows.first()).toContainText('Hams of Note');
+  await expect(rows.first().locator('[data-act=up]')).toBeDisabled();
   await rows.first().locator('input[data-act=enable]').uncheck();
   await expect(rows.first().locator('input[data-act=enable]')).not.toBeChecked();
+  await expect(page.locator('#lists-summary')).toContainText('2 von 3 Listen');
 
   // replace a list; undo brings the previous version back
   await rows.nth(1).locator('[data-act=replace]').click();
-  await page.locator('#list-file').setInputFiles(csv);
-  await expect(page.locator('#lists-msg')).toContainText('ersetzt');
+  await dlg.locator('input[type=file]').setInputFiles(csv);
+  await expect(dlg.locator('.cl-msg')).toContainText('ersetzt');
   await expect(rows.nth(1).locator('[data-act=undo]')).toBeVisible();
   await rows.nth(1).locator('[data-act=undo]').click();
-  await expect(page.locator('#lists-msg')).toContainText('wiederhergestellt');
+  await expect(dlg.locator('.cl-msg')).toContainText('andere Fassung');
 
   // delete is reversible
   await rows.nth(1).locator('[data-act=delete]').click();
-  await expect(page.locator('#lists-msg')).toContainText('gelöscht');
+  await expect(dlg.locator('.cl-msg')).toContainText('gelöscht');
   await expect(rows.last().locator('[data-act=restore]')).toBeVisible();
   await rows.last().locator('[data-act=restore]').click();
-  await expect(page.locator('#lists-msg')).toContainText('wiederhergestellt');
+  await expect(dlg.locator('.cl-msg')).toContainText('wiederhergestellt');
 });
 
-test('callsign lists: a file without callsigns changes nothing and says why', async ({ page }) => {
-  await open(page);
-  await page.locator('#tab-series').click();
-  const dir = await mkdtemp(pathJoin(tmpdir(), 'netlog-lists-'));
-  const bad = pathJoin(dir, 'leer.txt');
+test('callsign lists: a file without callsigns changes nothing and says why; English dialog', async ({ page }) => {
+  await open(page, { lang: 'en' });
+  const dlg = await openLists(page);
+  await expect(dlg.locator('.cl-shared')).toContainText('Shared by all tools');
+  const tmp = await mkdtemp(pathJoin(tmpdir(), 'netlog-lists-'));
+  const bad = pathJoin(tmp, 'leer.txt');
   await writeFile(bad, 'nichts\nhier\n');
-  await page.locator('#list-file').setInputFiles(bad);
-  await expect(page.locator('#lists-msg')).toContainText('enthält kein Rufzeichen');
-  await expect(page.locator('#lists-list .list-row')).toHaveCount(1);
+  await dlg.locator('input[type=file]').setInputFiles(bad);
+  await expect(dlg.locator('.cl-msg')).toContainText('contains no callsign');
+  await expect(dlg.locator('.cl-row')).toHaveCount(1);
 });

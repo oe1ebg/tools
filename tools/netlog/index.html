@@ -402,13 +402,11 @@
           <h4 data-i18n="data.profiles">Station profiles</h4>
           <ul id="profile-list" class="profile-list"></ul>
           <h4 id="lists-title" data-i18n="lists.title">Callsign lists</h4>
-          <p class="hint" data-i18n="lists.hint">Add your own lists (a text file in the Ham2K PoLo format, or CSV: callsign, name, QTH). Every list is kept as it is; for a callsign the first list in this order that has a name or QTH decides, and the notes of all lists are shown. The lists live on this device only and are not part of any backup – keep the original files.</p>
-          <ul id="lists-list" class="profile-list lists-list" aria-labelledby="lists-title"></ul>
+          <p class="hint" data-i18n="lists.hint">Your own lists (a text file in the PoLo format, or CSV) and the Austrian list apply to all tools on this device together: Confirm, Notfunk and Netlog.</p>
           <div class="toolbar">
-            <button type="button" id="btn-list-import" data-i18n="lists.import">Add list…</button>
-            <input type="file" id="list-file" accept=".txt,.csv,text/plain,text/csv" hidden>
+            <button type="button" id="btn-lists-open" aria-haspopup="dialog" data-i18n="lists.open">Manage callsign lists…</button>
+            <span id="lists-summary" class="hint" role="status"></span>
           </div>
-          <p id="lists-msg" class="data-msg" role="status"></p>
           <h4 data-i18n="data.links">Station lookup links</h4>
           <label class="field wavelog-field"><span data-i18n="data.wavelog">My Wavelog address (optional)</span>
             <input id="wavelog-url" type="url" inputmode="url" autocorrect="off" spellcheck="false" placeholder="https://…"></label>

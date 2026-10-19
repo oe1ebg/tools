@@ -36,7 +36,7 @@ import { initSearch } from './searchui.js';
 import { initSpeak, renderSpeak, nextSpeaker } from './speak.js';
 import { initHistory, renderHistory, historyStale } from './historyui.js';
 import { initData, renderData, exportBackup } from './dataui.js';
-import { initCallsigns, initCallsignLists, rebuildCallsignDirectory } from './callsignui.js';
+import { initCallsigns, rebuildCallsignDirectory } from './callsignui.js';
 import { undo, undoStep } from './ops.js';
 
 const VIEWS = ['live', 'turn', 'log', 'control', 'series'];
@@ -786,7 +786,6 @@ async function main() {
   initSearch(app);
   initHistory(app);
   initData(app);
-  initCallsignLists(app);
   $('#btn-undo').addEventListener('click', () => app.undo(false));
   $('#st-backup').addEventListener('click', () => { if (app.s) exportBackup(app, app.s.id); });
   $('#btn-redo').addEventListener('click', () => app.undo(true));

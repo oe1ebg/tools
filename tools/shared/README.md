@@ -209,6 +209,15 @@ fallback; without it the tools keep the bundled Austrian list.
   Files over 8 MB or 200,000 entries are refused before anything is
   written. No format specification of PoLo exists; the rules follow its
   documentation and the published Hams-of-Note file.
+- **One dialog for every tool** (`callsignlists.js`, `createCallsignLists()`):
+  the lists, their order, switches, replace/undo, delete and erase live in
+  one shared `<dialog>` that a tool opens from a button; the tool reads the
+  merged view through `directory()` and re-renders on `onChange`. The dialog
+  says first that the data is shared by all tools of the same address (in a
+  `file://` single-file bundle: that the file keeps its own data). Texts
+  through `tx()` (`i18n.js`; the tool passes `getLang`). Netlog:
+  `tools/netlog/js/callsignui.js` (section in "Backup and data"). Confirm
+  and Notfunk can open the same dialog; they do not yet.
 - **Not in any backup.** The Netlog/Confirm/Notfunk backups do not include
   this database and the page says so (keep the original files). Decision:
   no list backup for now; a separate backup/restore shared by all tools may

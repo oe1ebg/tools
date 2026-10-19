@@ -578,8 +578,3 @@ li.event-line .time{ min-width:5.5em; }
    placeholder explains the search. */
 #identity-call, #se-own, #sf-own, #srf-ncs{ width:calc(12ch + 1.2em); max-width:100%; box-sizing:border-box; }
 #se-repeater, #sf-repeater, #srf-repeater{ width:calc(6ch + 1.6em); max-width:100%; box-sizing:border-box; font-family:var(--font-mono); }
-
-.lists-list .list-row{ display:flex; flex-wrap:wrap; align-items:center; gap:.25em .5em; }
-.lists-list .list-name{ font-weight:600; }
-.lists-list .list-meta{ color:var(--text-dim); }
-.lists-list .list-row [hidden]{ display:none; }

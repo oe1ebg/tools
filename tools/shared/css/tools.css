@@ -163,6 +163,20 @@ dl.kb dd{ margin:0; color:var(--text-dim); }
   dl.kb dd{ margin-bottom:.4em; }
 }
 
+/* ---------- the callsign lists dialog (js/callsignlists.js) ---------- */
+.cl-dlg{ width:min(720px, calc(100vw - 2em)); }
+.cl-body{ padding:.6em 1em 1em; overflow:auto; }
+.cl-shared{ margin:0 0 .8em; padding:.5em .7em; border:1px solid var(--accent); border-radius:6px; background:var(--accent-soft); color:var(--text); }
+.cl-list{ list-style:none; margin:0 0 .8em; padding:0; }
+.cl-row{ display:flex; flex-wrap:wrap; align-items:center; gap:.25em .5em; padding:.35em 0; border-top:1px solid var(--line); }
+.cl-row:first-child{ border-top:0; }
+.cl-name{ font-weight:600; }
+.cl-meta{ color:var(--text-dim); }
+.cl-msg{ min-height:1.4em; margin:.4em 0; }
+.cl-msg.ok::before{ content:"✔ "; }
+.cl-msg.err{ color:var(--err); }
+.cl-msg.err::before{ content:"✖ "; }
+
 /* ---------- tables: column names that stay in view (.sticky-head) ---------- */
 /* On the wrapper around a <table>: the column names stay in view while the
    page scrolls, right below the sticky page header (--site-header-h, kept
