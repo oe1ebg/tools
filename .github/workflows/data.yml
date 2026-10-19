@@ -89,6 +89,9 @@ jobs:
           BUILD_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           ADIF_CROSSCHECK: require
           DATA_TESTS: require
+          # releases carry the manuals' screenshots (made by the build); tags
+          # from before that ignore this
+          MANUAL_IMAGES: require
           GIT_SHA: ${{ steps.sha.outputs.sha }}
         run: |
           # Older release tags have no XML test group yet.

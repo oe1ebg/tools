@@ -19,7 +19,7 @@ For each release:
    `git tag -a v0.3.0 <release-commit> -m 'Release v0.3.0'`, then
    `git push origin v0.3.0`. Tagging starts the release workflow.
 5. Check the Release workflow. It requires a nonempty matching notes file,
-   builds with fresh data, runs required checks, and validates the exact tarball
+   builds with fresh data and the manuals' screenshots (generated in the pinned Playwright image, not committed; the release fails without them), runs required checks, and validates the exact tarball
    before publishing. The GitHub release uses the notes from the tagged commit
    and appends GitHub's generated PR/contributor list.
 

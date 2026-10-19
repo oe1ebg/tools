@@ -1,10 +1,13 @@
 // The screenshots of the manuals (see shots.config.mjs). Each block sets up
 // example data through the UI, the way a user would, and saves PNGs into
-// docs/img/ (committed). Re-run after visible changes to a tool.
+// build/manual-img/ (git-ignored; SHOTS_OUT overrides it): `just build`
+// makes them and puts them into the bundle (site/tools/img/), they are not
+// committed. Every image a manual uses (docs/*.md) must be made here
+// (tests/manual-images.test.mjs).
 import { fileURLToPath } from 'node:url';
 import { test, expect } from '@playwright/test';
 
-const IMG = fileURLToPath(new URL('../../docs/img/', import.meta.url));
+const IMG = (process.env.SHOTS_OUT ? process.env.SHOTS_OUT.replace(/\/*$/, '/') : fileURLToPath(new URL('../../build/manual-img/', import.meta.url)));
 const EXAMPLES = fileURLToPath(new URL('../../examples/backups/', import.meta.url));
 const at = iso => new Date(iso);
 
@@ -122,8 +125,9 @@ test('Notfunk-Meldebuch', async ({ page }) => {
   await expect(page.locator('#msg-detail .detail-tags')).toContainText('GZ 0412');
   await shotAround(page, ['#view-msg'], 'notfunk-meldung-detail');
 
-  // the printout is a PDF (docs/img/notfunk-ausdruck.png is a render of
-  // it, not a screenshot of the page): only check that it opens
+  // the printout is a PDF (docs/static/notfunk-ausdruck.png, committed, is a
+  // render of it, not a screenshot of a page: no PDF rasteriser in the
+  // pinned image): only check that it opens
   await page.evaluate(() => { window.open = () => ({}); });
   await page.getByRole('button', { name: 'Ausdruck / PDF' }).click();
 

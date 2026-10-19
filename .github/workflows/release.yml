@@ -66,6 +66,9 @@ jobs:
           ADIF_CROSSCHECK: require
           ADIF_XMLCHECK: require
           DATA_TESTS: require
+          # the manuals' screenshots are made by the build (in the pinned
+          # Playwright image) and not committed: a release needs them
+          MANUAL_IMAGES: require
         run: |
           uv sync --locked --group xml-tests
           uvx --from rust-just just dist

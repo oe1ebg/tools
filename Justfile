@@ -138,9 +138,10 @@ og-cards:
 stage:
     GIT_SHA={{git_sha}} TOOLS_VERSION={{version}} uv run python scripts/build_site.py
 
-# Everything: data, generated files, site/tools/.
+# Everything: data, generated files, site/tools/, the manuals' screenshots
+# (MANUAL_IMAGES=auto|require|never, see manual-images).
 [doc("Build the whole bundle (data + offline files + site/tools/)")]
-build: fetch-summits build-confirm build-notfunk build-adif build-netlog stage
+build: fetch-summits build-confirm build-notfunk build-adif build-netlog stage manual-images
 
 # Release tarball of site/tools/ (top directory oe1ebg-tools-<version>/) and
 # its SHA-256, in dist/. Untar it anywhere on a static webserver.
@@ -148,6 +149,8 @@ build: fetch-summits build-confirm build-notfunk build-adif build-netlog stage
 dist: build
     #!/usr/bin/env sh
     set -eu
+    # a release carries the manuals' screenshots (made by the build)
+    python3 scripts/check_manual_images.py site/tools/img
     name="oe1ebg-tools-{{version}}"
     mkdir -p dist
     rm -rf "dist/$name" && cp -R site/tools "dist/$name"
@@ -278,12 +281,64 @@ bench-ui *args:
     cd tests/e2e && npx playwright install chromium webkit
     node scripts/bench_ui.mjs {{args}}
 
-# Screenshots for the manuals (docs/img/, committed), from site/ of `just
-# build`; re-run after visible changes to confirm or notfunk.
+# Screenshots for the manuals (tests/e2e/manual.shots.mjs): the tools are
+# driven through the UI with example data, the pictures go to
+# build/manual-img/ (git-ignored, not committed) and into the staged bundle
+# (site/tools/img/). Needs `just stage` or `just build` first. With docker or
+# podman it runs in the pinned Playwright image, so the pictures look the
+# same on every machine and in CI; otherwise with a local Chromium.
+[doc("Generate the manual screenshots into build/manual-img/ and site/tools/img/ (needs `just stage` first)")]
 screenshots *args:
-    cd tests/e2e && npm install --no-save --no-package-lock --no-audit --no-fund @playwright/test@{{playwright_version}}
-    cd tests/e2e && npx playwright install chromium
-    cd tests/e2e && npx playwright test --config shots.config.mjs {{args}}
+    #!/usr/bin/env sh
+    set -eu
+    if [ ! -f site/tools/index.html ]; then
+      echo "site/tools/ is missing: run 'just build' (or 'just stage') first" >&2
+      exit 1
+    fi
+    rm -rf build/manual-img
+    mkdir -p build/manual-img
+    if [ "{{container_tool}}" != none ]; then
+      image=$(awk '$1 == "FROM" && $4 == "playwright" { print $2 }' tests/e2e/images.Dockerfile)
+      status=0
+      {{container_tool}} run --rm --ipc=host -v "$PWD":/work -w /work/tests/e2e -e SHOTS_OUT=/work/build/manual-img "$image" \
+        bash -c "npm install --no-save --no-package-lock --no-audit --no-fund @playwright/test@{{playwright_version}} >/dev/null 2>&1 && npx playwright test --config shots.config.mjs {{args}}; code=\$?; chmod -R a+rwX /work/build /work/tests/e2e 2>/dev/null; exit \$code" || status=$?
+      [ "$status" -eq 0 ] || exit "$status"
+    else
+      cd tests/e2e
+      npm install --no-save --no-package-lock --no-audit --no-fund @playwright/test@{{playwright_version}}
+      npx playwright install chromium
+      SHOTS_OUT="$PWD/../../build/manual-img" npx playwright test --config shots.config.mjs {{args}}
+      cd ../..
+    fi
+    mkdir -p site/tools/img
+    cp build/manual-img/*.png site/tools/img/
+    python3 scripts/check_manual_images.py site/tools/img
+
+# The build's screenshot step. MANUAL_IMAGES=auto (default): make them when
+# docker/podman or a local Playwright is there, else say so and go on;
+# =require: make them or fail (what a release needs); =never: skip (CI jobs
+# that only run tests).
+[private]
+manual-images:
+    #!/usr/bin/env sh
+    set -eu
+    mode="${MANUAL_IMAGES:-auto}"
+    case "$mode" in
+      never) echo "manual screenshots skipped (MANUAL_IMAGES=never)"; exit 0 ;;
+      auto|require) ;;
+      *) echo "MANUAL_IMAGES must be auto, require or never (is: $mode)" >&2; exit 1 ;;
+    esac
+    if [ "$mode" = auto ] && [ "{{container_tool}}" = none ] && [ ! -d tests/e2e/node_modules/@playwright/test ]; then
+      echo "manual screenshots skipped: no docker/podman and no local Playwright (MANUAL_IMAGES=require installs it; a release needs them)"
+      exit 0
+    fi
+    if ! {{just_executable()}} screenshots; then
+      if [ "$mode" = require ]; then
+        echo "error: the manual screenshots could not be generated" >&2
+        exit 1
+      fi
+      echo "warning: the manual screenshots could not be generated; the manuals show their alt texts" >&2
+    fi
 
 # UX and accessibility survey (AGENTS.md, "UX and accessibility"): the main
 # views of every tool with the example data, axe-core (WCAG 2.2 A/AA),
@@ -318,7 +373,7 @@ vnu:
 # Remove generated files (keeps .cache/, so the data steps stay cheap).
 [doc("Remove generated files and the bundle (keeps .cache/)")]
 clean:
-    rm -rf site dist tools/sota-alerts/data tools/shared/data tools/confirm/precache.js tools/confirm/confirm-offline.html tools/confirm/build-info.js tools/notfunk/precache.js tools/notfunk/notfunk-offline.html tools/notfunk/build-info.js tools/netlog/precache.js tools/netlog/netlog-offline.html tools/netlog/build-info.js tools/adif/adif-editor.html tools/adif/build-info.js tests/e2e/report tests/e2e/test-results tests/e2e/test-results.json
+    rm -rf site dist build tools/sota-alerts/data tools/shared/data tools/confirm/precache.js tools/confirm/confirm-offline.html tools/confirm/build-info.js tools/notfunk/precache.js tools/notfunk/notfunk-offline.html tools/notfunk/build-info.js tools/netlog/precache.js tools/netlog/netlog-offline.html tools/netlog/build-info.js tools/adif/adif-editor.html tools/adif/build-info.js tests/e2e/report tests/e2e/test-results tests/e2e/test-results.json
 
 # Without a build the tools have no precache.js, and their service worker
 # (rightly) fails to install. For serving tools/ directly during development
