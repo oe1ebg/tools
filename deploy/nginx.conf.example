@@ -26,6 +26,10 @@
 #   sota-alerts/   online only: SOTA's API and Overpass (connect-src) and
 #                  the three tile servers (img-src), tools/sota-alerts/js/;
 #                  data: for the blank image Leaflet puts in unloaded tiles.
+#   wavelog-import/ online only: the user's own Wavelog instance, whose address
+#                  is typed in and so cannot be listed: any https host (and
+#                  http on localhost) in connect-src, nothing else widened
+#                  (tools/wavelog-import/js/wavelog.js is the only caller).
 #   single-file    confirm-offline.html, notfunk-offline.html,
 #                  netlog-offline.html, adif-editor.html: the whole app is
 #                  inline <script> and <style>, so 'unsafe-inline' for this
@@ -42,6 +46,7 @@
 map $uri $oe1ebg_csp {
     default                                                "default-src 'self'; script-src 'self' 'sha256-BFKCNN17mvY1faBbmDv6Qs2zM9TIJ4uOPbK2JRYPmY0=' 'sha256-4QzxWl/E8EGSZSZaTG6/Yh0/RwJ7dKruDne0oFCzeIQ=' 'sha256-1WkpEWRepTjoTSNgcAX7BqTAoY2CLE/8+RQDS/hBEZM='; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
     ~/sota-alerts/                                         "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: https://*.tile.opentopomap.org https://tile.openstreetmap.org https://mapsneu.wien.gv.at; connect-src 'self' https://api2.sota.org.uk https://overpass-api.de; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
+    ~/wavelog-import/                                      "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self'; connect-src 'self' https: http://localhost:* http://127.0.0.1:*; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
     ~/adif-editor\.html$                                   "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'";
     ~/(confirm-offline|notfunk-offline|netlog-offline)\.html$ "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
 }

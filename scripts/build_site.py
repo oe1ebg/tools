@@ -61,6 +61,7 @@ TOOLS = {
     "netlog": ("Netlog", "Notizen für Funkrunden: Stationen, Live-Notizen, „Ich bin dran“, Runden und Rundenleitung (Deutsch/English)."),
     "adif": ("ADIF-Editor", "ADIF-Logs (.adi) ansehen, prüfen und bearbeiten."),
     "sota-alerts": ("SOTA Alerts Map", "SOTA-Alerts auf der Karte (braucht Internet)."),
+    "wavelog-import": ("Wavelog-Import", "QSOs eines Wavelog-Logbuchs auf dieses Gerät holen (braucht Internet; die anderen Tools bleiben offline)."),
 }
 
 PAGE = """<!doctype html>

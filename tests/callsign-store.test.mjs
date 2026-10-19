@@ -27,7 +27,7 @@ async function dir(store, callbook = book) {
 
 test('schema: stable name, every store created', () => {
   assert.equal(CALLSIGN_SCHEMA.name, 'oe1ebg-callsigns');
-  assert.equal(CALLSIGN_SCHEMA.version, 1);
+  assert.equal(CALLSIGN_SCHEMA.version, 2);   // v2 added `qsos` (tests/wavelog-import.test.mjs)
   const created = [];
   CALLSIGN_SCHEMA.upgrade(0, n => created.push(n));
   assert.deepEqual(created.sort(), Object.keys(CALLSIGN_STORES).sort());

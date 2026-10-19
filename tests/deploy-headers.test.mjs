@@ -105,7 +105,7 @@ test('nginx sets every header at server level, for error responses too', () => {
 // Every URI the tests know of, plus a few the rules single out.
 const URIS = () => [...new Set([
   ...pages('tools').map(([u]) => u), ...BUNDLES.map(b => `/${b}`),
-  '/tools/', '/tools/confirm/js/app.js', '/tools/sota-alerts/js/map.js', '/tools/no-such-file',
+  '/tools/', '/tools/confirm/js/app.js', '/tools/sota-alerts/js/map.js', '/tools/wavelog-import/index.html', '/tools/no-such-file',
   '/prefix/tools/adif/adif-editor.html', '/prefix/tools/sota-alerts/index.html',
 ])];
 
@@ -191,4 +191,19 @@ test('the SOTA Alerts Map may reach exactly the hosts in its code', () => {
   assert.deepEqual(others('img-src'), tiles, 'img-src');
   // nothing of that outside sota-alerts/
   assert.ok(!CSP.default.includes('https:'));
+});
+
+test('the Wavelog import page may reach any https host (the user types the address); nothing else is widened', () => {
+  const p = policyFor('/tools/wavelog-import/index.html');
+  assert.notEqual(p, CSP.default);
+  assert.deepEqual(directive(p, 'connect-src'), ["'self'", 'https:', 'http://localhost:*', 'http://127.0.0.1:*']);
+  assert.deepEqual(directive(p, 'script-src'), ["'self'"]);
+  assert.deepEqual(directive(p, 'img-src'), ["'self'"]);
+  assert.ok(!CSP.default.includes('https:'));
+  for (const uri of ['/tools/netlog/index.html', '/tools/confirm/index.html', '/tools/notfunk/index.html']) {
+    assert.deepEqual(directive(policyFor(uri), 'connect-src'), ["'self'"], uri);
+  }
+  // the page makes requests in wavelog.js only
+  const calls = readdirSync(join(ROOT, 'tools/wavelog-import/js')).filter(n => /\bfetch\b|XMLHttpRequest|sendBeacon|WebSocket|EventSource/.test(read(`tools/wavelog-import/js/${n}`)));
+  assert.deepEqual(calls, ['wavelog.js']);
 });
