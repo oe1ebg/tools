@@ -23,6 +23,22 @@ export function callsignActiveSources(sources) {
     .sort((a, b) => (a.rank - b.rank) || String(a.name).localeCompare(String(b.name), 'de'));
 }
 
+// A note as plain text for display: the simplified GitHub markdown of PoLo
+// notes (links, images, bold, italic, inline code) without its syntax.
+// Stored notes stay verbatim. Emphasis marks are only taken at word edges,
+// so snake_case or 2*3 stay as they are.
+export function callsignNoteText(note) {
+  const s = String(note ?? '')
+    .replace(/!\[([^\]]*)\]\([^)\s]*(?:\s+"[^"]*")?\)/g, '$1')
+    .replace(/\[([^\]]*)\]\([^)\s]*(?:\s+"[^"]*")?\)/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/(^|[^\w*])(\*\*|__)(\S(?:.*?\S)?)\2(?![\w*])/g, '$1$3')
+    .replace(/(^|[^\w*])([*_])(\S(?:.*?\S)?)\2(?![\w*])/g, '$1$3')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return s || String(note ?? '').trim();
+}
+
 function callsignFold(s) {
   return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ß/g, 'ss');
 }
@@ -62,7 +78,7 @@ export function buildCallsignDirectory({ sources = [], records = [], callbook = 
       const e = entries.find(x => x[f]);
       if (e) { out[f] = e[f]; out.from[f] = e.source; }
     }
-    for (const e of entries) if (e.note) out.notes.push({ text: e.note, source: e.source });
+    for (const e of entries) if (e.note) out.notes.push({ text: callsignNoteText(e.note), raw: e.note, source: e.source });
     return out;
   }
 

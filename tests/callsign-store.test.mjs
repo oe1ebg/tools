@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { memoryStore } from '../tools/netlog/js/memstore.js';
 import { buildCallbook } from '../tools/shared/js/callbook.js';
-import { buildCallsignDirectory, CALLSIGN_BUILTIN_ID } from '../tools/shared/js/callsign-merge.js';
+import { buildCallsignDirectory, callsignNoteText, CALLSIGN_BUILTIN_ID } from '../tools/shared/js/callsign-merge.js';
 import {
   CALLSIGN_STORES, CALLSIGN_SCHEMA, ensureBuiltinSource, loadCallsignStore, importCallsignSource,
   swapCallsignGeneration, setCallsignSourceEnabled, deleteCallsignSource, restoreCallsignSource,
@@ -124,4 +124,20 @@ test('ensureBuiltinSource is idempotent', async () => {
   const s = await fresh();
   await ensureBuiltinSource(s, 'x');
   assert.equal((await s.getAll('sources')).length, 1);
+});
+
+test('notes show without PoLo markdown; stored notes stay verbatim', async () => {
+  assert.equal(callsignNoteText('🏕️ [The Meetup](http://youtube.com/@x)'), '🏕️ The Meetup');
+  assert.equal(callsignNoteText('☘️ [Online ARC](https://www.oarc.ie/) and [more](https://a.b/c_d "title")'), '☘️ Online ARC and more');
+  assert.equal(callsignNoteText('**Anna** is _the_ *best* `OE0QXA`'), 'Anna is the best OE0QXA');
+  assert.equal(callsignNoteText('![logo](https://x.org/a.png) Club'), 'logo Club');
+  assert.equal(callsignNoteText('snake_case_name 2*3*4 a_b'), 'snake_case_name 2*3*4 a_b');
+  assert.equal(callsignNoteText('  spaced \t out  '), 'spaced out');
+  assert.equal(callsignNoteText('[](http://x.org)'), '[](http://x.org)');   // nothing left: the original
+  assert.equal(callsignNoteText(''), '');
+  const s = await fresh();
+  await importCallsignSource(s, { kind: 'polo', name: 'N', rows: [row('OE0QXA', { note: '[Club](https://example.org/a)' })] });
+  const hit = (await dir(s)).lookup('OE0QXA');
+  assert.deepEqual(hit.notes.map(n => [n.text, n.raw]), [['Club', '[Club](https://example.org/a)']]);
+  assert.equal((await s.getAll('records'))[0].note, '[Club](https://example.org/a)');
 });
