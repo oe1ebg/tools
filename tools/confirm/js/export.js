@@ -245,7 +245,7 @@ export function adifIssues(event, entries) {
     const problems = [];
     if (tx === null && rx === null) problems.push('keine Frequenz');
     if (!modeInfo(s.mode)) problems.push('keine Betriebsart');
-    if (!isPlausibleCall(normalizeCall(e.call))) problems.push(`Rufzeichen „${e.call}“ ungewöhnlich`);
+    if (!isPlausibleCall(normalizeCall(e.call))) problems.push(`Unbekanntes Rufzeichen „${e.call}“`);
     if (s.operator && !adifCall(s.operator)) problems.push(`Operator „${s.operator}“ ist kein Rufzeichen`);
     if (s.station && !adifCall(s.station)) problems.push(`Station „${s.station}“ ist kein Rufzeichen`);
     if (s.myGrid && !adifGrid(s.myGrid)) problems.push(`eigener Locator „${s.myGrid}“ ungültig`);

@@ -593,20 +593,32 @@ test('callsign lists: own lists answer in the info line; the typo warning stays 
   const rows = dlg.locator('table[aria-labelledby=cl-title] tbody tr');
   await expect(rows).toHaveCount(2);
   await page.keyboard.press('Escape');
+  await expect(page.locator('#callsign-lists-dlg')).toBeHidden();
+  await expect(page.locator('#btn-lists-open')).toBeFocused();      // the dialog gives the focus back, then we type
   await expect(page.locator('#lists-summary')).toContainText('2 von 2 eingeschaltet');
   // redrawn by itself: the list names, the warning is still about the official list
   await expect(info).toContainText('Anna Privat · Graz (aus „meine“)');
   await expect(info).toContainText('nicht in der Rufzeichenliste (Stand');
   await expect(info).toHaveClass(/unknown/);
-  // a typo of an own-list call is offered with its list
+  // the shared callsign search under the field: a typo of an own-list call is offered with its list
   await call.fill('OE0QXC');
+  await expect(page.locator('#call-suggest')).toContainText('Rufzeichenlisten');
   await expect(page.locator('#call-suggest')).toContainText('OE0QXA');
   await expect(page.locator('#call-suggest')).toContainText('aus „meine“');
+  // ... and so is a partial callsign, with the names of the lists
+  await call.fill('OE0QX');
+  await expect(page.locator('#call-suggest .ac-item', { hasText: 'OE0QXB' })).toContainText('Bernd Muster');
+  await expect(page.locator('#call-suggest .ac-item', { hasText: 'OE0QXB' })).toContainText('aus „meine“');
+  // a pattern as in every callsign field
+  await call.fill('OE0QX?');
+  await expect(page.locator('#call-suggest .ac-item', { hasText: 'OE0QXA' })).toBeVisible();
 
   // the Austrian list switched off: no warning at all, the own list still answers
   await page.locator('#btn-lists-open').click();
   await rows.last().locator('input[data-act=enable]').uncheck();
   await page.keyboard.press('Escape');
+  await expect(page.locator('#callsign-lists-dlg')).toBeHidden();
+  await expect(page.locator('#btn-lists-open')).toBeFocused();      // the dialog gives the focus back, then we type
   await call.fill('OE0QXA');
   await expect(info).toContainText('Anna Privat');
   await expect(info).not.toContainText('nicht in');
@@ -625,6 +637,50 @@ test('callsign lists: the name from the lists shows in the log row and the locat
   await page.locator('#callsign-lists-dlg input[type=file]').setInputFiles(csv);
   await expect(page.locator('#callsign-lists-dlg table[aria-labelledby=cl-title] tbody tr')).toHaveCount(2);
   await page.keyboard.press('Escape');
+  await expect(page.locator('#callsign-lists-dlg')).toBeHidden();
+  await expect(page.locator('#btn-lists-open')).toBeFocused();      // the dialog gives the focus back, then we type
   await logCall(page, 'OE0QXA');
   await expect(page.locator('#log-body')).toContainText('Anna Privat');          // the row redraws with the merged name
+});
+
+test('callsign lists: the call field uses the shared search; Enter saves what was typed, ↓ takes a suggestion', async ({ page }) => {
+  await openNewLog(page, 'E2E Suche');
+  await page.locator('#btn-lists-open').click();
+  const csv = pathJoin(mkdtempSync(pathJoin(tmpdir(), 'confirm-lists-')), 'meine.csv');
+  writeFileSync(csv, 'call;name;qth\nOE0QXA;Anna Privat;Graz\nOE0QXB;Bernd Muster;Linz\n');
+  await page.locator('#callsign-lists-dlg input[type=file]').setInputFiles(csv);
+  await expect(page.locator('#callsign-lists-dlg table[aria-labelledby=cl-title] tbody tr')).toHaveCount(2);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#callsign-lists-dlg')).toBeHidden();
+  await expect(page.locator('#btn-lists-open')).toBeFocused();      // the dialog gives the focus back, then we type
+  const call = page.locator('#f-call');
+  const pop = page.locator('#call-suggest');
+  // a complete call of a list: nothing to suggest
+  await call.fill('OE0QXA');
+  await expect(pop.locator('.ac-item')).toHaveCount(0);
+  // Enter keeps a plausible call that is not in any list, it is never swapped for a neighbour
+  await call.fill('OE0QXQ');
+  await expect(pop.locator('.ac-item').first()).toBeVisible();
+  await call.press('Enter');
+  await expect(call).toHaveValue('OE0QXQ');
+  await page.keyboard.press('Shift+Enter');                          // saves the line as typed
+  await expect(page.locator('#log-body')).toContainText('OE0QXQ');
+  await expect(call).toHaveValue('');
+  await expect(pop.locator('.ac-item')).toHaveCount(0);              // no stale dropdown after saving
+  // ↓ then Enter takes a suggestion, the info line follows
+  await call.fill('OE0QXC');
+  await expect(pop.locator('.ac-item').first()).toBeVisible();     // the list shows after a moment
+  await call.press('ArrowDown');                                   // the focus moves to the suggestion
+  await page.keyboard.press('Enter');
+  await expect(call).toHaveValue(/OE0QX[AB]/);
+  await expect(page.locator('#call-info')).toContainText('aus „meine“');
+});
+
+test('an odd callsign says "Unbekanntes Rufzeichen" and nothing more; a normal one says nothing', async ({ page }) => {
+  await openNewLog(page, 'E2E Warnung');
+  const warn = page.locator('#call-warn');
+  await page.locator('#f-call').fill('QQQ');
+  await expect(warn).toHaveText('Unbekanntes Rufzeichen');
+  await page.locator('#f-call').fill('OE1ABC');
+  await expect(warn).toHaveText('');
 });

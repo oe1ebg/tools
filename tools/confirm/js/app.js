@@ -415,7 +415,7 @@ function renderHeaderHints(container) {
     const info = hints[key];
     if (call && !isPlausibleCall(call)) {
       info.className = 'ac-info warn';
-      setText(info, 'Ungewöhnliches Rufzeichen');
+      setText(info, 'Unbekanntes Rufzeichen');
     } else {
       info.className = `ac-info ${line.cls}`.trim();
       setText(info, line.text);
@@ -1298,7 +1298,7 @@ function onFormInput() {
 
 function updateCallFeedback() {
   const call = normalizeCall($('#f-call').value);
-  $('#call-warn').textContent = call && !isPlausibleCall(call) ? 'Ungewöhnliches Rufzeichen – trotzdem speicherbar.' : '';
+  $('#call-warn').textContent = call && !isPlausibleCall(call) ? 'Unbekanntes Rufzeichen' : '';
   renderCallbookInfo(call);
   updateLocationOptions(call);
   updatePlzNote();
@@ -1362,11 +1362,8 @@ function callbookLine(call) {
 // suggestions, and auto-fill of empty Name/QTH template fields.
 function renderCallbookInfo(call) {
   const info = $('#call-info');
-  const sug = $('#call-suggest');
   info.className = 'ac-info';
   info.title = '';
-  sug.replaceChildren();
-  state.callPop?.update();
   if (!call) {
     info.textContent = '';
     autofillFromCallbook(null);
@@ -1378,22 +1375,6 @@ function renderCallbookInfo(call) {
   info.textContent = line.text;
   info.title = line.title || line.text;
   autofillFromCallbook(entry);
-  const o = state.calls.official(call);
-  const typo = o.enabled && o.isOE && o.base.length >= 4 && !o.entry;
-  if ((!entry || typo) && !state.readOnly) {
-    const list = state.calls.search(call, 9).filter(c => c.call !== o.base).slice(0, 8);
-    if (list.length) {
-      fill(sug, el('div', { class: 'ac-head' }, 'Meinten Sie (↓, Enter):'),
-        list.map(c => el('button', { type: 'button', class: 'ac-item', onclick: () => {
-          $('#f-call').value = c.call;
-          onFormInput();
-          prefillLocation();
-          state.callPop.hide();
-          $('#f-call').focus();
-        } }, el('b', {}, c.call), el('small', {}, [c.name, c.qth, c.fromKind && c.fromKind !== 'builtin' ? `aus „${c.from}“` : ''].filter(Boolean).join(' · ') || 'Angaben nicht veröffentlicht'))));
-    }
-    state.callPop?.update();
-  }
 }
 
 // Fill template fields named "name"/"qth" from the list, but only while they
@@ -2624,8 +2605,16 @@ function wire() {
       $('#f-call').focus();
     }
   });
-  // Typo suggestions are guesses: Enter takes one only after ↓.
-  state.callPop = popover($('#f-call'), $('#call-suggest'), { enterPicksFirst: false });
+  // The shared callsign search (lists, partial calls, typos); its dropdown is
+  // #call-suggest. Suggestions are guesses: Enter saves what was typed and
+  // takes one only after ↓.
+  attachCallSearch({
+    input: $('#f-call'), pop: $('#call-suggest'),
+    getCalls: () => state.calls,
+    recent: () => [],
+    enterPicksFirst: false,
+    onPick: () => { onFormInput(); prefillLocation(); },
+  });
   state.lineRpt = createLineRepeater({
     input: $('#f-rpt-q'), sug: $('#f-rpt-sug'),
     getHeader: () => state.event?.header || emptyHeader(),
