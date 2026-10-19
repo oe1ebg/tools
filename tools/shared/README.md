@@ -211,7 +211,10 @@ fallback; without it the tools keep the bundled Austrian list.
   documentation and the published Hams-of-Note file.
 - **One dialog for every tool** (`callsignlists.js`, `createCallsignLists()`):
   the lists, their order, switches, replace/undo, delete and erase live in
-  one shared `<dialog>` that a tool opens from a button; the tool reads the
+  one shared `<dialog>` that a tool opens from a button, as an aligned table
+  (one card per list on phones) with a searchable quick view of each list's
+  entries (first 200 matches; umlauts and case folded, every word must
+  match); the tool reads the
   merged view through `directory()` and re-renders on `onChange`. The dialog
   says first that the data is shared by all tools of the same address (in a
   `file://` single-file bundle: that the file keeps its own data). Texts
