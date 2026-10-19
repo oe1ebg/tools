@@ -45,18 +45,34 @@ function candidatePool(app) {
 
 // The Austrian callsign list (shared data, offline) for a complete
 // callsign: { call, name, qth } or null.
+// With callsign lists imported (callsignui.js) it is their merged view.
 export function callbookEntry(app, call) {
-  if (!app.data.callbook || !call || isUnresolved(call)) return null;
+  if (!call || isUnresolved(call)) return null;
+  const dir = app.data.directory;
+  if (dir) {
+    const h = dir.lookup(call);
+    return h ? { call: h.base, name: h.name, qth: h.qth, note: h.notes.length ? h.notes[0].text : '' } : null;
+  }
+  if (!app.data.callbook) return null;
   const e = lookupCall(app.data.callbook, call).entry;
-  return e ? { call: e[0], name: e[1] || '', qth: e[2] || '' } : null;
+  return e ? { call: e[0], name: e[1] || '', qth: e[2] || '', note: '' } : null;
 }
 
 // Callbook entries for what is typed: part of a callsign, a name or a
 // place; for a partial callsign (OE0QX?) those its pattern fits.
 function callbookCandidates(app, text, limit = 6) {
+  const dir = app.data.directory;
+  const call = normCall(text);
+  if (dir) {
+    if (isUnresolved(call)) {
+      const re = callPattern(call);
+      return (re ? dir.callsigns().filter(c => re.test(c)).slice(0, limit) : [])
+        .map(c => ({ call: c, name: dir.lookup(c).name, qth: dir.lookup(c).qth, from: 'callbook' }));
+    }
+    return dir.search(text, limit).map(m => ({ call: m.call, name: m.name, qth: m.qth, from: 'callbook' }));
+  }
   const book = app.data.callbook;
   if (!book) return [];
-  const call = normCall(text);
   let rows;
   if (isUnresolved(call)) {
     const re = callPattern(call);
@@ -87,7 +103,7 @@ export function candidateButtons(app, input, onPick) {
 // The info line under a callsign field: what the callsign list says.
 function callbookInfo(app, field, info) {
   const e = callbookEntry(app, normCall(field.value));
-  setText(info, e ? t('checkin.inCallbook', { name: [e.name, e.qth].filter(Boolean).join(' · ') || e.call }) : '');
+  setText(info, e ? t('checkin.inCallbook', { name: [e.name, e.qth, e.note].filter(Boolean).join(' · ') || e.call }) : '');
   info.className = `ac-info${e ? ' known' : ''}`;
 }
 

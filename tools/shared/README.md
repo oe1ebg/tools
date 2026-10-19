@@ -177,6 +177,44 @@ Result: `{ copied, merged, identical, kept: [{ store, key, reason }] }`.
 records (conflicting or unreadable) apart with "Als JSON sichern" and
 "Ausblenden"; a failed migration shows the error and offers to try again.
 
+## Callsign store (`js/callsign-*.js`, issue #81)
+
+One IndexedDB, `oe1ebg-callsigns`, shared by every tool on the origin, so
+its schema lives in `callsign-store.js` only (bump `CALLSIGN_SCHEMA.version`
+and extend `upgrade()`, never rename). IndexedDB only, no localStorage
+fallback; without it the tools keep the bundled Austrian list.
+
+- **Sources, side by side.** A *source* is one imported list; its records
+  keep `source` and `base` (the callsign without prefix/suffix, `baseCall`).
+  The same callsign from several sources stays several records, nothing is
+  overwritten. The bundled Austrian list (`callsigns-oe.json`) is a source
+  of kind `builtin` (`CALLSIGN_BUILTIN_ID`), on by default, last in the
+  order, and can be switched off.
+- **Merged view** (`callsign-merge.js`, `buildCallsignDirectory()`): sources
+  by `rank`; per field (`name`, `qth`, `grid`) the first non-empty value of
+  an enabled source wins and the answer names the source; the notes of
+  every enabled source are listed. `lookup(call)`, `search(text)` (callsign
+  prefix, or name/QTH from three letters) and `callsigns()` are synchronous
+  on an in-memory index built from the store; rebuild it after a change.
+- **Generations.** Replacing a source writes records as a new generation
+  and keeps the one before (undo/redo is swapping `gen` and `prevGen`);
+  older generations are erased, as the file can be imported again. Deleting
+  a source is a soft delete; erasing removes it and all its records.
+- **Imports** (`callsign-import.js`): Ham2K PoLo "callsign notes" text
+  (`# TITLE:` names the list, `#` and blank lines skipped, first token the
+  callsign, the rest a note stored verbatim; the same callsign may repeat;
+  PoLo's `..` expansion lines are skipped and counted) and CSV (`;` tab or
+  `,`; header optional with call/callsign/rufzeichen, name, qth/ort in any
+  order; quoted cells). `.csv`, or `;`/tab in the first line, means CSV.
+  Files over 8 MB or 200,000 entries are refused before anything is
+  written. No format specification of PoLo exists; the rules follow its
+  documentation and the published Hams-of-Note file.
+- **Not in the backup yet.** The Netlog/Confirm/Notfunk backups do not
+  include this database; the page says so. Uploaded lists are meant to
+  join the backups (network imports, issue #82, will not).
+- No network code here. Names in these modules start with `callsign`/
+  `CALLSIGN_` (single-file bundles share one scope).
+
 ## Move to /tools/ (October 2026)
 
 Until issue #30 (item 5) the tools were published at `/<tool>/` and this
