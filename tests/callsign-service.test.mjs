@@ -18,6 +18,12 @@ async function make({ store = memoryStore(CALLSIGN_STORES), data = DATA } = {}) 
   return { calls, store };
 }
 
+test('the constructor tells nobody: a listener may use state that does not exist yet', () => {
+  let heard = 0;
+  createCallsignService({ onChange: () => { heard++; } });
+  assert.equal(heard, 0);
+});
+
 test('before init and without the store the lookup answers from the Austrian list alone, empty until it is loaded', async () => {
   const calls = createCallsignService({ openStore: async () => null, loadBook: async () => DATA });
   assert.equal(calls.entry('OE0QXA'), null);                       // nothing loaded yet, no error

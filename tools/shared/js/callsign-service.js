@@ -52,13 +52,16 @@ export function createCallsignService({
 
   const lang = () => setUiLang(getLang());
 
-  function rebuild() {
+  // notify: false for the first build, made while the tool's own state may
+  // not exist yet (nothing has changed for anyone to hear about).
+  function rebuild(notify = true) {
     lang();
     const srcs = store
       ? sources.map(s => (s.id === CALLSIGN_BUILTIN_ID ? { ...s, name: callsignBuiltinName() } : s))
       : [{ id: CALLSIGN_BUILTIN_ID, kind: 'builtin', name: callsignBuiltinName(), enabled: true, rank: 1000, gen: 1 }];
     dir = buildCallsignDirectory({ sources: srcs, records: store ? records : [], callbook: book });
     version++;
+    if (!notify) return;
     for (const fn of listeners) {
       try { fn(); } catch (e) { console.warn(e); }
     }
@@ -66,7 +69,7 @@ export function createCallsignService({
 
   // The directory exists from the start: the Austrian list alone, empty
   // until the list is loaded.
-  rebuild();
+  rebuild(false);
 
   async function load() {
     ({ sources, records } = await loadCallsignStore(store));
@@ -155,7 +158,7 @@ export function createCallsignService({
   return {
     init, reload, refresh, watchFocus,
     // After a language change: the built-in list's name
-    relabel: rebuild,
+    relabel: () => rebuild(),
     onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); },
     store: () => store,
     sources: () => sources,
