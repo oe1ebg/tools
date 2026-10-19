@@ -303,7 +303,7 @@ offers the export, as on any other page without IndexedDB.
   Reorder with ↑/↓, switch lists off (the Austrian one too), replace one
   with a new file (undoable), delete (reversible) or erase for good. The
   data is stored in the shared callsign store (`tools/shared/README.md`) and
-  is not part of the Netlog backup yet; keep the original files.
+  is not part of any backup; keep the original files.
 - **Station lookup links** (online only, hidden offline): QRZ.com, HamQTH,
   QRZCQ and APRS.fi for a resolved callsign (never for `OE0QX?`), and the
   address of your own Wavelog if you set one ("Backup and data"; the

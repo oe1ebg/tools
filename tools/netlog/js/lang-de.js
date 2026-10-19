@@ -746,7 +746,7 @@ export const LANG_DE = {
   'data.wavelogSaved': 'Wavelog-Adresse gespeichert.',
   'data.wavelogCleared': 'Wavelog-Adresse entfernt.',
   'lists.title': 'Rufzeichenlisten',
-  'lists.hint': 'Eigene Listen hinzufügen: eine Textdatei im Ham2K-PoLo-Format (Rufzeichen, danach Text) oder CSV (Rufzeichen, Name, QTH). Jede Liste bleibt für sich erhalten. Für ein Rufzeichen entscheidet die erste Liste in dieser Reihenfolge, die einen Namen oder QTH hat; die Notizen aller Listen werden angezeigt. Die Listen liegen nur auf diesem Gerät und sind noch nicht in der Netlog-Sicherung enthalten – die Originaldateien aufbewahren.',
+  'lists.hint': 'Eigene Listen hinzufügen: eine Textdatei im Ham2K-PoLo-Format (Rufzeichen, danach Text) oder CSV (Rufzeichen, Name, QTH). Jede Liste bleibt für sich erhalten. Für ein Rufzeichen entscheidet die erste Liste in dieser Reihenfolge, die einen Namen oder QTH hat; die Notizen aller Listen werden angezeigt. Die Listen liegen nur auf diesem Gerät und sind in keiner Sicherung enthalten – die Originaldateien aufbewahren.',
   'lists.import': 'Liste hinzufügen…',
   'lists.builtin': 'Österreichische Rufzeichenliste (Fernmeldebüro)',
   'lists.builtinMeta': 'eingebaut, ohne Internet',

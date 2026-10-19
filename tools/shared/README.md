@@ -209,9 +209,11 @@ fallback; without it the tools keep the bundled Austrian list.
   Files over 8 MB or 200,000 entries are refused before anything is
   written. No format specification of PoLo exists; the rules follow its
   documentation and the published Hams-of-Note file.
-- **Not in the backup yet.** The Netlog/Confirm/Notfunk backups do not
-  include this database; the page says so. Uploaded lists are meant to
-  join the backups (network imports, issue #82, will not).
+- **Not in any backup.** The Netlog/Confirm/Notfunk backups do not include
+  this database and the page says so (keep the original files). Decision:
+  no list backup for now; a separate backup/restore shared by all tools may
+  follow, but never a copy inside each tool's backup. Network imports
+  (issue #82) are never part of a backup.
 - No network code here. Names in these modules start with `callsign`/
   `CALLSIGN_` (single-file bundles share one scope).
 

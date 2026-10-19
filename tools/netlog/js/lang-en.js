@@ -745,7 +745,7 @@ export const LANG_EN = {
   'data.wavelogSaved': 'Wavelog address saved.',
   'data.wavelogCleared': 'Wavelog address removed.',
   'lists.title': 'Callsign lists',
-  'lists.hint': 'Add your own lists: a text file in the Ham2K PoLo format (callsign, then text) or CSV (callsign, name, QTH). Every list is kept as it is. For a callsign the first list in this order that has a name or QTH decides; the notes of all lists are shown. The lists live on this device only and are not part of the Netlog backup yet – keep the original files.',
+  'lists.hint': 'Add your own lists: a text file in the Ham2K PoLo format (callsign, then text) or CSV (callsign, name, QTH). Every list is kept as it is. For a callsign the first list in this order that has a name or QTH decides; the notes of all lists are shown. The lists live on this device only and are not part of any backup – keep the original files.',
   'lists.import': 'Add list…',
   'lists.builtin': 'Austrian callsign list (Fernmeldebüro)',
   'lists.builtinMeta': 'built in, works offline',
