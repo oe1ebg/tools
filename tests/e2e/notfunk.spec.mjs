@@ -2,6 +2,9 @@
 // gapless numbers (a deleted one keeps its number), the status moves on,
 // a reply marks the original answered, an edit keeps a revision, the
 // Geschäftsbuch CSV downloads, the printouts open as PDFs, the help opens and closes without touching the form.
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join as pathJoin } from 'node:path';
 import { test, expect, downloadText, offlineSettled } from './fixtures.mjs';
 
 async function openNewOp(page, name, prefix) {
@@ -967,4 +970,72 @@ test('message detail: the Ort on a small map; "Im Meldebuch zeigen" opens the bo
   await expect(page.locator('#map-panel')).toBeVisible();
   await expect(page.locator('#btn-map')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('.leaflet-popup')).toContainText('D1-001');
+});
+
+// The callsign lists (shared callsign service, #81): own lists next to the
+// Austrian list in the info lines and the completion of Von/An and the
+// operator fields; the own post gets no guesses from the lists.
+async function addOwnList(page) {
+  await page.locator('#btn-lists-open').click();
+  const dlg = page.locator('#callsign-lists-dlg');
+  await expect(dlg.locator('.cl-shared')).toContainText('Gemeinsam für alle Tools');
+  const csv = pathJoin(mkdtempSync(pathJoin(tmpdir(), 'notfunk-lists-')), 'meine.csv');
+  writeFileSync(csv, 'call;name;qth\nOE0QXA;Anna Privat;Graz\nOE0QXB;Bernd Muster;Linz\n');
+  await dlg.locator('input[type=file]').setInputFiles(csv);
+  await expect(dlg.locator('table[aria-labelledby=cl-title] tbody tr')).toHaveCount(2);
+  await page.keyboard.press('Escape');
+}
+
+test('callsign lists: own lists answer in the info line and the completion, named when not the Austrian one', async ({ page }) => {
+  await page.goto('tools/notfunk/');
+  await expect.poll(() => page.evaluate(() => globalThis.NOTFUNK_READY === true)).toBe(true);
+  await offlineSettled(page);
+  await expect(page.locator('#lists-summary')).toContainText('1 von 1 eingeschaltet');
+  await page.getByRole('button', { name: '+ Neuer Einsatz' }).click();
+  const op = page.locator('#n-operator');
+  await op.fill('OE1AAB');
+  await expect(page.locator('#n-operator-info')).toContainText('Alexander Aranyos');      // the Austrian list as before
+  await expect(page.locator('#n-operator-info')).not.toContainText('aus „');
+  await op.fill('OE0QXA');
+  await expect(page.locator('#n-operator-info')).toHaveText('');
+  await addOwnList(page);
+  await expect(page.locator('#lists-summary')).toContainText('2 von 2 eingeschaltet');
+  await expect(page.locator('#n-operator-info')).toContainText('Anna Privat · Graz (aus „meine“)');   // redrawn by itself
+  await expect(page.locator('#n-operator-info')).toHaveClass(/known/);
+});
+
+test('callsign lists: completion names the list; the own post gets no guesses from the lists', async ({ page }) => {
+  await openNewOp(page, 'E2E Listen', 'l1');
+  await addOwnList(page);
+  const peer = page.locator('#m-peer');
+  await peer.fill('OE0QXB');
+  await peer.press('End');
+  await page.locator('#m-peer').fill('OE0QX');
+  await expect(page.locator('#m-peer-pop')).toContainText('Rufzeichenlisten');
+  await expect(page.locator('#m-peer-pop')).toContainText('Bernd Muster');
+  await expect(page.locator('#m-peer-pop')).toContainText('aus „meine“');
+});
+
+test('callsign lists: no guesses from the lists for the own post (the operation\'s "Für Stelle")', async ({ page }) => {
+  await page.goto('tools/notfunk/');
+  await expect.poll(() => page.evaluate(() => globalThis.NOTFUNK_READY === true)).toBe(true);
+  await offlineSettled(page);
+  await page.getByRole('button', { name: '+ Neuer Einsatz' }).click();
+  await page.locator('#n-name').fill('E2E Stelle');
+  await page.locator('#n-prefix').fill('s1');
+  await page.locator('#n-operator').fill('oe1ebg');
+  await page.locator('#n-home').fill('Stabsfeldwebel');
+  await page.getByRole('button', { name: 'Einsatz anlegen' }).click();
+  await expect(page.locator('#view-book')).toBeVisible();
+  await page.locator('#btn-lists-open').click();
+  const csv = pathJoin(mkdtempSync(pathJoin(tmpdir(), 'notfunk-lists-')), 'meine.csv');
+  writeFileSync(csv, 'call;name;qth\nOE0QXS;Stabsfeldwebel Sepp;Salzburg\n');
+  await page.locator('#callsign-lists-dlg input[type=file]').setInputFiles(csv);
+  await expect(page.locator('#callsign-lists-dlg table[aria-labelledby=cl-title] tbody tr')).toHaveCount(2);
+  await page.keyboard.press('Escape');
+  const peer = page.locator('#m-peer');
+  await peer.fill('stabsfeld');                       // not the own post: the lists answer
+  await expect(page.locator('#m-peer-pop')).toContainText('OE0QXS');
+  await peer.fill('Stabsfeldwebel');                  // exactly the own post: no guess from the lists
+  await expect(page.locator('#m-peer-pop')).not.toContainText('OE0QXS');
 });

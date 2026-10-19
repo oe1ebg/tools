@@ -195,6 +195,13 @@ Unter **„Weitere Felder“**:
   die sie geht. Bei Weitergaben ist sie oft nicht die
   **Ursprungsstation**.
 - Der **Operator** ist, wer hier am Gerät aufnimmt.
+- Rufzeichenvorschläge und die Zeile darunter (Name, Ort) kommen aus der
+  österreichischen Rufzeichenliste und aus **eigenen Rufzeichenlisten**; stammt ein
+  Wert aus einer eigenen Liste, steht ihr Name dabei („aus „meine““). Die Listen
+  verwaltet man unten auf der Seite unter **Rufzeichenlisten – verwalten…**; sie
+  gelten **gemeinsam für alle Tools** (Bestätigungsverkehr, Notfunk-Meldebuch,
+  Netlog) auf diesem Gerät und sind in keiner Sicherung enthalten. Für die
+  eigene Stelle (z. B. „Stab“) gibt es keine Vorschläge aus den Listen.
 
 ### Orte
 

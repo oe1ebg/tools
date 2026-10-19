@@ -21,7 +21,9 @@ import { initHelpDialog } from '../../shared/js/helpdialog.js';
 import { $, el, fill, focusNext, submitForm, isComposing, trackExpanded, rowRoles, tableRoles, revertOnEscape, popover } from '../../shared/js/dom.js';
 import { prefGet, prefSet } from '../../shared/js/prefs.js';
 import { loadDataFile } from '../../shared/js/data.js';
-import { buildCallbook, lookupCall, normalizeCall } from '../../shared/js/callbook.js';
+import { normalizeCall } from '../../shared/js/callbook.js';
+import { createCallsignService } from '../../shared/js/callsign-service.js';
+import { createCallsignLists } from '../../shared/js/callsignlists.js';
 import { formatMHz } from '../../shared/js/repeaters.js';
 import { newId, nowIso } from '../../shared/js/time.js';
 import { attachCallSearch } from '../../shared/js/callsearch.js';
@@ -65,7 +67,9 @@ const state = {
   editing: null, // message being edited (its current version)
   filter: 'all',
   query: '',
-  callbook: null,
+  // The callsign lookup (shared/js/callsign-service.js): the Austrian list
+  // and the user's own lists; redraws via onCallsigns().
+  calls: createCallsignService({ getLang: () => 'de', onChange: () => onCallsigns() }),
   locField: null,
   origLocField: null,
   rptSearch: null,
@@ -393,7 +397,7 @@ function attachOpLookups(prefix, onChange) {
   op.addEventListener('focus', async () => { recent = await recentOperators(); });
   attachCallSearch({
     input: op, pop: $(`#${prefix}-operator-pop`),
-    getBook: () => state.callbook,
+    getCalls: () => state.calls,
     recent: () => recent,
     onPick: () => { renderPartyInfo(`#${prefix}-operator`, `#${prefix}-operator-info`); onChange(); },
   });
@@ -746,15 +750,17 @@ function hideBars() {
   $('#discard-bar').hidden = true;
 }
 
-// The info line under Von/An and the operator fields: the callbook entry
-// of a callsign in it.
+// The info line under Von/An and the operator fields: what the callsign
+// lists say about a callsign in it (the list is named when it is not the
+// Austrian one).
 function renderPartyInfo(inputSel, infoSel) {
   const info = $(infoSel);
   const text = $(inputSel).value.trim();
   const call = /\/\s*([A-Za-z0-9/]+)$/.exec(text)?.[1] || (!/\s/.test(text) ? text : '');
-  const hit = call && state.callbook ? lookupCall(state.callbook, normalizeCall(call)) : null;
-  info.className = hit?.entry ? 'ac-info known' : 'ac-info';
-  setText(info, hit?.entry ? [hit.entry[0], hit.entry[1], hit.entry[2]].filter(Boolean).join(' · ') : '');
+  const e = call ? state.calls.entry(normalizeCall(call)) : null;
+  info.className = e ? 'ac-info known' : 'ac-info';
+  const bits = [e?.call, e?.name, e?.qth, e && !e.name && !e.qth ? e.note : ''].filter(Boolean).join(' · ');
+  setText(info, e ? `${bits}${e.source ? ` (aus „${e.source}“)` : ''}` : '');
 }
 
 function previewNumber() {
@@ -1237,7 +1243,7 @@ function initForm() {
     attachCallSearch({
       input, pop: $(`#m-${key}-pop`),
       // No callbook guesses for the own post ("Stab" is no callsign).
-      getBook: () => (input.value.trim() === state.op?.home ? null : state.callbook),
+      getCalls: () => (input.value.trim() === state.op?.home ? null : state.calls),
       recent: () => (input.value.trim() === state.op?.home ? [] : recent),
       onPick: onFormChange,
     });
@@ -1939,14 +1945,25 @@ async function initPersistence() {
   else setChip('#st-storage', 'Speicher: Browser-Standard', 'warn');
 }
 
-async function loadCallbook() {
-  state.callbook = buildCallbook(await loadDataFile('callsigns-oe.json'));
-  fill($('#st-callbook'), state.callbook
-    ? sourceItem('callsigns', `Stand ${standDate(state.callbook.stand)}, ${state.callbook.calls.length} OE-Rufzeichen`)
+// The callsign lists changed (loaded, switched, another tab): redraw what
+// shows them. Also the first time, when the Austrian list has been read.
+function onCallsigns() {
+  const book = state.calls.callbook();
+  fill($('#st-callbook'), book
+    ? sourceItem('callsigns', `Stand ${standDate(book.stand)}, ${book.calls.length} OE-Rufzeichen`)
     : 'Rufzeichenliste nicht verfügbar');
-  // info lines that need the list
+  const sm = state.calls.summary();
+  $('#lists-summary').textContent = sm.available ? `(${sm.active} von ${sm.total} eingeschaltet)` : '(eigene Listen brauchen IndexedDB)';
+  // info lines that need the lists
   if (state.op) { renderOpPanel(); renderFormState(); }
   if (!$('#new-op').hidden) renderPartyInfo('#n-operator', '#n-operator-info');
+}
+
+async function loadCallbook() {
+  const lists = createCallsignLists({ service: state.calls, getLang: () => 'de' });
+  $('#btn-lists-open').addEventListener('click', ev => lists.open(ev.currentTarget));
+  state.calls.watchFocus();
+  await state.calls.init();
 }
 
 async function loadRepeaterFooter() {
