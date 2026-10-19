@@ -21,10 +21,13 @@ export function enterTakes(typed, call) {
 // suggestions from the lists); the older getBook(): the plain callbook; recent(): [{ call,
 // title }] from earlier logs, newest first; onPick(call): after the field
 // got the callsign.
-export function attachCallSearch({ input, pop, getBook, getCalls, recent, onPick }) {
+export function attachCallSearch({ input, pop, getBook, getCalls, recent, onPick, enterPicksFirst }) {
+  // Enter takes the first suggestion only if it completes what was typed
+  // (enterTakes); a field where Enter must save as typed (Confirm's call
+  // field) passes false: a suggestion then needs ↓.
   const dd = popover(input, pop, {
     label: 'Rufzeichen-Vorschläge',
-    enterPicksFirst: first => enterTakes(input.value, first.dataset.call),
+    enterPicksFirst: enterPicksFirst ?? (first => enterTakes(input.value, first.dataset.call)),
   });
   let timer = null;
 

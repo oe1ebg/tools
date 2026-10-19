@@ -470,8 +470,15 @@ builds `tools/shared/data/callsigns-oe.json` at build time. It is about
     call that isn't in the list is never replaced.
   - An OE call that isn't in the list gets a soft warning, "nicht in der
     Rufzeichenliste (Stand …) – Tippfehler?". Saving is never blocked.
-  - "Meinten Sie" offers suggestions: prefix matches first, then calls one
-    edit away (substitution, insertion, deletion or swapped letters).
+  - The dropdown under the call field is the shared callsign search
+    (`shared/js/callsearch.js` over the callsign service, as in every
+    callsign field of the tools): while typing, the exact call, prefix
+    matches, short forms, calls one edit away (substitution, insertion,
+    deletion or swapped letters), names, places and notes, from the
+    Austrian list and the user's own lists (a list other than the Austrian
+    one is named); `OE1A?` / `?ABC` patterns work too. A complete call that
+    a list has needs no suggestion. Enter never takes one here (it moves on;
+    Shift+Enter saves as typed): ↓ first.
   - An empty Name field is auto-filled; values the operator typed are never
     overwritten. The licence location is **not** written into a QTH
     location field, because it isn't necessarily where the station is
