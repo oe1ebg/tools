@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { memoryStore } from '../tools/netlog/js/memstore.js';
 import { buildCallbook, searchCallbook } from '../tools/shared/js/callbook.js';
-import { buildCallsignDirectory, callsignNoteText, CALLSIGN_BUILTIN_ID } from '../tools/shared/js/callsign-merge.js';
+import { buildCallsignDirectory, callsignNoteText, callsignSourceOrder, callsignActiveSources, CALLSIGN_BUILTIN_ID } from '../tools/shared/js/callsign-merge.js';
 import {
   CALLSIGN_STORES, CALLSIGN_SCHEMA, ensureBuiltinSource, loadCallsignStore, importCallsignSource,
   swapCallsignGeneration, setCallsignSourceEnabled, deleteCallsignSource, restoreCallsignSource,
@@ -180,4 +180,63 @@ test('partial callsigns with ? and *, across all lists that are switched on', as
   assert.deepEqual(d.search('OE0QX?', 2).map(c => c.call), ['OE0QXA', 'OE0QXB']);
   await setCallsignSourceEnabled(s, (await s.getAll('sources')).find(x => x.name === 'Mine').id, false);
   assert.deepEqual((await dir(s, bigBook)).search('OE0QX?').map(c => c.call), ['OE0QXA', 'OE0QXB', 'OE0QXD']);
+});
+
+// The order of the lists is the order of the lookup (issue #81): what the
+// dialog shows from top to bottom is who wins first.
+const ids = list => list.map(x => x.id);
+const visibleOrder = async s => (await s.getAll('sources')).filter(x => !x.deleted).sort(callsignSourceOrder);
+
+test('the list order is the lookup order: the top list wins, moving changes it', async () => {
+  const s = await fresh();
+  await importCallsignSource(s, { kind: 'csv', name: 'A', rows: [row('OE0QXA', { name: 'Von A', qth: 'Wien' })] });
+  const b = await importCallsignSource(s, { kind: 'csv', name: 'B', rows: [row('OE0QXA', { name: 'Von B' })] });
+  let d = await dir(s);
+  assert.deepEqual(ids(d.sources), ids(await visibleOrder(s)));               // dialog order = lookup order
+  let hit = d.lookup('OE0QXA');
+  assert.deepEqual(hit.entries.map(e => e.source), ['A', 'B', 'Österreichische Rufzeichenliste']);
+  assert.equal(hit.name, 'Von A');
+  assert.equal(hit.from.name, 'A');
+  await moveCallsignSource(s, b.id, -1);                                       // B above A
+  d = await dir(s);
+  assert.deepEqual(ids(d.sources), ids(await visibleOrder(s)));
+  hit = d.lookup('OE0QXA');
+  assert.equal(hit.name, 'Von B');
+  assert.equal(hit.qth, 'Wien');                                               // A still fills what B lacks
+  assert.deepEqual(hit.entries.map(e => e.source).slice(0, 2), ['B', 'A']);
+});
+
+test('new lists go before a last built-in list, else at the end; ranks never tie, also after move/delete/restore', async () => {
+  const s = await fresh();
+  const mk = n => importCallsignSource(s, { kind: 'csv', name: n, rows: [row('OE0QXA', { name: n })] });
+  const names = async () => (await visibleOrder(s)).map(x => (x.id === CALLSIGN_BUILTIN_ID ? 'AT' : x.name));
+  const unique = async () => { const r = (await visibleOrder(s)).map(x => x.rank); assert.equal(new Set(r).size, r.length, `ranks ${r}`); };
+  const a = await mk('A'); const b = await mk('B');
+  assert.deepEqual(await names(), ['A', 'B', 'AT']);
+  await moveCallsignSource(s, b.id, -1);
+  await mk('C');
+  assert.deepEqual(await names(), ['B', 'A', 'C', 'AT']);                       // before the built-in list, not tied with it
+  await unique();
+  await moveCallsignSource(s, CALLSIGN_BUILTIN_ID, -1); await moveCallsignSource(s, CALLSIGN_BUILTIN_ID, -1); await moveCallsignSource(s, CALLSIGN_BUILTIN_ID, -1);
+  assert.deepEqual(await names(), ['AT', 'B', 'A', 'C']);                       // the user put the built-in list first
+  await mk('D');
+  assert.deepEqual(await names(), ['AT', 'B', 'A', 'C', 'D']);                  // so a new list goes last
+  await unique();
+  await deleteCallsignSource(s, a.id);
+  await mk('E');
+  await restoreCallsignSource(s, a.id);
+  await unique();
+  const order = await names();
+  assert.equal(order.length, 6);
+  assert.deepEqual(ids((await dir(s)).sources), ids(await visibleOrder(s)));
+});
+
+test('a tie (old or hand-made data) is broken the same way everywhere', async () => {
+  const mk = (id, rank) => ({ id, kind: 'csv', name: id.toUpperCase(), enabled: true, rank, gen: 1 });
+  const srcs = [mk('b', 1), mk('a', 1), mk('c', 1)];
+  const recs = ['a', 'b', 'c'].map(id => ({ source: id, gen: 1, base: 'OE0QXA', call: 'OE0QXA', name: id, qth: '', grid: '', note: '' }));
+  const d = buildCallsignDirectory({ sources: srcs, records: recs, callbook: null });
+  assert.deepEqual(ids(d.sources), ['a', 'b', 'c']);
+  assert.deepEqual(ids(callsignActiveSources(srcs)), ids(srcs.slice().sort(callsignSourceOrder)));
+  assert.equal(d.lookup('OE0QXA').name, 'a');
 });
