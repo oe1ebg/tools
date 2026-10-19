@@ -164,18 +164,43 @@ dl.kb dd{ margin:0; color:var(--text-dim); }
 }
 
 /* ---------- the callsign lists dialog (js/callsignlists.js) ---------- */
-.cl-dlg{ width:min(720px, calc(100vw - 2em)); }
+.cl-dlg{ width:min(860px, calc(100vw - 2em)); }
 .cl-body{ padding:.6em 1em 1em; overflow:auto; }
 .cl-shared{ margin:0 0 .8em; padding:.5em .7em; border:1px solid var(--accent); border-radius:6px; background:var(--accent-soft); color:var(--text); }
-.cl-list{ list-style:none; margin:0 0 .8em; padding:0; }
-.cl-row{ display:flex; flex-wrap:wrap; align-items:center; gap:.25em .5em; padding:.35em 0; border-top:1px solid var(--line); }
-.cl-row:first-child{ border-top:0; }
-.cl-name{ font-weight:600; }
-.cl-meta{ color:var(--text-dim); }
+.cl-wrap{ overflow-x:auto; margin:0 0 .8em; }
+.cl-table{ width:100%; border-collapse:collapse; font-size:14.5px; }
+.cl-table th{ text-align:left; font-weight:700; padding:.4em .6em; border-bottom:2px solid var(--text-dim); white-space:nowrap; }
+.cl-table td{ padding:.4em .6em; border-top:1px solid var(--line); vertical-align:middle; }
+.cl-table tbody tr:first-child td{ border-top:0; }
+.cl-table .cl-num{ text-align:right; font-variant-numeric:tabular-nums; }
+.cl-table .cl-on{ width:2.5em; text-align:center; }
+.cl-table .cl-date{ white-space:nowrap; font-variant-numeric:tabular-nums; }
+.cl-table .cl-order{ white-space:nowrap; }
+.cl-table .cl-actions{ text-align:right; white-space:nowrap; }
+.cl-table .cl-actions button{ margin:.1em 0 .1em .25em; }
+.cl-table .cl-title{ font-weight:600; }
+.cl-table .cl-meta{ display:block; color:var(--text-dim); }
+.cl-table .cl-deleted .cl-title{ text-decoration:line-through; }
+.cl-table .cl-call{ font-weight:600; white-space:nowrap; }
+.cl-entries td{ overflow-wrap:anywhere; }
+.cl-count{ margin:.3em 0; color:var(--text-dim); min-height:1.4em; }
+.cl-view .field{ margin:.4em 0; }
 .cl-msg{ min-height:1.4em; margin:.4em 0; }
 .cl-msg.ok::before{ content:"✔ "; }
 .cl-msg.err{ color:var(--err); }
 .cl-msg.err::before{ content:"✖ "; }
+/* phone: one card per list or entry, each value with its column name */
+@media (max-width: 640px){
+  .cl-table, .cl-table tbody, .cl-table tr, .cl-table td{ display:block; }
+  .cl-table thead{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+  .cl-table tr{ padding:.5em 0; border-top:1px solid var(--line-strong); }
+  .cl-table tbody tr:first-child{ border-top:0; }
+  .cl-table td{ border:0; padding:.15em 0; text-align:left; display:flex; gap:.6em; align-items:baseline; }
+  .cl-table td::before{ content:attr(data-label); flex:0 0 7em; color:var(--text-dim); font-size:13px; }
+  .cl-table .cl-on, .cl-table .cl-num, .cl-table .cl-actions{ width:auto; text-align:left; }
+  .cl-table .cl-actions{ flex-wrap:wrap; white-space:normal; }
+  .cl-entries td:empty{ display:none; }
+}
 
 /* ---------- tables: column names that stay in view (.sticky-head) ---------- */
 /* On the wrapper around a <table>: the column names stay in view while the

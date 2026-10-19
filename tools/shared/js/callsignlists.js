@@ -17,9 +17,9 @@
 // Texts: tx(en, de) of i18n.js. Top-level names start with "callsignLists"
 // (the single-file bundles share one scope).
 
-import { el, fill } from './dom.js';
+import { el, fill, rowRoles, tableRoles } from './dom.js';
 import { tx, setUiLang } from './i18n.js';
-import { buildCallsignDirectory, CALLSIGN_BUILTIN_ID } from './callsign-merge.js';
+import { buildCallsignDirectory, callsignNoteText, CALLSIGN_BUILTIN_ID } from './callsign-merge.js';
 import {
   openCallsignStorage, ensureBuiltinSource, loadCallsignStore, importCallsignSource, swapCallsignGeneration,
   setCallsignSourceEnabled, deleteCallsignSource, restoreCallsignSource, moveCallsignSource, eraseCallsignSource,
@@ -37,6 +37,13 @@ function callsignListsKind(kind) {
   return tx('built in', 'eingebaut');
 }
 
+function callsignListsFold(s) {
+  return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ß/g, 'ss');
+}
+
+// How many rows the quick view draws at once; the search narrows the rest.
+const CALLSIGN_LISTS_VIEW_MAX = 200;
+
 export function createCallsignLists({ getLang = () => 'de', getCallbook = () => null, onChange = () => {} } = {}) {
   let store = null;
   let sources = [];
@@ -45,6 +52,7 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = () => 
   let dlg = null;
   let opener = null;
   let replaceId = null;
+  let viewing = null;   // { id, rows: [{ call, name, qth, grid, note, hay }] } of the list in the quick view
   const ui = {};
 
   const lang = () => setUiLang(getLang());
@@ -110,7 +118,23 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = () => 
   }
 
   function build() {
-    ui.list = el('ul', { class: 'cl-list', 'aria-labelledby': 'cl-title' });
+    ui.head = el('tr', {});
+    ui.rows = el('tbody', {});
+    ui.table = el('table', { class: 'cl-table', 'aria-labelledby': 'cl-title' }, el('thead', {}, ui.head), ui.rows);
+    ui.list = el('div', { class: 'table-wrap cl-wrap' }, ui.table);
+    ui.empty = el('p', { class: 'hint' });
+    ui.vTitle = el('h3', { id: 'cl-view-title' });
+    ui.vBack = el('button', { type: 'button', class: 'mini' });
+    ui.vSearch = el('input', { type: 'search', id: 'cl-view-search', autocomplete: 'off', spellcheck: 'false' });
+    ui.vLabel = el('label', { for: 'cl-view-search' });
+    ui.vCount = el('p', { class: 'cl-count', role: 'status' });
+    ui.vHead = el('tr', {});
+    ui.vRows = el('tbody', {});
+    ui.vTable = el('table', { class: 'cl-table cl-entries', 'aria-labelledby': 'cl-view-title' }, el('thead', {}, ui.vHead), ui.vRows);
+    ui.vWrap = el('div', { class: 'table-wrap cl-wrap' }, ui.vTable);
+    ui.view = el('div', { class: 'cl-view', hidden: true },
+      el('div', { class: 'toolbar' }, ui.vBack), ui.vTitle,
+      el('div', { class: 'field' }, ui.vLabel, ui.vSearch), ui.vCount, ui.vWrap);
     ui.msg = el('p', { class: 'cl-msg', role: 'status' });
     ui.file = el('input', { type: 'file', accept: '.txt,.csv,text/plain,text/csv', hidden: true });
     ui.add = el('button', { type: 'button', class: 'primary' });
@@ -128,12 +152,12 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = () => 
       await importFile(f, id);
     });
     ui.close.addEventListener('click', () => dlg.close());
-    ui.list.addEventListener('change', async ev => {
+    ui.rows.addEventListener('change', async ev => {
       const box = ev.target.closest('input[data-act=enable]');
       if (!box || !store) return;
       await run(() => setCallsignSourceEnabled(store, box.dataset.id, box.checked), null, box);
     });
-    ui.list.addEventListener('click', async ev => {
+    ui.rows.addEventListener('click', async ev => {
       const b = ev.target.closest('button[data-act]');
       if (!b || !store) return;
       const id = b.dataset.id;
@@ -142,6 +166,7 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = () => 
       const name = s.id === CALLSIGN_BUILTIN_ID ? callsignListsBuiltinName() : s.name;
       const act = b.dataset.act;
       lang();
+      if (act === 'view') { openView(id, b); return; }
       if (act === 'replace') { replaceId = id; ui.file.click(); return; }
       if (act === 'up' || act === 'down') { await run(() => moveCallsignSource(store, id, act === 'up' ? -1 : 1), null, b); return; }
       if (act === 'undo') { await run(() => swapCallsignGeneration(store, id), tx(`List "${name}": other version restored.`, `Liste „${name}“: andere Fassung wiederhergestellt.`), b); return; }
@@ -154,8 +179,13 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = () => 
     });
     dlg = el('dialog', { id: 'callsign-lists-dlg', class: 'help-dlg cl-dlg', 'aria-labelledby': 'cl-title' },
       el('div', { class: 'help-head' }, ui.title, ui.close),
-      el('div', { class: 'cl-body' }, ui.shared, ui.list,
-        el('div', { class: 'toolbar' }, ui.add, ui.wavelog), ui.file, ui.msg, ui.hint));
+      el('div', { class: 'cl-body' }, ui.shared,
+        el('div', { class: 'cl-main-body' }, ui.empty, ui.list, el('div', { class: 'toolbar' }, ui.add, ui.wavelog), ui.file, ui.msg, ui.hint),
+        ui.view));
+    ui.mainBody = dlg.querySelector('.cl-main-body');
+    ui.vBack.addEventListener('click', closeView);
+    ui.vSearch.addEventListener('input', () => { clearTimeout(ui.vTimer); ui.vTimer = setTimeout(renderEntries, 120); });
+    ui.vSearch.addEventListener('keydown', ev => { if (ev.key === 'Escape' && ui.vSearch.value) { ev.stopPropagation(); ev.preventDefault(); ui.vSearch.value = ''; renderEntries(); } });
     dlg.addEventListener('close', () => { if (opener && opener.isConnected) opener.focus(); opener = null; });
     document.body.append(dlg);
   }
@@ -174,10 +204,75 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = () => 
       say(tx(`The change could not be saved: ${e.message || e}. Nothing was changed.`, `Die Änderung konnte nicht gespeichert werden: ${e.message || e}. Es wurde nichts geändert.`), 'err');
     }
     if (key) {
-      const again = ui.list.querySelector(`[data-act="${key[0]}"][data-id="${CSS.escape(key[1])}"]:not([hidden]):not([disabled])`)
-        || ui.list.querySelector(`[data-act="${key[0]}"]:not([hidden]):not([disabled])`);
+      const again = ui.rows.querySelector(`[data-act="${key[0]}"][data-id="${CSS.escape(key[1])}"]:not([disabled])`)
+        || ui.rows.querySelector(`[data-act="${key[0]}"]:not([disabled])`);
       if (again) again.focus();
     }
+  }
+
+  // The entries of a list for the quick view.
+  function entriesOf(id) {
+    const src = sources.find(x => x.id === id);
+    if (!src) return [];
+    if (id === CALLSIGN_BUILTIN_ID) {
+      const book = getCallbook();
+      return book ? book.calls.map(c => ({ call: c[0], name: c[1] || '', qth: c[2] || '', grid: '', note: '' })) : [];
+    }
+    return records.filter(r => r.source === id && r.gen === src.gen);
+  }
+
+  function openView(id, from) {
+    lang();
+    const src = sources.find(x => x.id === id);
+    if (!src) return;
+    viewing = { id, from, name: id === CALLSIGN_BUILTIN_ID ? callsignListsBuiltinName() : src.name,
+      rows: entriesOf(id).map(r => ({ ...r, text: callsignNoteText(r.note), hay: callsignListsFold(`${r.call} ${r.name} ${r.qth} ${r.grid} ${callsignNoteText(r.note)}`) })) };
+    ui.vSearch.value = '';
+    ui.mainBody.hidden = true;
+    ui.view.hidden = false;
+    renderView();
+    ui.vSearch.focus();
+  }
+
+  function closeView() {
+    const from = viewing && viewing.from;
+    viewing = null;
+    ui.view.hidden = true;
+    ui.mainBody.hidden = false;
+    say('');
+    if (from && from.isConnected) from.focus(); else ui.add.focus();
+  }
+
+  function renderView() {
+    lang();
+    ui.vBack.textContent = tx('← Back to the lists', '← Zurück zu den Listen');
+    ui.vTitle.textContent = tx(`List: ${viewing.name}`, `Liste: ${viewing.name}`);
+    ui.vLabel.textContent = tx('Search this list (callsign, name, QTH, note)', 'In dieser Liste suchen (Rufzeichen, Name, QTH, Notiz)');
+    const hasGrid = viewing.rows.some(r => r.grid);
+    const cols = [tx('Callsign', 'Rufzeichen'), tx('Name', 'Name'), 'QTH', ...(hasGrid ? [tx('Locator', 'Locator')] : []), tx('Note', 'Notiz')];
+    fill(ui.vHead, cols.map(c => el('th', { scope: 'col' }, c)));
+    viewing.cols = cols;
+    viewing.hasGrid = hasGrid;
+    tableRoles(ui.vTable);
+    renderEntries();
+  }
+
+  function renderEntries() {
+    if (!viewing) return;
+    lang();
+    const terms = callsignListsFold(ui.vSearch.value).split(/\s+/).filter(Boolean);
+    const hits = terms.length ? viewing.rows.filter(r => terms.every(t => r.hay.includes(t))) : viewing.rows;
+    const shown = hits.slice(0, CALLSIGN_LISTS_VIEW_MAX);
+    const total = viewing.rows.length;
+    ui.vCount.textContent = !total ? tx('This list has no entries.', 'Diese Liste hat keine Einträge.')
+      : !hits.length ? tx(`No match in ${total} entries.`, `Kein Treffer in ${total} Einträgen.`)
+        : hits.length > shown.length ? tx(`${shown.length} of ${hits.length} matches shown (${total} entries): narrow the search.`, `${shown.length} von ${hits.length} Treffern angezeigt (${total} Einträge): Suche eingrenzen.`)
+          : terms.length ? tx(`${hits.length} of ${total} entries.`, `${hits.length} von ${total} Einträgen.`) : tx(`${total} entries.`, `${total} Einträge.`);
+    fill(ui.vRows, shown.map(r => {
+      const cells = [r.call, r.name, r.qth, ...(viewing.hasGrid ? [r.grid] : []), r.text];
+      const tr = el('tr', {}, cells.map((c, i) => el('td', { 'data-label': viewing.cols[i], class: i === 0 ? 'cl-call' : '' }, c)));
+      return rowRoles(tr);
+    }));
   }
 
   function row(s, visible) {
@@ -187,23 +282,34 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = () => 
     const btn = (act, label, aria, { cls = '', disabled = false } = {}) => el('button', {
       type: 'button', class: `mini${cls}`, 'data-act': act, 'data-id': s.id, 'aria-label': `${aria} – ${name}`, disabled,
     }, label);
-    const meta = builtin ? tx('built in, works offline', 'eingebaut, ohne Internet')
-      : tx(`${s.count} entries · ${callsignListsKind(s.kind)} · imported ${callsignListsDate(s.importedAt)}`, `${s.count} Einträge · ${callsignListsKind(s.kind)} · importiert ${callsignListsDate(s.importedAt)}`);
-    const li = el('li', { class: 'cl-row' },
-      el('label', { class: 'cl-name' }, el('input', { type: 'checkbox', 'data-act': 'enable', 'data-id': s.id, checked: s.enabled !== false, disabled: !!s.deleted }), ' ', el('span', {}, name)),
-      ' ', el('small', { class: 'cl-meta' }, s.deleted ? `${meta} · ${tx('deleted', 'gelöscht')}` : meta), ' ');
-    const add = (...x) => x.forEach(n => li.append(n, ' '));
+    const book = getCallbook();
+    const count = builtin ? (book ? book.calls.length : 0) : s.count;
+    const date = builtin ? (book && book.stand ? String(book.stand).slice(0, 10) : '–') : (callsignListsDate(s.importedAt) || '–');
+    const acts = [];
     if (!s.deleted) {
-      add(btn('up', '↑', tx('Move up', 'Nach oben'), { disabled: idx <= 0 }), btn('down', '↓', tx('Move down', 'Nach unten'), { disabled: idx >= visible.length - 1 }));
-      if (!builtin && s.kind !== 'wavelog') add(btn('replace', tx('Replace…', 'Ersetzen…'), tx('Replace the list with a new file', 'Liste durch eine neue Datei ersetzen')));
-      if (!builtin && s.prevGen != null) add(btn('undo', tx('Undo replace', 'Ersetzen rückgängig'), tx('Undo or redo the last replacement', 'Letztes Ersetzen rückgängig machen oder wiederholen')));
-      if (!builtin) add(btn('delete', tx('Delete', 'Löschen'), tx('Delete list', 'Liste löschen'), { cls: ' danger' }));
+      acts.push(btn('view', tx('View', 'Ansehen'), tx('View the entries of the list', 'Einträge der Liste ansehen')));
+      if (!builtin && s.kind !== 'wavelog') acts.push(btn('replace', tx('Replace…', 'Ersetzen…'), tx('Replace the list with a new file', 'Liste durch eine neue Datei ersetzen')));
+      if (!builtin && s.prevGen != null) acts.push(btn('undo', tx('Undo replace', 'Ersetzen rückgängig'), tx('Undo or redo the last replacement', 'Letztes Ersetzen rückgängig machen oder wiederholen')));
+      if (!builtin) acts.push(btn('delete', tx('Delete', 'Löschen'), tx('Delete list', 'Liste löschen'), { cls: ' danger' }));
     } else {
-      add(btn('restore', tx('Restore', 'Wiederherstellen'), tx('Restore list', 'Liste wiederherstellen')));
-      if (!builtin) add(btn('erase', tx('Erase permanently', 'Endgültig löschen'), tx('Erase list permanently', 'Liste endgültig löschen'), { cls: ' danger' }));
+      acts.push(btn('restore', tx('Restore', 'Wiederherstellen'), tx('Restore list', 'Liste wiederherstellen')));
+      if (!builtin) acts.push(btn('erase', tx('Erase permanently', 'Endgültig löschen'), tx('Erase list permanently', 'Liste endgültig löschen'), { cls: ' danger' }));
     }
-    return li;
+    const label = i => ({ 'data-label': COLS()[i] });
+    const tr = el('tr', { class: s.deleted ? 'cl-deleted' : '' },
+      el('td', { ...label(0), class: 'cl-on' }, el('input', { type: 'checkbox', 'data-act': 'enable', 'data-id': s.id, checked: s.enabled !== false, disabled: !!s.deleted, 'aria-label': tx(`Use ${name}`, `${name} verwenden`) })),
+      el('td', { ...label(1), class: 'cl-name' }, el('span', { class: 'cl-title' }, name), ' ',
+        el('small', { class: 'cl-meta' }, s.deleted ? `${callsignListsKind(s.kind)} · ${tx('deleted', 'gelöscht')}` : callsignListsKind(s.kind))),
+      el('td', { ...label(2), class: 'cl-num' }, String(count)),
+      el('td', { ...label(3), class: 'cl-date' }, date),
+      el('td', { ...label(4), class: 'cl-order' }, s.deleted ? '' : [
+        btn('up', '↑', tx('Move up', 'Nach oben'), { disabled: idx <= 0 }), ' ',
+        btn('down', '↓', tx('Move down', 'Nach unten'), { disabled: idx >= visible.length - 1 })]),
+      el('td', { ...label(5), class: 'cl-actions' }, acts.flatMap((a, i) => (i ? [' ', a] : [a]))));
+    return rowRoles(tr);
   }
+
+  const COLS = () => [tx('On', 'An'), tx('List', 'Liste'), tx('Entries', 'Einträge'), tx('Imported', 'Stand'), tx('Order', 'Reihenfolge'), tx('Actions', 'Aktionen')];
 
   function render() {
     if (!dlg) return;
@@ -221,13 +327,20 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = () => 
     ui.wavelog.textContent = tx('Get QSOs from Wavelog (online) ↗', 'QSOs aus Wavelog holen (online) ↗');
     ui.wavelog.hidden = callsignListsIsFile();
     ui.hint.textContent = tx('A list is a text file in the Ham2K PoLo format (callsign, then text) or a CSV (callsign, name, QTH). Every list is kept as it is. For a callsign the first list in this order that has a name or QTH decides; the notes of all lists are shown. The lists are not part of any backup: keep the original files.', 'Eine Liste ist eine Textdatei im Ham2K-PoLo-Format (Rufzeichen, danach Text) oder eine CSV (Rufzeichen, Name, QTH). Jede Liste bleibt für sich erhalten. Für ein Rufzeichen entscheidet die erste Liste in dieser Reihenfolge, die einen Namen oder QTH hat; die Notizen aller Listen werden angezeigt. Die Listen sind in keiner Sicherung enthalten: die Originaldateien aufbewahren.');
+    if (viewing) renderView();
     if (!store) {
-      fill(ui.list, el('li', { class: 'hint' }, tx('Your own lists need IndexedDB, which this browser does not offer. The built-in list keeps working.', 'Eigene Listen brauchen IndexedDB, das dieser Browser nicht bietet. Die eingebaute Liste funktioniert weiter.')));
+      ui.empty.textContent = tx('Your own lists need IndexedDB, which this browser does not offer. The built-in list keeps working.', 'Eigene Listen brauchen IndexedDB, das dieser Browser nicht bietet. Die eingebaute Liste funktioniert weiter.');
+      ui.empty.hidden = false;
+      ui.list.hidden = true;
       return;
     }
+    ui.empty.hidden = true;
+    ui.list.hidden = false;
+    fill(ui.head, COLS().map((c, i) => el('th', { scope: 'col', class: i === 2 ? 'cl-num' : '' }, c)));
+    tableRoles(ui.table);
     const sorted = sources.slice().sort((a, b) => (Number(!!a.deleted) - Number(!!b.deleted)) || (a.rank - b.rank));
     const visible = sorted.filter(s => !s.deleted);
-    fill(ui.list, sorted.map(s => row(s, visible)));
+    fill(ui.rows, sorted.map(s => row(s, visible)));
   }
 
   return {
@@ -240,6 +353,9 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = () => 
     open(from) {
       if (!dlg) build();
       opener = from || document.activeElement;
+      viewing = null;
+      ui.view.hidden = true;
+      ui.mainBody.hidden = false;
       render();
       say('');
       dlg.showModal();

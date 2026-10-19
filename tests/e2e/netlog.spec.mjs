@@ -1462,7 +1462,7 @@ test('callsign lists: shared dialog; import, merge order, switch off, replace an
   const notes = pathJoin(tmp, 'noten.txt');
   await writeFile(csv, 'call;name;qth\nOE0QXA;Anna Privat;Graz\nOE0QXB;Bernd\n');
   await writeFile(notes, '# TITLE: Hams of Note\nOE0QXA 🤩 [Elmer](https://example.org/e)\nOE0QXB 🌳 POTA\n');
-  const rows = dlg.locator('.cl-row');
+  const rows = dlg.locator('.cl-main-body tbody tr');
   await expect(rows).toHaveCount(1);                       // the Austrian list
   await dlg.locator('input[type=file]').setInputFiles(csv);
   await expect(dlg.locator('.cl-msg')).toContainText('2 Einträge');
@@ -1518,5 +1518,50 @@ test('callsign lists: a file without callsigns changes nothing and says why; Eng
   await writeFile(bad, 'nichts\nhier\n');
   await dlg.locator('input[type=file]').setInputFiles(bad);
   await expect(dlg.locator('.cl-msg')).toContainText('contains no callsign');
-  await expect(dlg.locator('.cl-row')).toHaveCount(1);
+  await expect(dlg.locator('.cl-main-body tbody tr')).toHaveCount(1);
+});
+
+test('callsign lists: quick view of a list with search; columns are aligned', async ({ page }, info) => {
+  await open(page);
+  const dlg = await openLists(page);
+  const tmp = await mkdtemp(pathJoin(tmpdir(), 'netlog-lists-'));
+  const csv = pathJoin(tmp, 'club.csv');
+  const lines = ['call;name;qth'];
+  for (let i = 0; i < 300; i++) lines.push(`OE0Q${String.fromCharCode(65 + (i % 26))}${String.fromCharCode(65 + Math.floor(i / 26))}A;Mitglied ${i};Ort ${i % 7}`);
+  lines.push('OE0QXZ;Jürgen Müller;Graz');
+  await writeFile(csv, lines.join('\n'));
+  await dlg.locator('input[type=file]').setInputFiles(csv);
+  const rows = dlg.locator('.cl-main-body tbody tr');
+  await expect(rows).toHaveCount(2);
+  // the numbers sit in one column, right-aligned, with the column names above (wide screens)
+  if (!info.project.name.startsWith('mobile')) {
+    const heads = await dlg.locator('.cl-main-body thead th').allTextContents();
+    expect(heads).toEqual(['An', 'Liste', 'Einträge', 'Stand', 'Reihenfolge', 'Aktionen']);
+    const xs = await rows.locator('td.cl-num').evaluateAll(n => n.map(c => Math.round(c.getBoundingClientRect().right)));
+    expect(new Set(xs).size).toBe(1);
+  }
+  // quick view: the first rows, then a search narrows it (umlauts folded)
+  await rows.first().locator('[data-act=view]').click();
+  const view = dlg.locator('.cl-view');
+  await expect(view).toBeVisible();
+  await expect(dlg.locator('.cl-main-body')).toBeHidden();
+  await expect(dlg.locator('#cl-view-search')).toBeFocused();
+  await expect(dlg.locator('.cl-count')).toContainText('200 von 301 Treffern angezeigt');
+  await expect(view.locator('tbody tr')).toHaveCount(200);
+  await dlg.locator('#cl-view-search').fill('muller graz');
+  await expect(view.locator('tbody tr')).toHaveCount(1);
+  await expect(view.locator('tbody tr')).toContainText('OE0QXZ');
+  await expect(dlg.locator('.cl-count')).toContainText('1 von 301 Einträgen');
+  await dlg.locator('#cl-view-search').fill('kein-treffer-xyz');
+  await expect(dlg.locator('.cl-count')).toContainText('Kein Treffer');
+  await dlg.locator('#cl-view-search').press('Escape');             // clears the search first
+  await expect(dlg).toBeVisible();
+  await expect(dlg.locator('#cl-view-search')).toHaveValue('');
+  await view.getByRole('button', { name: /Zurück zu den Listen/ }).click();
+  await expect(dlg.locator('.cl-main-body')).toBeVisible();
+  await expect(rows.first().locator('[data-act=view]')).toBeFocused();
+  // the Austrian list can be looked at too
+  await rows.nth(1).locator('[data-act=view]').click();
+  await dlg.locator('#cl-view-search').fill('OE1');
+  await expect(view.locator('tbody tr').first()).toContainText('OE1');
 });
