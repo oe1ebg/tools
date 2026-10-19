@@ -1580,7 +1580,8 @@ test('callsign lists: quick view of a list with search; columns are aligned', as
   await expect(dlg.locator('.cl-count')).toContainText('301 Einträge');
   await view.getByRole('button', { name: /Zurück zu den Listen/ }).click();
   await rows.last().locator('[data-act=restore]').click();
-  // the Austrian list can be looked at too
+  // the Austrian list can be looked at too, and it has entries
+  await expect(rows.nth(1).locator('td.cl-num')).not.toHaveText('0');
   await rows.nth(1).locator('[data-act=view]').click();
   await dlg.locator('#cl-view-search').fill('OE1');
   await expect(view.locator('tbody tr').first()).toContainText('OE1');
