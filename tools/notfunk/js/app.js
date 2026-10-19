@@ -391,6 +391,14 @@ async function recentOperators() {
   return ops.filter(o => !seen.has(o.operator) && seen.add(o.operator)).map(o => ({ call: o.operator, title: o.name }));
 }
 
+// The station callsigns of earlier operations, most recent first.
+async function recentStationCalls() {
+  const ops = (await state.store.getAll('operations')).filter(o => o.call && !o.deleted)
+    .sort((a, b) => (a.updated < b.updated ? 1 : -1));
+  const seen = new Set();
+  return ops.filter(o => !seen.has(o.call) && seen.add(o.call)).map(o => ({ call: o.call, title: o.name }));
+}
+
 function attachOpLookups(prefix, onChange) {
   const op = $(`#${prefix}-operator`);
   let recent = [];
@@ -402,7 +410,17 @@ function attachOpLookups(prefix, onChange) {
     onPick: () => { renderPartyInfo(`#${prefix}-operator`, `#${prefix}-operator-info`); onChange(); },
   });
   op.addEventListener('input', () => renderPartyInfo(`#${prefix}-operator`, `#${prefix}-operator-info`));
-  $(`#${prefix}-call`).addEventListener('input', () => renderPartyInfo(`#${prefix}-call`, `#${prefix}-call-info`));
+  // The station callsign: the same callsign search as every callsign field
+  const stationCall = $(`#${prefix}-call`);
+  let recentCalls = [];
+  stationCall.addEventListener('focus', async () => { recentCalls = await recentStationCalls(); });
+  attachCallSearch({
+    input: stationCall, pop: $(`#${prefix}-call-pop`),
+    getCalls: () => state.calls,
+    recent: () => recentCalls,
+    onPick: () => { renderPartyInfo(`#${prefix}-call`, `#${prefix}-call-info`); onChange(); },
+  });
+  stationCall.addEventListener('input', () => renderPartyInfo(`#${prefix}-call`, `#${prefix}-call-info`));
   const via = $(`#${prefix}-via`);
   return attachRepeaterSearch({
     input: via, pop: $(`#${prefix}-via-pop`), info: $(`#${prefix}-via-info`),
