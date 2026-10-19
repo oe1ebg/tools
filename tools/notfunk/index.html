@@ -110,7 +110,7 @@
         <legend>Eigene Station</legend>
         <div class="grid-form op-grid">
           <div class="field"><label for="n-call">Stationsrufzeichen</label>
-            <input id="n-call" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" placeholder="OE1XKS" aria-describedby="n-call-info" title="Rufzeichen der eigenen Funkstation, z. B. die Klubstation; kann vom Rufzeichen des Operators abweichen">
+            <div class="ac-wrap"><input id="n-call" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" placeholder="OE1XKS" aria-describedby="n-call-info" title="Rufzeichen der eigenen Funkstation, z. B. die Klubstation; kann vom Rufzeichen des Operators abweichen"><div id="n-call-pop" class="ac-pop"></div></div>
             <div class="ac-hints"><div id="n-call-info" class="ac-info" aria-live="polite"></div></div></div>
           <label class="field span-2"><span>Standort der Station (Adresse)</span>
             <input id="n-station" enterkeyhint="next" placeholder="z. B. Lichtinsel 12, Brünner Straße 68" aria-describedby="n-station-help" title="Wo das eigene Funkgerät steht (steht oben im Ausdruck)"></label>
@@ -195,7 +195,7 @@
           <legend>Eigene Station</legend>
           <div class="grid-form op-grid">
             <div class="field"><label for="e-call">Stationsrufzeichen</label>
-              <input id="e-call" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-describedby="e-call-info" title="Rufzeichen der eigenen Funkstation, z. B. die Klubstation; kann vom Rufzeichen des Operators abweichen">
+              <div class="ac-wrap"><input id="e-call" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-describedby="e-call-info" title="Rufzeichen der eigenen Funkstation, z. B. die Klubstation; kann vom Rufzeichen des Operators abweichen"><div id="e-call-pop" class="ac-pop"></div></div>
               <div class="ac-hints"><div id="e-call-info" class="ac-info" aria-live="polite"></div></div></div>
             <label class="field span-2"><span>Standort der Station (Adresse)</span>
               <input id="e-station" enterkeyhint="next" title="Wo das eigene Funkgerät steht (steht oben im Ausdruck)"></label>

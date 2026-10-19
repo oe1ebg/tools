@@ -1039,3 +1039,30 @@ test('callsign lists: no guesses from the lists for the own post (the operation\
   await peer.fill('Stabsfeldwebel');                  // exactly the own post: no guess from the lists
   await expect(page.locator('#m-peer-pop')).not.toContainText('OE0QXS');
 });
+
+test('callsign lists: the Stationsrufzeichen of the Einsatz has the same callsign search (new form and edit panel)', async ({ page }) => {
+  await page.goto('tools/notfunk/');
+  await expect.poll(() => page.evaluate(() => globalThis.NOTFUNK_READY === true)).toBe(true);
+  await offlineSettled(page);
+  await addOwnList(page);
+  await page.getByRole('button', { name: '+ Neuer Einsatz' }).click();
+  const call = page.locator('#n-call');
+  await call.fill('OE0QX');
+  await expect(page.locator('#n-call-pop')).toContainText('Rufzeichenlisten');
+  await expect(page.locator('#n-call-pop')).toContainText('Bernd Muster');
+  await expect(page.locator('#n-call-pop')).toContainText('aus „meine“');
+  await page.locator('#n-call-pop .ac-item', { hasText: 'OE0QXB' }).click();
+  await expect(call).toHaveValue('OE0QXB');
+  await expect(page.locator('#n-call-info')).toContainText('Bernd Muster · Linz (aus „meine“)');
+  await page.locator('#n-name').fill('E2E Station');
+  await page.locator('#n-prefix').fill('st1');
+  await page.locator('#n-operator').fill('oe1ebg');
+  await page.getByRole('button', { name: 'Einsatz anlegen' }).click();
+  await expect(page.locator('#view-book')).toBeVisible();
+  // the edit panel of the open Einsatz has it too
+  await page.locator('#op-panel > summary').click();
+  const ecall = page.locator('#e-call');
+  await ecall.fill('OE0QX');
+  await expect(page.locator('#e-call-pop')).toContainText('Rufzeichenlisten');
+  await expect(page.locator('#e-call-pop')).toContainText('Anna Privat');
+});
