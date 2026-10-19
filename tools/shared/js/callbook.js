@@ -1,6 +1,13 @@
 // Austrian callsign list (tools/shared/data/callsigns-oe.json, built by
 // scripts/fetch_callsigns.py from the Fernmeldebüro's Rufzeichenliste).
 // Pure functions — unit-tested in oe1ebg/tests/.
+//
+// The Austrian list on its own, and its low-level searches. The tools do
+// not use buildCallbook/lookupCall/suggestCalls/searchCallbook: the one
+// callsign lookup is callsign-service.js (this list plus the user's own
+// lists); tests/callsign-lookups.test.mjs fails when a tool goes round it.
+// baseCall, normalizeCall, isPlausibleCall and withinOneEdit are plain
+// helpers for everyone.
 
 export function buildCallbook(data) {
   if (!data || !Array.isArray(data.calls)) return null;

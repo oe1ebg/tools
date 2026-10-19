@@ -224,7 +224,10 @@ fallback; without it the tools keep the bundled Austrian list.
   `onChange` tell a tool when to redraw rows; `watchFocus()` re-reads the
   lists when the window is looked at again (a change made in another tab
   or tool), and only if they differ. Tools never import `lookupCall`,
-  `suggestCalls` or `searchCallbook` themselves any more.
+  `suggestCalls` or `searchCallbook` themselves: `tests/callsign-lookups.test.mjs`
+  fails when one does (or keeps the old `getBook` wiring), and checks that
+  Confirm, Notfunk and Netlog each have the service, the dialog and the
+  focus refresh.
 - **One dialog for every tool** (`callsignlists.js`, `createCallsignLists()`):
   the lists, their order, switches, replace/undo, delete and erase live in
   one shared `<dialog>` that a tool opens from a button, as an aligned table
