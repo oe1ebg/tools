@@ -164,13 +164,13 @@ dl.kb dd{ margin:0; color:var(--text-dim); }
 }
 
 /* ---------- the callsign lists dialog (js/callsignlists.js) ---------- */
-.cl-dlg{ width:min(980px, calc(100vw - 2em)); }
+.cl-dlg{ width:min(1100px, calc(100vw - 2em)); }
 .cl-body{ padding:.6em 1em 1em; overflow:auto; }
 .cl-shared{ margin:0 0 .8em; padding:.5em .7em; border:1px solid var(--accent); border-radius:6px; background:var(--accent-soft); color:var(--text); }
 .cl-wrap{ overflow-x:auto; margin:0 0 .8em; }
 .cl-table{ width:100%; border-collapse:collapse; font-size:14.5px; }
 .cl-table th{ text-align:left; font-weight:700; padding:.4em .45em; border-bottom:2px solid var(--text-dim); white-space:nowrap; }
-.cl-table td{ padding:.4em .45em; border-top:1px solid var(--line); vertical-align:middle; }
+.cl-table td{ padding:.4em .45em; border-top:1px solid var(--line); vertical-align:baseline; }
 .cl-table tbody tr:first-child td{ border-top:0; }
 .cl-table .cl-num{ text-align:right; font-variant-numeric:tabular-nums; }
 .cl-table .cl-on{ width:2.5em; text-align:center; }
