@@ -1536,7 +1536,7 @@ test('callsign lists: quick view of a list with search; columns are aligned', as
   // the numbers sit in one column, right-aligned, with the column names above (wide screens)
   if (!info.project.name.startsWith('mobile')) {
     const heads = await dlg.locator('table[aria-labelledby=cl-title] thead th').allTextContents();
-    expect(heads).toEqual(['Aktiv', 'Liste', 'Einträge', 'Stand', 'Reihenfolge', 'Aktionen']);
+    expect(heads).toEqual(['Aktiv', 'Liste', 'Einträge', 'Stand', 'Rang', 'Aktionen']);
     const xs = await rows.locator('td.cl-num').evaluateAll(n => n.map(c => Math.round(c.getBoundingClientRect().right)));
     expect(new Set(xs).size).toBe(1);
   }
@@ -1633,4 +1633,25 @@ test('callsign lists: the test search covers the active lists and names the list
   await search.press('Escape');
   await expect(search).toHaveValue('');
   await expect(dlg).toBeVisible();
+
+  // the order of the lists is the priority of the lookup: the top list wins
+  const second = pathJoin(tmp, 'zweite.csv');
+  await writeFile(second, 'call;name;qth\nOE0QXA;Anna Zweit;Wels\n');
+  const lists = dlg.locator('table[aria-labelledby=cl-title] tbody tr');
+  await dlg.locator('input[type=file]').setInputFiles(second);
+  await expect(lists).toHaveCount(4);
+  await expect(lists.nth(2)).toContainText('zweite');             // before the Austrian list
+  await search.fill('oe0qxa');
+  const winner = dlg.locator('.cl-merged-box tbody tr').first();
+  await expect(winner).toContainText('Anna Privat');                // "meine" is above "zweite"
+  await expect(winner).toContainText('aus meine');
+  await lists.nth(2).locator('[data-act=up]').click();             // zweite above Hams of Note
+  await lists.nth(1).locator('[data-act=up]').click();             // and above meine
+  await expect(lists.first()).toContainText('zweite');
+  await expect(winner).toContainText('Anna Zweit');                 // now it decides
+  await expect(winner).toContainText('aus zweite');
+  await expect(winner).toContainText('Wels');
+  const entries = dlg.locator('.cl-test table[aria-labelledby=cl-entries-title] tbody tr');
+  await expect(entries.nth(0)).toContainText('zweite');             // the entries follow the same order
+  await expect(entries.nth(1)).toContainText('meine');
 });

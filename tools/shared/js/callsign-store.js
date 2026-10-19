@@ -20,7 +20,7 @@
 // bundles share one scope with the tools' own modules.
 
 import { openToolStorage } from './storage.js';
-import { CALLSIGN_BUILTIN_ID } from './callsign-merge.js';
+import { CALLSIGN_BUILTIN_ID, callsignSourceOrder } from './callsign-merge.js';
 
 export const CALLSIGN_STORES = {
   sources: { keyPath: 'id' },
@@ -51,10 +51,17 @@ function callsignNewId() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
-// The next rank after every user source and before the bundled list.
-function callsignNextRank(sources) {
-  const ranks = sources.filter(s => s.id !== CALLSIGN_BUILTIN_ID && !s.deleted).map(s => s.rank);
-  return (ranks.length ? Math.max(...ranks) : 0) + 1;
+// Where a new list goes: before the built-in Austrian list when that is
+// last (the default: own lists first), else at the end. Every visible list
+// is numbered 1..n again, so ranks never tie. Returns the new list's rank;
+// `put` writes the renumbered others.
+function callsignPlaceNew(sources, put, stamp) {
+  const visible = sources.filter(s => !s.deleted).sort(callsignSourceOrder);
+  const last = visible[visible.length - 1];
+  const at = last && last.id === CALLSIGN_BUILTIN_ID ? visible.length - 1 : visible.length;
+  const order = [...visible.slice(0, at), null, ...visible.slice(at)];
+  order.forEach((s, i) => { if (s && s.rank !== i + 1) put({ ...s, rank: i + 1, updated: stamp }); });
+  return at + 1;
 }
 
 // The bundled Austrian list as a source row (created once).
@@ -109,7 +116,8 @@ export async function importCallsignSource(store, { kind, name, fileName = '', r
     const sources = await api.getAll('sources');
     const id = callsignNewId();
     for (const r of callsignRecordRows(id, 1, rows)) api.put('records', r);
-    const row = { id, kind, name, fileName, enabled: true, rank: callsignNextRank(sources), gen: 1, prevGen: null, count: rows.length, importedAt: stamp, updated: stamp, deleted: false };
+    const rank = callsignPlaceNew(sources, x => api.put('sources', x), stamp);
+    const row = { id, kind, name, fileName, enabled: true, rank, gen: 1, prevGen: null, count: rows.length, importedAt: stamp, updated: stamp, deleted: false };
     api.put('sources', row);
     return row;
   });
@@ -141,12 +149,26 @@ async function callsignPatchSource(store, id, patch) {
 export const setCallsignSourceEnabled = (store, id, enabled) => callsignPatchSource(store, id, { enabled: !!enabled });
 // Soft delete: hidden everywhere, records kept until erased.
 export const deleteCallsignSource = (store, id) => callsignPatchSource(store, id, { deleted: true });
-export const restoreCallsignSource = (store, id) => callsignPatchSource(store, id, { deleted: false });
+// Restoring a list puts it back at its old place; the visible lists are
+// numbered 1..n again, so that ranks never tie.
+export async function restoreCallsignSource(store, id) {
+  return store.atomic(['sources'], async api => {
+    const src = await api.get('sources', id);
+    if (!src) return null;
+    const stamp = callsignNow();
+    const back = { ...src, deleted: false, updated: stamp };
+    const others = (await api.getAll('sources')).filter(s => !s.deleted && s.id !== id);
+    [...others, back].sort(callsignSourceOrder).forEach((s, i) => {
+      if (s.id === id || s.rank !== i + 1) api.put('sources', { ...s, rank: i + 1, updated: stamp });
+    });
+    return back;
+  });
+}
 
 // Moves a source one place up (-1) or down (+1) among the visible ones.
 export async function moveCallsignSource(store, id, delta) {
   return store.atomic(['sources'], async api => {
-    const all = (await api.getAll('sources')).filter(s => !s.deleted).sort((a, b) => a.rank - b.rank);
+    const all = (await api.getAll('sources')).filter(s => !s.deleted).sort(callsignSourceOrder);
     const i = all.findIndex(s => s.id === id);
     const j = i + delta;
     if (i < 0 || j < 0 || j >= all.length) return false;

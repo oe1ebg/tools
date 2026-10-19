@@ -191,7 +191,10 @@ fallback; without it the tools keep the bundled Austrian list.
   of kind `builtin` (`CALLSIGN_BUILTIN_ID`), on by default, last in the
   order, and can be switched off.
 - **Merged view** (`callsign-merge.js`, `buildCallsignDirectory()`): sources
-  by `rank`; per field (`name`, `qth`, `grid`) the first non-empty value of
+  by `rank` (`callsignSourceOrder()`: the order the dialog shows, top to
+  bottom, is the priority of the lookup; a tie is broken by id, the store
+  keeps ranks 1..n and puts a new list before the built-in one when that
+  is last, else at the end); per field (`name`, `qth`, `grid`) the first non-empty value of
   an enabled source wins and the answer names the source; the notes of
   every enabled source are listed. `lookup(call)`, `search(text)` (callsign
   prefix, short forms, typos, `?`/`*` patterns, or name/QTH/note from three letters) and `callsigns()` are synchronous

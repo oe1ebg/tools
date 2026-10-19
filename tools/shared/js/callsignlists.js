@@ -19,7 +19,7 @@
 
 import { el, fill, rowRoles, tableRoles } from './dom.js';
 import { tx, setUiLang } from './i18n.js';
-import { buildCallsignDirectory, callsignNoteText, CALLSIGN_BUILTIN_ID } from './callsign-merge.js';
+import { buildCallsignDirectory, callsignNoteText, callsignSourceOrder, CALLSIGN_BUILTIN_ID } from './callsign-merge.js';
 import { buildCallbook } from './callbook.js';
 import { loadDataFile } from './data.js';
 import {
@@ -392,7 +392,7 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = null, 
     return rowRoles(tr);
   }
 
-  const COLS = () => [tx('Active', 'Aktiv'), tx('List', 'Liste'), tx('Entries', 'Einträge'), tx('Imported', 'Stand'), tx('Order', 'Reihenfolge'), tx('Actions', 'Aktionen')];
+  const COLS = () => [tx('Active', 'Aktiv'), tx('List', 'Liste'), tx('Entries', 'Einträge'), tx('Imported', 'Stand'), tx('Priority', 'Rang'), tx('Actions', 'Aktionen')];
 
   function render() {
     if (!dlg) return;
@@ -409,7 +409,7 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = null, 
     ui.add.disabled = !store;
     ui.wavelog.textContent = tx('Get QSOs from Wavelog (online) ↗', 'QSOs aus Wavelog holen (online) ↗');
     ui.wavelog.hidden = callsignListsIsFile();
-    ui.hint.textContent = tx('A list is a text file in the Ham2K PoLo format (callsign, then text) or a CSV (callsign, name, QTH). Every list is kept as it is. For a callsign the first list in this order that has a name or QTH decides; the notes of all lists are shown. The lists are not part of any backup: keep the original files.', 'Eine Liste ist eine Textdatei im Ham2K-PoLo-Format (Rufzeichen, danach Text) oder eine CSV (Rufzeichen, Name, QTH). Jede Liste bleibt für sich erhalten. Für ein Rufzeichen entscheidet die erste Liste in dieser Reihenfolge, die einen Namen oder QTH hat; die Notizen aller Listen werden angezeigt. Die Listen sind in keiner Sicherung enthalten: die Originaldateien aufbewahren.');
+    ui.hint.textContent = tx('A list is a text file in the Ham2K PoLo format (callsign, then text) or a CSV (callsign, name, QTH). Every list is kept as it is. The order is the priority: for a callsign the topmost list that has a name or QTH decides (the others fill in what is missing); the notes of all lists are shown. The lists are not part of any backup: keep the original files.', 'Eine Liste ist eine Textdatei im Ham2K-PoLo-Format (Rufzeichen, danach Text) oder eine CSV (Rufzeichen, Name, QTH). Jede Liste bleibt für sich erhalten. Die Reihenfolge ist die Rangfolge: Für ein Rufzeichen entscheidet die oberste Liste, die einen Namen oder QTH hat (die anderen ergänzen, was fehlt); die Notizen aller Listen werden angezeigt. Die Listen sind in keiner Sicherung enthalten: die Originaldateien aufbewahren.');
     if (viewing) renderView();
     if (!store) {
       ui.empty.textContent = tx('Your own lists need IndexedDB, which this browser does not offer. The built-in list keeps working.', 'Eigene Listen brauchen IndexedDB, das dieser Browser nicht bietet. Die eingebaute Liste funktioniert weiter.');
@@ -422,7 +422,7 @@ export function createCallsignLists({ getLang = () => 'de', getCallbook = null, 
     ui.list.hidden = false;
     fill(ui.head, COLS().map((c, i) => el('th', { scope: 'col', class: i === 2 ? 'cl-num' : '', colspan: i === 5 ? 3 : null }, c)));
     tableRoles(ui.table);
-    const sorted = sources.slice().sort((a, b) => (Number(!!a.deleted) - Number(!!b.deleted)) || (a.rank - b.rank));
+    const sorted = sources.slice().sort((a, b) => (Number(!!a.deleted) - Number(!!b.deleted)) || callsignSourceOrder(a, b));
     const visible = sorted.filter(s => !s.deleted);
     fill(ui.rows, sorted.map(s => row(s, visible)));
     renderTest();

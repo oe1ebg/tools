@@ -16,11 +16,18 @@ import { baseCall, withinOneEdit } from './callbook.js';
 
 export const CALLSIGN_BUILTIN_ID = 'builtin:oe-callbook';
 
-// Sources that count: not deleted, enabled; by rank, then name.
+// THE order of the lists, used by the dialog and by the lookup alike: by
+// rank, a tie (which the store avoids, but old or restored data may have)
+// by id, so both always agree. The first list wins.
+export function callsignSourceOrder(a, b) {
+  return (a.rank - b.rank) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+}
+
+// Sources that count: not deleted, enabled; in that order.
 export function callsignActiveSources(sources) {
   return sources
     .filter(s => !s.deleted && s.enabled !== false)
-    .sort((a, b) => (a.rank - b.rank) || String(a.name).localeCompare(String(b.name), 'de'));
+    .sort(callsignSourceOrder);
 }
 
 // A note as plain text for display: the simplified GitHub markdown of PoLo
