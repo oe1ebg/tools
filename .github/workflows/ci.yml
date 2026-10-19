@@ -273,9 +273,12 @@ jobs:
           key: data-${{ steps.epoch.outputs.week }}
           restore-keys: data-
 
+      # MANUAL_IMAGES=never: the tests do not need the manuals' screenshots
+      # (releases and Pages previews make them, `just build`).
       - name: Build the bundle
         env:
           GIT_SHA: ${{ github.sha }}
+          MANUAL_IMAGES: never
         run: uvx --from rust-just just build
 
       - name: Set up Node.js
