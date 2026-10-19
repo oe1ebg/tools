@@ -83,7 +83,7 @@ test('import a logbook page by page; token not kept; Netlog reads the result; er
   await expect.poll(() => page.evaluate(() => globalThis.NETLOG_READY === true)).toBe(true);
   await page.locator('#tab-series').click();
   await page.locator('#btn-lists-open').click();
-  const rows = page.locator('#callsign-lists-dlg .cl-main-body tbody tr');
+  const rows = page.locator('#callsign-lists-dlg table[aria-labelledby=cl-title] tbody tr');
   await expect(rows).toHaveCount(2);
   await expect(rows.first()).toContainText('Wavelog-Import');
   await expect(rows.first().locator('[data-act=replace]')).toHaveCount(0);   // refreshed by the import, not by a file
@@ -102,14 +102,14 @@ test('import a logbook page by page; token not kept; Netlog reads the result; er
   await page.locator('#btn-lists').click();
   await expect(page.locator('#callsign-lists-dlg .cl-shared')).toContainText('Gemeinsam für alle Tools');
   // this page passes no callsign list: the dialog loads the Austrian one itself
-  await expect(page.locator('#callsign-lists-dlg tbody tr').last().locator('td.cl-num')).not.toHaveText('0');
-  await expect(page.locator('#callsign-lists-dlg .cl-main-body tbody tr')).toHaveCount(2);
+  await expect(page.locator('#callsign-lists-dlg table[aria-labelledby=cl-title] tbody tr').last().locator('td.cl-num')).not.toHaveText('0');
+  await expect(page.locator('#callsign-lists-dlg table[aria-labelledby=cl-title] tbody tr')).toHaveCount(2);
   await page.keyboard.press('Escape');
   page.on('dialog', d => d.accept());
   await page.locator('#wl-sources button[data-erase]').click();
   await expect(page.locator('#wl-sources')).toContainText('Noch nichts importiert');
   await page.locator('#btn-lists').click();
-  await expect(page.locator('#callsign-lists-dlg .cl-main-body tbody tr')).toHaveCount(1);
+  await expect(page.locator('#callsign-lists-dlg table[aria-labelledby=cl-title] tbody tr')).toHaveCount(1);
 });
 
 test('a token without the needed scope is named in the message', async ({ page, expectConsoleError }) => {
