@@ -45,6 +45,7 @@ TOOL_LINKS = [
 # published tree) lists them, so an older release has no dead link.
 OPTIONAL_TOOL_LINKS = [
     ("netlog/", "Netlog"),
+    ("wavelog-import/", "Wavelog import"),
 ]
 TOOL_NAME_RE = re.compile(r"^[a-z0-9-]{1,40}$")
 

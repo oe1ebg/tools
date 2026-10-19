@@ -8,6 +8,8 @@
 //              rank, gen, prevGen, count, importedAt, updated, deleted }
 //   records  { id, eventId: source id, source, gen, base, call, name, qth,
 //              grid, note }
+//   qsos     { id: source:wavelogId, eventId: source id, source, wlId, call,
+//              base, date, time, band, mode, name, qth, grid } (v2, issue #82)
 //   meta     reserved
 //
 // A source's records belong to generations. Re-importing a source writes a
@@ -26,15 +28,17 @@ export const CALLSIGN_STORES = {
   sources: { keyPath: 'id' },
   records: { keyPath: 'id', byEvent: true },
   meta: { keyPath: 'id' },
+  qsos: { keyPath: 'id', byEvent: true },
 };
 
 export const CALLSIGN_SCHEMA = {
   name: 'oe1ebg-callsigns',
-  version: 1,
+  version: 2,
   lsPrefix: 'oe1ebg-callsigns:v1:',
   stores: CALLSIGN_STORES,
   upgrade(oldVersion, create) {
-    if (oldVersion < 1) Object.keys(CALLSIGN_STORES).forEach(create);
+    if (oldVersion < 1) ['sources', 'records', 'meta'].forEach(create);
+    if (oldVersion < 2) create('qsos');
   },
 };
 
@@ -98,7 +102,7 @@ function callsignRecordRows(sourceId, gen, rows) {
 // Imports rows ({ call, base, name?, qth?, grid?, note? }) as a new
 // source, or, with replaceId, as the new generation of that source.
 // Resolves to the source row.
-export async function importCallsignSource(store, { kind, name, fileName = '', rows, replaceId = null }) {
+export async function importCallsignSource(store, { kind, name, fileName = '', rows, replaceId = null, id: fixedId = null }) {
   return store.atomic(['sources', 'records'], async api => {
     const stamp = callsignNow();
     if (replaceId) {
@@ -114,7 +118,7 @@ export async function importCallsignSource(store, { kind, name, fileName = '', r
       return next;
     }
     const sources = await api.getAll('sources');
-    const id = callsignNewId();
+    const id = fixedId || callsignNewId();
     for (const r of callsignRecordRows(id, 1, rows)) api.put('records', r);
     const rank = callsignPlaceNew(sources, x => api.put('sources', x), stamp);
     const row = { id, kind, name, fileName, enabled: true, rank, gen: 1, prevGen: null, count: rows.length, importedAt: stamp, updated: stamp, deleted: false };
@@ -181,9 +185,30 @@ export async function moveCallsignSource(store, id, delta) {
 
 // Permanent: the source and every generation of its records.
 export async function eraseCallsignSource(store, id) {
-  return store.atomic(['sources', 'records'], async api => {
+  return store.atomic(['sources', 'records', 'qsos'], async api => {
     if (id === CALLSIGN_BUILTIN_ID) throw new Error('Die eingebaute Liste kann nicht gelöscht werden');
     for (const r of await api.getByEvent('records', id)) api.del('records', r.id);
+    for (const q of await api.getByEvent('qsos', id)) api.del('qsos', q.id);
     api.del('sources', id);
   });
+}
+
+// Upserts QSOs (records of callsignQsoFromWavelog()) of one source in one
+// transaction: the same Wavelog id replaces its record, others stay.
+export async function upsertCallsignQsos(store, qsos) {
+  return store.atomic(['qsos'], async api => {
+    for (const q of qsos) api.put('qsos', q);
+    return qsos.length;
+  });
+}
+
+export async function loadCallsignQsos(store, sourceId) {
+  return store.getByEvent('qsos', sourceId);
+}
+
+// A source's summary rows (see callsign-qsos.js) as its current generation;
+// the source is created on first use. Resolves to the source row.
+export async function writeCallsignSummary(store, { sourceId, name, rows }) {
+  const cur = sourceId ? await store.get('sources', sourceId) : null;
+  return importCallsignSource(store, { kind: 'wavelog', name, rows, replaceId: cur && !cur.deleted ? sourceId : null, id: cur ? null : sourceId });
 }

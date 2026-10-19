@@ -12,6 +12,7 @@ including servers without internet access. Source code, issues and releases:
 | Netlog: notes for radio nets, keyboard-first, German/English (PWA) | `tools/netlog/` | no (after the first load) |
 | ADIF editor: view, validate, edit and convert `.adi` / `.adx` logs | `tools/adif/` | no |
 | SOTA Alerts Map | `tools/sota-alerts/` | **yes** (SOTA API, map tiles) |
+| Wavelog import: your logbook's QSOs into the local callsign store | `tools/wavelog-import/` | **yes** (your Wavelog instance, only when you start an import) |
 
 Everything runs in the browser: plain HTML, CSS and ES modules, with no
 framework and no server-side code. All data stays on the device. Each tool's

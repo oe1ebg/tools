@@ -1,0 +1,16 @@
+/* Wavelog import: the shared tokens (../shared/css/tools.css, forms.css)
+   plus a narrow single column. */
+.page{ max-width:44rem; margin:0 auto; padding:1rem 16px 3rem; }
+.card{ margin:0 0 1rem; }
+.field-err{ margin:.25em 0 0; color:var(--err); min-height:0; }
+.field-err:empty{ display:none; }
+.status{ margin:.5em 0 1rem; min-height:1.4em; }
+.status.err{ color:var(--err); }
+.status.err::before{ content:"✖ "; }
+.status.ok::before{ content:"✔ "; }
+#wl-progress{ width:100%; margin:.25em 0 0; }
+.src-row{ display:flex; flex-wrap:wrap; align-items:center; gap:.25em .75em; }
+.src-row small{ color:var(--text-dim); }
+.profile-list{ list-style:none; margin:0; padding:0; }
+.profile-row{ padding:.25em 0; border-top:1px solid var(--line); }
+.profile-row:first-child{ border-top:0; }
