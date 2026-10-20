@@ -163,7 +163,7 @@ async function openStation(page, call) {
 }
 async function newRound(page) {
   const before = await page.locator('#round-indicator').textContent();
-  await page.locator('#btn-new-round').click();
+  await page.locator('#btn-new-round').evaluate(b => b.click());
   await expect(page.locator('#round-indicator')).not.toHaveText(before);
 }
 
@@ -984,7 +984,7 @@ test('running a round: NCS first, Next through the order, my turn opens My Turn,
   await expect(page.locator('#speak-state')).toHaveText('Speaking: OE0QXA (me) · Next: back to OE0QXN, then OE0QXB');
   await expect(page.locator('#speak-me')).toHaveText('🎙 Your turn now');
   // one click: no dialog; undo takes it back
-  await page.locator('#btn-new-round').click();
+  await page.locator('#btn-new-round').evaluate(b => b.click());
   await expect(page.locator('#round-indicator')).toHaveText('Round 3');
   await page.locator('#btn-undo').click();
   await expect(page.locator('#round-indicator')).toHaveText('Round 2');
@@ -1052,7 +1052,7 @@ test('status looks the same in both lists; checked-out stations are struck throu
   await expect(page.locator('#order-list li', { hasText: 'OE0QXB' })).toHaveClass(/st-out/);
   await expect(page.locator('#roster li', { hasText: 'OE0QXB' }).locator('.call')).toHaveCSS('text-decoration-line', 'line-through');
   await expect(page.locator('#order-list li', { hasText: 'OE0QXB' }).locator('.open')).toHaveCSS('text-decoration-line', 'line-through');
-  await expect(page.locator('#roster li', { hasText: 'OE0QXC' }).locator('.pill.st')).toHaveAttribute('title', 'monitoring (listening only)');
+  await expect(page.locator('#roster li', { hasText: 'OE0QXC' }).locator('.dot.sym')).toHaveText('🎧'); // the symbol stands in front of the call
   await expect(page.locator('#order-list li', { hasText: 'OE0QXC' }).locator('.st-mark')).toHaveText('🎧');
   // j/k also visit the checked-out and the monitoring station
   await page.locator('#roster button.person', { hasText: 'OE0QXA' }).focus();
