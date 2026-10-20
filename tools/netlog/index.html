@@ -41,6 +41,10 @@
   <a id="home-link" href="../" data-i18n="header.allTools">← All tools</a>
   <h1 class="title">Netlog</h1>
   <span id="session-line" class="session-line"></span>
+  <span class="undo-redo" role="group" data-i18n-attr="aria-label:undo.group" aria-label="Undo and redo">
+    <button type="button" id="btn-undo" class="icon" disabled data-i18n-attr="aria-label:undo.button" aria-label="Undo">↺</button>
+    <button type="button" id="btn-redo" class="icon" disabled data-i18n-attr="aria-label:undo.redoButton" aria-label="Redo">↻</button>
+  </span>
   <div class="hdr-status">
     <span id="mode-indicator" class="chip mode" role="status"></span>
     <span id="st-save" class="chip" role="status" aria-live="polite"></span>
@@ -87,13 +91,11 @@
         <a id="tab-control" href="#/" data-view="control" data-i18n="views.control">Net Control</a>
         <a id="tab-series" href="#/" data-view="series" data-i18n="views.series">Sessions &amp; series</a>
       </nav>
+      <span id="round-indicator" class="round-indicator"></span>
       <span id="speak-me" class="speak-me" role="status"></span>
       <span class="spacer"></span>
       <button type="button" id="btn-search" aria-haspopup="dialog" data-i18n="search.open">/ Search</button>
-      <button type="button" id="btn-undo" class="icon" disabled data-i18n-attr="aria-label:undo.button" aria-label="Undo">↶</button>
-      <button type="button" id="btn-redo" class="icon" disabled data-i18n-attr="aria-label:undo.redoButton" aria-label="Redo">↷</button>
 
-      <span id="round-indicator" class="round-indicator"></span>
       <button type="button" id="btn-new-round" data-i18n="round.new">+ New round</button>
     </div>
     <div class="workspace-body">
@@ -259,6 +261,17 @@
             <p class="hint" data-i18n="control.statusHint">Check stations in and out, pause or mark them away right here; each change is recorded with its time.</p>
             <p class="hint" data-i18n="control.orderHint">The order is for display and planning only; it never changes who actually spoke or creates a round.</p>
             <ol id="order-list" class="order-list"></ol>
+            <form id="ctl-add-form" class="order-add" autocomplete="off">
+              <label for="ctl-add-call" class="sr-only" data-i18n="checkin.callLabel">Callsign (also partial: OE0QX?, ?)</label>
+              <input id="ctl-add-call" class="call-input mono" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" data-i18n-attr="placeholder:checkin.callPlaceholder" placeholder="Callsign / OE0QX? / ?">
+              <label for="ctl-add-name" class="sr-only" data-i18n="checkin.nameLabel">Name (optional)</label>
+              <input id="ctl-add-name" autocorrect="off" enterkeyhint="done" data-i18n-attr="placeholder:checkin.namePlaceholder" placeholder="Name (optional)">
+              <label class="inline-field"><span class="sr-only" data-i18n="station.status">Status</span>
+                <select id="ctl-add-status"></select></label>
+              <label class="check"><input id="ctl-add-me" type="checkbox"> <span data-i18n="own.badge">me</span></label>
+              <label class="check"><input id="ctl-add-ncs" type="checkbox"> <span>NCS</span></label>
+              <button type="submit" class="primary" data-i18n="checkin.add">+ Add participant</button>
+            </form>
           </section>
           <section class="card" aria-labelledby="sess-title">
             <h3 id="sess-title" data-i18n="control.session">This session</h3>

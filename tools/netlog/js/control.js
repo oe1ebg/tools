@@ -5,9 +5,9 @@
 import { $, el, fill } from '../../shared/js/dom.js';
 import { t } from './i18n.js';
 import { keyedList, setText, setAttr, setValue, setNamed } from './keyed.js';
-import { rosterSorted, roundsSorted, liveOf, cmp, timeOf, callBase, STATUSES, netStyle, ncsFirst, isUnresolved } from './model.js';
+import { rosterSorted, roundsSorted, liveOf, cmp, timeOf, callBase, STATUSES, netStyle, ncsFirst, isUnresolved, normCall } from './model.js';
 import { updateSession, addParticipant, setStatus, moveParticipant, setCurrentRound, updateRound, setItemDone, addTask, setItemText, setNcs, setEventTime, deleteParticipant, eraseParticipant } from './ops.js';
-import { callText, statusLabel } from './roster.js';
+import { callText, statusLabel, callbookEntry } from './roster.js';
 import { expandedCount, setExpandedCount } from './notes.js';
 import { hm, zone, parseHm } from './clock.js';
 import { STATUS_MARK } from './roster.js';
@@ -26,6 +26,37 @@ export function plannedOrder(participants, ncsId = null) {
 }
 
 export function initControl(app) {
+  // add a station right under the list, with its status and who it is: the
+  // net control opening the net enters itself here (me, NCS)
+  $('#ctl-add-form').addEventListener('submit', async ev => {
+    ev.preventDefault();
+    if (app.readOnly) return;
+    const call = $('#ctl-add-call');
+    const name = $('#ctl-add-name');
+    const status = $('#ctl-add-status').value || 'active';
+    const me = $('#ctl-add-me').checked;
+    const ncs = $('#ctl-add-ncs').checked;
+    const c = normCall(call.value) || '?';
+    const typed = { call: call.value, name: name.value };
+    call.value = '';
+    name.value = '';
+    $('#ctl-add-me').checked = false;
+    $('#ctl-add-ncs').checked = false;
+    $('#ctl-add-status').value = 'active';
+    call.focus();
+    const fields = { call: c, name: typed.name.trim(), qth: '' };
+    const e = callbookEntry(app, c);
+    if (e) { if (!fields.name) fields.name = e.name; fields.qth = e.qth || ''; }
+    const rec = await app.act(store => addParticipant(store, app.ctx(), fields));
+    if (!rec) { if (!call.value && !name.value) { call.value = typed.call; name.value = typed.name; } return; }
+    if (status !== 'active') await app.act(store => setStatus(store, app.ctx(), rec.id, status));
+    if (ncs) await app.act(store => setNcs(store, app.ctx(), rec.id));
+    if (me && !isUnresolved(rec.call)) {
+      const r = await app.act(store => updateSession(store, app.ctx(), app.s.id, { own: rec.call }));
+      if (r && r.own.call) prefSet(OWN_PREF, r.own.call);
+    }
+    app.announce(t('checkin.done', { call: callText(rec) }));
+  });
   initExport(app);
   // one click: the next round starts (number and topic are corrected in
   // the round list; undo takes it back)
@@ -155,6 +186,12 @@ export function initControl(app) {
     if (!b) return;
     const id = b.closest('li').dataset.key;
     if (b.dataset.act === 'open') { app.openStation(id); return; }
+    if (b.dataset.act === 'return') {
+      const p = app.participant(id);
+      const r = await app.act(store => setStatus(store, app.ctx(), id, 'active'));
+      if (r && p) app.announce(t('control.statusChanged', { call: callText(p), status: statusLabel('active') }));
+      return;
+    }
     if (b.dataset.act === 'me') {
       // this station is me: the session's own callsign
       const p = app.participant(id);
@@ -189,22 +226,24 @@ export function renderControl(app) {
     key: p => p.id,
     create: () => el('li', { class: 'order-row' },
       el('span', { class: 'st-mark', 'aria-hidden': 'true' }),
-      el('button', { type: 'button', class: 'link open', 'data-act': 'open' }),
+      el('button', { type: 'button', class: 'link open', 'data-act': 'open' }, el('b', { class: 'call mono' }), el('small', { class: 'pname' })),
+      el('span', { class: 'badges' }),
       el('label', { class: 'inline-field status-field' }, el('span', { class: 'sr-only' }), el('select', { class: 'status-sel' })),
+      el('button', { type: 'button', class: 'mini reactivate', 'data-act': 'return' }),
       el('span', { class: 'spacer' }),
       el('button', { type: 'button', class: 'mini', 'data-act': 'me' }),
       el('button', { type: 'button', class: 'mini', 'data-act': 'ncs' }),
       el('button', { type: 'button', class: 'mini', 'data-act': 'up' }, '↑'),
       el('button', { type: 'button', class: 'mini', 'data-act': 'down' }, '↓')),
     update: (li, p) => {
-      const [mark, open, status, , meB, ncsB, up, down] = li.children;
+      const [mark, open, badges, status, back, , meB, ncsB, up, down] = li.children;
       const isNcs = app.s.ncsId === p.id;
       const me = isOwn(app, p);
       // the same marks as the roster: status, speaking now, next
       const turn = turnMark(app, p);
-      setText(mark, turn === 'on-air' ? '●' : turn === 'next' ? '▶' : STATUS_MARK[p.status] || '');
+      // like the participants list: only who is on air, and the status symbol
+      setText(mark, turn === 'on-air' ? '●' : STATUS_MARK[p.status] || '');
       li.classList.toggle('on-air', turn === 'on-air');
-      li.classList.toggle('up-next', turn === 'next');
       setText(meB, me ? `★ ${t('own.badge')}` : `☆ ${t('own.badge')}`);
       setAttr(meB, 'aria-pressed', String(me));
       setAttr(meB, 'aria-label', t('own.setLabel', { call: callText(p) }));
@@ -215,8 +254,16 @@ export function renderControl(app) {
       setAttr(ncsB, 'aria-pressed', String(isNcs));
       setNamed(ncsB, t('ncs.assignLabel', { call: callText(p) }));
       ncsB.disabled = app.readOnly;
+      // the same [me] / [NCS] boxes as in the participants list
+      const marks = app.rowBadges(p).filter(m => m.cls === 'own' || m.cls === 'ncs');
+      const sig = marks.map(m => m.text).join('|');
+      if (badges.dataset.sig !== sig) {
+        badges.dataset.sig = sig;
+        fill(badges, marks.map(m => el('span', { class: `pill ${m.cls}`, title: m.title || null }, m.text)));
+      }
       const i = list.indexOf(p);
-      setText(open, `${i + 1}. ${callText(p)}${p.name ? ` · ${p.name}` : ''}${isOwn(app, p) ? ` (${t('own.badge')})` : ''}`);
+      setText(open.firstChild, callText(p));
+      setText(open.lastChild, `${p.name || ''}${isOwn(app, p) ? ` (${t('own.badge')})` : ''}`);
       setNamed(open, t('control.openLabel', { call: callText(p) }));
       // the station's state, switched here like in its head: checking out
       // closes its presence, coming back opens a new interval
@@ -229,6 +276,11 @@ export function renderControl(app) {
       if (document.activeElement !== sel) sel.value = p.status;
       sel.disabled = app.readOnly;
       li.classList.toggle('out', p.status === 'out');
+      // a skipped station comes back right in its line
+      back.hidden = p.status === 'active' || p.status === 'unconfirmed';
+      setText(back, t('station.return'));
+      setAttr(back, 'aria-label', `${t('station.return')}: ${callText(p)}`);
+      back.disabled = app.readOnly;
       for (const s of STATUSES) li.classList.toggle(`st-${s}`, p.status === s);
 
       setAttr(up, 'aria-label', t('roster.upLabel', { call: callText(p) }));
@@ -241,6 +293,14 @@ export function renderControl(app) {
   });
   if (!list.length) fill($('#order-list'), el('li', { class: 'empty', 'data-key': '' }, t('control.empty')));
 
+  for (const f of $('#ctl-add-form').elements) f.disabled = app.readOnly;
+  const addStatus = $('#ctl-add-status');
+  if (addStatus.options.length !== STATUSES.length || addStatus.dataset.lang !== app.lang()) {
+    const keep = addStatus.value || 'active';
+    fill(addStatus, STATUSES.map(st => el('option', { value: st }, statusLabel(st))));
+    addStatus.dataset.lang = app.lang();
+    addStatus.value = keep;
+  }
   setValue($('#se-own'), app.s.own.call || '');
   setValue($('#se-name'), app.s.name || '');
   setValue($('#se-repeater'), (app.s.radio && app.s.radio.repeater) || '');
