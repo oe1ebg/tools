@@ -5,6 +5,9 @@
 // callsigns (OE0QX…) and fictitious names only.
 import { test, expect } from './fixtures.mjs';
 
+// the sessions screen: the back link in a session, nothing to click when it is open already
+const toSessions = async page => { const b = page.locator('#btn-sessions'); if (await b.isVisible() && /\/series$/.test(await b.getAttribute('href'))) await b.click(); };
+
 const HOST = 'https://wl.example.org';
 const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization,content-type,accept', 'access-control-allow-methods': 'GET,OPTIONS' };
 
@@ -82,7 +85,7 @@ test('import a logbook page by page; token not kept; Netlog reads the result; er
   // Netlog (same origin, same store) reads it offline
   await page.goto('tools/netlog/');
   await expect.poll(() => page.evaluate(() => globalThis.NETLOG_READY === true)).toBe(true);
-  await page.locator('#tab-series').click();
+  await toSessions(page);
   await page.locator('#btn-lists-open').click();
   const rows = page.locator('#callsign-lists-dlg table[aria-labelledby=cl-title] tbody tr');
   await expect(rows).toHaveCount(2);
@@ -139,7 +142,7 @@ test('the address is saved on this page and is what Netlog\'s Wavelog station li
 
   await page.goto('tools/netlog/');
   await expect.poll(() => page.evaluate(() => globalThis.NETLOG_READY === true)).toBe(true);
-  await page.locator('#tab-series').click();
+  await toSessions(page);
   await expect(page.locator('#wavelog-url')).toHaveCount(0);
   await page.locator('#btn-new-session').click();
   await page.locator('#sf-own').fill('OE0QXZ');

@@ -41,6 +41,7 @@ export function initSessions(app) {
     $('#sf-name').value = '';
     $('#sf-round').value = '1';
     $('#sf-joined').checked = false;
+    delete $('#sf-style').dataset.picked;
     { const sr = app.data.series.find(s => s.id === seriesId); $('#sf-style').value = styleOf(sr); }
     setText($('#sf-error'), '');
     suggestNumber(app);
@@ -61,6 +62,7 @@ export function initSessions(app) {
     $('#srf-mode').value = series ? series.defaults.mode || '' : '';
     $('#srf-ncs').value = series ? series.defaults.ncs || '' : '';
     $('#srf-numbering').value = series ? series.numbering : 'sequential';
+    delete $('#srf-style').dataset.picked;
     $('#srf-style').value = styleOf(series);
     setText($('#srf-error'), '');
     $('#srf-name').focus();
@@ -80,6 +82,17 @@ export function initSessions(app) {
   $('#sf-series').addEventListener('change', () => suggestNumber(app));
   attachRepeaterField(app, $('#sf-repeater'), { freq: $('#sf-freq'), mode: $('#sf-mode'), hint: $('#sf-mode-hint') });
   attachRepeaterField(app, $('#srf-repeater'), { freq: $('#srf-freq'), mode: $('#srf-mode'), hint: $('#srf-mode-hint') });
+  // on a repeater the default speaking order is round-robin, until the
+  // user picks one (or the series prescribes it)
+  for (const [rep, style] of [['#sf-repeater', '#sf-style'], ['#srf-repeater', '#srf-style']]) {
+    $(style).addEventListener('change', ev => { if (ev.isTrusted) $(style).dataset.picked = '1'; });
+    const follow = () => {
+      if ($(style).dataset.picked) return;
+      $(style).value = $(rep).value.trim() ? 'circle' : 'star';
+    };
+    $(rep).addEventListener('input', follow);
+    $(rep).addEventListener('change', follow);
+  }
   attachCallField(app, $('#srf-ncs'));
   attachCallField(app, $('#sf-own'));
 
@@ -224,6 +237,7 @@ function suggestNumber(app) {
   $('#sf-repeater').value = series ? series.defaults.repeater || '' : '';
   $('#sf-freq').value = series ? series.defaults.freq || '' : '';
   $('#sf-mode').value = series ? series.defaults.mode || '' : '';
+  delete $('#sf-style').dataset.picked;
   $('#sf-style').value = styleOf(series);
   $('#sf-repeater').placeholder = '';
 }
@@ -299,7 +313,6 @@ export function renderSessions(app) {
           fill(li,
             main,
             el('span', { class: 'session-info' },
-              s.id === app.sessionId() ? el('span', { class: 'pill' }, t('session.current')) : null,
               el('small', { class: 'hint' }, t('session.participants', { n: count }))),
             el('span', { class: 'session-acts' }, s.deleted
               ? [

@@ -17,8 +17,9 @@ import { newId } from '../../shared/js/time.js';
 import { t } from './i18n.js';
 import { keyedList, setText, setAttr, setValue, setNamed } from './keyed.js';
 import { roundsSorted, notesOf, responseOf, roundCounts, live, rosterSorted } from './model.js';
-import { createNote, updateNote, deleteNote, toggleResponse, toggleTask, setItemText, setItemDone, moveNotes } from './ops.js';
-import { callText } from './roster.js';
+import { createNote, updateNote, deleteNote, toggleResponse, toggleTask, setItemText, setItemDone, moveNotes, addContribution } from './ops.js';
+import { callText, isOwn } from './roster.js';
+import { nextSpeaker } from './speak.js';
 import { hm, zone } from './clock.js';
 
 export const EXPANDED_PREF = 'oe1ebg-netlog-expanded';
@@ -109,11 +110,18 @@ export function initNoteList(app, box) {
     autosize(ta);
     const key = ta.dataset.draft;
     if (key) app.drafts.typed(key, ta, ta.dataset.base || null);
+    if (ta.classList.contains('composer-text') && ta.value.trim()) goOnAir(app, ta.dataset.pid);
   });
   box.addEventListener('select', ev => { if (ev.target.dataset.draft) app.drafts.selection(ev.target.dataset.draft, ev.target); });
   box.addEventListener('keydown', ev => {
     const ta = ev.target;
     if (!ta.matches || !ta.matches('textarea')) return;
+    // Shift+Enter in the composer: save the note, then the Next button
+    if (ev.key === 'Enter' && ev.shiftKey && !ev.ctrlKey && !ev.metaKey && !ev.altKey && !isComposing(ev) && ta.classList.contains('composer-text')) {
+      ev.preventDefault();
+      saveComposer(app, ta).then(() => nextSpeaker(app));
+      return;
+    }
     if (ev.key !== 'Enter' || ev.shiftKey || ev.ctrlKey || ev.metaKey || ev.altKey || isComposing(ev)) return;
     ev.preventDefault();
     if (ta.classList.contains('composer-text')) saveComposer(app, ta);
@@ -127,6 +135,21 @@ export function initNoteList(app, box) {
     if (ta.classList.contains('note-text')) saveNoteText(app, ta, false);
     if (ta.classList.contains('reply-text')) saveReply(app, ta, false);
   });
+}
+
+// Typing a note for a station means it is speaking: record its turn once
+// (not when it is the last speaker already; free-form nets too).
+const onAirPending = new Set();
+async function goOnAir(app, pid) {
+  const p = app.participant(pid);
+  if (!p || app.readOnly || !app.s || isOwn(app, p) || onAirPending.has(pid)) return;
+  if (app.speak && app.speak.onAir && app.speak.onAir.id === pid) return;
+  if (!['active', 'unconfirmed'].includes(p.status)) return;
+  onAirPending.add(pid);
+  try {
+    const c = await app.act(store => addContribution(store, app.ctx(), pid));
+    if (c) app.announce(t('speak.nowOnAir', { call: callText(p) }));
+  } finally { onAirPending.delete(pid); }
 }
 
 async function deleteWithUndo(app, id, li) {
@@ -309,10 +332,16 @@ export function updateNoteRow(app, li, n, p, round, opts = {}) {
   });
 }
 
+let nextBtn = null;
 export function renderNotes(app) {
   const box = $('#station-rounds');
   const p = app.participant(app.ui.selected);
-  if (!p || !app.s) { fill(box); return; }
+  // the Next button lives in the current round's composer; park it while
+  // that is rebuilt or gone
+  // (kept by reference: the document no longer finds it while detached)
+  nextBtn ||= $('#btn-next');
+  const park = () => { if (!nextBtn.isConnected) $('#next-park').append(nextBtn); };
+  if (!p || !app.s) { fill(box); park(); return; }
   const sorted = roundsSorted(app.sd.rounds);
   const counts = roundCounts(app.sd.notes, app.sd.items, p.id);
   const cur = app.s.currentRoundId;
@@ -378,7 +407,14 @@ export function renderNotes(app) {
         autosize(ta);
         ta.placeholder = t('note.placeholder', { call: callText(p) });
         ta.readOnly = app.readOnly;
-        const [fb, hint] = foot.children;
+        // a station that is skipped cannot get notes until it is active again (a)
+        const skipped = !['active', 'unconfirmed'].includes(p.status);
+        ta.disabled = skipped;
+        if (skipped) ta.placeholder = t('note.inactive', { call: callText(p) });
+        const nb = nextBtn;
+        if (nb.parentNode !== foot || foot.firstChild !== nb) foot.prepend(nb);
+        const fb = foot.querySelector('button.flag');
+        const hint = foot.querySelector('.hint');
         setText(fb, app.ui.composeFlag ? t('note.unflagShort') : t('note.flagShort'));
         setAttr(fb, 'aria-pressed', String(!!app.ui.composeFlag));
         setAttr(fb, 'aria-label', t('note.flagNewLabel'));
@@ -392,6 +428,7 @@ export function renderNotes(app) {
       }
     },
   });
+  park();
 }
 
 // ---------- station events in the log ----------

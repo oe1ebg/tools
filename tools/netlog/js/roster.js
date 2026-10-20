@@ -8,7 +8,7 @@
 import { $, el, fill, popover, isComposing } from '../../shared/js/dom.js';
 import { t } from './i18n.js';
 import { keyedList, setText, setAttr, setValue } from './keyed.js';
-import { rosterSorted, rosterStats, isUnresolved, callCandidates, normCall, callBase, STATUSES, FLAGS, live, ncsFirst } from './model.js';
+import { sessionLabel, rosterSorted, rosterStats, isUnresolved, callCandidates, normCall, callBase, STATUSES, FLAGS, live, ncsFirst } from './model.js';
 import { addParticipant, updateParticipant, setStatus, setFlag, moveParticipant, setNcs, mergePreview, mergeParticipants, saveProfile, deleteParticipant } from './ops.js';
 import { stationLinks } from './links.js';
 import { hm, hmz, zone } from './clock.js';
@@ -146,6 +146,12 @@ export function initRoster(app) {
   name.addEventListener('compositionend', () => { isComposingNow = false; });
 
   $('#roster').addEventListener('click', ev => {
+    const back = ev.target.closest('button.reactivate');
+    if (back) {
+      const id = back.closest('li').dataset.key;
+      app.act(store => setStatus(store, app.ctx(), id, 'active')).then(r => { if (r) app.announce(t('station.statusSet', { call: callText(r), status: t('status.active') })); });
+      return;
+    }
     const b = ev.target.closest('button.person');
     if (b) app.openStation(b.closest('li').dataset.key);
   });
@@ -208,6 +214,9 @@ export function rosterRows(app) {
 export function renderRoster(app) {
   const list = rosterRows(app);
   const st = rosterStats(app.sd.participants);
+  // the net's name heads the list
+  const series = app.s && app.data.series.find(x => x.id === app.s.seriesId);
+  setText($('#roster-title'), (app.s && sessionLabel(app.s, series)) || t('roster.title'));
   setText($('#roster-stats'), t('roster.stats', { n: st.total, active: st.active }));
   keyedList($('#roster'), list, {
     key: p => p.id,
@@ -219,7 +228,9 @@ export function renderRoster(app) {
         el('span', { class: 'badges' }),
         // the details for screen readers, after the visible text (so the
         // name starts with what is shown, WCAG 2.5.3)
-        el('span', { class: 'sr-only' }))),
+        el('span', { class: 'sr-only' })),
+      // a skipped station is brought back right here
+      el('button', { type: 'button', class: 'reactivate' })),
     update: (li, p) => {
       const b = li.firstElementChild;
       const [dot, callN, nameN, badges, details] = b.children;
@@ -233,6 +244,11 @@ export function renderRoster(app) {
         badges.dataset.sig = sig;
         fill(badges, marks.map(m => el('span', { class: `pill ${m.cls || ''}`, title: m.title || null }, m.text)));
       }
+      const back = li.querySelector('button.reactivate');
+      back.hidden = p.status === 'active' || p.status === 'unconfirmed';
+      setText(back, t('station.return'));
+      setAttr(back, 'aria-label', `${t('station.return')}: ${callText(p)}`);
+      back.disabled = app.readOnly;
       const selected = p.id === app.ui.selected;
       li.classList.toggle('active', selected);
       li.classList.toggle('own', isOwn(app, p));
@@ -240,7 +256,6 @@ export function renderRoster(app) {
       for (const s of STATUSES) li.classList.toggle(`st-${s}`, p.status === s);
       const mark = turnMark(app, p);
       li.classList.toggle('on-air', mark === 'on-air');
-      li.classList.toggle('up-next', mark === 'next');
       setAttr(b, 'aria-current', selected ? 'true' : null);
       setText(details, ['', statusLabel(p.status), isUnresolved(p.call) ? t('station.unresolved') : '', ...marks.map(m => m.title).filter(Boolean)].filter((x, i) => i === 0 || x).join(', '));
       setAttr(b, 'aria-label', null);
@@ -268,6 +283,10 @@ function initStation(app) {
   status.addEventListener('change', () => {
     const p = app.participant(app.ui.selected);
     if (p) app.act(store => setStatus(store, app.ctx(), p.id, status.value));
+  });
+  $('#btn-status-quick').addEventListener('click', () => {
+    const p = app.participant(app.ui.selected);
+    if (p) app.act(store => setStatus(store, app.ctx(), p.id, p.status === 'active' ? 'paused' : 'active'));
   });
   for (const box of [$('#station-flags')]) box.addEventListener('click', ev => {
     const b = ev.target.closest('button[data-flag]');
@@ -502,6 +521,11 @@ export function renderStation(app) {
   }
   if (document.activeElement !== status) status.value = p.status;
   status.disabled = app.readOnly;
+  // one click to pause, or back to active from any other state
+  const quick = $('#btn-status-quick');
+  setText(quick, p.status === 'active' ? t('station.pause') : t('station.reactivate'));
+  quick.classList.toggle('primary', p.status !== 'active');
+  quick.disabled = app.readOnly;
 
   for (const [box, list] of [[$('#station-flags'), FLAGS]]) {
     if (box.childElementCount !== list.length || box.dataset.lang !== app.lang()) {
