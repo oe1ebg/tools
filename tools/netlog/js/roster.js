@@ -234,11 +234,17 @@ export function renderRoster(app) {
     update: (li, p) => {
       const b = li.firstElementChild;
       const [dot, callN, nameN, badges, details] = b.children;
-      dot.className = `dot ${p.status}`;
+      // the marker in front: red when on air; the symbol for a station that is
+      // paused, monitoring or gone; a plain dot otherwise
+      const skipped = p.status === 'paused' || p.status === 'listening' || p.status === 'out';
+      const speaking = turnMark(app, p) === 'on-air';
+      dot.className = `dot ${speaking ? 'on-air' : skipped ? `sym ${p.status}` : p.status}`;
+      setText(dot, speaking || !skipped ? '' : STATUS_MARK[p.status]);
       setText(callN, callText(p));
       callN.classList.toggle('unresolved', isUnresolved(p.call));
       setText(nameN, p.name || '');
-      const marks = app.rowBadges(p);
+      // (the status symbol stands in front of the call, not among the badges)
+      const marks = app.rowBadges(p).filter(m => !String(m.cls || '').split(' ').includes('st'));
       const sig = marks.map(m => m.text).join('|');
       if (badges.dataset.sig !== sig) {
         badges.dataset.sig = sig;

@@ -653,3 +653,41 @@ li.event-line .time{ min-width:5.5em; }
 .data-card button.danger:hover:not(:disabled){ background:var(--err-soft); }
 
 .viewbar[hidden]{ display:none; }
+
+/* header bar of a session: tabs, round, turn state; search, undo/redo and
+   new round are left out of it for now (/ and Ctrl/Cmd+Z still work) */
+.viewbar #btn-search, .viewbar #btn-undo, .viewbar #btn-redo, .viewbar #btn-new-round{ display:none; }
+
+/* the session line (name · date · me) repeats the participants list: for screen readers only */
+.session-line{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+
+/* undo / redo: small round buttons in the very top */
+.undo-redo{ display:inline-flex; gap:.35em; align-items:center; }
+.undo-redo button{ width:28px; height:28px; min-width:0; min-height:0; padding:0; border-radius:6px; font-size:18px; line-height:1; display:inline-flex; align-items:center; justify-content:center; }
+@media (pointer: coarse){ .undo-redo button{ width:40px; height:40px; } }
+
+/* Net Control's station list looks like the participants list: call column, dim name, the same set-back look for skipped stations, the NCS set apart by a rule */
+.order-row{ padding:.35em .6em; gap:.5em; }
+.order-row button.open{ display:inline-flex; gap:.5em; align-items:baseline; font-size:15px; }
+.order-row button.open .call{ min-width:5.5em; font-weight:700; }
+.order-row button.open .pname{ color:var(--text-dim); font-size:13.5px; font-weight:400; }
+.order-row.ncs{ background:none; border-bottom:3px double var(--line-strong); padding-left:.6em; padding-right:.6em; }
+.order-row.up-next{ outline:0; }
+.order-row.on-air{ box-shadow:inset 6px 0 var(--err); }
+.order-row.st-paused, .order-row.st-listening, .order-row.st-out{ background:repeating-linear-gradient(135deg, transparent 0 6px, var(--line) 6px 7px); }
+.order-row.st-paused .open .call, .order-row.st-listening .open .call, .order-row.st-out .open .call,
+.order-row.st-paused .open .pname, .order-row.st-listening .open .pname, .order-row.st-out .open .pname{ color:var(--text-dim); font-weight:400; font-style:italic; }
+.order-add{ display:flex; flex-wrap:wrap; gap:.5em; align-items:center; margin-top:.6em; padding-top:.6em; border-top:1px solid var(--line-strong); }
+.order-add input{ flex:1 1 9em; min-width:0; }
+.order-row.on-air .open{ box-shadow:none; }
+.order-row button.open{ min-width:15em; justify-content:flex-start; text-decoration:none; }
+.order-row button.open .call{ color:var(--text); }
+.order-row.own button.open .call{ color:var(--accent-text); }
+
+.order-row button.reactivate[hidden]{ display:none; }
+.order-row button.reactivate{ border-color:var(--accent); color:var(--accent-text); font-weight:600; }
+.order-row > .badges{ min-width:3.6em; display:flex; gap:.25em; }
+
+/* the marker in front of a roster row: red = on air; a symbol (pause, headphones, x) for a station that is skipped */
+.dot.on-air{ background:var(--err); width:.75em; height:.75em; }
+.dot.sym{ width:auto; height:auto; background:none; border-radius:0; font-size:14px; line-height:1; color:var(--text-dim); min-width:1.1em; text-align:center; }
