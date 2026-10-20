@@ -42,7 +42,7 @@ const roster = page => page.locator('#roster button.person .call');
 test('starts in German, switches to English and back, keeping the input', async ({ page }) => {
   await open(page);
   await expect(page.locator('html')).toHaveAttribute('lang', 'de');
-  await expect(page.locator('#tab-series')).toHaveText('Sitzungen & Serien');
+  await expect(page.locator('#btn-sessions')).toHaveText('← Sitzungen');
   await startSession(page);
   await page.locator('#checkin-call').fill('OE0QX');
   await page.locator('#lang-toggle button[data-lang=en]').click();
@@ -75,14 +75,14 @@ test('ad-hoc session mid-net: partial callsign resolved later, series assigned l
   await expect(roster(page)).toHaveText(['OE0QXB', 'OE0QXC']);
 
   // a series afterwards: the session moves into it, numbered #1
-  await page.locator('#tab-series').click();
+  await toSessions(page);
   await page.locator('#btn-new-series').click();
   await page.locator('#srf-name').fill('Fictional evening net');
   await page.locator('#series-form button[type=submit]').click();
   await expect(page.locator('#series-list')).toContainText('Fictional evening net');
   await page.locator('#series-list select[data-assign]').first().selectOption({ label: 'Fictional evening net' });
   await expect(page.locator('#session-line')).toContainText('Fictional evening net #1');
-  await page.locator('#tab-live').click();
+  await page.locator('button.session-open').first().click(); // back into the session
   await expect(roster(page)).toHaveText(['OE0QXB', 'OE0QXC']);
 });
 
@@ -149,11 +149,16 @@ const notesOf = page => page.locator('#station-rounds section.round.current li.n
 const values = loc => loc.evaluateAll(els => els.map(e => e.value));
 // the caret to the end of a field (End does not do that in WebKit)
 const toEnd = loc => loc.evaluate(ta => { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); });
+// the sessions screen: the back link in a session, nothing to click when it is open already
+const toSessions = async page => { const b = page.locator('#btn-sessions'); if (await b.isVisible() && /\/series$/.test(await b.getAttribute('href'))) await b.click(); };
 const composer = page => page.locator('#station-rounds .composer-text');
 const ready = page => expect.poll(() => page.evaluate(() => globalThis.NETLOG_READY === true)).toBe(true);
 async function openStation(page, call) {
   await page.locator('#roster button.person', { hasText: call }).click();
   await expect(page.locator('#station-call')).toHaveText(call);
+  // opening leaves the keyboard in navigation mode; i enters the note field
+  await expect(page.locator('#roster button.person', { hasText: call })).toBeFocused();
+  await page.keyboard.press('i');
   await expect(composer(page)).toBeFocused();
 }
 async function newRound(page) {
@@ -162,7 +167,23 @@ async function newRound(page) {
   await expect(page.locator('#round-indicator')).not.toHaveText(before);
 }
 
-test('notes: Enter saves and goes on, Shift+Enter new line, empty and IME Enter save nothing; order stays', async ({ page }) => {
+test('Shift+Enter in the new-note field saves the note and hands over to the next station', async ({ page }) => {
+  await open(page, { lang: 'en' });
+  await startSession(page);
+  await checkIn(page, 'OE0QXB', 'Jonas');
+  await checkIn(page, 'OE0QXC', 'Lea');
+  await page.locator('#roster button.person', { hasText: 'OE0QXB' }).click();
+  await page.locator('#btn-ncs').click();
+  await openStation(page, 'OE0QXB');
+  await page.keyboard.type('Over to you.');
+  await page.keyboard.press('Shift+Enter');
+  await expect(page.locator('#station-call')).toHaveText('OE0QXC');
+  await expect(page.locator('#roster li.on-air .call')).toHaveText('OE0QXC');
+  await page.locator('#roster button.person', { hasText: 'OE0QXB' }).click();
+  await expect.poll(() => values(notesOf(page))).toEqual(['Over to you.']);
+});
+
+test('notes: Enter saves and goes on, empty and IME Enter save nothing; order stays', async ({ page }) => {
   await open(page, { lang: 'en' });
   await startSession(page);
   await checkIn(page, 'OE0QXB', 'Jonas');
@@ -174,13 +195,11 @@ test('notes: Enter saves and goes on, Shift+Enter new line, empty and IME Enter 
   await expect(composer(page)).toBeFocused();
   await expect(composer(page)).toHaveValue('');
   await page.keyboard.press('Enter'); // empty: nothing
-  await page.keyboard.type('Interference remains');
-  await page.keyboard.press('Shift+Enter');
-  await page.keyboard.type('after the change.');
+  await page.keyboard.type('Interference remains after the change.');
   // an Enter that confirms an IME composition is not a save
   await composer(page).evaluate(ta => ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 229, isComposing: true, bubbles: true, cancelable: true })));
   await page.keyboard.press('Enter');
-  await expect.poll(() => values(notesOf(page))).toEqual(['Antenna changed.', 'Interference remains\nafter the change.']);
+  await expect.poll(() => values(notesOf(page))).toEqual(['Antenna changed.', 'Interference remains after the change.']);
   // typed characters never run commands
   await page.keyboard.type('jkmrnpxb?');
   await expect(composer(page)).toHaveValue('jkmrnpxb?');
@@ -192,7 +211,7 @@ test('notes: Enter saves and goes on, Shift+Enter new line, empty and IME Enter 
   await page.keyboard.type(' (corrected)');
   await page.keyboard.press('Enter');
   await expect(composer(page)).toBeFocused();
-  const expected = ['Antenna changed. (corrected)', 'Interference remains\nafter the change.', 'jkmrnpxb?'];
+  const expected = ['Antenna changed. (corrected)', 'Interference remains after the change.', 'jkmrnpxb?'];
   await expect.poll(() => values(notesOf(page))).toEqual(expected);
   // ... through a station change, collapse/expand and a reload
   await openStation(page, 'OE0QXC');
@@ -243,7 +262,7 @@ async function fourRounds(page) {
   await page.keyboard.press('r');
   await expect(page.locator('#station-rounds li.note').first()).toHaveClass(/flagged/);
   // the session under test
-  await page.locator('#tab-series').click();
+  await toSessions(page);
   await startSession(page);
   for (const [c, n] of [['OE0QXB', 'Jonas'], ['OE0QXC', 'Lea'], ['OE0QXD', 'Felix']]) await checkIn(page, c, n);
   await openStation(page, 'OE0QXB');
@@ -470,7 +489,7 @@ test('search: history and collapsed rounds, Enter opens the exact match, b retur
   await openStation(page, 'OE0QXC');
   await page.keyboard.type('Plans a portable test on the Kahlenberg.');
   await page.keyboard.press('Enter');
-  await page.locator('#tab-series').click();
+  await toSessions(page);
   // the current one: a note in a round that will be collapsed, and a draft
   await startSession(page);
   await checkIn(page, 'OE0QXB');
@@ -547,7 +566,7 @@ async function oneNote(page, text = 'A note to keep.') {
 test('backup: export, erase everything, import back; the same file again changes nothing; bad files change nothing', async ({ page }) => {
   await open(page, { lang: 'en' });
   await oneNote(page);
-  await page.locator('#tab-series').click();
+  await toSessions(page);
   const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#btn-export-all').click()]);
   await expect(page.locator('#data-msg')).toContainText('Download of the backup (JSON) started');
   expect(dl.suggestedFilename()).toMatch(/^\d{4}-\d{2}-\d{2}_netlog_backup\.json$/);
@@ -562,7 +581,7 @@ test('backup: export, erase everything, import back; the same file again changes
   await expect(roster(page)).toHaveText(['OE0QXB']);
   await openStation(page, 'OE0QXB');
   await expect.poll(() => values(notesOf(page))).toEqual(['A note to keep.']);
-  await page.locator('#tab-series').click();
+  await toSessions(page);
   await page.locator('#import-file').setInputFiles(file);
   await expect(page.locator('#data-msg')).toContainText('1 already here unchanged');
   await expect(page.locator('#series-list .session-row')).toHaveCount(1);
@@ -659,7 +678,7 @@ test('offline after the install: reload, notes, search, My Turn, net control, ba
   await page.locator('#tab-control').click();
   await page.getByRole('button', { name: /Net control: OE0QXB/ }).click();
   await expect(page.locator('#ncs-current')).toContainText('OE0QXB');
-  await page.locator('#tab-series').click();
+  await toSessions(page);
   const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#btn-export-all').click()]);
   expect(await dl.path()).toBeTruthy();
   await context.setOffline(false);
@@ -765,7 +784,7 @@ test('the callsign list fills name and QTH at check-in and when a partial callsi
   await expect(page.locator('#identity-pop button')).toContainText(['OE0QXC']);
 });
 
-test('an open suggestion list never covers "+ Check in" on phones and touch screens', async ({ page }, testInfo) => {
+test('an open suggestion list never covers "+ Add participant" on phones and touch screens', async ({ page }, testInfo) => {
   await page.route('**/shared/data/callsigns-oe.json', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(CALLBOOK) }));
   await open(page, { lang: 'en' });
   await startSession(page);
@@ -945,24 +964,25 @@ test('running a round: NCS first, Next through the order, my turn opens My Turn,
   await expect(page.locator('#tab-turn')).toHaveClass(/me-onAir/);
   // star: back to the NCS, then the next station
   await expect(page.locator('#speak-state')).toHaveText('Speaking: OE0QXA (me) · Next: back to OE0QXN, then OE0QXB');
-  await expect(page.locator('#roster li.up-next')).toContainText('OE0QXN');
-  await page.locator('#btn-next').click();
+  await expect(page.locator('#turn-handover')).toContainText('OE0QXN');
+  await page.locator('#btn-handover').click();
   await expect(page.locator('#station-call')).toHaveText('OE0QXN');
   await expect(page.locator('#roster li.on-air')).toContainText('OE0QXN');
   await page.locator('#btn-next').click();
   await expect(page.locator('#station-call')).toHaveText('OE0QXB');
-  await expect(composer(page)).toBeFocused();
+  await expect(page.locator('#roster button.person', { hasText: 'OE0QXB' })).toBeFocused();
   // a station that is away is skipped
   await page.locator('#tab-control').click();
   await page.getByRole('combobox', { name: 'Status of OE0QXC' }).selectOption('paused');
   await expect(page.locator('#speak-state')).toHaveText('Speaking: OE0QXB · Next to speak: OE0QXN');
+  await page.locator('#tab-live').click();
   await page.locator('#btn-next').click();
   await expect(page.locator('#speak-state')).toHaveText('Speaking: OE0QXN · round 1: everyone has spoken');
   await page.locator('#btn-next').click();
   await expect(page.locator('#round-indicator')).toHaveText('Round 2');
-  // a new round: the NCS still has the turn, I am next again
-  await expect(page.locator('#speak-state')).toHaveText('Speaking: OE0QXN · Next to speak: OE0QXA (me)');
-  await expect(page.locator('#speak-me')).toHaveText('▶ You are next');
+  // the last one wraps around in one press: the new round's first station (me) is on air at once
+  await expect(page.locator('#speak-state')).toHaveText('Speaking: OE0QXA (me) · Next: back to OE0QXN, then OE0QXB');
+  await expect(page.locator('#speak-me')).toHaveText('🎙 Your turn now');
   // one click: no dialog; undo takes it back
   await page.locator('#btn-new-round').click();
   await expect(page.locator('#round-indicator')).toHaveText('Round 3');
@@ -1013,6 +1033,7 @@ test('circle net: stations pass on in turn, the NCS included; the roster draws a
   await expect(page.locator('#speak-style')).toHaveText('Round-robin');
   await expect(page.locator('#roster')).toHaveClass(/topo-circle/);
   await expect(page.locator('#topo-hint')).toContainText('back to the first');
+  await page.locator('#tab-live').click();
   for (const call of ['OE0QXN', 'OE0QXA', 'OE0QXB']) {
     await page.locator('#btn-next').click();
     await expect(page.locator('#roster li.on-air .call')).toHaveText(call);
@@ -1020,7 +1041,7 @@ test('circle net: stations pass on in turn, the NCS included; the roster draws a
   await expect(page.locator('#btn-next')).toHaveText('▶ Start round 2');
 });
 
-test('status looks the same in both lists; checked-out stations are struck through and skipped by j/k; "me" from Net Control', async ({ page }) => {
+test('status looks the same in both lists; checked-out stations are struck through and reached by j/k; "me" from Net Control', async ({ page }) => {
   await open(page, { lang: 'en' });
   await startSession(page, { own: '' });
   for (const c of ['OE0QXA', 'OE0QXB', 'OE0QXC']) await checkIn(page, c);
@@ -1033,8 +1054,10 @@ test('status looks the same in both lists; checked-out stations are struck throu
   await expect(page.locator('#order-list li', { hasText: 'OE0QXB' }).locator('.open')).toHaveCSS('text-decoration-line', 'line-through');
   await expect(page.locator('#roster li', { hasText: 'OE0QXC' }).locator('.pill.st')).toHaveAttribute('title', 'monitoring (listening only)');
   await expect(page.locator('#order-list li', { hasText: 'OE0QXC' }).locator('.st-mark')).toHaveText('🎧');
-  // j/k skip the checked-out station
+  // j/k also visit the checked-out and the monitoring station
   await page.locator('#roster button.person', { hasText: 'OE0QXA' }).focus();
+  await page.keyboard.press('j');
+  await expect(page.locator('#roster button.person', { hasText: 'OE0QXB' })).toBeFocused();
   await page.keyboard.press('j');
   await expect(page.locator('#roster button.person', { hasText: 'OE0QXC' })).toBeFocused();
   // "me" set from the Net Control list
@@ -1052,17 +1075,20 @@ test('"." moves the net on; j/k only move in the list; the panel and tabs keep t
   await page.locator('#roster button.person', { hasText: 'OE0QXB' }).focus();
   const size = () => page.evaluate(() => {
     const r = s => { const b = document.querySelector(s).getBoundingClientRect(); return [Math.round(b.y + scrollY), Math.round(b.height)]; };
-    return { panel: r('#speak-panel'), next: r('#btn-next'), tabs: [...document.querySelectorAll('.viewbar a')].map(a => Math.round(a.getBoundingClientRect().x)) };
+    return { panel: r('#speak-panel'), tabs: [...document.querySelectorAll('.viewbar a')].map(a => Math.round(a.getBoundingClientRect().x)) };
   });
   const first = await size();
   await page.keyboard.press('j');
   await expect(page.locator('#roster li.on-air .call')).toHaveText('OE0QXN'); // j moved nothing on
+  let prev = 'OE0QXN';
   for (const call of ['OE0QXA', 'OE0QXN', 'OE0QXB']) {
-    await page.locator('#roster button.person').first().focus();
+    // "." on the station that is on air hands over (elsewhere it only moves the selection)
+    await page.locator('#roster button.person', { hasText: prev }).focus();
     await page.keyboard.press('.');
+    prev = call;
     await expect(page.locator('#roster li.on-air .call')).toHaveText(call);
-    // the station opens ready for notes (my own turn opens My Turn)
-    if (call !== 'OE0QXA') await expect(page.locator('#station-rounds .composer-text')).toBeFocused();
+    // the station opens in navigation mode (my own turn opens My Turn)
+    if (call !== 'OE0QXA') await expect(page.locator('#roster button.person', { hasText: call })).toBeFocused();
     expect(await size()).toEqual(first);
   }
 });
@@ -1147,15 +1173,17 @@ test('free-form: no net control needed, nothing predicted; selecting only opens;
   await page.keyboard.press('j');
   await expect(page.locator('#station-call')).toHaveText('OE0QXB');
   await expect(page.locator('#btn-next')).toHaveText('🎙 OE0QXB speaks');
-  expect(await page.evaluate(() => globalThis.NETLOG_APP.sd.contributions.length)).toBe(0);
-  await expect(page.locator('#roster li.on-air, #roster li.up-next')).toHaveCount(0);
+  // typing the draft put OE0QXA on air (one turn); selecting recorded nothing more
+  expect(await page.evaluate(() => globalThis.NETLOG_APP.sd.contributions.length)).toBe(1);
+  await expect(page.locator('#roster li.on-air .call')).toHaveText('OE0QXA');
+  await expect(page.locator('#roster li.up-next')).toHaveCount(0);
   // "." records the selected station, also twice in a row; never a "next"
   await page.locator('#roster button.person', { hasText: 'OE0QXB' }).focus();
   await page.keyboard.press('.');
   await expect(page.locator('#roster li.on-air .call')).toHaveText('OE0QXB');
   await page.locator('#roster button.person', { hasText: 'OE0QXB' }).focus();
   await page.keyboard.press('.');
-  await expect.poll(() => page.evaluate(() => globalThis.NETLOG_APP.sd.contributions.length)).toBe(2);
+  await expect.poll(() => page.evaluate(() => globalThis.NETLOG_APP.sd.contributions.length)).toBe(3);
   await expect(page.locator('#roster li.up-next')).toHaveCount(0);
   await expect(page.locator('#speak-then')).toHaveText('');
   await expect(page.locator('#btn-next')).not.toContainText('Start round');
@@ -1170,7 +1198,7 @@ test('free-form: no net control needed, nothing predicted; selecting only opens;
   await expect(page.locator('#btn-next')).toBeDisabled();
   await expect(page.locator('#topo-hint')).toContainText('needs a net control');
   // the notes and turns survived the switches
-  expect(await page.evaluate(() => globalThis.NETLOG_APP.sd.contributions.length)).toBe(2);
+  expect(await page.evaluate(() => globalThis.NETLOG_APP.sd.contributions.length)).toBe(3);
 });
 
 test('a pointer released outside the list does not stop j/k from opening stations', async ({ page }) => {
@@ -1446,7 +1474,7 @@ test('series cards: collapsed with a summary, remembered; back up and restore on
 // the check-in suggestions and the info line read the merged view. The
 // dialog says first that the data is shared by all tools.
 async function openLists(page) {
-  await page.locator('#tab-series').click();
+  await toSessions(page);
   await page.locator('#btn-lists-open').click();
   const dlg = page.locator('#callsign-lists-dlg');
   await expect(dlg).toBeVisible();
@@ -1659,12 +1687,12 @@ test('callsign lists: the test search covers the active lists and names the list
 
 test('callsign lists: a change made in another tab shows when the window is looked at again', async ({ page }) => {
   await open(page);
-  await page.locator('#tab-series').click();
+  await toSessions(page);
   await expect(page.locator('#lists-summary')).toContainText('1 von 1 Listen');
   const other = await page.context().newPage();
   await other.goto('tools/netlog/');
   await expect.poll(() => other.evaluate(() => globalThis.NETLOG_READY === true)).toBe(true);
-  await other.locator('#tab-series').click();
+  await toSessions(other);
   await other.locator('#btn-lists-open').click();
   const tmp = await mkdtemp(pathJoin(tmpdir(), 'netlog-lists-'));
   const csv = pathJoin(tmp, 'drueben.csv');

@@ -416,6 +416,13 @@ export function speakingState({ session, participants, contributions }) {
     const opening = !turns.length;
     return { onAir: opening ? ncs : onAir, next: stationsDone ? null : nextStation, then: null, complete: stationsDone, spoken, order, ncs };
   }
+  // circle: the next station is the one after the last speaker in the list;
+  // after the last one the list starts again (a new round: complete)
+  const at = order.findIndex(p => p.id === last);
+  if (last && at >= 0) {
+    const wraps = at === order.length - 1;
+    return { onAir, next: order[wraps ? 0 : at + 1], then: null, complete: wraps, spoken, order, ncs };
+  }
   const complete = order.length > 0 && order.every(p => spoken.has(p.id));
-  return { onAir, next: complete ? null : after(last, order), then: null, complete, spoken, order, ncs };
+  return { onAir, next: complete ? null : (last ? after(last, order) : order[0] || null), then: null, complete, spoken, order, ncs };
 }

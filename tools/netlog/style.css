@@ -22,7 +22,6 @@ button.mini{ font-size:13.5px; padding:.15em .55em; }
 .pill.ok{ color:var(--ok); border-color:currentColor; }
 .pill.own{ color:#fff; background:var(--accent); border-color:var(--accent); font-weight:600; }
 .person-row.own button.person .call, .order-row.own .open{ color:var(--accent-text); }
-.person-row.own{ box-shadow:inset -4px 0 var(--accent); }
 .pill.ncs{ color:var(--accent-text); border-color:currentColor; background:var(--accent-soft); font-weight:600; }
 .empty{ color:var(--text-dim); padding:1.5em; font-style:italic; }
 .unresolved{ text-decoration:underline dotted; text-underline-offset:.2em; }
@@ -75,7 +74,8 @@ button.person .badges{ margin-left:auto; display:flex; gap:.25em; flex-wrap:nowr
 .dot.unconfirmed{ background:transparent; border:2px solid var(--warn); }
 .dot.out{ background:var(--line-strong); }
 .sidefoot{ padding:.6em; border-top:1px solid var(--line); display:flex; gap:.4em; flex-wrap:wrap; margin-top:auto; }
-.sidecheckin{ padding:.6em .8em .8em; }
+.sidecheckin{ padding:.6em .8em .8em; margin-top:1.2em; border-top:1px solid var(--line-strong); }
+.checkin-title{ margin:.4em 0 .5em; font-size:14px; }
 
 .content{ flex:1; min-width:0; display:flex; flex-direction:column; }
 .viewbar{ padding:.6em 1em; border-bottom:1px solid var(--line); margin:0; }
@@ -330,7 +330,9 @@ table.keys th:first-child, table.keys td:first-child{ width:12.5rem; }
 /* ---------- running the round ---------- */
 .speak-panel{ padding:.6em .8em; border-bottom:1px solid var(--line); background:var(--bg); display:grid; gap:.4em; }
 .speak-state{ margin:0; font-size:13.5px; color:var(--text-dim); }
-.next-btn{ width:100%; text-align:left; }
+.next-btn{ text-align:left; }
+.next-row{ margin:.2em 0 .6em; }
+.sidehead .speak-style{ margin:.3em 0 0; }
 .next-btn.suggest-round{ background:var(--ok); border-color:var(--ok); }
 .own-turn{ margin:.4em 0; }
 /* status lines among the notes: tinted, so they are not overlooked */
@@ -339,7 +341,8 @@ li.event-line .time{ color:var(--text-dim); }
 li.event-line .time{ min-width:5.5em; }
 
 /* the NCS: on top of the lists, as a band of its own */
-.person-row.ncs{ border:2px solid var(--accent); border-radius:8px; margin:.35em .4em .8em; background:var(--bg); overflow:hidden; }
+/* the net control heads the list: set apart by a heavier rule below, no box (a box looks like the selection) */
+.person-row.ncs{ border-bottom:3px double var(--line-strong); margin-bottom:.35em; }
 .person-row.ncs button.person{ padding-top:.65em; padding-bottom:.65em; }
 .person-row.ncs button.person .call{ font-size:16px; font-weight:800; }
 .pill.ncs{ color:#fff; background:var(--accent); border-color:var(--accent); }
@@ -359,7 +362,7 @@ li.event-line .time{ min-width:5.5em; }
 .roster.topo-star .person-row:not(.ncs)::after{ content:""; position:absolute; left:11px; top:50%; width:9px; border-top:2px solid var(--accent-dim); }
 /* circle: a chain from station to station, back to the first at the end */
 .roster.topo-circle .person-row{ position:relative; padding-left:22px; }
-.roster.topo-circle .person-row::before{ content:"↓"; position:absolute; left:6px; top:50%; transform:translateY(-50%); color:var(--accent-dim); font-size:13px; }
+.roster.topo-circle .person-row::before{ content:"↓"; position:absolute; left:11px; top:50%; transform:translate(-50%,-50%); line-height:1; color:var(--accent-dim); font-size:13px; }
 .roster.topo-circle .person-row:last-child::before{ content:"↺"; }
 .topo-hint{ margin:.2em .8em .4em; }
 /* whose turn it is */
@@ -369,7 +372,6 @@ li.event-line .time{ min-width:5.5em; }
    colour; the selection keeps its blue bar */
 .person-row.on-air button.person{ box-shadow:inset 6px 0 var(--err); }
 @media (forced-colors: active){ .person-row.on-air button.person{ border-left:6px solid CanvasText; } }
-.person-row.up-next button.person{ border:2px dashed var(--warn); border-radius:6px; }
 .pill.on-air{ color:#fff; background:var(--err); border-color:var(--err); font-weight:700; white-space:nowrap; letter-spacing:.02em; }
 .pill.next{ color:var(--warn); background:var(--warn-soft); border-color:var(--warn); font-weight:700; white-space:nowrap; }
 
@@ -576,3 +578,78 @@ li.event-line .time{ min-width:5.5em; }
    placeholder explains the search. */
 #identity-call, #se-own, #sf-own, #srf-ncs{ width:calc(12ch + 1.2em); max-width:100%; box-sizing:border-box; }
 #se-repeater, #sf-repeater, #srf-repeater{ width:calc(6ch + 1.6em); max-width:100%; box-sizing:border-box; font-family:var(--font-mono); }
+
+/* My Turn: who to hand over to, big and on top */
+.handover-row{ display:flex; flex-wrap:wrap; gap:.6em; align-items:center; margin:.3em 0 .6em; }
+.handover-row[hidden]{ display:none; }
+.handover{ margin:0; padding:.5em .8em; border:2px solid var(--warn); border-radius:8px; background:var(--warn-soft); color:var(--text); font-weight:700; font-size:18px; font-family:var(--font-mono); }
+
+/* quiet turn display: plain "call → call" in the colours of the other
+   parts (red = on air, yellow = next); no boxes, no pills. The "you are
+   next" text stays for screen readers. */
+.speak-then{ position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; animation:none; }
+.speak-panel.me-onAir, .speak-panel.me-next{ box-shadow:none; }
+.sp-chip button, .sp-chip.hub button, .sp-chip.on-air button, .sp-chip.next button, .sp-chip.then button{ background:none; border:0; box-shadow:none; border-radius:0; padding:.2em .3em; color:var(--text); font-size:15px !important; }
+.sp-chip.on-air button, .sp-chip.on-air .sym{ color:var(--err); }
+.sp-chip.next button, .sp-chip.next .sym{ color:var(--warn); }
+.sp-chip.hub button .c{ font-weight:800; }
+.badges .pill.on-air{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); padding:0; border:0; }
+
+/* "you are next" in the top bar, next to the tabs */
+.viewbar .speak-me{ padding:.2em .5em; font-size:15px; font-weight:700; line-height:1.4; min-height:0; background:none; color:var(--text-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.viewbar .speak-me.me-onAir{ color:var(--err); }
+.viewbar .speak-me.me-next{ color:var(--warn); }
+
+/* stations that are skipped in the round (paused, monitoring, checked out):
+   clearly set back. Colour, not opacity, so the text stays >= 4.5:1. */
+.person-row.st-paused, .person-row.st-listening, .person-row.st-out{ background:repeating-linear-gradient(135deg, transparent 0 6px, var(--line) 6px 7px); }
+.person-row.st-paused button.person, .person-row.st-listening button.person, .person-row.st-out button.person{ background:transparent; }
+.person-row.st-paused button.person .call, .person-row.st-listening button.person .call, .person-row.st-out button.person .call,
+.person-row.st-paused button.person .pname, .person-row.st-listening button.person .pname, .person-row.st-out button.person .pname{ color:var(--text-dim); font-weight:400; font-size:.9em; font-style:italic; }
+.person-row.st-paused.active button.person, .person-row.st-listening.active button.person, .person-row.st-out.active button.person{ background:var(--accent-soft); }
+.person-row.st-paused .badges .pill.st, .person-row.st-listening .badges .pill.st, .person-row.st-out .badges .pill.st{ font-size:15px; }
+
+/* a skipped station is no link of the chain: no arrow */
+.roster.topo-circle .person-row.st-paused::before, .roster.topo-circle .person-row.st-listening::before, .roster.topo-circle .person-row.st-out::before{ content:none; }
+
+/* the net's topology icon left of the title; its name is the tooltip (and
+   the screen-reader text) */
+.sidehead-top{ display:flex; align-items:center; gap:.5em; }
+.sidehead-top .topo-label{ display:inline-flex; align-items:center; flex:none; }
+.sidehead-top .topo-label > span{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+
+/* strip: no symbols, no star; the NCS and me carry a small [NCS] / [me] box
+   next to the call, red when on air, yellow when next */
+.sp-chip .sym{ display:none; }
+.sp-chip.own button .c::after{ content:none; }
+.sp-chip .tag{ border:1.5px solid var(--accent); border-radius:4px; padding:0 .3em; font-size:12px; font-weight:700; line-height:1.4; }
+.sp-chip.on-air .tag{ border-color:var(--err); }
+.sp-chip.next .tag{ border-color:var(--warn); }
+
+/* bring a skipped station back right in its row */
+.person-row{ display:flex; align-items:stretch; flex-wrap:nowrap; }
+.person-row > button.person{ flex:1 1 auto; min-width:0; }
+.person-row > button.reactivate{ flex:none; align-self:center; margin:0 .4em 0 0; padding:.2em .6em; font-size:13px; min-height:0; border:1.5px solid var(--accent); background:var(--bg); color:var(--accent-text); border-radius:6px; font-weight:600; font-style:normal; }
+.person-row > button.reactivate[hidden]{ display:none; }
+@media (pointer: coarse){ .person-row > button.reactivate{ min-height:40px; } }
+
+/* notes of a skipped station: visibly off until it is active again */
+.composer-text:disabled{ background:repeating-linear-gradient(135deg, transparent 0 6px, var(--line) 6px 7px); border-style:dashed; color:var(--text-dim); cursor:not-allowed; font-style:italic; }
+.composer-text:disabled::placeholder{ color:var(--text-dim); opacity:1; }
+
+/* Backup and data: groups with a clear heading; every action is a button
+   with its one-line explanation next to it */
+.data-card{ border-color:var(--line-strong); }
+.data-card .data-group{ margin:1.1em 0 0; padding-top:.8em; border-top:1px solid var(--line-strong); }
+.data-card .data-group > h4{ font-size:15px; font-weight:700; margin:0 0 .5em; color:var(--text); }
+.data-card .data-action{ display:grid; grid-template-columns:minmax(12em, 17em) 1fr; gap:.4em 1em; align-items:center; margin:.4em 0; }
+.data-card .data-action > button{ justify-self:start; width:100%; }
+.data-card .data-action > .hint, .data-card .data-group > .hint{ margin:0; color:var(--text); opacity:1; font-size:14px; }
+.data-card .hint.note{ margin-top:.6em; color:var(--text-dim); }
+.data-card .danger-zone{ border:1px solid var(--err); border-radius:6px; padding:.7em .9em; }
+.data-card .danger-zone > h4{ color:var(--err); }
+@media (max-width: 560px){ .data-card .data-action{ grid-template-columns:1fr; } }
+.data-card button.danger{ border:2px solid var(--err); color:var(--err); font-weight:700; background:var(--bg); }
+.data-card button.danger:hover:not(:disabled){ background:var(--err-soft); }
+
+.viewbar[hidden]{ display:none; }

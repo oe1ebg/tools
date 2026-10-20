@@ -16,9 +16,10 @@ import { $, el, fill, isComposing } from '../../shared/js/dom.js';
 import { t } from './i18n.js';
 import { keyedList, setText, setAttr, setValue, setNamed } from './keyed.js';
 import { provenanceButton, renderProvenance, openProvenance } from './historyui.js';
-import { queueItems, openTurn, previousRound, turnSummary, responseOf, liveOf, cmp } from './model.js';
+import { speakingState, netStyle, queueItems, openTurn, previousRound, turnSummary, responseOf, liveOf, cmp } from './model.js';
 import { setItemDone, moveItem, addPoint, startTurn, endTurn, setItemText, deleteItem } from './ops.js';
 import { callText } from './roster.js';
+import { nextSpeaker } from './speak.js';
 import { autosize, replyKey } from './notes.js';
 import { hmz } from './clock.js';
 
@@ -90,6 +91,14 @@ export function initTurn(app) {
     const b = ev.target.closest('button[data-act=reopen]');
     if (b) completeItem(app, b.closest('li').dataset.key, false);
   });
+  // Shift+Enter anywhere in My Turn: end the turn and hand over
+  $('#view-turn').addEventListener('keydown', async ev => {
+    if (ev.key !== 'Enter' || !ev.shiftKey || ev.ctrlKey || ev.metaKey || ev.altKey || isComposing(ev) || app.readOnly) return;
+    ev.preventDefault();
+    if (!$('#btn-end-turn').disabled) await app.act(store => endTurn(store, app.ctx()));
+    if (!$('#btn-handover').disabled) await nextSpeaker(app);
+  });
+  $('#btn-handover').addEventListener('click', () => nextSpeaker(app));
   $('#btn-end-turn').addEventListener('click', async () => {
     const r = await app.act(store => endTurn(store, app.ctx()));
     if (r) { app.announce(t('turn.ended')); $('#resp-title').focus(); }
@@ -121,10 +130,29 @@ export async function enterTurn(app) {
 }
 
 
+// Who to hand over to when I am done: the next station in the net order,
+// or the net control in a star net.
+function renderHandover(app) {
+  const st = speakingState({ session: app.s, participants: app.sd.participants, contributions: app.sd.contributions });
+  const box = $('#turn-handover');
+  let text = '';
+  if (!st.free && !st.needsNcs) {
+    if (st.complete || !st.next) text = t('turn.handoverDone');
+    else {
+      const ncsNext = st.ncs && st.next.id === st.ncs.id && netStyle(app.s) === 'star';
+      text = t(ncsNext ? 'turn.handoverNcs' : 'turn.handover', { call: callText(st.next) });
+    }
+  }
+  setText(box, text);
+  box.parentNode.hidden = !text;
+  $('#btn-handover').disabled = app.readOnly || !text || st.complete || !st.next;
+}
+
 export function renderTurn(app) {
   const s = app.s;
   const cur = app.sd.rounds.find(r => r.id === s.currentRoundId);
   setText($('#turn-title'), t('turn.title', { own: s.own.call || t('turn.ownUnknown'), n: cur ? cur.number : '?' }));
+  renderHandover(app);
   const turn = openTurn(app.sd.turns || []);
   const queue = queueItems(app.sd.items, app.sd.notes, turn ? turn.id : null);
   const notes = new Map(app.sd.notes.map(n => [n.id, n]));

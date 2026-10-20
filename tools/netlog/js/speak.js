@@ -37,7 +37,9 @@ function chip(app, p, st, hub) {
   return el('li', { class: `sp-chip ${state}${hub ? ' hub' : ''}${isOwn(app, p) ? ' own' : ''}` },
     el('button', { type: 'button', 'data-pid': p.id, 'aria-label': `${callText(p)}: ${t(`speak.chip.${state}`)}${hub ? `, ${t('ncs.current')}` : ''}`, title: t(`speak.chip.${state}`) },
       sym ? el('span', { class: 'sym', 'aria-hidden': 'true' }, sym) : null,
-      el('span', { class: 'c' }, callText(p))));
+      el('span', { class: 'c' }, callText(p)),
+      hub ? el('span', { class: 'tag' }, 'NCS') : null,
+      isOwn(app, p) ? el('span', { class: 'tag' }, t('own.badge')) : null));
 }
 
 function renderStrip(app, st, style) {
@@ -49,7 +51,7 @@ function renderStrip(app, st, style) {
   if (st.onAir) items.push(chip(app, st.onAir, st, isHub(st.onAir)));
   if (st.next) { if (items.length) items.push(arrow()); items.push(chip(app, st.next, st, isHub(st.next))); }
   // "then" on its own line, so the strip keeps one line
-  setText($('#speak-then'), st.then ? t('speak.thenLine', { call: callText(st.then) + (isOwn(app, st.then) ? ` (${t('own.badge')})` : '') }) : '');
+  setText($('#speak-then'), '');
   strip.classList.toggle('star', style === 'star');
   fill(strip, items);
 }
@@ -74,8 +76,15 @@ export async function nextSpeaker(app) {
     return;
   }
   if (st.needsNcs) return;
-  if (st.complete || !st.next) { await startNextRound(app); return; }
-  const p = st.next;
+  let cur = st;
+  if (st.complete || !st.next) {
+    // the last one hands over: the new round starts and its first station
+    // is on air at once (one press wraps around)
+    if (!(await startNextRound(app))) return;
+    cur = speakingState({ session: app.s, participants: app.sd.participants, contributions: app.sd.contributions });
+    if (cur.free || cur.needsNcs || !cur.next) return;
+  }
+  const p = cur.next;
   const c = await app.act(store => addContribution(store, app.ctx(), p.id));
   if (!c) return;
   app.announce(t('speak.nowOnAir', { call: callText(p) }));
@@ -125,7 +134,7 @@ export function turnMark(app, p) {
 export function renderSpeak(app) {
   const panel = $('#speak-panel');
   panel.hidden = !app.s;
-  if (!app.s) return;
+  if (!app.s) { setText($('#speak-me'), ''); return; }
   const st = speakingState({ session: app.s, participants: app.sd.participants, contributions: app.sd.contributions });
   app.speak = st;
   const style = netStyle(app.s);
@@ -164,6 +173,7 @@ export function renderSpeak(app) {
   for (const k of ['onAir', 'next', 'soon']) {
     $('#speak-panel').classList.toggle(`me-${k}`, meState === k);
     $('#tab-turn').classList.toggle(`me-${k}`, meState === k);
+    meP.classList.toggle(`me-${k}`, meState === k);
   }
   const b = $('#btn-next');
   b.classList.toggle('suggest-round', !!st.complete);

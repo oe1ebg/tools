@@ -19,7 +19,7 @@ import { LeaseError, UndoConflictError } from './ops.js';
 import { createSessionLock, CHANNEL_NAME } from './lock.js';
 import { createSaveState } from './status.js';
 import { setText, setAttr } from './keyed.js';
-import { sessionLabel, live, rosterSorted, isUnresolved, openQueueCount, FLAGS } from './model.js';
+import { ncsFirst, sessionLabel, live, rosterSorted, isUnresolved, openQueueCount, FLAGS, speakingState } from './model.js';
 import { initRoster, renderRoster, renderStation, flushDetails, callText, rosterRows, isOwn, STATUS_MARK } from './roster.js';
 import { initSessions, renderSessions } from './sessions.js';
 import { initControl, renderControl } from './control.js';
@@ -36,7 +36,7 @@ import { initSpeak, renderSpeak, nextSpeaker } from './speak.js';
 import { initHistory, renderHistory, historyStale } from './historyui.js';
 import { initData, renderData, exportBackup } from './dataui.js';
 import { initCallsigns } from './callsignui.js';
-import { undo, undoStep } from './ops.js';
+import { undo, undoStep, setStatus } from './ops.js';
 
 const VIEWS = ['live', 'turn', 'log', 'control', 'series'];
 const UI_PREF = 'oe1ebg-netlog-ui';
@@ -275,6 +275,35 @@ function switchView(view) {
   render();
 }
 
+// Set the selected station's status (keys a / p / l); pressing p or l
+// again on that status brings the station back to active.
+function setSelectedStatus(status) {
+  const p = app.participant(app.ui.selected);
+  if (!p || app.readOnly) return false;
+  const to = p.status === status && status !== 'active' ? 'active' : status;
+  if (to === p.status) return true;
+  app.act(store => setStatus(store, app.ctx(), p.id, to)).then(() => app.announce(t('station.statusSet', { call: callText(p), status: t(`status.${to}`) })));
+  return true;
+}
+
+// Move the selection one station along the net order (skipping paused,
+// monitoring and checked-out ones); nothing is recorded.
+function stepSelection(dir) {
+  if (!app.s || $('#sidebar').hidden) return false;
+  const st = speakingState({ session: app.s, participants: app.sd.participants, contributions: app.sd.contributions });
+  // the list order, the NCS included (it is skipped by nobody)
+  const order = ncsFirst(rosterSorted(app.sd.participants).filter(p => ['active', 'unconfirmed'].includes(p.status)), app.s.ncsId);
+  if (!order.length) return false;
+  let at = order.findIndex(p => p.id === app.ui.selected);
+  if (at < 0 && st.onAir) at = order.findIndex(p => p.id === st.onAir.id);
+  const p = order[Math.min(order.length - 1, Math.max(0, (at < 0 ? (dir < 0 ? order.length : -1) : at) + dir))];
+  if (!p) return false;
+  app.select(p.id);
+  if (app.ui.view !== 'live' && !isOwn(app, p)) { app.ui.view = 'live'; app.syncHash(); render(); }
+  focusRosterRow(p.id);
+  return true;
+}
+
 function focusRosterRow(id) {
   const b = $('#roster').querySelector(`li[data-key="${CSS.escape(id)}"] button.person`);
   if (b) b.focus();
@@ -296,7 +325,8 @@ app.openStation = async id => {
     app.syncHash();
     render();
   }
-  focusNoteEditor(app);
+  // navigation mode: the note field is entered with a click or i
+  focusRosterRow(id);
 };
 
 // Jump to a station from another workspace (My Turn, Net Control, later
@@ -318,7 +348,7 @@ app.openFrom = async (pid, { noteId = null, roundId = null, field = 'text' } = {
   else if (rid && rid !== app.s.currentRoundId) {
     const sec = $('#station-rounds').querySelector(`section.round[data-key="${CSS.escape(rid)}"] button.round-toggle`);
     if (sec) { sec.focus(); sec.scrollIntoView({ block: 'nearest' }); }
-  } else focusNoteEditor(app);
+  } else focusRosterRow(pid);
 };
 
 // The source of a My Turn item.
@@ -341,7 +371,7 @@ app.navigate = fn => {
 app.back = (fallback = null) => app.navigate(() => backNow(fallback));
 async function backNow(fallback) {
   if (await app.nav.back()) return true;
-  if (fallback && app.s) { app.ui.view = fallback; app.syncHash(); render(); if (fallback === 'live') focusNoteEditor(app); }
+  if (fallback && app.s) { app.ui.view = fallback; app.syncHash(); render(); if (fallback === 'live' && app.ui.selected) focusRosterRow(app.ui.selected); }
   return false;
 }
 
@@ -361,8 +391,8 @@ app.rowBadges = (p, long = false) => {
   if (isUnresolved(p.call)) out.push({ text: '?', title: t('station.unresolved'), cls: 'warn' });
   if (long && p.status !== 'active') out.push({ text: t(`status.${p.status}`), title: t(`status.${p.status}`) });
   else if (!long && p.status !== 'active' && p.status !== 'unconfirmed') out.unshift({ text: STATUS_MARK[p.status], title: t(`status.${p.status}`), cls: `st ${p.status}` });
-  const mark = app.speak && app.speak.onAir && app.speak.onAir.id === p.id ? 'onAir' : app.speak && app.speak.next && app.speak.next.id === p.id ? 'next' : '';
-  if (mark) out.unshift({ text: t(`turn.short.${mark}`), title: t(`turn.badge.${mark}`), cls: mark === 'onAir' ? 'on-air' : 'next' });
+  // only who is on air is marked; who follows is the next row in the list
+  if (app.speak && app.speak.onAir && app.speak.onAir.id === p.id) out.unshift({ text: t('turn.short.onAir'), title: t('turn.badge.onAir'), cls: 'on-air' });
   return out;
 };
 
@@ -400,9 +430,16 @@ function render() {
     const v = a.dataset.view;
     const href = v === 'series' ? (inSession ? `#/s/${encodeURIComponent(app.s.id)}/series` : '#/') : (inSession ? `#/s/${encodeURIComponent(app.s.id)}/${v}` : '#/');
     setAttr(a, 'href', href);
-    a.hidden = !inSession && v !== 'series';
+    // the sessions screen is not a workspace: it is left to and entered
+    // from the back link, not part of the tabs
+    a.hidden = v === 'series';
     setAttr(a, 'aria-current', v === view ? 'page' : null);
   }
+  // the sessions screen has no workspace bar (tabs, search, undo, round): it belongs to a session's work
+  $('.viewbar').hidden = view === 'series';
+  const back = $('#btn-sessions');
+  back.hidden = !inSession || view === 'series';
+  setAttr(back, 'href', inSession ? `#/s/${encodeURIComponent(app.s.id)}/series` : '#/');
   renderHeader();
   if (inSession) {
     renderSpeak(app);
@@ -414,7 +451,7 @@ function render() {
     const open = openQueueCount(app.sd.items, app.sd.notes);
     setText($('#tab-turn-count'), open ? ` · ${open}` : '');
   }
-  $('#btn-new-round').hidden = !inSession;
+  $('#btn-new-round').hidden = !inSession || view === 'series';
   renderUndo();
   if (view === 'series') { renderSessions(app); renderData(app); }
   renderKeysLine();
@@ -511,8 +548,8 @@ function navList() {
   if (inside('#view-turn')) return turnRows();
   if (inside('#view-log')) return logRows();
   if (inside('#station-rounds')) return [...$('#station-rounds').querySelectorAll('.round-body:not([hidden]) li.note')];
-  // checked-out stations are skipped (they are still clickable)
-  return [...$('#roster').querySelectorAll('li:not(.st-out) button.person')];
+  // every station, the skipped ones too (a brings them back)
+  return [...$('#roster').querySelectorAll('button.person')];
 }
 
 function moveFocus(dir) {
@@ -572,9 +609,19 @@ function initKeyboard(help) {
       newNote: () => {
         if (!app.s || app.readOnly) return false;
         if (!app.ui.selected) { $('#checkin-call').focus(); return true; }
-        app.openStation(app.ui.selected);
+        app.openStation(app.ui.selected).then(() => focusNoteEditor(app));
         return true;
       },
+      // i: into the note field of the selected station (vim insert)
+      insert: () => {
+        if (!app.s || app.readOnly || app.ui.view !== 'live' || !app.ui.selected) return false;
+        return focusNoteEditor(app);
+      },
+      // , one station back in the net order (navigation only)
+      prevSpeaker: () => stepSelection(-1),
+      stActive: () => setSelectedStatus('active'),
+      stPaused: () => setSelectedStatus('paused'),
+      stListening: () => setSelectedStatus('listening'),
       flag: () => {
         const id = focusedNoteId();
         if (!id || app.readOnly) return false;
@@ -587,8 +634,14 @@ function initKeyboard(help) {
         return true;
       },
       // the next speaker in the net (j/k only move in the list)
+      // on the station that is on air (or when nobody is): hand over; on
+      // any other station: only move the selection one forward
       nextSpeaker: () => {
-        if (!app.s || app.readOnly || $('#btn-next').disabled) return false;
+        if (!app.s || $('#sidebar').hidden) return false;
+        const st = speakingState({ session: app.s, participants: app.sd.participants, contributions: app.sd.contributions });
+        const sel = app.ui.selected;
+        if (!st.free && st.onAir && sel && st.onAir.id !== sel && app.participant(sel) && ['active', 'unconfirmed'].includes(app.participant(sel).status)) return stepSelection(1);
+        if (app.readOnly || $('#btn-next').disabled) return false;
         nextSpeaker(app);
         return true;
       },

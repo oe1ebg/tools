@@ -9,6 +9,9 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { test, expect } from './fixtures.mjs';
 
+// the sessions screen: the back link in a session, nothing to click when it is open already
+const toSessions = async page => { const b = page.locator('#btn-sessions'); if (await b.isVisible() && /\/series$/.test(await b.getAttribute('href'))) await b.click(); };
+
 const EXAMPLES = fileURLToPath(new URL('../../examples/backups/', import.meta.url));
 const file = name => `${EXAMPLES}${name}`;
 
@@ -66,7 +69,7 @@ test.describe('Netlog examples', () => {
     await expect(page.locator('#view-live')).toBeVisible();
     await expect(page.locator('#roster button.person')).toHaveCount(7);
     // again: nothing doubled
-    await page.locator('#tab-series').click();
+    await toSessions(page);
     await page.locator('#import-file').setInputFiles(file('netlog-full.json'));
     await expect(page.locator('#data-msg')).toContainText('12 already here');
     expect(await counts(page)).toEqual(before);

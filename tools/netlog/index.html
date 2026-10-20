@@ -79,6 +79,7 @@
 
   <div id="workspace" class="workspace">
     <div class="toolbar viewbar">
+      <a id="btn-sessions" class="btn back-link" href="#/" hidden data-i18n="views.sessionsBack">← Sessions</a>
       <nav id="view-tabs" class="tabs" data-i18n-attr="aria-label:views.label" aria-label="Workspaces">
         <a id="tab-live" href="#/" data-view="live" data-i18n="views.live">Live Notes</a>
         <a id="tab-turn" href="#/" data-view="turn"><span data-i18n="views.turn">My Turn</span><span id="tab-turn-count" class="tab-count"></span></a>
@@ -86,6 +87,7 @@
         <a id="tab-control" href="#/" data-view="control" data-i18n="views.control">Net Control</a>
         <a id="tab-series" href="#/" data-view="series" data-i18n="views.series">Sessions &amp; series</a>
       </nav>
+      <span id="speak-me" class="speak-me" role="status"></span>
       <span class="spacer"></span>
       <button type="button" id="btn-search" aria-haspopup="dialog" data-i18n="search.open">/ Search</button>
       <button type="button" id="btn-undo" class="icon" disabled data-i18n-attr="aria-label:undo.button" aria-label="Undo">↶</button>
@@ -97,16 +99,16 @@
     <div class="workspace-body">
     <aside id="sidebar" class="sidebar" aria-labelledby="roster-title" hidden>
       <div class="sidehead">
-        <h2 id="roster-title" data-i18n="roster.title">Participants</h2>
+        <div class="sidehead-top">
+          <span id="speak-style" class="topo-label"></span>
+          <h2 id="roster-title">Participants</h2>
+        </div>
         <p id="roster-stats" class="hint"></p>
       </div>
       <div id="speak-panel" class="speak-panel" hidden>
-        <p id="speak-me" class="speak-me" role="status"></p>
-        <p class="speak-style"><span id="speak-style" class="topo-label"></span></p>
         <ol id="speak-strip" class="speak-strip" data-i18n-attr="aria-label:speak.stripLabel" aria-label="Speaking order of this round"></ol>
         <p id="speak-then" class="speak-then" aria-hidden="true"></p>
         <p id="speak-state" class="sr-only" aria-live="polite"></p>
-        <button type="button" id="btn-next" class="primary next-btn"></button>
       </div>
       <ul id="roster" class="roster" data-i18n-attr="aria-label:roster.listLabel" aria-label="Participants (j/k or arrow keys, Enter opens)"></ul>
       <p id="topo-hint" class="topo-hint hint" hidden></p>
@@ -115,7 +117,8 @@
         <button type="button" id="btn-roster-up" data-i18n="roster.up">↑ Up</button>
         <button type="button" id="btn-roster-down" data-i18n="roster.down">↓ Down</button>
       </div>
-      <div class="sidecheckin">
+      <div class="sidecheckin" role="group" aria-labelledby="checkin-title">
+          <h3 id="checkin-title" class="checkin-title" data-i18n="checkin.title">Add a station to the net</h3>
           <form id="checkin-form" class="checkin" autocomplete="off">
             <div class="ac-wrap">
               <label for="checkin-call" class="sr-only" data-i18n="checkin.callLabel">Callsign (also partial: OE0QX?, ?)</label>
@@ -142,12 +145,14 @@
             <button type="button" id="btn-edit-identity" class="icon edit-id" aria-expanded="false" aria-controls="station-edit" data-i18n-attr="aria-label:station.edit; title:station.edit" aria-label="Edit callsign, name and details" title="Edit callsign, name and details">✎</button>
             <span id="station-badges" class="badges"></span>
             <div class="station-tools">
+              <button type="button" id="btn-status-quick"></button>
               <label class="inline-field"><span class="sr-only" data-i18n="station.status">Status</span>
                 <select id="station-status" data-i18n-attr="title:station.status" title="Status"></select></label>
               <span id="station-flags" class="flag-group" role="group" data-i18n-attr="aria-label:station.flags" aria-label="Flags"></span>
               <button type="button" id="btn-ncs" aria-pressed="false" data-i18n="station.ncs">Net control</button>
             </div>
           </div>
+          <p class="next-row" id="next-park" hidden><button type="button" id="btn-next" class="primary next-btn"></button></p>
           <div id="station-edit" class="station-edit" hidden>
           <form id="identity-form" class="identity-form" autocomplete="off">
             <div class="ac-wrap">
@@ -195,6 +200,7 @@
       <!-- ===== My Turn ===== -->
       <section id="view-turn" class="view" aria-labelledby="turn-title" hidden>
         <h2 id="turn-title" tabindex="-1">My Turn</h2>
+        <div class="handover-row"><p id="turn-handover" class="handover" role="status"></p><button type="button" id="btn-handover" class="primary" data-i18n="turn.handoverBtn">Hand over</button></div>
         <p id="turn-cycle" class="hint"></p>
         <section class="turn-resp" aria-labelledby="resp-title">
           <div class="toolbar">
@@ -406,26 +412,43 @@
 
         <section class="card data-card" aria-labelledby="data-title">
           <h3 id="data-title" data-i18n="data.title">Backup and data</h3>
-          <p class="hint" data-i18n="data.plaintext">A backup is a plain JSON file: anyone with the file can read it. Deleting something here does not delete copies already exported.</p>
-          <div class="toolbar">
-            <button type="button" id="btn-export-all" data-i18n="data.exportAll">Back up all (JSON)</button>
-            <button type="button" id="btn-import" data-i18n="data.import">Restore…</button>
-            <input type="file" id="import-file" accept=".json,application/json" hidden>
-          </div>
-          <p id="data-msg" class="data-msg" role="status"></p>
-          <h4 data-i18n="data.profiles">Station profiles</h4>
-          <ul id="profile-list" class="profile-list"></ul>
-          <h4 id="lists-title" data-i18n="lists.title">Callsign lists</h4>
-          <p class="hint" data-i18n="lists.hint">Your own lists (a text file in the PoLo format, or CSV) and the Austrian list apply to all tools on this device together: Confirm, Notfunk and Netlog.</p>
-          <div class="toolbar">
-            <button type="button" id="btn-lists-open" aria-haspopup="dialog" data-i18n="lists.open">Manage callsign lists…</button>
-            <span id="lists-summary" class="hint" role="status"></span>
-          </div>
-          <h4 data-i18n="data.links">Station lookup links</h4>
-          <p class="hint" data-i18n="data.linksHint">Netlog only offers links to QRZ.com, HamQTH, QRZCQ, APRS.fi and – if set on the Wavelog import page – your Wavelog; they need internet and are opened only by you. Nothing is looked up or sent by itself.</p>
-          <h4 data-i18n="data.erase">Erase permanently</h4>
-          <p class="hint" data-i18n="data.eraseHint">Deleting a session, station or note is reversible (restore, undo). Erasing removes it from this device for good, with its history and drafts.</p>
-          <button type="button" id="btn-erase-all" class="danger" data-i18n="data.eraseAll">Erase all Netlog data on this device…</button>
+          <section class="data-group" aria-labelledby="data-backup-title">
+            <h4 id="data-backup-title" data-i18n="data.backup">Back up and restore</h4>
+            <div class="data-action">
+              <button type="button" id="btn-export-all" class="primary" data-i18n="data.exportAll">Back up all (JSON)</button>
+              <p class="hint" data-i18n="data.exportAllHint">Downloads every series, session, station and note as one file.</p>
+            </div>
+            <div class="data-action">
+              <button type="button" id="btn-import" data-i18n="data.import">Restore…</button>
+              <p class="hint" data-i18n="data.importHint">Loads a backup file. Nothing stored here is overwritten; clashing sessions come in as copies.</p>
+              <input type="file" id="import-file" accept=".json,application/json" hidden>
+            </div>
+            <p id="data-msg" class="data-msg" role="status"></p>
+            <p class="hint note" data-i18n="data.plaintext">A backup is a plain JSON file: anyone with the file can read it. Deleting something here does not delete copies already exported.</p>
+          </section>
+          <section class="data-group" aria-labelledby="data-profiles-title">
+            <h4 id="data-profiles-title" data-i18n="data.profiles">Station profiles</h4>
+            <ul id="profile-list" class="profile-list"></ul>
+          </section>
+          <section class="data-group" aria-labelledby="lists-title">
+            <h4 id="lists-title" data-i18n="lists.title">Callsign lists</h4>
+            <div class="data-action">
+              <button type="button" id="btn-lists-open" aria-haspopup="dialog" data-i18n="lists.open">Manage callsign lists…</button>
+              <p class="hint" data-i18n="lists.hint">Your own lists (a text file in the PoLo format, or CSV) and the Austrian list apply to all tools on this device together: Confirm, Notfunk and Netlog.</p>
+            </div>
+            <p id="lists-summary" class="hint" role="status"></p>
+          </section>
+          <section class="data-group" aria-labelledby="data-links-title">
+            <h4 id="data-links-title" data-i18n="data.links">Station lookup links</h4>
+            <p class="hint" data-i18n="data.linksHint">Netlog only offers links to QRZ.com, HamQTH, QRZCQ, APRS.fi and – if set on the Wavelog import page – your Wavelog; they need internet and are opened only by you. Nothing is looked up or sent by itself.</p>
+          </section>
+          <section class="data-group danger-zone" aria-labelledby="data-erase-title">
+            <h4 id="data-erase-title" data-i18n="data.erase">Danger zone</h4>
+            <div class="data-action">
+              <button type="button" id="btn-erase-all" class="danger" data-i18n="data.eraseAll">Erase all Netlog data…</button>
+              <p class="hint" data-i18n="data.eraseHint">Deleting a session, station or note is reversible (restore, undo). Erasing removes it from this device for good, with its history and drafts.</p>
+            </div>
+          </section>
         </section>
         <!-- Hidden in the file:// bundle (it is the offline file). -->
         <aside id="offline-card" class="offline-card" aria-labelledby="offline-card-title">
