@@ -48,9 +48,16 @@
   <div class="hdr-status">
     <span id="mode-indicator" class="chip mode" role="status"></span>
     <span id="st-save" class="chip" role="status" aria-live="polite"></span>
-    <span id="st-offline" class="chip">offline: …</span>
-    <span id="st-storage" class="chip">…</span>
-    <button type="button" id="st-backup" class="chip chip-btn" hidden data-i18n-attr="title:backup.chipTitle" title="Start the download of this session's backup (JSON) now; whether the file arrived, the browser does not say"></button>
+    <div class="st-wrap">
+      <button type="button" id="st-summary" class="chip chip-btn" aria-expanded="false" aria-controls="st-panel"></button>
+      <div id="st-panel" class="st-panel" role="group" data-i18n-attr="aria-label:status.panel" aria-label="Offline, storage and backup" hidden>
+        <p><span class="st-label" data-i18n="status.offlineLabel">Offline use</span> <span id="st-offline" class="chip">offline: …</span></p>
+        <p><span class="st-label" data-i18n="status.storageLabel">Storage</span> <span id="st-storage" class="chip">…</span></p>
+        <p><span class="st-label" data-i18n="status.backupLabel">Backup</span>
+          <button type="button" id="st-backup" class="chip chip-btn" hidden data-i18n-attr="title:backup.chipTitle" title="Start the download of this session's backup (JSON) now; whether the file arrived, the browser does not say"></button>
+          <span id="st-backup-none" class="hint" data-i18n="status.noSession">open a session to back it up</span></p>
+      </div>
+    </div>
     <button id="btn-update" type="button" class="primary" hidden data-i18n="header.update">Use the new version</button>
   </div>
   <div class="hdr-controls">

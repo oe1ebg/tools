@@ -856,6 +856,7 @@ test('my own callsign: changed in Net Control, marked "me" in the lists; the bac
   await page.keyboard.type('One note.');
   await page.keyboard.press('Enter');
   await expect(page.locator('#st-backup')).toHaveText('no backup yet · 1 note');
+  await page.locator('#st-summary').click(); // the backup chip is in the status panel
   const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('#st-backup').click()]);
   expect(dl.suggestedFilename()).toMatch(/_backup\.json$/);
   await expect(page.locator('#st-backup')).toHaveText(/^backup started \d{2}:\d{2} UTC · nothing new since$/);
@@ -1727,4 +1728,26 @@ test('Close the net: every station is checked out, the log says "net closed", on
   await page.keyboard.press('Control+z');
   await expect.poll(() => page.evaluate(() => globalThis.NETLOG_APP.sd.participants.map(p => p.status).join())).toBe('active,active');
   await expect(page.locator('#log-rounds li.event-line').filter({ hasText: 'net closed' })).toHaveCount(0);
+});
+
+test('header: one status chip says OK or what needs a look; its panel has the details; Esc closes it', async ({ page }) => {
+  await open(page, { lang: 'en' });
+  await ready(page);
+  const sum = page.locator('#st-summary');
+  await expect(sum).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('#st-panel')).toBeHidden();
+  await sum.click();
+  await expect(page.locator('#st-panel')).toBeVisible();
+  await expect(page.locator('#st-panel #st-offline')).toBeVisible();
+  await expect(page.locator('#st-panel #st-storage')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#st-panel')).toBeHidden();
+  await expect(sum).toBeFocused();
+  // a session with unsaved notes: the chip warns, with a word, not only a colour
+  await startSession(page);
+  await checkIn(page, 'OE0QXB');
+  await openStation(page, 'OE0QXB');
+  await page.keyboard.type('a note');
+  await page.keyboard.press('Enter');
+  await expect(sum).toContainText(/⚠/);
 });

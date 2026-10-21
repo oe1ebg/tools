@@ -483,6 +483,33 @@ function renderHeader() {
 // Notfunk's chip: notes saved or changed since its download started. No
 // green "ok": a started download is no verified backup. A click downloads
 // a new one.
+// The one status chip in the header: ✓ OK, or ⚠ and a word for what needs a look
+// (offline readiness, storage, backup); the details are in its panel.
+function renderStatusSummary() {
+  const sev = id => { const c = $(id); return !c || c.hidden ? '' : c.classList.contains('err') ? 'err' : c.classList.contains('warn') ? 'warn' : ''; };
+  const items = [['#st-offline', 'status.sumOffline'], ['#st-storage', 'status.sumStorage'], ['#st-backup', 'status.sumBackup']]
+    .map(([id, key]) => [sev(id), key]).filter(([s]) => s);
+  const worst = items.some(([s]) => s === 'err') ? 'err' : items.length ? 'warn' : 'ok';
+  const chip = $('#st-summary');
+  setText(chip, !items.length ? t('status.sumOk') : items.length === 1 ? t(items[0][1]) : t('status.sumMany', { n: items.length }));
+  chip.className = `chip chip-btn ${worst}`;
+  chip.title = t('status.sumTitle');
+  $('#st-backup-none').hidden = !$('#st-backup').hidden;
+}
+
+function initStatusPanel() {
+  const btn = $('#st-summary');
+  const panel = $('#st-panel');
+  const set = open => { panel.hidden = !open; btn.setAttribute('aria-expanded', String(open)); };
+  btn.addEventListener('click', () => set(panel.hidden));
+  document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !panel.hidden) { set(false); btn.focus(); ev.stopPropagation(); } }, true);
+  document.addEventListener('click', ev => { if (!panel.hidden && !ev.target.closest('.st-wrap')) set(false); });
+  const mo = new MutationObserver(renderStatusSummary);
+  for (const id of ['#st-offline', '#st-storage', '#st-backup']) mo.observe($(id), { attributes: true, childList: true, characterData: true, subtree: true });
+  app.onLang(renderStatusSummary);
+  renderStatusSummary();
+}
+
 function renderBackupChip() {
   const chip = $('#st-backup');
   if (!app.s) { chip.hidden = true; return; }
@@ -811,6 +838,7 @@ async function main() {
   globalThis.NETLOG_STARTED = true;
   initLang();
   applyI18n(document);
+  initStatusPanel();
   // the chips' first text, in the page's language (later ones come from
   // offline.js and initPersistence())
   setText($('#st-offline'), t('offline.checking'));
