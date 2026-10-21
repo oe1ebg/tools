@@ -10,7 +10,7 @@
 // writer; the arrows of the direction are drawn as shapes (not in WinAnsi).
 
 import { bookSheet } from './print.js';
-import { PDF_A4_LANDSCAPE, pdfCanvas, pdfDocument, pdfWrap, pdfTextWidth } from '../../shared/js/pdf.js';
+import { PDF_A4_LANDSCAPE, pdfCanvas, pdfDocument, pdfWrap, pdfTextWidth, pdfFooterUrl } from '../../shared/js/pdf.js';
 
 export const NBP_PAGE = PDF_A4_LANDSCAPE;
 const NBP_MARGIN = 10;
@@ -166,6 +166,7 @@ function nbpPage(b, rows, n, total) {
   }
   cv.text(`Notfunk-Meldebuch${b.title ? ` · ${b.title}` : ''}`, x0, NBP_PAGE.height - NBP_MARGIN + 0.5, { size: 8, gray: 0.2 });
   cv.text(`Seite ${n} von ${total}`, x1, NBP_PAGE.height - NBP_MARGIN + 0.5, { size: 9, align: 'right' });
+  pdfFooterUrl(cv, x0, NBP_PAGE.height - NBP_MARGIN + 4);
   return cv.ops.join('\n');
 }
 

@@ -18,7 +18,7 @@ import { splitTime, zoneAbbr } from '../../shared/js/time.js';
 import { LOC_ORIGINS, locOrigin, locHints } from '../../shared/js/locmeta.js';
 import { describeLocation } from '../../shared/js/locfield.js';
 import { formatShift } from '../../shared/js/repeaters.js';
-import { PDF_A4_LANDSCAPE, pdfCanvas, pdfDocument, pdfWrap, pdfTextWidth } from '../../shared/js/pdf.js';
+import { PDF_A4_LANDSCAPE, pdfCanvas, pdfDocument, pdfWrap, pdfTextWidth, pdfFooterUrl } from '../../shared/js/pdf.js';
 
 export const CLP_PAGE = PDF_A4_LANDSCAPE;
 const CLP_MARGIN = 10;
@@ -380,6 +380,7 @@ function clpPage(cx, head, cols, rows, n, total) {
   }
   cv.text(`Bestätigungsverkehr · ${title}`, x0, CLP_PAGE.height - CLP_MARGIN + 0.5, { size: 8, gray: 0.2 });
   cv.text(`Seite ${n} von ${total}`, x1, CLP_PAGE.height - CLP_MARGIN + 0.5, { size: 9, align: 'right' });
+  pdfFooterUrl(cv, x0, CLP_PAGE.height - CLP_MARGIN + 4);
   return cv.ops.join('\n');
 }
 
