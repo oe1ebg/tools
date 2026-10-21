@@ -311,10 +311,11 @@ test('My Turn: round 1 response above the round 4 summary, points in, tasks and 
   await page.locator('#point-text').fill('Mention the next portable test.');
   await page.locator('#point-text').press('Enter');
   await expect(queue(page)).toHaveCount(2);
-  await expect(queue(page).nth(0)).toContainText('OE0QXB');
-  await expect(queue(page).nth(0)).toContainText('Interference persists after antenna change.');
-  await expect(queue(page).nth(0).locator('textarea')).toHaveValue('Ask about common-mode current.');
-  await expect(queue(page).nth(1)).toContainText('Personal talking point');
+  // the newest on top: the point just added, then the response
+  await expect(queue(page).nth(0)).toContainText('Personal talking point');
+  await expect(queue(page).nth(1)).toContainText('OE0QXB');
+  await expect(queue(page).nth(1)).toContainText('Interference persists after antenna change.');
+  await expect(queue(page).nth(1).locator('textarea')).toHaveValue('Ask about common-mode current.');
   await expect(page.locator('#turn-items')).not.toContainText('Send QSL card');
   await expect(page.locator('#turn-items')).not.toContainText('Earlier session');
   // the responses come before the round notes on the page
@@ -337,9 +338,9 @@ test('My Turn: round 1 response above the round 4 summary, points in, tasks and 
   await page.keyboard.press('p'); // no longer a command: nothing changes
   expect(await queue(page).allTextContents()).toEqual(before);
   await expect(page.locator('#sum-topic')).toHaveText('Round 4 (current) · Round 3 (previous)');
-  // manual order: the point moves above the response, with a button
+  // manual order: the response moves above the point, with a button
   await queue(page).nth(1).getByRole('button', { name: /Move up/ }).click();
-  await expect(queue(page).nth(0)).toContainText('Personal talking point');
+  await expect(queue(page).nth(0)).toContainText('Interference persists');
   // in the first round there is no previous one
   // (the round list in Net Control is gone: make round 1 current through the app's own operation)
   await page.evaluate(async () => { const { setCurrentRound } = await import('./js/ops.js'); const a = globalThis.NETLOG_APP; await a.act(store => setCurrentRound(store, a.ctx(), a.sd.rounds.slice().sort((x, y) => x.number - y.number)[0].id)); });
@@ -363,21 +364,26 @@ test('My Turn: Enter opens the source, b comes back to the same place; x complet
   // the station link with the pointer does the same, the checkbox does not navigate
   await queue(page).first().locator('input.turn-done').check();
   await expect(page.locator('#view-turn')).toBeVisible();
-  await expect(queue(page).first()).toHaveClass(/done/);
-  await queue(page).first().locator('input.turn-done').uncheck();
-  await expect(queue(page).first()).not.toHaveClass(/done/);
-  // x completes the focused item; it stays (subdued) through a reload
+  // an answered item leaves the list and goes to the collapsed "Answered" list, where it can be reopened
+  await expect(queue(page)).toHaveCount(0);
+  await expect(page.locator('#turn-history-summary')).toHaveText('Answered (1)');
+  await page.locator('#turn-history-summary').click();
+  await page.locator('#turn-history-list').getByRole('button', { name: 'Reopen' }).click();
+  await expect(queue(page)).toHaveCount(1);
+  await expect(page.locator('#turn-history')).toBeHidden();
+  // x completes the focused item; it stays answered through a reload
   await queue(page).first().focus();
   await page.keyboard.press('x');
-  await expect(queue(page).first()).toHaveClass(/done/);
+  await expect(queue(page)).toHaveCount(0);
   await expect(page.locator('#tab-turn-count')).toHaveText('');
   await page.reload();
   await ready(page);
   await expect(page.locator('#view-turn')).toBeVisible();
-  await expect(queue(page).first()).toHaveClass(/done/);
+  await expect(queue(page)).toHaveCount(0);
+  await expect(page.locator('#turn-history-summary')).toHaveText('Answered (1)');
   await page.locator('#btn-end-turn').click();
   await expect(queue(page)).toHaveCount(0);
-  await expect(page.locator('#turn-history-summary')).toHaveText('Completed earlier (1)');
+  await expect(page.locator('#turn-history-summary')).toHaveText('Answered (1)');
   await expect(page.locator('#round-indicator')).toHaveText('Round 4');
 });
 
@@ -716,6 +722,21 @@ test('privacy: remove and restore a station, erase it for good; lookup links onl
   await page.getByRole('button', { name: 'Erase OE0QXB and everything recorded about it permanently' }).click();
   await expect(page.locator('#removed-list')).toHaveText('No removed stations.');
   expect(await page.evaluate(async () => (await globalThis.NETLOG_APP.store.getAll('notes')).length)).toBe(0);
+});
+
+test('Net Control: the roster report is collapsed, then shows the table and the presence timeline', async ({ page }) => {
+  await open(page, { lang: 'en' });
+  await oneNote(page);
+  await checkIn(page, 'OE0QXC');
+  await page.locator('#tab-control').click();
+  await expect(page.locator('#rr-details')).not.toHaveAttribute('open', '');
+  await expect(page.locator('.rr-table')).toHaveCount(0);
+  await page.locator('#rr-details summary').click();
+  await expect(page.locator('.rr-table tbody tr')).toHaveCount(await page.locator('#order-list > li').count());
+  await expect(page.locator('.rr-table tbody tr').first()).toContainText('OE0QX');
+  await expect(page.locator('svg.rr-chart')).toHaveAttribute('role', 'img');
+  await expect(page.locator('svg.rr-chart rect.rr-bar').first()).toBeVisible();
+  await expect(page.locator('.rr-legend li')).toHaveCount(6);
 });
 
 // ---------- time display, callsign list ----------

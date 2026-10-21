@@ -308,6 +308,14 @@ offers the export, as on any other page without IndexedDB.
   **Close the net** ("Runde beenden") checks every station that is still in
   out (each with its own status event and time) and adds one general line
   "net closed" with the time to the log; it is one undo step.
+- **Roster and presence over time** (Net Control, a collapsed card of its own,
+  separate from the station list): the roster table of the roster PDF (call
+  with [NCS] / [me] tags, name, status, in, out, duration, notes) and the
+  presence timeline: a row per station, solid green active, hatched blue
+  monitoring, hatched amber paused, hatched lilac unconfirmed, a gap while
+  checked out, a magenta strip while net control, a tick per note, the start
+  and end of the net on the axis. The PDF and the card are made from the
+  same data (`js/rosterdata.js`). A former net control gets a grey [NCS] tag.
 - **Export this session** (Net Control card):
   - *Stations (CSV)*: one row per station, the NCS first: callsign, name,
     QTH, locator, status, role (NCS, me), first check-in and last check-out
