@@ -372,12 +372,28 @@ export function updateParticipant(store, ctx, id, patch) {
   }));
 }
 
+// A status changed again within this long is taken as a slip of the finger, not as a state.
+const STATUS_SLIP_MS = 10000;
+
 export function setStatus(store, ctx, id, status) {
   return runOp(store, { ...ctx, label: 'undo.status' }, async w => {
     const p = await w.get('participants', id);
     const ch = changeStatus(p, status, w.now);
     if (!ch) return p;
     const session = await w.get('sessions', ctx.sessionId);
+    // The station's last status change is only seconds old: this one replaces it (A-B-A leaves
+    // nothing, A-B-C becomes A-C). The replaced event is soft-deleted, so undo and the revisions
+    // keep it. Changes to or from "checked out" are never merged (they carry presence times).
+    const last = p.status !== 'out' && status !== 'out'
+      ? (await w.all('events')).filter(e => e.type === 'status' && !e.deleted && e.participantId === id && e.time && e.time.iso)
+        .sort((x, y) => (x.time.iso < y.time.iso ? -1 : x.time.iso > y.time.iso ? 1 : 0)).pop()
+      : null;
+    const age = last ? Date.parse(w.now) - Date.parse(last.time.iso) : NaN;
+    if (last && last.to === p.status && last.from !== 'out' && age >= 0 && age < STATUS_SLIP_MS) {
+      w.update('events', last.id, e => ({ ...e, deleted: w.now }));
+      if (last.from !== status) w.create('events', { ...ch.event, from: last.from, roundId: session && session.currentRoundId, deleted: null });
+      return w.put('participants', ch.participant, p);
+    }
     w.create('events', { ...ch.event, roundId: session && session.currentRoundId, deleted: null });
     if (p.status === 'out') autoNcs(w, session, ch.participant);
     return w.put('participants', ch.participant, p);
