@@ -125,6 +125,11 @@ export function pdfCanvas({ height }) {
         + `${p(cx - r, cy - k)} ${p(cx - k, cy - r)} ${p(cx, cy - r)} c `
         + `${p(cx + k, cy - r)} ${p(cx + r, cy - k)} ${p(cx + r, cy)} c ${solid ? 'B' : 'S'}`);
     },
+    // Drawing between clip(x, y, w, h) and unclip() is cut at that rectangle (hatching in a bar).
+    clip(x, y, w, h) {
+      ops.push(`q ${X(x)} ${Y(y + h)} ${pdfNum(w * PDF_MM)} ${pdfNum(h * PDF_MM)} re W n`);
+    },
+    unclip() { ops.push('Q'); },
     // `gray` (0 black .. 1 white) or a colour [r, g, b] (0..1 each)
     fill(x, y, w, h, gray) {
       ops.push(`${pdfFillColor(gray)} ${X(x)} ${Y(y + h)} ${pdfNum(w * PDF_MM)} ${pdfNum(h * PDF_MM)} re f`);
