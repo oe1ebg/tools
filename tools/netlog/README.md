@@ -202,10 +202,11 @@ offers the export, as on any other page without IndexedDB.
   and their topics ("Runde 4 (aktuell) · Runde 3 (vorige)"); in the first
   round "noch keine vorige Runde". There is nothing to switch (the former
   `p` toggle is gone). Opening My Turn starts a review
-  cycle (a "turn") that survives navigation and reloads: completed items
-  stay visible, subdued, until **End Turn**, which clears them (they stay
-  in "Completed earlier") and keeps the open ones. Neither changes the
-  round.
+  cycle (a "turn") that survives navigation and reloads. The open
+  responses and talking points come first, the newest on top (↑ / ↓ reorder
+  them); ticked-off ones move to the collapsed "Answered" list below, where
+  each can be reopened. The round notes follow underneath. **End Turn**
+  closes the cycle and keeps the open items. Neither changes the round.
 - **Going to a station and back.** A station or note link in My Turn (or
   Enter on a focused item) opens Live Notes at the source: the station, its
   round expanded, the note focused and highlighted. `b` (or "Back to Live
@@ -217,7 +218,10 @@ offers the export, as on any other page without IndexedDB.
   first one has none; nothing earlier is invented). Net Control lists the
   handovers with their time (UTC `HH:MM`, "estimated" if heard late), which
   can be corrected (a revision, undoable). A series' usual net control is
-  shown as a suggestion with a button, never assigned by itself.
+  shown as a suggestion with a button; when that station checks in (added,
+  or back from "checked out") and the session has no net control yet, it
+  becomes net control by itself, as an ordinary handover (undone together
+  with the check-in). An existing net control is never replaced.
 - **Continuous Log**: all notes of the session in recorded order, by round
   (older rounds collapsed), each with its station. They are the same notes
   as in Live Notes: edit, flag, task, move, delete work the same, and the
@@ -321,15 +325,18 @@ offers the export, as on any other page without IndexedDB.
     (FM, SSB, AM, CW, DMR, D-STAR, C4FM, M17, FreeDV); without one, a
     repeater whose list entry has exactly one of these modes gives it
     (and the card says so).
-  - *Roster and facts (PDF)*: A4 PDF: the net (name, series, date, start and
-    end as times, the end with its date when the net crossed midnight, duration
-    hh:mm, number of rounds and notes, net control, my callsign, speaking
-    order, repeater, frequency, mode), the series (schedule, sessions, usual
-    net control and defaults, description), the roster in list order with
+  - *Roster and facts (PDF)*: A4 PDF: the net in one block (name, series
+    with its schedule, date, start and end as times, the end with its date
+    when the net crossed midnight, duration hh:mm, number of rounds and
+    notes, net control, my callsign, speaking order, repeater, frequency,
+    mode as used in this net, the series' sessions and description), the roster in list order with
     [NCS] / [me] tags, status, in, out and duration (first check-in to last
     check-out, hh:mm; one still in runs to the net closed, else to the last
-    thing recorded for it; "-" over 24 h), notes per station, and the net
-    control handovers.
+    thing recorded for it; "-" over 24 h), notes per station, a timeline of
+    presence (a row per station; solid green active, hatched blue monitoring,
+    hatched amber paused, hatched lilac unconfirmed, a gap while checked out,
+    a magenta strip while net control, a tick per
+    note; built from the status changes), and the net control handovers.
   - *Print report…*: session, date, NCS, repeater, mode; the stations; the
     rounds with their notes by station (times UTC, "~" estimated) only
     when "with notes and replies" is ticked (unticked by default: notes are

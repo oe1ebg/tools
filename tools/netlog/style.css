@@ -758,3 +758,11 @@ button[data-keys]::after{ font-family:-apple-system, system-ui, "Segoe UI Symbol
 .st-label{ min-width:7em; font-weight:600; font-size:14px; }
 .st-panel .chip{ white-space:normal; text-align:left; }
 .undo-redo{ min-height:28px; } /* keeps its height when the buttons are hidden (no session): the header must not change height */
+
+/* My Turn: the answered items, one compact row each with its reopen button at the right */
+#turn-history ul{ list-style:none; margin:.4em 0 0; padding:0; border-top:1px solid var(--line); }
+#turn-history li.th-row{ display:flex; gap:.7em; align-items:center; padding:.35em .2em; border-bottom:1px solid var(--line); }
+#turn-history .th-who{ flex:0 0 7.5em; font-family:var(--font-mono); }
+#turn-history .th-text{ flex:1 1 auto; min-width:0; color:var(--text-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#turn-history .th-row button{ flex:0 0 auto; }
+#turn-history summary{ cursor:pointer; }
