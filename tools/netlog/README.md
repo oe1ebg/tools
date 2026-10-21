@@ -96,7 +96,11 @@ offers the export, as on any other page without IndexedDB.
   edit panel right under the heading: callsign and name, then the details
   (QTH, locator, RST, member number, EchoLink, presence intervals); it belongs to that station and closes when another one is
   selected. Checking out closes the presence interval; coming back opens
-  a new one (a reentry). Correcting a callsign keeps the station's id, so
+  a new one (a reentry). A status changed again within 10 seconds counts
+  as a slip: the new change replaces the last one (active, paused, active
+  leaves no event; active, paused, listening becomes active, listening),
+  the replaced event is kept as a revision and ⌘Z brings it back. Checking
+  out and in are always recorded. Correcting a callsign keeps the station's id, so
   everything recorded for it stays with it.
 - **Order.** "↑ Nach oben" / "↓ Nach unten" (two equal buttons right
   under the participant list, above the check-in form) move the selected

@@ -477,3 +477,36 @@ test('the series\' usual net control becomes net control when it checks in and t
   await undo(store, ctx);
   assert.equal((await store.get('sessions', s.id)).ncsId, null, 'undoing the check-in undoes the handover with it');
 });
+
+test('status: a change repeated within seconds replaces the last one (A-B-A nothing, A-B-C one), undo keeps it', async () => {
+  const { store, ctx, a } = await withStations();
+  const live = async () => (await get(store, ctx, 'events')).filter(e => e.type === 'status' && !e.deleted && e.participantId === a.id);
+  await setStatus(store, ctx, a.id, 'paused');
+  assert.equal((await live()).length, 1);
+  await setStatus(store, ctx, a.id, 'active'); // back at once: A-B-A
+  assert.equal((await live()).length, 0);
+  assert.equal((await store.get('participants', a.id)).status, 'active');
+  await setStatus(store, ctx, a.id, 'paused');
+  await setStatus(store, ctx, a.id, 'listening'); // A-B-C: one change, active -> listening
+  const one = await live();
+  assert.deepEqual(one.map(e => [e.from, e.to]), [['active', 'listening']]);
+  assert.equal((await store.get('participants', a.id)).status, 'listening');
+  await undo(store, ctx); // back to paused, with the replaced event again
+  assert.equal((await store.get('participants', a.id)).status, 'paused');
+  assert.deepEqual((await live()).map(e => [e.from, e.to]), [['active', 'paused']]);
+});
+
+test('status: not merged when older than 10 s or when it involves "checked out"', async () => {
+  const { store, ctx, a } = await withStations();
+  const live = async () => (await get(store, ctx, 'events')).filter(e => e.type === 'status' && !e.deleted && e.participantId === a.id);
+  await setStatus(store, ctx, a.id, 'paused');
+  const [ev] = await live();
+  await setEventTime(store, ctx, ev.id, { iso: new Date(Date.now() - 20000).toISOString(), quality: 'estimated' });
+  await setStatus(store, ctx, a.id, 'active');
+  assert.equal((await live()).length, 2, 'a stay of 20 s is a state');
+  await setStatus(store, ctx, a.id, 'out');
+  await setStatus(store, ctx, a.id, 'active');
+  assert.equal((await live()).length, 4, 'check-out and check-in are always recorded');
+  const p = await store.get('participants', a.id);
+  assert.equal(p.presence.length, 2);
+});
