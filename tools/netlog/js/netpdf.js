@@ -7,7 +7,7 @@
 // header). Text is WinAnsi: arrows and symbols of the screen are written as
 // words or ASCII.
 
-import { PDF_A4_PORTRAIT, pdfCanvas, pdfDocument, pdfWrap, pdfTextWidth, pdfOpen, pdfFooterUrl } from '../../shared/js/pdf.js';
+import { PDF_MM, PDF_A4_PORTRAIT, pdfCanvas, pdfDocument, pdfWrap, pdfTextWidth, pdfOpen, pdfFooterUrl } from '../../shared/js/pdf.js';
 import { t } from './i18n.js';
 import { hm, zone, timeMode } from './clock.js';
 import { splitTime } from '../../shared/js/time.js';
@@ -185,18 +185,22 @@ export function logPdf(app) {
 
 // How a status looks in black and white: a fill (gray level, 0 black .. 1 white) and an outline.
 // Absent (checked out) stations have no bar, so every drawn state differs by more than its tone.
+// the stroke of hatching and outlines: pt (as the writer takes it), and half of it in mm
+const NPDF_LW = 0.55;
+const NPDF_HALF = NPDF_LW / PDF_MM / 2;
 const NPDF_HATCH = true; // the states other than active as hatching (else plain tints)
 const NPDF_LOOK = {
   active: { gray: [0.1, 0.55, 0.27], tick: 1 },
   listening: { gray: [0.62, 0.8, 0.97], ink: [0.15, 0.4, 0.85], outline: true, tick: 0.1, hatch: ['/', 1.2] },
-  unconfirmed: { gray: [0.8, 0.68, 0.9], ink: [0.55, 0.32, 0.75], dash: [0.8, 0.8], tick: 0.1, hatch: ['|', 1.1] },
-  paused: { gray: [1, 0.82, 0.25], ink: [0.8, 0.5, 0], dash: [1.2, 0.9], tick: 0.1, hatch: ['x', 1.6] },
+  unconfirmed: { gray: [0.8, 0.68, 0.9], ink: [0.55, 0.32, 0.75], outline: true, tick: 0.1, hatch: ['|', 1.1] },
+  paused: { gray: [1, 0.82, 0.25], ink: [0.8, 0.5, 0], outline: true, tick: 0.1, hatch: ['x', 1.6] },
 };
 
 // Hatching in a bar (top left x, y; size w, h): '/' and '\\' diagonals, 'x' both, '|' vertical,
 // every `gap` mm in `color`; the lines are cut at the bar's edges.
 function npdfHatch(cv, kind, gap, x, y, w, h, color) {
-  const opt = { width: 0.55, color };
+  const opt = { width: NPDF_LW, color };
+  cv.clip(x + NPDF_HALF, y + NPDF_HALF, w - 2 * NPDF_HALF, h - 2 * NPDF_HALF); // the lines end at the outline
   const diag = up => {
     for (let c = -h; c <= w; c += gap) {
       const lo = Math.max(0, -c), hi = Math.min(h, w - c);
@@ -209,6 +213,14 @@ function npdfHatch(cv, kind, gap, x, y, w, h, color) {
   if (kind === '/' || kind === 'x') diag(true);
   if (kind === 'x') diag(false);
   if (kind === '|') for (let c = gap / 2; c < w; c += gap) cv.line(x + c, y, x + c, y + h, opt);
+  cv.unclip();
+}
+
+// The outline of a bar, drawn inside its edge: a stroke is centred on the line, so the bar
+// keeps the size of a plain one.
+function npdfOutline(cv, x, y, w, h, look) {
+  const k = NPDF_HALF;
+  cv.rect(x + k, y + k, Math.max(w - 2 * k, 0.1), Math.max(h - 2 * k, 0.1), { width: NPDF_LW, dash: look.dash, ...(NPDF_HATCH && look.ink ? { color: look.ink } : {}) });
 }
 
 // net control strip: magenta, thin (not red: next to the green bars it is lost for red-green colour blindness; not dark: it read as black)
@@ -286,7 +298,7 @@ function npdfTimeline(f, app, roster, span, notes) {
       const bx = X(s.from), bw = Math.max(X(s.to) - bx, 0.5);
       cv.fill(bx, y + 1.7, bw, rowH - 3.5, NPDF_HATCH && look.hatch ? 1 : look.gray);
       if (NPDF_HATCH && look.hatch) npdfHatch(cv, look.hatch[0], look.hatch[1], bx, y + 1.7, bw, rowH - 3.5, look.ink);
-      if (look.dash || look.outline) cv.rect(bx, y + 1.7, bw, rowH - 3.5, { width: 0.35, dash: look.dash, ...(NPDF_HATCH && look.ink ? { color: look.ink } : {}) });
+      if (look.dash || look.outline) npdfOutline(cv, bx, y + 1.7, bw, rowH - 3.5, look);
     }
     // net control: a thin magenta strip above the bar
     for (const [a, b] of ncsRuns.get(p.id) || []) cv.fill(X(a), y + 0.6, Math.max(X(b) - X(a), 0.5), 0.6, NPDF_NCS);
@@ -305,7 +317,7 @@ function npdfTimeline(f, app, roster, span, notes) {
   for (const [st, look] of Object.entries(NPDF_LOOK)) {
     cv.fill(lx, y, 6, 3, NPDF_HATCH && look.hatch ? 1 : look.gray);
     if (NPDF_HATCH && look.hatch) npdfHatch(cv, look.hatch[0], look.hatch[1], lx, y, 6, 3, look.ink);
-    if (look.dash || look.outline) cv.rect(lx, y, 6, 3, { width: 0.35, dash: look.dash, ...(NPDF_HATCH && look.ink ? { color: look.ink } : {}) });
+    if (look.dash || look.outline) npdfOutline(cv, lx, y, 6, 3, look);
     const label = t(`status.${st}`);
     cv.text(label, lx + 7.5, y + 2.6, { size: 7.5 });
     lx += 7.5 + pdfTextWidth(label, 7.5, false) + 5;
