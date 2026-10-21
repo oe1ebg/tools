@@ -192,8 +192,12 @@ export function renderSpeak(app) {
     return;
   }
   const nextNo = Math.max(0, ...roundsSorted(app.sd.rounds).map(r => r.number || 0)) + 1;
-  setText(b, st.complete || !st.next ? t('speak.newRound', { n: nextNo }) : t('speak.nextBtn', { call: name(st.next) }));
+  // a finished round: start the next one and name who opens it (green)
+  const opener = st.complete || !st.next ? (netStyle(app.s) === 'circle' ? st.next || st.order[0] : st.order[0]) : null;
+  setText(b, st.complete || !st.next ? t(opener ? 'speak.newRoundNext' : 'speak.newRound', { n: nextNo, call: opener ? name(opener) : '' }) : t('speak.nextBtn', { call: name(st.next) }));
   setAttr(b, 'aria-label', st.complete || !st.next ? null : `${b.textContent} (${t('speak.nextHint')})`);
   b.classList.toggle('suggest-round', st.complete);
   b.disabled = app.readOnly || (!st.order.length && !st.complete);
+  // starting the next round belongs to the net control's page (when there is one)
+  b.hidden = !!(st.complete || !st.next) && !!st.ncs && app.ui.selected !== st.ncs.id;
 }

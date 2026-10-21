@@ -137,14 +137,18 @@ export function renderData(app) {
   const profiles = liveOf(app.data.profiles).sort((a, b) => cmp(a.call, b.call));
   keyedList($('#profile-list'), profiles, {
     key: p => p.id,
-    create: () => el('li', { class: 'profile-row' }, el('span', {}), ' ', el('button', { type: 'button', class: 'mini danger', 'data-act': 'erase-profile' })),
+    create: () => el('li', { class: 'profile-row' }, el('b', { class: 'pcall mono' }), el('span', { class: 'pname' }), el('span', { class: 'pwhere' }), el('button', { type: 'button', class: 'mini danger', 'data-act': 'erase-profile' })),
     update: (li, p) => {
-      setText(li.firstChild, [p.call, p.name, p.qth, p.locator].filter(Boolean).join(' · '));
+      const [c, n, w] = li.children;
+      setText(c, p.call);
+      setText(n, p.name || '');
+      setText(w, [p.qth, p.locator].filter(Boolean).join(' · '));
       const b = li.lastChild;
       b.dataset.id = p.id;
       setText(b, t('data.eraseProfile'));
       b.setAttribute('aria-label', t('data.eraseProfileLabel', { call: p.call }));
     },
   });
+  setText($('#profile-count'), profiles.length ? `(${profiles.length})` : '');
   if (!profiles.length) fill($('#profile-list'), el('li', { class: 'hint', 'data-key': '' }, t('data.noProfiles')));
 }

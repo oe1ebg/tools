@@ -167,7 +167,7 @@ async function newRound(page) {
   await expect(page.locator('#round-indicator')).not.toHaveText(before);
 }
 
-test('Shift+Enter in the new-note field saves the note and hands over to the next station', async ({ page }) => {
+test('Ctrl+Enter in the new-note field saves the note and hands over to the next station; Shift+Enter is a line break; Ctrl+Shift+Enter saves a question', async ({ page }) => {
   await open(page, { lang: 'en' });
   await startSession(page);
   await checkIn(page, 'OE0QXB', 'Jonas');
@@ -175,12 +175,20 @@ test('Shift+Enter in the new-note field saves the note and hands over to the nex
   await page.locator('#roster button.person', { hasText: 'OE0QXB' }).click();
   await page.locator('#btn-ncs').click();
   await openStation(page, 'OE0QXB');
-  await page.keyboard.type('Over to you.');
+  await page.keyboard.type('Is the antenna ready?');
   await page.keyboard.press('Shift+Enter');
+  await page.keyboard.type('Please repeat.');
+  await expect(composer(page)).toHaveValue('Is the antenna ready?\nPlease repeat.');
+  await page.keyboard.press('Control+Shift+Enter'); // saved as a question: stays on this station
+  await expect(notesOf(page)).toHaveCount(1);
+  await expect(page.locator('#station-call')).toHaveText('OE0QXB');
+  await expect(page.locator('#station-rounds li.note').first()).toHaveClass(/flagged/);
+  await page.keyboard.type('Over to you.');
+  await page.keyboard.press('Control+Enter');
   await expect(page.locator('#station-call')).toHaveText('OE0QXC');
   await expect(page.locator('#roster li.on-air .call')).toHaveText('OE0QXC');
   await page.locator('#roster button.person', { hasText: 'OE0QXB' }).click();
-  await expect.poll(() => values(notesOf(page))).toEqual(['Over to you.']);
+  await expect.poll(() => values(notesOf(page))).toEqual(['Is the antenna ready?\nPlease repeat.', 'Over to you.']);
 });
 
 test('notes: Enter saves and goes on, empty and IME Enter save nothing; order stays', async ({ page }) => {
@@ -721,7 +729,7 @@ test('times in UTC or local time, always labelled; a handover typed in local tim
   await page.locator('#time-toggle button[data-time=local]').click();
   await expect(page.locator('#time-toggle button[data-time=local]')).toHaveAttribute('aria-pressed', 'true');
   // the test browsers run in Europe/Vienna
-  await expect(noteTime).toHaveText(/^\d{2}:\d{2} (CEST|CET)$/);
+  await expect(noteTime).toHaveText(/^\d{2}:\d{2}$/); // no zone name in local-time lines
   await expect(page.locator('#clock-zone')).toHaveText(/^(CEST|CET)$/);
   await expect(page.locator('#st-save')).toHaveText(/ (CEST|CET)$/);
   await expect(page.locator('#time-toggle button[data-time=local]')).toHaveText(/^Europe\/Vienna \((CEST|CET)\)$/);
@@ -1038,7 +1046,7 @@ test('circle net: stations pass on in turn, the NCS included; the roster draws a
     await page.locator('#btn-next').click();
     await expect(page.locator('#roster li.on-air .call')).toHaveText(call);
   }
-  await expect(page.locator('#btn-next')).toHaveText('▶ Start round 2');
+  await expect(page.locator('#btn-next')).toHaveText('▶ Start round 2 · next: OE0QXN');
 });
 
 test('status looks the same in both lists; checked-out stations are struck through and reached by j/k; "me" from Net Control', async ({ page }) => {

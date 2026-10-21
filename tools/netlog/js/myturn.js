@@ -18,7 +18,7 @@ import { keyedList, setText, setAttr, setValue, setNamed } from './keyed.js';
 import { provenanceButton, renderProvenance, openProvenance } from './historyui.js';
 import { speakingState, netStyle, queueItems, openTurn, previousRound, turnSummary, responseOf, liveOf, cmp } from './model.js';
 import { setItemDone, moveItem, addPoint, startTurn, endTurn, setItemText, deleteItem } from './ops.js';
-import { callText } from './roster.js';
+import { callText, isOwn } from './roster.js';
 import { nextSpeaker } from './speak.js';
 import { autosize, replyKey } from './notes.js';
 import { hmz } from './clock.js';
@@ -135,17 +135,37 @@ export async function enterTurn(app) {
 function renderHandover(app) {
   const st = speakingState({ session: app.s, participants: app.sd.participants, contributions: app.sd.contributions });
   const box = $('#turn-handover');
+  const btn = $('#btn-handover');
+  btn.hidden = false;
   let text = '';
+  let label = t('turn.handoverBtn');
+  const newRound = !st.free && !st.needsNcs && (st.complete || !st.next);
   if (!st.free && !st.needsNcs) {
-    if (st.complete || !st.next) text = t('turn.handoverDone');
-    else {
+    if (newRound) {
+      // the round is through: start the next one, and say who opens it
+      const opener = netStyle(app.s) === 'circle' ? st.next || st.order[0] : st.order[0];
+      const n = Math.max(0, ...app.sd.rounds.map(r => r.number || 0)) + 1;
+      // only the net control's own page starts the next round
+      if (netStyle(app.s) === 'circle' && opener) {
+        // round-robin: the last station hands over, and that starts the new round
+        text = t('turn.handoverNewRound', { call: callText(opener), n });
+        label = t('turn.handoverBtn');
+      } else {
+        const other = st.ncs && !isOwn(app, st.ncs);
+        text = t(other ? 'turn.handoverDoneNcs' : 'turn.handoverDone', { call: st.ncs ? callText(st.ncs) : '' });
+        btn.hidden = other;
+        label = t(opener ? 'speak.newRoundNext' : 'speak.newRound', { n, call: opener ? callText(opener) : '' });
+      }
+    } else {
       const ncsNext = st.ncs && st.next.id === st.ncs.id && netStyle(app.s) === 'star';
       text = t(ncsNext ? 'turn.handoverNcs' : 'turn.handover', { call: callText(st.next) });
     }
   }
   setText(box, text);
   box.parentNode.hidden = !text;
-  $('#btn-handover').disabled = app.readOnly || !text || st.complete || !st.next;
+  setText(btn, label);
+  btn.classList.toggle('suggest-round', newRound && !!text);
+  btn.disabled = app.readOnly || !text || (newRound && !st.order.length);
 }
 
 export function renderTurn(app) {

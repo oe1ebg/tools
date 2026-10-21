@@ -333,7 +333,8 @@ table.keys th:first-child, table.keys td:first-child{ width:12.5rem; }
 .next-btn{ text-align:left; }
 .next-row{ margin:.2em 0 .6em; }
 .sidehead .speak-style{ margin:.3em 0 0; }
-.next-btn.suggest-round{ background:var(--ok); border-color:var(--ok); }
+.next-btn.suggest-round, .composer-foot .next-btn.suggest-round{ background:var(--ok); border-color:var(--ok); color:#fff; }
+:root[data-theme="dark"] .next-btn.suggest-round{ color:var(--bg); }
 .own-turn{ margin:.4em 0; }
 /* status lines among the notes: tinted, so they are not overlooked */
 li.event-line{ list-style:none; display:flex; gap:.6em; margin:.3em 0; padding:.3em .6em; font-size:14px; color:var(--text); background:var(--accent-soft); border-left:4px solid var(--accent-dim); border-radius:0 4px 4px 0; }
@@ -691,3 +692,36 @@ li.event-line .time{ min-width:5.5em; }
 /* the marker in front of a roster row: red = on air; a symbol (pause, headphones, x) for a station that is skipped */
 .dot.on-air{ background:var(--err); width:.75em; height:.75em; }
 .dot.sym{ width:auto; height:auto; background:none; border-radius:0; font-size:14px; line-height:1; color:var(--text-dim); min-width:1.1em; text-align:center; }
+
+/* station profiles: collapsed, a row per profile in columns */
+.data-card details.profiles-group > summary{ cursor:pointer; list-style:revert; }
+.data-card details.profiles-group > summary h4{ display:inline; margin:0; }
+.data-card .count{ color:var(--text-dim); font-weight:400; }
+.data-card details.profiles-group[open] > summary{ margin-bottom:.4em; }
+.data-card .profile-list{ margin:.4em 0 0; }
+.data-card .profile-row{ display:grid; grid-template-columns:7em minmax(6em,1fr) minmax(6em,1.2fr) auto; gap:.6em; align-items:center; padding:.35em 0; border-top:1px solid var(--line); }
+.data-card .profile-row:first-child{ border-top:0; }
+.data-card .profile-row .pname{ color:var(--text); }
+.data-card .profile-row .pwhere{ color:var(--text-dim); font-size:14px; }
+@media (max-width: 560px){ .data-card .profile-row{ grid-template-columns:1fr auto; } .data-card .profile-row .pwhere{ grid-column:1 / -1; } }
+.data-card details.profiles-group > summary h4{ font-size:15px; font-weight:700; color:var(--text); }
+
+#btn-handover.suggest-round{ background:var(--ok); border-color:var(--ok); color:#fff; }
+:root[data-theme="dark"] #btn-handover.suggest-round{ color:var(--bg); }
+.next-btn[hidden], #btn-handover[hidden]{ display:none; }
+
+/* a button that has a shortcut shows its keys as a cap inside it */
+button[data-keys]::after{ content:attr(data-keys); margin-left:.6em; font:600 16px var(--font-mono); line-height:1; word-spacing:.25em; white-space:nowrap; }
+.composer-foot{ gap:.5em .8em; }
+.composer-foot .next-slot{ display:inline-flex; }
+.keycaps{ display:inline-flex; gap:.15em; }
+.composer-foot .hint kbd{ font:600 16px var(--font-mono); border:0; background:none; padding:0 .1em; line-height:1; color:var(--text); }
+.composer-foot .hint{ display:inline-flex; align-items:center; gap:.3em; flex-wrap:wrap; }
+
+/* key symbols from one font (the mono stack falls back glyph by glyph, which
+   puts ⌘ ⇧ ↵ on different baselines) */
+button[data-keys]::after{ font-family:-apple-system, system-ui, "Segoe UI Symbol", "Segoe UI", sans-serif; font-weight:500; font-size:17px; vertical-align:middle; position:relative; top:-.04em; }
+.composer-foot .hint kbd{ font-family:-apple-system, system-ui, "Segoe UI Symbol", "Segoe UI", sans-serif; font-weight:500; font-size:17px; vertical-align:middle; }
+/* callsign and name on one baseline */
+.station-head{ align-items:baseline; }
+.station-head .edit-id{ align-self:baseline; }

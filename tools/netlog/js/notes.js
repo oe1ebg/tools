@@ -20,7 +20,7 @@ import { roundsSorted, notesOf, responseOf, roundCounts, live, rosterSorted } fr
 import { createNote, updateNote, deleteNote, toggleResponse, toggleTask, setItemText, setItemDone, moveNotes, addContribution } from './ops.js';
 import { callText, isOwn } from './roster.js';
 import { nextSpeaker } from './speak.js';
-import { hm, zone } from './clock.js';
+import { hm, zone, timeMode } from './clock.js';
 
 export const EXPANDED_PREF = 'oe1ebg-netlog-expanded';
 
@@ -62,8 +62,9 @@ export function autosize(ta) {
   ta.style.height = `${Math.max(ta.scrollHeight + 2, 0)}px`;
 }
 
-// "19:42 UTC", "~19:42 UTC" (estimated), "—" (unknown)
-const fmtTime = time => (time && time.iso ? `${time.quality === 'estimated' ? '~' : ''}${hm(time.iso)} ${zone(time.iso)}` : '—');
+// "19:42 UTC", "~19:42 UTC" (estimated), "—" (unknown). In local time the
+// lines carry no zone name (the header switch says which zone it is).
+const fmtTime = time => (time && time.iso ? `${time.quality === 'estimated' ? '~' : ''}${hm(time.iso)}${timeMode() === 'utc' ? ` ${zone(time.iso)}` : ''}` : '—');
 
 export function initNotes(app) {
   // the composer's own id per station: a retried save never doubles a note
@@ -95,9 +96,10 @@ export function initNoteList(app, box) {
     if (b.dataset.act === 'delete') deleteWithUndo(app, id, li);
     if (b.dataset.act === 'move') openMoveDialog(app, [id]);
     if (b.dataset.act === 'station') app.openFrom(b.dataset.pid, { noteId: id, field: 'row' });
-    if (b.dataset.act === 'flag-new') {
-      app.ui.composeFlag = !app.ui.composeFlag;
-      renderNotes(app);
+    if (b.dataset.act === 'save-new' || b.dataset.act === 'flag-new') {
+      const ta = b.closest('.composer').querySelector('textarea.composer-text');
+      saveComposer(app, ta, b.dataset.act === 'flag-new');
+      ta.focus();
     }
   });
   box.addEventListener('change', ev => {
@@ -116,10 +118,13 @@ export function initNoteList(app, box) {
   box.addEventListener('keydown', ev => {
     const ta = ev.target;
     if (!ta.matches || !ta.matches('textarea')) return;
-    // Shift+Enter in the composer: save the note, then the Next button
-    if (ev.key === 'Enter' && ev.shiftKey && !ev.ctrlKey && !ev.metaKey && !ev.altKey && !isComposing(ev) && ta.classList.contains('composer-text')) {
+    // new-note field: Ctrl/⌘+Enter saves and moves on to the next station,
+    // Ctrl/⌘+Shift+Enter saves it as a question (an on-air response is
+    // expected); Shift+Enter is a plain line break (the default)
+    if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey) && !ev.altKey && !isComposing(ev) && ta.classList.contains('composer-text')) {
       ev.preventDefault();
-      saveComposer(app, ta).then(() => nextSpeaker(app));
+      if (ev.shiftKey) saveComposer(app, ta, true);
+      else saveComposer(app, ta).then(() => nextSpeaker(app));
       return;
     }
     if (ev.key !== 'Enter' || ev.shiftKey || ev.ctrlKey || ev.metaKey || ev.altKey || isComposing(ev)) return;
@@ -167,12 +172,12 @@ export async function flagNote(app, id) {
   return item;
 }
 
-async function saveComposer(app, ta) {
+async function saveComposer(app, ta, asQuestion = false) {
   // the station this composer belongs to (not whatever is selected now)
   const p = app.participant(ta.dataset.pid);
   const text = ta.value.replace(/\s+$/, '');
   if (!p || !text.trim()) return; // an empty Enter saves nothing
-  const flagged = !!app.ui.composeFlag;
+  const flagged = asQuestion || !!app.ui.composeFlag;
   // this note's id; the next one typed meanwhile gets a new one
   const id = app.composerId(p.id);
   app.resetComposerId(p.id);
@@ -333,6 +338,15 @@ export function updateNoteRow(app, li, n, p, round, opts = {}) {
 }
 
 let nextBtn = null;
+// The platform's command key, as it is printed on it.
+const MOD = /Mac|iPhone|iPad/.test(globalThis.navigator ? navigator.platform : '') ? '⌘' : 'Ctrl';
+
+// Key caps for a shortcut, one <kbd> per key (the shortcut is also on the
+// button as aria-keyshortcuts, so the caps are decoration).
+function keyCaps(keys) {
+  return el('span', { class: 'keycaps', 'aria-hidden': 'true' }, keys.map(k => el('kbd', {}, k)));
+}
+
 export function renderNotes(app) {
   const box = $('#station-rounds');
   const p = app.participant(app.ui.selected);
@@ -387,7 +401,9 @@ export function renderNotes(app) {
             el('label', { class: 'sr-only', for: `composer-${r.id}` }),
             el('textarea', { class: 'composer-text', id: `composer-${r.id}`, rows: 2, spellcheck: 'true' }),
             el('div', { class: 'composer-foot' },
-              el('button', { type: 'button', class: 'mini flag', 'data-act': 'flag-new' }),
+              el('button', { type: 'button', class: 'mini', 'data-act': 'save-new', 'data-keys': '↵', 'aria-keyshortcuts': 'Enter' }),
+              el('button', { type: 'button', class: 'mini flag', 'data-act': 'flag-new', 'data-keys': `${MOD} ⇧ ↵`, 'aria-keyshortcuts': 'Control+Shift+Enter Meta+Shift+Enter' }),
+              el('span', { class: 'next-slot' }),
               el('span', { class: 'hint' })));
           body.append(comp);
         }
@@ -412,14 +428,18 @@ export function renderNotes(app) {
         ta.disabled = skipped;
         if (skipped) ta.placeholder = t('note.inactive', { call: callText(p) });
         const nb = nextBtn;
-        if (nb.parentNode !== foot || foot.firstChild !== nb) foot.prepend(nb);
+        const slot = foot.querySelector('.next-slot');
+        if (nb.parentNode !== slot) slot.prepend(nb);
+        const saveB = foot.querySelector('button[data-act="save-new"]');
         const fb = foot.querySelector('button.flag');
         const hint = foot.querySelector('.hint');
-        setText(fb, app.ui.composeFlag ? t('note.unflagShort') : t('note.flagShort'));
-        setAttr(fb, 'aria-pressed', String(!!app.ui.composeFlag));
-        setAttr(fb, 'aria-label', t('note.flagNewLabel'));
-        fb.disabled = app.readOnly;
-        setText(hint, t('note.composerHint', { keys: app.editKeyText('flag') }));
+        setText(saveB, t('note.saveBtn'));
+        setText(fb, t('note.saveQuestionBtn'));
+        setAttr(nb, 'aria-keyshortcuts', 'Control+Enter Meta+Enter');
+        nb.dataset.keys = `${MOD} ↵`;
+        saveB.disabled = fb.disabled = app.readOnly || skipped;
+        // the line break and Esc: the two keys that have no button
+        fill(hint, keyCaps(['⇧', '↵']), ` ${t('note.keyNewLine')} · `, keyCaps(['Esc']), ` ${t('note.keyLeave')}`);
         comp.hidden = false;
         body.hidden = false;
         if (!open) { setAttr(toggle, 'aria-expanded', 'false'); ol.hidden = true; empty.hidden = true; } else ol.hidden = false;
