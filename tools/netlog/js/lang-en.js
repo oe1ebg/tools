@@ -39,7 +39,7 @@ export const LANG_EN = {
 
   'mode.nav': 'Navigation',
   'mode.edit': 'Editing',
-  'keysLine.live': 'j/k or ↑/↓ stations · . next in the net · Enter open · ? help · Esc leave a field (the text stays)',
+  'keysLine.live': 'j/k stations · . , forward / back in the net · i write a note · ⌘/Ctrl+Enter hand over · ? help · Esc leave a field (the text stays)',
   'keysLine.other': '? help · Esc leave a field (the text stays)',
 
   'save.idle': 'nothing to save yet',
@@ -279,7 +279,7 @@ export const LANG_EN = {
   'speak.freePick': 'Pick a station',
   'speak.needsNcsLine': 'No net control assigned',
   'speak.needsNcsBtn': '▶ assign a net control first',
-  'help.speaking': 'Set per session (default from the series) in Net Control. Selecting a station with j/k or a click only opens it; ▶ or "." records who speaks. In free-form nothing is predicted and no net control is needed.',
+  'help.speaking': 'Set per session (default from the series) in Net Control. Selecting a station with j/k or a click only opens it; "." and "," only move the selection, except "." on the station that is on air, which (like ▶ and ⌘/Ctrl+Enter) hands over and records who speaks next. Typing a note puts its station on air. In free-form nothing is predicted and no net control is needed.',
   'undo.linkStation': 'same station',
   'undo.notSame': 'not the same station',
   'history.label': 'History of this station',
