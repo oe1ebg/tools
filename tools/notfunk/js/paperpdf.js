@@ -23,7 +23,7 @@
 // (NFP_CAPTIONS).
 
 import { blankFormSheet, formSheet } from './print.js';
-import { PDF_A4_PORTRAIT, pdfCanvas, pdfDocument, pdfTextWidth, pdfWrap } from '../../shared/js/pdf.js';
+import { PDF_A4_PORTRAIT, pdfCanvas, pdfDocument, pdfTextWidth, pdfWrap, pdfFooterUrl } from '../../shared/js/pdf.js';
 
 export const NFP_PAGE = PDF_A4_PORTRAIT;
 const NFP_MARGIN = 10;
@@ -89,6 +89,7 @@ const NFP_CONT_TOP = 43; // mm: where the text of a continuation page starts
 // several-page form.
 function nfpFooter(cv, s, n, total) {
   const x0 = NFP_MARGIN, x1 = NFP_PAGE.width - NFP_MARGIN;
+  pdfFooterUrl(cv, x0, NFP_FOOT_Y + 3.4);
   if (s.blank) {
     cv.text(`Notfunk-Meldebuch · Vordruck, gedruckt ${s.printed}`, x0, NFP_FOOT_Y, { size: 7, gray: 0.2 });
     return;

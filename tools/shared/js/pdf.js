@@ -82,18 +82,38 @@ function pdfFillColor(c) {
   return Array.isArray(c) ? `${c.map(pdfNum).join(' ')} rg` : `${pdfNum(c)} g`;
 }
 
+// The stroke colour operator: a gray level, or [r, g, b].
+function pdfStrokeColor(c) {
+  return Array.isArray(c) ? `${c.map(pdfNum).join(' ')} RG` : `${pdfNum(c)} G`;
+}
+
+// The address of the tool that made a PDF (its folder, without query and hash), for the page
+// footer; '' off the web (a file:// bundle has no address worth printing).
+export function pdfToolUrl() {
+  try {
+    if (typeof location === 'undefined' || !/^https?:$/.test(location.protocol)) return '';
+    return new URL('.', location.href).href;
+  } catch { return ''; }
+}
+
+// The tool's address in a footer: one small line at (x, baseline y).
+export function pdfFooterUrl(cv, x, y) {
+  const url = pdfToolUrl();
+  if (url) cv.text(url, x, y, { size: 7, gray: 0.35 });
+}
+
 // A content stream drawn in mm from the top left of a page { width, height }.
 export function pdfCanvas({ height }) {
   const ops = [];
   const X = x => pdfNum(x * PDF_MM), Y = y => pdfNum((height - y) * PDF_MM);
   return {
     ops,
-    line(x1, y1, x2, y2, { width = 0.6, gray = 0, dash = null } = {}) {
-      ops.push(`${pdfNum(width)} w ${pdfNum(gray)} G ${dash ? `[${dash.join(' ')}] 0 d` : '[] 0 d'} ${X(x1)} ${Y(y1)} m ${X(x2)} ${Y(y2)} l S`);
+    line(x1, y1, x2, y2, { width = 0.6, gray = 0, color = null, dash = null } = {}) {
+      ops.push(`${pdfNum(width)} w ${pdfStrokeColor(color || gray)} ${dash ? `[${dash.join(' ')}] 0 d` : '[] 0 d'} ${X(x1)} ${Y(y1)} m ${X(x2)} ${Y(y2)} l S`);
     },
     // an outlined rectangle (top left x, y; size w, h)
-    rect(x, y, w, h, { width = 0.6, gray = 0, dash = null } = {}) {
-      ops.push(`${pdfNum(width)} w ${pdfNum(gray)} G ${dash ? `[${dash.join(' ')}] 0 d` : '[] 0 d'} ${X(x)} ${Y(y + h)} ${pdfNum(w * PDF_MM)} ${pdfNum(h * PDF_MM)} re S`);
+    rect(x, y, w, h, { width = 0.6, gray = 0, color = null, dash = null } = {}) {
+      ops.push(`${pdfNum(width)} w ${pdfStrokeColor(color || gray)} ${dash ? `[${dash.join(' ')}] 0 d` : '[] 0 d'} ${X(x)} ${Y(y + h)} ${pdfNum(w * PDF_MM)} ${pdfNum(h * PDF_MM)} re S`);
     },
     // a circle (centre cx, cy; radius r) as four Bezier curves; `solid`
     // fills it (a chosen option)
