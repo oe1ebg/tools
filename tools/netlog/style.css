@@ -38,7 +38,7 @@ button.mini{ font-size:13.5px; padding:.15em .55em; }
 .tabs{ display:inline-flex; flex-wrap:wrap; max-width:100%; border:1px solid var(--line); border-radius:4px; overflow:hidden; }
 /* the header's second row: the status chips, always on a line of their own
    (after the controls; on a phone the shared order applies) */
-.hdr-status{ flex-basis:100%; order:100; }
+.hdr-status{ flex:1 1 0; justify-content:flex-start; }
 .speak-style{ margin:0; }
 .chip-btn{ cursor:pointer; font:inherit; font-size:12.5px; background:none; }
 .chip-btn.warn{ color:var(--warn); border-color:var(--warn); background:var(--warn-soft); }
@@ -747,3 +747,13 @@ button[data-keys]::after{ font-family:-apple-system, system-ui, "Segoe UI Symbol
 .order-close .hint{ margin:0; color:var(--text); }
 .order-close button.danger{ border:2px solid var(--err); color:var(--err); font-weight:700; background:var(--bg); justify-self:start; }
 @media (max-width: 560px){ .order-close{ grid-template-columns:1fr; } }
+
+/* header status: mode and saving always, one chip for offline / storage / backup with its panel */
+.st-wrap{ position:relative; display:inline-block; }
+.chip-btn.ok{ color:var(--ok); border-color:currentColor; }
+.chip-btn.err{ color:var(--err); border-color:var(--err); font-weight:600; }
+.st-panel{ position:absolute; top:calc(100% + .35em); left:0; z-index:30; min-width:22em; max-width:min(32em, 90vw); padding:.7em .9em; background:var(--bg); border:1px solid var(--line-strong); border-radius:8px; box-shadow:0 6px 20px #0003; display:grid; gap:.5em; text-align:left; }
+.st-panel[hidden]{ display:none; }
+.st-panel p{ margin:0; display:flex; flex-wrap:wrap; align-items:center; gap:.4em .6em; }
+.st-label{ min-width:7em; font-weight:600; font-size:14px; }
+.st-panel .chip{ white-space:normal; text-align:left; }
