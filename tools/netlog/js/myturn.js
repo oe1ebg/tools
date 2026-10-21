@@ -20,7 +20,7 @@ import { speakingState, netStyle, queueItems, openTurn, previousRound, turnSumma
 import { setItemDone, moveItem, addPoint, startTurn, endTurn, setItemText, deleteItem } from './ops.js';
 import { callText, isOwn } from './roster.js';
 import { nextSpeaker } from './speak.js';
-import { autosize, replyKey } from './notes.js';
+import { autosize, replyKey, MOD } from './notes.js';
 import { hmz } from './clock.js';
 
 const POINT_DRAFT = 'point:new';
@@ -91,12 +91,12 @@ export function initTurn(app) {
     const b = ev.target.closest('button[data-act=reopen]');
     if (b) completeItem(app, b.closest('li').dataset.key, false);
   });
-  // Shift+Enter anywhere in My Turn: end the turn and hand over
+  // Ctrl/⌘+Enter anywhere in My Turn (as in the note field): end the turn and hand over
+  $('#btn-handover').dataset.keys = `${MOD} ↵`;
   $('#view-turn').addEventListener('keydown', async ev => {
-    if (ev.key !== 'Enter' || !ev.shiftKey || ev.ctrlKey || ev.metaKey || ev.altKey || isComposing(ev) || app.readOnly) return;
+    if (ev.key !== 'Enter' || ev.shiftKey || !(ev.ctrlKey || ev.metaKey) || ev.altKey || isComposing(ev) || app.readOnly) return;
     ev.preventDefault();
-    if (!$('#btn-end-turn').disabled) await app.act(store => endTurn(store, app.ctx()));
-    if (!$('#btn-handover').disabled) await nextSpeaker(app);
+    await handOver(app);
   });
   $('#btn-handover').addEventListener('click', () => nextSpeaker(app));
   $('#btn-end-turn').addEventListener('click', async () => {
@@ -104,6 +104,12 @@ export function initTurn(app) {
     if (r) { app.announce(t('turn.ended')); $('#resp-title').focus(); }
   });
   $('#btn-turn-back').addEventListener('click', () => app.back('live'));
+}
+
+// End the turn and hand over (My Turn: Ctrl/⌘+Enter, from a field or not).
+export async function handOver(app) {
+  if (!$('#btn-end-turn').disabled) await app.act(store => endTurn(store, app.ctx()));
+  if (!$('#btn-handover').disabled) await nextSpeaker(app);
 }
 
 async function reorder(app, id, dir, act) {

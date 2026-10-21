@@ -372,6 +372,25 @@ export function setStatus(store, ctx, id, status) {
   });
 }
 
+// Close the net: every station that is still in is checked out (each with
+// its own status event and time), and one general "net closed" event with
+// the time goes into the log. One undo step takes all of it back.
+export function closeNet(store, ctx) {
+  return runOp(store, { ...ctx, label: 'undo.closeNet' }, async w => {
+    const session = await w.get('sessions', ctx.sessionId);
+    const list = (await w.all('participants')).filter(p => !p.deleted && p.status !== 'out');
+    for (const p of list) {
+      const ch = changeStatus(p, 'out', w.now);
+      if (!ch) continue;
+      w.create('events', { ...ch.event, roundId: session && session.currentRoundId, deleted: null });
+      w.put('participants', ch.participant, p);
+    }
+    const rid = (session && session.currentRoundId) || null;
+    w.create('events', { type: 'round', kind: 'closed', from: rid, to: rid, roundId: rid, time: timeOf(w.now), deleted: null });
+    return { checkedOut: list.length };
+  });
+}
+
 export function setFlag(store, ctx, id, flag, on) {
   if (!FLAGS.includes(flag)) throw new Error(`flag ${flag}`);
   return runOp(store, { ...ctx, label: 'undo.flag' }, w => w.update('participants', id, p => (

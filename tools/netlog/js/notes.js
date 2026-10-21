@@ -339,7 +339,7 @@ export function updateNoteRow(app, li, n, p, round, opts = {}) {
 
 let nextBtn = null;
 // The platform's command key, as it is printed on it.
-const MOD = /Mac|iPhone|iPad/.test(globalThis.navigator ? navigator.platform : '') ? '⌘' : 'Ctrl';
+export const MOD = /Mac|iPhone|iPad/.test(globalThis.navigator ? navigator.platform : '') ? '⌘' : 'Ctrl';
 
 // Key caps for a shortcut, one <kbd> per key (the shortcut is also on the
 // button as aria-keyshortcuts, so the caps are decoration).
@@ -456,7 +456,8 @@ export function renderNotes(app) {
 // The events of a station in a round (check-in, status changes, net
 // control), for showing them among its notes.
 export function stationEvents(app, roundId, participantId = null) {
-  return app.sd.events.filter(e => live(e) && e.roundId === roundId && ['presence', 'status', 'ncs'].includes(e.type)
+  // (the general "net closed" line belongs to no station: only the log shows it)
+  return app.sd.events.filter(e => live(e) && e.roundId === roundId && (['presence', 'status', 'ncs'].includes(e.type) || (e.type === 'round' && e.kind === 'closed' && !participantId))
     && (!participantId || e.participantId === participantId || (e.type === 'ncs' && (e.to === participantId || e.from === participantId))));
 }
 
@@ -468,14 +469,15 @@ export function timeline(notes, events) {
 }
 
 // "19:42 UTC · checked out" (whose, in the log)
-function eventText(app, e, withStation) {
+export function eventText(app, e, withStation) {
   const p = id => app.sd.participants.find(x => x.id === id);
   const who = id => (p(id) ? callText(p(id)) : '—');
   let what;
-  if (e.type === 'presence') what = t('event.checkin');
+  if (e.type === 'round') what = t('event.netClosed');
+  else if (e.type === 'presence') what = t('event.checkin');
   else if (e.type === 'status') what = t('event.status', { status: t(`status.${e.to}`) });
   else what = t('event.ncs', { from: who(e.from), to: who(e.to) });
-  const prefix = withStation && e.type !== 'ncs' ? `${who(e.participantId)}: ` : '';
+  const prefix = withStation && e.type !== 'ncs' && e.type !== 'round' ? `${who(e.participantId)}: ` : '';
   return `${prefix}${what}`;
 }
 

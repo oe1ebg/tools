@@ -58,7 +58,7 @@ const VIEWS = [
     await p.locator('#roster button.person').nth(2).click();
     if (await p.locator('#btn-history').isEnabled()) await p.locator('#btn-history').click();
   }],
-  ['netlog', 'my turn', async p => { await p.locator('#tab-turn').click(); await p.locator('#view-turn').waitFor(); }],
+  ['netlog', 'my turn', async p => { await p.keyboard.press('m'); await p.locator('#view-turn').waitFor(); }],
   ['netlog', 'continuous log', async p => { await p.locator('#tab-log').click(); await p.locator('#view-log').waitFor(); }],
   ['netlog', 'net control', async p => { await p.locator('#tab-control').click(); await p.locator('#view-control').waitFor(); }],
   ['netlog', 'search dialog', async p => { await p.locator('#tab-live').click(); await p.keyboard.press('/'); await p.keyboard.type('Antenne'); await p.locator('#search-scope').selectOption('all'); }],

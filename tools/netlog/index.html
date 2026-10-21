@@ -82,25 +82,10 @@
   </div>
 
   <div id="workspace" class="workspace">
-    <div class="toolbar viewbar">
-      <a id="btn-sessions" class="btn back-link" href="#/" hidden data-i18n="views.sessionsBack">← Sessions</a>
-      <nav id="view-tabs" class="tabs" data-i18n-attr="aria-label:views.label" aria-label="Workspaces">
-        <a id="tab-live" href="#/" data-view="live" data-i18n="views.live">Live Notes</a>
-        <a id="tab-turn" href="#/" data-view="turn"><span data-i18n="views.turn">My Turn</span><span id="tab-turn-count" class="tab-count"></span></a>
-        <a id="tab-log" href="#/" data-view="log" data-i18n="views.log">Continuous Log</a>
-        <a id="tab-control" href="#/" data-view="control" data-i18n="views.control">Net Control</a>
-        <a id="tab-series" href="#/" data-view="series" data-i18n="views.series">Sessions &amp; series</a>
-      </nav>
-      <span id="round-indicator" class="round-indicator"></span>
-      <span id="speak-me" class="speak-me" role="status"></span>
-      <span class="spacer"></span>
-      <button type="button" id="btn-search" aria-haspopup="dialog" data-i18n="search.open">/ Search</button>
-
-      <button type="button" id="btn-new-round" data-i18n="round.new">+ New round</button>
-    </div>
     <div class="workspace-body">
     <aside id="sidebar" class="sidebar" aria-labelledby="roster-title" hidden>
       <div class="sidehead">
+        <a id="btn-sessions" class="back-link" href="#/" hidden data-i18n="views.sessionsBack">← Sessions</a>
         <div class="sidehead-top">
           <span id="speak-style" class="topo-label"></span>
           <h2 id="roster-title">Participants</h2>
@@ -136,6 +121,21 @@
     </aside>
 
     <section id="content" class="content">
+      <div class="toolbar viewbar">
+        <nav id="view-tabs" class="tabs" data-i18n-attr="aria-label:views.label" aria-label="Workspaces">
+          <a id="tab-live" href="#/" data-view="live"><span data-i18n="views.notes">Notes</span><span id="tab-turn-count" class="tab-count"></span></a>
+          <a id="tab-turn" href="#/" data-view="turn" hidden data-i18n="views.turn">My Turn</a>
+          <a id="tab-log" href="#/" data-view="log" data-i18n="views.log">Continuous Log</a>
+          <a id="tab-control" href="#/" data-view="control" data-i18n="views.control">Net Control</a>
+          <a id="tab-series" href="#/" data-view="series" data-i18n="views.series">Sessions &amp; series</a>
+        </nav>
+        <span id="round-indicator" class="round-indicator"></span>
+        <span id="speak-me" class="speak-me" role="status"></span>
+        <span class="spacer"></span>
+        <button type="button" id="btn-search" aria-haspopup="dialog" data-i18n="search.open">/ Search</button>
+
+        <button type="button" id="btn-new-round" data-i18n="round.new">+ New round</button>
+      </div>
 
       <!-- ===== Live Notes ===== -->
       <section id="view-live" class="view" aria-labelledby="tab-live" hidden>
@@ -202,7 +202,7 @@
       <!-- ===== My Turn ===== -->
       <section id="view-turn" class="view" aria-labelledby="turn-title" hidden>
         <h2 id="turn-title" tabindex="-1">My Turn</h2>
-        <div class="handover-row"><p id="turn-handover" class="handover" role="status"></p><button type="button" id="btn-handover" class="primary" data-keys="⇧ ↵" aria-keyshortcuts="Shift+Enter" data-i18n="turn.handoverBtn">Hand over</button></div>
+        <div class="handover-row"><p id="turn-handover" class="handover" role="status"></p><button type="button" id="btn-handover" class="primary" aria-keyshortcuts="Control+Enter Meta+Enter" data-i18n="turn.handoverBtn">Hand over</button></div>
         <p id="turn-cycle" class="hint"></p>
         <section class="turn-resp" aria-labelledby="resp-title">
           <div class="toolbar">
@@ -240,6 +240,8 @@
         <div class="toolbar">
           <h2 id="log-title" tabindex="-1" data-i18n="log.title">Continuous Log</h2>
           <span class="spacer"></span>
+          <button type="button" id="btn-log-all" data-i18n="log.expandAll">Expand all rounds</button>
+          <button type="button" id="btn-log-pdf" data-i18n="log.pdf">PDF</button>
           <button type="button" id="btn-log-select" aria-pressed="false" data-i18n="log.select">Select notes</button>
           <button type="button" id="btn-log-move" aria-haspopup="dialog" hidden data-i18n="log.moveSelected">Move selected…</button>
           <span id="log-selected" class="hint" role="status"></span>
@@ -261,6 +263,10 @@
             <p class="hint" data-i18n="control.statusHint">Check stations in and out, pause or mark them away right here; each change is recorded with its time.</p>
             <p class="hint" data-i18n="control.orderHint">The order is for display and planning only; it never changes who actually spoke or creates a round.</p>
             <ol id="order-list" class="order-list"></ol>
+            <div class="order-close">
+              <button type="button" id="btn-close-net" class="danger" data-i18n="control.closeNet">Close the net</button>
+              <p class="hint" data-i18n="control.closeNetHint">Checks out every station that is still in and adds "net closed" with the time to the log. Undo (Ctrl/⌘+Z) takes it all back.</p>
+            </div>
             <form id="ctl-add-form" class="order-add" autocomplete="off">
               <label for="ctl-add-call" class="sr-only" data-i18n="checkin.callLabel">Callsign (also partial: OE0QX?, ?)</label>
               <input id="ctl-add-call" class="call-input mono" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" data-i18n-attr="placeholder:checkin.callPlaceholder" placeholder="Callsign / OE0QX? / ?">
@@ -304,6 +310,7 @@
               <button type="button" id="btn-export-notes" data-i18n="export.notes">Notes (CSV)</button>
               <button type="button" id="btn-export-adif" data-i18n="export.adif">Check-ins (ADIF)</button>
               <button type="button" id="btn-export-print" data-i18n="export.print">Print report…</button>
+              <button type="button" id="btn-export-roster-pdf" data-i18n="export.rosterPdf">Roster and facts (PDF)</button>
               <label class="check"><input type="checkbox" id="export-report-notes"> <span data-i18n="export.reportNotes">with notes and replies</span></label>
             </div>
             <ul id="export-issues" class="export-issues" data-i18n-attr="aria-label:export.issuesLabel" aria-label="ADIF: left out or missing" hidden></ul>
@@ -315,15 +322,6 @@
             <p id="ncs-suggest" class="hint" hidden></p>
             <h4 data-i18n="control.handovers">Handovers</h4>
             <ol id="ncs-history" class="ncs-history"></ol>
-          </section>
-          <section class="card" aria-labelledby="rounds-title">
-            <h3 id="rounds-title" data-i18n="control.rounds">Rounds</h3>
-            <p class="hint" data-i18n="control.roundsHint">Rounds start only here or with "+ New round"; the current round is where new notes go.</p>
-            <ol id="round-list" class="round-list"></ol>
-            <label class="inline-field"><span data-i18n="control.expanded">Rounds expanded in Live Notes</span>
-              <select id="expanded-count">
-                <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="5">5</option><option value="99" data-i18n="control.expandedAll">all</option>
-              </select></label>
           </section>
           <section class="card" aria-labelledby="removed-title">
             <h3 id="removed-title" data-i18n="control.removed">Removed stations</h3>

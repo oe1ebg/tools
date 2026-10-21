@@ -5,10 +5,9 @@
 import { $, el, fill } from '../../shared/js/dom.js';
 import { t } from './i18n.js';
 import { keyedList, setText, setAttr, setValue, setNamed } from './keyed.js';
-import { rosterSorted, roundsSorted, liveOf, cmp, timeOf, callBase, STATUSES, netStyle, ncsFirst, isUnresolved, normCall } from './model.js';
-import { updateSession, addParticipant, setStatus, moveParticipant, setCurrentRound, updateRound, setItemDone, addTask, setItemText, setNcs, setEventTime, deleteParticipant, eraseParticipant } from './ops.js';
+import { rosterSorted, liveOf, cmp, timeOf, callBase, STATUSES, netStyle, ncsFirst, isUnresolved, normCall } from './model.js';
+import { updateSession, closeNet, addParticipant, setStatus, moveParticipant, setItemDone, addTask, setItemText, setNcs, setEventTime, deleteParticipant, eraseParticipant } from './ops.js';
 import { callText, statusLabel, callbookEntry } from './roster.js';
-import { expandedCount, setExpandedCount } from './notes.js';
 import { hm, zone, parseHm } from './clock.js';
 import { STATUS_MARK } from './roster.js';
 import { startNextRound, turnMark } from './speak.js';
@@ -26,6 +25,11 @@ export function plannedOrder(participants, ncsId = null) {
 }
 
 export function initControl(app) {
+  $('#btn-close-net').addEventListener('click', async () => {
+    if (app.readOnly) return;
+    const r = await app.act(store => closeNet(store, app.ctx()));
+    if (r) app.announce(t('control.netClosed', { n: r.checkedOut }));
+  });
   // add a station right under the list, with its status and who it is: the
   // net control opening the net enters itself here (me, NCS)
   $('#ctl-add-form').addEventListener('submit', async ev => {
@@ -61,35 +65,6 @@ export function initControl(app) {
   // one click: the next round starts (number and topic are corrected in
   // the round list; undo takes it back)
   $('#btn-new-round').addEventListener('click', () => startNextRound(app));
-  const sel = $('#expanded-count');
-  sel.value = String(expandedCount());
-  sel.addEventListener('change', () => { setExpandedCount(Number(sel.value)); app.ui.roundOpen = {}; app.render(); });
-
-  $('#round-list').addEventListener('click', async ev => {
-    const b = ev.target.closest('button[data-act]');
-    if (!b) return;
-    const id = b.closest('li').dataset.key;
-    if (b.dataset.act === 'current') {
-      const r = await app.act(store => setCurrentRound(store, app.ctx(), id));
-      if (r) app.announce(t('round.nowCurrent', { n: app.sd.rounds.find(x => x.id === id).number }));
-    }
-  });
-  $('#round-list').addEventListener('change', async ev => {
-    const f = ev.target;
-    const id = f.closest('li') && f.closest('li').dataset.key;
-    if (!id) return;
-    if (f.classList.contains('round-topic')) await app.act(store => updateRound(store, app.ctx(), id, { topic: f.value }));
-    if (f.classList.contains('round-no')) {
-      const n = Number(f.value.trim());
-      if (!Number.isInteger(n) || n < 1 || n > 999) { f.setAttribute('aria-invalid', 'true'); app.announce(t('round.badNumber')); return; }
-      f.removeAttribute('aria-invalid');
-      await app.act(store => updateRound(store, app.ctx(), id, { number: n }));
-    }
-  });
-  $('#round-list').addEventListener('keydown', ev => {
-    if (ev.key === 'Enter' && ev.target.matches('input')) { ev.preventDefault(); ev.target.dispatchEvent(new Event('change', { bubbles: true })); }
-  });
-
   // the session's own facts, changed in place: my callsign (marked "me"),
   // name, repeater
   const se = $('#session-edit');
@@ -294,6 +269,7 @@ export function renderControl(app) {
   if (!list.length) fill($('#order-list'), el('li', { class: 'empty', 'data-key': '' }, t('control.empty')));
 
   for (const f of $('#ctl-add-form').elements) f.disabled = app.readOnly;
+  $('#btn-close-net').disabled = app.readOnly;
   const addStatus = $('#ctl-add-status');
   if (addStatus.options.length !== STATUSES.length || addStatus.dataset.lang !== app.lang()) {
     const keep = addStatus.value || 'active';
@@ -377,33 +353,6 @@ export function renderControl(app) {
     },
   });
   if (!removed.length) fill($('#removed-list'), el('li', { class: 'hint', 'data-key': '' }, t('control.noRemoved')));
-
-  const rounds = roundsSorted(app.sd.rounds);
-  const counts = new Map();
-  for (const n of liveOf(app.sd.notes)) counts.set(n.roundId, (counts.get(n.roundId) || 0) + 1);
-  keyedList($('#round-list'), rounds, {
-    key: r => r.id,
-    create: () => el('li', { class: 'round-row' },
-      el('label', { class: 'inline-field' }, el('span', {}), el('input', { class: 'round-no mono', inputmode: 'numeric', size: 3, autocorrect: 'off' })),
-      el('label', { class: 'inline-field grow' }, el('span', {}), el('input', { class: 'round-topic', autocorrect: 'off' })),
-      el('span', { class: 'hint count' }),
-      el('button', { type: 'button', class: 'mini', 'data-act': 'current' })),
-    update: (li, r) => {
-      const [noL, topicL, count, cur] = li.children;
-      setText(noL.firstChild, t('round.number'));
-      setText(topicL.firstChild, t('round.topic'));
-      setValue(noL.lastChild, String(r.number));
-      setValue(topicL.lastChild, r.topic || '');
-      noL.lastChild.disabled = topicL.lastChild.disabled = app.readOnly;
-      setText(count, t('round.notesCount', { n: counts.get(r.id) || 0 }));
-      const isCur = r.id === app.s.currentRoundId;
-      li.classList.toggle('current', isCur);
-      setText(cur, isCur ? t('round.current') : t('round.makeCurrent'));
-      setAttr(cur, 'aria-pressed', String(isCur));
-      setNamed(cur, isCur ? t('round.isCurrentLabel', { n: r.number }) : t('round.makeCurrentLabel', { n: r.number }));
-      cur.disabled = app.readOnly || isCur;
-    },
-  });
 
   const notes = new Map(app.sd.notes.map(n => [n.id, n]));
   const tasks = liveOf(app.sd.items).filter(i => i.kind === 'task' && i.active !== false && (!i.noteId || (notes.get(i.noteId) && !notes.get(i.noteId).deleted)))

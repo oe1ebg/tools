@@ -47,14 +47,14 @@ test('starts in German, switches to English and back, keeping the input', async 
   await page.locator('#checkin-call').fill('OE0QX');
   await page.locator('#lang-toggle button[data-lang=en]').click();
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
-  await expect(page.locator('#tab-live')).toHaveText('Live Notes');
+  await expect(page.locator('#tab-live')).toHaveText('Notes');
   await expect(page.locator('#checkin-call')).toHaveValue('OE0QX');
   await expect(page.locator('#st-offline')).toHaveText('offline ready ✓');
   await page.reload();
   await expect.poll(() => page.evaluate(() => globalThis.NETLOG_READY === true)).toBe(true);
-  await expect(page.locator('#tab-live')).toHaveText('Live Notes');
+  await expect(page.locator('#tab-live')).toHaveText('Notes');
   await page.locator('#lang-toggle button[data-lang=de]').click();
-  await expect(page.locator('#tab-live')).toHaveText('Live-Notizen');
+  await expect(page.locator('#tab-live')).toHaveText('Notizen');
 });
 
 test('ad-hoc session mid-net: partial callsign resolved later, series assigned later', async ({ page }) => {
@@ -341,9 +341,9 @@ test('My Turn: round 1 response above the round 4 summary, points in, tasks and 
   await queue(page).nth(1).getByRole('button', { name: /Move up/ }).click();
   await expect(queue(page).nth(0)).toContainText('Personal talking point');
   // in the first round there is no previous one
-  await page.locator('#tab-control').click();
-  await page.locator('#round-list li').nth(0).getByRole('button', { name: /Make round 1 the current round/ }).click();
-  await page.locator('#tab-turn').click();
+  // (the round list in Net Control is gone: make round 1 current through the app's own operation)
+  await page.evaluate(async () => { const { setCurrentRound } = await import('./js/ops.js'); const a = globalThis.NETLOG_APP; await a.act(store => setCurrentRound(store, a.ctx(), a.sd.rounds.slice().sort((x, y) => x.number - y.number)[0].id)); });
+  await page.keyboard.press('m'); // My Turn (the Notes tab opens it for my own station)
   await expect(page.locator('#sum-topic')).toHaveText('Round 1 (current) · no previous round yet');
 });
 
@@ -416,7 +416,7 @@ test('net control: keyboard handover, history with old/new, time correction, und
   await expect(page.locator('#ncs-current')).toHaveText('Net control: OE0QXA · Mira');
   await page.keyboard.press('Control+Shift+z');
   await expect(page.locator('#ncs-current')).toHaveText('Net control: OE0QXB · Jonas');
-  await expect(page.locator('#round-list li')).toHaveCount(1);
+  expect(await page.evaluate(() => globalThis.NETLOG_APP.sd.rounds.length)).toBe(1);
 });
 
 test('presence: late check-in, pause, checkout, reentry; reorders keep the speaking history', async ({ page }) => {
@@ -443,7 +443,7 @@ test('presence: late check-in, pause, checkout, reentry; reorders keep the speak
   await page.locator('#order-list li').nth(1).getByRole('button', { name: 'Move OE0QXA up' }).click();
   await page.getByRole('button', { name: /Net control: OE0QXA/ }).click();
   expect(await page.evaluate(() => JSON.stringify(globalThis.NETLOG_APP.sd.contributions.map(c => [c.id, c.participantId, c.roundId, c.seq])))).toBe(before);
-  await expect(page.locator('#round-list li')).toHaveCount(1);
+  expect(await page.evaluate(() => globalThis.NETLOG_APP.sd.rounds.length)).toBe(1);
   // a late arrival in round 3
   await newRound(page);
   await checkIn(page, 'OE0QXC');
@@ -736,7 +736,7 @@ test('times in UTC or local time, always labelled; a handover typed in local tim
   // the zone name follows the interface language
   await page.locator('#lang-toggle button[data-lang=de]').click();
   await expect(page.locator('#clock-zone')).toHaveText(/^(MESZ|MEZ)$/);
-  await expect(noteTime).toHaveText(/^\d{2}:\d{2} (MESZ|MEZ)$/);
+  await expect(noteTime).toHaveText(/^\d{2}:\d{2}$/);
   await expect(page.locator('#time-toggle button[data-time=local]')).toHaveText(/^Europe\/Vienna \((MESZ|MEZ)\)$/);
   await page.locator('#lang-toggle button[data-lang=en]').click();
   await expect(page.locator('#clock-zone')).toHaveText(/^(CEST|CET)$/);
@@ -969,7 +969,7 @@ test('running a round: NCS first, Next through the order, my turn opens My Turn,
   await page.locator('#btn-next').click();
   await expect(page.locator('#view-turn')).toBeVisible();
   await expect(page.locator('#speak-me')).toHaveText('🎙 Your turn now');
-  await expect(page.locator('#tab-turn')).toHaveClass(/me-onAir/);
+  await expect(page.locator('#tab-live')).toHaveClass(/me-onAir/);
   // star: back to the NCS, then the next station
   await expect(page.locator('#speak-state')).toHaveText('Speaking: OE0QXA (me) · Next: back to OE0QXN, then OE0QXB');
   await expect(page.locator('#turn-handover')).toContainText('OE0QXN');
@@ -1323,7 +1323,7 @@ test('open follow-ups from earlier sessions: done in place, carried into My Turn
   await expect(page.locator('#history-list')).toContainText('→ carried forward');
   await expect(page.locator('#history-list')).toContainText('☑ task done');
   // in My Turn: the talking point with its source; the source opens, Back returns
-  await page.locator('#tab-turn').click();
+  await page.keyboard.press('m'); // My Turn (the Notes tab opens it for my own station)
   const from = page.locator('#turn-items li button.item-from');
   await expect(from).toHaveText('↪ from 2026-10-02 · Wiener Runde #1 · OE0QXA');
   await expect(page.locator('#turn-items li textarea.ti-reply')).toHaveValue('asks about the QSL card');
@@ -1388,9 +1388,8 @@ test('search across nets: limited to a series, to the selected station, round to
   await expect(results).toHaveCount(1);
   await expect(results).toContainText('round topic');
   await results.locator('button').click();
-  await expect(page.locator('#view-control')).toBeVisible();
-  await expect(page.locator('#round-list input.round-topic').first()).toBeFocused();
-  await expect(page.locator('#round-list input.round-topic').first()).toHaveValue('Antenna day');
+  await expect(page.locator('#view-log')).toBeVisible();
+  await expect(page.locator('#log-rounds section.round', { hasText: 'Antenna day' }).locator('button.round-toggle')).toBeFocused();
 });
 
 test('the station heading stays compact: status controls on the callsign line, meta and history on one line', async ({ page }, testInfo) => {
@@ -1714,4 +1713,18 @@ test('callsign lists: a change made in another tab shows when the window is look
   await startSession(page);
   await page.locator('#checkin-call').fill('OE0QXA');
   await expect(page.locator('#checkin-info')).toContainText('Anna Drüben');
+});
+
+test('Close the net: every station is checked out, the log says "net closed", one undo takes it back', async ({ page }) => {
+  await open(page, { lang: 'en' });
+  await startSession(page);
+  for (const c of ['OE0QXA', 'OE0QXB']) await checkIn(page, c);
+  await page.locator('#tab-control').click();
+  await page.locator('#btn-close-net').click();
+  await expect.poll(() => page.evaluate(() => globalThis.NETLOG_APP.sd.participants.map(p => p.status).join())).toBe('out,out');
+  await page.locator('#tab-log').click();
+  await expect(page.locator('#log-rounds li.event-line').filter({ hasText: /UTC net closed$/ })).toHaveCount(1);
+  await page.keyboard.press('Control+z');
+  await expect.poll(() => page.evaluate(() => globalThis.NETLOG_APP.sd.participants.map(p => p.status).join())).toBe('active,active');
+  await expect(page.locator('#log-rounds li.event-line').filter({ hasText: 'net closed' })).toHaveCount(0);
 });
