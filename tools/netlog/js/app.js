@@ -23,6 +23,7 @@ import { ncsFirst, sessionLabel, live, rosterSorted, isUnresolved, openQueueCoun
 import { initRoster, renderRoster, renderStation, flushDetails, callText, rosterRows, isOwn, STATUS_MARK } from './roster.js';
 import { initSessions, renderSessions } from './sessions.js';
 import { initControl, renderControl } from './control.js';
+import { initRosterView, renderRosterView } from './rosterview.js';
 import { initKeys, loadEditBindings, registerEditCommand, EDIT_COMMANDS } from './keys.js';
 import { initHelp, bindingText } from './help.js';
 import { createDrafts } from './drafts.js';
@@ -455,7 +456,7 @@ function render() {
     if (view === 'live') { renderStation(app); renderHistory(app); renderNotes(app); }
     if (view === 'turn') renderTurn(app);
     if (view === 'log') renderLog(app);
-    if (view === 'control') renderControl(app);
+    if (view === 'control') { renderControl(app); renderRosterView(app); }
     const open = openQueueCount(app.sd.items, app.sd.notes);
     setText($('#tab-turn-count'), open ? ` · ${open}` : '');
   }
@@ -874,6 +875,7 @@ async function main() {
   initRoster(app);
   initSessions(app);
   initControl(app);
+  initRosterView(app);
   initNotes(app);
   initTurn(app);
   initLog(app);

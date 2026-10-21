@@ -766,3 +766,38 @@ button[data-keys]::after{ font-family:-apple-system, system-ui, "Segoe UI Symbol
 #turn-history .th-text{ flex:1 1 auto; min-width:0; color:var(--text-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 #turn-history .th-row button{ flex:0 0 auto; }
 #turn-history summary{ cursor:pointer; }
+
+/* Net Control: the roster report (table and presence timeline), collapsed by default */
+:root{ --rr-active:#1a8c44; --rr-blue:#2f67e0; --rr-amber:#b87400; --rr-lilac:#8a4fbd; --rr-ncs:#b8339e; }
+:root[data-theme="dark"]{ --rr-active:#3bb26a; --rr-blue:#7ea2f7; --rr-amber:#e0a638; --rr-lilac:#bb90e3; --rr-ncs:#e377cb; }
+.rr-card{ grid-column:1 / -1; }
+.rr-card summary{ cursor:pointer; }
+.rr-card summary h3{ display:inline; margin:0; }
+.rr-body{ margin-top:.7em; }
+.rr-scroll{ overflow-x:auto; }
+.rr-table{ border-collapse:collapse; width:100%; font-size:14px; }
+.rr-table th{ text-align:left; font-size:12.5px; font-weight:600; color:var(--text-dim); padding:.3em .6em; border-bottom:1px solid var(--line); white-space:nowrap; }
+.rr-table td{ padding:.3em .6em; border-bottom:1px solid var(--line); white-space:nowrap; }
+.rr-table .rr-no{ color:var(--text-dim); }
+.rr-tag{ display:inline-block; font-size:11px; font-weight:700; line-height:1.3; padding:0 .35em; border-radius:3px; border:1px solid var(--text); }
+.rr-tag.ncs{ background:var(--text); color:var(--bg); }
+.rr-tag.ncs-former{ background:var(--line); border-color:transparent; }
+.rr-chart{ display:block; width:100%; min-width:640px; height:auto; margin-top:.4em; }
+.rr-chart .rr-call{ font:600 13px var(--font-mono); fill:var(--text); }
+.rr-chart .rr-axis{ font-size:12px; fill:var(--text-dim); }
+.rr-chart .rr-axis.edge{ font-weight:700; fill:var(--text); }
+.rr-chart .rr-tick-mark{ stroke:var(--text-dim); stroke-width:1; }
+.rr-chart .rr-tick-mark.edge{ stroke:var(--text); stroke-width:1.5; }
+.rr-chart .rr-rule{ stroke:var(--line); stroke-width:1; }
+.rr-active{ fill:var(--rr-active); }
+.rr-bg{ fill:var(--bg); }
+.rr-outline{ fill:none; stroke-width:1.5; }
+.rr-line{ fill:none; stroke-width:1.5; }
+.rr-listening .rr-outline, .rr-line.rr-listening{ stroke:var(--rr-blue); }
+.rr-paused .rr-outline, .rr-line.rr-paused{ stroke:var(--rr-amber); }
+.rr-unconfirmed .rr-outline, .rr-line.rr-unconfirmed{ stroke:var(--rr-lilac); }
+.rr-ncs{ fill:var(--rr-ncs); }
+.rr-note{ stroke:var(--bg); stroke-width:1.4; }
+.rr-note.on-light{ stroke:var(--text); }
+.rr-legend{ list-style:none; display:flex; flex-wrap:wrap; gap:.4em 1.2em; margin:.6em 0 0; padding:0; font-size:13.5px; }
+.rr-legend li{ display:inline-flex; align-items:center; gap:.4em; }

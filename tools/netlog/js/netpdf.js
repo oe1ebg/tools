@@ -11,7 +11,8 @@ import { PDF_MM, PDF_A4_PORTRAIT, pdfCanvas, pdfDocument, pdfWrap, pdfTextWidth,
 import { t } from './i18n.js';
 import { hm, zone, timeMode } from './clock.js';
 import { splitTime } from '../../shared/js/time.js';
-import { liveOf, roundsSorted, rosterSorted, ncsFirst, netStyle, responseOf, sessionLabel } from './model.js';
+import { liveOf, roundsSorted, netStyle, responseOf, sessionLabel } from './model.js';
+import { rosterData, rosterDur } from './rosterdata.js';
 import { timeline, stationEvents, eventText } from './notes.js';
 import { callText } from './roster.js';
 
@@ -108,14 +109,7 @@ function npdfFlow(title, sub) {
 
 const npdfNote = (txt, o = {}) => ({ t: txt, ...o });
 
-// "00:56", "01:05" (hh:mm) for a span in ms; "-" for none or for more than a day
-// (a net does not run that long: the data is then not a continuous session)
-const npdfDur = ms => {
-  if (!(ms >= 0) || ms > 24 * 3600000) return '-';
-  const h = Math.floor(ms / 3600000);
-  const m = Math.floor(ms / 60000) % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-};
+const npdfDur = rosterDur;
 
 // ---------- the Continuous Log ----------
 
@@ -226,45 +220,16 @@ function npdfOutline(cv, x, y, w, h, look) {
 // net control strip: magenta, thin (not red: next to the green bars it is lost for red-green colour blindness; not dark: it read as black)
 const NPDF_NCS = [0.72, 0.2, 0.62];
 
-// one station's stretches of presence: [{ status, from, to }] in ms, from its status events
-function npdfStretches(app, p, span) {
-  const t0 = Date.parse(span.start), t1 = Date.parse(span.end);
-  const evs = liveOf(app.sd.events).filter(e => e.type === 'status' && e.participantId === p.id && e.time && e.time.iso)
-    .sort((a, b) => (a.time.iso < b.time.iso ? -1 : a.time.iso > b.time.iso ? 1 : 0));
-  const first = (p.presence || []).find(iv => iv.from && iv.from.iso);
-  let cur = evs.length ? evs[0].from : p.status;
-  let at = first ? Math.max(t0, Date.parse(first.from.iso)) : t0;
-  const out = [];
-  const push = (status, to) => { if (status !== 'out' && to > at) out.push({ status, from: at, to }); };
-  for (const e of evs) {
-    const ms = Date.parse(e.time.iso);
-    push(cur, ms);
-    cur = e.to;
-    at = Math.max(at, ms);
-  }
-  push(cur, t1);
-  return out;
-}
-
 // Who was there when: a row per station with a bar per stretch (dark active, grey monitoring,
 // dashed outline paused or unconfirmed), a tick per note on the bar, hours on top.
-function npdfTimeline(f, app, roster, span, notes) {
-  if (!span.start || !span.end || !roster.length) return;
-  const t0 = Date.parse(span.start);
-  const t1 = Math.max(Date.parse(span.end), t0 + 60000);
+function npdfTimeline(f, chart) {
+  if (!chart) return;
+  const { t0, t1 } = chart;
   const labelW = 34, rowH = 7, x0 = NPDF_M + labelW, w = NPDF_W - labelW - 1;
   const X = ms => x0 + ((ms - t0) / (t1 - t0)) * w;
-  // who held net control when: from the handovers (before the first, the holder it was taken from)
-  const hands = liveOf(app.sd.events).filter(e => e.type === 'ncs' && e.time && e.time.iso)
-    .sort((a, b) => (a.time.iso < b.time.iso ? -1 : a.time.iso > b.time.iso ? 1 : 0));
-  const ncsRuns = new Map();
-  let holder = hands.length ? hands[0].from : app.s.ncsId, since = t0;
-  const endRun = to => { if (holder && to > since) ncsRuns.set(holder, [...(ncsRuns.get(holder) || []), [since, to]]); };
-  for (const e of hands) { const ms = Math.min(Math.max(Date.parse(e.time.iso), t0), t1); endRun(ms); holder = e.to; since = ms; }
-  endRun(t1);
   f.skip(3);
   // whole on one page if it fits on one (it starts on a fresh page rather than being split); else it flows
-  const whole = 7.4 + 4.6 + rowH * roster.length + 11;
+  const whole = 7.4 + 4.6 + rowH * chart.rows.length + 11;
   f.need(whole <= NPDF_BOTTOM - NPDF_TOP ? whole : rowH * 8 + 20);
   f.bar(t('pdf.timeline'));
   const steps = [1, 2, 5, 10, 15, 30, 60, 120, 180, 360].map(m => m * 60000);
@@ -287,12 +252,13 @@ function npdfTimeline(f, app, roster, span, notes) {
     f.skip(4.6);
   };
   axis();
-  for (const p of roster) {
+  for (const row of chart.rows) {
+    const p = row.p;
     if (f.y + rowH > NPDF_BOTTOM) { f.need(NPDF_BOTTOM); f.bar(t('pdf.timeline'), t('pdf.continued')); axis(); }
     const cv = f.cv, y = f.y;
     cv.text(callText(p), NPDF_M + 1, y + 4.6, { size: 8.5, bold: true });
     cv.line(x0, y + rowH - 0.5, x0 + w, y + rowH - 0.5, { width: 0.2, gray: 0.75 });
-    const stretches = npdfStretches(app, p, span);
+    const stretches = row.stretches;
     for (const s of stretches) {
       const look = NPDF_LOOK[s.status] || NPDF_LOOK.active;
       const bx = X(s.from), bw = Math.max(X(s.to) - bx, 0.5);
@@ -301,11 +267,9 @@ function npdfTimeline(f, app, roster, span, notes) {
       if (look.dash || look.outline) npdfOutline(cv, bx, y + 1.7, bw, rowH - 3.5, look);
     }
     // net control: a thin magenta strip above the bar
-    for (const [a, b] of ncsRuns.get(p.id) || []) cv.fill(X(a), y + 0.6, Math.max(X(b) - X(a), 0.5), 0.6, NPDF_NCS);
-    for (const n of notes) {
-      if (n.participantId !== p.id || !n.time || !n.time.iso) continue;
-      const ms = Date.parse(n.time.iso);
-      if (ms >= t0 && ms <= t1) cv.line(X(ms), y + 1.9, X(ms), y + rowH - 2.0, { width: 0.35, gray: (NPDF_LOOK[(stretches.find(s => ms >= s.from && ms <= s.to) || {}).status] || NPDF_LOOK.active).tick });
+    for (const [a, b] of row.ncs) cv.fill(X(a), y + 0.6, Math.max(X(b) - X(a), 0.5), 0.6, NPDF_NCS);
+    for (const ms of row.notes) {
+      cv.line(X(ms), y + 1.9, X(ms), y + rowH - 2.0, { width: 0.35, gray: (NPDF_LOOK[(stretches.find(s => ms >= s.from && ms <= s.to) || {}).status] || NPDF_LOOK.active).tick });
     }
     f.skip(rowH);
   }
@@ -340,36 +304,9 @@ export function rosterPdf(app) {
   const name = npdfNetName(app);
   const f = npdfFlow(`Netlog · ${t('pdf.rosterTitle')}`, name);
   const sorted = roundsSorted(app.sd.rounds);
-  const roster = ncsFirst(rosterSorted(app.sd.participants), s.ncsId);
+  const { roster, span, rows, chart } = rosterData(app);
   const ncs = app.sd.participants.find(p => p.id === s.ncsId && !p.deleted) || null;
   const radio = s.radio || {};
-
-  // the session: from the first check-in to the net closed (else the last thing that happened)
-  const stamps = [];
-  for (const p of app.sd.participants.filter(x => !x.deleted)) for (const iv of p.presence || []) { if (iv.from && iv.from.iso) stamps.push(iv.from.iso); if (iv.to && iv.to.iso) stamps.push(iv.to.iso); }
-  for (const n of liveOf(app.sd.notes)) if (n.time && n.time.iso) stamps.push(n.time.iso);
-  for (const e of liveOf(app.sd.events)) if (e.time && e.time.iso) stamps.push(e.time.iso);
-  stamps.sort();
-  const closedEv = liveOf(app.sd.events).filter(e => e.type === 'round' && e.kind === 'closed' && e.time && e.time.iso).map(e => e.time.iso).sort().at(-1) || null;
-  const span = { start: stamps[0] || null, end: closedEv || stamps.at(-1) || null, closed: !!closedEv };
-  // the last thing recorded for each station (its notes, events, turns)
-  const lastSeen = new Map();
-  const seen = (pid, iso) => { if (pid && iso && (!lastSeen.get(pid) || iso > lastSeen.get(pid))) lastSeen.set(pid, iso); };
-  for (const n of liveOf(app.sd.notes)) seen(n.participantId, n.time && n.time.iso);
-  for (const e of liveOf(app.sd.events)) seen(e.participantId, e.time && e.time.iso);
-  for (const c of liveOf(app.sd.contributions)) seen(c.participantId, c.time && c.time.iso ? c.time.iso : c.created);
-  // one participant's time in the net: the presence intervals; one still open runs to the
-  // closing of the net, else to the last thing recorded for that station
-  const presence = p => {
-    const ivs = (p.presence || []).filter(iv => iv.from && iv.from.iso);
-    if (!ivs.length) return { inAt: null, outAt: null, ms: 0 };
-    // from the first check-in to the last check-out; a station still in runs to the closing of
-    // the net, else to the last thing recorded for it
-    const last = ivs.at(-1);
-    const end = last.to && last.to.iso ? last.to.iso : span.closed ? span.end : (lastSeen.get(p.id) || ivs[0].from.iso);
-    const ms = Date.parse(end) - Date.parse(ivs[0].from.iso);
-    return { inAt: ivs[0].from.iso, outAt: last.to && last.to.iso ? last.to.iso : null, ms };
-  };
 
   // A block of facts: a full-width head line, then two columns that each hold facts that belong
   // together (left: when and how much; right: who and how), and a full-width tail for long texts.
@@ -418,20 +355,17 @@ export function rosterPdf(app) {
     tail: series ? [[t('series.description'), series.description]] : [],
   });
   f.bar(t('pdf.roster'), t('roster.stats', { n: roster.length, active: roster.filter(p => p.status === 'active').length }));
-  const counts = new Map();
-  for (const n of liveOf(app.sd.notes)) counts.set(n.participantId, (counts.get(n.participantId) || 0) + 1);
   const heads = [['#', 0, 7], [t('pdf.call'), 7, 34], [t('pdf.name'), 41, 29], [t('station.status'), 70, 33], [t('pdf.in'), 103, 18], [t('pdf.out'), 121, 18], [t('pdf.duration'), 139, 22], [t('pdf.notes'), 162, 13]];
   f.row(heads.map(([h, x, w]) => ({ x, w, lines: [npdfNote(h, { bold: true, size: 8, gray: 0.3, wrap: false })] })));
-  // stations that held net control before the current one (the times are in the timeline and the handovers)
-  const formerNcs = new Set(liveOf(app.sd.events).filter(e => e.type === 'ncs' && e.from).map(e => e.from));
-  roster.forEach((p, i) => {
-    const tags = [...(s.ncsId === p.id ? [{ text: 'NCS', solid: true }] : formerNcs.has(p.id) ? [{ text: 'NCS', soft: true }] : []), ...(s.own && s.own.base && p.base === s.own.base ? [{ text: t('own.badge') }] : [])];
-    const pr = presence(p);
+  rows.forEach((r, i) => {
+    const p = r.p;
+    // NCS filled; a former one light grey (the times are in the timeline and the handovers); me outlined
+    const tags = [...(r.ncs === 'current' ? [{ text: 'NCS', solid: true }] : r.ncs === 'former' ? [{ text: 'NCS', soft: true }] : []), ...(r.me ? [{ text: t('own.badge') }] : [])];
     const cells = [String(i + 1), callText(p), p.name || '', t(`status.${p.status}`),
-      pr.inAt ? hm(pr.inAt) : '', pr.outAt ? hm(pr.outAt) : (pr.inAt ? '-' : ''), pr.inAt ? npdfDur(pr.ms) : '', String(counts.get(p.id) || 0)];
+      r.inAt ? hm(r.inAt) : '', r.outAt ? hm(r.outAt) : (r.inAt ? '-' : ''), r.inAt ? npdfDur(r.ms) : '', String(r.notes)];
     f.row(heads.map(([, x, w], k) => ({ x, w, lines: [npdfNote(cells[k], { size: k === 1 ? 9.5 : 9, bold: k === 1, gray: k === 0 ? 0.3 : 0, ...(k === 1 ? { tags, wrap: false } : {}) })] })));
   });
-  npdfTimeline(f, app, roster, span, liveOf(app.sd.notes));
+  npdfTimeline(f, chart);
   const hand = liveOf(app.sd.events).filter(e => e.type === 'ncs').sort((a, b) => (a.created < b.created ? -1 : 1));
   if (hand.length) {
     f.skip(3);
