@@ -398,6 +398,7 @@ app.rowBadges = (p, long = false) => {
 
 app.helpEditRows = () => [
   el('tr', {}, el('td', {}, el('kbd', {}, 'Enter')), el('td', {}, t('keys.enterSaves'))),
+  el('tr', {}, el('td', {}, el('kbd', {}, 'Ctrl/⌘+Enter')), el('td', {}, t('keys.ctrlEnter'))),
   el('tr', {}, el('td', {}, el('kbd', {}, 'Shift+Enter')), el('td', {}, t('keys.shiftEnter'))),
 ];
 

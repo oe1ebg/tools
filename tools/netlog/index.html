@@ -202,7 +202,7 @@
       <!-- ===== My Turn ===== -->
       <section id="view-turn" class="view" aria-labelledby="turn-title" hidden>
         <h2 id="turn-title" tabindex="-1">My Turn</h2>
-        <div class="handover-row"><p id="turn-handover" class="handover" role="status"></p><button type="button" id="btn-handover" class="primary" data-i18n="turn.handoverBtn">Hand over</button></div>
+        <div class="handover-row"><p id="turn-handover" class="handover" role="status"></p><button type="button" id="btn-handover" class="primary" data-keys="⇧ ↵" aria-keyshortcuts="Shift+Enter" data-i18n="turn.handoverBtn">Hand over</button></div>
         <p id="turn-cycle" class="hint"></p>
         <section class="turn-resp" aria-labelledby="resp-title">
           <div class="toolbar">
@@ -425,6 +425,11 @@
 
         <section class="card data-card" aria-labelledby="data-title">
           <h3 id="data-title" data-i18n="data.title">Backup and data</h3>
+          <details class="data-group profiles-group">
+            <summary><h4 id="data-profiles-title"><span data-i18n="data.profiles">Station profiles</span> <span id="profile-count" class="count"></span></h4></summary>
+            <p class="hint" data-i18n="data.profilesHint">Saved with "Save as station profile" in a station's details; offered first when checking a station in. Sessions keep their own copy.</p>
+            <ul id="profile-list" class="profile-list"></ul>
+          </details>
           <section class="data-group" aria-labelledby="data-backup-title">
             <h4 id="data-backup-title" data-i18n="data.backup">Back up and restore</h4>
             <div class="data-action">
@@ -438,10 +443,6 @@
             </div>
             <p id="data-msg" class="data-msg" role="status"></p>
             <p class="hint note" data-i18n="data.plaintext">A backup is a plain JSON file: anyone with the file can read it. Deleting something here does not delete copies already exported.</p>
-          </section>
-          <section class="data-group" aria-labelledby="data-profiles-title">
-            <h4 id="data-profiles-title" data-i18n="data.profiles">Station profiles</h4>
-            <ul id="profile-list" class="profile-list"></ul>
           </section>
           <section class="data-group" aria-labelledby="lists-title">
             <h4 id="lists-title" data-i18n="lists.title">Callsign lists</h4>
