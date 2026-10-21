@@ -329,6 +329,16 @@ function participantRecord(fields, w, order, roundId) {
 // Check a station in (also partial or unknown callsigns: "OE0QX?", "?").
 // Late check-ins join the current round; nothing about earlier rounds is
 // assumed.
+// The series' usual net control checking in while the session has none: that station becomes
+// net control (an ordinary handover event, undone with the check-in).
+function autoNcs(w, session, p) {
+  if (!session || session.ncsId || !session.suggestedNcs || p.deleted) return;
+  const usual = normCall(session.suggestedNcs);
+  if (!usual || (p.call !== usual && p.base !== callBase(usual))) return;
+  w.create('events', { type: 'ncs', from: null, to: p.id, roundId: session.currentRoundId, time: timeOf(w.now), deleted: null });
+  w.put('sessions', { ...session, ncsId: p.id }, session);
+}
+
 export function addParticipant(store, ctx, fields) {
   return runOp(store, { ...ctx, label: 'undo.addParticipant' }, async w => {
     const session = await w.get('sessions', ctx.sessionId);
@@ -340,6 +350,7 @@ export function addParticipant(store, ctx, fields) {
     }
     const rec = w.create('participants', participantRecord({ ...fromProfile, ...fields }, w, nextOrder(list, 'rosterOrder'), session && session.currentRoundId));
     w.create('events', { type: 'presence', kind: 'checkin', participantId: rec.id, roundId: session && session.currentRoundId, time: timeOf(w.now), deleted: null });
+    autoNcs(w, session, rec);
     return rec;
   });
 }
@@ -368,6 +379,7 @@ export function setStatus(store, ctx, id, status) {
     if (!ch) return p;
     const session = await w.get('sessions', ctx.sessionId);
     w.create('events', { ...ch.event, roundId: session && session.currentRoundId, deleted: null });
+    if (p.status === 'out') autoNcs(w, session, ch.participant);
     return w.put('participants', ch.participant, p);
   });
 }
@@ -601,12 +613,13 @@ export function deleteItem(store, ctx, id, restore = false) {
     w => w.update('items', id, i => ({ ...i, deleted: restore ? null : w.now })));
 }
 
-// Move an item up/down in the My Turn checklist (manual order).
+// Move an item up (dir +1) or down (-1) in the My Turn checklist (manual order; the newest is on top).
 export function moveItem(store, ctx, id, dir) {
   return runOp(store, { ...ctx, label: 'undo.reorderItems' }, async w => {
     const [items, notes, turns] = await Promise.all([w.all('items'), w.all('notes'), w.all('turns')]);
     const turn = openTurn(turns);
-    const queue = queueItems(items, notes, turn ? turn.id : null);
+    // among the open items (what is ticked off is not on the list); the list shows the highest order on top
+    const queue = queueItems(items, notes, turn ? turn.id : null).filter(i => i.state !== 'done');
     const changes = moveInOrder(queue, id, dir, 'order');
     for (const c of changes) {
       const it = items.find(x => x.id === c.id);

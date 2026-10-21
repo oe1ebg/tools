@@ -36,7 +36,7 @@ export function initTurn(app) {
     if (!b) return;
     const id = b.closest('li').dataset.key;
     if (b.dataset.act === 'open') app.openSource(id);
-    if (b.dataset.act === 'up' || b.dataset.act === 'down') reorder(app, id, b.dataset.act === 'up' ? -1 : 1, b.dataset.act);
+    if (b.dataset.act === 'up' || b.dataset.act === 'down') reorder(app, id, b.dataset.act === 'up' ? 1 : -1, b.dataset.act);
     if (b.dataset.act === 'delete-point') app.act(store => deleteItem(store, app.ctx(), id));
     if (b.dataset.act === 'from') openProvenance(app, app.sd.items.find(i => i.id === id));
   });
@@ -115,12 +115,13 @@ export async function handOver(app) {
 async function reorder(app, id, dir, act) {
   const moved = await app.act(store => moveItem(store, app.ctx(), id, dir));
   if (!moved) return;
-  app.announce(t(dir < 0 ? 'turn.movedUp' : 'turn.movedDown'));
+  app.announce(t(dir > 0 ? 'turn.movedUp' : 'turn.movedDown'));
   const b = $('#turn-items').querySelector(`li[data-key="${CSS.escape(id)}"] button[data-act="${act}"]`);
   if (b && !b.disabled) b.focus();
   else $('#turn-items').querySelector(`li[data-key="${CSS.escape(id)}"]`)?.focus();
 }
 
+// dir: +1 moves the item up the list shown (newest on top), -1 down.
 // done: true/false, or null to toggle on the stored state (x).
 export async function completeItem(app, id, done) {
   const r = await app.act(store => setItemDone(store, app.ctx(), id, done));
@@ -180,7 +181,8 @@ export function renderTurn(app) {
   setText($('#turn-title'), t('turn.title', { own: s.own.call || t('turn.ownUnknown'), n: cur ? cur.number : '?' }));
   renderHandover(app);
   const turn = openTurn(app.sd.turns || []);
-  const queue = queueItems(app.sd.items, app.sd.notes, turn ? turn.id : null);
+  // the open items, the newest first; what was ticked off during this turn goes to the collapsed list
+  const queue = queueItems(app.sd.items, app.sd.notes, turn ? turn.id : null).filter(i => i.state !== 'done').reverse();
   const notes = new Map(app.sd.notes.map(n => [n.id, n]));
   const rounds = new Map(app.sd.rounds.map(r => [r.id, r]));
   keyedList($('#turn-items'), queue, {
@@ -239,21 +241,23 @@ export function renderTurn(app) {
   $('#point-text').readOnly = app.readOnly;
   setValue($('#point-text'), (app.drafts.get(POINT_DRAFT) || { text: document.activeElement === $('#point-text') ? $('#point-text').value : '' }).text);
 
-  // completed earlier (ended turns or outside a turn): history, reopenable
-  const inQ = new Set(queue.map(i => i.id));
-  const hist = liveOf(app.sd.items).filter(i => ['response', 'point'].includes(i.kind) && i.state === 'done' && i.active !== false && !inQ.has(i.id))
+  // answered: ticked off in this turn or earlier, in a compact list, reopenable
+  const hist = liveOf(app.sd.items).filter(i => ['response', 'point'].includes(i.kind) && i.state === 'done' && i.active !== false)
     .sort((a, b) => cmp(b.updated, a.updated));
   $('#turn-history').hidden = hist.length === 0;
   setText($('#turn-history-summary'), t('turn.history', { n: hist.length }));
   keyedList($('#turn-history-list'), hist, {
     key: i => i.id,
-    create: () => el('li', {}, el('span', {}), ' ', el('button', { type: 'button', class: 'mini', 'data-act': 'reopen' })),
+    create: () => el('li', { class: 'th-row' }, el('strong', { class: 'th-who' }), el('span', { class: 'th-text' }), el('button', { type: 'button', class: 'mini', 'data-act': 'reopen' })),
     update: (li, i) => {
       const note = i.noteId ? notes.get(i.noteId) : null;
       const p = note ? app.sd.participants.find(x => x.id === note.participantId) : null;
-      setText(li.firstChild, i.kind === 'point' ? `${t('turn.point')}: ${i.text}` : `${p ? callText(p) : '?'}: ${note ? note.text : ''}`);
-      setText(li.lastChild, t('turn.reopen'));
-      li.lastChild.disabled = app.readOnly;
+      const [who, text, reopen] = li.children;
+      setText(who, i.kind === 'point' ? t('turn.point') : p ? callText(p) : '?');
+      setText(text, i.kind === 'point' ? i.text : note ? note.text : '');
+      setAttr(text, 'title', text.textContent);
+      setText(reopen, t('turn.reopen'));
+      reopen.disabled = app.readOnly;
     },
   });
 

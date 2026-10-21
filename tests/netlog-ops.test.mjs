@@ -453,3 +453,27 @@ test('session radio fields merge: saving the mode keeps a repeater saved just be
   assert.equal(cur.radio.repeater, 'OE0XQR 438.950');
   assert.equal(cur.radio.mode, 'FM');
 });
+
+test('the series\' usual net control becomes net control when it checks in and there is none', async () => {
+  const store = memoryStore(NETLOG_STORES);
+  const series = await createSeries(store, { tab: TAB }, { name: 'Evening net', defaults: { ncs: 'oe0qxb' } });
+  const s = await createSession(store, { tab: TAB }, { own: 'oe0qxa', seriesId: series.id });
+  const ctx = { sessionId: s.id, tab: TAB };
+  const a = await addParticipant(store, ctx, { call: 'OE0QXA' });
+  assert.equal((await store.get('sessions', s.id)).ncsId, null, 'another station: no net control');
+  const b = await addParticipant(store, ctx, { call: 'OE0QXB/P' });
+  assert.equal((await store.get('sessions', s.id)).ncsId, b.id, 'the usual one (same base call) checks in');
+  const ev = (await get(store, ctx, 'events')).filter(e => e.type === 'ncs');
+  assert.deepEqual(ev.map(e => [e.from, e.to]), [[null, b.id]]);
+  // an existing net control is never replaced; a return from "out" counts as checking in
+  await setNcs(store, ctx, a.id);
+  await setStatus(store, ctx, b.id, 'out');
+  await setStatus(store, ctx, b.id, 'active');
+  assert.equal((await store.get('sessions', s.id)).ncsId, a.id);
+  await undo(store, ctx);
+  await undo(store, ctx);
+  await undo(store, ctx);
+  assert.equal((await store.get('sessions', s.id)).ncsId, b.id);
+  await undo(store, ctx);
+  assert.equal((await store.get('sessions', s.id)).ncsId, null, 'undoing the check-in undoes the handover with it');
+});

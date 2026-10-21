@@ -7,7 +7,7 @@
 // header). Text is WinAnsi: arrows and symbols of the screen are written as
 // words or ASCII.
 
-import { PDF_A4_PORTRAIT, pdfCanvas, pdfDocument, pdfWrap, pdfTextWidth, pdfOpen } from '../../shared/js/pdf.js';
+import { PDF_A4_PORTRAIT, pdfCanvas, pdfDocument, pdfWrap, pdfTextWidth, pdfOpen, pdfFooterUrl } from '../../shared/js/pdf.js';
 import { t } from './i18n.js';
 import { hm, zone, timeMode } from './clock.js';
 import { splitTime } from '../../shared/js/time.js';
@@ -79,11 +79,12 @@ function npdfFlow(title, sub) {
         cells.forEach(c => c.lines.slice(0, n).forEach((l, k) => {
           const base = y + NPDF_PAD + NPDF_PITCH * (k + 0.78);
           cv.text(l.t, NPDF_M + c.x, base, { size: l.size || 9, bold: !!l.bold, gray: l.gray || 0 });
-          // small tags after the text: NCS filled, me outlined
+          // small tags after the text: NCS filled (a former one: light grey), me outlined
           let tx = NPDF_M + c.x + pdfTextWidth(l.t, l.size || 9, !!l.bold) + 1.8;
           for (const tag of l.tags || []) {
             const w = pdfTextWidth(tag.text, 7, true) + 2;
             if (tag.solid) { cv.fill(tx, base - 3, w, 3.8, 0.1); cv.text(tag.text, tx + 1, base - 0.2, { size: 7, bold: true, gray: 1 }); }
+            else if (tag.soft) { cv.fill(tx, base - 3, w, 3.8, 0.85); cv.text(tag.text, tx + 1, base - 0.2, { size: 7, bold: true, gray: 0.25 }); }
             else { cv.rect(tx, base - 3, w, 3.8, { width: 0.5 }); cv.text(tag.text, tx + 1, base - 0.2, { size: 7, bold: true }); }
             tx += w + 1;
           }
@@ -96,8 +97,8 @@ function npdfFlow(title, sub) {
     },
     finish(docTitle) {
       pages.forEach((p, i) => {
-        p.text(npdfPlain(title), NPDF_M, NPDF_PAGE.height - NPDF_M + 0.5, { size: 8, gray: 0.3 });
         p.text(t('pdf.page', { n: i + 1, total: pages.length }), NPDF_PAGE.width - NPDF_M, NPDF_PAGE.height - NPDF_M + 0.5, { size: 9, align: 'right' });
+        pdfFooterUrl(p, NPDF_M, NPDF_PAGE.height - NPDF_M + 0.5);
       });
       return pdfDocument(NPDF_PAGE, pages.map(p => p.ops.join('\n')), npdfPlain(docTitle));
     },
@@ -180,13 +181,152 @@ export function logPdf(app) {
   return f.finish(`Netlog - ${t('log.title')} - ${name}`);
 }
 
+// ---------- the presence timeline ----------
+
+// How a status looks in black and white: a fill (gray level, 0 black .. 1 white) and an outline.
+// Absent (checked out) stations have no bar, so every drawn state differs by more than its tone.
+const NPDF_HATCH = true; // the states other than active as hatching (else plain tints)
+const NPDF_LOOK = {
+  active: { gray: [0.1, 0.55, 0.27], tick: 1 },
+  listening: { gray: [0.62, 0.8, 0.97], ink: [0.15, 0.4, 0.85], outline: true, tick: 0.1, hatch: ['/', 1.2] },
+  unconfirmed: { gray: [0.8, 0.68, 0.9], ink: [0.55, 0.32, 0.75], dash: [0.8, 0.8], tick: 0.1, hatch: ['|', 1.1] },
+  paused: { gray: [1, 0.82, 0.25], ink: [0.8, 0.5, 0], dash: [1.2, 0.9], tick: 0.1, hatch: ['x', 1.6] },
+};
+
+// Hatching in a bar (top left x, y; size w, h): '/' and '\\' diagonals, 'x' both, '|' vertical,
+// every `gap` mm in `color`; the lines are cut at the bar's edges.
+function npdfHatch(cv, kind, gap, x, y, w, h, color) {
+  const opt = { width: 0.55, color };
+  const diag = up => {
+    for (let c = -h; c <= w; c += gap) {
+      const lo = Math.max(0, -c), hi = Math.min(h, w - c);
+      if (lo >= hi) continue;
+      const px = x + c;
+      if (up) cv.line(px + lo, y + h - lo, px + hi, y + h - hi, opt);
+      else cv.line(px + lo, y + lo, px + hi, y + hi, opt);
+    }
+  };
+  if (kind === '/' || kind === 'x') diag(true);
+  if (kind === 'x') diag(false);
+  if (kind === '|') for (let c = gap / 2; c < w; c += gap) cv.line(x + c, y, x + c, y + h, opt);
+}
+
+// net control strip: magenta, thin (not red: next to the green bars it is lost for red-green colour blindness; not dark: it read as black)
+const NPDF_NCS = [0.72, 0.2, 0.62];
+
+// one station's stretches of presence: [{ status, from, to }] in ms, from its status events
+function npdfStretches(app, p, span) {
+  const t0 = Date.parse(span.start), t1 = Date.parse(span.end);
+  const evs = liveOf(app.sd.events).filter(e => e.type === 'status' && e.participantId === p.id && e.time && e.time.iso)
+    .sort((a, b) => (a.time.iso < b.time.iso ? -1 : a.time.iso > b.time.iso ? 1 : 0));
+  const first = (p.presence || []).find(iv => iv.from && iv.from.iso);
+  let cur = evs.length ? evs[0].from : p.status;
+  let at = first ? Math.max(t0, Date.parse(first.from.iso)) : t0;
+  const out = [];
+  const push = (status, to) => { if (status !== 'out' && to > at) out.push({ status, from: at, to }); };
+  for (const e of evs) {
+    const ms = Date.parse(e.time.iso);
+    push(cur, ms);
+    cur = e.to;
+    at = Math.max(at, ms);
+  }
+  push(cur, t1);
+  return out;
+}
+
+// Who was there when: a row per station with a bar per stretch (dark active, grey monitoring,
+// dashed outline paused or unconfirmed), a tick per note on the bar, hours on top.
+function npdfTimeline(f, app, roster, span, notes) {
+  if (!span.start || !span.end || !roster.length) return;
+  const t0 = Date.parse(span.start);
+  const t1 = Math.max(Date.parse(span.end), t0 + 60000);
+  const labelW = 34, rowH = 7, x0 = NPDF_M + labelW, w = NPDF_W - labelW - 1;
+  const X = ms => x0 + ((ms - t0) / (t1 - t0)) * w;
+  // who held net control when: from the handovers (before the first, the holder it was taken from)
+  const hands = liveOf(app.sd.events).filter(e => e.type === 'ncs' && e.time && e.time.iso)
+    .sort((a, b) => (a.time.iso < b.time.iso ? -1 : a.time.iso > b.time.iso ? 1 : 0));
+  const ncsRuns = new Map();
+  let holder = hands.length ? hands[0].from : app.s.ncsId, since = t0;
+  const endRun = to => { if (holder && to > since) ncsRuns.set(holder, [...(ncsRuns.get(holder) || []), [since, to]]); };
+  for (const e of hands) { const ms = Math.min(Math.max(Date.parse(e.time.iso), t0), t1); endRun(ms); holder = e.to; since = ms; }
+  endRun(t1);
+  f.skip(3);
+  // whole on one page if it fits on one (it starts on a fresh page rather than being split); else it flows
+  const whole = 7.4 + 4.6 + rowH * roster.length + 11;
+  f.need(whole <= NPDF_BOTTOM - NPDF_TOP ? whole : rowH * 8 + 20);
+  f.bar(t('pdf.timeline'));
+  const steps = [1, 2, 5, 10, 15, 30, 60, 120, 180, 360].map(m => m * 60000);
+  const step = steps.find(s => (t1 - t0) / s <= 8) || steps.at(-1);
+  const axis = () => {
+    const cv = f.cv, y = f.y;
+    // the hours in between, then the start and the end of the net in bold (an hour label too
+    // close to one of them is left out)
+    const near = 10 / w * (t1 - t0);
+    for (let ms = Math.ceil(t0 / step) * step; ms <= t1; ms += step) {
+      if (ms - t0 < near || t1 - ms < near) continue;
+      const x = X(ms);
+      cv.line(x, y + 3.2, x, y + 4.4, { width: 0.3, gray: 0.4 });
+      cv.text(hm(new Date(ms).toISOString()), x, y + 2.6, { size: 7.5, gray: 0.3, align: 'center' });
+    }
+    for (const ms of [t0, t1]) {
+      cv.line(X(ms), y + 3.2, X(ms), y + 4.4, { width: 0.4 });
+      cv.text(hm(new Date(ms).toISOString()), X(ms), y + 2.6, { size: 7.5, bold: true, align: 'center' });
+    }
+    f.skip(4.6);
+  };
+  axis();
+  for (const p of roster) {
+    if (f.y + rowH > NPDF_BOTTOM) { f.need(NPDF_BOTTOM); f.bar(t('pdf.timeline'), t('pdf.continued')); axis(); }
+    const cv = f.cv, y = f.y;
+    cv.text(callText(p), NPDF_M + 1, y + 4.6, { size: 8.5, bold: true });
+    cv.line(x0, y + rowH - 0.5, x0 + w, y + rowH - 0.5, { width: 0.2, gray: 0.75 });
+    const stretches = npdfStretches(app, p, span);
+    for (const s of stretches) {
+      const look = NPDF_LOOK[s.status] || NPDF_LOOK.active;
+      const bx = X(s.from), bw = Math.max(X(s.to) - bx, 0.5);
+      cv.fill(bx, y + 1.7, bw, rowH - 3.5, NPDF_HATCH && look.hatch ? 1 : look.gray);
+      if (NPDF_HATCH && look.hatch) npdfHatch(cv, look.hatch[0], look.hatch[1], bx, y + 1.7, bw, rowH - 3.5, look.ink);
+      if (look.dash || look.outline) cv.rect(bx, y + 1.7, bw, rowH - 3.5, { width: 0.35, dash: look.dash, ...(NPDF_HATCH && look.ink ? { color: look.ink } : {}) });
+    }
+    // net control: a thin magenta strip above the bar
+    for (const [a, b] of ncsRuns.get(p.id) || []) cv.fill(X(a), y + 0.6, Math.max(X(b) - X(a), 0.5), 0.6, NPDF_NCS);
+    for (const n of notes) {
+      if (n.participantId !== p.id || !n.time || !n.time.iso) continue;
+      const ms = Date.parse(n.time.iso);
+      if (ms >= t0 && ms <= t1) cv.line(X(ms), y + 1.9, X(ms), y + rowH - 2.0, { width: 0.35, gray: (NPDF_LOOK[(stretches.find(s => ms >= s.from && ms <= s.to) || {}).status] || NPDF_LOOK.active).tick });
+    }
+    f.skip(rowH);
+  }
+  // the key
+  f.need(10);
+  f.skip(1.5);
+  let lx = NPDF_M + 1;
+  const cv = f.cv, y = f.y;
+  for (const [st, look] of Object.entries(NPDF_LOOK)) {
+    cv.fill(lx, y, 6, 3, NPDF_HATCH && look.hatch ? 1 : look.gray);
+    if (NPDF_HATCH && look.hatch) npdfHatch(cv, look.hatch[0], look.hatch[1], lx, y, 6, 3, look.ink);
+    if (look.dash || look.outline) cv.rect(lx, y, 6, 3, { width: 0.35, dash: look.dash, ...(NPDF_HATCH && look.ink ? { color: look.ink } : {}) });
+    const label = t(`status.${st}`);
+    cv.text(label, lx + 7.5, y + 2.6, { size: 7.5 });
+    lx += 7.5 + pdfTextWidth(label, 7.5, false) + 5;
+  }
+  cv.fill(lx, y, 6, 3, NPDF_LOOK.active.gray);
+  cv.line(lx + 3, y + 0.3, lx + 3, y + 2.7, { width: 0.35, gray: 1 });
+  cv.text(t('pdf.timelineNote'), lx + 7.5, y + 2.6, { size: 7.5 });
+  lx += 7.5 + pdfTextWidth(t('pdf.timelineNote'), 7.5, false) + 5;
+  cv.fill(lx, y + 0.5, 6, 0.6, NPDF_NCS);
+  cv.fill(lx, y + 1.6, 6, 1.6, NPDF_LOOK.active.gray);
+  cv.text(t('pdf.ncs'), lx + 7.5, y + 2.6, { size: 7.5 });
+  f.skip(6);
+}
+
 // ---------- the roster with the facts of the round and series ----------
 
 export function rosterPdf(app) {
   const s = app.s;
   const series = npdfSeriesOf(app);
   const name = npdfNetName(app);
-  const f = npdfFlow(`Netlog · ${t('pdf.rosterTitle')}`, `${name} · ${s.date || ''} · ${t('pdf.times', { zone: zone() })}`);
+  const f = npdfFlow(`Netlog · ${t('pdf.rosterTitle')}`, name);
   const sorted = roundsSorted(app.sd.rounds);
   const roster = ncsFirst(rosterSorted(app.sd.participants), s.ncsId);
   const ncs = app.sd.participants.find(p => p.id === s.ncsId && !p.deleted) || null;
@@ -244,53 +384,42 @@ export function rosterPdf(app) {
   const endDay = span.start && span.end && dayOf(span.end) !== dayOf(span.start) ? `${dayOf(span.end)} ` : '';
   const endText = span.end ? `${endDay}${hm(span.end)} ${zone(span.end)}${span.closed ? '' : ` (${t('pdf.lastActivity')})`}` : '';
   info(t('pdf.round'), {
-    head: [[t('pdf.net'), name], ...(series ? [[t('pdf.seriesShort'), series.name]] : [])],
+    // the name of the net is in the page head; the series only where the net's name does not already say it
+    head: [[t('pdf.seriesShort'), series && !name.includes(series.name) ? series.name : '']],
     left: [
       [t('pdf.date'), s.date],
       [t('pdf.sessionStart'), span.start ? `${hm(span.start)} ${zone(span.start)}` : ''],
       [t('pdf.sessionEnd'), endText],
       [t('pdf.sessionDuration'), span.start && span.end ? npdfDur(Date.parse(span.end) - Date.parse(span.start)) : ''],
       [t('pdf.rounds'), String(sorted.length)],
-      [t('pdf.notes'), String(liveOf(app.sd.notes).length)],
     ],
     right: [
       [t('pdf.ncs'), ncs ? `${callText(ncs)}${ncs.name ? ` - ${ncs.name}` : ''}` : ''],
       [t('pdf.own'), s.own && s.own.call],
       [t('style.label'), t(`style.short.${netStyle(s)}`)],
-      [t('pdf.repeater'), radio.repeater],
-      [t('pdf.freq'), radio.freq],
-      [t('pdf.mode'), radio.mode],
+      // via a repeater: its call with the frequency and mode in brackets; else the frequency and mode
+      radio.repeater
+        ? [t('pdf.repeater'), radio.repeater + (radio.freq || radio.mode ? ` (${[radio.freq, radio.mode].filter(Boolean).join(' ')})` : '')]
+        : [t('pdf.freq'), [radio.freq, radio.mode].filter(Boolean).join(' ')],
+      ...(series ? [[t('pdf.sessionsShort'), String(liveOf(app.data.sessions).filter(x => x.seriesId === series.id).length)]] : []),
     ],
+    tail: series ? [[t('series.description'), series.description]] : [],
   });
-  if (series) {
-    const d = series.defaults || {};
-    info(t('pdf.series'), {
-      left: [
-        [t('pdf.schedule'), series.schedule],
-        [t('pdf.sessionsShort'), String(liveOf(app.data.sessions).filter(x => x.seriesId === series.id).length)],
-      ],
-      right: [
-        [t('pdf.usualNcs'), d.ncs],
-        [t('pdf.repeater'), d.repeater],
-        [t('pdf.freq'), d.freq],
-        [t('pdf.mode'), d.mode],
-      ],
-      tail: [[t('series.description'), series.description]],
-    });
-  }
-
   f.bar(t('pdf.roster'), t('roster.stats', { n: roster.length, active: roster.filter(p => p.status === 'active').length }));
   const counts = new Map();
   for (const n of liveOf(app.sd.notes)) counts.set(n.participantId, (counts.get(n.participantId) || 0) + 1);
-  const heads = [['#', 0, 7], [t('pdf.call'), 7, 26], [t('pdf.name'), 33, 36], [t('station.status'), 69, 34], [t('pdf.in'), 103, 18], [t('pdf.out'), 121, 18], [t('pdf.duration'), 139, 22], [t('pdf.notes'), 162, 13]];
+  const heads = [['#', 0, 7], [t('pdf.call'), 7, 34], [t('pdf.name'), 41, 29], [t('station.status'), 70, 33], [t('pdf.in'), 103, 18], [t('pdf.out'), 121, 18], [t('pdf.duration'), 139, 22], [t('pdf.notes'), 162, 13]];
   f.row(heads.map(([h, x, w]) => ({ x, w, lines: [npdfNote(h, { bold: true, size: 8, gray: 0.3, wrap: false })] })));
+  // stations that held net control before the current one (the times are in the timeline and the handovers)
+  const formerNcs = new Set(liveOf(app.sd.events).filter(e => e.type === 'ncs' && e.from).map(e => e.from));
   roster.forEach((p, i) => {
-    const tags = [...(s.ncsId === p.id ? [{ text: 'NCS', solid: true }] : []), ...(s.own && s.own.base && p.base === s.own.base ? [{ text: t('own.badge') }] : [])];
+    const tags = [...(s.ncsId === p.id ? [{ text: 'NCS', solid: true }] : formerNcs.has(p.id) ? [{ text: 'NCS', soft: true }] : []), ...(s.own && s.own.base && p.base === s.own.base ? [{ text: t('own.badge') }] : [])];
     const pr = presence(p);
     const cells = [String(i + 1), callText(p), p.name || '', t(`status.${p.status}`),
       pr.inAt ? hm(pr.inAt) : '', pr.outAt ? hm(pr.outAt) : (pr.inAt ? '-' : ''), pr.inAt ? npdfDur(pr.ms) : '', String(counts.get(p.id) || 0)];
     f.row(heads.map(([, x, w], k) => ({ x, w, lines: [npdfNote(cells[k], { size: k === 1 ? 9.5 : 9, bold: k === 1, gray: k === 0 ? 0.3 : 0, ...(k === 1 ? { tags, wrap: false } : {}) })] })));
   });
+  npdfTimeline(f, app, roster, span, liveOf(app.sd.notes));
   const hand = liveOf(app.sd.events).filter(e => e.type === 'ncs').sort((a, b) => (a.created < b.created ? -1 : 1));
   if (hand.length) {
     f.skip(3);
