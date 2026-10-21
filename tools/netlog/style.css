@@ -757,3 +757,4 @@ button[data-keys]::after{ font-family:-apple-system, system-ui, "Segoe UI Symbol
 .st-panel p{ margin:0; display:flex; flex-wrap:wrap; align-items:center; gap:.4em .6em; }
 .st-label{ min-width:7em; font-weight:600; font-size:14px; }
 .st-panel .chip{ white-space:normal; text-align:left; }
+.undo-redo{ min-height:28px; } /* keeps its height when the buttons are hidden (no session): the header must not change height */
