@@ -77,6 +77,19 @@ offers the export, as on any other page without IndexedDB.
   callsign later does the same. Enter in the callsign field goes to the name, Enter there checks
   in; the fields empty at once, so the next station can be typed while the
   first one saves.
+- **Layout.** The participant list is one left column in every view. On
+  top of the main view are its tabs: *Notes* (Live Notes and My Turn in one
+  tab: the station you selected shows its notes, my own station shows My
+  Turn), *Continuous Log* and *Net Control*, then the round and, in the same
+  row, who is on air or next for me ("▶ You are next"). "← Sessions" (top of
+  the participant list) leaves for the sessions screen, which has no tabs;
+  its session rows open a session again. The header is one row: the
+  Navigation/Editing and save chips, and one status chip (below).
+- **Status chip.** "✓ OK", or "⚠" and a word (offline, storage, backup;
+  "⚠ n notices" for several) for what needs a look; its panel has the
+  details (offline readiness, whether the browser keeps the data, the
+  backup chip that downloads a backup) and closes with Esc. Mode and saving
+  stay visible: they change what the keys do and whether work is safe.
 - **The selected station** (Live Notes): status (active, paused/away,
   monitoring ("im Hintergrund"), unconfirmed, checked out) and the
   "reception problems" flag in the head. ✎ next to the callsign opens one
@@ -92,12 +105,19 @@ offers the export, as on any other page without IndexedDB.
   speaking history or starts a round.
 - **Notes** (Live Notes, below the station): one item per observation, in
   the round sections of the station (newest round first; the current and
-  the previous one expanded, how many is set in Net Control; a collapsed
+  the previous one expanded; a collapsed
   heading shows its notes and open responses). The composer sits at the end
-  of the current round: Enter saves and keeps the composer ready for the
-  next note (the field empties at once), Shift+Enter is a new line, an
-  empty Enter saves nothing, an Enter that confirms an IME composition is
-  no save. A saved note is edited in place; Enter or leaving the field
+  of the current round, with its key symbols on its buttons: Enter saves and
+  keeps the composer ready for the next note (the field empties at once),
+  Shift+Enter is a line break, Ctrl/⌘+Enter saves and moves on (hands over
+  to the next station, like the Next button), Ctrl/⌘+Shift+Enter saves the
+  note as a question (an on-air response is expected), an empty Enter saves
+  nothing, an Enter that confirms an IME composition is no save. Opening a
+  station leaves the keyboard in navigation mode (the roster row has the
+  focus); `i` or a click enters the field, `n` opens a station's field
+  directly. Typing a note puts its station on air (one recorded turn; not
+  for my own station or a station that is skipped). The field of a paused,
+  monitoring or checked-out station is disabled until it is active again. A saved note is edited in place; Enter or leaving the field
   saves the correction, which never moves the note (its position is a
   sequence number, its time stays). An emptied note is not saved (× deletes
   it). Unfinished text is a draft: kept per station and editor, restored
@@ -120,9 +140,11 @@ offers the export, as on any other page without IndexedDB.
   status, the viewed station is tinted) and the next one (▶ a dashed
   outline), the same marks in the roster and in Net Control; a click on a
   chip opens the station. "▶ Next" (or `.`) records the next speaker's
-  turn and opens that station (My Turn when it is me). Selecting a station
-  (j/k, a click) only opens it: it never records a turn, hands over or
-  starts a round.
+  turn and opens that station (My Turn when it is me). On the on-air
+  station `.` hands over; on any other it only moves the selection one
+  station forward in the list (`,` back), recording nothing. Selecting a
+  station (j/k, a click) only opens it: it never records a turn, hands over
+  or starts a round.
   - Central control: the NCS opens every round (it has the turn before
     anyone is recorded, the first station is next); the turn goes back to
     the NCS after every station (NCS → A → NCS → B …, the NCS's turns
@@ -138,15 +160,26 @@ offers the export, as on any other page without IndexedDB.
 
   Stations that are paused, monitoring ("im Hintergrund") or checked out
   are skipped; checked-out ones are struck through in both lists and
-  skipped by j/k. The panel shows a banner when I am next or speaking; it
-  and the tabs keep their size, so nothing jumps while the turn moves. The
-  NCS is a framed card on top, apart from the list. When everyone has
-  spoken (central control, round-robin), the button offers "▶ Start round
-  N+1": a suggestion, it starts only when pressed.
-- **Rounds** start only by that button, "+ New round" (one click: the next
-  number; number and topic can be corrected in Net Control; undo takes it
-  back), never by a note, a reorder or a return to the NCS. Net Control corrects round numbers and topics and can
-  make another round the current one. Speaking turns (contributions) are
+  skipped by `.` and `,` (j/k still visit them). Skipped stations are set
+  back visually (italic, dim, hatched; the symbol ⏸ / 🎧 / ✕ stands in front
+  of the call instead of the dot) and have a "Return" button that makes them
+  active again (also `a`; `p` / `l` pause or monitor, again = active). The
+  top strip shows only "call → call": red for the station on air, yellow
+  for the next, a box "NCS" / "me" next to a call that is one. The NCS is
+  set apart by a double rule under it. A station on air has a red bullet.
+  When everyone has spoken (central control, round-robin), the button on
+  the **net control's** page offers "▶ Start round N+1 · next: CALL": a
+  suggestion, it starts only when pressed, and the first station of the new
+  round is on air at once. In a round-robin net the last station's My Turn
+  says that handing over starts the new round. Nets without a net control
+  show the button on every page.
+- **Rounds** start only by that button ("▶ Start round N+1 …", `.` on the
+  last station; one click: the next number; undo takes it back), never by a
+  note, a reorder or a return to the NCS. There is no round list in Net
+  Control any more: a round's number and topic are not edited in the UI and
+  an earlier round cannot be made current from it. Topics already stored stay
+  in the data and are still shown (round headings, search, the log PDF); the
+  data model is unchanged. Speaking turns (contributions) are
   recorded by "▶ Next"; they are optional and may repeat. A new note belongs to its station's latest contribution in the round, if
   there is one.
 - **On-air responses.** "○ response" (or `r` on a focused note, or
@@ -189,7 +222,14 @@ offers the export, as on any other page without IndexedDB.
   (older rounds collapsed), each with its station. They are the same notes
   as in Live Notes: edit, flag, task, move, delete work the same, and the
   station link opens the note in Live Notes (Back returns). "Select notes"
-  adds checkboxes for moving several at once.
+  adds checkboxes for moving several at once; "Expand all rounds" /
+  "Collapse all rounds" opens or closes every round; the general line "net
+  closed" (see Net Control) appears here. "PDF" writes the log as an A4
+  PDF (`js/netpdf.js`, the shared writer; times in the page's time mode):
+  per round, consecutive notes of one station as one block with the call
+  once and the speaking time (the first note's time, or from – to when it ran
+  2 minutes or more), flagged notes in bold with "Response (open / done)" and
+  the reply, after-net tasks as a grey line, events in grey, "Page n of N".
 - **Moving notes** ("Move…" on a note, or several from the log): to another
   station and/or round. Ids, times, the recorded order and the on-air
   responses and tasks stay with the notes (their station and round follow
@@ -238,12 +278,12 @@ offers the export, as on any other page without IndexedDB.
   series or to sessions without one ("Series"), and to the selected
   station if wanted ("only OE1ABC": its records in all sessions, matched
   like the station history, so a partial call linked by "Same station"
-  counts; points and topics have no station). A round topic opens Net
-  Control's round list with the topic focused. Each result names session,
+  counts; points and topics have no station). A round topic opens that
+  round, expanded, in the Continuous Log. Each result names session,
   date, round and station. Enter (or a click) opens the exact match ready
   to edit (a collapsed round is expanded, the match highlighted); `b` goes
   back, also to the other session, with the unfinished input as it was.
-- **Undo / Redo** (↶ ↷ in the toolbar, or Ctrl/⌘+Z and Ctrl/⌘+Shift+Z /
+- **Undo / Redo** (↺ ↻ at the very top of the page, or Ctrl/⌘+Z and Ctrl/⌘+Shift+Z /
   Ctrl+Y outside text fields; inside a field the browser's own text undo
   applies): every change of the session, including note edits and moves,
   merges, round and status changes, flags and completions. The buttons name
@@ -253,6 +293,13 @@ offers the export, as on any other page without IndexedDB.
   backup…" checks the whole file first and imports it in one go (details in
   "Backup" below). A started download is not proof the file was kept:
   check it arrived.
+- **Net Control** lists the stations like the participant list (call, name,
+  [NCS] / [me] boxes, status select, Return for skipped ones, me / NCS
+  buttons, ↑ ↓); below the list an add line takes a callsign and name with
+  status, "me" and "NCS" (for the net control opening the net), and
+  **Close the net** ("Runde beenden") checks every station that is still in
+  out (each with its own status event and time) and adds one general line
+  "net closed" with the time to the log; it is one undo step.
 - **Export this session** (Net Control card):
   - *Stations (CSV)*: one row per station, the NCS first: callsign, name,
     QTH, locator, status, role (NCS, me), first check-in and last check-out
@@ -274,6 +321,15 @@ offers the export, as on any other page without IndexedDB.
     (FM, SSB, AM, CW, DMR, D-STAR, C4FM, M17, FreeDV); without one, a
     repeater whose list entry has exactly one of these modes gives it
     (and the card says so).
+  - *Roster and facts (PDF)*: A4 PDF: the net (name, series, date, start and
+    end as times, the end with its date when the net crossed midnight, duration
+    hh:mm, number of rounds and notes, net control, my callsign, speaking
+    order, repeater, frequency, mode), the series (schedule, sessions, usual
+    net control and defaults, description), the roster in list order with
+    [NCS] / [me] tags, status, in, out and duration (first check-in to last
+    check-out, hh:mm; one still in runs to the net closed, else to the last
+    thing recorded for it; "-" over 24 h), notes per station, and the net
+    control handovers.
   - *Print report…*: session, date, NCS, repeater, mode; the stations; the
     rounds with their notes by station (times UTC, "~" estimated) only
     when "with notes and replies" is ticked (unticked by default: notes are
@@ -347,16 +403,19 @@ offers the export, as on any other page without IndexedDB.
 Navigation mode (focus outside text fields) takes single keys without
 modifiers; they never fire while typing, during an IME composition or with
 Ctrl/⌘/Alt. Tab, Shift+Tab and the buttons can do everything as well. The
-mode is shown in the toolbar ("Navigation" / "Editing").
+mode is shown in the header ("Navigation" / "Editing").
 
 | Key | Action |
 | --- | --- |
 | `j` / `k`, ↓ / ↑ | next / previous station; in the notes and in My Turn: next / previous item (past the last one: the first again) |
-| `Enter` | open the focused station (its composer), edit the focused note, open the source of a My Turn item |
-| `n` | new note for the selected station |
+| `Enter` | open the focused station, edit the focused note, open the source of a My Turn item |
+| `i` | into the note field of the selected station (vim "insert") |
+| `n` | new note for the selected station (opens it and enters the field) |
+| `a` / `p` / `l` | selected station: active / pause / monitoring (`p`, `l` again = active) |
 | `r` | flag / unflag the focused note for an on-air response |
 | `m` | My Turn |
-| `.` | Next in the net (like the ▶ button) |
+| `.` / `,` | one station forward / back in the list (skipping stations that are paused, monitoring or out); `.` on the station on air hands over (like the ▶ button) |
+| Ctrl/⌘+`Enter` | hand over to the next station (the Next button), also on My Turn: end the turn and hand over |
 | `x` | My Turn: complete / reopen the focused item |
 | `b` | back to where you came from |
 | `/` | search |
@@ -364,9 +423,10 @@ mode is shown in the toolbar ("Navigation" / "Editing").
 | `Esc` | close a popup first; in a field: leave editing, the text stays |
 
 Outside text fields Ctrl/⌘+Z undoes and Ctrl/⌘+Shift+Z (Ctrl+Y) redoes
-(the toolbar buttons do the same). While typing: Enter saves a note or reply
-and goes on, Shift+Enter is a new line, Ctrl+Shift+Enter (configurable)
-flags the note. Editing-mode commands are configurable in the
+(the header buttons do the same). While typing: Enter saves a note or reply
+and goes on, Shift+Enter is a line break, Ctrl/⌘+Enter saves and moves on,
+Ctrl/⌘+Shift+Enter saves a question; in a saved note Ctrl+Shift+Enter
+(configurable) flags it. Editing-mode commands are configurable in the
 help dialog (`js/keys.js`, pref `oe1ebg-netlog-keys`); a binding needs Ctrl
 or ⌘, and Option/Alt combinations (they type characters on macOS), function
 keys and the browser's own Ctrl/⌘ shortcuts are refused.

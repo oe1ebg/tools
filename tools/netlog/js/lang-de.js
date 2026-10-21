@@ -40,7 +40,7 @@ export const LANG_DE = {
 
   'mode.nav': 'Navigation',
   'mode.edit': 'Bearbeiten',
-  'keysLine.live': 'j/k oder ↑/↓ Stationen · . weiter in der Runde · Enter öffnen · ? Hilfe · Esc verlässt ein Feld (der Text bleibt)',
+  'keysLine.live': 'j/k Stationen · . , vor / zurück in der Runde · i Notiz schreiben · ⌘/Strg+Enter übergeben · ? Hilfe · Esc verlässt ein Feld (der Text bleibt)',
   'keysLine.other': '? Hilfe · Esc verlässt ein Feld (der Text bleibt)',
 
   'save.idle': 'noch nichts zu speichern',
@@ -280,7 +280,7 @@ export const LANG_DE = {
   'speak.freePick': 'Station wählen',
   'speak.needsNcsLine': 'Keine Rundenleitung bestimmt',
   'speak.needsNcsBtn': '▶ zuerst Rundenleitung bestimmen',
-  'help.speaking': 'Je Sitzung in der Rundenleitung einstellbar (Vorgabe aus der Serie). Eine Station mit j/k oder Klick wählen öffnet sie nur; ▶ oder „.“ zeichnet auf, wer spricht. In der freien Runde wird nichts vorhergesagt und keine Rundenleitung gebraucht.',
+  'help.speaking': 'Je Sitzung in der Rundenleitung einstellbar (Vorgabe aus der Serie). Eine Station mit j/k oder Klick wählen öffnet sie nur; „.“ und „,“ bewegen nur die Auswahl, außer „.“ bei der Station, die gerade spricht: das übergibt (wie ▶ und ⌘/Strg+Enter) und zeichnet auf, wer als Nächste spricht. Wer eine Notiz tippt, ist damit dran. In der freien Runde wird nichts vorhergesagt und keine Rundenleitung gebraucht.',
   'undo.linkStation': 'dieselbe Station',
   'undo.notSame': 'nicht dieselbe Station',
   'history.label': 'Verlauf dieser Station',
