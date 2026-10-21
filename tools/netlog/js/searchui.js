@@ -157,12 +157,13 @@ export async function openSource(app, r) {
     return;
   }
   if (r.kind === 'round') {
-    // a round topic: Net Control's round list, the topic focused
-    app.ui.view = 'control';
+    // a round topic: the round, expanded, in the Continuous Log
+    app.ui.logOpen[r.roundId] = true;
+    app.ui.view = 'log';
     app.syncHash();
     app.render();
-    const li = $('#round-list').querySelector(`li[data-key="${CSS.escape(r.roundId)}"]`);
-    if (li) { flash(li); li.querySelector('input.round-topic')?.focus(); }
+    const sec = $('#log-rounds').querySelector(`section.round[data-key="${CSS.escape(r.roundId)}"]`);
+    if (sec) { flash(sec); sec.querySelector('button.round-toggle')?.focus(); }
     return;
   }
   if (r.kind === 'point') {

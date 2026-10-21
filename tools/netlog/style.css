@@ -725,3 +725,25 @@ button[data-keys]::after{ font-family:-apple-system, system-ui, "Segoe UI Symbol
 /* callsign and name on one baseline */
 .station-head{ align-items:baseline; }
 .station-head .edit-id{ align-self:baseline; }
+
+/* Layout: the participant list is the same left column in every view; the
+   tabs belong to the main view and sit on top of it. */
+.workspace{ flex-direction:row; }
+.workspace-body{ display:contents; }
+.sidebar{ border-radius:8px 0 0 8px; }
+.content > .viewbar{ border-bottom:1px solid var(--line); padding:.5em 1em; background:var(--bg); border-radius:0 8px 0 0; position:sticky; top:0; z-index:2; }
+.content > .viewbar .tabs{ border:0; border-radius:0; gap:.2em; }
+.content > .viewbar .tabs a{ border-radius:6px; }
+.sidehead .back-link{ display:inline-block; margin:0 0 .5em; font-size:14px; text-decoration:none; color:var(--accent-text); }
+.sidehead .back-link:hover{ text-decoration:underline; }
+.sidehead .back-link[hidden]{ display:none; }
+@media (max-width: 700px){ .workspace{ flex-direction:column; } .content > .viewbar{ border-radius:0; } }
+
+/* the edit pencil next to callsign and name: a light icon, no box */
+.station-head .edit-id{ border:0; background:none; box-shadow:none; color:var(--text-dim); font-size:15px; min-width:24px; min-height:24px; padding:.1em .3em; }
+.station-head .edit-id:hover:not(:disabled), .station-head .edit-id[aria-expanded="true"]{ color:var(--accent-text); background:none; }
+
+.order-close{ display:grid; grid-template-columns:minmax(12em, 17em) 1fr; gap:.4em 1em; align-items:center; margin-top:.8em; padding-top:.7em; border-top:1px solid var(--line-strong); }
+.order-close .hint{ margin:0; color:var(--text); }
+.order-close button.danger{ border:2px solid var(--err); color:var(--err); font-weight:700; background:var(--bg); justify-self:start; }
+@media (max-width: 560px){ .order-close{ grid-template-columns:1fr; } }

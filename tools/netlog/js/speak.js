@@ -172,7 +172,7 @@ export function renderSpeak(app) {
         : st.order.length ? t('speak.progress', { n: round ? round.number : '?', done: doneN, all: st.order.length }) : '');
   for (const k of ['onAir', 'next', 'soon']) {
     $('#speak-panel').classList.toggle(`me-${k}`, meState === k);
-    $('#tab-turn').classList.toggle(`me-${k}`, meState === k);
+    $('#tab-live').classList.toggle(`me-${k}`, meState === k);
     meP.classList.toggle(`me-${k}`, meState === k);
   }
   const b = $('#btn-next');

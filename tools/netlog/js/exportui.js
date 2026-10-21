@@ -9,6 +9,7 @@ import { t } from './i18n.js';
 import { setText } from './keyed.js';
 import { download } from './dataui.js';
 import { callText } from './roster.js';
+import { openRosterPdf } from './netpdf.js';
 import {
   stationsCsv, notesCsv, netAdif, netAdifIssues, reportData, exportBase,
   NETLOG_ADIF_MIME, NETLOG_CSV_MIME,
@@ -43,6 +44,7 @@ export function initExport(app) {
     app.announce(t('export.done'));
   });
   $('#btn-export-print').addEventListener('click', () => printSessionReport(app));
+  $('#btn-export-roster-pdf').addEventListener('click', () => openRosterPdf(app));
   window.addEventListener('afterprint', () => {
     document.body.classList.remove('printing');
     $('#print-report').hidden = true;

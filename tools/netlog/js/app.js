@@ -28,7 +28,7 @@ import { initHelp, bindingText } from './help.js';
 import { createDrafts } from './drafts.js';
 import { timeMode, setTimeMode, hm, zone, localChoiceText } from './clock.js';
 import { initNotes, renderNotes, focusNoteEditor, flagNote } from './notes.js';
-import { initTurn, renderTurn, enterTurn, turnRows, focusedTurnItem, completeItem } from './myturn.js';
+import { initTurn, renderTurn, enterTurn, turnRows, focusedTurnItem, completeItem, handOver } from './myturn.js';
 import { createNav } from './nav.js';
 import { initLog, renderLog, logRows } from './clog.js';
 import { initSearch } from './searchui.js';
@@ -398,8 +398,9 @@ app.rowBadges = (p, long = false) => {
 
 app.helpEditRows = () => [
   el('tr', {}, el('td', {}, el('kbd', {}, 'Enter')), el('td', {}, t('keys.enterSaves'))),
-  el('tr', {}, el('td', {}, el('kbd', {}, 'Ctrl/⌘+Enter')), el('td', {}, t('keys.ctrlEnter'))),
   el('tr', {}, el('td', {}, el('kbd', {}, 'Shift+Enter')), el('td', {}, t('keys.shiftEnter'))),
+  el('tr', {}, el('td', {}, el('kbd', {}, 'Ctrl/⌘+Enter')), el('td', {}, t('keys.ctrlEnter'))),
+  el('tr', {}, el('td', {}, el('kbd', {}, 'Ctrl/⌘+Shift+Enter')), el('td', {}, t('keys.ctrlShiftEnter'))),
 ];
 
 // ---------- read-only (another tab writes this session) ----------
@@ -433,13 +434,19 @@ function render() {
     setAttr(a, 'href', href);
     // the sessions screen is not a workspace: it is left to and entered
     // from the back link, not part of the tabs
-    a.hidden = v === 'series';
-    setAttr(a, 'aria-current', v === view ? 'page' : null);
+    // the sessions screen is entered from the back link; Live Notes and My Turn
+    // are one tab (Notes): my own station shows My Turn, any other its notes
+    a.hidden = v === 'series' || v === 'turn';
+    if (v === 'live') {
+      const own = inSession && isOwn(app, app.participant(app.ui.selected));
+      setAttr(a, 'href', inSession ? `#/s/${encodeURIComponent(app.s.id)}/${own ? 'turn' : 'live'}` : '#/');
+      setAttr(a, 'aria-current', view === 'live' || view === 'turn' ? 'page' : null);
+    } else setAttr(a, 'aria-current', v === view ? 'page' : null);
   }
   // the sessions screen has no workspace bar (tabs, search, undo, round): it belongs to a session's work
   $('.viewbar').hidden = view === 'series';
   const back = $('#btn-sessions');
-  back.hidden = !inSession || view === 'series';
+  back.hidden = !inSession;
   setAttr(back, 'href', inSession ? `#/s/${encodeURIComponent(app.s.id)}/series` : '#/');
   renderHeader();
   if (inSession) {
@@ -658,6 +665,13 @@ function initKeyboard(help) {
       // Ctrl/⌘+Z undo, Ctrl/⌘+Shift+Z (or Ctrl+Y) redo, outside text fields
       modified: ev => {
         const k = ev.key.toLowerCase();
+        // Ctrl/⌘+Enter outside a text field: the buttons' hand over, on My Turn and in the notes
+        if ((ev.ctrlKey || ev.metaKey) && !ev.altKey && !ev.shiftKey && k === 'enter') {
+          if (!app.s || app.readOnly) return false;
+          if (app.ui.view === 'turn') { handOver(app); return true; }
+          if (app.ui.view === 'live' && !$('#btn-next').disabled) { nextSpeaker(app); return true; }
+          return false;
+        }
         if ((ev.ctrlKey || ev.metaKey) && !ev.altKey && k === 'z') { app.undo(ev.shiftKey); return true; }
         if (ev.ctrlKey && !ev.metaKey && !ev.altKey && !ev.shiftKey && k === 'y') { app.undo(true); return true; }
         return false;

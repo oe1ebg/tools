@@ -7,6 +7,7 @@
 import { $, el } from '../../shared/js/dom.js';
 import { t } from './i18n.js';
 import { keyedList, setText, setAttr } from './keyed.js';
+import { openLogPdf } from './netpdf.js';
 import { roundsSorted, liveOf, bySeq } from './model.js';
 import { initNoteList, noteRow, updateNoteRow, roundOpen, openMoveDialog, timeline, stationEvents, eventRow, updateEventRow } from './notes.js';
 import { deleteNote } from './ops.js';
@@ -33,6 +34,13 @@ export function initLog(app) {
     renderLogBar(app);
   });
   app.ui.logOpen = {};
+  $('#btn-log-pdf').addEventListener('click', () => openLogPdf(app));
+  // expand or collapse every round at once
+  $('#btn-log-all').addEventListener('click', () => {
+    const open = $('#btn-log-all').dataset.allOpen !== 'true';
+    for (const r of app.sd.rounds) app.ui.logOpen[r.id] = open;
+    renderLog(app);
+  });
   $('#btn-log-select').addEventListener('click', () => {
     app.ui.logSelect = !app.ui.logSelect;
     if (!app.ui.logSelect) app.ui.logSelected.clear();
@@ -64,6 +72,12 @@ export function renderLog(app) {
   const notes = liveOf(app.sd.notes).sort(bySeq);
   // a note that is gone is no longer selected
   for (const id of [...app.ui.logSelected]) if (!notes.some(n => n.id === id)) app.ui.logSelected.delete(id);
+  const isOpen = r => { const k = app.ui.logOpen[r.id]; return k !== undefined ? k : roundOpen(app, { id: r.id }, sorted) || r.id === app.s.currentRoundId; };
+  const all = $('#btn-log-all');
+  const allOpen = sorted.length > 0 && sorted.every(isOpen);
+  all.dataset.allOpen = String(allOpen); // the label says what a click does (no pressed state)
+  setText(all, t(allOpen ? 'log.collapseAll' : 'log.expandAll'));
+  all.disabled = !sorted.length;
   keyedList($('#log-rounds'), sorted, {
     key: r => r.id,
     create: r => el('section', { class: 'round' },
