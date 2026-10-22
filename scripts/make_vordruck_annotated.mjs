@@ -15,7 +15,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { blankFormPdf } from '../tools/notfunk/js/paperpdf.js';
-import { annotate } from '../tests/e2e/annotate.mjs';
+import { annotate, GROUP_COLORS } from '../tests/e2e/annotate.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const OUT = join(ROOT, 'docs/static/notfunk-vordruck-beschriftet.png');
@@ -23,19 +23,28 @@ const PX = 100 / 72;   // the boxes below are in pixels at 100 dpi
 
 // box: x, y, w, h at 100 dpi; word: a word of the form inside the box
 const NOTES = [
-  { box: [591, 39, 196, 96], word: 'NOTFUNK-NR.', side: 'right', text: 'Nummer der Meldung, fortlaufend (z. B. W1-007)' },
-  { box: [40, 96, 532, 40], word: 'EINGANG', side: 'left', text: 'Richtung ankreuzen: Eingang = empfangen, Ausgang = weitergefunkt' },
-  { box: [39, 160, 748, 62], word: 'MELDESAMMELSTELLE', side: 'right', text: 'Frei lassen: füllt die Meldesammelstelle aus' },
-  { box: [40, 233, 430, 66], word: 'EMPFANGEN', side: 'left', text: 'Wann die Meldung übermittelt wurde: Datum und Uhrzeit (Ortszeit)' },
-  { box: [473, 233, 314, 66], word: 'DRINGLICHKEIT', side: 'right', text: 'Dringlichkeit: eine Stufe einkreisen' },
-  { box: [40, 300, 747, 98], word: 'ÜBERMITTLUNG', side: 'right', text: 'Wie übermittelt (Funk, Telefon …) und Meldungsart: jeweils einkreisen' },
-  { box: [40, 402, 374, 118], word: '(ABSENDER)', side: 'left', text: 'Von: wer die Meldung aufgibt, und seine Funkstelle' },
-  { box: [414, 402, 373, 118], word: '(ADRESSAT)', side: 'right', text: 'An: für wen sie bestimmt ist, mit Funkstelle und Verteiler' },
-  { box: [40, 522, 747, 60], word: 'BETREFF', side: 'left', text: 'Betreff (kurz), Ort des Ereignisses, Bezug auf eine frühere Meldung' },
-  { box: [40, 584, 747, 340], word: 'INHALT', side: 'left', text: 'Inhalt: der Wortlaut, wie übermittelt, nichts weglassen' },
-  { box: [48, 930, 300, 22], word: 'Rücklesen', side: 'right', text: 'Rücklesen (optional): ankreuzen, wenn der Absender bestätigt hat' },
-  { box: [40, 958, 374, 92], word: 'AUFGENOMMEN', side: 'left', text: 'Aufgenommen von: Ihr Name oder Ihre Unterschrift, Ihre Station' },
-  { box: [40, 1050, 747, 66], word: 'ZEITPUNKT', side: 'right', text: 'Übergabe bzw. Übertragung: an wen, wann, wer hat übernommen' },
+  { box: [591, 39, 196, 96], word: 'NOTFUNK-NR.', color: 'blue', side: 'right', text: 'Nummer der Meldung, fortlaufend (z. B. W1-007)' },
+  { box: [40, 96, 532, 40], word: 'EINGANG', color: 'blue', side: 'left', text: 'Richtung ankreuzen: Eingang = empfangen, Ausgang = weitergefunkt' },
+  { box: [39, 160, 748, 62], word: 'MELDESAMMELSTELLE', color: 'gray', side: 'right', text: 'Frei lassen: füllt die Meldesammelstelle aus' },
+  { box: [40, 233, 430, 66], word: 'EMPFANGEN', color: 'orange', side: 'left', text: 'Wann die Meldung übermittelt wurde: Datum und Uhrzeit (Ortszeit)' },
+  { box: [473, 233, 314, 66], word: 'DRINGLICHKEIT', color: 'orange', side: 'right', text: 'Dringlichkeit: eine Stufe einkreisen' },
+  { box: [40, 300, 747, 98], word: 'ÜBERMITTLUNG', color: 'orange', side: 'right', text: 'Wie übermittelt (Funk, Telefon …) und Meldungsart: jeweils einkreisen' },
+  { box: [40, 402, 374, 118], word: '(ABSENDER)', color: 'green', side: 'left', text: 'Von: wer die Meldung aufgibt, und seine Funkstelle' },
+  { box: [414, 402, 373, 118], word: '(ADRESSAT)', color: 'green', side: 'right', text: 'An: für wen sie bestimmt ist, mit Funkstelle und Verteiler' },
+  { box: [40, 522, 747, 60], word: 'BETREFF', color: 'green', side: 'left', text: 'Betreff (kurz), Ort des Ereignisses, Bezug auf eine frühere Meldung' },
+  { box: [40, 584, 747, 340], word: 'INHALT', color: 'green', side: 'left', text: 'Inhalt: der Wortlaut, wie übermittelt, nichts weglassen' },
+  { box: [48, 930, 300, 22], word: 'Rücklesen', color: 'purple', side: 'right', text: 'Rücklesen (optional): ankreuzen, wenn der Absender bestätigt hat' },
+  { box: [40, 958, 374, 92], word: 'AUFGENOMMEN', color: 'purple', side: 'left', text: 'Aufgenommen von: Ihr Name oder Ihre Unterschrift, Ihre Station' },
+  { box: [40, 1050, 747, 66], word: 'ZEITPUNKT', color: 'purple', side: 'right', text: 'Übergabe bzw. Übertragung: an wen, wann, wer hat übernommen' },
+];
+
+// the groups of fields that belong together (colour + name in the legend)
+const LEGEND = [
+  { color: GROUP_COLORS.blue, text: 'Kopf: Nummer und Richtung' },
+  { color: GROUP_COLORS.gray, text: 'Nicht ausfüllen' },
+  { color: GROUP_COLORS.orange, text: 'Wann und wie' },
+  { color: GROUP_COLORS.green, text: 'Wer und was' },
+  { color: GROUP_COLORS.purple, text: 'Abschluss' },
 ];
 
 const dir = mkdtempSync(join(tmpdir(), 'vordruck-'));
@@ -54,6 +63,6 @@ const { chromium } = await import(join(ROOT, 'tests/e2e/node_modules/@playwright
 const browser = await chromium.launch();
 const context = await browser.newContext({ deviceScaleFactor: 1.5 });
 await annotate(context, readFileSync(join(dir, 'v.png')), { width: 827, height: 1170 },
-  NOTES.map(n => ({ box: { x: n.box[0], y: n.box[1], w: n.box[2], h: n.box[3] }, text: n.text, side: n.side })), OUT);
+  NOTES.map(n => ({ box: { x: n.box[0], y: n.box[1], w: n.box[2], h: n.box[3] }, text: n.text, side: n.side, color: GROUP_COLORS[n.color] })), OUT, { legend: LEGEND });
 await browser.close();
 console.log(`wrote ${OUT}`);

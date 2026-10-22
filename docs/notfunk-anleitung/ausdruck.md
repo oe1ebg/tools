@@ -27,7 +27,9 @@ kreuzen Sie an oder kreisen sie ein.
 Im Meldebuch finden Sie es auch auf der Startseite unter „Leeres Formular
 (PDF)“ und unter „Drucken / PDF…“.
 
-[![Das leere Formular mit beschrifteten Feldern: Nummer, Richtung, Meldesammelstelle (frei lassen), Zeit, Dringlichkeit, Übermittlung und Meldungsart, Von, An, Betreff, Ort, Bezug, Inhalt, Rücklesen, Aufgenommen von, Übergabe](../img/notfunk-vordruck-beschriftet.png){ .wide }](../img/notfunk-vordruck-beschriftet.png)
+[![Das leere Formular mit beschrifteten und nach Zusammengehörigkeit farbig gruppierten Feldern. Kopf: Nummer, Richtung. Nicht ausfüllen: Block der Meldesammelstelle. Wann und wie: Zeit, Dringlichkeit, Übermittlung, Meldungsart. Wer und was: Von, An, Betreff, Ort, Bezug, Inhalt. Abschluss: Rücklesen, Aufgenommen von, Übergabe](../img/notfunk-vordruck-beschriftet.png){ .wide }](../img/notfunk-vordruck-beschriftet.png)
+
+Die Farben im Bild zeigen, welche Felder zusammengehören.
 
 Ausfüllen auf Papier: Wortlaut ins große Feld, wenn möglich **zurücklesen** lassen
 (nicht zwingend) und abhaken, Übergabe bzw. Übertragung unten eintragen. Den Block „Nur von der

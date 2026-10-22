@@ -20,9 +20,9 @@ Das Formular steht im Meldebuch ganz oben. Die nächste Nummer wird angezeigt
 „Übergeben“ oder „übertragen“ heißt nie, dass ein Auftrag im Inhalt erledigt
 ist.
 
-[![Das Formular „Neue Meldung“ mit beschrifteten Feldern: Nummer, Richtung, Zeit, Übermittlung, Funkstelle, Frequenz und Relais, Von, An, Dringlichkeit, Betreff, Ort, Inhalt, Rücklesen, Weitere Felder, Speichern](../img/notfunk-formular-beschriftet.png){ .wide }](../img/notfunk-formular-beschriftet.png)
+[![Das Formular „Neue Meldung“ mit beschrifteten und nach Zusammengehörigkeit farbig gruppierten Feldern. Kopf: Nummer, Richtung. Wann und wie: Zeit, Übermittlung, Funkstelle, Frequenz und Relais, Dringlichkeit. Wer und was: Von, An, Betreff, Ort, Inhalt. Abschluss: Rücklesen, Weitere Felder, Speichern](../img/notfunk-formular-beschriftet.png){ .wide }](../img/notfunk-formular-beschriftet.png)
 
-Jedes Feld ist im Bild beschriftet. Wenn Sie die Meldung **empfangen** haben, wählen Sie „Eingang“; wenn Sie sie
+Jedes Feld ist im Bild beschriftet; die Farben zeigen, was zusammengehört. Wenn Sie die Meldung **empfangen** haben, wählen Sie „Eingang“; wenn Sie sie
 **weiterfunken**, „Ausgang“. Zeiten und Daten geben Sie so ein, wie sie
 angezeigt werden (`2026-10-08`, `14:05`); `20261008` und `1405` gehen auch.
 Alle Zeiten sind **Ortszeit**, in 24-Stunden-Schreibweise.
