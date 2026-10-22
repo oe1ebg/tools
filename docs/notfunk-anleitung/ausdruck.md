@@ -21,8 +21,8 @@ Im Meldebuch finden Sie es auch auf der Startseite unter „Leeres Formular
 
 [![Das leere Formular mit beschrifteten Feldern: Nummer, Richtung, Meldesammelstelle (frei lassen), Zeit, Dringlichkeit, Übermittlung und Meldungsart, Von, An, Betreff, Ort, Bezug, Inhalt, Rücklesen, Aufgenommen von, Übergabe](../img/notfunk-vordruck-beschriftet.png){ .wide }](../img/notfunk-vordruck-beschriftet.png)
 
-Ausfüllen auf Papier: Wortlaut ins große Feld, **zurücklesen** lassen und
-abhaken, Übergabe bzw. Übertragung unten eintragen. Den Block „Nur von der
+Ausfüllen auf Papier: Wortlaut ins große Feld, wenn möglich **zurücklesen** lassen
+(nicht zwingend) und abhaken, Übergabe bzw. Übertragung unten eintragen. Den Block „Nur von der
 Meldesammelstelle auszufüllen“ lassen Sie frei.
 
 ## Eine Meldung als Formular

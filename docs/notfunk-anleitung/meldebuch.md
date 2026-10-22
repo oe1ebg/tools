@@ -72,7 +72,7 @@ der **Ablauf**: wann und von wem die Meldung erfasst, übergeben bzw.
 
 - **Eingang:** „Übergeben an“ (z. B. die Meldesammelstelle), dann „Übernommen
   durch“ und, wenn genannt, die Referenz der Meldesammelstelle.
-- **Ausgang:** „Übertragen an“ (die Funkstelle), ob sie zurückgelesen hat,
+- **Ausgang:** „Übertragen an“ (die Funkstelle), ggf. ob sie zurückgelesen hat,
   dann „Empfang bestätigt durch“. Klappt eine Übertragung nicht oder gibt es
   eine Rückfrage: „Fehlversuch / Rückfrage eintragen“.
 - Zeitpunkt leer = jetzt; sonst die Uhrzeit, z. B. `14:10`.

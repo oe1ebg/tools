@@ -9,8 +9,9 @@ Das Formular steht im Meldebuch ganz oben. Die nächste Nummer wird angezeigt
 ## Der Ablauf einer Meldung
 
 1. **Wortlaut aufnehmen:** den Inhalt wörtlich, wie übermittelt.
-2. **Rücklesen bestätigen:** beim Eingang zurücklesen, der Absender bestätigt.
-   Beim Ausgang liest die Funkstelle zurück.
+2. **Rücklesen** (empfohlen, nicht zwingend): die Meldung dem Absender
+   vorlesen bzw. von der Funkstelle zurücklesen lassen. Bestätigt er, setzen
+   Sie das Häkchen „Rücklesen“; sonst lassen Sie es leer.
 3. **Meldung sichern:** Speichern vergibt die Notfunk-Nummer.
 4. **Übergabe bzw. Übertragung eintragen:** bei einer eingegangenen Meldung
    „übergeben“, bei einer ausgehenden „übertragen“, danach die Bestätigung.

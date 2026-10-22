@@ -47,7 +47,8 @@ die Meldung **weiterfunken**, ist die Richtung **Ausgang (↑)**.
 4. **Betreff:** „Stromausfall Pflegeheim, Diesel benötigt“. **Ort:** die
    Adresse; beim Tippen schlägt die Ortssuche Treffer vor (offline).
 5. **Inhalt – wörtlich:** der Wortlaut, wie ihn Frau Huber nennt.
-6. **Rücklesen:** Lesen Sie die Meldung der Person vor. Sagt sie „stimmt“,
+6. **Rücklesen** (empfohlen, nicht zwingend): Lesen Sie die Meldung der
+   Person vor. Sagt sie „stimmt“,
    setzen Sie das Häkchen (<kbd>Leertaste</kbd>).
 
     ![Formular „Neue Meldung“](../img/notfunk-tutorial-meldung.png)
@@ -67,7 +68,7 @@ liest zurück.
 1. Klicken Sie in der Zeile von W1-001 auf **„übertragen“**; es öffnet sich
    ein kleines Fenster. **Übertragen an:** das Rufzeichen der Gegenstelle,
    Zeitpunkt leer = jetzt; <kbd>Enter</kbd> trägt ein.
-2. Hat die Gegenstelle zurückgelesen und die Übernahme bestätigt, tragen Sie
+2. Hat die Gegenstelle den Empfang bestätigt, tragen Sie
    „**Empfang bestätigt**“ ein (durch wen, wann).
 3. Nennt die Meldesammelstelle später eine **Referenz** (hier „GZ 0412“),
    tragen Sie sie in der Meldung ein.

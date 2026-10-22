@@ -120,7 +120,7 @@ test('Notfunk-Meldebuch', async ({ page }) => {
     { sel: '#m-subject', text: 'Betreff: kurz und klar' },
     { sel: '#m-loc', text: 'Ort des Ereignisses, mit Vorschlägen', side: 'right' },
     { sel: '#m-text', text: 'Inhalt: der Wortlaut, wie übermittelt' },
-    { sel: '#m-readback', text: 'Rücklesen: der Absender hat bestätigt' },
+    { sel: '#m-readback', text: 'Rücklesen (optional): der Absender hat bestätigt' },
     { sel: '#m-more > summary', text: 'Weitere Felder: Bezug, Verteiler, Ursprung' },
     { sel: '#btn-save', text: 'Speichern: vergibt die Nummer', side: 'right' },
   ], 'notfunk-formular-beschriftet');
