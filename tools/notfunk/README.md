@@ -215,7 +215,7 @@ name, and a distribution list ("Verteiler").
   keys, the flow, who is who, places, times, confirmations, numbers and
   urgency; Esc closes it and the focus goes back to the field. The
   manual with screenshots is `docs/notfunk-anleitung/` (start page
-  `index.de.md`/`index.en.md` and sub pages in `tutorial/`, `manual/`, `reference/`, each as `name.de.md` and `name.en.md`; `/tools/notfunk-anleitung/`,
+  `index.de.md` and sub pages in `tutorial/`, `manual/`, `reference/`, named `name.de.md`; `/tools/notfunk-anleitung/`,
   linked from the header and the help; screenshots from `just screenshots`,
   annotated pictures by `tests/e2e/annotate.mjs`, the paper form's by
   `scripts/make_vordruck_annotated.mjs`, committed in `docs/static/`).
