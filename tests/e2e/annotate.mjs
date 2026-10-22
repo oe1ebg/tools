@@ -57,7 +57,7 @@ export async function annotate(context, png, size, notes, outPath, { legend = []
       const label = (n, x) => {
         const el = document.createElement('div');
         el.textContent = n.text;
-        el.style.cssText = `position:absolute;width:${LABEL_W - 20}px;padding:6px 10px;background:#fff;border:3px solid ${n.color || COLOR};border-radius:6px;left:${x + 20}px`;
+        el.style.cssText = `position:absolute;width:${LABEL_W - 20}px;padding:6px 10px;background:#fff;border:4px solid ${n.color || COLOR};border-radius:6px;left:${x + 20}px`;
         wrap.append(el);
         n.el = el;
         n.h = el.offsetHeight;
@@ -93,7 +93,7 @@ export async function annotate(context, png, size, notes, outPath, { legend = []
       const line = (x1, y1, x2, y2, c) => {
         const l = document.createElementNS(NS, 'line');
         l.setAttribute('x1', x1); l.setAttribute('y1', y1); l.setAttribute('x2', x2); l.setAttribute('y2', y2);
-        l.setAttribute('stroke', c); l.setAttribute('stroke-width', 2.5); l.setAttribute('marker-end', `url(#a${colors.indexOf(c)})`);
+        l.setAttribute('stroke', c); l.setAttribute('stroke-width', 3.5); l.setAttribute('marker-end', `url(#a${colors.indexOf(c)})`);
         svg.append(l);
       };
       for (const n of notes) {
@@ -102,7 +102,7 @@ export async function annotate(context, png, size, notes, outPath, { legend = []
         rect.setAttribute('x', bx - 3); rect.setAttribute('y', by - 3);
         rect.setAttribute('width', bw + 6); rect.setAttribute('height', bh + 6);
         rect.setAttribute('rx', 5);
-        rect.setAttribute('fill', 'none'); rect.setAttribute('stroke', n.color || COLOR); rect.setAttribute('stroke-width', 2.5);
+        rect.setAttribute('fill', 'none'); rect.setAttribute('stroke', n.color || COLOR); rect.setAttribute('stroke-width', 3.5);
         svg.append(rect);
         if (n.side === 'top') {
           const lcx = n.lx + (LABEL_W - 20 + 22) / 2;
@@ -121,7 +121,7 @@ export async function annotate(context, png, size, notes, outPath, { legend = []
           const chip = document.createElement('div');
           chip.style.cssText = `display:flex;align-items:center;gap:8px;font-weight:600`;
           const sw = document.createElement('span');
-          sw.style.cssText = `width:30px;height:18px;border:3px solid ${l.color};border-radius:4px;display:inline-block;box-sizing:border-box`;
+          sw.style.cssText = `width:30px;height:18px;border:4px solid ${l.color};border-radius:4px;display:inline-block;box-sizing:border-box`;
           chip.append(sw, document.createTextNode(l.text));
           row.append(chip);
         }
