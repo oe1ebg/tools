@@ -4,7 +4,6 @@
 [Alle Tools](../index.md) ·
 [Offline-Datei](../notfunk/notfunk-offline.html){ download="notfunk-meldebuch-offline.html" } ·
 [Leeres Formular (PDF)](../downloads/notfunk-vordruck.pdf){ download="notfunk-vordruck.pdf" } ·
-[English](index.en.md) ·
 [Datenquellen](../data-sources.md#notfunk-meldebuch) ·
 [Quellcode](https://github.com/oe1ebg/tools/tree/main/tools/notfunk)
 { .tool-actions }
