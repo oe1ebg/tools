@@ -9,7 +9,15 @@ PDF-Betrachters (Skalierung „Tatsächliche Größe“ bzw. 100 %).
 
 ## Das leere Formular für Papier
 
-Für die Arbeit ohne Gerät gibt es das Meldeaufnahmeformular zum Ausdrucken
+Das Meldebuch läuft auch ohne Internet. Trotzdem sollten Sie auf einen
+Betrieb **nur mit Papier** vorbereitet sein, falls Gerät oder Strom ausfallen.
+**Drucken Sie die Formulare deshalb vor dem Einsatz aus**: einen Stapel zu
+Stift und Funkgerät legen. Fällt das Gerät aus, arbeiten Sie auf Papier
+weiter und tragen die Meldungen später ins Meldebuch nach („Nachtrag vom
+Papier“); schreiben Sie die Nummer vom Papier in die Anmerkungen, damit beides
+zusammenpasst.
+
+Das Meldeaufnahmeformular zum Ausdrucken
 (A4 hoch, eine Seite). Es hat dieselben Felder wie das Formular im
 Meldebuch; Wahlmöglichkeiten wie Dringlichkeit, Übermittlung und Meldungsart
 kreuzen Sie an oder kreisen sie ein.
