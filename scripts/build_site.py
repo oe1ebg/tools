@@ -58,6 +58,7 @@ IGNORE = shutil.ignore_patterns("*.md", ".*", "__pycache__")
 MANUALS = {
     "confirm-anleitung": "Bestätigungsverkehr: Anleitung",
     "notfunk-anleitung": "Notfunk-Meldebuch: Anleitung",
+    "notfunk-anleitung/english": "Notfunk logbook: introduction and tutorial (English)",
     "data-sources": "Datenquellen",
 }
 
@@ -260,7 +261,9 @@ def main() -> None:
     items = "\n".join(
         f'<li><a href="{d}/">{html.escape(t)}</a> — {html.escape(desc)}</li>'
         for d, (t, desc) in TOOLS.items() if (OUT_DIR / d).is_dir())
-    docs = "\n".join(f'<li><a href="{n}/">{html.escape(t)}</a></li>' for n, t in MANUALS.items())
+    docs = "\n".join(
+        f'<li><a href="{n}/"{" lang=\"en\"" if n.endswith("/english") else ""}>{html.escape(t)}</a></li>'
+        for n, t in MANUALS.items())
     body = f"<h1>Tools</h1>\n<ul>\n{items}\n</ul>\n<h2>Anleitungen</h2>\n<ul>\n{docs}\n</ul>"
     (OUT_DIR / "index.html").write_text(page("Tools", body, "", False, foot), encoding="utf-8")
 
