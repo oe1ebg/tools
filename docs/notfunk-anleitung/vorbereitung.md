@@ -58,6 +58,13 @@ Installation und kein Internet.
   Entscheiden Sie sich in einem Einsatz für **eine** davon; zum Umziehen
   verwenden Sie die [Sicherung](sicherung.md).
 
+## Papier als Rückfall
+
+Auch das beste Gerät kann ausfallen. Drucken Sie vor dem Einsatz das
+[leere Formular](ausdruck.md#das-leere-formular-fur-papier) aus und halten Sie
+einen Stapel bereit (zusammen mit Stift und Notizpapier); [hier
+herunterladen](../downloads/notfunk-vordruck.pdf){ download="notfunk-vordruck.pdf" }.
+
 ## Daten sichern
 
 Alle Meldungen liegen nur auf diesem Gerät. Sichern Sie deshalb regelmäßig.

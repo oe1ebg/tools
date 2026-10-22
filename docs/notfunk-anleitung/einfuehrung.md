@@ -209,10 +209,11 @@ selbst gilt, nicht diese Zusammenfassung):
 - Zwischen den Durchgängen das Relais abfallen lassen und eine Sekunde
   Pause machen, damit Notrufe gehört werden.
 - Deutlich, langsam und ruhig sprechen; bei den Fakten bleiben.
-- Funktagebuch führen und das Meldeaufnahmeformular benutzen. Die
-  Richtlinie empfiehlt, **alle Aufzeichnungen auch auf Papier** zu führen
-  (Betriebssicherheit): das Meldebuch ersetzt das Papier nicht, es ergänzt
-  es. Dafür gibt es das leere Formular als PDF: [Leeres Formular (PDF) herunterladen](../downloads/notfunk-vordruck.pdf){ download="notfunk-vordruck.pdf" } ([Ausdruck und PDF](ausdruck.md)).
+- Funktagebuch führen und das Meldeaufnahmeformular benutzen. Das Meldebuch
+  ist dafür gebaut, auch ohne Internet zuverlässig zu laufen. Trotzdem
+  müssen Sie auf einen Betrieb **nur mit Papier** vorbereitet sein, falls
+  Gerät oder Strom ausfallen: **Drucken Sie die Papierformulare vorher aus**
+  und halten Sie sie bereit: [Leeres Formular (PDF) herunterladen](../downloads/notfunk-vordruck.pdf){ download="notfunk-vordruck.pdf" } ([Ausdruck und PDF](ausdruck.md)).
 - Personenbezogene Daten sind zu löschen, wenn sie nicht mehr gebraucht
   werden (Richtlinie, Abschnitt Datenschutz). Das Meldebuch löscht nie von
   selbst; Einsätze und Sicherungen verwaltet man selbst.

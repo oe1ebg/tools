@@ -207,8 +207,10 @@ The **Notfunk number** (`W1-007`) belongs to the station, the **reference**
 to the staff's own registry (*Geschäftsbuch*). The logbook keeps both apart
 so the two lists can be matched.
 
-The guideline also recommends keeping **all records on paper as well**: the
-logbook complements paper, it does not replace it.
+The logbook is built to run reliably offline. Even so, be prepared for
+**paper-only** operation in case the device or the power fails: **print the
+paper forms in advance** and keep a stack ready (German form below). Enter the
+messages in the logbook afterwards.
 [Download the empty form (PDF)](../downloads/notfunk-vordruck.pdf){ download="notfunk-vordruck.pdf" }
 (German; the same form the tool prints). Personal data must be deleted when
 no longer needed; the logbook never deletes by itself, so you manage
