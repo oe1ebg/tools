@@ -6,7 +6,7 @@
 // (tests/manual-images.test.mjs).
 import { fileURLToPath } from 'node:url';
 import { test, expect } from '@playwright/test';
-import { annotate } from './annotate.mjs';
+import { annotate, GROUP_COLORS } from './annotate.mjs';
 
 const IMG = (process.env.SHOTS_OUT ? process.env.SHOTS_OUT.replace(/\/*$/, '/') : fileURLToPath(new URL('../../build/manual-img/', import.meta.url)));
 const EXAMPLES = fileURLToPath(new URL('../../examples/backups/', import.meta.url));
@@ -47,7 +47,7 @@ async function shotAround(page, selectors, name, pad = 8) {
 
 // The picture of an element with labelled fields (annotate.mjs): notes are
 // { sel (a selector or several: the box around them), text, side }.
-async function shotAnnotated(page, root, notes, name) {
+async function shotAnnotated(page, root, notes, name, legend = []) {
   const rootBox = await root.boundingBox();
   const boxOf = async sels => {
     const boxes = [];
@@ -56,10 +56,10 @@ async function shotAnnotated(page, root, notes, name) {
     return { x: x - rootBox.x, y: y - rootBox.y, w: Math.max(...boxes.map(b => b.x + b.width)) - x, h: Math.max(...boxes.map(b => b.y + b.height)) - y };
   };
   const placed = [];
-  for (const n of notes) placed.push({ box: await boxOf(n.sel), text: n.text, side: n.side });
+  for (const n of notes) placed.push({ box: await boxOf(n.sel), text: n.text, side: n.side, color: GROUP_COLORS[n.color] });
   let png;
   await staticHeader(page, async () => { png = await root.screenshot({ animations: 'disabled', caret: 'hide' }); });
-  await annotate(page.context(), png, { width: rootBox.width, height: rootBox.height }, placed, `${IMG}${name}.png`);
+  await annotate(page.context(), png, { width: rootBox.width, height: rootBox.height }, placed, `${IMG}${name}.png`, { legend });
 }
 
 test('Notfunk-Meldebuch', async ({ page }) => {
@@ -108,22 +108,27 @@ test('Notfunk-Meldebuch', async ({ page }) => {
   await shotAround(page, ['#msg-form'], 'notfunk-meldung');
   await page.setViewportSize({ width: 900, height: 860 });   // a narrower form: the labels stay readable in the manual
   await shotAnnotated(page, page.locator('#msg-form'), [
-    { sel: '#form-number', text: 'Nächste Nummer: wird erst beim Speichern vergeben', side: 'top' },
-    { sel: '#m-dir', text: 'Richtung: Eingang = empfangen, Ausgang = weitergefunkt' },
-    { sel: ['#m-date', '#m-time'], text: 'Wann die Meldung übermittelt wurde (Ortszeit)', side: 'top' },
-    { sel: '#m-channel', text: 'Wie sie übermittelt wurde', side: 'right' },
-    { sel: '#m-peer', text: 'Funkstelle: die Gegenstation (nur bei Funk)' },
-    { sel: ['#m-freq', '#m-via'], text: 'Frequenz und Relais: aus dem Einsatz vorbelegt', side: 'right' },
-    { sel: '#m-from', text: 'Von: wer die Meldung aufgibt (nicht Sie)' },
-    { sel: '#m-to', text: 'An: für wen sie bestimmt ist', side: 'right' },
-    { sel: '#m-prio', text: 'Dringlichkeit: Routine, Dringend oder Notfall', side: 'right' },
-    { sel: '#m-subject', text: 'Betreff: kurz und klar' },
-    { sel: '#m-loc', text: 'Ort des Ereignisses, mit Vorschlägen', side: 'right' },
-    { sel: '#m-text', text: 'Inhalt: der Wortlaut, wie übermittelt' },
-    { sel: '#m-readback', text: 'Rücklesen (optional): der Absender hat bestätigt' },
-    { sel: '#m-more > summary', text: 'Weitere Felder: Bezug, Verteiler, Ursprung' },
-    { sel: '#btn-save', text: 'Speichern: vergibt die Nummer', side: 'right' },
-  ], 'notfunk-formular-beschriftet');
+    { sel: '#form-number', color: 'blue', text: 'Nächste Nummer: wird erst beim Speichern vergeben', side: 'top' },
+    { sel: '#m-dir', color: 'blue', text: 'Richtung: Eingang = empfangen, Ausgang = weitergefunkt' },
+    { sel: ['#m-date', '#m-time'], color: 'orange', text: 'Wann die Meldung übermittelt wurde (Ortszeit)', side: 'top' },
+    { sel: '#m-channel', color: 'orange', text: 'Wie sie übermittelt wurde', side: 'right' },
+    { sel: '#m-peer', color: 'orange', text: 'Funkstelle: die Gegenstation (nur bei Funk)' },
+    { sel: ['#m-freq', '#m-via'], color: 'orange', text: 'Frequenz und Relais: aus dem Einsatz vorbelegt', side: 'right' },
+    { sel: '#m-from', color: 'green', text: 'Von: wer die Meldung aufgibt (nicht Sie)' },
+    { sel: '#m-to', color: 'green', text: 'An: für wen sie bestimmt ist', side: 'right' },
+    { sel: '#m-prio', color: 'orange', text: 'Dringlichkeit: Routine, Dringend oder Notfall', side: 'right' },
+    { sel: '#m-subject', color: 'green', text: 'Betreff: kurz und klar' },
+    { sel: '#m-loc', color: 'green', text: 'Ort des Ereignisses, mit Vorschlägen', side: 'right' },
+    { sel: '#m-text', color: 'green', text: 'Inhalt: der Wortlaut, wie übermittelt' },
+    { sel: '#m-readback', color: 'purple', text: 'Rücklesen (optional): der Absender hat bestätigt' },
+    { sel: '#m-more > summary', color: 'purple', text: 'Weitere Felder: Bezug, Verteiler, Ursprung' },
+    { sel: '#btn-save', color: 'purple', text: 'Speichern: vergibt die Nummer', side: 'right' },
+  ], 'notfunk-formular-beschriftet', [
+    { color: GROUP_COLORS.blue, text: 'Kopf: Nummer und Richtung' },
+    { color: GROUP_COLORS.orange, text: 'Wann und wie' },
+    { color: GROUP_COLORS.green, text: 'Wer und was' },
+    { color: GROUP_COLORS.purple, text: 'Abschluss' },
+  ]);
   await page.setViewportSize({ width: 1200, height: 860 });
   await page.locator('#m-text').press('Shift+Enter');
   await expect(page.locator('#book-body')).toContainText('W1-001');
