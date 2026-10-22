@@ -3,6 +3,13 @@
    tokens of tools.css; a site embedding the tools renders the manuals in
    its own theme instead. */
 
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+}
+
 .doc {
   max-width: 46rem;
   margin: 0 auto;
@@ -68,3 +75,23 @@
 
 .doc .admonition.warning { border-color: var(--warn); background: var(--warn-soft); }
 .doc .admonition-title { font-weight: 600; margin: 0; }
+
+/* Diagrams (inline SVG with a figcaption): they scroll sideways on a narrow
+   screen instead of shrinking the text; the steps are repeated as text. */
+.doc figure.diagram {
+  margin: 1rem 0;
+  overflow-x: auto;
+}
+
+.doc figure.diagram svg {
+  display: block;
+  min-width: 44rem;
+  width: 100%;
+  height: auto;
+}
+
+.doc figure.diagram figcaption {
+  margin-top: .4rem;
+  font-size: .9em;
+  color: var(--text-dim);
+}

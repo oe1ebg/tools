@@ -54,6 +54,7 @@ IGNORE = shutil.ignore_patterns("*.md", ".*", "__pycache__")
 MANUALS = {
     "confirm-anleitung": "Bestätigungsverkehr: Anleitung",
     "notfunk-anleitung": "Notfunk-Meldebuch: Anleitung",
+    "notfunk-manual": "Notfunk logbook: introduction and tutorial (English)",
     "data-sources": "Datenquellen",
 }
 
@@ -194,7 +195,10 @@ def main() -> None:
     for name, title in MANUALS.items():
         body = render((DOCS_DIR / f"{name}.md").read_text(encoding="utf-8"))
         (OUT_DIR / name).mkdir()
-        (OUT_DIR / name / "index.html").write_text(page(title, body, "../", True, foot), encoding="utf-8")
+        rendered = page(title, body, "../", True, foot)
+        if name.endswith("-manual"):   # the English manual
+            rendered = rendered.replace('<html lang="de">', '<html lang="en">', 1)
+        (OUT_DIR / name / "index.html").write_text(rendered, encoding="utf-8")
         print(f"rendered docs/{name}.md -> {name}/index.html")
     # the manuals' screenshots: generated during the build, not committed
     # (tests/e2e/manual.shots.mjs, `just screenshots`)
@@ -206,6 +210,13 @@ def main() -> None:
     # (docs/static/: the render of Notfunk's PDF printout)
     for static in sorted((DOCS_DIR / "static").glob("*.png")):
         shutil.copyfile(static, OUT_DIR / "img" / static.name)
+    # downloads the manuals link to: the empty Notfunk form, made by the
+    # tool's own drawing function (scripts/notfunk_vordruck.mjs)
+    (OUT_DIR / "downloads").mkdir()
+    try:
+        subprocess.run(["node", str(ROOT_DIR / "scripts" / "notfunk_vordruck.mjs"), str(OUT_DIR / "downloads" / "notfunk-vordruck.pdf")], check=True)
+    except (OSError, subprocess.CalledProcessError) as err:
+        print(f"warning: downloads/notfunk-vordruck.pdf not made ({err}); the manual links to it")
     gone = missing_manual_images(OUT_DIR / "img")
     if gone:
         print(f"warning: {len(gone)} manual screenshot(s) not generated yet ({', '.join(gone[:3])}{', …' if len(gone) > 3 else ''}): `just build` makes them, `just screenshots` after `just stage`; a release requires them")
