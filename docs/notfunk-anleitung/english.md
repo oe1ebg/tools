@@ -42,7 +42,7 @@ decided on; the reply travels the same path **back**.
 <figure class="diagram">
 <svg viewBox="0 0 1048 430" role="img" aria-labelledby="nf-ablauf-t nf-ablauf-d" xmlns="http://www.w3.org/2000/svg" fill="currentColor" font-family="inherit" font-size="14">
 <title id="nf-ablauf-t">Der Weg einer Notmeldung und der Rückweg der Antwort</title>
-<desc id="nf-ablauf-d">Von links nach rechts: Hilfesuchende kommen zur Lichtinsel, wo ein Funkamateur die Meldung aufnimmt und zurückliest. Über das lokale Informationsnetz geht sie an den K-Vorsorgestandort, von dort über BOS-Funk oder das taktische Netz an die Funkstelle in der Einsatzleitstelle. Der Funkamateur dort übergibt sie an die Meldesammelstelle des Kriseneinsatzstabs; hier endet die Aufgabe der Funkamateure. Die Meldesammelstelle nennt eine Referenz. Die Antwort nimmt denselben Weg zurück bis zu den Hilfesuchenden.</desc>
+<desc id="nf-ablauf-d">Von links nach rechts: Hilfesuchende kommen zur Lichtinsel, wo ein Funkamateur die Meldung aufnimmt (ein Rücklesen wird empfohlen). Über das lokale Informationsnetz geht sie an den K-Vorsorgestandort, von dort über BOS-Funk oder das taktische Netz an die Funkstelle in der Einsatzleitstelle. Der Funkamateur dort übergibt sie an die Meldesammelstelle des Kriseneinsatzstabs; hier endet die Aufgabe der Funkamateure. Die Meldesammelstelle nennt eine Referenz. Die Antwort nimmt denselben Weg zurück bis zu den Hilfesuchenden.</desc>
 <defs>
 <marker id="nf-pfeil" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker>
 </defs>
@@ -68,7 +68,7 @@ decided on; the reply travels the same path **back**.
 <text x="310" y="132" font-weight="700" font-size="16">Lichtinsel</text>
 <text x="310" y="160">Funkamateur</text>
 <text x="310" y="182">nimmt den Wortlaut auf</text>
-<text x="310" y="204">und liest zurück</text>
+<text x="310" y="204">(Rücklesen empfohlen)</text>
 <text x="310" y="236" font-size="13" fill-opacity=".8">Meldung ↑ Ausgang</text>
 
 <text x="524" y="132" font-weight="700" font-size="16">K-Vorsorgestandort</text>
@@ -125,17 +125,17 @@ decided on; the reply travels the same path **back**.
 **Forward:**
 
 1. **Take down.** A person describes the emergency. The radio amateur at
-   the Lichtinsel writes down the exact wording and **reads it back**; the
-   person confirms it is right.
+   the Lichtinsel writes down the exact wording. For safety they read it back
+   and the person confirms it is right (recommended, not mandatory).
 2. **Transmit.** The message goes over the local information network to the
-   responsible K-Vorsorgestandort (a district support site). The receiver
-   reads it back as well. If the Lichtinsel is not checked in to a local
+   responsible K-Vorsorgestandort (a district support site). Reading back by the receiver is recommended, but not
+   mandatory. If the Lichtinsel is not checked in to a local
    network, it goes over the Informationsnetz Wien.
 3. **Relay.** The K-Vorsorgestandort passes it to the Einsatzleitstelle
    (ELS, the operations centre of the crisis management), normally over
    authorities' radio (BOS-Funk), with the tactical amateur radio network as
    backup. There the amateur station (OE1XKS while the ELS works at its usual
-   place; otherwise another callsign) takes it down and reads it back.
+   place; otherwise another callsign) takes it down.
 4. **Hand over.** The radio amateur in the ELS hands the message to the
    **Meldesammelstelle** (message collection point). It belongs to the
    **Kriseneinsatzstab** (crisis staff), not to amateur radio. This is where
@@ -148,10 +148,9 @@ decided on; the reply travels the same path **back**.
 5. The staff decides and replies through the Meldesammelstelle, for example "Tanker with 200 litres of
    diesel is on its way, arrival about 15:30."
 6. The Meldesammelstelle gives the reply to the radio amateur in the ELS,
-   who takes it down word for word, transmits it to the K-Vorsorgestandort
-   and has it read back.
+   who takes it down word for word, transmits it to the K-Vorsorgestandort.
 7. The K-Vorsorgestandort passes it on to the Lichtinsel.
-8. The radio amateur at the Lichtinsel takes it down, reads it back and
+8. The radio amateur at the Lichtinsel takes it down and
    **tells the person who reported the emergency**: "Help is on its way."
 
 Two kinds of feedback differ:
@@ -171,16 +170,26 @@ In this chain radio amateurs are **messengers**, nothing more. The guideline
 says: amateur stations should not create messages themselves, only transmit
 them.
 
-| Radio amateurs do | They do not |
-| --- | --- |
-| take down the **exact wording** as given | interpret, add to, shorten or "improve" the content |
-| **read back** until the sender confirms | pass on guesses or unverified information |
-| transmit, and **record handover and receipt** | arrange or promise help themselves |
-| pass on the reply word for word | |
-| keep a gapless, traceable record | change the record later without keeping the earlier version |
+**Radio amateurs …**
 
-The logbook is built this way: the wording is stored unchanged, numbers are
-gapless, every version is kept, and it shows who handed over what and when.
+- take down the **exact wording** as given,
+- read back where possible, so nothing arrives wrong,
+- transmit the message and pass on the reply word for word,
+- record **handover and receipt**.
+
+**Radio amateurs do not …**
+
+- interpret, add to, shorten or "improve" the content,
+- pass on guesses or unverified information,
+- arrange or promise help themselves.
+
+**Every message that is transmitted belongs in the logbook**, as it actually
+went: with wording, times, handovers and replies. The message flow should be
+traceable without gaps, as far as possible. If there is no time right now,
+write on paper and enter the message afterwards ("Nachtrag vom Papier").
+
+The logbook helps: the wording is stored unchanged, numbers are gapless,
+every version is kept, and it shows who handed over what and when.
 
 ### Where the logbook fits in
 
@@ -242,8 +251,8 @@ You transmit the message, so the direction is **Ausgang (↑)**.
 4. **Betreff** (subject) and **Ort** (location; the address search suggests
    matches offline).
 5. **Inhalt – wörtlich:** the exact wording.
-6. **Rücklesen:** read the message back to the person; when they say "right",
-   tick the box.
+6. **Rücklesen** (recommended, not mandatory): read the message back to the
+   person; when they say "right", tick the box, otherwise leave it empty.
 
     ![The form "Neue Meldung"](../img/notfunk-tutorial-meldung.png)
 
@@ -254,7 +263,7 @@ You transmit the message, so the direction is **Ausgang (↑)**.
 
 1. In the message's row click **"übertragen"** and enter who you transmitted
    to (time empty = now).
-2. When the other station has read back and confirmed, enter **"Empfang
+2. When the other station has confirmed receipt (and read back, if you did), enter **"Empfang
    bestätigt"**.
 3. When the Meldesammelstelle reports a **reference** ("GZ 0412"), enter it.
 

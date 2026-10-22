@@ -33,7 +33,7 @@ const NOTES = [
   { box: [414, 402, 373, 118], word: '(ADRESSAT)', side: 'right', text: 'An: für wen sie bestimmt ist, mit Funkstelle und Verteiler' },
   { box: [40, 522, 747, 60], word: 'BETREFF', side: 'left', text: 'Betreff (kurz), Ort des Ereignisses, Bezug auf eine frühere Meldung' },
   { box: [40, 584, 747, 340], word: 'INHALT', side: 'left', text: 'Inhalt: der Wortlaut, wie übermittelt, nichts weglassen' },
-  { box: [48, 930, 300, 22], word: 'Rücklesen', side: 'right', text: 'Rücklesen: ankreuzen, wenn der Absender bestätigt hat' },
+  { box: [48, 930, 300, 22], word: 'Rücklesen', side: 'right', text: 'Rücklesen (optional): ankreuzen, wenn der Absender bestätigt hat' },
   { box: [40, 958, 374, 92], word: 'AUFGENOMMEN', side: 'left', text: 'Aufgenommen von: Ihr Name oder Ihre Unterschrift, Ihre Station' },
   { box: [40, 1050, 747, 66], word: 'ZEITPUNKT', side: 'right', text: 'Übergabe bzw. Übertragung: an wen, wann, wer hat übernommen' },
 ];

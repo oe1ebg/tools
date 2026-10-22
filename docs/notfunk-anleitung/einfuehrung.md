@@ -25,7 +25,7 @@ Einsatzleitstelle an die **Meldesammelstelle** des Kriseneinsatzstabs
 <figure class="diagram">
 <svg viewBox="0 0 1048 430" role="img" aria-labelledby="nf-ablauf-t nf-ablauf-d" xmlns="http://www.w3.org/2000/svg" fill="currentColor" font-family="inherit" font-size="14">
 <title id="nf-ablauf-t">Der Weg einer Notmeldung und der Rückweg der Antwort</title>
-<desc id="nf-ablauf-d">Von links nach rechts: Hilfesuchende kommen zur Lichtinsel, wo ein Funkamateur die Meldung aufnimmt und zurückliest. Über das lokale Informationsnetz geht sie an den K-Vorsorgestandort, von dort über BOS-Funk oder das taktische Netz an die Funkstelle in der Einsatzleitstelle. Der Funkamateur dort übergibt sie an die Meldesammelstelle des Kriseneinsatzstabs; hier endet die Aufgabe der Funkamateure. Die Meldesammelstelle nennt eine Referenz. Die Antwort nimmt denselben Weg zurück bis zu den Hilfesuchenden.</desc>
+<desc id="nf-ablauf-d">Von links nach rechts: Hilfesuchende kommen zur Lichtinsel, wo ein Funkamateur die Meldung aufnimmt (ein Rücklesen wird empfohlen). Über das lokale Informationsnetz geht sie an den K-Vorsorgestandort, von dort über BOS-Funk oder das taktische Netz an die Funkstelle in der Einsatzleitstelle. Der Funkamateur dort übergibt sie an die Meldesammelstelle des Kriseneinsatzstabs; hier endet die Aufgabe der Funkamateure. Die Meldesammelstelle nennt eine Referenz. Die Antwort nimmt denselben Weg zurück bis zu den Hilfesuchenden.</desc>
 <defs>
 <marker id="nf-pfeil" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker>
 </defs>
@@ -51,7 +51,7 @@ Einsatzleitstelle an die **Meldesammelstelle** des Kriseneinsatzstabs
 <text x="310" y="132" font-weight="700" font-size="16">Lichtinsel</text>
 <text x="310" y="160">Funkamateur</text>
 <text x="310" y="182">nimmt den Wortlaut auf</text>
-<text x="310" y="204">und liest zurück</text>
+<text x="310" y="204">(Rücklesen empfohlen)</text>
 <text x="310" y="236" font-size="13" fill-opacity=".8">Meldung ↑ Ausgang</text>
 
 <text x="524" y="132" font-weight="700" font-size="16">K-Vorsorgestandort</text>
@@ -109,16 +109,17 @@ Einsatzleitstelle an die **Meldesammelstelle** des Kriseneinsatzstabs
 
 1. **Aufnehmen.** Eine Person schildert den Notfall. Der Funkamateur an der
    Lichtinsel schreibt den Wortlaut auf (Meldeaufnahmeformular oder
-   Meldebuch) und **liest ihn zurück**; die Person bestätigt, dass es stimmt.
+   Meldebuch). Zur Sicherheit liest er ihn zurück; die Person bestätigt, dass
+   es stimmt (empfohlen, nicht zwingend).
 2. **Funken.** Die Meldung geht im lokalen Informationsnetz an den
    zuständigen K-Vorsorgestandort ([Betriebsregeln](#betriebsregeln-in-kurze)).
-   Der Empfänger liest sie ebenfalls zurück. Ist die Lichtinsel in kein lokales Netz eingecheckt,
+   Ein Rücklesen durch den Empfänger ist empfohlen, aber nicht zwingend. Ist die Lichtinsel in kein lokales Netz eingecheckt,
    läuft es über das Informationsnetz Wien.
 3. **Weitergeben.** Vom K-Vorsorgestandort geht die Meldung an die
    Einsatzleitstelle (ELS) des Krisenmanagements, normalerweise über
    BOS-Funk, als Backup über das taktische Amateurfunknetz. Dort nimmt die
    Amateurfunkstelle (OE1XKS, solange die ELS am üblichen Ort arbeitet; sonst
-   hat sie ein anderes Rufzeichen) sie auf und liest sie zurück.
+   hat sie ein anderes Rufzeichen) sie auf.
 4. **Übergeben.** Der Funkamateur in der ELS übergibt die Meldung an die
    **Meldesammelstelle**. Sie gehört zum **Kriseneinsatzstab**, nicht zum
    Amateurfunk. Hier endet die Aufgabe der Funkamateure: Was der Stab mit der
@@ -131,13 +132,16 @@ Einsatzleitstelle an die **Meldesammelstelle** des Kriseneinsatzstabs
 5. Der Stab entscheidet und antwortet über die Meldesammelstelle, zum
    Beispiel: „Diesel ist unterwegs, Ankunft 15:30.“
 6. Die Meldesammelstelle übergibt die Antwort dem Funkamateur in der ELS. Er
-   nimmt sie wörtlich auf, funkt sie an den K-Vorsorgestandort und lässt sie
-   zurücklesen.
+   nimmt sie wörtlich auf, funkt sie an den K-Vorsorgestandort.
 7. Der K-Vorsorgestandort gibt sie im lokalen Informationsnetz an die
    Lichtinsel weiter.
-8. Der Funkamateur an der Lichtinsel nimmt die Antwort auf, liest sie zurück
+8. Der Funkamateur an der Lichtinsel nimmt die Antwort auf
    und **sagt sie der Person, die den Notfall gemeldet hat**: „Hilfe ist
    unterwegs.“
+
+**Rücklesen** heißt: die Meldung dem Absender noch einmal vorlesen. Es
+schützt vor Hörfehlern und ist empfohlen, aber **nicht zwingend**. Ist es
+nicht möglich, lassen Sie das Häkchen „Rücklesen“ im Meldebuch leer.
 
 Zwei Rückmeldungen sind zu unterscheiden:
 
@@ -156,16 +160,28 @@ Funkamateure sind in dieser Kette **Überbringer**, mehr nicht. Die
 Richtlinie sagt es so: Amateurfunkstellen sollen nicht selbst Nachrichten
 erzeugen, sondern nur übermitteln.
 
-| Das tun Funkamateure | Das tun sie nicht |
-| --- | --- |
-| den **Wortlaut** aufnehmen, wie er genannt wird | Inhalte deuten, ergänzen, kürzen oder „verbessern“ |
-| **zurücklesen**, bis der Absender bestätigt | Vermutungen oder ungeprüfte Informationen weitergeben |
-| funken, **Übergabe und Empfang** dokumentieren | Hilfe selbst veranlassen oder zusagen |
-| die Antwort wörtlich weitergeben | eine lückenlose, nachvollziehbare Aufzeichnung führen | die Aufzeichnung später verändern, ohne dass die frühere Fassung bleibt |
+**Funkamateure …**
 
-Das Meldebuch ist so gebaut: Es nimmt den Wortlaut unverändert auf
-(der Wortlaut bleibt unverändert gespeichert), vergibt lückenlose Nummern, hält jede
-Fassung fest und zeigt, wer wann was übergeben hat.
+- nehmen den **Wortlaut** auf, wie er genannt wird,
+- lesen wenn möglich **zurück**, damit nichts falsch ankommt,
+- funken die Meldung weiter und geben die Antwort **wörtlich** zurück,
+- halten **Übergabe und Empfang** fest.
+
+**Funkamateure …**
+
+- deuten, ergänzen, kürzen oder „verbessern“ den Inhalt **nicht**,
+- geben keine Vermutungen oder ungeprüften Informationen weiter,
+- veranlassen oder versprechen keine Hilfe selbst.
+
+**Jede Meldung, die übermittelt wird, gehört ins Meldebuch**, und zwar so, wie
+sie gelaufen ist: mit Wortlaut, Zeiten, Übergaben und Antworten. Der
+Meldefluss soll bestmöglich lückenlos nachvollziehbar sein. Ist im Moment
+keine Zeit, schreiben Sie auf Papier mit und tragen die Meldung
+nach („Nachtrag vom Papier“).
+
+Das Meldebuch hilft dabei: Der Wortlaut bleibt unverändert gespeichert, die
+Nummern sind lückenlos, jede Fassung bleibt erhalten, und es zeigt, wer wann
+was übergeben hat.
 
 ## Wo das Meldebuch hineinpasst
 
