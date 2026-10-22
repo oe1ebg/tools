@@ -11,7 +11,7 @@ braucht Diesel für das Aggregat. Rufzeichen und Namen im Beispiel sind frei
 erfunden.
 
 Zum Nachspielen gibt es eine fertige Datei:
-[notfunk-full.json](https://github.com/oe1ebg/tools/blob/main/examples/backups/notfunk-full.json)
+[notfunk-full.json](https://raw.githubusercontent.com/oe1ebg/tools/main/examples/backups/notfunk-full.json)
 (über „Wiederherstellen…“ einspielen). Für das Tutorial legen Sie lieber
 einen eigenen Einsatz an, dann sehen Sie jeden Schritt.
 

@@ -49,7 +49,7 @@ Meldung gespeichert wird.
 ![Karte der Meldungen](../../img/notfunk-karte.png)
 
 *Im Bild der Beispiel-Einsatz zum Ausprobieren
-([notfunk-full.json](https://github.com/oe1ebg/tools/blob/main/examples/backups/notfunk-full.json),
+([notfunk-full.json](https://raw.githubusercontent.com/oe1ebg/tools/main/examples/backups/notfunk-full.json),
 über „Wiederherstellen…“ einspielen).*
 
 „Karte“ (neben der Suche) zeigt die Meldungen der aktuellen Auswahl an ihrem
