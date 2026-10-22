@@ -209,7 +209,7 @@ so the two lists can be matched.
 
 The logbook is built to run reliably offline. Even so, be prepared for
 **paper-only** operation in case the device or the power fails: **print the
-paper forms in advance** and keep a stack ready (German form below). Enter the
+paper forms in advance** and keep a stack ready (link below). Enter the
 messages in the logbook afterwards.
 [Download the empty form (PDF)](../downloads/notfunk-vordruck.pdf){ download="notfunk-vordruck.pdf" }
 (German; the same form the tool prints). Personal data must be deleted when
@@ -221,7 +221,8 @@ operations and backups yourself.
 The example: exercise "Blackout Wien". You are a radio amateur at the
 Lichtinsel Floridsdorf. Ms Huber, head of nursing at a care home at
 Brünner Straße 68, arrives on foot: the emergency generator only runs until
-about 18:00, and 6 ventilated residents are at risk. They need diesel.
+about 18:00, and 6 ventilated residents depend on the power. The home needs
+diesel for the generator.
 Callsigns and names are made up.
 
 ### 1. Prepare
