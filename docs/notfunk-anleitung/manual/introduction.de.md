@@ -23,84 +23,19 @@ Einsatzleitstelle an die **Meldesammelstelle** des Kriseneinsatzstabs
 **übergeben**; dort endet der Weg für die Funkamateure. Der Stab entscheidet, die Antwort geht denselben Weg **zurück**.
 
 <figure class="diagram">
-<svg viewBox="0 0 1048 430" role="img" aria-labelledby="nf-ablauf-t nf-ablauf-d" xmlns="http://www.w3.org/2000/svg" fill="currentColor" font-family="inherit" font-size="14">
+<svg viewBox="0 0 760 330" role="img" aria-labelledby="nf-ablauf-t nf-ablauf-d" xmlns="http://www.w3.org/2000/svg" fill="currentColor" font-family="inherit" font-size="14">
 <title id="nf-ablauf-t">Der Weg einer Notmeldung und der Rückweg der Antwort</title>
 <desc id="nf-ablauf-d">Von links nach rechts: Hilfesuchende kommen zur Lichtinsel, wo ein Funkamateur die Meldung aufnimmt (ein Rücklesen wird empfohlen). Über das lokale Informationsnetz geht sie an den K-Vorsorgestandort, von dort über BOS-Funk oder das taktische Netz an die Funkstelle in der Einsatzleitstelle. Der Funkamateur dort übergibt sie an die Meldesammelstelle des Kriseneinsatzstabs; hier endet die Aufgabe der Funkamateure. Die Meldesammelstelle nennt eine Referenz. Die Antwort nimmt denselben Weg zurück bis zu den Hilfesuchenden.</desc>
 <defs>
-<marker id="nf-pfeil" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker>
+<marker id="nf-pfeil" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker>
 </defs>
-<g font-size="13" text-anchor="middle" fill-opacity=".8">
-<text x="195" y="60">mündlich,</text><text x="195" y="76">schriftlich</text>
-<text x="409" y="60">Funk: lokales</text><text x="409" y="76">Informationsnetz</text>
-<text x="623" y="44">BOS-Funk, Backup:</text><text x="623" y="60">taktisches Netz</text><text x="623" y="76">(Amateurfunk, DMR)</text>
-<text x="837" y="60">Übergabe, Referenz</text><text x="837" y="76">(Papier, mündlich)</text>
-</g>
-<g stroke="currentColor" stroke-width="1.5" fill="none">
-<rect x="10" y="100" width="172" height="170" rx="8" stroke-dasharray="6 5"/>
-<rect x="224" y="100" width="172" height="170" rx="8" stroke-width="3" fill="currentColor" fill-opacity=".08"/>
-<rect x="438" y="100" width="172" height="170" rx="8" stroke-width="3" fill="currentColor" fill-opacity=".08"/>
-<rect x="652" y="100" width="172" height="170" rx="8" stroke-width="3" fill="currentColor" fill-opacity=".08"/>
-<rect x="866" y="100" width="172" height="170" rx="8" stroke-dasharray="6 5"/>
-</g>
-<g text-anchor="middle">
-<text x="96" y="132" font-weight="700" font-size="16">Hilfesuchende</text>
-<text x="96" y="160">Bürgerinnen und Bürger</text>
-<text x="96" y="182">kommen zur Lichtinsel</text>
-<text x="96" y="236" font-size="13" fill-opacity=".8">kein Funkamateur</text>
-
-<text x="310" y="132" font-weight="700" font-size="16">Lichtinsel</text>
-<text x="310" y="160">Funkamateur</text>
-<text x="310" y="182">nimmt den Wortlaut auf</text>
-<text x="310" y="204">(Rücklesen empfohlen)</text>
-<text x="310" y="236" font-size="13" fill-opacity=".8">Meldung ↑ Ausgang</text>
-
-<text x="524" y="132" font-weight="700" font-size="16">K-Vorsorgestandort</text>
-<text x="524" y="160">Leitstelle des lokalen</text>
-<text x="524" y="182">Informationsnetzes</text>
-<text x="524" y="204">gibt weiter</text>
-<text x="524" y="236" font-size="13" fill-opacity=".8">Weitergabe ↓ ↑</text>
-
-<text x="738" y="132" font-weight="700" font-size="16">Funkstelle der ELS</text>
-<text x="738" y="160">Funkamateur nimmt auf,</text>
-<text x="738" y="182">übergibt an die</text>
-<text x="738" y="204">Meldesammelstelle</text>
-<text x="738" y="236" font-size="13" fill-opacity=".8">Meldung ↓ Eingang</text>
-
-<text x="952" y="132" font-weight="700" font-size="16">Meldesammelstelle</text>
-<text x="952" y="160">des Kriseneinsatzstabs</text>
-<text x="952" y="182">vergibt die Referenz,</text>
-<text x="952" y="204">der Stab entscheidet</text>
-<text x="952" y="236" font-size="13" fill-opacity=".8">kein Funkamateur</text>
-</g>
-<g stroke="currentColor" stroke-width="2.5" fill="none">
-<path d="M186 160H220" marker-end="url(#nf-pfeil)"/>
-<path d="M400 160H434" marker-end="url(#nf-pfeil)"/>
-<path d="M614 160H648" marker-end="url(#nf-pfeil)"/>
-<path d="M828 160H862" marker-end="url(#nf-pfeil)"/>
-<g stroke-dasharray="7 4">
-<path d="M862 220H828" marker-end="url(#nf-pfeil)"/>
-<path d="M648 220H614" marker-end="url(#nf-pfeil)"/>
-<path d="M434 220H400" marker-end="url(#nf-pfeil)"/>
-<path d="M220 220H186" marker-end="url(#nf-pfeil)"/>
-</g>
-</g>
-<g text-anchor="middle" font-size="13" font-weight="700">
-<g stroke="currentColor" stroke-width="3" fill="none"><circle cx="203" cy="140" r="11"/><circle cx="417" cy="140" r="11"/><circle cx="631" cy="140" r="11"/><circle cx="845" cy="140" r="11"/></g>
-<g stroke="currentColor" stroke-width="2" fill="none"><circle cx="845" cy="240" r="11"/><circle cx="631" cy="240" r="11"/><circle cx="417" cy="240" r="11"/><circle cx="203" cy="240" r="11"/></g>
-<text x="203" y="145">1</text><text x="417" y="145">2</text><text x="631" y="145">3</text><text x="845" y="145">4</text>
-<text x="845" y="245">5</text><text x="631" y="245">6</text><text x="417" y="245">7</text><text x="203" y="245">8</text>
-</g>
-<g stroke="currentColor" stroke-width="2" fill="none">
-<path d="M224 296V306H824V296"/>
-</g>
-<text x="524" y="328" text-anchor="middle" font-weight="700">Hier arbeiten Funkamateure: sie übermitteln, was aufgenommen wurde –</text>
-<text x="524" y="348" text-anchor="middle" font-weight="700">wörtlich, ohne Zusatz, ohne eigene Bewertung.</text>
-<g font-size="13">
-<path d="M10 396H60" stroke="currentColor" stroke-width="2.5" marker-end="url(#nf-pfeil)"/>
-<text x="68" y="401">1 – 4 Meldung (hin)</text>
-<path d="M300 396H350" stroke="currentColor" stroke-width="2.5" stroke-dasharray="7 4" marker-end="url(#nf-pfeil)"/>
-<text x="358" y="401">5 – 8 Rückmeldung (zurück), z. B. „Hilfe ist unterwegs“</text>
-</g>
+<g stroke="currentColor" stroke-width="1.5" fill="none"><rect x="0" y="10" width="128" height="170" rx="8" stroke-dasharray="6 5"/><rect x="158" y="10" width="128" height="170" rx="8" stroke-width="3" fill="currentColor" fill-opacity=".08"/><rect x="316" y="10" width="128" height="170" rx="8" stroke-width="3" fill="currentColor" fill-opacity=".08"/><rect x="474" y="10" width="128" height="170" rx="8" stroke-width="3" fill="currentColor" fill-opacity=".08"/><rect x="632" y="10" width="128" height="170" rx="8" stroke-dasharray="6 5"/></g>
+<g text-anchor="middle"><text x="64" y="40" font-weight="700" font-size="16">Hilfesuchende</text><text x="64" y="89" font-size="14">Bürgerinnen</text><text x="64" y="110" font-size="14">und Bürger</text><text x="64" y="166" font-size="13" fill-opacity=".8">kein Funkamateur</text><text x="222" y="40" font-weight="700" font-size="16">Lichtinsel</text><text x="222" y="69" font-size="14">Funkamateur</text><text x="222" y="90" font-size="14">nimmt den</text><text x="222" y="111" font-size="14">Wortlaut auf</text><text x="222" y="166" font-size="13" fill-opacity=".8">Ausgang ↑</text><text x="380" y="40" font-weight="700" font-size="16">K-Vorsorge-</text><text x="380" y="60" font-weight="700" font-size="16">standort</text><text x="380" y="89" font-size="14">gibt die Meldung</text><text x="380" y="110" font-size="14">weiter</text><text x="380" y="166" font-size="13" fill-opacity=".8">Weitergabe ↓ ↑</text><text x="538" y="40" font-weight="700" font-size="16">Funkstelle</text><text x="538" y="60" font-weight="700" font-size="16">der ELS</text><text x="538" y="89" font-size="14">Funkamateur</text><text x="538" y="110" font-size="14">übergibt an die</text><text x="538" y="131" font-size="14">Meldesammelstelle</text><text x="538" y="166" font-size="13" fill-opacity=".8">Eingang ↓</text><text x="696" y="40" font-weight="700" font-size="16">Melde-</text><text x="696" y="60" font-weight="700" font-size="16">sammelstelle</text><text x="696" y="89" font-size="14">Kriseneinsatzstab</text><text x="696" y="110" font-size="14">vergibt die</text><text x="696" y="131" font-size="14">Referenz</text><text x="696" y="166" font-size="13" fill-opacity=".8">kein Funkamateur</text></g>
+<g stroke="currentColor" stroke-width="2.5" fill="none"><path d="M131 85H155" marker-end="url(#nf-pfeil)"/><path d="M289 85H313" marker-end="url(#nf-pfeil)"/><path d="M447 85H471" marker-end="url(#nf-pfeil)"/><path d="M605 85H629" marker-end="url(#nf-pfeil)"/><g stroke-dasharray="6 4"><path d="M155 135H131" marker-end="url(#nf-pfeil)"/><path d="M313 135H289" marker-end="url(#nf-pfeil)"/><path d="M471 135H447" marker-end="url(#nf-pfeil)"/><path d="M629 135H605" marker-end="url(#nf-pfeil)"/></g></g>
+<g text-anchor="middle" font-size="13" font-weight="700"><g stroke="currentColor" fill="none"><circle cx="143" cy="60" r="10" stroke-width="3"/><circle cx="301" cy="60" r="10" stroke-width="3"/><circle cx="459" cy="60" r="10" stroke-width="3"/><circle cx="617" cy="60" r="10" stroke-width="3"/><circle cx="143" cy="160" r="10" stroke-width="2"/><circle cx="301" cy="160" r="10" stroke-width="2"/><circle cx="459" cy="160" r="10" stroke-width="2"/><circle cx="617" cy="160" r="10" stroke-width="2"/></g><text x="143" y="64.5">1</text><text x="301" y="64.5">2</text><text x="459" y="64.5">3</text><text x="617" y="64.5">4</text><text x="143" y="164.5">8</text><text x="301" y="164.5">7</text><text x="459" y="164.5">6</text><text x="617" y="164.5">5</text></g>
+<path d="M158 198V208H602V198" stroke="currentColor" stroke-width="2" fill="none"/>
+<g text-anchor="middle" font-weight="700" font-size="15"><text x="380" y="232">Hier arbeiten Funkamateure:</text><text x="380" y="252">sie übermitteln, was aufgenommen wurde –</text><text x="380" y="272">wörtlich, ohne Zusatz, ohne eigene Bewertung.</text></g>
+<g font-size="14"><path d="M0 312H44" stroke="currentColor" stroke-width="2.5" marker-end="url(#nf-pfeil)"/><text x="54" y="317">1 – 4 Meldung (hin)</text><path d="M236 312H280" stroke="currentColor" stroke-width="2.5" stroke-dasharray="6 4" marker-end="url(#nf-pfeil)"/><text x="290" y="317">5 – 8 Antwort (zurück), z. B. „Hilfe ist unterwegs“</text></g>
 </svg>
 <figcaption>Der Weg einer Notmeldung (Zahlen 1 bis 4) und der Rückweg der Antwort (5 bis 8). Fett umrandet: dort arbeiten Funkamateure.</figcaption>
 </figure>
