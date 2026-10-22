@@ -1,6 +1,6 @@
 # Ausdruck und PDF
 
-[← Notfunk-Anleitung](index.md) · [Notfunk-Meldebuch öffnen](../notfunk/index.html)
+[← Notfunk-Anleitung](../index.de.md) · [Notfunk-Meldebuch öffnen](../../notfunk/index.html)
 { .doc-nav }
 
 Das Meldebuch erzeugt **PDF-Dateien**: eine einzelne Meldung als Formular, das
@@ -22,12 +22,12 @@ Das Meldeaufnahmeformular zum Ausdrucken
 Meldebuch; Wahlmöglichkeiten wie Dringlichkeit, Übermittlung und Meldungsart
 kreuzen Sie an oder kreisen sie ein.
 
-[Leeres Formular (PDF) herunterladen](../downloads/notfunk-vordruck.pdf){ download="notfunk-vordruck.pdf" }
+[Leeres Formular (PDF) herunterladen](../../downloads/notfunk-vordruck.pdf){ download="notfunk-vordruck.pdf" }
 
 Im Meldebuch finden Sie es auch auf der Startseite unter „Leeres Formular
 (PDF)“ und unter „Drucken / PDF…“.
 
-[![Das leere Formular mit beschrifteten und nach Zusammengehörigkeit farbig gruppierten Feldern. Kopf: Nummer, Richtung. Nicht ausfüllen: Block der Meldesammelstelle. Wann und wie: Zeit, Dringlichkeit, Übermittlung, Meldungsart. Wer und was: Von, An, Betreff, Ort, Bezug, Inhalt. Abschluss: Rücklesen, Aufgenommen von, Übergabe](../img/notfunk-vordruck-beschriftet.png){ .wide }](../img/notfunk-vordruck-beschriftet.png)
+[![Das leere Formular mit beschrifteten und nach Zusammengehörigkeit farbig gruppierten Feldern. Kopf: Nummer, Richtung. Nicht ausfüllen: Block der Meldesammelstelle. Wann und wie: Zeit, Dringlichkeit, Übermittlung, Meldungsart. Wer und was: Von, An, Betreff, Ort, Bezug, Inhalt. Abschluss: Rücklesen, Aufgenommen von, Übergabe](../../img/notfunk-vordruck-beschriftet.png){ .wide }](../../img/notfunk-vordruck-beschriftet.png)
 
 Die Farben im Bild zeigen, welche Felder zusammengehören.
 
@@ -41,7 +41,7 @@ Meldesammelstelle auszufüllen“ lassen Sie frei.
 Meldebuchs) schreibt die Meldung ins Formular und öffnet das PDF in einem
 neuen Tab; blockiert der Browser den Tab, wird es heruntergeladen.
 
-![Ausdruck einer Meldung](../img/notfunk-ausdruck.png)
+![Ausdruck einer Meldung](../../img/notfunk-ausdruck.png)
 
 Auf dem Ausdruck stehen alle Angaben der Meldung und des Einsatzes, die
 Richtung (die gewählte angekreuzt), Datum und Uhrzeit in Ortszeit Wien und
@@ -56,4 +56,4 @@ Das PDF (A4 quer) hat die Spalten des Meldebuchs, den ganzen Inhalt jeder
 Meldung und auf jeder Seite Einsatz, Zeitraum und „Seite n von N“. Notfall
 und Dringend sind auch schwarzweiß gedruckt erkennbar.
 
-Weiter: [Sicherung und Wiederherstellung](sicherung.md)
+Weiter: [Sicherung und Wiederherstellung](backup.de.md)

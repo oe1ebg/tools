@@ -53,12 +53,13 @@ IGNORE = shutil.ignore_patterns("*.md", ".*", "__pycache__")
 
 # The manuals on the overview page, in this order: docs/<name>.md ->
 # <name>/index.html, or docs/<name>/index.md for a manual with sub pages
-# (the Notfunk manual: docs/notfunk-anleitung/*.md -> notfunk-anleitung/…/).
+# (the Notfunk manual: docs/notfunk-anleitung/{tutorial,manual,reference}/*.md,
+# every page as name.de.md or name.en.md -> notfunk-anleitung/…/).
 # Every other docs/**/*.md is rendered too, titled by its first heading.
 MANUALS = {
     "confirm-anleitung": "Bestätigungsverkehr: Anleitung",
     "notfunk-anleitung": "Notfunk-Meldebuch: Anleitung",
-    "notfunk-anleitung/english": "Notfunk logbook: introduction and tutorial (English)",
+    "notfunk-anleitung/index.en": "Notfunk logbook: guide (English)",
     "data-sources": "Datenquellen",
 }
 
@@ -115,6 +116,7 @@ def page_dir(src: str) -> str:
     """Directory of the page rendered from docs/<src>, relative to the bundle
     ('' for the root): x.md -> x, d/index.md -> d, d/p.md -> d/p."""
     path = posixpath.splitext(src)[0]
+    path = path.removesuffix(".de")   # name.de.md is the German edition (the page's own address)
     return posixpath.dirname(path) if posixpath.basename(path) == "index" else path
 
 
@@ -228,7 +230,7 @@ def main() -> None:
         up = "../" * (name.count("/") + 1)
         body = render(text, src)
         rendered = page(title, body, up, True, foot)
-        if md.stem == "english":   # the English edition of a manual
+        if md.stem.endswith(".en"):   # the English edition of a page (name.en.md)
             rendered = rendered.replace('<html lang="de">', '<html lang="en">', 1)
         (OUT_DIR / name).mkdir(parents=True, exist_ok=True)
         (OUT_DIR / name / "index.html").write_text(rendered, encoding="utf-8")
@@ -262,7 +264,7 @@ def main() -> None:
         f'<li><a href="{d}/">{html.escape(t)}</a> — {html.escape(desc)}</li>'
         for d, (t, desc) in TOOLS.items() if (OUT_DIR / d).is_dir())
     docs = "\n".join(
-        f'<li><a href="{n}/"{" lang=\"en\"" if n.endswith("/english") else ""}>{html.escape(t)}</a></li>'
+        f'<li><a href="{n}/"{" lang=\"en\"" if n.endswith(".en") else ""}>{html.escape(t)}</a></li>'
         for n, t in MANUALS.items())
     body = f"<h1>Tools</h1>\n<ul>\n{items}\n</ul>\n<h2>Anleitungen</h2>\n<ul>\n{docs}\n</ul>"
     (OUT_DIR / "index.html").write_text(page("Tools", body, "", False, foot), encoding="utf-8")

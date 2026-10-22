@@ -1,6 +1,6 @@
 # Sicherung und Wiederherstellung
 
-[← Notfunk-Anleitung](index.md) · [Notfunk-Meldebuch öffnen](../notfunk/index.html)
+[← Notfunk-Anleitung](../index.de.md) · [Notfunk-Meldebuch öffnen](../../notfunk/index.html)
 { .doc-nav }
 
 Alle Daten liegen nur im Browser dieses Geräts. Eine Sicherungsdatei schützt
@@ -61,4 +61,4 @@ lässt sich in Excel oder LibreOffice öffnen.
   werden (Richtlinie Notfunk Wien, Abschnitt Datenschutz). Das Meldebuch
   löscht nie von selbst.
 
-Weiter: [Wenn etwas nicht klappt](hinweise.md)
+Weiter: [Wenn etwas nicht klappt](../reference/notices.de.md)
