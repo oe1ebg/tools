@@ -1,0 +1,76 @@
+{
+  "entries": [
+    {
+      "kind": "data",
+      "name": "data-latest",
+      "published": "2026-10-19T10:07:19Z",
+      "sha": "49107db60ba96ef93bb3dee0eee9fbbaaa79d314",
+      "sha256": "bb2e3073d43f364091b678af9ee05058860e2f2aa8e651451d5f98f9c9244a6e",
+      "title": "data-latest",
+      "tools": [
+        "netlog"
+      ],
+      "updated": "2026-10-19T09:58:10Z",
+      "version": "v0.7.0"
+    },
+    {
+      "branch": "main",
+      "kind": "main",
+      "name": "main",
+      "published": "2026-10-22T22:09:26Z",
+      "sha": "05c73fe7bf6602c82bfb2d192cd25c801673e923",
+      "title": "main",
+      "tools": [
+        "netlog",
+        "wavelog-import"
+      ],
+      "updated": "2026-10-22T22:08:24Z",
+      "version": "main"
+    },
+    {
+      "kind": "release",
+      "name": "v0.8.0",
+      "published": "2026-10-21T22:33:07Z",
+      "sha": "076119b401445449d24231e441a505d9e2915d00",
+      "sha256": "9ff6b7888737cf700f55fa0250b7102daba694d39a36233447ebc1f0103d0e9a",
+      "title": "v0.8.0",
+      "tools": [
+        "netlog",
+        "wavelog-import"
+      ],
+      "updated": "2026-10-21T22:22:21Z",
+      "version": "v0.8.0"
+    },
+    {
+      "kind": "release",
+      "name": "v0.8.1",
+      "published": "2026-10-22T19:30:14Z",
+      "sha": "66c91843d4a80d1f389c04216023b4924eb1bf2a",
+      "sha256": "087d6a539c2f996f777f06bdf6b6cb5067928945148d257e4ebe636316e641c3",
+      "title": "v0.8.1",
+      "tools": [
+        "netlog",
+        "wavelog-import"
+      ],
+      "updated": "2026-10-22T19:19:42Z",
+      "version": "v0.8.1"
+    },
+    {
+      "kind": "release",
+      "name": "v0.8.2",
+      "published": "2026-10-22T22:25:26Z",
+      "sha": "05c73fe7bf6602c82bfb2d192cd25c801673e923",
+      "sha256": "c4be0ca41c5d18edc61b66ee7447ab3e8e56aa20ac0e2dd941abba2f327f139e",
+      "title": "v0.8.2",
+      "tools": [
+        "netlog",
+        "wavelog-import"
+      ],
+      "updated": "2026-10-22T22:15:02Z",
+      "version": "v0.8.2"
+    }
+  ],
+  "generated": "2026-10-22T22:25:26Z",
+  "repo": "oe1ebg/tools",
+  "schema": 1
+}

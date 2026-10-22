@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wavelog import</title>
+<meta name="color-scheme" content="light dark">
+<script src="../shared/js/theme.js"></script>
+<link rel="stylesheet" href="../shared/css/tools.css">
+<link rel="stylesheet" href="../shared/css/forms.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header id="site-header">
+  <a id="home-link" href="../" data-de="← Alle Tools">← All tools</a>
+  <h1 class="title" data-de="Wavelog-Import">Wavelog import</h1>
+  <span class="hdr-note" data-de="braucht Internet · die anderen Tools bleiben offline">needs internet · the other tools stay offline</span>
+  <div class="hdr-controls">
+    <div id="lang-toggle" class="toggle" role="group" aria-label="language" data-de-aria-label="Sprache">
+      <button type="button" data-lang="de" lang="de" aria-pressed="false">DE</button>
+      <button type="button" data-lang="en" lang="en" aria-pressed="false">EN</button>
+    </div>
+    <div id="theme-toggle" class="toggle" role="group" aria-label="color theme" data-de-aria-label="Farbschema">
+      <button type="button" data-theme-choice="light" aria-pressed="false" title="light theme" data-de-title="helles Farbschema" data-de="hell">light</button>
+      <button type="button" data-theme-choice="auto" aria-pressed="false" title="match system theme" data-de-title="wie das System" data-de="auto">auto</button>
+      <button type="button" data-theme-choice="dark" aria-pressed="false" title="dark theme" data-de-title="dunkles Farbschema" data-de="dunkel">dark</button>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <section class="card" aria-labelledby="intro-title">
+    <h2 id="intro-title" data-de="QSOs aus Wavelog übernehmen">Bring QSOs in from Wavelog</h2>
+    <p class="hint" data-de="Holt die QSOs eines Logbuchs von deiner Wavelog-Instanz und legt sie auf diesem Gerät in den gemeinsamen Rufzeichen-Speicher. Netlog nutzt sie dann offline für Name, QTH und „schon gearbeitet“. Es wird nichts zu Wavelog geschrieben. Das Token wird nicht gespeichert und nach dem Import aus dem Feld gelöscht. Der Import gehört nicht zu den Sicherungen; er lässt sich jederzeit wiederholen.">Fetches the QSOs of a logbook from your Wavelog instance and stores them on this device in the shared callsign store. Netlog then uses them offline for name, QTH and "already worked". Nothing is written to Wavelog. The token is not stored and is cleared from the field after the import. The import is not part of any backup; repeat it any time.</p>
+  </section>
+
+  <section class="card" aria-labelledby="conn-title">
+    <h2 id="conn-title" data-de="1 · Verbindung">1 · Connection</h2>
+    <form id="conn-form" autocomplete="off">
+      <label class="field"><span data-de="Adresse deiner Wavelog-Instanz">Address of your Wavelog instance</span>
+        <input id="wl-url" type="url" inputmode="url" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="https://…" aria-describedby="wl-url-hint wl-url-err" required></label>
+      <p id="wl-url-hint" class="hint" data-de="https:// (http:// nur für localhost), ohne Benutzername oder Passwort. Wird gemerkt; Netlog verwendet sie für den „Wavelog“-Link bei einer Station.">https:// (http:// only for localhost), without user name or password. It is remembered; Netlog uses it for the "Wavelog" link at a station.</p>
+      <p id="wl-url-err" class="field-err" role="alert"></p>
+      <label class="field"><span data-de="API-v2-Token (wl2_…)">API v2 token (wl2_…)</span>
+        <input id="wl-token" type="password" autocorrect="off" autocapitalize="off" spellcheck="false" autocomplete="off" aria-describedby="wl-token-note wl-token-hint wl-token-err" required></label>
+      <p id="wl-token-note" class="hint token-note" data-de="Das Token wird in dieser Web-App nicht gespeichert: Es bleibt nur in diesem Feld, wird nach dem Import gelöscht und ist nach einem Neuladen der Seite weg.">The token is not stored in this web app: it stays in this field only, is cleared after the import, and is gone when the page is reloaded.</p>
+      <div id="wl-token-hint" class="hint token-help">
+        <p><b data-de="Es muss ein API-v2-Token sein.">It must be an API v2 token.</b> <span data-de="Es beginnt mit wl2_. Ältere API-Schlüssel (v1) nimmt die v2-API nicht an; Wavelog ab Version 3.1.0.">It starts with wl2_. Older API keys (v1) are not accepted by the v2 API; Wavelog 3.1.0 or later.</span></p>
+        <p data-de="Anlegen: in Wavelog Benutzermenü → API → neues API-v2-Token (Name, Rechte, Ablaufdatum).">Create it in Wavelog: user menu → API → new API v2 token (name, scopes, expiry).</p>
+        <p data-de="Erforderliche Rechte (Scopes):">Required scopes:</p>
+        <ul>
+          <li><code>logbook:read</code> – <span data-de="Logbücher und ihre Stationsstandorte auflisten">list the logbooks and their station locations</span></li>
+          <li><code>qso:read</code> – <span data-de="die QSOs lesen">read the QSOs</span></li>
+        </ul>
+        <p data-de="Mehr wird nicht gebraucht, Schreib- und Löschrechte bleiben ungenutzt. Ein fertiges Preset funktioniert, wenn es diese beiden Rechte enthält; die Seite prüft das Token nach „Logbücher laden“, nennt fehlende Rechte und weist auf überflüssige Schreib- und Löschrechte hin. Am sichersten: nur diese zwei Rechte und ein Ablaufdatum.">Nothing more is needed; write and delete scopes stay unused. A ready-made preset works if it includes these two scopes; after "Load logbooks" the page checks the token, names missing scopes and points out unneeded write and delete scopes. Safest: just these two scopes and an expiry date.</p>
+      </div>
+      <p id="wl-token-err" class="field-err" role="alert"></p>
+      <div class="toolbar">
+        <button type="submit" id="btn-logbooks" class="primary" data-de="Logbücher laden">Load logbooks</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card" id="import-card" aria-labelledby="import-title" hidden>
+    <h2 id="import-title" data-de="2 · Logbuch wählen und importieren">2 · Choose a logbook and import</h2>
+    <label class="field"><span data-de="Logbuch">Logbook</span>
+      <select id="wl-logbook"></select></label>
+    <p id="wl-stations" class="hint"></p>
+    <div class="toolbar">
+      <button type="button" id="btn-import" class="primary" data-de="Importieren">Import</button>
+      <button type="button" id="btn-cancel" data-de="Abbrechen" hidden>Cancel</button>
+    </div>
+    <progress id="wl-progress" max="100" value="0" aria-label="Import" data-de-aria-label="Import" hidden></progress>
+  </section>
+
+  <p id="wl-status" class="status" role="status"></p>
+
+  <section class="card" aria-labelledby="done-title">
+    <h2 id="done-title" data-de="Importierte Logbücher auf diesem Gerät">Imported logbooks on this device</h2>
+    <ul id="wl-sources" class="profile-list"></ul>
+    <div class="toolbar">
+      <button type="button" id="btn-lists" aria-haspopup="dialog" data-de="Rufzeichenlisten verwalten…">Manage callsign lists…</button>
+    </div>
+    <p class="hint" data-de="Die Listen gelten für alle Tools auf diesem Gerät. Bereits geöffnete Tools laden sie erst nach dem Neuladen der Seite.">The lists apply to all tools on this device. Tools that are already open pick them up when the page is reloaded.</p>
+  </section>
+</main>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

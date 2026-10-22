@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Datenquellen</title>
+<script src="../shared/js/theme.js"></script>
+<link rel="stylesheet" href="../shared/css/tools.css">
+<link rel="stylesheet" href="../shared/css/docs.css">
+</head>
+<body>
+<main class="doc">
+<p class="doc-nav"><a href="../">← Alle Tools</a></p>
+<h1 id="data-sources-and-licences">Data sources and licences</h1>
+<p>Every dataset and third-party library the tools use, grouped by
+tool: who publishes it, what is taken from it, under which licence, where it
+comes from, how often it is refreshed, and the attribution it requires.</p>
+<p><strong>How refreshes work.</strong> The tools are released as a bundle with the data
+built in. Each release, and the weekly data rebuild of the current release,
+re-fetches the "weekly" datasets; the "monthly" ones are cached for up to
+30 days. Datasets marked <em>snapshot</em> are committed to the repository and only
+updated by hand; regular builds never contact their source. Datasets marked
+<em>live</em> are fetched by your browser while you use the tool. A copy of the
+bundle on another server has the data of the day it was built
+(<code>manifest.json</code> in the bundle).</p>
+<h2 id="bestatigungsverkehr-confirmation-log">Bestätigungsverkehr (confirmation log)</h2>
+<p>The <a href="../confirm/index.html">confirmation log</a> works fully offline: all of the
+following data is built into the tool at build time, and the tool itself
+never contacts any of these sources. The tool's footer lists the same
+sources with the date of the data it contains.</p>
+<p>When online, a resolved location can also be opened in Google Maps or
+OpenStreetMap. These are plain links that you click; nothing is fetched
+from either service by the tool.</p>
+<h3 id="austrian-callsign-list-rufzeichenliste">Austrian callsign list (Rufzeichenliste)</h3>
+<ul>
+<li><strong>Publisher:</strong> Fernmeldebüro (Austrian radio and telecommunications
+  authority)</li>
+<li><strong>Used:</strong> callsign, name and licence location (Standort) of every
+  Austrian amateur radio station, about 7,200 OE calls. No street addresses,
+  no licence class. Holders who opted out of publication appear as a bare
+  callsign.</li>
+<li><strong>Licence:</strong> official publication under § 150 TKG 2021; the list carries
+  no licence statement.</li>
+<li><strong>Source:</strong> "Rufzeichenliste österreichischer Amateurfunkstellen" (PDF),
+  linked from
+  <a href="https://www.fb.gv.at/Funk/amateurfunkdienst.html">fb.gv.at – Amateurfunkdienst</a></li>
+<li><strong>Refresh:</strong> weekly build (7-day cache); the authority republishes the
+  list roughly monthly.</li>
+<li><strong>Attribution:</strong> "Rufzeichenliste (Fernmeldebüro), Stand ‹date›"</li>
+</ul>
+<h3 id="ovsv-repeater-database">ÖVSV repeater database</h3>
+<ul>
+<li><strong>Publisher:</strong> ÖVSV (Österreichischer Versuchssenderverband)</li>
+<li><strong>Used:</strong> all Austrian voice repeaters (active, planned, inactive; about
+  230): callsign, output/input frequency, modes, CTCSS, site name,
+  coordinates, locator and altitude.</li>
+<li><strong>Licence:</strong> no data licence is stated. The database software is
+  <a href="https://github.com/oevsv/repeater-db/blob/main/LICENSE">Apache-2.0</a>.</li>
+<li><strong>Source:</strong> <a href="https://repeater.oevsv.at/">repeater.oevsv.at</a> (PostgREST API
+  <code>/api/trx</code> and <code>/api/site</code>; code at
+  <a href="https://github.com/oevsv/repeater-db">github.com/oevsv/repeater-db</a>)</li>
+<li><strong>Refresh:</strong> weekly build (7-day cache).</li>
+<li><strong>Attribution:</strong> "ÖVSV Repeater-Datenbank, Stand ‹date›"</li>
+</ul>
+<h3 id="stadt-wien-adressen-standorte-wien">Stadt Wien – Adressen Standorte Wien</h3>
+<ul>
+<li><strong>Publisher:</strong> Stadt Wien – data.wien.gv.at</li>
+<li><strong>Used:</strong> about 181,000 Vienna addresses (street, house number, PLZ,
+  district, coordinates) for the location lookup.</li>
+<li><strong>Licence:</strong> <a href="https://creativecommons.org/licenses/by/4.0/deed.de">CC BY 4.0</a></li>
+<li><strong>Source:</strong> WFS layer <code>ogdwien:ADRESSENOGD</code>, catalogue entry on
+  <a href="https://www.data.gv.at/katalog/dataset/1d5c2411-9719-4c8f-b99d-57a5f4a4ae41">data.gv.at</a></li>
+<li><strong>Refresh:</strong> monthly build (30-day cache).</li>
+<li><strong>Attribution:</strong> "Adressdaten: Stadt Wien – data.wien.gv.at, CC BY 4.0"</li>
+</ul>
+<h3 id="stadt-wien-bezirksgrenzen">Stadt Wien – Bezirksgrenzen</h3>
+<ul>
+<li><strong>Publisher:</strong> Stadt Wien – data.wien.gv.at</li>
+<li><strong>Used:</strong> the 23 district boundaries, simplified, for the offline map.</li>
+<li><strong>Licence:</strong> <a href="https://creativecommons.org/licenses/by/4.0/deed.de">CC BY 4.0</a></li>
+<li><strong>Source:</strong> WFS layer <code>ogdwien:BEZIRKSGRENZEOGD</code>, catalogue entry on
+  <a href="https://www.data.gv.at/katalog/dataset/2ee6b8bf-6292-413c-bb8b-bd22dbb2ad4b">data.gv.at</a></li>
+<li><strong>Refresh:</strong> monthly build (30-day cache).</li>
+<li><strong>Attribution:</strong> "Stadt Wien – data.wien.gv.at, Bezirksgrenzen Wien, CC BY 4.0"</li>
+</ul>
+<h3 id="openstreetmap-vienna-landmarks-and-map-outlines">OpenStreetMap: Vienna landmarks and map outlines</h3>
+<ul>
+<li><strong>Publisher:</strong> OpenStreetMap contributors</li>
+<li><strong>Used:</strong> about 6,500 named landmarks inside Vienna (places, peaks,
+  stations, hospitals, parks, …; one point each) for the location lookup,
+  and main roads and larger waters (Donau, Neue Donau, Donaukanal,
+  Alte Donau, …) for the offline map.</li>
+<li><strong>Licence:</strong> <a href="https://opendatacommons.org/licenses/odbl/">ODbL</a></li>
+<li><strong>Source:</strong> <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, queried
+  via the Overpass API</li>
+<li><strong>Refresh:</strong> <em>snapshot</em> (committed <code>location-pois.json</code> and
+  <code>map-osm.json</code>, current snapshots from October 2026), updated by hand.</li>
+<li><strong>Attribution:</strong> "© OpenStreetMap-Mitwirkende" (© OpenStreetMap
+  contributors), ODbL</li>
+</ul>
+<h3 id="bev-osterreichisches-adressregister">BEV – Österreichisches Adressregister</h3>
+<ul>
+<li><strong>Publisher:</strong> BEV – Bundesamt für Eich- und Vermessungswesen</li>
+<li><strong>Used:</strong> all ~2.5 million Austrian addresses, aggregated per PLZ and
+  political Bezirk into a centre point and the Maidenhead locators the area
+  covers (2,232 PLZ, 117 Bezirke). No individual addresses are shipped.</li>
+<li><strong>Licence:</strong> <a href="https://creativecommons.org/licenses/by/4.0/deed.de">CC BY 4.0</a></li>
+<li><strong>Source:</strong> "Adresse Relationale Tabellen – Stichtagsdaten",
+  <a href="https://www.bev.gv.at/Services/Produkte/Adressregister/Oesterreichisches-Adressregister.html">BEV Adressregister</a></li>
+<li><strong>Refresh:</strong> <em>snapshot</em> (committed <code>austria-areas.json</code>, Stichtag
+  01.04.2026), updated by hand; the BEV republishes the register twice a
+  year.</li>
+<li><strong>Attribution:</strong> "© Österreichisches Adressregister, Stichtagsdatum ‹date›"</li>
+</ul>
+<h3 id="statistik-austria-politische-bezirke">Statistik Austria – Politische Bezirke</h3>
+<ul>
+<li><strong>Publisher:</strong> Statistik Austria</li>
+<li><strong>Used:</strong> names and codes of the political Bezirke (<code>polbezirke.csv</code>).</li>
+<li><strong>Licence:</strong> <a href="https://creativecommons.org/licenses/by/4.0/deed.de">CC BY 4.0</a></li>
+<li><strong>Source:</strong> <a href="https://www.statistik.at/services/tools/regionale-internationale-daten/regionale-daten-und-gliederungen/regionale-gliederungen">Statistik Austria – Regionale Gliederungen</a></li>
+<li><strong>Refresh:</strong> <em>snapshot</em>, together with the BEV data above.</li>
+<li><strong>Attribution:</strong> "Bezirke: Statistik Austria, CC BY 4.0"</li>
+</ul>
+<h3 id="own-data">Own data</h3>
+<p>District names, landmarks missing from OpenStreetMap and common shorthand
+(e.g. "Steffl", "Hbf", "DI") are maintained in this repository
+(<code>location-aliases.toml</code>).</p>
+<h2 id="notfunk-meldebuch">Notfunk-Meldebuch</h2>
+<p>The <a href="../notfunk/index.html">Notfunk-Meldebuch</a> (draft) works fully offline and
+uses the same build-time data as the confirmation log above, without the
+map: the <a href="#austrian-callsign-list-rufzeichenliste">Austrian callsign list</a>,
+the <a href="#ovsv-repeater-database">ÖVSV repeater database</a>, the Vienna
+<a href="#stadt-wien-adressen-standorte-wien">addresses</a> and
+<a href="#openstreetmap-vienna-landmarks-and-map-outlines">landmarks</a> (not the map
+outlines), the Austria-wide PLZ and Bezirke from the
+<a href="#bev-osterreichisches-adressregister">BEV</a> and
+<a href="#statistik-austria-politische-bezirke">Statistik Austria</a>, and the
+<a href="#own-data">own data</a>. It has no datasets of its own and never contacts any
+of these sources; its footer lists the sources with the date of the data it
+contains.</p>
+<h2 id="sota-alerts-map">SOTA Alerts Map</h2>
+<p>The <a href="../sota-alerts/index.html">SOTA Alerts Map</a> is an online tool: alerts, map
+tiles and summit searches are loaded live.</p>
+<h3 id="sota-summit-database">SOTA summit database</h3>
+<ul>
+<li><strong>Publisher:</strong> Summits On The Air (SOTA)</li>
+<li><strong>Used:</strong> code, name, coordinates, altitude and points of every summit,
+  for the "all summits" overlay and to place alerted summits without an API
+  call.</li>
+<li><strong>Licence:</strong> no licence is stated; the data belongs to the SOTA programme.</li>
+<li><strong>Source:</strong> <a href="https://storage.sota.org.uk/summitslist.csv">storage.sota.org.uk/summitslist.csv</a></li>
+<li><strong>Refresh:</strong> weekly build (7-day cache), matching SOTA's own weekly
+  update.</li>
+<li><strong>Attribution:</strong> "alert &amp; summit data via SOTA (unofficial)"</li>
+</ul>
+<h3 id="sota-api-alerts-summit-lookup-and-search">SOTA API (alerts, summit lookup and search)</h3>
+<ul>
+<li><strong>Publisher:</strong> Summits On The Air (SOTA)</li>
+<li><strong>Used:</strong> upcoming activation alerts, details of single summits, and
+  summit search by name or code.</li>
+<li><strong>Licence:</strong> subject to SOTA's API terms of use (no commercial use;
+  developers are asked to coordinate with the SOTA Management Team).</li>
+<li><strong>Source:</strong> <code>api2.sota.org.uk</code> (<code>/api/alerts</code>, <code>/api/summits/…</code>)</li>
+<li><strong>Refresh:</strong> <em>live</em>.</li>
+<li><strong>Attribution:</strong> "alert &amp; summit data via SOTA (unofficial)"</li>
+</ul>
+<h3 id="map-tiles">Map tiles</h3>
+<p>You choose one of three base layers; tiles are loaded <em>live</em>.</p>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Publisher</th>
+<th>Licence</th>
+<th>Attribution</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Outdoor</td>
+<td><a href="https://opentopomap.org/copyright">OpenTopoMap</a></td>
+<td><a href="https://creativecommons.org/licenses/by-sa/3.0/">CC BY-SA 3.0</a> (map), data © OpenStreetMap contributors, SRTM</td>
+<td>"Map: © OpenTopoMap (CC-BY-SA)"</td>
+</tr>
+<tr>
+<td>Streets</td>
+<td><a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a></td>
+<td>data <a href="https://opendatacommons.org/licenses/odbl/">ODbL</a>, tiles under the <a href="https://operations.osmfoundation.org/policies/tiles/">OSM tile usage policy</a></td>
+<td>"© OpenStreetMap contributors"</td>
+</tr>
+<tr>
+<td>Austria</td>
+<td><a href="https://basemap.at/">basemap.at</a> (Austrian provinces and partners)</td>
+<td><a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a></td>
+<td>"Grundkarte: basemap.at"</td>
+</tr>
+</tbody>
+</table>
+<h3 id="openstreetmap-sota-tags-area-search">OpenStreetMap SOTA tags (area search)</h3>
+<ul>
+<li><strong>Publisher:</strong> OpenStreetMap contributors</li>
+<li><strong>Used:</strong> peaks tagged with <code>communication:amateur_radio:sota</code> inside the
+  visible map area, as a complement to the summit search.</li>
+<li><strong>Licence:</strong> <a href="https://opendatacommons.org/licenses/odbl/">ODbL</a></li>
+<li><strong>Source:</strong> <a href="https://overpass-api.de/">Overpass API</a> (<code>overpass-api.de</code>)</li>
+<li><strong>Refresh:</strong> <em>live</em>, on request.</li>
+<li><strong>Attribution:</strong> "© OpenStreetMap contributors"</li>
+</ul>
+<p>Summit popups also link to <a href="https://sotl.as/">sotl.as</a> and
+<a href="https://www.sotadata.org.uk/">sotadata.org.uk</a>; these are links only.</p>
+<h2 id="adif-editor">ADIF Editor</h2>
+<p>The <a href="../adif/index.html">ADIF Editor</a> contains no external datasets. Its field
+picker and help texts are derived from the field list of the
+<a href="https://www.adif.org/317/ADIF_317.htm">ADIF 3.1.7 specification</a>
+(published by the ADIF Developers Group, freely available).</p>
+<h2 id="software-libraries">Software libraries</h2>
+<ul>
+<li><strong>Leaflet 1.9.4</strong> – map library, vendored (one copy, used by the confirmation
+  log and the SOTA Alerts Map, with its licence file).
+  © 2010–2023 Volodymyr Agafonkin, © 2010–2011 CloudMade.
+  <a href="https://github.com/Leaflet/Leaflet/blob/main/LICENSE">BSD 2-Clause</a>,
+  <a href="https://leafletjs.com/">leafletjs.com</a>.</li>
+</ul>
+<footer class="doc-footer">Quellcode: <a href="https://github.com/oe1ebg/tools">github.com/oe1ebg/tools</a> · Version main (commit <a href="https://github.com/oe1ebg/tools/commit/05c73fe7bf6602c82bfb2d192cd25c801673e923">05c73fe</a>)</footer>
+</main>
+</body>
+</html>

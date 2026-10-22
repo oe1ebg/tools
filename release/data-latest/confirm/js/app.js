@@ -1,0 +1,2710 @@
+// UI for the offline confirmation-traffic log (Bestätigungsverkehr).
+// Persistence rules (see oe1ebg/tools/confirm/README.md): every saved line is
+// written to storage before the UI reports it as saved; edits keep the old
+// version in `revisions`; deletes are soft; the half-typed line is kept as a
+// draft. Nothing here ever talks to the network.
+
+import { openStorage } from './db.js';
+import { requestPersistence } from '../../shared/js/storage.js';
+import { openStorageWithNotices, offerFallbackMigration } from '../../shared/js/storageui.js';
+import {
+  MODES, modeInfo, headerSnapshot, emptyHeader, checkinNumbers, previousCheckins, adifModeText, SIGNALLING,
+  signallingText, REPEATER_KEYS, parseMHz, liveSorted, stats, isComment, COMMENT_CATEGORIES, newComment,
+  headerChangeMarkers, headerFromRepeater,
+} from './model.js';
+import { newId, nowIso, laterIso, splitUtc, splitTime, zoneLabel, zoneAbbr, parseTimeInput, isoUtc, localZoneAbbrText } from '../../shared/js/time.js';
+import { LOC_ORIGINS, locOrigin, locHints } from '../../shared/js/locmeta.js';
+import { TEMPLATES, templateFor, fieldVisible, fieldDisplay, fieldOptions, currentOptions, shortSummary, exampleValues, logColumns, chainValues, nameField, entryFields } from './templates.js';
+import { toCSV, toADIF, adifIssues, ADIF_MIME, toKML, KML_MIME, toSummary } from './export.js';
+import { loadDataFile } from '../../shared/js/data.js';
+import { buildCallbook, lookupCall, suggestCalls, normalizeCall, isPlausibleCall } from '../../shared/js/callbook.js';
+import { initHelpDialog } from '../../shared/js/helpdialog.js';
+import { $, el, fill, copyToClipboard, popover, focusNext, submitForm, isComposing, trackExpanded, rowRoles, tableRoles, revertOnEscape } from '../../shared/js/dom.js';
+import { prefGet, prefSet } from '../../shared/js/prefs.js';
+import { initLocationPanel, loadLocationIndex, setUtmReference, logUtmDigits } from '../../shared/js/locationui.js';
+import { locate } from '../../shared/js/location/index.js';
+import { isValidLocator, isLocatorPrefix, locatorPrecisionName, maidenheadToBounds } from '../../shared/js/maidenhead.js';
+import { utmReference, UTM_DEFAULT_REF } from '../../shared/js/utm.js';
+import { openMap, closeMap, refreshMap, mapVisible } from './mapview.js';
+import { createLocationField, describeLocation, locationOptions } from '../../shared/js/locfield.js';
+import { attachRepeaterSearch, loadRepeaterIndex } from '../../shared/js/repeaterui.js';
+import { attachCallSearch } from '../../shared/js/callsearch.js';
+import { sourceItem, trackOnline, repoLink } from '../../shared/js/sources.js';
+import { initOffline, setChip } from '../../shared/js/offline.js';
+import { createLineRepeater } from './linerepeater.js';
+import { paperPdf } from './paperpdf.js';
+import { logPdf } from './logpdf.js';
+import { pdfOpen } from '../../shared/js/pdf.js';
+import { createRowCache, syncRows, resetRows } from '../../shared/js/rowcache.js';
+import { trackSiteHeaderHeight } from '../../shared/js/stickyhead.js';
+import { formatShift, formatMHz } from '../../shared/js/repeaters.js';
+import { BACKUP_FORMAT, BACKUP_MAX_BYTES, SEQ_LIMIT, validateBackup, planBackupImport, backupTexts, combineBackupParts } from './backup.js';
+import { groupParts, partFileName, partsTooLarge } from '../../shared/js/backup-parts.js';
+
+const TIME_MODE_KEY = 'oe1ebg-confirm-time-mode';
+const CSV_SEP_KEY = 'oe1ebg-confirm-csv-sep';
+const CSV_COMMENTS_KEY = 'oe1ebg-confirm-csv-comments';
+const SNAPSHOT_EVERY = 10;   // full JSON snapshot of an event every N saved lines
+const SNAPSHOT_KEEP = 5;     // ... keeping the newest N per event
+const EXPORT_NUDGE_AFTER = 25;
+
+const state = {
+  store: null,
+  tab: 'active',
+  event: null,        // currently open event
+  entries: [],        // all entries (incl. soft-deleted) of the open event
+  editingId: null,
+  readOnly: false,
+  releaseLock: null,
+  draftTimer: null,
+  headerTimer: null,
+  headerFlushing: 0, // header/title writes in flight (their values are still only in state.event)
+  channel: null,
+  callbook: null,     // Austrian callsign list (data/callsigns-oe.json), null until loaded
+  stations: new Map(), // call -> { call, loc, at, eventTitle }: last known location per station
+  locField: null,     // controller of the template's location field, if any
+  lineRpt: null,      // per-line repeater override (entry form)
+  commentMode: false, // entry form holds an operator comment instead of a check-in
+  markerBase: null,   // header as of the last automatic-marker check (headerChangeMarkers)
+};
+
+/* ---------------------------------------------------------------- errors */
+
+function showFatal(msg) {
+  const b = $('#banner');
+  fill(b, msg);
+  b.hidden = false;
+}
+
+function showSaveError(err) {
+  console.error(err);
+  const b = $('#banner');
+  fill(b, 
+    'SPEICHERN FEHLGESCHLAGEN – die Eingabe ist noch im Formular. Bitte sofort als CSV/JSON exportieren. ',
+    el('small', {}, `(${err && (err.message || err.name) || err})`),
+    el('button', { type: 'button', onclick: () => { b.hidden = true; } }, 'ausblenden'),
+  );
+  b.hidden = false;
+}
+
+/* ---------------------------------------------------------------- time display (UTC / local) */
+
+// Display and input only — entries always store an ISO 8601 UTC timestamp.
+function timeMode() {
+  // Local time by default: what local nets go by. UTC once chosen (remembered).
+  return prefGet(TIME_MODE_KEY) === 'utc' ? 'utc' : 'local';
+}
+
+// The zone of a shown time: "UTC", or the local zone's short name ("MESZ").
+function zoneOf(iso) {
+  return timeMode() === 'utc' ? 'UTC' : zoneAbbr(iso);
+}
+
+// "19:42:07 UTC" / "21:42:07 MESZ"
+function fmtTime(iso, withSeconds = true) {
+  const t = splitTime(iso, timeMode()).time;
+  return `${withSeconds ? t : t.slice(0, 5)} ${zoneOf(iso)}`;
+}
+
+function fmtDateTime(iso) {
+  const { date, time } = splitTime(iso, timeMode());
+  return `${date} ${time} ${zoneOf(iso)}`;
+}
+
+function applyTimeMode() {
+  const mode = timeMode();
+  document.querySelectorAll('#time-toggle button').forEach(b => {
+    b.classList.toggle('active', b.dataset.timeMode === mode);
+    b.setAttribute('aria-pressed', String(b.dataset.timeMode === mode));
+  });
+  // the local choice names the device's zone and its offset now
+  const local = document.querySelector('#time-toggle button[data-time-mode="local"]');
+  if (local) local.textContent = localZoneAbbrText('Lokal', nowIso());
+  $('#f-time').title = `Leer lassen = Zeitpunkt des Speicherns (die laufende Uhrzeit im Feld). Korrektur: HH:MM oder JJJJ-MM-TT HH:MM (${mode === 'local' ? `Lokalzeit, ${localZoneAbbrText('lokal', nowIso())}` : 'UTC'}). Gespeichert wird immer ein ISO-Zeitstempel.`;
+  $('#time-help').textContent = $('#f-time').title;
+  tickClock();
+  if (state.event) {
+    renderLog();
+    renderTrash();
+    updateCallFeedback();
+  }
+}
+
+// The time field's placeholder runs with the clock, with its zone
+// ("19:16:42 MESZ"): what an empty field saves.
+function tickClock() {
+  const now = nowIso();
+  $('#f-time').placeholder = `${splitTime(now, timeMode()).time} ${zoneOf(now)}`;
+}
+
+function initTimeMode() {
+  document.querySelectorAll('#time-toggle button').forEach(b => b.addEventListener('click', () => {
+    // A half-typed time correction is converted, not reinterpreted.
+    const input = $('#f-time');
+    const old = timeMode();
+    const iso = input.value ? parseTimeInput(input.value, old, nowIso()) : null;
+    prefSet(TIME_MODE_KEY, b.dataset.timeMode);
+    if (iso) {
+      const { date, time } = splitTime(iso, timeMode());
+      input.value = `${date} ${time}`;
+    }
+    applyTimeMode();
+  }));
+  applyTimeMode();
+}
+
+/* ---------------------------------------------------------------- offline / service worker */
+
+// The offline file and the service worker (shared/js/offline.js): an
+// update reloads every tab, after saving the half-typed line and header.
+function startOffline() {
+  initOffline({
+    build: globalThis.CONFIRM_BUILD,
+    // save hook contract (shared/README.md): true only when both are safe;
+    // otherwise say what is not saved and offer a way to keep the text
+    beforeReload: async () => {
+      const draft = await flushDraft();
+      const header = await flushHeader();
+      if (draft && header) return true;
+      const what = !draft && !header ? 'Die halb getippte Zeile und der Kopf des Logs' : draft ? 'Der Kopf des Logs' : 'Die halb getippte Zeile';
+      const lost = !draft && !header ? 'Die halb getippte Zeile und nicht gespeicherte Änderungen am Kopf gehen verloren.'
+        : draft ? 'Nicht gespeicherte Änderungen am Kopf (Titel, Angaben) gehen verloren.'
+          : 'Die halb getippte Zeile geht verloren.';
+      return {
+        message: `${what} konnte nicht im Browser gespeichert werden (Speicher voll oder gesperrt). Kopieren Sie den Text oder exportieren Sie das Log (CSV/JSON), solange die Seite offen ist. `,
+        actions: [{
+          label: 'Eingabe in die Zwischenablage kopieren',
+          run: async () => {
+            const text = JSON.stringify({ title: state.event?.title, header: state.event?.header, line: readForm() }, null, 1);
+            if (await copyToClipboard(text)) return true;
+            // never let the user believe it was copied: show the text to copy by hand
+            return { message: 'Kopieren nicht möglich. Bitte den Text unten markieren und von Hand kopieren. ', text };
+          },
+        }],
+        discards: lost,
+      };
+    },
+    // Online-only parts; ../ is the folder the offline file sits in.
+    fileHidden: ['#offline-file-link', '#offline-card', '#data-sources-link', '#home-link', '#manual-link', '#help-manual'],
+  });
+}
+
+async function initPersistence() {
+  const r = await requestPersistence();
+  if (r === 'persisted') setChip('#st-storage', 'Speicher dauerhaft ✓', 'ok');
+  else if (r === 'denied') setChip('#st-storage', 'Speicher nicht dauerhaft – regelmäßig exportieren!', 'warn');
+  else setChip('#st-storage', 'Speicher: Browser-Standard', 'warn');
+}
+
+/* ---------------------------------------------------------------- header form */
+
+// `route` fields show only for that route (direct / via repeater; the
+// other route's values are kept), `modes` fields only for those modes
+// (signalling, see SIGNALLING in js/model.js). `bool` is a two-option
+// radio group for a boolean header value: [falseValue, trueValue].
+// `span` is the width in columns of the header grid (style.css), default
+// 1; `narrowSpan` the width in its two phone columns, default `span`.
+// `bare`: a radio group on a row of its own, named only by its section
+// heading (aria-label), like the mode chips.
+const ROUTES = [['direct', 'direkt (Simplex)'], ['rpt', 'über Relais']];
+const HEADER_FIELDS = [
+  { sub: 'Station' },
+  { key: 'operator', label: 'Operator', call: true, size: 12 },
+  { key: 'station', label: 'Station (für)', call: true, size: 12 },
+  { key: 'myQth', label: 'Eigener QTH', qth: true, size: 18, span: 2 },
+  { key: 'myGrid', label: 'Eigener Locator', grid: true, size: 12, narrowSpan: 2 },
+  { sub: 'Betriebsart' },
+  { key: 'mode', label: 'Betriebsart', radio: MODES.map(m => [m.key, m.label]), adif: true },
+  { sub: 'Verbindung', note: 'Standard für neue Zeilen, pro Zeile umschaltbar' },
+  { key: 'viaRepeater', label: 'Verbindung', radio: ROUTES, bool: ['direct', 'rpt'], bare: true },
+  { key: 'freq', label: 'Frequenz MHz', size: 9, inputmode: 'decimal', route: 'direct' },
+  { key: 'repeaterCall', label: 'Relais', title: 'Rufzeichen, Ort oder Frequenz (MHz) eines Relais eingeben', call: true, repeater: true, size: 6, route: 'rpt', span: 2 },
+  { key: 'repeaterFreq', label: 'Ausgabe MHz', size: 9, inputmode: 'decimal', route: 'rpt' },
+  { key: 'repeaterShift', label: 'Shift MHz', size: 6, inputmode: 'decimal', route: 'rpt', txHint: true },
+  // via repeater the signalling starts a row of its own (.sig-start)
+  ...Object.entries(SIGNALLING).flatMap(([mode, list]) => list.map(([key, label, placeholder], i) => ({
+    key, label, placeholder, size: 6, modes: [mode], sigStart: i === 0,
+  }))),
+];
+
+// The header form (log view and "Neues Log") works like the entry form:
+// info lines in fixed-height slots under the fields, completion dropdowns
+// (QTH: offline location lookup, Relais: ÖVSV list), Betriebsart as chips.
+// onChange(header) is called only when a value actually changed.
+function buildHeaderForm(container, header, onChange) {
+  fill(container);
+  const id = k => `${container.id}-${k}`;
+  const hints = {};
+  let rptSearch = null;
+  let qthField = null;
+  let qthTouched = false;
+  let last = null; // set after building: opening a log never counts as a change
+  const emit = () => {
+    renderHeaderHints(container);
+    const h = readHeaderForm(container);
+    const sig = JSON.stringify(h);
+    if (sig === last) return;
+    last = sig;
+    onChange(h);
+  };
+
+  // Visibility by route/mode is set in renderHeaderHints().
+  const place = (f, node) => {
+    if (f.span > 1) node.classList.add(`span-${f.span}`);
+    if (f.narrowSpan > 1) node.classList.add(`nspan-${f.narrowSpan}`);
+    if (f.route) node.dataset.route = f.route;
+    if (f.modes) node.dataset.modes = f.modes.join(' ');
+    if (f.sigStart) node.classList.add('sig-start');
+    container.append(node);
+  };
+  for (const f of HEADER_FIELDS) {
+    if (f.sub) {
+      container.append(el('div', { class: 'sub' }, f.sub, f.note ? el('span', { class: 'sub-note' }, ` · ${f.note}`) : null));
+      continue;
+    }
+    if (f.radio) {
+      const name = id(f.key);
+      const cur = f.bool ? f.bool[header[f.key] ? 1 : 0] : header[f.key];
+      // A stored mode that is no longer in the list stays selectable.
+      const opts = cur && !f.radio.some(o => o[0] === cur) ? [...f.radio, [cur, cur]] : f.radio;
+      const group = el('div', { class: 'radio-group', role: 'radiogroup', 'aria-label': f.label },
+        opts.map(([v, l]) => {
+          const r = el('input', { type: 'radio', name, value: v, 'data-hkey': f.key, checked: cur === v });
+          r.addEventListener('change', emit);
+          r.addEventListener('keydown', ev => radioKey(ev, [...group.querySelectorAll('input')], emit, false));
+          const m = f.adif ? adifModeText(v) : '';
+          return el('label', { 'data-value': v, title: m || null }, r, el('span', {}, l));
+        }));
+      // The mode and the route have their section heading: no second label (aria-label on the group).
+      const bare = f.adif || f.bare;
+      place(f, el('div', { class: bare ? 'field wide' : 'field' }, bare ? null : el('span', {}, f.label), group));
+      continue;
+    }
+    const input = el('input', {
+      id: id(f.key), 'data-hkey': f.key, value: header[f.key] || '', size: f.size, inputmode: f.inputmode,
+      spellcheck: 'false', autocomplete: 'off', class: f.call ? 'call-input' : f.grid ? 'grid-input' : null, placeholder: f.placeholder, title: f.title,
+      autocapitalize: f.call || f.grid ? 'characters' : null, autocorrect: f.call || f.grid ? 'off' : null,
+      enterkeyhint: 'next',
+    });
+    input.addEventListener('input', emit);
+    const hasPop = f.qth || f.repeater || f.call;
+    const hasHint = hasPop || f.call || f.grid || f.txHint;
+    const pop = hasPop ? el('div', { class: 'ac-pop' }) : null;
+    const info = hasHint ? el('div', { class: 'ac-info', 'aria-live': 'polite' }) : null;
+    if (info) hints[f.key] = info;
+    if (info) {
+      info.id = `${id(f.key)}-info`;
+      input.setAttribute('aria-describedby', info.id);
+    }
+    place(f, el('div', { class: 'field ac-field' },
+      el('label', { for: input.id }, f.label),
+      hasPop ? el('div', { class: 'ac-wrap' }, input, pop) : input,
+      info ? el('div', { class: 'ac-hints' }, info) : null));
+    if (f.repeater) {
+      rptSearch = attachRepeaterSearch({
+        input, pop, info,
+        getHeader: () => readHeaderForm(container),
+        onPick: r => {
+          writeHeaderForm(container, headerFromRepeater(r, readHeaderForm(container)));
+          emit();
+          // A pick is a finished edit, like leaving the field (log marker).
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+        },
+      });
+    }
+    if (f.call) {
+      attachCallSearch({
+        input, pop,
+        getBook: () => state.callbook,
+        recent: () => cachedHeaderCalls,
+        onPick: () => {
+          emit();
+          // A pick is a finished edit, like leaving the field (log marker).
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+        },
+      });
+    }
+    if (f.qth) {
+      input.addEventListener('input', () => { qthTouched = true; });
+      qthField = createLocationField({
+        input, results: pop, chip: info,
+        // A resolved QTH fills an empty (or earlier auto-filled) locator —
+        // only after editing the QTH, never just by opening a log.
+        onChange: () => {
+          if (qthTouched) fillGridFromQth(container, qthField.get());
+          emit();
+        },
+      });
+    }
+  }
+  // set(h): the whole form at once (undo, Esc), as one change.
+  const set = h => {
+    writeHeaderForm(container, h);
+    if (qthField) qthField.refresh();
+    emit();
+  };
+  container._hdr = { hints, rptSearch, qthField, set };
+  last = JSON.stringify(readHeaderForm(container));
+  renderHeaderHints(container);
+  rptSearch?.refresh();
+  if (header.myQth) qthField?.refresh();
+}
+
+// Locator from the resolved own QTH: subsquare, or only the square for
+// areas (PLZ, Bezirk) that span several subsquares.
+function fillGridFromQth(container, loc) {
+  const grid = container.querySelector('[data-hkey="myGrid"]');
+  if (!(grid.value === '' || grid.dataset.autofill === grid.value)) return;
+  const v = loc ? (loc.areaLocators?.length > 1 ? loc.maidenhead.slice(0, 4) : loc.maidenhead) : '';
+  grid.value = v;
+  grid.dataset.autofill = v;
+}
+
+// Info lines under the header's callsign and locator fields (QTH and
+// Relais keep their own, from the location field and repeater search),
+// the ADIF mapping of the mode, the repeater input frequency, and which
+// fields the chosen route and mode show.
+// The last action ("gespeichert", "gelöscht", …) in the status line above
+// the log: always the same place, outside the form (nothing in the form
+// moves), read out without moving focus; stays until the next action.
+// Form errors and the "Bearbeite …" note stay in #form-status.
+function logStatus(...content) {
+  fill($('#log-status'), el('span', { class: 'ok-mark', 'aria-hidden': 'true' }, '✓'), ...content);
+}
+
+// Mark a log row for a moment (just saved or restored).
+function flashRow(id) {
+  const tr = $('#log-body')?.querySelector(`tr[data-id="${id}"]`);
+  if (!tr) return;
+  tr.classList.add('fresh');
+  setTimeout(() => tr.classList.remove('fresh'), 2500);
+}
+
+// "Speichern ⇧⏎": the glyphs are for the eye, aria-keyshortcuts says it.
+function setSaveLabel(text) {
+  fill($('#btn-save'), text, ' ', el('span', { 'aria-hidden': 'true' }, '⇧⏎'));
+}
+
+// Column header cell; `title`: the full name (the visible one is short).
+function th(text, title, cls = null) {
+  return el('th', { scope: 'col', title, class: cls }, text);
+}
+
+// aria-live lines are read out on every write: only write real changes.
+function setText(node, text) {
+  if (node.textContent !== text) node.textContent = text;
+}
+
+function renderHeaderHints(container) {
+  const hints = container._hdr?.hints;
+  if (!hints) return;
+  const h = readHeaderForm(container);
+  const route = h.viaRepeater ? 'rpt' : 'direct';
+  container.classList.toggle('route-rpt', h.viaRepeater);
+  container.querySelectorAll('[data-route]').forEach(n => { n.hidden = n.dataset.route !== route; });
+  container.querySelectorAll('[data-modes]').forEach(n => { n.hidden = !n.dataset.modes.split(' ').includes(h.mode); });
+  const out = parseMHz(h.repeaterFreq), shift = parseMHz(h.repeaterShift);
+  setText(hints.repeaterShift, out !== null && shift !== null ? `Eingabe ${formatMHz(Math.round((out + shift) * 1e6) / 1e6)} MHz` : '');
+  for (const key of ['operator', 'station']) {
+    const call = normalizeCall(container.querySelector(`[data-hkey="${key}"]`).value);
+    const line = callbookLine(call);
+    const info = hints[key];
+    if (call && !isPlausibleCall(call)) {
+      info.className = 'ac-info warn';
+      setText(info, 'Ungewöhnliches Rufzeichen');
+    } else {
+      info.className = `ac-info ${line.cls}`.trim();
+      setText(info, line.text);
+    }
+    info.title = line.title || info.textContent;
+  }
+  const grid = container.querySelector('[data-hkey="myGrid"]');
+  const g = grid.value.trim();
+  const info = hints.myGrid;
+  info.className = 'ac-info';
+  if (!g) {
+    setText(info, '');
+  } else if (isValidLocator(g)) {
+    info.classList.add('known');
+    setText(info, `✓ ${locatorPrecisionName(g.length)}${grid.dataset.autofill === grid.value ? ' (aus QTH)' : ''}`);
+  } else {
+    info.classList.add('warn');
+    setText(info, isLocatorPrefix(g) ? 'unvollständig (z. B. JN88ee)' : 'kein gültiger Locator (z. B. JN88ee)');
+  }
+  info.title = info.textContent;
+}
+
+function writeHeaderForm(container, h) {
+  for (const f of HEADER_FIELDS) {
+    if (f.sub) continue;
+    if (f.radio) {
+      const v = f.bool ? f.bool[h[f.key] ? 1 : 0] : h[f.key];
+      container.querySelectorAll(`[data-hkey="${f.key}"]`).forEach(r => { r.checked = r.value === v; });
+      continue;
+    }
+    const input = container.querySelector(`[data-hkey="${f.key}"]`);
+    if (input) input.value = h[f.key] ?? '';
+  }
+  container._hdr?.rptSearch?.refresh();
+}
+
+function readHeaderForm(container) {
+  const h = emptyHeader();
+  for (const f of HEADER_FIELDS) {
+    if (f.sub) continue;
+    if (f.radio) {
+      const c = container.querySelector(`[data-hkey="${f.key}"]:checked`);
+      if (c) h[f.key] = f.bool ? c.value === f.bool[1] : c.value;
+      continue;
+    }
+    const input = container.querySelector(`[data-hkey="${f.key}"]`);
+    if (!input) continue;
+    h[f.key] = f.call ? normalizeCall(input.value) : input.value.trim();
+  }
+  return h;
+}
+
+// Enter moves to the next field (as in the entry form); `last` is called
+// when Enter is pressed in the last field.
+function headerKeys(container, last) {
+  container.addEventListener('keydown', ev => {
+    if (ev.key !== 'Enter' || ev.shiftKey || isComposing(ev) || ev.target.tagName !== 'INPUT') return;
+    ev.preventDefault();
+    if (!focusNext(container, ev.target)) last?.();
+  });
+}
+
+// Everything in the Betrieb form on one line (the closed panel):
+// "Op OE1ABC für OE1XYZ · Wien JN88ee · FM via OE1XUU 438.950 MHz −7.6 CTCSS 162.2".
+function headerSummary(h) {
+  const parts = [];
+  if (h.operator) parts.push(`Op ${h.operator}${h.station && h.station !== h.operator ? ` für ${h.station}` : ''}`);
+  else if (h.station) parts.push(`für ${h.station}`);
+  const qth = [h.myQth, h.myGrid].filter(Boolean).join(' ');
+  if (qth) parts.push(qth);
+  const sig = signallingText(h);
+  const mode = modeInfo(h.mode)?.label || h.mode || '';
+  if (h.viaRepeater) {
+    const shift = h.repeaterShift !== '' && h.repeaterShift !== undefined ? formatShift(parseMHz(h.repeaterShift)) : '';
+    parts.push([mode, `via ${h.repeaterCall || 'Relais'}`, h.repeaterFreq && `${h.repeaterFreq} MHz`, shift, sig].filter(Boolean).join(' '));
+  } else {
+    parts.push([mode, 'direkt', h.freq && `${h.freq} MHz`, sig].filter(Boolean).join(' '));
+  }
+  return h.operator || h.station ? parts.join(' · ') : `(Operator und Station fehlen) · ${parts.join(' · ')}`;
+}
+
+/* ---------------------------------------------------------------- events view */
+
+async function showEvents() {
+  await leaveEvent();
+  $('#view-log').hidden = true;
+  $('#view-events').hidden = false;
+  document.title = 'Bestätigungsverkehr';
+  await renderEventList();
+}
+
+async function renderEventList() {
+  const [events, entries] = await Promise.all([
+    state.store.getAll('events'),
+    state.store.getAll('entries'),
+  ]);
+  const counts = new Map();
+  for (const e of entries) {
+    if (!counts.has(e.eventId)) counts.set(e.eventId, []);
+    counts.get(e.eventId).push(e);
+  }
+  const visible = events
+    .filter(ev => state.tab === 'deleted' ? ev.deleted : !ev.deleted && (state.tab === 'archived' ? ev.archived : !ev.archived))
+    .sort((a, b) => (a.created < b.created ? 1 : -1));
+  const list = $('#event-list');
+  list.replaceChildren();
+  if (!visible.length) {
+    list.append(el('li', { class: 'empty' },
+      state.tab === 'active' ? 'Noch keine Logs. „+ Neues Log“ legt eines an.' : 'Leer.'));
+    return;
+  }
+  for (const ev of visible) {
+    const st = stats(counts.get(ev.id) || []);
+    const actions = [];
+    if (!ev.deleted) {
+      actions.push(el('button', { type: 'button', class: 'primary', 'aria-label': `„${ev.title}“ öffnen`, onclick: () => { location.hash = `#/e/${ev.id}`; } }, 'Öffnen'));
+      actions.push(el('button', { type: 'button', onclick: () => duplicateEvent(ev) }, 'Duplizieren'));
+      actions.push(el('button', { type: 'button', onclick: () => updateEvent(ev, { archived: !ev.archived }) }, ev.archived ? 'Reaktivieren' : 'Archivieren'));
+      actions.push(el('button', { type: 'button', class: 'danger', onclick: () => {
+        if (confirm(`„${ev.title}“ in den Papierkorb verschieben? (Kann wiederhergestellt werden.)`)) updateEvent(ev, { deleted: nowIso() });
+      } }, 'Löschen'));
+    } else {
+      actions.push(el('button', { type: 'button', onclick: () => updateEvent(ev, { deleted: null }) }, 'Wiederherstellen'));
+    }
+    // A click anywhere on the card opens the log (buttons keep their own
+    // action). Keyboard and screen readers use the "Öffnen" button: a
+    // focusable card around buttons would nest interactive controls.
+    const openLog = () => { location.hash = `#/e/${ev.id}`; };
+    const clickable = !ev.deleted;
+    list.append(el('li', {
+      class: clickable ? 'event-card clickable' : 'event-card',
+      title: clickable ? 'Log öffnen' : null,
+      onclick: clickable ? e => { if (!e.target.closest('button')) openLog(); } : null,
+    },
+      el('div', { class: 'info' },
+        el('div', { class: 't' }, ev.title),
+        el('div', { class: 'meta' },
+          `${splitTime(ev.created, timeMode()).date} · ${templateFor(ev.template).label} · ${st.unique} Stationen / ${st.total} Check-ins`),
+        el('div', { class: 'meta' }, headerSummary(ev.header || {})),
+      ),
+      el('div', { class: 'actions' }, actions),
+    ));
+  }
+}
+
+// Every writer of an existing event patches it against the stored record
+// inside one transaction: only its own fields are written, never a whole
+// (possibly stale) copy and never nextSeq (only the save path raises it).
+// Returns the stored record as written.
+async function patchEvent(id, makePatch) {
+  return state.store.atomic(['events'], async ({ get, put }) => {
+    const stored = await get('events', id);
+    if (!stored) throw new Error('Log nicht gefunden');
+    const next = { ...stored, ...makePatch(stored), nextSeq: stored.nextSeq, updated: nowIso() };
+    put('events', next);
+    return next;
+  });
+}
+
+// state.event after a write: what is stored, except a header/title edit
+// that the debounce hasn't committed yet stays as typed.
+function adoptStored(stored) {
+  const pending = (state.headerTimer || state.headerFlushing > 0) && state.event && state.event.id === stored.id;
+  state.event = pending ? { ...stored, header: state.event.header, title: state.event.title } : stored;
+}
+
+async function updateEvent(ev, patch) {
+  try {
+    await patchEvent(ev.id, () => patch);
+    broadcast({ type: 'events' });
+  } catch (e) {
+    showSaveError(e);
+  }
+  await renderEventList();
+}
+
+function openNewEventForm(prefill) {
+  const form = $('#new-event');
+  form.hidden = false;
+  form.title.value = prefill?.title || '';
+  const sel = $('#new-template');
+  fill(sel, ...TEMPLATES.map(t => el('option', { value: t.key }, `${t.label} – ${t.hint}`)));
+  sel.value = prefill?.template || TEMPLATES[0].key;
+  sel.onchange = () => renderTemplatePreview(sel.value);
+  renderTemplatePreview(sel.value);
+  const header = prefill?.header || lastHeader() || emptyHeader();
+  buildHeaderForm($('#new-header'), header, () => {});
+  form.title.focus();
+}
+
+// What the chosen template changes: a sample line as the log shows it (its
+// columns, logColumns(); the template's own ones highlighted).
+function renderTemplatePreview(key) {
+  const tpl = templateFor(key);
+  const values = exampleValues(tpl);
+  const columns = logColumns(tpl);
+  const sample = { id: 'sample', call: 'OE1ABC', fields: values, loc: null };
+  // The <summary> is static in index.html (a <details> without one is invalid).
+  fill($('#new-template-sample'),
+    el('div', { class: 'scroll' }, el('table', { class: 'sample' },
+      el('tr', {}, ['Nr', 'Zeit', 'Rufzeichen'].map(t => el('th', {}, t)),
+        columns.map(c => el('th', { class: 'tpl', title: c.title }, c.head)), el('th', {}, 'Relais'), el('th', {}, 'Notiz')),
+      el('tr', {}, el('td', { class: 'mono' }, '1'), el('td', { class: 'mono' }, '18:42Z'),
+        el('td', { class: 'call' }, 'OE1ABC'),
+        // the place as typed (a sample is not looked up)
+        columns.map(c => el('td', { class: `tpl col-${c.kind}` }, c.kind === 'location' || c.kind === 'name' ? values[c.fields[0].key] || '' : columnCell(c, sample, tpl))),
+        el('td', { class: 'mono' }, 'OE1XUU'), el('td', {}, '')))));
+}
+
+// Pre-fill a new event with the header of the most recently created one —
+// usually the same operator/station/repeater.
+let cachedLastHeader = null;
+// Operator/Station callsigns of earlier logs, newest first: [{ call, title }]
+// (offered first by the header's callsign search).
+let cachedHeaderCalls = [];
+function lastHeader() {
+  return cachedLastHeader ? { ...cachedLastHeader } : null;
+}
+
+async function refreshLastHeader() {
+  const events = (await state.store.getAll('events')).filter(e => !e.deleted);
+  events.sort((a, b) => (a.created < b.created ? 1 : -1));
+  cachedLastHeader = events[0]?.header || null;
+  const seen = new Set();
+  cachedHeaderCalls = [];
+  for (const ev of events) {
+    for (const key of ['operator', 'station']) {
+      const call = normalizeCall(ev.header?.[key]);
+      if (call && !seen.has(call)) { seen.add(call); cachedHeaderCalls.push({ call, title: ev.title }); }
+    }
+  }
+}
+
+async function createEvent(title, template, header) {
+  const ev = {
+    id: newId(), title: title.trim() || 'Log', template, header,
+    created: nowIso(), updated: nowIso(), nextSeq: 1, archived: false, deleted: null,
+    exportedTotal: 0,
+  };
+  try {
+    await state.store.tx([{ store: 'events', put: ev }]);
+  } catch (e) {
+    showSaveError(e);
+    return;
+  }
+  broadcast({ type: 'events' });
+  cachedLastHeader = header;
+  location.hash = `#/e/${ev.id}`;
+}
+
+async function duplicateEvent(ev) {
+  openNewEventForm({ title: ev.title, template: ev.template, header: { ...ev.header } });
+  window.scrollTo(0, 0);
+}
+
+/* ---------------------------------------------------------------- log view */
+
+async function openEvent(id) {
+  await leaveEvent();
+  $('#export-msg').hidden = true;
+  $('#log-status').replaceChildren(); // messages belong to the log they were about
+  const ev = await state.store.get('events', id);
+  if (!ev) {
+    location.hash = '#/';
+    return;
+  }
+  state.event = ev;
+  draftUnsaved = false;
+  headerUnsaved = false;
+  state.entries = await state.store.getByEvent('entries', id);
+  state.editingId = null;
+  state.markerBase = { ...(ev.header || emptyHeader()) };
+  takeHeaderUndo();
+  $('#view-events').hidden = true;
+  $('#view-log').hidden = false;
+  document.title = `${ev.title} – Bestätigungsverkehr`;
+  $('#log-title').value = ev.title;
+  $('#hdr-panel').open = !(ev.header?.operator);
+  buildHeaderForm($('#log-header'), ev.header || emptyHeader(), onHeaderChange);
+  $('#hdr-sum').textContent = headerSummary(ev.header || {});
+  buildEntryFields();
+  renderLog();
+  renderTrash();
+  updateExportNudge();
+  await acquireLock(false);
+  await restoreDraft();
+  focusEntryStart();
+}
+
+// First field of the entry form: the callsign, or the comment text.
+function focusEntryStart() {
+  const input = state.commentMode ? $('#f-ctext') : $('#f-call');
+  input.focus();
+  if (state.commentMode) input.setSelectionRange(input.value.length, input.value.length);
+}
+
+async function leaveEvent() {
+  if (!state.event) return;
+  closeMap();
+  $('#btn-map').classList.remove('active');
+  $('#btn-map').setAttribute('aria-pressed', 'false');
+  await flushMarkers({ openForEdit: false });
+  await flushDraft();
+  await flushHeader();
+  if (!state.readOnly && state.entries.some(e => !e.deleted)) await takeSnapshot('beim Verlassen');
+  if (state.releaseLock) state.releaseLock();
+  state.releaseLock = null;
+  state.event = null;
+  draftUnsaved = false;
+  headerUnsaved = false;
+  state.entries = [];
+  state.editingId = null;
+}
+
+/* --- single-writer lock across tabs (Web Locks API) --- */
+
+function acquireLock(steal) {
+  const ev = state.event;
+  // Without Web Locks (plain http:// on a LAN, Safari < 15.4) two tabs
+  // could both write: the #st-tabs chip says so (main()).
+  if (!navigator.locks) { setReadOnly(false); return Promise.resolve(); }
+  return new Promise(resolve => {
+    navigator.locks.request(`oe1ebg-confirm-event-${ev.id}`, steal ? { steal: true } : { ifAvailable: true }, lock => {
+      if (!lock) {
+        setReadOnly(true, 'Dieses Log ist in einem anderen Tab/Fenster geöffnet – hier nur Ansicht, damit nichts überschrieben wird.');
+        resolve();
+        return undefined;
+      }
+      setReadOnly(false);
+      resolve();
+      return new Promise(release => { state.releaseLock = release; });
+    }).catch(() => {
+      // Lock was stolen by another tab.
+      if (state.event && state.event.id === ev.id) {
+        state.releaseLock = null;
+        flushDraft();
+        setReadOnly(true, 'Ein anderer Tab hat die Bearbeitung übernommen – hier nur Ansicht.');
+      }
+    });
+  });
+}
+
+function setReadOnly(ro, msg) {
+  state.readOnly = ro;
+  const b = $('#lock-banner');
+  if (ro) {
+    fill(b, msg, el('button', { type: 'button', onclick: () => acquireLock(true).then(restoreDraft) }, 'Hier bearbeiten'));
+    b.hidden = false;
+  } else {
+    b.hidden = true;
+  }
+  for (const n of document.querySelectorAll('#entry-form input, #entry-form button, #log-header input, #log-header select, #log-title')) {
+    n.disabled = ro;
+  }
+  renderLog();
+}
+
+/* --- header / title edits --- */
+
+function onHeaderChange(h) {
+  if (state.readOnly) return;
+  state.event.header = h;
+  $('#hdr-sum').textContent = headerSummary(h);
+  updateHeaderUndo();
+  updateRepeaterDefault();
+  maybeRefreshMap(); // own position follows "Eigener QTH" / "Eigener Locator"
+  clearTimeout(state.headerTimer);
+  state.headerTimer = setTimeout(flushHeader, 400);
+}
+
+// "Rückgängig" in the Betrieb panel: back to the header as it was when the
+// panel was opened (or the log), and the automatic markers its changes wrote
+// since then go to the trash, unless their text was edited.
+function takeHeaderUndo() {
+  state.hdrUndo = state.event ? { header: { ...(state.event.header || emptyHeader()) }, markers: [] } : null;
+  updateHeaderUndo();
+}
+
+function updateHeaderUndo() {
+  const u = state.hdrUndo;
+  $('#btn-hdr-undo').disabled = state.readOnly || !u
+    || JSON.stringify({ ...emptyHeader(), ...state.event?.header }) === JSON.stringify({ ...emptyHeader(), ...u.header });
+}
+
+async function undoHeader() {
+  const u = state.hdrUndo;
+  if (!u || state.readOnly) return;
+  $('#log-header')._hdr.set(u.header);
+  state.markerBase = { ...u.header };
+  await flushHeader();
+  const auto = u.markers.map(id => state.entries.find(e => e.id === id)).filter(e => e && !e.deleted && e.updated === e.created);
+  for (const e of auto) await setDeleted(e.id, true);
+  takeHeaderUndo();
+  logStatus(`Betrieb wie beim Öffnen${auto.length ? `, ${auto.length === 1 ? 'Marker' : `${auto.length} Marker`} im Papierkorb` : ''}.`);
+}
+
+// Esc in a Betrieb field: back to the value it had when it got the focus
+// (before anything is saved as a finished change; revertOnEscape()).
+function headerEscape(container) {
+  revertOnEscape(container, { onRevert: () => container._hdr.set(readHeaderForm(container)) });
+}
+
+// Automatic log markers (decision on issue #32, option c): every finished
+// change of operator or repeater in the header writes an operator comment
+// at that moment ("Schichtwechsel / Übergabe" / "Frequenzwechsel"). Runs on
+// the header's `change` event (field left, Enter, checkbox, repeater pick),
+// before a line is saved and when the log is left; headerChangeMarkers()
+// in js/model.js decides. With an empty entry form the new marker is
+// opened for editing, so the operator can add text (Enter from the header
+// lands in it; Shift+Enter saves, Esc keeps it as it is).
+async function flushMarkers({ openForEdit = true } = {}) {
+  const ev = state.event;
+  if (!ev || state.readOnly || !state.markerBase) return;
+  const prevBase = state.markerBase;
+  const { markers, base } = headerChangeMarkers(prevBase, ev.header || emptyHeader(), state.entries.some(e => !e.deleted));
+  state.markerBase = base;
+  if (!markers.length) return;
+  const ts = nowIso();
+  const made = markers.map(m => newComment({ eventId: ev.id, ts, text: m.text, category: m.category, header: ev.header, auto: m.auto }));
+  try {
+    await state.store.tx(made.map(c => ({ store: 'entries', put: c })));
+  } catch (e) {
+    if (state.markerBase === base) state.markerBase = prevBase; // retried on the next change
+    showSaveError(e);
+    return;
+  }
+  if (state.event?.id !== ev.id) return;
+  state.entries.push(...made);
+  state.hdrUndo?.markers.push(...made.map(c => c.id));
+  renderLog();
+  broadcast({ type: 'entries', eventId: ev.id });
+  const what = made.map(c => `${c.category}: ${c.text}`).join(' · ');
+  const status = $('#form-status');
+  status.className = 'ok';
+  // Open it for editing only while the operator is still in the header
+  // (focus stays there): never switch the form under someone who already
+  // moved on to the entry form to log a station.
+  const inHeader = $('#log-header').contains(document.activeElement) || document.activeElement === document.body;
+  if (openForEdit && inHeader && !state.editingId && !state.commentMode && formIsEmpty(readForm())) {
+    startEdit(made[made.length - 1].id, { focus: false, scroll: false });
+    fill(status, el('span', { class: 'edit-tag' }, `✓ Marker gespeichert (${fmtTime(ts, false)}) – ${what}. Text ergänzen, Shift+Enter; Esc lässt ihn so.`));
+  } else {
+    logStatus(`Marker gespeichert (${fmtTime(ts, false)}) – ${what} `,
+      el('button', { type: 'button', class: 'link', onclick: () => startEdit(made[made.length - 1].id) }, 'Text ergänzen'));
+    flashRow(made[made.length - 1].id);
+  }
+}
+
+// Resolves true when no header edit is waiting for storage (nothing pending,
+// or just saved), false when the save failed (the edit stays in the form and
+// is tried again by the next flush): the update flow relies on it.
+let headerUnsaved = false;
+let headerFlight = null; // the write in progress: a flush waits for it (reload mid-write)
+async function flushHeader() {
+  const prev = headerFlight;
+  if (prev) await prev.catch(() => {}); // its outcome is in headerUnsaved: a failure is tried again below
+  const run = flushHeaderNow();
+  headerFlight = run;
+  try { return await run; } finally { if (headerFlight === run) headerFlight = null; }
+}
+async function flushHeaderNow() {
+  if ((!state.headerTimer && !headerUnsaved) || !state.event) return true;
+  clearTimeout(state.headerTimer);
+  state.headerTimer = null;
+  const { id, header, title } = state.event;
+  state.headerFlushing++;
+  try {
+    await patchEvent(id, () => ({ header, title }));
+    cachedLastHeader = header;
+    headerUnsaved = false;
+    broadcast({ type: 'events' });
+    return true;
+  } catch (e) {
+    headerUnsaved = true;
+    showSaveError(e);
+    return false;
+  } finally {
+    state.headerFlushing--;
+  }
+}
+
+/* --- entry form --- */
+
+function buildEntryFields() {
+  const tpl = templateFor(state.event.template);
+  const box = $('#f-fields');
+  box.replaceChildren();
+  for (const f of entryFields(tpl)) {
+    let control;
+    if (f.type === 'radio') {
+      const hintId = f.hint ? `f_${f.key}-hint` : null;
+      control = el('div', { class: f.grade ? 'radio-group grade' : 'radio-group', 'data-key': f.key, role: 'radiogroup', 'aria-label': f.label, title: f.hint,
+        'aria-describedby': hintId },
+        hintId ? el('span', { id: hintId, class: 'sr-only' }, f.hint) : null,
+        fieldOptions(f).map(([v, exported, screen]) => {
+          const l = screen || exported;
+          const r = el('input', { type: 'radio', name: `f_${f.key}`, value: v });
+          // Clicking the selected option again clears it (radios can't otherwise be unset).
+          r.addEventListener('click', () => {
+            if (r.dataset.was === '1') { r.checked = false; r.dataset.was = ''; }
+            else box.querySelectorAll(`input[name="f_${f.key}"]`).forEach(o => { o.dataset.was = o === r ? '1' : ''; });
+            onFormInput();
+          });
+          r.addEventListener('keydown', ev => radioKey(ev,
+            [...box.querySelectorAll(`input[name="f_${f.key}"]`)].filter(x => !x.closest('label').hidden), onFormInput));
+          return el('label', { 'data-value': v }, r, el('span', {}, l));
+        }));
+    } else {
+      control = el('input', {
+        name: `f_${f.key}`, size: f.type === 'rst' ? 3 : f.size || 12,
+        inputmode: f.type === 'rst' ? 'numeric' : f.inputmode, spellcheck: 'false',
+        class: f.type === 'location' ? 'loc-input' : null, autocomplete: 'off', enterkeyhint: 'next',
+      });
+    }
+    // Radio groups get a <div>, not a <label>: nested labels would make a
+    // click on the caption select the first option.
+    if (f.type === 'location') {
+      // Completion dropdown right under the input; the status line below it
+      // has a fixed height, so nothing in the form moves when it changes.
+      control.id = `f_${f.key}`;
+      box.append(el('div', { class: 'field ac-field', 'data-field': f.key },
+        el('label', { for: control.id, title: f.caption ? f.label : null }, f.caption || f.label),
+        el('div', { class: 'ac-wrap' }, control, el('div', { class: 'ac-pop loc-pop' })),
+        el('div', { class: 'ac-hints loc-hints' }, el('div', { class: 'ac-info loc-chip', id: `${control.id}-info`, 'aria-live': 'polite' }),
+          f.plzKey ? el('div', { class: 'ac-info plz-note', id: 'plz-note', 'aria-live': 'polite' }) : null)));
+      control.setAttribute('aria-describedby', `${control.id}-info`);
+      continue;
+    }
+    // RST fields: one group under the caption "RST", the placeholder says
+    // whose report ("gegeben", "erhalten"); "/" in one goes on to the next,
+    // so "57/59" is typed straight through.
+    if (f.type === 'rst') {
+      control.placeholder = f.placeholder || '';
+      control.setAttribute('aria-label', f.hint ? `${f.label} (${f.hint})` : f.label);
+      control.title = f.hint || f.label;
+      control.addEventListener('keydown', ev => {
+        if (ev.key !== '/' || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+        const next = control.closest('.rst-group')?.querySelectorAll('input')[1];
+        if (!next || next === control) return;
+        ev.preventDefault();
+        next.focus();
+        next.select();
+      });
+      let group = box.lastElementChild?.matches('.rst-group') ? box.lastElementChild : null;
+      if (!group) {
+        group = el('div', { class: 'field rst-group', 'data-field': f.key, role: 'group', 'aria-labelledby': 'rst-caption' },
+          el('span', { id: 'rst-caption' }, 'RST'), el('div', { class: 'rst-inputs' }));
+        box.append(group);
+      }
+      group.querySelector('.rst-inputs').append(control);
+      continue;
+    }
+    // Fields of a group ("Sirene") get short captions: "Sirene zu",
+    // "offen", "außen"; the full question stays their name, after the
+    // visible words (WCAG 2.5.3).
+    const prev = tpl.fields[tpl.fields.indexOf(f) - 1];
+    const caption = f.group && f.short ? (prev?.group === f.group ? f.short : `${f.group} ${f.short}`) : f.label;
+    if (caption !== f.label && f.type === 'radio') control.setAttribute('aria-label', `${caption} (${f.label})`);
+    const node = el(f.type === 'radio' ? 'div' : 'label', { class: 'field', 'data-field': f.key, title: caption !== f.label ? f.label : f.type === 'radio' ? null : f.hint || null }, el('span', {}, caption), control);
+    // A field shown by another one's answer (AT-Alert fehlt -> Handy ->
+    // Version) goes under it, in one block (placeChains()).
+    const parent = f.showIf && box.querySelector(`[data-field="${f.showIf[0]}"]`);
+    if (parent) {
+      let more = parent.closest('.field-chain')?.querySelector('.chain-more');
+      if (!more) {
+        more = el('div', { class: 'chain-more' });
+        const chain = el('div', { class: 'field-chain' });
+        parent.before(chain);
+        chain.append(parent, more);
+      }
+      more.append(node);
+    } else {
+      box.append(node);
+    }
+  }
+  state.locField = null;
+  const lf = tpl.fields.find(f => f.type === 'location');
+  if (lf) {
+    const wrap = box.querySelector(`[data-field="${lf.key}"]`);
+    state.locField = createLocationField({
+      input: wrap.querySelector('input'),
+      results: wrap.querySelector('.loc-pop'),
+      chip: wrap.querySelector('.loc-chip'),
+      plzInput: lf.plzKey ? box.querySelector(`input[name="f_${lf.plzKey}"]`) : null,
+      onChange: () => { updatePlzNote(); scheduleDraft(); },
+    });
+    const plz = lf.plzKey && box.querySelector(`input[name="f_${lf.plzKey}"]`);
+    if (plz) {
+      plz.setAttribute('aria-describedby', 'plz-note');
+      plz.addEventListener('input', updatePlzNote);
+    }
+  }
+  updateFieldVisibility();
+  updateRepeaterDefault();
+  lockEntryHeight();
+}
+
+// Check-in and comment have different fields: the form keeps the height of
+// the taller of the two, so switching never moves the log below it.
+// Measured when the fields are built and when the form's width changes
+// (fields wrap differently); fields that appear with an answer (Handy,
+// Version) may still make it taller.
+function lockEntryHeight() {
+  const form = $('#entry-form');
+  const row = form.querySelector(':scope > .row');
+  if (!row.offsetWidth) return; // hidden: measured when it shows (observer)
+  row.style.minHeight = '';
+  const own = row.offsetHeight;
+  form.classList.toggle('comment-mode');
+  const other = row.offsetHeight;
+  form.classList.toggle('comment-mode');
+  row.style.minHeight = `${Math.max(own, other)}px`;
+}
+// The form's width follows the window's (and is 0 while the log is hidden:
+// lockEntryHeight() then waits for buildEntryFields() on opening a log).
+let entryWidth = 0;
+function watchEntryWidth() {
+  window.addEventListener('resize', () => requestAnimationFrame(() => {
+    const w = $('#entry-form').offsetWidth;
+    if (w && w !== entryWidth) { entryWidth = w; placeChains(); lockEntryHeight(); }
+  }));
+}
+
+// Keyboard on a radio group (its visible radios): digits pick the n-th
+// option (grades 1-5 map directly), Backspace/Delete clears the group
+// (unless clearable is false).
+function radioKey(ev, radios, after, clearable = true) {
+  let pick;
+  if (/^[1-9]$/.test(ev.key) && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+    pick = radios[Number(ev.key) - 1];
+    if (!pick) return;
+  } else if (!clearable || (ev.key !== 'Backspace' && ev.key !== 'Delete')) {
+    return;
+  }
+  ev.preventDefault();
+  for (const r of radios) {
+    r.checked = r === pick;
+    r.dataset.was = r.checked ? '1' : '';
+  }
+  (pick || ev.target).focus();
+  after();
+}
+
+function readFields() {
+  const tpl = templateFor(state.event.template);
+  const out = {};
+  for (const f of tpl.fields) {
+    if (f.type === 'radio') {
+      const c = document.querySelector(`#f-fields input[name="f_${f.key}"]:checked`);
+      out[f.key] = c ? c.value : '';
+    } else {
+      out[f.key] = document.querySelector(`#f-fields input[name="f_${f.key}"]`).value.trim();
+    }
+  }
+  return out;
+}
+
+function writeFields(values) {
+  const tpl = templateFor(state.event.template);
+  for (const f of tpl.fields) {
+    const v = values?.[f.key] ?? '';
+    if (f.type === 'radio') {
+      document.querySelectorAll(`#f-fields input[name="f_${f.key}"]`).forEach(r => {
+        r.checked = r.value === v;
+        r.dataset.was = r.checked ? '1' : '';
+      });
+    } else {
+      const input = document.querySelector(`#f-fields input[name="f_${f.key}"]`);
+      input.value = v;
+      input.dataset.autofill = ''; // explicitly set values are never auto-replaced
+    }
+  }
+  updateFieldVisibility();
+}
+
+function updateFieldVisibility() {
+  const tpl = templateFor(state.event.template);
+  const vals = readFields();
+  for (const f of tpl.fields) {
+    const lab = document.querySelector(`#f-fields [data-field="${f.key}"]`);
+    if (lab) lab.hidden = !fieldVisible(f, vals, tpl);
+    if (f.optionsBy && lab) {
+      // Offer only the options for the current choice (e.g. iOS versions);
+      // a selection that no longer fits is cleared.
+      const allowed = new Set(currentOptions(f, vals).map(o => o[0]));
+      lab.querySelectorAll('label[data-value]').forEach(l => {
+        const ok = allowed.has(l.dataset.value);
+        l.hidden = !ok;
+        const r = l.querySelector('input');
+        if (!ok && r.checked) { r.checked = false; r.dataset.was = ''; }
+      });
+    }
+  }
+  placeChains();
+}
+
+// The fields under AT-Alert end at its right edge and reach left into the
+// free room under the fields before it; where that room is missing (AT-Alert
+// at the start of a line) they start at its left edge and wrap.
+function placeChains() {
+  const box = $('#f-fields');
+  for (const chain of box.querySelectorAll('.field-chain')) {
+    chain.classList.remove('chain-left');
+    const more = chain.querySelector('.chain-more');
+    const shown = [...more.children].filter(n => !n.hidden);
+    more.hidden = !shown.length;
+    if (!shown.length) continue;
+    const left = Math.min(...shown.map(n => n.getBoundingClientRect().left));
+    if (left < box.getBoundingClientRect().left) chain.classList.add('chain-left');
+  }
+}
+
+function updateRepeaterDefault() {
+  const h = state.event.header || {};
+  state.lineRpt?.refreshDefault();
+}
+
+function readForm() {
+  const cat = document.querySelector('#c-cat input:checked');
+  return {
+    kind: state.commentMode ? 'comment' : 'checkin',
+    text: state.commentMode ? $('#f-ctext').value.trim() : '',
+    category: state.commentMode && cat ? cat.value : '',
+    call: normalizeCall($('#f-call').value),
+    fields: readFields(),
+    viaRepeater: state.lineRpt ? state.lineRpt.via() : !!state.event?.header?.viaRepeater,
+    rptOverride: state.lineRpt ? state.lineRpt.get() : null,
+    note: $('#f-note').value.trim(),
+    time: $('#f-time').value.trim(),
+    loc: state.locField ? state.locField.get() : null,
+  };
+}
+
+// Operator comment mode of the entry form: typing "!" in the empty
+// callsign field switches to it (the rest of the typed text becomes the
+// comment); the check-in fields are hidden (CSS .ci-only / .c-only), the
+// comment text and a category chip group (digits 1–5) are shown. Backspace
+// in the empty comment text or Esc goes back.
+function setCommentMode(on) {
+  state.commentMode = on;
+  $('#entry-form').classList.toggle('comment-mode', on);
+  document.querySelectorAll('#entry-mode button').forEach(b => b.setAttribute('aria-pressed', String((b.dataset.mode === 'comment') === on)));
+  if (!on) {
+    $('#f-ctext').value = '';
+    writeCategory('');
+  }
+  // the same label in both modes (the switch says which): a longer one would
+  // wrap the buttons on a phone and move the log
+  if (!state.editingId) setSaveLabel('Speichern');
+}
+
+function writeCategory(v) {
+  document.querySelectorAll('#c-cat input').forEach(r => {
+    r.checked = r.value === v;
+    r.dataset.was = r.checked ? '1' : '';
+  });
+}
+
+function buildCategoryChips() {
+  const box = $('#c-cat');
+  fill(box, COMMENT_CATEGORIES.map((c, i) => {
+    const r = el('input', { type: 'radio', name: 'c_cat', value: c });
+    r.addEventListener('click', () => {
+      if (r.dataset.was === '1') { r.checked = false; r.dataset.was = ''; }
+      else box.querySelectorAll('input').forEach(o => { o.dataset.was = o === r ? '1' : ''; });
+      onFormInput();
+    });
+    r.addEventListener('keydown', ev => radioKey(ev, [...box.querySelectorAll('input')], onFormInput));
+    return el('label', { 'data-value': c }, r, el('span', {}, `${i + 1} ${c}`));
+  }));
+}
+
+// The switch above the form (Check-in | Kommentar). A line being edited
+// keeps its kind; typed input of the other kind is never thrown away:
+// save or discard it first (as for "!").
+function switchEntryMode(comment) {
+  if (comment === state.commentMode) return;
+  const warn = state.editingId
+    ? 'Eine gespeicherte Zeile bleibt, was sie ist (Check-in oder Kommentar).'
+    : comment ? (hasCheckinInput() ? 'Für einen Kommentar erst diese Zeile speichern oder verwerfen (Esc).' : '')
+      : ($('#f-ctext').value.trim() || readForm().category ? 'Erst den Kommentar speichern oder verwerfen (Esc).' : '');
+  // in the status line above the log (its place is kept): the form doesn't grow
+  if (warn) {
+    fill($('#log-status'), el('span', { class: 'mode-warn' }, warn));
+    return;
+  }
+  if ($('#log-status .mode-warn')) $('#log-status').replaceChildren();
+  setCommentMode(comment);
+  scheduleDraft();
+  focusEntryStart();
+}
+
+function hasCheckinInput() {
+  const f = readForm();
+  return !!($('#f-call').value.trim() || f.note || Object.values(f.fields).some(v => v) || f.loc || f.rptOverride);
+}
+
+// "!" typed into the empty callsign field: switch to comment mode.
+function onCallInput() {
+  const input = $('#f-call');
+  if (!input.value.startsWith('!') || state.editingId || state.commentMode) return;
+  const rest = input.value.slice(1);
+  const f = readForm();
+  if (f.note || Object.values(f.fields).some(v => v) || f.loc || f.rptOverride) {
+    input.value = rest;
+    $('#call-warn').textContent = 'Für einen Kommentar erst diese Zeile speichern oder verwerfen (Esc).';
+    return;
+  }
+  input.value = '';
+  setCommentMode(true);
+  $('#f-ctext').value = rest.replace(/^\s+/, '');
+  focusEntryStart();
+}
+
+function clearForm() {
+  setCommentMode(false);
+  $('#f-call').value = '';
+  $('#f-note').value = '';
+  $('#f-time').value = '';
+  writeFields({});
+  state.locField?.clear();
+  state.lineRpt?.reset();
+  state.editingId = null;
+  $('#entry-form').classList.remove('editing');
+  $('#btn-discard').textContent = 'Verwerfen (Esc)';
+  setSaveLabel('Speichern');
+  if ($('#form-status .edit-tag')) $('#form-status').replaceChildren();
+  updateRepeaterDefault();
+  updateCallFeedback();
+}
+
+function formIsEmpty(f) {
+  return !f.call && !f.note && !f.time && !f.text && !f.category && Object.values(f.fields).every(v => !v);
+}
+
+// The PLZ field has no room for a hint line of its own: its note follows
+// the location's on the line under Standort, and only when it adds
+// something (a PLZ without Standort, an unknown PLZ, a PLZ that is not the
+// Standort's; a matching one is in the location line already).
+function updatePlzNote() {
+  const note = $('#plz-note');
+  if (!note) return;
+  const input = note.closest('#f-fields')?.querySelector('[data-field="plz"] input');
+  const code = input?.value.trim() || '';
+  const show = (text, warn, title = text) => {
+    note.className = `ac-info plz-note${warn ? ' warn' : ''}`;
+    setText(note, text);
+    note.title = title;
+  };
+  if (code.length < 4) return show('');
+  if (!/^\d{4}$/.test(code)) return show('⚠ PLZ: 4 Ziffern', true);
+  loadLocationIndex().then(idx => {
+    if (!idx || input.value.trim() !== code) return;
+    const place = plzPlace(idx, code);
+    if (!place) return show(`⚠ PLZ ${code} unbekannt`, true);
+    const at = state.locField?.get()?.postcode;
+    if (at && at !== code) return show(`⚠ PLZ ≠ Standort ${at}`, true, `PLZ ${code} (${place}) passt nicht zum Standort (${at})`);
+    show(at ? '' : `PLZ ${code}: ${place}`);
+  });
+}
+
+// "Wien 21., Floridsdorf" (the district from the PLZ's digits), elsewhere
+// "Perchtoldsdorf, Bez. Mödling, NÖ"; null for an unknown PLZ.
+function plzPlace(idx, code) {
+  const a = idx.areaPlz.get(code);
+  if (idx.viennaPlz.has(code) || a?.name === 'Wien') {
+    const d = idx.districts.get(Number(code.slice(1, 3)));
+    return d ? `Wien ${d.nr}., ${d.name}` : 'Wien';
+  }
+  if (!a) return null;
+  const bez = a.bezirke.map(b => idx.bezirke.get(b)?.name).filter(n => n && !n.startsWith(a.name));
+  return [a.name, ...bez.map(n => `Bez. ${n}`), idx.states[a.state]].filter(Boolean).join(', ');
+}
+
+function onFormInput() {
+  updateFieldVisibility();
+  updateCallFeedback();
+  scheduleDraft();
+}
+
+function updateCallFeedback() {
+  const call = normalizeCall($('#f-call').value);
+  $('#call-warn').textContent = call && !isPlausibleCall(call) ? 'Ungewöhnliches Rufzeichen – trotzdem speicherbar.' : '';
+  renderCallbookInfo(call);
+  updateLocationOptions(call);
+  updatePlzNote();
+  const prev = previousCheckins(state.entries, call, state.editingId);
+  const box = $('#repeat-box');
+  if (!prev.length) {
+    box.hidden = true;
+  } else {
+    const tpl = templateFor(state.event.template);
+    const n = state.editingId ? checkinNumbers(state.entries).get(state.editingId) : prev.length + 1;
+    fill(box, 
+      el('div', { class: 'head' },
+        state.editingId ? `${call}: Check-in Nr. ${n} – weitere Check-ins dieser Station:` : `Weiterer Check-in von ${call} (Nr. ${n}) – zuvor erfasst:`),
+      el('ul', {}, prev.map(e => el('li', {}, describeEntry(e, tpl)))),
+      state.editingId ? null : el('button', { type: 'button', onclick: () => {
+        const last = prev[prev.length - 1];
+        writeFields(last.fields);
+        if (!$('#f-note').value) $('#f-note').value = last.note || '';
+        onFormInput();
+      } }, 'Werte vom letzten Check-in übernehmen'),
+    );
+    box.hidden = false;
+  }
+  highlightMatches(call);
+  markEditing();
+}
+
+function fmtStand(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+  return m ? `${m[3]}.${m[2]}.${m[1]}` : iso || '?';
+}
+
+// The callsign list's line for a call: { cls, text, title }.
+function callbookLine(call) {
+  const book = state.callbook;
+  if (!book || !call) return { cls: '', text: '' };
+  const { entry, base, isOE } = lookupCall(book, call);
+  if (entry) {
+    return {
+      cls: 'known',
+      text: entry[1] || entry[2]
+        ? `${entry[0]} · ${[entry[1], entry[2]].filter(Boolean).join(' · ')}`
+        : `${entry[0]} · in der Rufzeichenliste (Angaben nicht veröffentlicht)`,
+    };
+  }
+  if (isOE && base.length >= 4) {
+    return {
+      cls: 'unknown',
+      text: `nicht in Rufzeichenliste (${fmtStand(book.stand)}) – Tippfehler?`,
+      title: `${base} ist nicht in der Rufzeichenliste (Stand ${fmtStand(book.stand)}) – Tippfehler? Speichern ist trotzdem möglich.`,
+    };
+  }
+  return { cls: '', text: '' };
+}
+
+// Name/location from the callsign list under the call field, typo
+// suggestions, and auto-fill of empty Name/QTH template fields.
+function renderCallbookInfo(call) {
+  const info = $('#call-info');
+  const sug = $('#call-suggest');
+  info.className = 'ac-info';
+  info.title = '';
+  sug.replaceChildren();
+  state.callPop?.update();
+  const book = state.callbook;
+  if (!book || !call) {
+    info.textContent = '';
+    autofillFromCallbook(null);
+    return;
+  }
+  const { entry } = lookupCall(book, call);
+  const line = callbookLine(call);
+  info.className = `ac-info ${line.cls}`.trim();
+  info.textContent = line.text;
+  info.title = line.title || line.text;
+  autofillFromCallbook(entry);
+  if (!entry && !state.readOnly) {
+    const list = suggestCalls(book, call, 8);
+    if (list.length) {
+      fill(sug, el('div', { class: 'ac-head' }, 'Meinten Sie (↓, Enter):'),
+        list.map(c => el('button', { type: 'button', class: 'ac-item', onclick: () => {
+          $('#f-call').value = c[0];
+          onFormInput();
+          prefillLocation();
+          state.callPop.hide();
+          $('#f-call').focus();
+        } }, el('b', {}, c[0]), el('small', {}, [c[1], c[2]].filter(Boolean).join(' · ') || 'Angaben nicht veröffentlicht'))));
+    }
+    state.callPop?.update();
+  }
+}
+
+// Fill template fields named "name"/"qth" from the list, but only while they
+// are empty or still hold a previous auto-filled value — never overwrite
+// what the operator typed.
+function autofillFromCallbook(entry) {
+  const map = { name: entry ? entry[1] : '', qth: entry ? entry[2] : '' };
+  for (const [key, value] of Object.entries(map)) {
+    const input = document.querySelector(`#f-fields input[name="f_${key}"]`);
+    // A location field is the station's current QTH, not its licence
+    // address — offered in its dropdown instead (updateLocationOptions).
+    if (!input || input.classList.contains('loc-input')) continue;
+    if (input.value === '' || input.dataset.autofill === input.value) {
+      input.value = value || '';
+      input.dataset.autofill = value || '';
+    }
+  }
+}
+
+// Location suggestions for this station in the location field's dropdown:
+// its last known location (from any earlier event) and the callsign-list city.
+function updateLocationOptions(call) {
+  const lf = state.locField;
+  if (!lf) return; // template without a location field
+  const rec = call && !state.readOnly ? state.stations.get(call) : null;
+  const listed = call && !state.readOnly && state.callbook && lookupCall(state.callbook, call).entry;
+  lf.setOptions(locationOptions(rec, listed ? listed[2] : ''));
+}
+
+// When the callsign field is left: put the station's last location into an
+// empty location field (marked as a suggestion; typing replaces it). Not
+// while typing the call, and never on save, so nothing unseen is logged.
+function prefillLocation() {
+  const lf = state.locField;
+  if (!lf || state.readOnly || state.editingId) return;
+  const rec = state.stations.get(normalizeCall($('#f-call').value));
+  if (rec?.loc) lf.prefill(rec.loc, rec.at);
+  else lf.clearPrefill();
+}
+
+function callbookName(call) {
+  const e = state.callbook && lookupCall(state.callbook, call).entry;
+  return e ? [e[1], e[2]].filter(Boolean).join(', ') : '';
+}
+
+function describeEntry(e, tpl) {
+  const bits = [`Nr. ${e.seq}`, fmtTime(e.ts, false)];
+  for (const f of tpl.fields) {
+    const v = fieldVisible(f, e.fields, tpl) ? fieldDisplay(f, e.fields?.[f.key]) : '';
+    if (v) bits.push(`${f.label}: ${v}`);
+  }
+  if (e.loc) bits.push(`→ ${describeLocation(e.loc)}`);
+  bits.push(e.viaRepeater ? `via ${e.snap?.repeaterCall || 'Relais'}` : 'direkt');
+  if (e.note) bits.push(`„${e.note}“`);
+  return bits.join(' · ');
+}
+
+// The time field's prefill when editing a line (seconds precision).
+function editTimeText(iso) {
+  const { date, time } = splitTime(iso, timeMode());
+  return `${date} ${time}`;
+}
+
+// Time for a saved line: an unchanged edit prefill keeps the exact stored
+// timestamp (re-parsing it would drop the milliseconds and could reorder
+// lines logged within the same second).
+function lineTime(text, editing) {
+  if (editing && text === editTimeText(editing.ts)) return { iso: editing.ts };
+  return resolveTime(text, editing ? editing.ts : nowIso());
+}
+
+// Typed correction in the current display mode -> ISO UTC timestamp.
+function resolveTime(text, fallbackIso) {
+  if (!text) return { iso: fallbackIso };
+  const iso = parseTimeInput(text, timeMode(), fallbackIso);
+  return iso ? { iso } : { error: true };
+}
+
+// A line's header snapshot with its own repeater, if one was chosen.
+// Clearing an override on edit falls back to the current header repeater.
+function lineSnapshot(base, override, header) {
+  const snap = { ...base };
+  if (override) return { ...snap, ...override, repeaterOverride: true };
+  if (snap.repeaterOverride) {
+    const h = headerSnapshot(header);
+    for (const k of REPEATER_KEYS) snap[k] = h[k];
+  }
+  delete snap.repeaterOverride;
+  return snap;
+}
+
+function overrideOf(snap) {
+  if (!snap?.repeaterOverride) return null;
+  return Object.fromEntries(REPEATER_KEYS.map(k => [k, snap[k] ?? '']));
+}
+
+/* --- map view --- */
+
+function mapContext() {
+  const tpl = templateFor(state.event.template);
+  return {
+    event: state.event,
+    header: state.event.header || {},
+    entries: state.entries,
+    describe: e => [`Nr. ${e.seq}`, fmtTime(e.ts, false), shortSummary(tpl, e.fields)].filter(Boolean).join(' · '),
+    callInfo: call => callbookName(call),
+    // The own QTH counts only if it resolves confidently.
+    resolve: async text => {
+      const idx = await loadLocationIndex();
+      return idx ? locate(idx, text, { autoSelect: 'high' }).autoSelect : null;
+    },
+    // Tap/click on a pin: highlight that station's rows in the table.
+    onPick: call => {
+      highlightMatches(call);
+      document.querySelector('#log-body tr.match')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    },
+  };
+}
+
+async function toggleMap() {
+  const btn = $('#btn-map');
+  if (mapVisible()) {
+    closeMap();
+    btn.classList.remove('active');
+    btn.setAttribute('aria-pressed', 'false');
+  } else {
+    btn.classList.add('active');
+    btn.setAttribute('aria-pressed', 'true');
+    // openMap draws the current state; don't redraw (and close a just-opened
+    // popup) on the next renderLog().
+    mapSig = currentMapSig();
+    await openMap(mapContext());
+  }
+}
+
+// Short label of a line for status messages and the recycle bin.
+function lineLabel(e) {
+  if (!isComment(e)) return `Nr. ${e.seq} ${e.call}`;
+  const t = e.text && e.text.length > 40 ? e.text.slice(0, 39) + '…' : e.text;
+  return `Kommentar${e.category ? ` [${e.category}]` : ''}${t ? ` „${t}“` : ''}`;
+}
+
+async function saveComment(f) {
+  const status = $('#form-status');
+  if (!f.text && !f.category) {
+    status.className = 'err';
+    status.textContent = 'Kommentartext fehlt.';
+    focusEntryStart();
+    return;
+  }
+  const ev = state.event;
+  const editing = state.editingId ? state.entries.find(e => e.id === state.editingId) : null;
+  const t = lineTime(f.time, editing);
+  if (t.error) {
+    status.className = 'err';
+    status.textContent = `Zeit nicht lesbar – HH:MM oder JJJJ-MM-TT HH:MM (${timeMode() === 'local' ? 'Lokalzeit' : 'UTC'}), oder leer lassen.`;
+    $('#f-time').focus();
+    return;
+  }
+  const ops = [];
+  let entry;
+  if (editing) {
+    // The header snapshot stays the one from when the comment was made.
+    entry = { ...editing, text: f.text, category: f.category, ts: t.iso, updated: laterIso(editing.updated) };
+    ops.push({ store: 'revisions', put: { id: newId(), eventId: ev.id, entryId: editing.id, savedAt: nowIso(), reason: 'edit', data: editing } });
+  } else {
+    entry = newComment({ eventId: ev.id, ts: t.iso, text: f.text, category: f.category, header: ev.header });
+  }
+  ops.push({ store: 'entries', put: entry });
+  ops.push({ store: 'drafts', del: ev.id });
+  $('#btn-save').disabled = true;
+  clearTimeout(state.draftTimer);
+  try {
+    await state.store.tx(ops);
+  } catch (e) {
+    $('#btn-save').disabled = false;
+    status.className = 'err';
+    status.textContent = 'NICHT gespeichert!';
+    showSaveError(e);
+    return;
+  }
+  $('#btn-save').disabled = false;
+  const i = state.entries.findIndex(e => e.id === entry.id);
+  if (i >= 0) state.entries[i] = entry; else state.entries.push(entry);
+  status.replaceChildren();
+  logStatus(`${lineLabel(entry)} gespeichert – ${fmtTime(entry.ts)}`);
+  clearForm();
+  renderLog();
+  flashRow(entry.id);
+  broadcast({ type: 'entries', eventId: ev.id });
+  $('#f-call').focus();
+}
+
+// One submit at a time: taken synchronously (before the first await) and
+// released in `finally`, so a second Enter/click while the first is still
+// being saved is ignored instead of writing a second line.
+let saving = false;
+
+async function saveEntry() {
+  if (state.readOnly || saving) return;
+  saving = true;
+  try {
+    await saveEntryLocked();
+  } finally {
+    saving = false;
+  }
+}
+
+async function saveEntryLocked() {
+  // A finished header change gets its marker before the next line.
+  await flushMarkers({ openForEdit: false });
+  const f = readForm();
+  if (f.kind === 'comment') return saveComment(f);
+  const status = $('#form-status');
+  if (!f.call) {
+    status.className = 'err';
+    status.textContent = 'Rufzeichen fehlt.';
+    $('#f-call').focus();
+    return;
+  }
+  const ev = state.event;
+  const editing = state.editingId ? state.entries.find(e => e.id === state.editingId) : null;
+  const t = lineTime(f.time, editing);
+  if (t.error) {
+    status.className = 'err';
+    status.textContent = `Zeit nicht lesbar – HH:MM oder JJJJ-MM-TT HH:MM (${timeMode() === 'local' ? 'Lokalzeit' : 'UTC'}), oder leer lassen.`;
+    $('#f-time').focus();
+    return;
+  }
+
+  const ops = [];
+  let entry;
+  let nextEvent = ev;
+  if (editing) {
+    entry = { ...editing, call: f.call, fields: f.fields, loc: f.loc, viaRepeater: f.viaRepeater, note: f.note, ts: t.iso, updated: laterIso(editing.updated),
+      snap: lineSnapshot(editing.snap, f.rptOverride, ev.header) };
+    ops.push({ store: 'revisions', put: { id: newId(), eventId: ev.id, entryId: editing.id, savedAt: nowIso(), reason: 'edit', data: editing } });
+  } else {
+    // The number is taken inside the write transaction from the stored
+    // event (below), not from this tab's copy of it.
+    entry = {
+      id: newId(), eventId: ev.id, seq: 0, ts: t.iso,
+      call: f.call, fields: f.fields, loc: f.loc, viaRepeater: f.viaRepeater, note: f.note,
+      snap: lineSnapshot(headerSnapshot(ev.header), f.rptOverride, ev.header), created: nowIso(), updated: nowIso(), deleted: null,
+    };
+  }
+  ops.push({ store: 'entries', put: entry });
+  ops.push({ store: 'drafts', del: ev.id });
+  // Remember the station's location for future check-ins (any event).
+  const stationRec = f.loc ? { call: f.call, loc: f.loc, at: t.iso, eventTitle: ev.title } : null;
+  if (stationRec) ops.push({ store: 'stations', put: stationRec });
+
+  $('#btn-save').disabled = true;
+  clearTimeout(state.draftTimer);
+  try {
+    await state.store.atomic(['events', 'entries', 'revisions', 'drafts', 'stations'], async ({ get, getByEvent, put, del }) => {
+      if (!editing) {
+        const stored = (await get('events', ev.id)) || ev;
+        // Never below what is stored: another tab (or a migration) may have
+        // numbered lines this tab doesn't know about; and never below the
+        // highest stored line (a lowered counter must not reuse numbers).
+        let top = 0;
+        for (const l of await getByEvent('entries', ev.id)) if (Number.isInteger(l.seq) && l.seq > top) top = l.seq;
+        // An out-of-range counter (from an old import) counts as absent.
+        const counter = Number.isInteger(stored.nextSeq) && stored.nextSeq > 0 && stored.nextSeq < SEQ_LIMIT ? stored.nextSeq : 1;
+        entry.seq = Math.max(counter, top + 1);
+        if (entry.seq >= SEQ_LIMIT) throw new Error('Nummernkreis erschöpft');
+        nextEvent = { ...stored, nextSeq: entry.seq + 1, updated: nowIso() };
+        put('events', nextEvent);
+      }
+      for (const op of ops) {
+        if (op.put) put(op.store, op.put);
+        else await del(op.store, op.del);
+      }
+    });
+  } catch (e) {
+    $('#btn-save').disabled = false;
+    status.className = 'err';
+    status.textContent = 'NICHT gespeichert!';
+    showSaveError(e);
+    return;
+  }
+  $('#btn-save').disabled = false;
+  adoptStored(nextEvent);
+  if (stationRec) state.stations.set(stationRec.call, stationRec);
+  const i = state.entries.findIndex(e => e.id === entry.id);
+  if (i >= 0) state.entries[i] = entry; else state.entries.push(entry);
+  const n = checkinNumbers(state.entries).get(entry.id);
+  status.replaceChildren();
+  logStatus(`Nr. ${entry.seq} ${entry.call}${n > 1 ? ` (Check-in Nr. ${n})` : ''} gespeichert – ${fmtTime(entry.ts)}`);
+  clearForm();
+  renderLog();
+  flashRow(entry.id);
+  updateExportNudge();
+  broadcast({ type: 'entries', eventId: ev.id });
+  if (!editing && stats(state.entries).total % SNAPSHOT_EVERY === 0) takeSnapshot('automatisch');
+  $('#f-call').focus();
+}
+
+function startEdit(id, { focus = true, scroll = true } = {}) {
+  if (state.readOnly) return;
+  const e = state.entries.find(x => x.id === id);
+  if (!e) return;
+  if (isComment(e)) {
+    clearForm();
+    state.editingId = id;
+    setCommentMode(true);
+    $('#f-ctext').value = e.text || '';
+    writeCategory(e.category || '');
+    const { date, time } = splitTime(e.ts, timeMode());
+    $('#f-time').value = `${date} ${time}`;
+    $('#entry-form').classList.add('editing');
+    $('#btn-discard').textContent = 'Bearbeitung abbrechen (Esc)';
+    setSaveLabel('Kommentar speichern');
+    $('#form-status').className = '';
+    fill($('#form-status'), el('span', { class: 'edit-tag' }, `Bearbeite ${lineLabel(e)} – die alte Fassung wird aufbewahrt.`));
+    renderLog();
+    scheduleDraft();
+    if (focus) focusEntryStart();
+    if (scroll) window.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
+  if (state.commentMode) setCommentMode(false);
+  state.editingId = id;
+  $('#f-call').value = e.call;
+  writeFields(e.fields);
+  state.locField?.set(e.loc);
+  state.lineRpt?.set(overrideOf(e.snap), !!e.viaRepeater);
+  $('#f-note').value = e.note || '';
+  const { date, time } = splitTime(e.ts, timeMode());
+  $('#f-time').value = `${date} ${time}`;
+  $('#entry-form').classList.add('editing');
+  $('#btn-discard').textContent = 'Bearbeitung abbrechen (Esc)';
+  setSaveLabel(`Nr. ${e.seq} speichern`);
+  $('#form-status').className = '';
+  fill($('#form-status'), el('span', { class: 'edit-tag' }, `Bearbeite Nr. ${e.seq} – die alte Fassung wird aufbewahrt.`));
+  updateCallFeedback();
+  scheduleDraft();
+  if (focus) $('#f-call').focus();
+  if (scroll) window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function setDeleted(id, deleted) {
+  if (state.readOnly) return;
+  const e = state.entries.find(x => x.id === id);
+  if (!e) return;
+  const next = { ...e, deleted: deleted ? nowIso() : null, updated: laterIso(e.updated) };
+  try {
+    await state.store.tx([
+      { store: 'revisions', put: { id: newId(), eventId: e.eventId, entryId: e.id, savedAt: nowIso(), reason: deleted ? 'delete' : 'restore', data: e } },
+      { store: 'entries', put: next },
+    ]);
+  } catch (err) {
+    showSaveError(err);
+    return;
+  }
+  Object.assign(e, next);
+  if (state.editingId === id) clearForm();
+  logStatus(
+    deleted ? `${lineLabel(e)} gelöscht. ` : `${lineLabel(e)} wiederhergestellt.`,
+    deleted ? el('button', { type: 'button', class: 'link', onclick: () => setDeleted(id, false) }, 'Rückgängig') : null,
+  );
+  renderLog();
+  if (!deleted) flashRow(id);
+  renderTrash();
+  broadcast({ type: 'entries', eventId: e.eventId });
+}
+
+/* --- drafts: the half-typed line survives reloads and crashes --- */
+
+function scheduleDraft() {
+  if (state.readOnly || !state.event) return;
+  clearTimeout(state.draftTimer);
+  state.draftTimer = setTimeout(flushDraft, 300);
+}
+
+// Resolves true when the half-typed line is safe (nothing pending, or saved),
+// false when saving failed; the next flush then tries again (draftUnsaved).
+let draftUnsaved = false;
+let draftFlight = null; // the write in progress: a flush waits for it (reload mid-write)
+async function flushDraft() {
+  const prev = draftFlight;
+  if (prev) await prev.catch(() => {}); // its outcome is in draftUnsaved: a failure is tried again below
+  const run = flushDraftNow();
+  draftFlight = run;
+  try { return await run; } finally { if (draftFlight === run) draftFlight = null; }
+}
+async function flushDraftNow() {
+  if ((!state.draftTimer && !draftUnsaved) || !state.event || state.readOnly) return true;
+  clearTimeout(state.draftTimer);
+  state.draftTimer = null;
+  const f = readForm();
+  const op = formIsEmpty(f) && !state.editingId
+    ? { store: 'drafts', del: state.event.id }
+    : { store: 'drafts', put: { eventId: state.event.id, form: f, editingId: state.editingId, savedAt: nowIso() } };
+  try {
+    await state.store.tx([op]);
+    draftUnsaved = false;
+    return true;
+  } catch (e) {
+    draftUnsaved = true;
+    showSaveError(e);
+    return false;
+  }
+}
+
+// Put a saved form state (draft, or discarded input being undone) back.
+function applyFormState(form, editingId) {
+  if (form.kind === 'comment') {
+    if (editingId && state.entries.some(e => e.id === editingId)) startEdit(editingId, { focus: false, scroll: false });
+    else setCommentMode(true);
+    $('#f-ctext').value = form.text || '';
+    writeCategory(form.category || '');
+    $('#f-time').value = form.time || '';
+    return;
+  }
+  if (editingId && state.entries.some(e => e.id === editingId)) startEdit(editingId);
+  else if (state.commentMode) setCommentMode(false);
+  $('#f-call').value = form.call || '';
+  writeFields(form.fields);
+  state.locField?.set(form.loc);
+  state.lineRpt?.set(form.rptOverride, form.viaRepeater !== false);
+  $('#f-note').value = form.note || '';
+  $('#f-time').value = form.time || '';
+  updateFieldVisibility();
+  updateCallFeedback();
+}
+
+// Throw away everything typed for the current line (or cancel an edit),
+// with a one-click undo — an accidental Esc must not cost any input.
+function discardForm() {
+  if (state.readOnly) return;
+  const form = readForm();
+  const editingId = state.editingId;
+  if (!editingId && formIsEmpty(form) && !form.loc && !form.rptOverride) {
+    if (state.commentMode) setCommentMode(false); // empty comment: back to check-in
+    $('#f-call').focus();
+    return;
+  }
+  const edited = editingId ? state.entries.find(e => e.id === editingId) : null;
+  clearForm();
+  scheduleDraft(); // empty form -> the stored draft is removed
+  $('#form-status').replaceChildren();
+  logStatus(
+    edited ? `Bearbeitung von ${isComment(edited) ? lineLabel(edited) : `Nr. ${edited.seq}`} abgebrochen – die Zeile bleibt unverändert. ` : 'Eingaben verworfen. ',
+    el('button', { type: 'button', class: 'link', onclick: () => {
+      applyFormState(form, editingId);
+      scheduleDraft();
+      $('#log-status').replaceChildren();
+      focusEntryStart();
+    } }, 'Rückgängig'));
+  $('#f-call').focus();
+}
+
+async function restoreDraft() {
+  if (state.readOnly || !state.event) return;
+  const d = await state.store.get('drafts', state.event.id);
+  if (!d || !d.form) return;
+  applyFormState(d.form, d.editingId);
+  logStatus(`Nicht gespeicherte Eingabe von ${fmtTime(d.savedAt)} wiederhergestellt (steht im Formular).`);
+}
+
+/* --- log table --- */
+
+// Redraw the map only when entries or the header actually changed —
+// renderLog() also runs on every keystroke in the callsign field.
+let mapSig = '';
+function currentMapSig() {
+  const h = state.event.header || {};
+  return [state.event.id, state.entries.length, h.myQth, h.myGrid, h.station, h.operator,
+    ...state.entries.map(e => `${e.updated}${e.deleted || ''}`)].join('|');
+}
+
+function maybeRefreshMap() {
+  if (!mapVisible()) return;
+  const sig = currentMapSig();
+  if (sig === mapSig) return;
+  mapSig = sig;
+  refreshMap(mapContext());
+}
+
+function renderLog(highlightCall) {
+  if (!state.event) return;
+  maybeRefreshMap();
+  const tpl = templateFor(state.event.template);
+  const nums = checkinNumbers(state.entries);
+  // newest first on screen (the printed PDF has the oldest first)
+  const live = liveSorted(state.entries).reverse();
+  const st = stats(state.entries);
+  $('#st-unique').textContent = st.unique;
+  $('#st-total').textContent = st.total;
+  const call = highlightCall ?? normalizeCall($('#f-call').value);
+
+  const columns = logColumns(tpl);
+  fill($('#log-head'), rowRoles(el('tr', {},
+    // UTC times end in Z; local ones are the zone in the header's switch
+    th('Nr', 'laufende Nummer im Log', 'col-nr'), th('Zeit', timeMode() === 'local' ? `Ortszeit (${zoneAbbr(nowIso())})` : 'UTC', 'col-time'),
+    th('Rufzeichen', nameField(tpl) ? 'Rufzeichen der Gegenstation' : 'Rufzeichen der Gegenstation, darunter der Name laut Rufzeichenliste', 'col-call'),
+    columns.map(c => th(c.head, c.title, `col-${c.kind}`)),
+    th('Relais', 'Über welches Relais die Station kam, oder direkt; gestrichelt umrandet: anders als im Betrieb', 'col-rpt'),
+    th('Notiz', 'Notiz; der Operator nur, wenn er vom Betrieb des Logs abweicht', 'col-note'),
+    el('th', { scope: 'col', class: 'act' }, el('span', { class: 'sr-only' }, 'Aktionen')))));
+
+  const body = $('#log-body');
+  const cols = columns.length + 6;
+  if (!live.length) {
+    resetRows(rowCache);
+    rowsByCall = new Map();
+    matched = [];
+    body.replaceChildren(rowRoles(el('tr', {}, el('td', { colspan: String(cols), class: 'empty' }, 'Noch keine Einträge. Rufzeichen eingeben und Shift+Enter drücken.'))));
+    return;
+  }
+  // Rows are kept between renders (keyed by line id, signature = everything
+  // the row shows): a save creates one row, the rest stays as it is. A change
+  // of the context all rows share (template, time mode, callsign list, ...)
+  // rebuilds all.
+  const ctx = [timeMode(), zoneLabel(nowIso(), 'local'), state.readOnly, logUtmDigits(), state.event.template, state.event.id].join('|');
+  if (ctx !== rowCtx || tpl !== rowTpl || state.callbook !== rowBook) {
+    resetRows(rowCache);
+    rowCtx = ctx;
+    rowTpl = tpl;
+    rowBook = state.callbook;
+  }
+  syncRows(body, rowCache, live, {
+    key: e => e.id,
+    sig: e => `${e.updated}|${e.deleted || ''}|${e.seq}|${nums.get(e.id)}`,
+    build: e => rowRoles(buildLogRow(e, { tpl, columns, n: nums.get(e.id), cols })),
+  });
+  rowsByCall = new Map();
+  for (const e of live) {
+    if (isComment(e)) continue;
+    const node = rowCache.get(e.id).node;
+    const list = rowsByCall.get(e.call);
+    if (list) list.push(node); else rowsByCall.set(e.call, [node]);
+  }
+  highlightMatches(call); // also clears `match` on reused rows of the previous call
+  markEditing();
+}
+
+// The rows of the log (see renderLog): by callsign, and the ones marked now.
+const rowCache = createRowCache();
+let rowCtx = '', rowTpl = null, rowBook = null;
+let rowsByCall = new Map();
+let matched = [];
+
+// Marks the rows of one callsign (the one typed in the form, or picked on the
+// map) by toggling a class on the existing rows: no rebuild per keystroke.
+function highlightMatches(call) {
+  const next = (call && rowsByCall.get(call)) || [];
+  for (const tr of matched) if (!next.includes(tr)) tr.classList.remove('match');
+  for (const tr of next) tr.classList.add('match');
+  matched = next;
+}
+
+// The line being edited gets the class `editing` (one row at a time).
+let editingRow = null;
+function markEditing() {
+  editingRow?.classList.remove('row-editing');
+  editingRow = (state.editingId && rowCache.get(state.editingId)?.node) || null;
+  editingRow?.classList.add('row-editing');
+}
+
+function buildLogRow(e, { tpl, columns, n, cols }) {
+    const { time } = splitTime(e.ts, timeMode());
+    const s = e.snap || {};
+    // the time only (a log is one net or exercise); the full date and time
+    // are stored, exported and in the title
+    const timeBits = [time,
+      timeMode() === 'utc' ? 'Z' : null, // ISO/military notation for UTC; local times keep the column's offset
+      timeMode() === 'local' && zoneLabel(e.ts, 'local') !== zoneLabel(nowIso(), 'local') ? el('span', { class: 'date' }, ' ' + zoneAbbr(e.ts)) : null];
+    const what = isComment(e) ? `Kommentar ${time}` : `Nr. ${e.seq} ${e.call}`;
+    const actions = [
+      // the name starts with the visible "Bearbeiten" (WCAG 2.5.3), the rest is for screen readers
+      el('button', { type: 'button', disabled: state.readOnly, onclick: () => startEdit(e.id) }, 'Bearbeiten', el('span', { class: 'sr-only' }, ` – ${what}`)),
+      ' ',
+      el('button', { type: 'button', class: 'danger', disabled: state.readOnly, 'aria-label': `${what} löschen`, title: 'Löschen',
+        onclick: () => setDeleted(e.id, true) }, '✕'),
+    ];
+    if (isComment(e)) {
+      // Operator comment / marker: one full-width banner row.
+      // the Nr column empty (a comment has no number), so its time stands
+      // under Zeit
+      return el('tr', { 'data-id': e.id, class: e.auto ? 'marker auto' : 'marker' },
+        el('td', { class: 'marker-nr' }),
+        el('td', { colspan: String(cols - 1) },
+          el('div', { class: 'marker-row' },
+            el('span', { class: 'mono marker-time', title: fullTime(e.ts) }, timeBits),
+            el('span', { class: 'marker-cat' }, e.category || 'Kommentar'),
+            el('span', { class: 'marker-text' }, e.text || ''),
+            // the operator only when not the log's (as for check-ins)
+            el('span', { class: 'marker-op mono', title: 'Operator zu diesem Zeitpunkt (abweichend vom Betrieb)' },
+              opText(s) && opText(s) !== opText(state.event.header) ? `Op ${opText(s)}` : ''),
+            el('span', { class: 'act' }, actions))));
+    }
+    const nf = nameField(tpl);
+    const name = nf ? e.fields?.[nf.key] : '';
+    const cb = callbookName(e.call);
+    return el('tr', { 'data-id': e.id },
+      // Nr first, as everywhere the log is shown (paper, print)
+      el('td', { class: 'mono col-nr' }, String(e.seq)),
+      el('td', { class: 'mono col-time', title: fullTime(e.ts) }, timeBits),
+      // the name from the callsign list under the callsign, where the
+      // template has no Name column (there it stands in that column)
+      el('td', { class: 'call col-call' }, e.call, n > 1 ? el('span', { class: 'badge', title: `Check-in Nr. ${n}` }, `${n}×`) : null,
+        !nf && cb ? el('div', { class: 'cb-name', title: 'laut Rufzeichenliste' }, cb) : null),
+      columns.map(c => el('td', { 'data-label': c.head, class: `col-${c.kind}` },
+        c.kind === 'name' ? [name || '', cb && cb !== name ? el('div', { class: 'cb-name', title: 'laut Rufzeichenliste' }, cb) : null] : columnCell(c, e, tpl))),
+      el('td', { 'data-label': 'Relais', class: 'col-rpt' }, routeCell(e)),
+      el('td', { 'data-label': 'Notiz', class: 'col-note' }, deviations(e), e.note || ''),
+      el('td', { class: 'act' }, actions),
+    );
+}
+
+// The full date and time of a line, in the page's mode (UTC or local):
+// the title of its time.
+function fullTime(iso) {
+  const { date, time } = splitTime(iso, timeMode());
+  return timeMode() === 'utc' ? `${date} ${time}Z (UTC)` : `${date} ${time} ${zoneAbbr(iso)}`;
+}
+
+// One display column of a check-in (logColumns() in templates.js).
+function columnCell(c, e, tpl) {
+  const v = e.fields || {};
+  if (c.kind === 'rst') {
+    // ours first (the form's order): "57 / 59"
+    const [first, second] = c.fields.map(f => v[f.key] || '–');
+    return el('span', { class: 'mono', title: c.fields.map(f => `${f.label}: ${v[f.key] || '–'}`).join(' · ') }, `${first} / ${second}`);
+  }
+  if (c.kind === 'location') return locationCell(c.fields[0], e, tpl);
+  if (c.kind === 'grades') {
+    return el('span', { class: 'gchips' }, c.fields.map(f => {
+      const g = v[f.key];
+      // not given: a dim placeholder, so the chips stay in their places
+      if (!g) return el('span', { class: 'gchip none', title: `${f.label}: keine Angabe` }, `${f.short} `, el('b', {}, '–'));
+      return el('span', { class: `gchip g${g}`, title: `${f.label}: ${g} (${GRADE_WORDS[g] || ''})` }, `${f.short} `, el('b', {}, g));
+    }));
+  }
+  const vs = chainValues(c, v, tpl);
+  if (!vs.length) return '';
+  const first = c.fields[0];
+  // a yes/no answer first, as a symbol and a word (not by colour alone)
+  if (first.key === 'atalert') {
+    const ok = v.atalert === 'ja';
+    // the phone and its version on a line of their own (never broken inside)
+    return [el('span', { class: ok ? 'yes' : 'no' }, el('span', { class: 'mark', 'aria-hidden': 'true' }, ok ? '✓' : '✕'), '\u00a0', vs[0]),
+      vs.length > 1 ? el('div', { class: 'chain-sub' }, vs.slice(1).join(' · ')) : null];
+  }
+  return vs.join(' · ');
+}
+
+const GRADE_WORDS = { 1: 'sehr gut hörbar', 2: 'gut', 3: 'befriedigend', 4: 'kaum hörbar', 5: 'nicht hörbar' };
+
+// The place: as typed (or chosen), then one small line with what it was
+// resolved to (only what the text doesn't already say), PLZ, locator and
+// where it came from; "nicht zugeordnet" for text the lookup didn't know.
+function locationCell(f, e, tpl) {
+  const text = e.fields?.[f.key] || '';
+  const plz = f.plzKey ? e.fields?.[f.plzKey] || '' : '';
+  const loc = e.loc;
+  if (!loc) {
+    if (!text && !plz) return '';
+    return [text, el('div', { class: 'loc-sub unresolved' }, [plz, text ? 'nicht zugeordnet' : ''].filter(Boolean).join(' · '))];
+  }
+  const k = locOrigin(loc, text);
+  const o = LOC_ORIGINS[k];
+  const full = describeLocation(loc, logUtmDigits()); // "label, PLZ · locator · UTM"
+  const sub = full.startsWith(loc.label) && loc.label === text ? full.slice(loc.label.length).replace(/^[\s,·]+/, '') : full;
+  return [text || loc.label,
+    el('div', { class: 'loc-sub' }, sub, ...locHints(loc).map(h => ` · ${h}`),
+      o?.label ? [' ', el('span', { class: `src src-${k}`, title: o.title }, o.label)] : null)];
+}
+
+// "OE1ABC" or "OE1ABC/OE1XKS" (operator at another station's callsign).
+function opText(s) {
+  return s?.operator && s.station && s.operator !== s.station ? `${s.operator}/${s.station}` : s?.operator || s?.station || '';
+}
+
+// Relais and operator are the log's (its Betrieb, the header) for most check-ins:
+// only a check-in that differs says so, at the start of its note.
+// The Relais cell: the relay the station came through (the Betrieb's one
+// too), or "direkt"; framed (dashed, and said in the title) where the line
+// differs from the Betrieb: another relay, or direct while the Betrieb
+// runs via one, or the other way round.
+function routeCell(e) {
+  const h = state.event?.header || {};
+  const s = e.snap || {};
+  const differs = !!e.viaRepeater !== !!h.viaRepeater || (e.viaRepeater && s.repeaterOverride);
+  const why = !differs ? (e.viaRepeater ? 'Relais aus dem Betrieb' : 'direkt, wie im Betrieb')
+    : e.viaRepeater ? (h.viaRepeater ? 'ein anderes Relais als im Betrieb' : 'über ein Relais, der Betrieb ist direkt')
+      : 'direkt, nicht über das Relais im Betrieb';
+  const title = [why, e.viaRepeater && s.repeaterFreq && `${s.repeaterFreq} MHz`, e.viaRepeater && s.repeaterShift && `Shift ${s.repeaterShift}`,
+    e.viaRepeater && signallingText(s)].filter(Boolean).join(' · ');
+  const text = e.viaRepeater ? s.repeaterCall || 'Relais' : 'direkt';
+  return el('span', { class: `${differs ? 'dev' : 'route'}${e.viaRepeater ? ' mono' : ''}`, title }, text);
+}
+
+function deviations(e) {
+  const h = state.event?.header || {};
+  const s = e.snap || {};
+  const out = [];
+  const op = opText(s);
+  if (op && op !== opText(h)) out.push(el('span', { class: 'dev mono', title: 'Operator dieses Check-ins (abweichend vom Betrieb)' }, `Op ${op}`));
+  return out.flatMap(x => [x, ' ']);
+}
+
+async function renderTrash() {
+  const list = $('#trash-list');
+  const deleted = state.entries.filter(e => e.deleted);
+  fill(list, 
+    el('li', {}, el('b', {}, `Gelöschte Zeilen (${deleted.length})`)),
+    deleted.map(e => el('li', {},
+      `${lineLabel(e)} ${fmtTime(e.ts)} – gelöscht ${fmtDateTime(e.deleted)} `,
+      el('button', { type: 'button', class: 'link', disabled: state.readOnly, onclick: () => setDeleted(e.id, false) }, 'wiederherstellen'))),
+  );
+  const snaps = (await state.store.getByEvent('snapshots', state.event.id)).sort((a, b) => (a.at < b.at ? 1 : -1));
+  fill($('#snapshot-list'), 
+    el('li', {}, el('b', {}, `Automatische Sicherungen im Browser (${snaps.length})`)),
+    snaps.map(s => el('li', {},
+      `${fmtDateTime(s.at)} – ${s.count} Zeilen (${s.reason}) `,
+      el('button', { type: 'button', class: 'link', onclick: () => download(JSON.stringify(s.backup, null, 1), fileBase(state.event, s.at) + '_sicherung.json', 'application/json') }, 'als JSON herunterladen'))),
+  );
+}
+
+/* --- snapshots & backups --- */
+
+async function eventBackup(ev) {
+  const [entries, revisions] = await Promise.all([
+    state.store.getByEvent('entries', ev.id),
+    state.store.getByEvent('revisions', ev.id),
+  ]);
+  return { event: ev, entries, revisions };
+}
+
+async function takeSnapshot(reason) {
+  const ev = state.event;
+  if (!ev) return;
+  try {
+    const backup = { format: BACKUP_FORMAT, version: 1, exported: nowIso(), events: [await eventBackup(ev)] };
+    const snaps = (await state.store.getByEvent('snapshots', ev.id)).sort((a, b) => (a.at < b.at ? 1 : -1));
+    const ops = [{ store: 'snapshots', put: { id: newId(), eventId: ev.id, at: nowIso(), reason, count: stats(state.entries).total, backup } }];
+    for (const old of snaps.slice(SNAPSHOT_KEEP - 1)) ops.push({ store: 'snapshots', del: old.id });
+    await state.store.tx(ops);
+    if (state.event && state.event.id === ev.id) renderTrash();
+  } catch (e) {
+    console.warn('Snapshot fehlgeschlagen', e);
+  }
+}
+
+// Result of an import, in the banner above the list (not alert(): it
+// blocks the page and is suppressed in some browsers/embeddings).
+function showImportMsg(kind, ...content) {
+  const box = $('#import-msg');
+  const ok = el('button', { type: 'button', onclick: () => { box.hidden = true; } }, 'OK');
+  box.className = `banner ${kind}`;
+  fill(box, ...content, ' ', ok);
+  box.hidden = false;
+  ok.focus();
+}
+
+// One or more selected files: single backups as before, the parts of a
+// backup written in parts (see backup-parts.js) only all together, each set in
+// ONE atomic write. Nothing of a file or set with a problem is written.
+async function importFiles(files) {
+  const loaded = [];
+  const results = [];
+  const bad = (name, ...msg) => results.push({ kind: 'err', content: [el('strong', {}, 'Nicht importiert: '), `„${name}“ `, ...msg] });
+  const tooBig = partsTooLarge(files.reduce((n, f) => n + f.size, 0));
+  if (tooBig) { showImportMsg('err', el('strong', {}, 'Nicht importiert: '), tooBig); return; }
+  for (const file of files) {
+    if (file.size > BACKUP_MAX_BYTES) {
+      bad(file.name, `ist ${Math.round(file.size / 1048576)} MB groß; mehr als ${BACKUP_MAX_BYTES / 1048576} MB werden nicht importiert (zu groß für diesen Browser) – es wurde nichts geändert.`);
+      continue;
+    }
+    try {
+      loaded.push({ name: file.name, data: JSON.parse(await file.text()) });
+    } catch {
+      bad(file.name, 'ist keine gültige JSON-Datei.');
+    }
+  }
+  const { singles, sets, errors } = groupParts(loaded);
+  for (const m of errors) results.push({ kind: 'err', content: [el('strong', {}, 'Nicht importiert: '), m] });
+  for (const f of singles) results.push(await importData(f.name, f.data, validateBackup(f.data)));
+  for (const set of sets) {
+    const names = `${set.files.length} Teile (${set.files[0].name} …)`;
+    const combined = combineBackupParts(set.files.map(f => f.data));
+    if (combined.errors) {
+      results.push({ kind: 'err', content: [el('strong', {}, 'Nicht importiert: '), `${names}: `, combined.errors.join('; ')] });
+      continue;
+    }
+    results.push(await importData(names, combined.data, validateBackup(combined.data, 20, { combined: true })));
+  }
+  if (results.length === 1) showImportMsg(results[0].kind, ...results[0].content);
+  else if (results.length) showImportMsg(results.some(r => r.kind === 'err') ? 'err' : 'warn', el('ul', {}, results.map(r => el('li', {}, ...r.content))));
+}
+
+async function importData(name, data, check) {
+  const fail = (...content) => ({ kind: 'err', content: [el('strong', {}, 'Nicht importiert: '), ...content] });
+  if (check.notBackup) {
+    return fail(`„${name}“ ist keine Sicherung des Bestätigungsverkehrs (Datei von „Sichern (JSON)“ / „Alles sichern (JSON)“).`);
+  }
+  if (!check.ok) {
+    return fail(`„${name}“ ist keine gültige Sicherung – es wurde nichts geändert.`, el('ul', {}, check.errors.map(m => el('li', {}, m))));
+  }
+  // Collision check and writes in ONE transaction: all logs of the file or
+  // none, and nothing stored can change between the check and the write.
+  let result;
+  try {
+    result = await state.store.atomic(['events', 'entries', 'revisions'], async ({ getAll, put }) => {
+      // The stored ids, read once inside the transaction.
+      const existing = {};
+      for (const st of ['events', 'entries', 'revisions']) existing[st] = new Set((await getAll(st)).map(r => r.id));
+      const plan = planBackupImport(data, existing, newId);
+      for (const p of plan.puts) put(p.store, p.value);
+      return plan;
+    });
+  } catch (e) {
+    showSaveError(e);
+    return fail('Beim Speichern ist ein Fehler aufgetreten – es wurde nichts importiert und nichts verändert.');
+  }
+  const imported = result.imported, copies = result.copies;
+  const warnings = [...check.warnings, ...result.warnings];
+  broadcast({ type: 'events' });
+  renderEventList();
+  return {
+    kind: 'warn',
+    content: [el('strong', {}, `${imported} ${imported === 1 ? 'Log' : 'Logs'} importiert.`),
+      copies ? ` ${copies} davon als Kopie („(Import)“), weil ${copies === 1 ? 'es' : 'sie'} schon vorhanden ${copies === 1 ? 'war' : 'waren'}; nichts wurde überschrieben.` : '',
+      warnings.length ? el('ul', {}, ['Hinweise zur Sicherung (alles wurde übernommen wie gespeichert):', ...warnings].map((m, i) => el('li', {}, i ? m : el('b', {}, m)))) : ''],
+  };
+}
+
+/* --- exports --- */
+
+function fileBase(ev, iso) {
+  const slug = ev.title.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/ß/g, 'ss')
+    .replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'log';
+  return `${splitUtc(iso || ev.created).date}_${slug}`;
+}
+
+function download(text, name, type) {
+  const blob = new Blob([text], { type: `${type};charset=utf-8` });
+  const url = URL.createObjectURL(blob);
+  const a = el('a', { href: url, download: name });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+/* --- "Exportieren" menu (disclosure: a button and a list of buttons) --- */
+
+function closeExportMenu(focusButton = false) {
+  closeMenu('#export-menu', focusButton);
+}
+
+function closeMenu(menu, focusButton = false) {
+  const m = $(menu);
+  m.querySelector('.menu-list').hidden = true;
+  if (focusButton) m.querySelector(':scope > button').focus();
+}
+
+// A button with a list below it (Exportieren, Leerformular): opens on a
+// click, the first entry focused; Esc, a click or focus elsewhere close it.
+function initMenu(menu) {
+  const m = $(menu);
+  const btn = m.querySelector(':scope > button');
+  const list = m.querySelector('.menu-list');
+  trackExpanded(btn, list);
+  btn.addEventListener('click', () => {
+    list.hidden = !list.hidden;
+    if (!list.hidden) list.querySelector('button').focus();
+  });
+  list.addEventListener('keydown', ev => {
+    if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); closeMenu(menu, true); }
+  });
+  document.addEventListener('pointerdown', ev => { if (!m.contains(ev.target)) closeMenu(menu); });
+  m.addEventListener('focusout', ev => {
+    if (ev.relatedTarget && !m.contains(ev.relatedTarget)) closeMenu(menu);
+  });
+}
+
+function initExportMenu() {
+  initMenu('#export-menu');
+  // the empty form from the overview: one entry per template
+  fill($('#paper-list'), TEMPLATES.map(t => el('button', { type: 'button', onclick: () => { closeMenu('#paper-menu'); printPaper(t); } }, t.label)));
+  initMenu('#paper-menu');
+}
+
+function showText(title, text) {
+  $('#dlg-title').textContent = title;
+  $('#dlg-text').value = text;
+  $('#dlg-status').textContent = '';
+  $('#dlg').showModal();
+}
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    const ta = $('#dlg-text');
+    ta.focus();
+    ta.select();
+    try { return document.execCommand('copy'); } catch { return false; }
+  }
+}
+
+async function markExported() {
+  const patch = { exportedTotal: stats(state.entries).total, lastExport: nowIso() };
+  try {
+    adoptStored(await patchEvent(state.event.id, () => patch));
+  } catch (e) {
+    console.warn(e);
+  }
+  updateExportNudge();
+}
+
+function updateExportNudge() {
+  const since = stats(state.entries).total - (state.event.exportedTotal || 0);
+  const chip = $('#export-nudge');
+  chip.hidden = since < EXPORT_NUDGE_AFTER;
+  chip.textContent = `${since} Zeilen seit letztem Export – jetzt sichern`;
+}
+
+function showExportRefused(msg) {
+  const box = $('#export-msg');
+  fill(box, el('b', {}, 'Nicht gesichert. '), msg, el('button', { type: 'button', onclick: () => { box.hidden = true; } }, 'OK'));
+  box.hidden = false;
+}
+
+function showEmptyAdif(entries) {
+  const box = $('#export-msg');
+  const comments = entries.some(e => !e.deleted && isComment(e));
+  const ok = el('button', { type: 'button', onclick: () => { box.hidden = true; } }, 'OK');
+  fill(box, el('b', {}, 'Kein ADIF erstellt. '),
+    'Das Log hat noch keine Check-ins. Operator-Kommentare (Zeilen mit !) und gelöschte Zeilen kommen nicht ins ADIF.',
+    ok,
+    comments ? el('button', { type: 'button', onclick: () => {
+      box.hidden = true;
+      $('#csv-comments').checked = true;
+      $('#csv-comments').dispatchEvent(new Event('change'));
+      doExport('csv');
+    } }, 'Als CSV mit Kommentaren exportieren') : null);
+  box.hidden = false;
+  ok.focus();
+}
+
+// The CSV is written, but some cells started like a spreadsheet formula
+// (= + - @): they got a leading ' (../shared/js/csv.js). Say so.
+function showCsvGuarded(n) {
+  const box = $('#export-msg');
+  const ok = el('button', { type: 'button', onclick: () => { box.hidden = true; } }, 'OK');
+  fill(box, el('strong', {}, `CSV: ${n} ${n === 1 ? 'Wert' : 'Werte'} mit vorangestelltem ' `),
+    "Sie beginnen mit =, +, -, @ oder einem Steuerzeichen; Tabellenprogramme würden sie sonst als Formel ausführen. Zahlen wie -10 bleiben unverändert; ADIF und JSON-Sicherung enthalten die Werte ohne '.",
+    ok);
+  box.hidden = false;
+}
+
+// Lines a logbook program would reject or misfile (no frequency, no mode,
+// header values that aren't a callsign/locator): say so before exporting.
+function showAdifIssues(issues) {
+  const box = $('#export-msg');
+  const shown = issues.slice(0, 8);
+  const go = el('button', { type: 'button', onclick: () => { box.hidden = true; doExport('adif', true); } }, 'Trotzdem exportieren');
+  fill(box, el('strong', {}, `ADIF: ${issues.length} Zeile(n) unvollständig. `),
+    'Logbuchprogramme brauchen Frequenz und Betriebsart; Werte, die kein Rufzeichen oder Locator sind, landen im Kommentar.',
+    el('ul', {}, shown.map(i => el('li', {}, `Nr. ${i.nr} ${i.call}: ${i.problems.join(', ')}`)),
+      issues.length > shown.length ? el('li', {}, `… und ${issues.length - shown.length} weitere`) : null),
+    go,
+    el('button', { type: 'button', onclick: () => { box.hidden = true; $('#hdr-panel').open = true; } }, 'Betrieb bearbeiten'));
+  box.hidden = false;
+  go.focus();
+}
+
+// The own QTH texts of the log (header and line snapshots), resolved like
+// the map does, for the exports' own UTMREF: text -> result | null.
+async function qthResolver(ev, entries) {
+  const texts = new Set([ev.header?.myQth, ...entries.map(e => e.snap?.myQth)].filter(Boolean));
+  const ctx = mapContext();
+  const found = new Map();
+  for (const t of texts) found.set(t, await ctx.resolve(t));
+  return t => found.get(t) || null;
+}
+
+// Zone for a UTMREF typed without zone: the open log's own QTH (resolved in
+// the header), else its locator, else 33U.
+function utmRefFromHeader() {
+  if (!state.event) return { ...UTM_DEFAULT_REF, source: 'Standard' };
+  const qth = $('#log-header')?._hdr?.qthField?.get();
+  if (qth && Number.isFinite(qth.lat)) return { ...utmReference(qth.lat, qth.lon), source: 'Zone des eigenen QTH' };
+  const g = String(state.event.header?.myGrid || '').trim();
+  if (isValidLocator(g)) {
+    const b = maidenheadToBounds(g);
+    return { ...utmReference(b.centerLat, b.centerLon), source: 'Zone des eigenen Locators' };
+  }
+  return { ...UTM_DEFAULT_REF, source: 'Standard' };
+}
+
+async function doExport(kind, force = false) {
+  $('#export-msg').hidden = true;
+  await flushMarkers({ openForEdit: false });
+  await flushHeader();
+  const ev = state.event;
+  const entries = state.entries;
+  const qth = ['csv', 'adif', 'kml', 'summary'].includes(kind) ? await qthResolver(ev, entries) : null;
+  if (kind === 'csv') {
+    const sep = prefGet(CSV_SEP_KEY, ';');
+    const csvStats = { guarded: 0 };
+    download(toCSV(ev, entries, sep, { comments: $('#csv-comments').checked, qth, stats: csvStats }), fileBase(ev) + '.csv', 'text/csv');
+    markExported();
+    if (csvStats.guarded) showCsvGuarded(csvStats.guarded);
+  } else if (kind === 'adif') {
+    // ADIF only holds QSOs: an empty file (header only) looks like a
+    // broken export in a logbook program, so say why there is none.
+    if (!stats(entries).total) {
+      showEmptyAdif(entries);
+      return;
+    }
+    const issues = adifIssues(ev, entries);
+    if (issues.length && !force) {
+      showAdifIssues(issues);
+      return;
+    }
+    const commit = globalThis.CONFIRM_BUILD?.commit;
+    download(toADIF(ev, entries, undefined, { programVersion: commit && commit !== 'dev' ? commit : '', qth }),
+      fileBase(ev) + '.adi', ADIF_MIME);
+    markExported();
+  } else if (kind === 'kml') {
+    // Not a full backup (only stations with a location): no markExported().
+    download(toKML(ev, entries, { qth }), fileBase(ev) + '.kml', KML_MIME);
+  } else if (kind === 'json') {
+    const r = await downloadBackup([await eventBackup(ev)], fileBase(ev) + '_sicherung');
+    if (r.error) showExportRefused(r.error);
+    else if (r.note) fill($('#log-status'), r.note); // neutral, no check mark: parts are not known to have all arrived, so the export is not counted
+    else markExported();
+  } else if (kind === 'summary') {
+    showText('Zusammenfassung', toSummary(ev, entries, timeMode(), { qth }));
+  } else if (kind === 'print') {
+    printLog();
+  } else if (kind === 'paper') {
+    printPaper();
+  }
+}
+
+// The whole log on paper: a PDF (logpdf.js) of every line, oldest first,
+// with the Betrieb and the range on every page; opened in a new tab to
+// print at its own size, downloaded where the tab is blocked. Times as on
+// the screen (UTC or local).
+function printLog() {
+  const ev = state.event;
+  pdfOpen(logPdf(ev, state.entries, { mode: timeMode(), now: nowIso(), callbook: callbookName, utmDigits: logUtmDigits() }),
+    `${fileBase(ev)}_Log.pdf`);
+}
+
+// An empty form in a template's columns, to print in advance: nothing
+// filled in, everything by hand. A PDF (paperpdf.js), opened in a new tab
+// to print at its own size; downloaded where the tab is blocked. From a
+// log: its template; from the overview: the one chosen.
+function printPaper(tpl = templateFor(state.event?.template)) {
+  pdfOpen(paperPdf(tpl), `Leerformular_${tpl.key}.pdf`);
+}
+
+async function backupAll() {
+  const events = await state.store.getAll('events');
+  const items = [];
+  for (const ev of events) items.push(await eventBackup(ev));
+  const r = await downloadBackup(items, `${splitUtc(nowIso()).date}_bestaetigungsverkehr_alle`);
+  if (r.error) showImportMsg('err', el('strong', {}, 'Nicht gesichert: '), r.error);
+  else if (r.note) showImportMsg('warn', r.note);
+}
+
+// The JSON backup of logs: one file, or - when it is beyond what an import
+// accepts (50 MB, 200000 records) - several parts that are imported together
+// (selected together in the import dialog); nothing is left out.
+async function downloadBackup(items, base) {
+  // (CONFIRM_PART_LIMITS: test hook, lowers the limits so a browser test can split a small backup)
+  let texts;
+  try {
+    texts = backupTexts(items, nowIso(), newId(), globalThis.CONFIRM_PART_LIMITS);
+  } catch (e) {
+    if (e.tooLarge) return { error: e.message }; // refused before anything is downloaded
+    throw e;
+  }
+  if (texts.length === 1) { download(texts[0], base + '.json', 'application/json'); return {}; }
+  for (const [i, text] of texts.entries()) {
+    if (i) await new Promise(r => setTimeout(r, 400)); // browsers ask before many downloads at once
+    download(text, partFileName(base, i + 1, texts.length), 'application/json');
+  }
+  return { note: `Download von ${texts.length} Dateien gestartet (die Sicherung ist groß und geteilt). Prüfen Sie, dass alle ${texts.length} angekommen sind – der Browser fragt eventuell, ob mehrere Downloads erlaubt sind. Beim Import alle Teile gemeinsam auswählen.` };
+}
+
+/* ---------------------------------------------------------------- cross-tab sync */
+
+function broadcast(msg) {
+  try { state.channel?.postMessage(msg); } catch { /* ignore */ }
+}
+
+function initChannel() {
+  if (!('BroadcastChannel' in window)) return;
+  state.channel = new BroadcastChannel('oe1ebg-confirm');
+  state.channel.onmessage = async ev => {
+    const m = ev.data || {};
+    if (m.type === 'entries' && state.event && m.eventId === state.event.id && state.readOnly) {
+      state.entries = await state.store.getByEvent('entries', state.event.id);
+      state.event = (await state.store.get('events', state.event.id)) || state.event;
+      // The writing tab made the markers for its header changes.
+      state.markerBase = { ...(state.event.header || emptyHeader()) };
+      renderLog();
+      renderTrash();
+    } else if (m.type === 'events' && !$('#view-events').hidden) {
+      renderEventList();
+    }
+  };
+}
+
+/* ---------------------------------------------------------------- wiring */
+
+function route() {
+  const m = location.hash.match(/^#\/e\/([\w-]+)/);
+  if (m) openEvent(m[1]);
+  else showEvents();
+}
+
+function wire() {
+  // events view
+  document.querySelectorAll('#event-tabs button').forEach(b => b.addEventListener('click', () => {
+    state.tab = b.dataset.tab;
+    document.querySelectorAll('#event-tabs button').forEach(x => {
+      x.classList.toggle('active', x === b);
+      x.setAttribute('aria-pressed', String(x === b));
+    });
+    renderEventList();
+  }));
+  $('#btn-new-event').addEventListener('click', () => openNewEventForm());
+  trackExpanded($('#btn-new-event'), $('#new-event'));
+  trackExpanded($('#btn-loc'), $('#loc-panel'));
+  $('#btn-cancel-new').addEventListener('click', () => { $('#new-event').hidden = true; });
+  // Same keys as the entry form: Enter = next field, Shift+Enter = create,
+  // Esc = cancel (open dropdowns take Enter/Esc first).
+  headerKeys($('#new-event'));
+  $('#new-event').addEventListener('keydown', ev => {
+    if (ev.key === 'Enter' && ev.shiftKey && !isComposing(ev)) {
+      ev.preventDefault();
+      submitForm($('#new-event'));
+    } else if (ev.key === 'Escape') {
+      $('#new-event').hidden = true;
+      $('#btn-new-event').focus();
+    }
+  });
+  // Log header: Enter in the last field goes on to the callsign.
+  headerKeys($('#log-header'), focusEntryStart);
+  headerEscape($('#log-header'));
+  $('#btn-hdr-undo').addEventListener('click', undoHeader);
+  $('#hdr-panel').addEventListener('toggle', () => { if ($('#hdr-panel').open) takeHeaderUndo(); });
+  tableRoles($('table.log')); // cards on phones (style.css)
+  // A finished header edit (field left, Enter, checkbox, repeater pick)
+  // writes the automatic operator/repeater marker.
+  $('#log-header').addEventListener('change', () => { flushMarkers(); });
+  $('#new-event').addEventListener('submit', ev => {
+    ev.preventDefault();
+    const form = ev.target;
+    createEvent(form.title.value, form.template.value, readHeaderForm($('#new-header')));
+    form.hidden = true;
+  });
+  $('#btn-import').addEventListener('click', () => $('#import-file').click());
+  $('#import-file').addEventListener('change', ev => {
+    const files = [...ev.target.files];
+    ev.target.value = '';
+    if (files.length) importFiles(files);
+  });
+  $('#btn-backup-all').addEventListener('click', backupAll);
+
+  // log view
+  $('#btn-back').addEventListener('click', () => { location.hash = '#/'; });
+  $('#log-title').addEventListener('input', ev => {
+    if (state.readOnly) return;
+    state.event.title = ev.target.value;
+    clearTimeout(state.headerTimer);
+    state.headerTimer = setTimeout(flushHeader, 400);
+  });
+  document.querySelectorAll('[data-export]').forEach(b => b.addEventListener('click', () => {
+    closeExportMenu();
+    doExport(b.dataset.export);
+  }));
+  initExportMenu();
+  // help: "? Hilfe" in the header or ? outside text fields
+  initHelpDialog();
+  trackSiteHeaderHeight(); // the log's column names stick below the page header
+  watchEntryWidth();
+  $('#btn-map').addEventListener('click', toggleMap);
+  const sep = $('#csv-sep');
+  sep.value = prefGet(CSV_SEP_KEY, ';');
+  sep.addEventListener('change', () => prefSet(CSV_SEP_KEY, sep.value));
+  const csvCmt = $('#csv-comments');
+  csvCmt.checked = prefGet(CSV_COMMENTS_KEY) === '1';
+  csvCmt.addEventListener('change', () => prefSet(CSV_COMMENTS_KEY, csvCmt.checked ? '1' : ''));
+
+  const form = $('#entry-form');
+  form.addEventListener('submit', ev => { ev.preventDefault(); saveEntry(); });
+  form.addEventListener('input', onFormInput);
+  // Keyboard-only logging (one hand is on the microphone):
+  // Shift+Enter saves from any control, including dropdown items and radios;
+  // Enter in a field moves to the next one (an open dropdown takes Enter
+  // first and picks a suggestion); Esc discards.
+  form.addEventListener('keydown', ev => {
+    if (ev.key === 'Enter' && !isComposing(ev) && ev.shiftKey) {
+      ev.preventDefault();
+      saveEntry();
+    } else if (ev.key === 'Enter' && !isComposing(ev) && ev.target.tagName === 'INPUT') {
+      ev.preventDefault();
+      focusNext(form, ev.target);
+    } else if (ev.key === 'Escape' && !ev.defaultPrevented) {
+      // (Open completion dropdowns handle Esc themselves and stop it here.)
+      discardForm();
+    }
+  });
+  $('#f-call').addEventListener('change', prefillLocation);
+  // "!" in the empty callsign field = operator comment (before onFormInput).
+  $('#f-call').addEventListener('input', onCallInput);
+  document.querySelectorAll('#entry-mode button').forEach(b => b.addEventListener('click', () => switchEntryMode(b.dataset.mode === 'comment')));
+  buildCategoryChips();
+  // Backspace in the empty comment text goes back to a check-in.
+  $('#f-ctext').addEventListener('keydown', ev => {
+    if (ev.key === 'Backspace' && !ev.target.value && !state.editingId && !readForm().category) {
+      ev.preventDefault();
+      setCommentMode(false);
+      scheduleDraft();
+      $('#f-call').focus();
+    }
+  });
+  // Typo suggestions are guesses: Enter takes one only after ↓.
+  state.callPop = popover($('#f-call'), $('#call-suggest'), { enterPicksFirst: false });
+  state.lineRpt = createLineRepeater({
+    input: $('#f-rpt-q'), sug: $('#f-rpt-sug'),
+    getHeader: () => state.event?.header || emptyHeader(),
+    onChange: scheduleDraft,
+  });
+  $('#btn-discard').addEventListener('click', discardForm);
+
+  $('#dlg-copy').addEventListener('click', async () => {
+    $('#dlg-status').textContent = (await copyText($('#dlg-text').value)) ? 'kopiert ✓' : 'Kopieren nicht möglich – Text markieren und manuell kopieren.';
+  });
+
+  // Last-chance flush when the page is hidden or closed.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') { flushDraft(); flushHeader(); }
+  });
+  window.addEventListener('pagehide', () => { flushMarkers({ openForEdit: false }); flushDraft(); flushHeader(); });
+
+  setInterval(tickClock, 1000);
+  window.addEventListener('hashchange', route);
+}
+
+async function loadCallbook() {
+  const data = await loadDataFile('callsigns-oe.json');
+  state.callbook = buildCallbook(data);
+  fill($('#st-callbook'), state.callbook
+    ? sourceItem('callsigns', `Stand ${fmtStand(state.callbook.stand)}, ${state.callbook.calls.length} OE-Rufzeichen`)
+    : 'Rufzeichenliste nicht verfügbar');
+  renderHeaderHints($('#new-header'));
+  renderHeaderHints($('#log-header'));
+  if (state.event) {
+    updateCallFeedback();
+    renderLog();
+  }
+}
+
+async function loadRepeaterFooter() {
+  const idx = await loadRepeaterIndex();
+  fill($('#st-repeaters'), idx
+    ? sourceItem('repeaters', `Stand ${fmtStand(idx.retrieved.slice(0, 10))}, ${idx.list.length} Sprach-Relais`)
+    : 'Relaisliste nicht verfügbar');
+}
+
+async function main() {
+  globalThis.CONFIRM_STARTED = true;
+  state.store = await openStorageWithNotices(openStorage, $('#banner'));
+  if (!state.store) {
+    showFatal('Dieser Browser erlaubt keine lokale Speicherung (privater Modus?). Ohne Speicher kann nichts sicher geloggt werden.');
+    return;
+  }
+  $('#st-backend').textContent = state.store.kind === 'indexeddb' ? 'IndexedDB' : 'localStorage (Ersatzspeicher)';
+  if (state.store.kind !== 'indexeddb') {
+    const b = $('#banner');
+    b.className = 'banner warn';
+    b.textContent = 'IndexedDB nicht verfügbar – Daten liegen im kleineren localStorage. Häufig exportieren.';
+    b.hidden = false;
+  } else {
+    offerFallbackMigration(state.store, $('#banner'));
+  }
+  wire();
+  $('#st-tabs').hidden = !!navigator.locks;
+  trackOnline();
+  initTimeMode();
+  initLocationPanel();
+  setUtmReference(utmRefFromHeader);
+  // "UTMREF im Log zeigen" / its precision changed: redraw the info lines.
+  document.addEventListener('oe1ebg:utm-prefs', () => {
+    if (!state.event) return;
+    renderLog();
+    state.locField?.redraw();
+    $('#log-header')?._hdr?.qthField?.redraw();
+  });
+  initChannel();
+  initPersistence();
+  startOffline();
+  await refreshLastHeader();
+  try {
+    state.stations = new Map((await state.store.getAll('stations')).map(r => [r.call, r]));
+  } catch (e) {
+    console.warn('stations', e);
+  }
+  loadCallbook();
+  loadRepeaterFooter();
+  fill($('#st-map-wien'), sourceItem('districts', 'Karte'));
+  fill($('#st-map-lib'), sourceItem('leaflet', 'Kartenbibliothek'));
+  fill($('#st-source'), ' · ', repoLink('Quellcode', 'tools/confirm'));
+  route();
+  // Everything is wired: the browser tests wait for this.
+  globalThis.CONFIRM_READY = true;
+}
+
+main();

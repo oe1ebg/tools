@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>oe1ebg tools: previews and builds</title>
+<style>
+:root { color-scheme: light dark; --bg:#fff; --raised:#f5f5f7; --line:#d0d0d8; --text:#1b1b1f; --dim:#555a66;
+  --accent:#3f55d9; --warn-bg:#fff4d6; --warn-line:#9a6700; --warn-text:#3d2b00; }
+@media (prefers-color-scheme: dark) { :root { --bg:#0d0e12; --raised:#171922; --line:#3a3e4c; --text:#e4e5ea;
+  --dim:#a3a7b5; --accent:#8fa0ff; --warn-bg:#2d2406; --warn-line:#d4a017; --warn-text:#ffe9a8; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+main { max-width: 56rem; margin: 0 auto; padding: 1rem 1rem 4rem; }
+h1 { font-size: 1.6rem; margin: 1rem 0 .25rem; }
+h2 { font-size: 1.2rem; margin: 2rem 0 .5rem; }
+a { color: var(--accent); }
+code { font: .9em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.lead { color: var(--dim); margin: 0 0 1rem; }
+.warn { background: var(--warn-bg); color: var(--warn-text); border: 2px solid var(--warn-line); border-radius: 8px; padding: .75rem 1rem; margin: 1rem 0; }
+.warn p { margin: .3rem 0; }
+ul.entries { list-style: none; margin: 0; padding: 0; display: grid; gap: .6rem; }
+.entry { background: var(--raised); border: 1px solid var(--line); border-radius: 8px; padding: .6rem .85rem; }
+.head { font-weight: 600; overflow-wrap: anywhere; }
+.num { margin-right: .35rem; }
+.meta { color: var(--dim); font-size: .9rem; display: flex; flex-wrap: wrap; gap: .1rem 1rem; overflow-wrap: anywhere; }
+.links { display: flex; flex-wrap: wrap; gap: .25rem .9rem; margin-top: .35rem; }
+.links a.open { font-weight: 600; }
+.empty { color: var(--dim); font-style: italic; }
+footer { margin-top: 3rem; padding-top: .75rem; border-top: 1px solid var(--line); color: var(--dim); font-size: .85rem; }
+a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<main>
+<h1>oe1ebg tools: previews and builds</h1>
+<p class="lead">Builds of the oe1ebg tools: <code>main</code>, open pull requests and releases. A branch without an open pull request has no preview.</p>
+<div class="warn" role="note">
+<p><strong>Do not use real data here.</strong> Every entry on this site is served from the <em>same browser origin</em>. The tools store their logbooks, drafts and settings per origin (IndexedDB, localStorage), so <strong>all entries share one local logbook</strong>, and every entry (including a pull request preview of code nobody has reviewed yet) can read and change it. Their service workers also share the origin&rsquo;s cache storage.</p>
+<p>Use a separate browser profile for trying previews, test data only. Real logbooks belong on a dedicated origin such as <a href="https://oe1ebg.at/tools/">oe1ebg.at/tools/</a>.</p>
+<p>These are static previews without the security headers of the nginx example (Content-Security-Policy, framing protection); they do not replace the CI checks.</p>
+</div>
+<section aria-labelledby="k-main">
+<h2 id="k-main">Latest build of main</h2>
+<ul class="entries">
+<li class="entry">
+<div class="head">main</div>
+<div class="meta"><span>commit <a href="https://github.com/oe1ebg/tools/commit/05c73fe7bf6602c82bfb2d192cd25c801673e923"><code>05c73fe</code></a></span> <span>updated <time datetime="2026-10-22T22:08:24Z">2026-10-22 22:08:24 UTC</time></span></div>
+<div class="links"><a class="open" href="main/" aria-label="Open the tools overview of main">Open</a> <a href="main/confirm/" aria-label="Confirmation log of main">Confirmation log</a> <a href="main/notfunk/" aria-label="Notfunk log (draft) of main">Notfunk log (draft)</a> <a href="main/adif/" aria-label="ADIF editor of main">ADIF editor</a> <a href="main/sota-alerts/" aria-label="SOTA Alerts Map of main">SOTA Alerts Map</a> <a href="main/netlog/" aria-label="Netlog of main">Netlog</a> <a href="main/wavelog-import/" aria-label="Wavelog import of main">Wavelog import</a></div>
+</li>
+</ul>
+</section>
+<section aria-labelledby="k-pr">
+<h2 id="k-pr">Open pull requests</h2>
+<p class="empty">Nothing here at the moment.</p>
+</section>
+<section aria-labelledby="k-release">
+<h2 id="k-release">Releases</h2>
+<ul class="entries">
+<li class="entry">
+<div class="head"><a href="https://github.com/oe1ebg/tools/releases/tag/v0.8.2">v0.8.2</a></div>
+<div class="meta"><span>version <code>v0.8.2</code></span> <span>commit <a href="https://github.com/oe1ebg/tools/commit/05c73fe7bf6602c82bfb2d192cd25c801673e923"><code>05c73fe</code></a></span> <span>updated <time datetime="2026-10-22T22:15:02Z">2026-10-22 22:15:02 UTC</time></span></div>
+<div class="links"><a class="open" href="release/v0.8.2/" aria-label="Open the tools overview of release v0.8.2">Open</a> <a href="release/v0.8.2/confirm/" aria-label="Confirmation log of release v0.8.2">Confirmation log</a> <a href="release/v0.8.2/notfunk/" aria-label="Notfunk log (draft) of release v0.8.2">Notfunk log (draft)</a> <a href="release/v0.8.2/adif/" aria-label="ADIF editor of release v0.8.2">ADIF editor</a> <a href="release/v0.8.2/sota-alerts/" aria-label="SOTA Alerts Map of release v0.8.2">SOTA Alerts Map</a> <a href="release/v0.8.2/netlog/" aria-label="Netlog of release v0.8.2">Netlog</a> <a href="release/v0.8.2/wavelog-import/" aria-label="Wavelog import of release v0.8.2">Wavelog import</a></div>
+</li>
+<li class="entry">
+<div class="head"><a href="https://github.com/oe1ebg/tools/releases/tag/v0.8.1">v0.8.1</a></div>
+<div class="meta"><span>version <code>v0.8.1</code></span> <span>commit <a href="https://github.com/oe1ebg/tools/commit/66c91843d4a80d1f389c04216023b4924eb1bf2a"><code>66c9184</code></a></span> <span>updated <time datetime="2026-10-22T19:19:42Z">2026-10-22 19:19:42 UTC</time></span></div>
+<div class="links"><a class="open" href="release/v0.8.1/" aria-label="Open the tools overview of release v0.8.1">Open</a> <a href="release/v0.8.1/confirm/" aria-label="Confirmation log of release v0.8.1">Confirmation log</a> <a href="release/v0.8.1/notfunk/" aria-label="Notfunk log (draft) of release v0.8.1">Notfunk log (draft)</a> <a href="release/v0.8.1/adif/" aria-label="ADIF editor of release v0.8.1">ADIF editor</a> <a href="release/v0.8.1/sota-alerts/" aria-label="SOTA Alerts Map of release v0.8.1">SOTA Alerts Map</a> <a href="release/v0.8.1/netlog/" aria-label="Netlog of release v0.8.1">Netlog</a> <a href="release/v0.8.1/wavelog-import/" aria-label="Wavelog import of release v0.8.1">Wavelog import</a></div>
+</li>
+<li class="entry">
+<div class="head"><a href="https://github.com/oe1ebg/tools/releases/tag/v0.8.0">v0.8.0</a></div>
+<div class="meta"><span>version <code>v0.8.0</code></span> <span>commit <a href="https://github.com/oe1ebg/tools/commit/076119b401445449d24231e441a505d9e2915d00"><code>076119b</code></a></span> <span>updated <time datetime="2026-10-21T22:22:21Z">2026-10-21 22:22:21 UTC</time></span></div>
+<div class="links"><a class="open" href="release/v0.8.0/" aria-label="Open the tools overview of release v0.8.0">Open</a> <a href="release/v0.8.0/confirm/" aria-label="Confirmation log of release v0.8.0">Confirmation log</a> <a href="release/v0.8.0/notfunk/" aria-label="Notfunk log (draft) of release v0.8.0">Notfunk log (draft)</a> <a href="release/v0.8.0/adif/" aria-label="ADIF editor of release v0.8.0">ADIF editor</a> <a href="release/v0.8.0/sota-alerts/" aria-label="SOTA Alerts Map of release v0.8.0">SOTA Alerts Map</a> <a href="release/v0.8.0/netlog/" aria-label="Netlog of release v0.8.0">Netlog</a> <a href="release/v0.8.0/wavelog-import/" aria-label="Wavelog import of release v0.8.0">Wavelog import</a></div>
+</li>
+</ul>
+</section>
+<section aria-labelledby="k-data">
+<h2 id="k-data">Rolling data build (data-latest)</h2>
+<ul class="entries">
+<li class="entry">
+<div class="head">data-latest</div>
+<div class="meta"><span>version <code>v0.7.0</code></span> <span>commit <a href="https://github.com/oe1ebg/tools/commit/49107db60ba96ef93bb3dee0eee9fbbaaa79d314"><code>49107db</code></a></span> <span>updated <time datetime="2026-10-19T09:58:10Z">2026-10-19 09:58:10 UTC</time></span></div>
+<div class="links"><a class="open" href="release/data-latest/" aria-label="Open the tools overview of data-latest">Open</a> <a href="release/data-latest/confirm/" aria-label="Confirmation log of data-latest">Confirmation log</a> <a href="release/data-latest/notfunk/" aria-label="Notfunk log (draft) of data-latest">Notfunk log (draft)</a> <a href="release/data-latest/adif/" aria-label="ADIF editor of data-latest">ADIF editor</a> <a href="release/data-latest/sota-alerts/" aria-label="SOTA Alerts Map of data-latest">SOTA Alerts Map</a> <a href="release/data-latest/netlog/" aria-label="Netlog of data-latest">Netlog</a></div>
+</li>
+</ul>
+</section>
+<footer>Generated by <code>scripts/build_pages_index.py</code> at 2026-10-22 22:25:26 UTC. Source: <a href="https://github.com/oe1ebg/tools">github.com/oe1ebg/tools</a>.</footer>
+</main>
+</body>
+</html>
