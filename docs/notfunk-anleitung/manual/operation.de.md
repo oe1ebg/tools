@@ -1,12 +1,12 @@
 # Einen Einsatz anlegen
 
-[← Notfunk-Anleitung](index.md) · [Notfunk-Meldebuch öffnen](../notfunk/index.html)
+[← Notfunk-Anleitung](../index.de.md) · [Notfunk-Meldebuch öffnen](../../notfunk/index.html)
 { .doc-nav }
 
 Ein **Einsatz** (oder eine Übung) ist ein eigenes Meldebuch mit eigener
 Nummerierung. Legen Sie ihn mit **„+ Neuer Einsatz“** an.
 
-![Neuer Einsatz](../img/notfunk-einsatz-neu.png)
+![Neuer Einsatz](../../img/notfunk-einsatz-neu.png)
 
 | Feld | Bedeutung | Beispiel |
 | --- | --- | --- |
@@ -37,4 +37,4 @@ Operator, der sie aufgenommen hat.
 hatte; „Rückgängig“ stellt den Einsatz wieder her, wie er beim Öffnen des
 Feldes war.
 
-Weiter: [Eine Meldung aufnehmen](meldung.md)
+Weiter: [Eine Meldung aufnehmen](message.de.md)

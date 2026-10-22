@@ -1,9 +1,9 @@
 # Das Meldebuch
 
-[← Notfunk-Anleitung](index.md) · [Notfunk-Meldebuch öffnen](../notfunk/index.html)
+[← Notfunk-Anleitung](../index.de.md) · [Notfunk-Meldebuch öffnen](../../notfunk/index.html)
 { .doc-nav }
 
-![Meldebuch](../img/notfunk-meldebuch.png)
+![Meldebuch](../../img/notfunk-meldebuch.png)
 
 Das Meldebuch zeigt alle Meldungen eines Einsatzes, die neuesten zuerst.
 Oben steht die Zusammenfassung: offene Notfälle, noch nicht bestätigte
@@ -46,7 +46,7 @@ Meldung gespeichert wird.
 
 ## Die Karte
 
-![Karte der Meldungen](../img/notfunk-karte.png)
+![Karte der Meldungen](../../img/notfunk-karte.png)
 
 *Im Bild der Beispiel-Einsatz zum Ausprobieren
 ([notfunk-full.json](https://github.com/oe1ebg/tools/blob/main/examples/backups/notfunk-full.json),
@@ -62,7 +62,7 @@ Station. Unter der Karte steht, welche Meldungen keinen Ort haben.
 
 ## Eine Meldung im Detail
 
-![Meldung im Detail](../img/notfunk-meldung-detail.png)
+![Meldung im Detail](../../img/notfunk-meldung-detail.png)
 
 Ein Klick auf die Zeile (oder die Nummer) öffnet die Meldung: oben Status,
 Art, Richtung und Zeit, dann **Von → An**, der **Wortlaut**, darunter
@@ -89,9 +89,9 @@ Weitere Knöpfe bei der Meldung:
   Bezug ist gesetzt.
 - **Bearbeiten:** korrigiert die Meldung; die vorige Fassung bleibt
   gespeichert.
-- **Ausdruck / PDF:** siehe [Ausdruck und PDF](ausdruck.md).
+- **Ausdruck / PDF:** siehe [Ausdruck und PDF](printout.de.md).
 - **Löschen:** die Meldung verschwindet aus der Liste, ihre Nummer bleibt
   vergeben und wird nie wieder verwendet. Unter „Gelöschte Meldungen“ lässt
   sie sich wiederherstellen.
 
-Weiter: [Ausdruck und PDF](ausdruck.md)
+Weiter: [Ausdruck und PDF](printout.de.md)

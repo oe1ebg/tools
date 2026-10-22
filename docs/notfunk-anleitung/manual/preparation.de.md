@@ -1,6 +1,6 @@
 # Vorbereitung
 
-[← Notfunk-Anleitung](index.md) · [Notfunk-Meldebuch öffnen](../notfunk/index.html)
+[← Notfunk-Anleitung](../index.de.md) · [Notfunk-Meldebuch öffnen](../../notfunk/index.html)
 { .doc-nav }
 
 Was Sie vor einem Einsatz oder einer Übung erledigen sollten.
@@ -23,7 +23,7 @@ Die installierte App liegt wie jedes andere Programm auf dem Gerät, mit
 eigenem Symbol und eigenem Fenster, und läuft ohne Internet. Dafür öffnen
 Sie das Meldebuch **einmal mit Internet**:
 
-1. Öffnen Sie das [Notfunk-Meldebuch](../notfunk/index.html) im Browser und
+1. Öffnen Sie das [Notfunk-Meldebuch](../../notfunk/index.html) im Browser und
    warten Sie, bis oben rechts **„offline bereit ✓“** steht. Dabei lädt es
    alles, was es braucht (Rufzeichenliste, Relaisliste, Wiener Adressen).
 2. Installieren Sie es:
@@ -49,21 +49,21 @@ selbst wieder ein.
 Für Laptops ohne Internet, oder als zweite Absicherung, gibt es die
 **Offline-Datei**: eine einzelne HTML-Datei (etwa 7 MB), die alles enthält.
 Sie finden sie unten auf der Startseite des Werkzeugs oder hier:
-[Offline-Datei herunterladen](../notfunk/notfunk-offline.html){ download="notfunk-meldebuch-offline.html" }.
+[Offline-Datei herunterladen](../../notfunk/notfunk-offline.html){ download="notfunk-meldebuch-offline.html" }.
 Kopieren Sie sie auf einen USB-Stick oder das Gerät
 und öffnen Sie sie mit einem Doppelklick im Browser; es braucht keine
 Installation und kein Internet.
 
 - Die Offline-Datei und die installierte App haben **getrennte Daten**.
   Entscheiden Sie sich in einem Einsatz für **eine** davon; zum Umziehen
-  verwenden Sie die [Sicherung](sicherung.md).
+  verwenden Sie die [Sicherung](backup.de.md).
 
 ## Papier als Rückfall
 
 Auch das beste Gerät kann ausfallen. Drucken Sie vor dem Einsatz das
-[leere Formular](ausdruck.md#das-leere-formular-fur-papier) aus und halten Sie
+[leere Formular](printout.de.md#das-leere-formular-fur-papier) aus und halten Sie
 einen Stapel bereit (zusammen mit Stift und Notizpapier); [hier
-herunterladen](../downloads/notfunk-vordruck.pdf){ download="notfunk-vordruck.pdf" }.
+herunterladen](../../downloads/notfunk-vordruck.pdf){ download="notfunk-vordruck.pdf" }.
 
 ## Daten sichern
 
@@ -78,7 +78,7 @@ Alle Meldungen liegen nur auf diesem Gerät. Sichern Sie deshalb regelmäßig.
 - Steht oben **„Speicher dauerhaft ✓“**, löscht der Browser die Daten nicht von
   selbst. Steht dort „nicht dauerhaft“, sichern Sie besonders oft.
 
-Mehr dazu: [Sicherung und Wiederherstellung](sicherung.md).
+Mehr dazu: [Sicherung und Wiederherstellung](backup.de.md).
 
 ## Neue Version
 
@@ -96,6 +96,6 @@ klicken; mit „Später“ schließen Sie den Balken.
   nicht neu. Eine rote Meldung unter der Kopfzeile sagt, was zu tun ist; sie
   bietet die möglichen Schritte gleich als Knöpfe an.
 
-![Update wartet: Eingabe klären](../img/notfunk-update-wartet.png)
+![Update wartet: Eingabe klären](../../img/notfunk-update-wartet.png)
 
-Weiter: [Einen Einsatz anlegen](einsatz.md)
+Weiter: [Einen Einsatz anlegen](operation.de.md)

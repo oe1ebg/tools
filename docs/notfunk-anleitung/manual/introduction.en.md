@@ -1,28 +1,9 @@
-# Notfunk logbook: introduction and tutorial
+# Introduction: the path of an emergency message
 
-[Open the Notfunk logbook <span aria-hidden="true">→</span>](../notfunk/index.html){ .tool-launch }
-[All tools](../index.md) ·
-[Deutsche Anleitung (full manual)](index.md) ·
-[Empty form (PDF)](../downloads/notfunk-vordruck.pdf){ download="notfunk-vordruck.pdf" } ·
-[Source code](https://github.com/oe1ebg/tools/tree/main/tools/notfunk)
-{ .tool-actions }
+[← Notfunk logbook (English)](../index.en.md) · [Open the Notfunk logbook](../../notfunk/index.html)
+{ .doc-nav }
 
-The [Notfunk logbook](../notfunk/index.html) (*Notfunk-Meldebuch*) is a logbook
-for emergency radio in Vienna, Austria: take down messages, number them
-without gaps, hand them over, transmit them and print them. It runs entirely
-in the browser, works offline, and keeps all data on the device. The tool
-itself is in German; this page explains the idea and walks through an
-example. The complete reference of every field and button is the
-[German manual](index.md).
-
-!!! warning "Draft"
-    The message format has not yet been agreed with the Notfunkreferat Wien
-    and the Meldesammelstelle. Fields, labels and urgency levels may change.
-    Intended for exercises.
-
-## Introduction: the path of an emergency message
-
-### The situation
+## The situation
 
 In a large-scale communication outage, such as a blackout, the usual ways
 fail: calls to emergency numbers by phone or mobile no longer get through.
@@ -31,9 +12,9 @@ light"), places run by religious communities where citizens can get help
 and information. They are equipped with radios and, where possible, staffed
 by radio amateurs of the Notfunkreferat. A message from the neighbourhood
 can thus reach the city's crisis management even when nothing else works
-([sources](#sources)).
+([sources](../reference/sources.en.md)).
 
-### The path of a message
+## The path of a message
 
 Someone comes to the Lichtinsel with an emergency. Their message is
 **taken down**, **relayed by radio**, **received** by the crisis staff and
@@ -162,9 +143,9 @@ Two kinds of feedback differ:
 
 Which stations a message actually passes depends on the situation; the
 picture shows the regular path of the *Richtlinie Notfunk Teil 2 – Wien*
-([sources](#sources)).
+([sources](../reference/sources.en.md)).
 
-### What radio amateurs do, and what they don't
+## What radio amateurs do, and what they don't
 
 In this chain radio amateurs are **messengers**, nothing more. The guideline
 says: amateur stations should not create messages themselves, only transmit
@@ -191,7 +172,7 @@ write on paper and enter the message afterwards ("Nachtrag vom Papier").
 The logbook helps: the wording is stored unchanged, numbers are gapless,
 every version is kept, and it shows who handed over what and when.
 
-### Where the logbook fits in
+## Where the logbook fits in
 
 Every station keeps a logbook and every message gets a number. A message's
 progress is its status:
@@ -211,109 +192,7 @@ The logbook is built to run reliably offline. Even so, be prepared for
 **paper-only** operation in case the device or the power fails: **print the
 paper forms in advance** and keep a stack ready (link below). Enter the
 messages in the logbook afterwards.
-[Download the empty form (PDF)](../downloads/notfunk-vordruck.pdf){ download="notfunk-vordruck.pdf" }
+[Download the empty form (PDF)](../../downloads/notfunk-vordruck.pdf){ download="notfunk-vordruck.pdf" }
 (German; the same form the tool prints). Personal data must be deleted when
 no longer needed; the logbook never deletes by itself, so you manage
 operations and backups yourself.
-
-## Tutorial: a message from the Lichtinsel to the staff
-
-The example: exercise "Blackout Wien". You are a radio amateur at the
-Lichtinsel Floridsdorf. Ms Huber, head of nursing at a care home at
-Brünner Straße 68, arrives on foot: the emergency generator only runs until
-about 18:00, and 6 ventilated residents depend on the power. The home needs
-diesel for the generator.
-Callsigns and names are made up.
-
-### 1. Prepare
-
-1. [Open the logbook](../notfunk/index.html) once with internet and install it
-   as an app (browser menu: "Install app" / "Add to Home Screen"); afterwards
-   it works offline ("offline bereit ✓" top right). For laptops without
-   internet there is a single offline HTML file to carry on a USB stick.
-2. **"+ Neuer Einsatz"** (new operation): operation name, station prefix
-   **W1**, your station callsign, location, operator, "Für Stelle" **Stab**
-   and the frequency of the local network. Then "Einsatz anlegen".
-
-    ![New operation](../img/notfunk-einsatz-neu.png)
-
-   The prefix stands before every number. If the Lichtinsel has two
-   devices, each gets its own prefix (W1, W2) so numbers never collide.
-
-### 2. Take down the message
-
-You transmit the message, so the direction is **Ausgang (↑)**.
-
-1. **Richtung:** Ausgang. **Übermittlung:** Funk. **Funkstelle:** the
-   callsign of the station you transmit to (OE1DEF, the K-Vorsorgestandort).
-2. **Von:** "Pflegeheim Brünner Straße 68, Frau Huber"; **An:** "Stab". The
-   sender is the person, not you.
-3. **Dringlichkeit:** "Dringend" (to be transmitted before routine);
-   "Notfall" is for immediate danger to life. When in doubt, ask the control
-   station.
-4. **Betreff** (subject) and **Ort** (location; the address search suggests
-   matches offline).
-5. **Inhalt – wörtlich:** the exact wording.
-6. **Rücklesen** (recommended, not mandatory): read the message back to the
-   person; when they say "right", tick the box, otherwise leave it empty.
-
-    ![The form "Neue Meldung"](../img/notfunk-tutorial-meldung.png)
-
-7. **Save** with <kbd>⇧</kbd>+<kbd>Enter</kbd>. Only now the number is
-   assigned: **W1-001**.
-
-### 3. Transmit and record it
-
-1. In the message's row click **"übertragen"** and enter who you transmitted
-   to (time empty = now).
-2. When the other station has confirmed receipt (and read back, if you did), enter **"Empfang
-   bestätigt"**.
-3. When the Meldesammelstelle reports a **reference** ("GZ 0412"), enter it.
-
-    ![The message with its flow](../img/notfunk-tutorial-ablauf.png)
-
-### 4. Receive the reply
-
-1. Open W1-001 and choose **"Antwort erfassen"**: the form opens as
-   **Eingang** with sender and addressee swapped and the reference set.
-2. Enter the exact wording of the reply, read it back, save (**W1-002**).
-   W1-001 is now **beantwortet**.
-3. Tell Ms Huber, and record that you passed it on.
-
-    ![The logbook after the reply](../img/notfunk-tutorial-buch.png)
-
-### 5. At the end
-
-Download a **backup (JSON)** (the status top right counts messages not yet
-backed up), and print messages or the whole logbook as PDF. Details are in
-the [German manual](index.md).
-
-## Sources
-
-The introduction rests on these documents; they apply, not this page.
-
-- **Richtlinie Notfunk, Teil 2 – Wien**, edition 1.0 of 2024-10-20,
-  Notfunkreferat of the Landesverband Wien of the ÖVSV:
-  [Richtlinie-NF-Wien-1_0.pdf](https://oe1.oevsv.at/export/sites/oe1/not-und-katastrophenfunk/doc/Richtlinie-NF-Wien-1_0.pdf)
-  (network structure, message handling, operating technique, frequencies,
-  documentation, data protection).
-- **ÖVSV Landesverband Wien (OE1):** [oe1.oevsv.at](https://oe1.oevsv.at/).
-- **ÖVSV wiki, category Notfunk:**
-  [wiki.oevsv.at/wiki/Kategorie:NOTFUNK](https://wiki.oevsv.at/wiki/Kategorie:NOTFUNK).
-- **SKKM-Richtlinie für das Führen im Katastropheneinsatz** (Federal Ministry
-  of the Interior):
-  [PDF](https://www.bmi.gv.at/204/download/files/skkm-richtlinie-fuer-das-fuehren-im-katastropheneinsatz_bf_20260820.pdf).
-- **ÖBFV Info E-31** (2022):
-  [PDF](https://www.bundesfeuerwehrverband.at/wp-content/uploads/2022/12/E-31-Info_2022.pdf).
-- **Lichtinseln of the City of Vienna:**
-  [ORF Wien](https://wien.orf.at/stories/3253406/),
-  [Erzdiözese Wien](https://erzdioezese-wien.at/site/home/nachrichten/article/128073.html)
-  (background).
-- **Legal basis named by the guideline:** Datenschutzgesetz § 10 in the
-  [Rechtsinformationssystem](https://www.ris.bka.gv.at/); [W-KKG, LGBl.
-  60/2003](https://www.gemeinderecht.wien.at/recht/landesrecht-wien/landesgesetzblatt/jahrgang/2003/pdf/lg2003060.pdf).
-
----
-
-[Open the Notfunk logbook <span aria-hidden="true">→</span>](../notfunk/index.html){ .tool-launch }
-{ .tool-actions }

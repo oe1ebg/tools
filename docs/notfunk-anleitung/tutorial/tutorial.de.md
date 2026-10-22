@@ -1,6 +1,6 @@
 # Tutorial: eine Notmeldung von der Lichtinsel zum Stab
 
-[← Notfunk-Anleitung](index.md) · [Notfunk-Meldebuch öffnen](../notfunk/index.html)
+[← Notfunk-Anleitung](../index.de.md) · [Notfunk-Meldebuch öffnen](../../notfunk/index.html)
 { .doc-nav }
 
 Das Beispiel: Übung „Blackout Wien“. Sie sind Funkamateur an der Lichtinsel
@@ -17,16 +17,16 @@ einen eigenen Einsatz an, dann sehen Sie jeden Schritt.
 
 ## 1. Vorbereiten
 
-1. [Notfunk-Meldebuch öffnen](../notfunk/index.html), einmal mit Internet, und
+1. [Notfunk-Meldebuch öffnen](../../notfunk/index.html), einmal mit Internet, und
    als App installieren; danach läuft es auch offline („offline bereit ✓“
-   oben rechts, [Vorbereitung](vorbereitung.md)).
+   oben rechts, [Vorbereitung](../manual/preparation.de.md)).
 2. **„+ Neuer Einsatz“.** Tragen Sie ein: Einsatz „Übung Blackout Wien“,
    Stationskürzel **W1**, Ihr Stationsrufzeichen (hier OE1ABC), den Standort
    („Lichtinsel 12 Floridsdorf“), Ihr Rufzeichen als Operator, „Für Stelle“
    **Stab** und die Frequenz des lokalen Informationsnetzes.
    Dann „Einsatz anlegen“.
 
-    ![Neuer Einsatz](../img/notfunk-einsatz-neu.png)
+    ![Neuer Einsatz](../../img/notfunk-einsatz-neu.png)
 
    Das Stationskürzel steht vor jeder Nummer. Hat die Lichtinsel zwei
    Geräte, bekommt jedes ein eigenes Kürzel (W1, W2), damit die Nummern nie
@@ -44,7 +44,7 @@ die Meldung **weiterfunken**, ist die Richtung **Ausgang (↑)**.
    Den Absender nennt die Person, nicht Sie.
 3. **Dringlichkeit:** hier „Dringend“ (vor Routine zu übermitteln); „Notfall“
    ist für Gefahr für Leib und Leben, die sofort droht
-   ([Dringlichkeit](meldung.md#dringlichkeit)). Im Zweifel fragen Sie die Leitstelle.
+   ([Dringlichkeit](../manual/message.de.md#dringlichkeit)). Im Zweifel fragen Sie die Leitstelle.
 4. **Betreff:** „Stromausfall Pflegeheim, Diesel benötigt“. **Ort:** die
    Adresse; beim Tippen schlägt die Ortssuche Treffer vor (offline).
 5. **Inhalt – wörtlich:** der Wortlaut, wie ihn Frau Huber nennt.
@@ -52,7 +52,7 @@ die Meldung **weiterfunken**, ist die Richtung **Ausgang (↑)**.
    Person vor. Sagt sie „stimmt“,
    setzen Sie das Häkchen (<kbd>Leertaste</kbd>).
 
-    ![Formular „Neue Meldung“](../img/notfunk-tutorial-meldung.png)
+    ![Formular „Neue Meldung“](../../img/notfunk-tutorial-meldung.png)
 
 7. **Speichern** mit <kbd>⇧</kbd>+<kbd>Enter</kbd>. Erst jetzt wird die
    Nummer vergeben, hier **W1-001**. Fehlt etwas, das nicht zwingend ist
@@ -74,7 +74,7 @@ liest zurück.
 3. Nennt die Meldesammelstelle später eine **Referenz** (hier „GZ 0412“),
    tragen Sie sie in der Meldung ein.
 
-    ![Meldung im Detail mit Ablauf](../img/notfunk-tutorial-ablauf.png)
+    ![Meldung im Detail mit Ablauf](../../img/notfunk-tutorial-ablauf.png)
 
 Der **Ablauf** rechts in der Meldung zeigt jeden Schritt mit Uhrzeit und
 Operator. Hier endet Ihre Aufgabe für diese Meldung, bis die Antwort kommt.
@@ -94,18 +94,18 @@ K-Vorsorgestandort an Sie.
 4. Sagen Sie Frau Huber die Antwort, und halten Sie fest, dass Sie sie
    weitergegeben haben („übergeben“ an Frau Huber).
 
-    ![Das Meldebuch nach der Antwort](../img/notfunk-tutorial-buch.png)
+    ![Das Meldebuch nach der Antwort](../../img/notfunk-tutorial-buch.png)
 
 ## 5. Am Ende
 
 - **Sichern:** Der Sicherungsstand oben rechts zeigt, wie viele Meldungen
   noch nicht gesichert sind; ein Klick lädt eine Sicherung (JSON) herunter
-  ([Exporte und Sicherung](sicherung.md)). Legen Sie die Datei
+  ([Exporte und Sicherung](../manual/backup.de.md)). Legen Sie die Datei
   an einen sicheren Ort.
-- **Drucken:** Das leere Formular für die Arbeit auf Papier: [Leeres Formular (PDF) herunterladen](../downloads/notfunk-vordruck.pdf){ download="notfunk-vordruck.pdf" }. Eine einzelne Meldung als Formular, das ganze Meldebuch oder
-  einen Zeitraum als PDF ([Ausdruck und PDF](ausdruck.md)).
+- **Drucken:** Das leere Formular für die Arbeit auf Papier: [Leeres Formular (PDF) herunterladen](../../downloads/notfunk-vordruck.pdf){ download="notfunk-vordruck.pdf" }. Eine einzelne Meldung als Formular, das ganze Meldebuch oder
+  einen Zeitraum als PDF ([Ausdruck und PDF](../manual/printout.de.md)).
 - **Schichtwechsel:** den Operator im Feld „Einsatz“ ändern.
 - Wenn etwas schiefgeht (anderer Tab, Update, voller Speicher), sagen die
-  Hinweise, was zu tun ist ([Speichern, Hinweise, Verwerfen](meldung.md#speichern-hinweise-verwerfen)).
+  Hinweise, was zu tun ist ([Speichern, Hinweise, Verwerfen](../manual/message.de.md#speichern-hinweise-verwerfen)).
 
-Weiter: [Vorbereitung](vorbereitung.md)
+Weiter: [Vorbereitung](../manual/preparation.de.md)

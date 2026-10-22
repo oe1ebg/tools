@@ -1,6 +1,6 @@
 # Tastatur und Hilfe
 
-[← Notfunk-Anleitung](index.md) · [Notfunk-Meldebuch öffnen](../notfunk/index.html)
+[← Notfunk-Anleitung](../index.de.md) · [Notfunk-Meldebuch öffnen](../../notfunk/index.html)
 { .doc-nav }
 
 ## Tastatur
@@ -18,7 +18,7 @@
 
 ## Hilfe im Werkzeug
 
-![Hilfe](../img/notfunk-hilfe.png)
+![Hilfe](../../img/notfunk-hilfe.png)
 
 **„? Hilfe“** (ganz rechts in der Kopfzeile) oder <kbd>F1</kbd> öffnet die
 Kurzhilfe über dem Formular. Ihre Eingabe bleibt, wie sie ist; nach dem

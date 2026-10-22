@@ -1,6 +1,6 @@
 # Eine Meldung aufnehmen
 
-[← Notfunk-Anleitung](index.md) · [Notfunk-Meldebuch öffnen](../notfunk/index.html)
+[← Notfunk-Anleitung](../index.de.md) · [Notfunk-Meldebuch öffnen](../../notfunk/index.html)
 { .doc-nav }
 
 Das Formular steht im Meldebuch ganz oben. Die nächste Nummer wird angezeigt
@@ -20,7 +20,7 @@ Das Formular steht im Meldebuch ganz oben. Die nächste Nummer wird angezeigt
 „Übergeben“ oder „übertragen“ heißt nie, dass ein Auftrag im Inhalt erledigt
 ist.
 
-[![Das Formular „Neue Meldung“ mit beschrifteten und nach Zusammengehörigkeit farbig gruppierten Feldern. Kopf: Nummer, Richtung. Wann und wie: Zeit, Übermittlung, Funkstelle, Frequenz und Relais, Dringlichkeit. Wer und was: Von, An, Betreff, Ort, Inhalt. Abschluss: Rücklesen, Weitere Felder, Speichern](../img/notfunk-formular-beschriftet.png){ .wide }](../img/notfunk-formular-beschriftet.png)
+[![Das Formular „Neue Meldung“ mit beschrifteten und nach Zusammengehörigkeit farbig gruppierten Feldern. Kopf: Nummer, Richtung. Wann und wie: Zeit, Übermittlung, Funkstelle, Frequenz und Relais, Dringlichkeit. Wer und was: Von, An, Betreff, Ort, Inhalt. Abschluss: Rücklesen, Weitere Felder, Speichern](../../img/notfunk-formular-beschriftet.png){ .wide }](../../img/notfunk-formular-beschriftet.png)
 
 Jedes Feld ist im Bild beschriftet; die Farben zeigen, was zusammengehört. Wenn Sie die Meldung **empfangen** haben, wählen Sie „Eingang“; wenn Sie sie
 **weiterfunken**, „Ausgang“. Zeiten und Daten geben Sie so ein, wie sie
@@ -86,7 +86,7 @@ Speichern nach.
 
 ## Speichern, Hinweise, Verwerfen
 
-![Hinweis vor dem Speichern](../img/notfunk-hinweis.png)
+![Hinweis vor dem Speichern](../../img/notfunk-hinweis.png)
 
 - <kbd>⇧</kbd>+<kbd>Enter</kbd> oder <kbd>Strg</kbd>+<kbd>Enter</kbd> (am Mac
   auch <kbd>⌘</kbd>+<kbd>Enter</kbd>) speichert, aus jedem Feld.
@@ -107,7 +107,7 @@ Speichern nach.
   im Formular. Laden Sie dann sofort eine Sicherung herunter.
 
 Arbeiten Sie an einem Einsatz nur in **einem** Fenster. Was passiert, wenn es
-doch zwei sind, steht unter [Wenn etwas nicht klappt](hinweise.md).
+doch zwei sind, steht unter [Wenn etwas nicht klappt](../reference/notices.de.md).
 
 ## Dringlichkeit
 
@@ -117,4 +117,4 @@ doch zwei sind, steht unter [Wenn etwas nicht klappt](hinweise.md).
 | Dringend | vor Routine-Meldungen übermitteln und bearbeiten |
 | Notfall | Gefahr für Leib und Leben oder unmittelbar drohender großer Schaden: sofort |
 
-Weiter: [Das Meldebuch](meldebuch.md)
+Weiter: [Das Meldebuch](logbook.de.md)

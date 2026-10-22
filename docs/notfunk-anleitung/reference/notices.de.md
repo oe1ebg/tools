@@ -1,6 +1,6 @@
 # Wenn etwas nicht klappt
 
-[← Notfunk-Anleitung](index.md) · [Notfunk-Meldebuch öffnen](../notfunk/index.html)
+[← Notfunk-Anleitung](../index.de.md) · [Notfunk-Meldebuch öffnen](../../notfunk/index.html)
 { .doc-nav }
 
 Das Meldebuch überschreibt nie stillschweigend etwas. Arbeiten Sie an einem
@@ -15,7 +15,7 @@ geschrieben, die aktuelle Fassung ist geladen, und Ihre Eingabe steht noch im
 Formular. Prüfen Sie und speichern Sie erneut; übernommen werden dann nur die
 Felder, die Sie selbst geändert haben.
 
-![Hinweis NICHT GESPEICHERT](../img/notfunk-nicht-gespeichert.png)
+![Hinweis NICHT GESPEICHERT](../../img/notfunk-nicht-gespeichert.png)
 
 ## „ENTWURF NICHT GESICHERT“
 
@@ -23,7 +23,7 @@ Zwei Fenster haben je einen Entwurf für diesen Einsatz; es gibt aber nur einen.
 Wählen Sie „Meinen Entwurf sichern (ersetzt den anderen)“ oder „Den anderen
 Entwurf laden (ersetzt meine Eingabe)“.
 
-![Hinweis ENTWURF NICHT GESICHERT](../img/notfunk-entwurf-nicht-gesichert.png)
+![Hinweis ENTWURF NICHT GESICHERT](../../img/notfunk-entwurf-nicht-gesichert.png)
 
 ## „ENTWURF PRÜFEN“
 
@@ -33,7 +33,7 @@ die aktuelle Fassung anwenden“ bleibt Ihre Eingabe im Formular, mit „Entwurf
 verwerfen (gespeicherte Fassung laden)“ gilt die gespeicherte Fassung. Bis zur
 Wahl wird nichts gespeichert.
 
-![Hinweis ENTWURF PRÜFEN](../img/notfunk-entwurf-pruefen.png)
+![Hinweis ENTWURF PRÜFEN](../../img/notfunk-entwurf-pruefen.png)
 
 ## „ENTWURF – die Meldung gibt es nicht mehr“
 
@@ -48,11 +48,11 @@ erneut.
 
 ## „Update wartet“
 
-Siehe [Vorbereitung, Neue Version](vorbereitung.md#neue-version).
+Siehe [Vorbereitung, Neue Version](../manual/preparation.de.md#neue-version).
 
 ## „localStorage (Ersatzspeicher)“ in der Fußzeile
 
 Der Speicher des Browsers ist eingeschränkt. Verwenden Sie dann nur **ein**
 Fenster und sichern Sie häufig.
 
-Weiter: [Tastatur und Hilfe](tastatur.md)
+Weiter: [Tastatur und Hilfe](keyboard.de.md)

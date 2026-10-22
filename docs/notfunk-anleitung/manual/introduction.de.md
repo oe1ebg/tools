@@ -1,6 +1,6 @@
 # Einführung: der Weg einer Notmeldung
 
-[← Notfunk-Anleitung](index.md) · [Notfunk-Meldebuch öffnen](../notfunk/index.html)
+[← Notfunk-Anleitung](../index.de.md) · [Notfunk-Meldebuch öffnen](../../notfunk/index.html)
 { .doc-nav }
 
 ## Die Lage
@@ -13,7 +13,7 @@ diesen Fall **Lichtinseln** ein, Anlaufstellen der Religionsgemeinschaften
 Hilfe und Information bekommen. Die Lichtinseln sind mit Funk ausgerüstet
 und, wo es sich ausgeht, mit Funkamateuren des Notfunkreferats besetzt. So
 kommt eine Meldung aus der Nachbarschaft zum Krisenmanagement der Stadt,
-auch wenn sonst nichts mehr geht ([Quellen](index.md#quellen): Richtlinie, Lichtinseln).
+auch wenn sonst nichts mehr geht ([Quellen](../reference/sources.de.md): Richtlinie, Lichtinseln).
 
 ## Der Weg einer Meldung
 
@@ -152,7 +152,7 @@ Zwei Rückmeldungen sind zu unterscheiden:
   hat. Sie ist eine eigene Meldung mit Bezug auf die ursprüngliche.
 
 Welche Stationen der Weg im Einzelfall wirklich berührt, hängt von der Lage
-ab. Das Bild zeigt den Regelweg der [Richtlinie Notfunk Teil 2 – Wien](index.md#quellen).
+ab. Das Bild zeigt den Regelweg der [Richtlinie Notfunk Teil 2 – Wien](../reference/sources.de.md).
 
 ## Was Funkamateure dabei tun, und was nicht
 
@@ -213,7 +213,7 @@ selbst gilt, nicht diese Zusammenfassung):
   ist dafür gebaut, auch ohne Internet zuverlässig zu laufen. Trotzdem
   müssen Sie auf einen Betrieb **nur mit Papier** vorbereitet sein, falls
   Gerät oder Strom ausfallen: **Drucken Sie die Papierformulare vorher aus**
-  und halten Sie sie bereit: [Leeres Formular (PDF) herunterladen](../downloads/notfunk-vordruck.pdf){ download="notfunk-vordruck.pdf" } ([Ausdruck und PDF](ausdruck.md)).
+  und halten Sie sie bereit: [Leeres Formular (PDF) herunterladen](../../downloads/notfunk-vordruck.pdf){ download="notfunk-vordruck.pdf" } ([Ausdruck und PDF](printout.de.md)).
 - Personenbezogene Daten sind zu löschen, wenn sie nicht mehr gebraucht
   werden (Richtlinie, Abschnitt Datenschutz). Das Meldebuch löscht nie von
   selbst; Einsätze und Sicherungen verwaltet man selbst.
@@ -228,4 +228,4 @@ aktuelle Ausgabe gilt):
 | Taktisches Netz | 70 cm, DMR | ELS und K-Vorsorgestandorte |
 | Notruffrequenz | 145,500 MHz | wird nach Möglichkeit mitgehört |
 
-Weiter: [Tutorial](tutorial.md)
+Weiter: [Tutorial](../tutorial/tutorial.de.md)
