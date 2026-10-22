@@ -52,7 +52,7 @@ export async function annotate(context, png, size, notes, outPath, { legend = []
       svg.setAttribute('height', size.height + oy);
       svg.style.cssText = 'position:absolute;left:20px;top:20px;overflow:visible';
       const colors = [...new Set(notes.map(n => n.color || COLOR))];
-      svg.innerHTML = `<defs>${colors.map((c, i) => `<marker id="a${i}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto"><path d="M0 0L10 5L0 10z" fill="${c}"/></marker>`).join('')}</defs>`;
+      svg.innerHTML = `<defs>${colors.map((c, i) => `<marker id="a${i}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="${c}"/></marker>`).join('')}</defs>`;
       wrap.append(svg);
       const label = (n, x) => {
         const el = document.createElement('div');
