@@ -36,7 +36,8 @@ body {
 }
 
 .doc table { border-collapse: collapse; }
-.doc th, .doc td { border: 1px solid var(--line); padding: .3em .6em; text-align: left; }
+.doc a { overflow-wrap: anywhere; }
+.doc th, .doc td { border: 1px solid var(--line); padding: .3em .6em; text-align: left; overflow-wrap: anywhere; }
 
 .doc-nav { font-size: .9em; }
 
