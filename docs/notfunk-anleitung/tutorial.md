@@ -6,8 +6,9 @@
 Das Beispiel: Übung „Blackout Wien“. Sie sind Funkamateur an der Lichtinsel
 Floridsdorf. Frau Huber, Pflegedienstleiterin eines Pflegeheims in der
 Brünner Straße 68, kommt zu Fuß: Das Notstromaggregat läuft nur bis etwa
-18 Uhr, 6 beatmete Bewohner sind in Gefahr. Sie brauchen Diesel. Rufzeichen
-und Namen im Beispiel sind frei erfunden.
+18 Uhr, und 6 beatmete Bewohner sind auf den Strom angewiesen. Das Heim
+braucht Diesel für das Aggregat. Rufzeichen und Namen im Beispiel sind frei
+erfunden.
 
 Zum Nachspielen gibt es eine fertige Datei:
 [notfunk-full.json](https://github.com/oe1ebg/tools/blob/main/examples/backups/notfunk-full.json)
