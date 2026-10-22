@@ -1,19 +1,19 @@
 # Notfunk logbook: introduction and tutorial
 
-[Open the Notfunk logbook <span aria-hidden="true">→</span>](notfunk/index.html){ .tool-launch }
-[All tools](index.md) ·
-[Deutsche Anleitung (full reference)](notfunk-anleitung.md) ·
-[Empty form (PDF)](downloads/notfunk-vordruck.pdf){ download="notfunk-vordruck.pdf" } ·
+[Open the Notfunk logbook <span aria-hidden="true">→</span>](../notfunk/index.html){ .tool-launch }
+[All tools](../index.md) ·
+[Deutsche Anleitung (full manual)](index.md) ·
+[Empty form (PDF)](../downloads/notfunk-vordruck.pdf){ download="notfunk-vordruck.pdf" } ·
 [Source code](https://github.com/oe1ebg/tools/tree/main/tools/notfunk)
 { .tool-actions }
 
-The [Notfunk logbook](notfunk/index.html) (*Notfunk-Meldebuch*) is a logbook
+The [Notfunk logbook](../notfunk/index.html) (*Notfunk-Meldebuch*) is a logbook
 for emergency radio in Vienna, Austria: take down messages, number them
 without gaps, hand them over, transmit them and print them. It runs entirely
 in the browser, works offline, and keeps all data on the device. The tool
 itself is in German; this page explains the idea and walks through an
 example. The complete reference of every field and button is the
-[German manual](notfunk-anleitung.md#referenz).
+[German manual](index.md).
 
 !!! warning "Draft"
     The message format has not yet been agreed with the Notfunkreferat Wien
@@ -42,7 +42,7 @@ decided on; the reply travels the same path **back**.
 <figure class="diagram">
 <svg viewBox="0 0 1048 430" role="img" aria-labelledby="nf-ablauf-t nf-ablauf-d" xmlns="http://www.w3.org/2000/svg" fill="currentColor" font-family="inherit" font-size="14">
 <title id="nf-ablauf-t">Der Weg einer Notmeldung und der Rückweg der Antwort</title>
-<desc id="nf-ablauf-d">Von links nach rechts: Hilfesuchende kommen zur Lichtinsel, wo ein Funkamateur die Meldung aufnimmt und zurückliest. Über das lokale Informationsnetz geht sie an den K-Vorsorgestandort, von dort über BOS-Funk oder das taktische Netz an die Meldesammelstelle der Einsatzleitstelle und im Haus an den Kriseneinsatzstab. Die Antwort nimmt denselben Weg zurück bis zu den Hilfesuchenden.</desc>
+<desc id="nf-ablauf-d">Von links nach rechts: Hilfesuchende kommen zur Lichtinsel, wo ein Funkamateur die Meldung aufnimmt und zurückliest. Über das lokale Informationsnetz geht sie an den K-Vorsorgestandort, von dort über BOS-Funk oder das taktische Netz an die Funkstelle in der Einsatzleitstelle. Der Funkamateur dort übergibt sie an die Meldesammelstelle des Kriseneinsatzstabs; hier endet die Aufgabe der Funkamateure. Die Meldesammelstelle nennt eine Referenz. Die Antwort nimmt denselben Weg zurück bis zu den Hilfesuchenden.</desc>
 <defs>
 <marker id="nf-pfeil" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker>
 </defs>
@@ -50,7 +50,7 @@ decided on; the reply travels the same path **back**.
 <text x="195" y="60">mündlich,</text><text x="195" y="76">schriftlich</text>
 <text x="409" y="60">Funk: lokales</text><text x="409" y="76">Informationsnetz</text>
 <text x="623" y="44">BOS-Funk, Backup:</text><text x="623" y="60">taktisches Netz</text><text x="623" y="76">(Amateurfunk, DMR)</text>
-<text x="837" y="60">Übergabe im Haus</text><text x="837" y="76">(Papier, mündlich)</text>
+<text x="837" y="60">Übergabe, Referenz</text><text x="837" y="76">(Papier, mündlich)</text>
 </g>
 <g stroke="currentColor" stroke-width="1.5" fill="none">
 <rect x="10" y="100" width="172" height="170" rx="8" stroke-dasharray="6 5"/>
@@ -77,16 +77,16 @@ decided on; the reply travels the same path **back**.
 <text x="524" y="204">gibt weiter</text>
 <text x="524" y="236" font-size="13" fill-opacity=".8">Weitergabe ↓ ↑</text>
 
-<text x="738" y="132" font-weight="700" font-size="16">Meldesammelstelle</text>
-<text x="738" y="160">der Einsatzleitstelle,</text>
-<text x="738" y="182">Funkstelle OE1XKS</text>
-<text x="738" y="204">übergibt an den Stab</text>
+<text x="738" y="132" font-weight="700" font-size="16">Funkstelle der ELS</text>
+<text x="738" y="160">Funkamateur nimmt auf,</text>
+<text x="738" y="182">übergibt an die</text>
+<text x="738" y="204">Meldesammelstelle</text>
 <text x="738" y="236" font-size="13" fill-opacity=".8">Meldung ↓ Eingang</text>
 
-<text x="952" y="132" font-weight="700" font-size="16">Kriseneinsatzstab</text>
-<text x="952" y="160">(Krisenmanagement)</text>
-<text x="952" y="182">entscheidet und</text>
-<text x="952" y="204">veranlasst Hilfe</text>
+<text x="952" y="132" font-weight="700" font-size="16">Meldesammelstelle</text>
+<text x="952" y="160">des Kriseneinsatzstabs</text>
+<text x="952" y="182">vergibt die Referenz,</text>
+<text x="952" y="204">der Stab entscheidet</text>
 <text x="952" y="236" font-size="13" fill-opacity=".8">kein Funkamateur</text>
 </g>
 <g stroke="currentColor" stroke-width="2.5" fill="none">
@@ -134,19 +134,22 @@ decided on; the reply travels the same path **back**.
 3. **Relay.** The K-Vorsorgestandort passes it to the Einsatzleitstelle
    (ELS, the operations centre of the crisis management), normally over
    authorities' radio (BOS-Funk), with the tactical amateur radio network as
-   backup. There the amateur station in the **Meldesammelstelle** (message
-   collection point) takes it down.
-4. **Hand over.** The Meldesammelstelle hands the message to the
-   **Kriseneinsatzstab** (crisis staff) inside the building. This is where
-   the radio amateurs' job ends. What the staff does with it is their
-   decision.
+   backup. There the amateur station (OE1XKS while the ELS works at its usual
+   place; otherwise another callsign) takes it down and reads it back.
+4. **Hand over.** The radio amateur in the ELS hands the message to the
+   **Meldesammelstelle** (message collection point). It belongs to the
+   **Kriseneinsatzstab** (crisis staff), not to amateur radio. This is where
+   the radio amateurs' job ends: what the staff does with the message is
+   their decision. The Meldesammelstelle enters it in its registry and gives a
+   **reference**; the radio amateur records it in the logbook.
 
 **Back:**
 
-5. The staff decides and replies, for example "Tanker with 200 litres of
+5. The staff decides and replies through the Meldesammelstelle, for example "Tanker with 200 litres of
    diesel is on its way, arrival about 15:30."
-6. The Meldesammelstelle takes down the reply, transmits it to the
-   K-Vorsorgestandort and has it read back.
+6. The Meldesammelstelle gives the reply to the radio amateur in the ELS,
+   who takes it down word for word, transmits it to the K-Vorsorgestandort
+   and has it read back.
 7. The K-Vorsorgestandort passes it on to the Lichtinsel.
 8. The radio amateur at the Lichtinsel takes it down, reads it back and
    **tells the person who reported the emergency**: "Help is on its way."
@@ -154,7 +157,7 @@ decided on; the reply travels the same path **back**.
 Two kinds of feedback differ:
 
 - The **takeover** ("message received, reference GZ 0412") only confirms the
-  message is with the staff. It comes quickly and says nothing about help.
+  message is with the Meldesammelstelle. It comes quickly and says nothing about help.
 - The **reply** ("help is on its way") comes when the staff has decided. It
   is a message of its own that refers to the original.
 
@@ -188,8 +191,8 @@ progress is its status:
 | --- | --- | --- |
 | Lichtinsel, message to the staff | ↑ Ausgang (outgoing) | zur Übertragung → übertragen → Empfang bestätigt → beantwortet |
 | Lichtinsel, reply from the staff | ↓ Eingang (incoming) | erfasst → übergeben (to the person) → übernommen |
-| Meldesammelstelle, message from the Lichtinsel | ↓ Eingang | erfasst → übergeben (to the staff) → übernommen (with the staff's **reference**) → beantwortet |
-| Meldesammelstelle, reply from the staff | ↑ Ausgang | zur Übertragung → übertragen → Empfang bestätigt |
+| Station in the ELS, message from the Lichtinsel | ↓ Eingang | erfasst → übergeben (to the Meldesammelstelle) → übernommen (with the **reference**) → beantwortet |
+| Station in the ELS, reply from the staff | ↑ Ausgang | zur Übertragung → übertragen → Empfang bestätigt |
 
 The **Notfunk number** (`W1-007`) belongs to the station, the **reference**
 to the staff's own registry (*Geschäftsbuch*). The logbook keeps both apart
@@ -197,7 +200,7 @@ so the two lists can be matched.
 
 The guideline also recommends keeping **all records on paper as well**: the
 logbook complements paper, it does not replace it.
-[Download the empty form (PDF)](downloads/notfunk-vordruck.pdf){ download="notfunk-vordruck.pdf" }
+[Download the empty form (PDF)](../downloads/notfunk-vordruck.pdf){ download="notfunk-vordruck.pdf" }
 (German; the same form the tool prints). Personal data must be deleted when
 no longer needed; the logbook never deletes by itself, so you manage
 operations and backups yourself.
@@ -212,13 +215,15 @@ Callsigns and names are made up.
 
 ### 1. Prepare
 
-1. [Open the logbook](notfunk/index.html) once with internet; afterwards it
-   works offline ("offline bereit ✓" top right).
+1. [Open the logbook](../notfunk/index.html) once with internet and install it
+   as an app (browser menu: "Install app" / "Add to Home Screen"); afterwards
+   it works offline ("offline bereit ✓" top right). For laptops without
+   internet there is a single offline HTML file to carry on a USB stick.
 2. **"+ Neuer Einsatz"** (new operation): operation name, station prefix
    **W1**, your station callsign, location, operator, "Für Stelle" **Stab**
    and the frequency of the local network. Then "Einsatz anlegen".
 
-    ![New operation](img/notfunk-einsatz-neu.png)
+    ![New operation](../img/notfunk-einsatz-neu.png)
 
    The prefix stands before every number. If the Lichtinsel has two
    devices, each gets its own prefix (W1, W2) so numbers never collide.
@@ -240,7 +245,7 @@ You transmit the message, so the direction is **Ausgang (↑)**.
 6. **Rücklesen:** read the message back to the person; when they say "right",
    tick the box.
 
-    ![The form "Neue Meldung"](img/notfunk-tutorial-meldung.png)
+    ![The form "Neue Meldung"](../img/notfunk-tutorial-meldung.png)
 
 7. **Save** with <kbd>⇧</kbd>+<kbd>Enter</kbd>. Only now the number is
    assigned: **W1-001**.
@@ -253,7 +258,7 @@ You transmit the message, so the direction is **Ausgang (↑)**.
    bestätigt"**.
 3. When the Meldesammelstelle reports a **reference** ("GZ 0412"), enter it.
 
-    ![The message with its flow](img/notfunk-tutorial-ablauf.png)
+    ![The message with its flow](../img/notfunk-tutorial-ablauf.png)
 
 ### 4. Receive the reply
 
@@ -263,13 +268,13 @@ You transmit the message, so the direction is **Ausgang (↑)**.
    W1-001 is now **beantwortet**.
 3. Tell Ms Huber, and record that you passed it on.
 
-    ![The logbook after the reply](img/notfunk-tutorial-buch.png)
+    ![The logbook after the reply](../img/notfunk-tutorial-buch.png)
 
 ### 5. At the end
 
 Download a **backup (JSON)** (the status top right counts messages not yet
 backed up), and print messages or the whole logbook as PDF. Details are in
-the [German reference](notfunk-anleitung.md#referenz).
+the [German manual](index.md).
 
 ## Sources
 
@@ -298,5 +303,5 @@ The introduction rests on these documents; they apply, not this page.
 
 ---
 
-[Open the Notfunk logbook <span aria-hidden="true">→</span>](notfunk/index.html){ .tool-launch }
+[Open the Notfunk logbook <span aria-hidden="true">→</span>](../notfunk/index.html){ .tool-launch }
 { .tool-actions }

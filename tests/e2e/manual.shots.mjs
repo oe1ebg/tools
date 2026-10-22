@@ -6,6 +6,7 @@
 // (tests/manual-images.test.mjs).
 import { fileURLToPath } from 'node:url';
 import { test, expect } from '@playwright/test';
+import { annotate } from './annotate.mjs';
 
 const IMG = (process.env.SHOTS_OUT ? process.env.SHOTS_OUT.replace(/\/*$/, '/') : fileURLToPath(new URL('../../build/manual-img/', import.meta.url)));
 const EXAMPLES = fileURLToPath(new URL('../../examples/backups/', import.meta.url));
@@ -41,6 +42,24 @@ async function shotAround(page, selectors, name, pad = 8) {
     const clip = { x, y, width: Math.max(...boxes.map(b => b.x + b.w)) + pad - x, height: Math.max(...boxes.map(b => b.y + b.h)) + pad - y };
     await page.screenshot({ path: `${IMG}${name}.png`, clip, fullPage: true, animations: 'disabled', caret: 'hide' });
   });
+}
+
+
+// The picture of an element with labelled fields (annotate.mjs): notes are
+// { sel (a selector or several: the box around them), text, side }.
+async function shotAnnotated(page, root, notes, name) {
+  const rootBox = await root.boundingBox();
+  const boxOf = async sels => {
+    const boxes = [];
+    for (const sel of [].concat(sels)) boxes.push(await page.locator(sel).first().boundingBox());
+    const x = Math.min(...boxes.map(b => b.x)), y = Math.min(...boxes.map(b => b.y));
+    return { x: x - rootBox.x, y: y - rootBox.y, w: Math.max(...boxes.map(b => b.x + b.width)) - x, h: Math.max(...boxes.map(b => b.y + b.height)) - y };
+  };
+  const placed = [];
+  for (const n of notes) placed.push({ box: await boxOf(n.sel), text: n.text, side: n.side });
+  let png;
+  await staticHeader(page, async () => { png = await root.screenshot({ animations: 'disabled', caret: 'hide' }); });
+  await annotate(page.context(), png, { width: rootBox.width, height: rootBox.height }, placed, `${IMG}${name}.png`);
 }
 
 test('Notfunk-Meldebuch', async ({ page }) => {
@@ -87,6 +106,25 @@ test('Notfunk-Meldebuch', async ({ page }) => {
   });
   await page.waitForTimeout(300);
   await shotAround(page, ['#msg-form'], 'notfunk-meldung');
+  await page.setViewportSize({ width: 900, height: 860 });   // a narrower form: the labels stay readable in the manual
+  await shotAnnotated(page, page.locator('#msg-form'), [
+    { sel: '#form-number', text: 'Nächste Nummer: wird erst beim Speichern vergeben', side: 'top' },
+    { sel: '#m-dir', text: 'Richtung: Eingang = empfangen, Ausgang = weitergefunkt' },
+    { sel: ['#m-date', '#m-time'], text: 'Wann die Meldung übermittelt wurde (Ortszeit)', side: 'top' },
+    { sel: '#m-channel', text: 'Wie sie übermittelt wurde', side: 'right' },
+    { sel: '#m-peer', text: 'Funkstelle: die Gegenstation (nur bei Funk)' },
+    { sel: ['#m-freq', '#m-via'], text: 'Frequenz und Relais: aus dem Einsatz vorbelegt', side: 'right' },
+    { sel: '#m-from', text: 'Von: wer die Meldung aufgibt (nicht Sie)' },
+    { sel: '#m-to', text: 'An: für wen sie bestimmt ist', side: 'right' },
+    { sel: '#m-prio', text: 'Dringlichkeit: Routine, Dringend oder Notfall', side: 'right' },
+    { sel: '#m-subject', text: 'Betreff: kurz und klar' },
+    { sel: '#m-loc', text: 'Ort des Ereignisses, mit Vorschlägen', side: 'right' },
+    { sel: '#m-text', text: 'Inhalt: der Wortlaut, wie übermittelt' },
+    { sel: '#m-readback', text: 'Rücklesen: der Absender hat bestätigt' },
+    { sel: '#m-more > summary', text: 'Weitere Felder: Bezug, Verteiler, Ursprung' },
+    { sel: '#btn-save', text: 'Speichern: vergibt die Nummer', side: 'right' },
+  ], 'notfunk-formular-beschriftet');
+  await page.setViewportSize({ width: 1200, height: 860 });
   await page.locator('#m-text').press('Shift+Enter');
   await expect(page.locator('#book-body')).toContainText('W1-001');
 
@@ -223,7 +261,7 @@ test('Bestätigungsverkehr', async ({ page }) => {
   await shotAround(page, ['#loc-panel'], 'confirm-standortsuche');
 });
 
-// The tutorial of docs/notfunk-anleitung.md: a message from a Lichtinsel to
+// The tutorial of docs/notfunk-anleitung/*.md: a message from a Lichtinsel to
 // the Stab (outgoing), transmitted and acknowledged, and the answer.
 test('Notfunk-Meldebuch: Tutorial (Lichtinsel)', async ({ page }) => {
   await page.clock.setFixedTime(at('2026-10-08T12:05:00Z'));
@@ -267,6 +305,7 @@ test('Notfunk-Meldebuch: Tutorial (Lichtinsel)', async ({ page }) => {
   await expect(page.locator('#msg-detail')).toContainText('an OE1DEF');
   await page.locator('form', { has: page.getByLabel('Empfang bestätigt durch') }).getByLabel('Zeitpunkt (leer = jetzt)', { exact: true }).fill('14:12');
   await page.getByRole('button', { name: 'Empfang eintragen' }).click();
+  await expect(page.locator('#msg-detail')).toContainText('durch OE1DEF');   // the page is redrawn before the next field
   await page.getByLabel('Referenz / Geschäftsbuch-Nr.').fill('GZ 0412');
   await page.getByRole('button', { name: 'Referenz eintragen' }).click();
   await expect(page.locator('#msg-detail .detail-tags')).toContainText('GZ 0412');
@@ -282,7 +321,7 @@ test('Notfunk-Meldebuch: Tutorial (Lichtinsel)', async ({ page }) => {
   await shotAround(page, ['#book-summary', '#view-book .filter-bar', '#view-book .table-wrap'], 'notfunk-tutorial-buch');
 });
 
-// --- notices (docs/notfunk-anleitung.md, docs/confirm-anleitung.md) ---
+// --- notices (docs/notfunk-anleitung/*.md, docs/confirm-anleitung.md) ---
 
 // The map with the example operation (examples/backups/notfunk-full.json):
 // messages at many places, every priority colour, places not resolved.

@@ -3,6 +3,7 @@ from __future__ import annotations
 import html
 import json
 import os
+import posixpath
 import re
 import shutil
 import subprocess
@@ -50,11 +51,13 @@ REPO_URL = "https://github.com/oe1ebg/tools"
 
 IGNORE = shutil.ignore_patterns("*.md", ".*", "__pycache__")
 
-# docs/<name>.md -> <name>/index.html, in this order on the overview page.
+# The manuals on the overview page, in this order: docs/<name>.md ->
+# <name>/index.html, or docs/<name>/index.md for a manual with sub pages
+# (the Notfunk manual: docs/notfunk-anleitung/*.md -> notfunk-anleitung/…/).
+# Every other docs/**/*.md is rendered too, titled by its first heading.
 MANUALS = {
     "confirm-anleitung": "Bestätigungsverkehr: Anleitung",
     "notfunk-anleitung": "Notfunk-Meldebuch: Anleitung",
-    "notfunk-manual": "Notfunk logbook: introduction and tutorial (English)",
     "data-sources": "Datenquellen",
 }
 
@@ -90,36 +93,59 @@ PAGE = """<!doctype html>
 
 
 class RelinkProcessor(Treeprocessor):
-    """Rewrites the docs' MkDocs-style links for a page at <name>/index.html:
-    x.md -> ../x/, index.md -> ../, other relative URLs -> ../url."""
+    """Rewrites the docs' MkDocs-style links for the page rendered from
+    docs/<src>: relative URLs are relative to the source file (a sub page
+    links ../img/x.png and sibling.md), .md targets become the directory of
+    their rendered page."""
+
+    def __init__(self, md, src):
+        super().__init__(md)
+        self.src = src
 
     def run(self, root):
         for el in root.iter():
             for attr in ("href", "src"):
                 url = el.get(attr)
                 if url and not re.match(r"^([a-z][a-z0-9+.-]*:|#|/)", url, re.I):
-                    el.set(attr, relink(url))
+                    el.set(attr, relink(url, self.src))
 
 
-def relink(url: str) -> str:
+def page_dir(src: str) -> str:
+    """Directory of the page rendered from docs/<src>, relative to the bundle
+    ('' for the root): x.md -> x, d/index.md -> d, d/p.md -> d/p."""
+    path = posixpath.splitext(src)[0]
+    return posixpath.dirname(path) if posixpath.basename(path) == "index" else path
+
+
+def relink(url: str, src: str = "x.md") -> str:
     path, _, frag = url.partition("#")
     frag = f"#{frag}" if frag else ""
-    if path == "index.md":
-        return f"../{frag}"
-    if path.endswith(".md"):
-        return f"../{path[:-3]}/{frag}"
-    return f"../{path}{frag}"
+    target = posixpath.normpath(posixpath.join(posixpath.dirname(src), path)) if path else ""
+    is_page = target.endswith(".md")
+    if is_page:
+        target = page_dir(target)
+    elif path.endswith("/"):
+        target += "/"
+    start = page_dir(src) or "."
+    rel = posixpath.relpath(target or ".", start)
+    if is_page or path.endswith("/"):
+        rel = "./" if rel == "." else rel + "/"
+    return f"{rel}{frag}"
 
 
 class Relink(Extension):
+    def __init__(self, src="x.md"):
+        super().__init__()
+        self.src = src
+
     def extendMarkdown(self, md):
-        md.treeprocessors.register(RelinkProcessor(md), "relink", 0)
+        md.treeprocessors.register(RelinkProcessor(md, self.src), "relink", 0)
 
 
-def render(md_text: str) -> str:
+def render(md_text: str, src: str = "x.md") -> str:
     return markdown.markdown(
         md_text,
-        extensions=["attr_list", "admonition", "tables", "toc", "md_in_html", "fenced_code", Relink()],
+        extensions=["attr_list", "admonition", "tables", "toc", "md_in_html", "fenced_code", Relink(src)],
         output_format="html",
     )
 
@@ -147,7 +173,7 @@ def sota_build_info(version: str, sha: str) -> str:
 
 
 def page(title: str, body: str, up: str, home: bool, foot: str = "") -> str:
-    nav = '<p class="doc-nav"><a href="../">← Alle Tools</a></p>' if home else ""
+    nav = f'<p class="doc-nav"><a href="{up}">← Alle Tools</a></p>' if home else ""
     return PAGE.format(title=html.escape(title), up=up, nav=nav, body=body, footer=foot)
 
 
@@ -192,14 +218,20 @@ def main() -> None:
     if (OUT_DIR / "sota-alerts").is_dir():
         (OUT_DIR / "sota-alerts" / "build-info.js").write_text(sota_build_info(version, sha), encoding="utf-8")
 
-    for name, title in MANUALS.items():
-        body = render((DOCS_DIR / f"{name}.md").read_text(encoding="utf-8"))
-        (OUT_DIR / name).mkdir()
-        rendered = page(title, body, "../", True, foot)
-        if name.endswith("-manual"):   # the English manual
+    for md in sorted(DOCS_DIR.rglob("*.md")):
+        src = md.relative_to(DOCS_DIR).as_posix()
+        text = md.read_text(encoding="utf-8")
+        name = page_dir(src)
+        heading = re.match(r"# (.+)", text)
+        title = MANUALS.get(name) or (heading.group(1).strip() if heading else name)
+        up = "../" * (name.count("/") + 1)
+        body = render(text, src)
+        rendered = page(title, body, up, True, foot)
+        if md.stem == "english":   # the English edition of a manual
             rendered = rendered.replace('<html lang="de">', '<html lang="en">', 1)
+        (OUT_DIR / name).mkdir(parents=True, exist_ok=True)
         (OUT_DIR / name / "index.html").write_text(rendered, encoding="utf-8")
-        print(f"rendered docs/{name}.md -> {name}/index.html")
+        print(f"rendered docs/{src} -> {name}/index.html")
     # the manuals' screenshots: generated during the build, not committed
     # (tests/e2e/manual.shots.mjs, `just screenshots`)
     if MANUAL_IMG_DIR.is_dir():
@@ -221,8 +253,9 @@ def main() -> None:
     if gone:
         print(f"warning: {len(gone)} manual screenshot(s) not generated yet ({', '.join(gone[:3])}{', …' if len(gone) > 3 else ''}): `just build` makes them, `just screenshots` after `just stage`; a release requires them")
     (OUT_DIR / "docs").mkdir()
-    for name in MANUALS:
-        shutil.copyfile(DOCS_DIR / f"{name}.md", OUT_DIR / "docs" / f"{name}.md")
+    for md in sorted(DOCS_DIR.rglob("*.md")):
+        (OUT_DIR / "docs" / md.relative_to(DOCS_DIR)).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(md, OUT_DIR / "docs" / md.relative_to(DOCS_DIR))
 
     items = "\n".join(
         f'<li><a href="{d}/">{html.escape(t)}</a> — {html.escape(desc)}</li>'

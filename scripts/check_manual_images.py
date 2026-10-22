@@ -16,15 +16,15 @@ from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 DOCS_DIR = ROOT_DIR / "docs"
-IMG_RE = re.compile(r"\]\(img/([A-Za-z0-9._-]+)\)")
+IMG_RE = re.compile(r"\]\((?:\.\./)*img/([A-Za-z0-9._-]+)\)")
 
 
 def referenced(docs_dir: Path = DOCS_DIR) -> dict[str, list[str]]:
     """image name -> manuals that use it"""
     out: dict[str, list[str]] = {}
-    for md in sorted(docs_dir.glob("*.md")):
+    for md in sorted(docs_dir.rglob("*.md")):
         for name in IMG_RE.findall(md.read_text(encoding="utf-8")):
-            out.setdefault(name, []).append(md.name)
+            out.setdefault(name, []).append(md.relative_to(docs_dir).as_posix())
     return out
 
 

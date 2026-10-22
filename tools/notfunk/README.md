@@ -214,9 +214,11 @@ name, and a distribution list ("Verteiler").
 - **Help:** "? Hilfe", F1, or ? outside text fields opens a dialog with the
   keys, the flow, who is who, places, times, confirmations, numbers and
   urgency; Esc closes it and the focus goes back to the field. The
-  manual with screenshots is `docs/notfunk-anleitung.md`
-  (`/tools/notfunk-anleitung/`, linked from the header and the help; screenshots from
-  `just screenshots`).
+  manual with screenshots is `docs/notfunk-anleitung/` (start page
+  `index.md` and sub pages, plus `english.md`; `/tools/notfunk-anleitung/`,
+  linked from the header and the help; screenshots from `just screenshots`,
+  annotated pictures by `tests/e2e/annotate.mjs`, the paper form's by
+  `scripts/make_vordruck_annotated.mjs`, committed in `docs/static/`).
 - **Book:** newest first, filters (offen, Eingang, Ausgang, Notfall +
   Dringend, search incl. the reference), the next status step as a button,
   an "Ausdruck" button per row; the column names stay in view below the page
