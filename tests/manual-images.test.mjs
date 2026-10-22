@@ -14,8 +14,9 @@ import { join } from 'node:path';
 const ROOT = new URL('..', import.meta.url).pathname;
 const read = p => readFileSync(join(ROOT, p), 'utf8');
 
-const used = new Set(readdirSync(join(ROOT, 'docs')).filter(n => n.endsWith('.md'))
-  .flatMap(n => [...read(`docs/${n}`).matchAll(/\]\(img\/([A-Za-z0-9._-]+)\)/g)].map(m => m[1])));
+// docs/*.md and the manuals' sub pages (docs/<manual>/*.md link ../img/…)
+const used = new Set(readdirSync(join(ROOT, 'docs'), { recursive: true }).filter(n => n.endsWith('.md'))
+  .flatMap(n => [...read(`docs/${n}`).matchAll(/\]\((?:\.\.\/)*img\/([A-Za-z0-9._-]+)\)/g)].map(m => m[1])));
 const generated = new Set([...read('tests/e2e/manual.shots.mjs').matchAll(/'((?:confirm|notfunk)-[a-z0-9-]+)'/g)].map(m => `${m[1]}.png`));
 const staticImgs = new Set(existsSync(join(ROOT, 'docs/static')) ? readdirSync(join(ROOT, 'docs/static')) : []);
 

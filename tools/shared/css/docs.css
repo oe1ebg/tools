@@ -95,3 +95,12 @@ body {
   font-size: .9em;
   color: var(--text-dim);
 }
+
+/* A picture wider than the text column (annotated forms): it breaks out of
+   the column up to 72rem, on a narrow screen it fits the screen and a tap
+   opens it at full size (the markdown wraps it in a link). */
+.doc img.wide {
+  width: min(72rem, calc(100vw - 2rem));
+  max-width: none;
+  margin-left: calc(50% - min(36rem, 50vw - 1rem));
+}

@@ -52,7 +52,7 @@ banner and draft labels wherever the tool is listed.
   may be lost. Backup status establishes only that a download started.
   Keep `NICHT GESPEICHERT`, `ENTWURF NICHT GESICHERT`, `ENTWURF PRÜFEN`,
   their actions, and update-wait behaviour aligned with UI/help and
-  `docs/notfunk-anleitung.md`.
+  `docs/notfunk-anleitung/*.md`.
 
 ## Offline UI and print
 

@@ -171,8 +171,12 @@ observed on oe1ebg.at.
 oe1ebg.at pins a release, downloads the tarball in its Docker build, checks
 the SHA-256 and unpacks it to `/tools/`. A site that embeds the bundle can
 replace `index.html` (the overview) and render the manuals in its own theme
-from `docs/`. The tools only rely on the relative URLs `../`,
-`../confirm-anleitung/`, `../notfunk-anleitung/` and `../data-sources/`.
+from `docs/`. The Markdown links are relative to each source file as in MkDocs,
+so a manual with sub pages sits in a directory (`docs/notfunk-anleitung/`,
+its sub pages link `../img/…`). The tools only rely on the relative URLs
+`../`, `../confirm-anleitung/`, `../notfunk-anleitung/` and
+`../data-sources/`. The empty Notfunk form is staged as
+`downloads/notfunk-vordruck.pdf` for the manuals to link.
 
 ### Stable identifiers
 
