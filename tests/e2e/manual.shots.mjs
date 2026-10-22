@@ -223,6 +223,65 @@ test('Bestätigungsverkehr', async ({ page }) => {
   await shotAround(page, ['#loc-panel'], 'confirm-standortsuche');
 });
 
+// The tutorial of docs/notfunk-anleitung.md: a message from a Lichtinsel to
+// the Stab (outgoing), transmitted and acknowledged, and the answer.
+test('Notfunk-Meldebuch: Tutorial (Lichtinsel)', async ({ page }) => {
+  await page.clock.setFixedTime(at('2026-10-08T12:05:00Z'));
+  await page.goto('tools/notfunk/');
+  await expect.poll(() => page.evaluate(() => globalThis.NOTFUNK_READY === true)).toBe(true);
+  await page.evaluate(() => { globalThis.print = () => {}; });
+  await page.getByRole('button', { name: '+ Neuer Einsatz' }).click();
+  await page.locator('#n-name').fill('Übung Blackout Wien');
+  await page.locator('#n-prefix').fill('W1');
+  await page.locator('#n-call').fill('OE1ABC');
+  await page.locator('#n-station').fill('Lichtinsel 12 Floridsdorf');
+  await page.locator('#n-operator').fill('OE1ABC');
+  await page.locator('#n-home').fill('Stab');
+  await page.locator('#n-freq').fill('438,950');
+  await page.locator('#n-freq').press('Tab');
+  await page.getByRole('button', { name: 'Einsatz anlegen' }).click();
+  await expect(page.locator('#view-book')).toBeVisible();
+
+  // 2. take the message
+  await page.locator('label[for="m-dir-out"]').click();
+  await page.locator('#m-from').fill('Pflegeheim Brünner Straße 68, Frau Huber');
+  await page.locator('#m-to').fill('Stab');
+  await page.locator('#m-peer').fill('OE1DEF');
+  await page.locator('label[for="m-prio-priority"]').click();
+  await page.locator('#m-subject').fill('Stromausfall Pflegeheim, Diesel benötigt');
+  await page.locator('#m-loc').fill('Brünner Straße 68');
+  await expect(page.locator('#m-loc-info')).toContainText('✓', { timeout: 30_000 });
+  await page.locator('#m-loc').press('Escape');
+  await page.locator('#m-text').fill('Pflegeheim Brünner Straße 68, 42 Bewohner, davon 6 beatmet. Notstromaggregat läuft nur bis ca. 18:00. Benötigen 200 Liter Diesel. Ansprechperson: Frau Huber, Pflegedienstleitung.');
+  await page.locator('#m-readback').check();
+  await page.waitForTimeout(300);
+  await shotAround(page, ['#msg-form'], 'notfunk-tutorial-meldung');
+  await page.locator('#m-text').press('Shift+Enter');
+  await expect(page.locator('#book-body')).toContainText('W1-001');
+
+  // 3. transmitted, acknowledged, reference
+  await page.clock.setFixedTime(at('2026-10-08T12:10:00Z'));
+  await page.locator('#book-body a', { hasText: 'W1-001' }).click();
+  await page.getByLabel('Übertragungszeitpunkt').fill('14:10');
+  await page.getByRole('button', { name: 'Übertragung eintragen' }).click();
+  await expect(page.locator('#msg-detail')).toContainText('an OE1DEF');
+  await page.locator('form', { has: page.getByLabel('Empfang bestätigt durch') }).getByLabel('Zeitpunkt (leer = jetzt)', { exact: true }).fill('14:12');
+  await page.getByRole('button', { name: 'Empfang eintragen' }).click();
+  await page.getByLabel('Referenz / Geschäftsbuch-Nr.').fill('GZ 0412');
+  await page.getByRole('button', { name: 'Referenz eintragen' }).click();
+  await expect(page.locator('#msg-detail .detail-tags')).toContainText('GZ 0412');
+  await shotAround(page, ['#view-msg'], 'notfunk-tutorial-ablauf');
+
+  // 4. the answer
+  await page.clock.setFixedTime(at('2026-10-08T12:31:00Z'));
+  await page.getByRole('button', { name: 'Antwort erfassen' }).click();
+  await page.locator('#m-text').fill('Tankwagen mit 200 Liter Diesel ist unterwegs, Ankunft ca. 15:30.');
+  await page.locator('#m-readback').check();
+  await page.locator('#m-text').press('Shift+Enter');
+  await expect(page.locator('#book-body')).toContainText('W1-002');
+  await shotAround(page, ['#book-summary', '#view-book .filter-bar', '#view-book .table-wrap'], 'notfunk-tutorial-buch');
+});
+
 // --- notices (docs/notfunk-anleitung.md, docs/confirm-anleitung.md) ---
 
 // The map with the example operation (examples/backups/notfunk-full.json):
