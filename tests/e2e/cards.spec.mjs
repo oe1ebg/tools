@@ -122,7 +122,7 @@ test('Notfunk on a wide screen: the column names stay in view while scrolling', 
   const th = await page.locator('table.book thead th').first().boundingBox();
   expect(th.height).toBeLessThan(40);
   // the zone of the Nr. · Zeit column is explained
-  await expect(page.locator('table.book thead th', { hasText: 'Nr. · Zeit' })).toHaveAttribute('title', /Ortszeit Wien, MESZ\/MEZ/);
+  await expect(page.locator('table.book thead th', { hasText: 'Nr. · Zeit' })).toHaveAttribute('title', /Ortszeit Wien\)/);
   // the table fits at 1200 px and above (clipped, no columns lost); below, it scrolls
   for (const width of [1200, 1280]) {
     await page.setViewportSize({ width, height: 600 });

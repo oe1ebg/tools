@@ -37,7 +37,7 @@ import { initOffline, setChip } from '../../shared/js/offline.js';
 import {
   DIRECTIONS, CHANNELS, MESSAGE_TYPES, PRIORITIES, REF_KINDS, statusLabel, statusEntry, timeLabel, readBackLabel,
   editMessage, messageFields, softDelete, restoreDeleted, setStatus, addAttempt, currentStatus, filterMessages,
-  repliesTo, fmtVienna, viennaTime, viennaDate, viennaStamp, zoneHint, normFreq, fmtFreq,
+  repliesTo, fmtVienna, viennaTime, viennaDate, normFreq, fmtFreq,
 } from './model.js';
 import { normalizePrefix, PREFIX_RE, nextSeq, formatNumber, counterKey } from './numbering.js';
 import { toGeschaeftsbuchCSV, toBackupTexts, checkBackup, combineBackupParts, BACKUP_MAX_BYTES } from './export.js';
@@ -45,7 +45,7 @@ import { groupParts, partFileName, partsTooLarge } from '../../shared/js/backup-
 import { saveNewMessage, updateMessage, changedFields, editBaseOf, editTarget, draftEditState, applyBackup, patchOperation, writeDraft, clearDraft } from './ops.js';
 import {
   emptyForm, setDirection, formToFields, formIsBlank, messageToForm, replyForm, nextStep, statusSteps, bookSummary, partyText,
-  readDateTime, readClock, readBound, normDate, normTime, dateText, clockText, needsZone, upgradeForm, normalizeRef,
+  readDateTime, readClock, readBound, normDate, normTime, dateText, clockText, upgradeForm, normalizeRef,
 } from './form.js';
 import { blankFormPdf, formPdf } from './paperpdf.js';
 import { bookPdf } from './bookpdf.js';
@@ -132,7 +132,7 @@ function bookStatus(...content) {
 
 /* ---------------------------------------------------------------- clock */
 
-// Austrian local time ("14:53"; in the repeated hour "02:30 MESZ").
+// Austrian local time ("14:53").
 function tick() {
   setText($('#clock-local'), viennaTime(nowIso()));
   tickLive();
@@ -610,7 +610,7 @@ function setRadio(name, value) {
 function readForm() {
   const v = id => $(id).value;
   return {
-    direction: radioValue('m-dir'), date: isLive($('#m-date')) ? '' : v('#m-date'), time: isLive($('#m-time')) ? '' : v('#m-time'), zone: $('#m-zone').hidden ? '' : v('#m-zone'), channel: radioValue('m-channel'),
+    direction: radioValue('m-dir'), date: isLive($('#m-date')) ? '' : v('#m-date'), time: isLive($('#m-time')) ? '' : v('#m-time'), channel: radioValue('m-channel'),
     freq: v('#m-freq'), via: v('#m-via'), type: v('#m-type'), priority: radioValue('m-prio'),
     from: v('#m-from'), to: v('#m-to'), peer: v('#m-peer'), subject: v('#m-subject'), text: v('#m-text'), readBack: $('#m-readback').checked,
     stichzeit: v('#m-stichzeit'), distribution: v('#m-distribution'), remarks: v('#m-remarks'),
@@ -654,7 +654,6 @@ function writeForm(form) {
     if (f[k]) $('#msg-form').dataset[k] = f[k];
     else delete $('#msg-form').dataset[k];
   }
-  showZone(f.zone);
   if (state.locField) {
     // A stored resolution is restored as it was (edit, draft), not resolved again.
     $('#m-loc').value = f.locationText || '';
@@ -705,7 +704,6 @@ function renderFormState() {
   setText($('#m-time-label'), timeLabel(f.direction));
   setText($('#m-readback-label'), readBackLabel(f.direction));
   $('#m-peer').title = f.direction === 'out' ? 'Empfangende Funkstation' : 'Übermittelnde Funkstation';
-  showZone();
   renderPartyInfo('#m-peer', '#m-peer-info');
   renderPartyInfo('#m-orig-station', '#m-orig-station-info');
   if (state.showErrors) showFieldErrors(check(f).fieldErrors);
@@ -728,17 +726,6 @@ function showFieldErrors(errs) {
       else node.removeAttribute('aria-invalid');
     }
   }
-}
-
-// The MESZ/MEZ choice, only while date + time fall in the hour that
-// repeats when the clocks go back; preset to `zone` (an edited message's)
-// or the occurrence nearest now.
-function showZone(zone) {
-  const sel = $('#m-zone');
-  const date = $('#m-date').value, time = $('#m-time').value;
-  const need = needsZone(date || dateText(nowIso()), time);
-  if (need && (sel.hidden || zone)) sel.value = zone || zoneHint(readDateTime(date, time, nowIso()));
-  sel.hidden = !need;
 }
 
 // Warnings at the fields they come from (like the errors, in the warning
@@ -1406,7 +1393,7 @@ function renderBook() {
       return rowRoles(el('tr', { 'data-id': m.id, class: m.priority === 'emergency' ? 'urgent' : null },
         // Nr., the time, the reference (Meldesammelstelle's, the message it answers)
         el('td', { class: 'num' }, el('a', { href: `#/e/${state.op.id}/m/${m.id}` }, m.number),
-          el('div', { class: 'when mono', title: viennaStamp(m.ts) }, ...[dated(m.ts, viennaTime(m.ts))].flat()),
+          el('div', { class: 'when mono', title: fmtVienna(m.ts) }, ...[dated(m.ts, viennaTime(m.ts))].flat()),
           m.staffRef ? el('div', { class: 'ref', title: 'Referenz der Meldesammelstelle' }, m.staffRef) : null,
           refTo ? el('div', { class: 'ref', title: 'Bezug: Antwort auf diese Meldung' }, `↪ ${refTo}`) : null),
         el('td', { class: 'peer' },
@@ -1420,7 +1407,7 @@ function renderBook() {
             m.priority === 'routine' ? null : prioPill(m), el('b', {}, m.subject || '')),
           el('div', { class: 'sub clamp' }, m.text)),
         el('td', { class: 'st' }, statusPill(m)),
-        el('td', { class: 'st-when mono', title: viennaStamp(last.at) }, el('span', {}, ...[dated(last.at, viennaTime(last.at))].flat()), el('br'), el('span', { class: 'by' }, last.by || '')),
+        el('td', { class: 'st-when mono', title: fmtVienna(last.at) }, el('span', {}, ...[dated(last.at, viennaTime(last.at))].flat()), el('br'), el('span', { class: 'by' }, last.by || '')),
         el('td', { class: 'act' }, el('div', { class: 'act-stack' },
           step ? el('button', { type: 'button', class: 'mini next', 'aria-haspopup': 'dialog', onclick: () => openStepDialog(m, step), 'aria-label': `${m.number} ${step.label} …` }, step.label) : null,
           el('button', { type: 'button', class: 'mini', onclick: () => printForm(m), 'aria-label': `PDF ${m.number} (Meldeaufnahmeformular)`, title: 'Die Meldung als Meldeaufnahmeformular (PDF)' }, 'PDF')))));

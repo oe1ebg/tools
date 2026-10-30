@@ -197,26 +197,36 @@ test('keyboard: Shift+Enter saves, warnings ask once, Esc asks before discarding
   await expect(page.locator('#m-subject')).toHaveValue('halb');
 });
 
-test('time: Austrian local time; in the repeated hour the form asks MESZ or MEZ', async ({ page }) => {
+test('time: Austrian local time; the repeated hour needs no zone choice', async ({ page }) => {
   // 02:10 MEZ on 25 Oct 2026: the second 02:10 of that night
   await page.clock.setFixedTime(new Date('2026-10-25T01:10:00Z'));
   await openNewOp(page, 'E2E Zeitumstellung', 'z1');
-  await expect(page.locator('#clock-local')).toHaveText('02:10 MEZ');
+  await expect(page.locator('#clock-local')).toHaveText('02:10');
   await page.locator('#m-from').fill('LI 9');
   await expect(page.locator('#m-date')).toHaveValue('2026-10-25');
   await expect(page.locator('#m-time')).toHaveValue('02:10');
-  await expect(page.locator('#m-zone')).toBeVisible();
-  await expect(page.locator('#m-zone')).toHaveValue('MEZ');
-  await page.locator('#m-time').fill('03:10');
-  await expect(page.locator('#m-zone')).toBeHidden();
+  await expect(page.locator('#m-zone')).toHaveCount(0);
   await page.locator('#m-time').fill('02:30');
-  await page.locator('#m-zone').selectOption('MESZ');
+  await expect(page.locator('#m-zone')).toHaveCount(0);
   await page.locator('#m-peer').fill('OE1ABC');
   await page.locator('#m-subject').fill('Zeitumstellung');
   await page.locator('#m-text').fill('Probe in der doppelten Stunde.');
   await page.locator('#m-readback').check();
   await page.locator('#btn-save').click();
-  await expect(page.locator('#book-body')).toContainText('02:30 MESZ');
+  const row = page.locator('#book-body tr[data-id]').first();
+  await expect(row).toContainText('02:30');
+  await expect(row).not.toContainText(/MESZ|MEZ/);
+  // now is in the second run (02:10 MEZ): the entered 02:30 is the second 02:30
+  await expect(row.locator('.when')).toHaveAttribute('title', '2026-10-25 02:30');
+  // the nonexistent hour in March is refused, with what to do
+  await page.locator('#m-from').fill('LI 9');
+  await page.locator('#m-date').fill('2026-03-29');
+  await page.locator('#m-time').fill('02:30');
+  await page.locator('#m-peer').fill('OE1ABC');
+  await page.locator('#m-subject').fill('März');
+  await page.locator('#m-text').fill('Stunde gibt es nicht.');
+  await page.locator('#btn-save').click();
+  await expect(page.locator('.ferr[data-field="time"]')).toContainText('von 02:00 auf 03:00');
 });
 
 test('pickers: calendar and time grid write YYYY-MM-DD and 24-hour HH:MM', async ({ page }) => {
@@ -929,9 +939,9 @@ test('the book row being edited is marked and the mark follows the edit', async 
   await expect(page.locator('#book-body tr.row-editing')).toHaveCount(0);
 });
 
-// Times: the full date, time and Vienna's zone as the title; the date in the
+// Times: the full date and time as the title; the date in the
 // cell when it is not the newest message's day.
-test('book times: title with date and zone, date shown on another day', async ({ page }) => {
+test('book times: title with date and time, date shown on another day', async ({ page }) => {
   await page.goto('tools/notfunk/');
   await expect.poll(() => page.evaluate(() => globalThis.NOTFUNK_READY === true)).toBe(true);
   await page.locator('#import-file').setInputFiles(new URL('../../examples/backups/notfunk-full.json', import.meta.url).pathname);
@@ -940,7 +950,7 @@ test('book times: title with date and zone, date shown on another day', async ({
   const rows = page.locator('#book-body tr[data-id]');
   await expect(rows).toHaveCount(30);
   const time = rows.first().locator('td.num .when');
-  await expect(time).toHaveAttribute('title', /^2026-07-18 \d\d:\d\d MESZ$/); // Vienna's summer time, whatever the browser's zone
+  await expect(time).toHaveAttribute('title', /^2026-07-18 \d\d:\d\d$/); // Vienna's time, whatever the browser's zone, no zone name
   await expect(rows.locator('.date')).toHaveCount(0); // one day: no date in the cells
   // a message today (another day than the example's July): the older ones show their date
   await page.locator('#m-from').fill('LI 1');

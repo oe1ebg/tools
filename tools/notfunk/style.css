@@ -107,8 +107,7 @@ fieldset.op-group > legend{ padding:0 .4em 0 0; font-size:13.5px; font-weight:70
 .row-flow{ display:flex; flex-wrap:wrap; gap:.6em 1.6em; align-items:flex-start; }
 .row-flow .time-field{ width:auto; }
 /* date and time side by side (text in a fixed format, never the browser's
-   locale; the zone choice only in the
-   hour that repeats when the clocks go back) */
+   locale) */
 .dt-pair{ display:flex; flex-wrap:wrap; gap:.3em .5em; align-items:center; }
 /* field + picker button + dropdown (js/picker.js); the dropdown keeps its
    own text style inside the uppercase field labels */
