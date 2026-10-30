@@ -176,7 +176,14 @@ so a manual with sub pages sits in a directory (`docs/notfunk-anleitung/`,
 its sub pages sit in `tutorial/`, `manual/`, `reference/` and link `../../img/…`; every page is named `name.de.md`). The tools only rely on the relative URLs
 `../`, `../confirm-anleitung/`, `../notfunk-anleitung/` and
 `../data-sources/`. The empty Notfunk form is staged as
-`downloads/notfunk-vordruck.pdf` for the manuals to link.
+`downloads/notfunk-vordruck.pdf` for the manuals to link. The slides of the
+Notfunk introduction (the directory `docs/static/notfunk-einfuehrung/`: PDF, HTML and two
+PowerPoint files) are exported from the deck, committed as they are and staged
+to `downloads/notfunk-einfuehrung/` the same way. The HTML file has inline
+script and style, so that directory (and only it) gets the inline CSP of the
+single-file bundles in both deploy examples. Its Google Fonts link (issue #161)
+stays blocked there: served from the site it shows a system font; saved and
+opened with internet, it loads IBM Plex Sans.
 
 ### Stable identifiers
 
