@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   newMessage, editMessage, softDelete, setStatus, currentStatus, validateMessage, messageFields,
-  filterMessages, repliesTo, fmtVienna, viennaTime, isoVienna, zoneHint, statusEntry, statusLabel, addAttempt,
+  filterMessages, repliesTo, fmtVienna, viennaTime, isoVienna, statusEntry, statusLabel, addAttempt,
 } from '../tools/notfunk/js/model.js';
 import { toGeschaeftsbuchCSV, toBackup, parseBackup, mergeBackup, GB_COLUMNS } from '../tools/notfunk/js/export.js';
 import { formatNumber } from '../tools/notfunk/js/numbering.js';
@@ -107,13 +107,15 @@ test('filters, replies, deleted messages hidden', () => {
   assert.deepEqual(repliesTo(all, 'm10').map(m => m.number), ['W1-011']);
 });
 
-test('time formats: Austrian local time, the zone only in the repeated hour', () => {
+test('time formats: Austrian local time, never a zone name', () => {
   assert.equal(fmtVienna(T0), '2026-10-05 14:07');
   assert.equal(fmtVienna('2026-01-05T12:07:00Z'), '2026-01-05 13:07');
-  assert.equal(fmtVienna('2026-10-25T00:30:00Z'), '2026-10-25 02:30 MESZ');
-  assert.equal(fmtVienna('2026-10-25T01:30:00Z'), '2026-10-25 02:30 MEZ');
+  // the repeated hour: both runs read 02:30, the instants (and the ISO offsets) tell them apart
+  assert.equal(fmtVienna('2026-10-25T00:30:00Z'), '2026-10-25 02:30');
+  assert.equal(fmtVienna('2026-10-25T01:30:00Z'), '2026-10-25 02:30');
+  assert.equal(isoVienna('2026-10-25T00:30:00Z'), '2026-10-25T02:30:00+02:00');
+  assert.equal(isoVienna('2026-10-25T01:30:00Z'), '2026-10-25T02:30:00+01:00');
   assert.equal(viennaTime('2026-10-25T02:30:00Z'), '03:30');
-  assert.equal(zoneHint(T0), '');
   assert.equal(isoVienna(T0), '2026-10-05T14:07:00+02:00');
   assert.equal(isoVienna('2026-01-05T12:07:00Z'), '2026-01-05T13:07:00+01:00');
   assert.equal(fmtVienna('x'), '');
@@ -128,7 +130,7 @@ test('Geschäftsbuch CSV', () => {
   assert.equal(lines[0].split(';').length, GB_COLUMNS.length);
   assert.match(lines[1], /^W1-020;;2026-10-05;14:07;2026-10-05T14:07:00\+02:00;Eingang;Lichtinsel Floridsdorf \/ OE1ABC;Stromausfall;"Seit 13:50 Uhr kein Strom\nim Bereich Am Spitz\.  Bitte um Info\.";Meldung;Dringend;Funk;;145,500 via OE1XUU;/);
   assert.match(lines.slice(2).join('\n'), /^W1-021;;.*;Ausgang;LI Floridsdorf \/ OE1ABC;"Re; Strom";/m);
-  assert.match(lines.slice(2).join('\n'), /;zur Übertragung;;;;Antwort auf W1-020;;OE1XYZ;OE1XKS;2026-10-05 14:07;$/m);
+  assert.match(lines.slice(2).join('\n'), /;zur Übertragung;;;;Antwort auf W1-020;;OE1XYZ;OE1XKS;2026-10-05 14:07;;;;2026-10-05T14:07:00\+02:00$/m);
   assert.ok(!csv.includes('W1-022'), 'deleted messages are not in the Geschäftsbuch');
   // an Ort kept as text goes into the Ort column
   const t = toGeschaeftsbuchCSV([msg({ locationText: 'Hinterhof beim Gemeindebau' }, 23)]).slice(1).trimEnd().split('\r\n');
