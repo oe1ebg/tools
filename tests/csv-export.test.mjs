@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { csvIsFormula, csvGuard, csvSafeCell, csvSafeRows } from '../tools/shared/js/csv.js';
 import { toCSV } from '../tools/confirm/js/export.js';
 import { headerSnapshot } from '../tools/confirm/js/model.js';
-import { toGeschaeftsbuchCSV } from '../tools/notfunk/js/export.js';
+import { toGeschaeftsbuchCSV, GB_COLUMNS } from '../tools/notfunk/js/export.js';
 import { newMessage } from '../tools/notfunk/js/model.js';
 import { formatNumber } from '../tools/notfunk/js/numbering.js';
 import { serializeCSV, serializeSotaCsv, serializeADIF } from '../tools/adif/js/export.js';
@@ -72,7 +72,7 @@ test('Geschäftsbuch CSV: formula cells guarded, header unchanged', () => {
   const csv = toGeschaeftsbuchCSV([m], ';', stats);
   assert.ok(csv.startsWith('﻿Notfunk-Nr.;Referenz Meldesammelstelle;'));
   assert.ok(csv.includes(`;"'=cmd|""/c calc""!A1";'+Strom;"'-5 Grad\nkalt";`), csv);
-  assert.ok(csv.trimEnd().endsWith(';-10'), 'Anmerkungen -10: a number, unchanged');
+  assert.equal(csv.slice(1).trimEnd().split('\r\n')[1].split(';')[GB_COLUMNS.indexOf('Anmerkungen')], '-10', 'Anmerkungen -10: a number, unchanged');
   assert.ok(stats.guarded >= 3);
 });
 

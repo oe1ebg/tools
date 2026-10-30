@@ -9,13 +9,13 @@
 // (`op.home`, e.g. "Stab") is the default recipient of incoming and the
 // default sender of outgoing messages.
 
-import { STATUS_FLOW, statusLabel, currentStatus, nextHandover, messageFields, validateMessage, liveMessages, normFreq, ZONE, zoneHint } from './model.js';
+import { STATUS_FLOW, statusLabel, currentStatus, nextHandover, messageFields, validateMessage, liveMessages, normFreq, ZONE } from './model.js';
 import { numberGaps, parseNumber, formatNumber } from './numbering.js';
 import { normalizeCall, isPlausibleCall } from '../../shared/js/callbook.js';
 import { wallClock, wallToInstants, closestTo } from '../../shared/js/time.js';
 
 export const FORM_DEFAULTS = {
-  direction: 'in', date: '', time: '', zone: '', channel: 'funk', freq: '', via: '', type: 'meldung', priority: 'routine',
+  direction: 'in', date: '', time: '', channel: 'funk', freq: '', via: '', type: 'meldung', priority: 'routine',
   from: '', to: '', peer: '', subject: '', text: '', readBack: false, stichzeit: '', distribution: '', remarks: '',
   origStation: '', origPlace: '', origPlaceLoc: null, origFiled: '', replyTo: null, refKind: 'antwort', ref: '',
   location: null, locationText: '',
@@ -59,10 +59,9 @@ export function partyText(p) {
 
 // Times in the form are Austrian local time (ZONE), typed as text in a
 // fixed format, never the browser's locale: date 'YYYY-MM-DD' (ISO 8601),
-// time 'HH:MM' (24 hours; "1405" and "14.05" are read too). The hour that repeats when the clocks go back
-// (last Sunday of October, 02:00–02:59) needs a choice: zone 'MESZ' (the
-// first time) or 'MEZ' (the second); without one, the occurrence nearest
-// `ref` is taken.
+// time 'HH:MM' (24 hours; "1405" and "14.05" are read too). The hour that
+// repeats when the clocks go back (last Sunday of October, 02:00–02:59) is
+// resolved without asking, see readDateTime().
 
 // 'YYYY-MM-DD' / 'HH:MM' of an instant in Austrian local time.
 export function dateText(iso) {
@@ -89,25 +88,27 @@ export function normDate(text) {
   return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
 }
 
-// Is date + time in the repeated hour (so the form asks MESZ or MEZ)?
-export function needsZone(date, time) {
-  const d = normDate(date), t = normTime(time);
-  return !!(d && t) && wallToInstants(d, t, ZONE).length > 1;
-}
-
-function pickZone(candidates, zone, ref) {
-  if (candidates.length > 1 && (zone === 'MESZ' || zone === 'MEZ')) return candidates[zone === 'MESZ' ? 0 : 1];
-  return closestTo(candidates, ref);
+// The occurrence of a repeated wall-clock time (the clocks went back) that a
+// typed time means: when `now` itself is in that hour (the two hours from
+// the start of its first run to the end of its second), the one nearest
+// now; otherwise the first (summer time). One candidate: that one; none
+// (the hour skipped when the clocks go forward): null.
+function pickInstant(candidates, now) {
+  if (candidates.length < 2) return candidates[0] ?? null;
+  const t = wallClock(candidates[0], ZONE).time;
+  const start = Date.parse(candidates[0]) - ((+t.slice(3, 5)) * 60 + (+t.slice(6, 8))) * 1000;
+  const at = Date.parse(now);
+  return at >= start && at < start + 2 * 3600e3 ? closestTo(candidates, now) : candidates[0];
 }
 
 // The message time: date + time as ISO UTC; both empty = now; no date =
 // today. null when it can't be read (no time, impossible date, a time
 // skipped when the clocks go forward).
-export function readDateTime(date, time, now, zone = '') {
+export function readDateTime(date, time, now) {
   const d = normDate(date), t = normTime(time);
   if (d === '' && t === '') return now;
   if (!t || d === null) return null;
-  return pickZone(wallToInstants(d || dateText(now), t, ZONE), zone, now);
+  return pickInstant(wallToInstants(d || dateText(now), t, ZONE), now);
 }
 
 // A time of day ('HH:MM') before ref: the latest such time at most five
@@ -148,6 +149,7 @@ export function normalizeRef(text) {
 // be read is kept as typed, so the warning at the field shows it.
 export function upgradeForm(f) {
   const out = { ...FORM_DEFAULTS, ...f };
+  delete out.zone; // drafts from before the zone choice was dropped (#153)
   const m = /^(\d{4}-\d{2}-\d{2})[ T](\d{1,2}:\d{2})/.exec(out.time || '');
   if (m && !out.date) Object.assign(out, { date: m[1], time: m[2].padStart(5, '0') });
   for (const k of ['stichzeit', 'origFiled']) {
@@ -172,8 +174,8 @@ const isBlankText = v => !String(v ?? '').trim();
 export function formToFields(form, { now, byNumber = new Map(), editing = false, keepText = null }) {
   const fieldErrors = {};
   // an edited message keeps its stored times while the fields still show them
-  const keptTs = form.ts && form.date === dateText(form.ts) && form.time === clockText(form.ts) && (form.zone || '') === zoneHint(form.ts) ? form.ts : null;
-  const ts = keptTs || readDateTime(form.date, form.time, now, form.zone);
+  const keptTs = form.ts && form.date === dateText(form.ts) && form.time === clockText(form.ts) ? form.ts : null;
+  const ts = keptTs || readDateTime(form.date, form.time, now);
   // Stichzeit/Aufgabezeit show no date: the stored one is kept only while the
   // message's own date and time are the stored ones too (a moved message
   // would keep a time of the old day); otherwise it is read again against
@@ -184,7 +186,9 @@ export function formToFields(form, { now, byNumber = new Map(), editing = false,
     fieldErrors.time = normDate(form.date) === null ? 'Datum als JJJJ-MM-TT, z. B. 2026-10-08'
       : isBlankText(form.time) ? 'Uhrzeit fehlt'
         : normTime(form.time) === null ? 'Uhrzeit als HH:MM, z. B. 14:05'
-          : 'Diese Uhrzeit gibt es an dem Tag nicht (Datum ungültig oder Zeitumstellung)';
+          : wallToInstants(normDate(form.date) || dateText(now), '12:00', ZONE).length
+            ? `Diese Uhrzeit gibt es nicht: bei der Zeitumstellung springt die Uhr von 02:00 auf 03:00. Bitte 03:00 oder später (oder 01:59 oder früher) eintragen`
+            : 'Datum gibt es nicht. Bitte als JJJJ-MM-TT eintragen, z. B. 2026-10-08';
   }
   if (isBlankText(form.from)) fieldErrors.from = 'Absender fehlt: wer gibt die Meldung auf?';
   if (isBlankText(form.to)) fieldErrors.to = 'Adressat fehlt: für wen ist die Meldung?';
@@ -254,7 +258,7 @@ export function formIsBlank(f, op) {
 export function messageToForm(msg) {
   return {
     ...FORM_DEFAULTS,
-    direction: msg.direction, date: dateText(msg.ts), time: clockText(msg.ts), zone: zoneHint(msg.ts), ts: msg.ts, channel: msg.channel,
+    direction: msg.direction, date: dateText(msg.ts), time: clockText(msg.ts), ts: msg.ts, channel: msg.channel,
     freq: msg.radio?.freq || '', via: msg.radio?.via || '', type: msg.type, priority: msg.priority,
     from: partyText(msg.from), to: partyText(msg.to), peer: msg.peer || '', subject: msg.subject, text: msg.text, readBack: !!msg.readBack,
     stichzeit: clockText(msg.stichzeit), stichzeitTs: msg.stichzeit || null, distribution: (msg.distribution || []).join(', '),

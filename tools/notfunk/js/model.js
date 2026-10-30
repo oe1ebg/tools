@@ -12,7 +12,7 @@
 // never touches prefix/seq/number. Edits keep the previous version as a
 // revision; deletes are soft (`deleted` timestamp).
 
-import { wallClock, isRepeatedWall, isoInZone, laterIso } from '../../shared/js/time.js';
+import { wallClock, isoInZone, laterIso } from '../../shared/js/time.js';
 
 export const DIRECTIONS = { in: 'Eingang', out: 'Ausgang' };
 export const CHANNELS = {
@@ -259,47 +259,26 @@ export function filterMessages(msgs, flt = {}) {
 }
 
 // All times are Austrian local time (Europe/Vienna), on any device: typed,
-// shown, printed and exported. Stored as ISO 8601 UTC, so the DST change
-// is no problem; only the hour that repeats when the clocks go back gets
-// its zone (MESZ, then MEZ) where a time is shown.
+// shown, printed and exported. Stored as ISO 8601 UTC (an absolute instant),
+// so the change of time is no problem: no zone name is shown anywhere. The
+// hour that repeats when the clocks go back is resolved when a time is
+// typed (form.js, readDateTime()), not displayed.
 export const ZONE = 'Europe/Vienna';
 
-const ZONE_NAME_FMT = new Intl.DateTimeFormat('de-AT', { timeZone: ZONE, timeZoneName: 'short' });
-
-// "MESZ" / "MEZ" in the repeated hour, '' otherwise.
-export function zoneHint(iso) {
-  if (!isRepeatedWall(iso, ZONE)) return '';
-  return ZONE_NAME_FMT.formatToParts(new Date(iso)).find(p => p.type === 'timeZoneName')?.value || '';
-}
-
-// Vienna's zone name at that moment, "MESZ" or "MEZ" (never the browser's).
-export function viennaZoneName(iso) {
-  if (!iso || isNaN(new Date(iso))) return '';
-  return ZONE_NAME_FMT.formatToParts(new Date(iso)).find(p => p.type === 'timeZoneName')?.value || '';
-}
-
-// "2026-10-05" (ISO 8601) and "14:07" (in the repeated hour "02:30 MESZ").
+// "2026-10-05" (ISO 8601) and "14:07" (24-hour, no zone).
 export function viennaDate(iso) {
   return wallClock(iso, ZONE).date;
 }
 
 export function viennaTime(iso) {
   const { time } = wallClock(iso, ZONE);
-  if (!time) return '';
-  const hint = zoneHint(iso);
-  return `${time.slice(0, 5)}${hint ? ` ${hint}` : ''}`;
+  return time ? time.slice(0, 5) : '';
 }
 
 // "2026-10-05 14:07": ISO date, 24-hour time.
 export function fmtVienna(iso) {
   const d = viennaDate(iso);
   return d ? `${d} ${viennaTime(iso)}` : '';
-}
-
-// "2026-10-05 14:07 MESZ": date, time and Vienna's zone, always (tooltips).
-export function viennaStamp(iso) {
-  const d = viennaDate(iso);
-  return d ? `${d} ${wallClock(iso, ZONE).time.slice(0, 5)} ${viennaZoneName(iso)}`.trim() : '';
 }
 
 // "2026-10-05T14:07:00+02:00": ISO 8601 with the offset, for the CSV.

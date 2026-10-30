@@ -39,6 +39,8 @@ export const GB_COLUMNS = [
   'Art', 'Dringlichkeit', 'Übermittlung', 'Funkstelle', 'Frequenz/Relais', 'Absender', 'Adressat', 'Verteiler',
   'Rücklesen bestätigt', 'Status', 'Übergeben / übertragen an', 'Übergeben / übertragen um', 'Übernommen / Empfang bestätigt durch',
   'Bezug', 'Ort', 'Aufgenommen von', 'Stationsrufzeichen', 'Erfasst', 'Anmerkungen',
+  // exact instants with offset (the cells above are Vienna wall-clock time only)
+  'Übergeben / übertragen um (ISO 8601)', 'Empfang bestätigt um (ISO 8601)', 'Erfasst (ISO 8601)',
 ];
 
 // stats (optional object): .guarded = number of cells that got a leading '
@@ -60,6 +62,7 @@ export function toGeschaeftsbuchCSV(msgs, sep = ';', stats) {
       fwd?.to || '', fwd ? viennaTime(fwd.at) : '', ack ? [ack.who, viennaTime(ack.at)].filter(Boolean).join(' ') : '',
       ref ? `${REF_KINDS[m.refKind] || REF_KINDS.antwort} ${ref}` : '',
       m.location ? m.location.label || `${m.location.lat}, ${m.location.lon}` : m.locationText || '', m.operator, m.stationCall || '', fmtVienna(m.created), m.remarks,
+      fwd ? isoVienna(fwd.at) : '', ack ? isoVienna(ack.at) : '', isoVienna(m.created),
     ]);
   }
   return '\ufeff' + csvSafeRows(rows, sep, stats) + '\r\n';

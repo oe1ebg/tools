@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   emptyForm, setDirection, parseParty, partyText, formToFields, messageToForm, replyForm,
-  nextStep, statusSteps, bookSummary, normDate, normTime, readDateTime, readClock, readBound, dateText, clockText, needsZone, upgradeForm, formIsBlank, normalizeRef,
+  nextStep, statusSteps, bookSummary, normDate, normTime, readDateTime, readClock, readBound, dateText, clockText, upgradeForm, formIsBlank, normalizeRef,
 } from '../tools/notfunk/js/form.js';
 import { formSheet, blankFormSheet, bookSheet } from '../tools/notfunk/js/print.js';
 import { newMessage, setStatus, softDelete, addAttempt, normFreq, fmtFreq } from '../tools/notfunk/js/model.js';
@@ -82,7 +82,9 @@ test('time: date and time in Austrian local time; empty = now, no date = today',
   assert.deepEqual(errors, ['Uhrzeit fehlt']);
   assert.deepEqual(Object.keys(fieldErrors), ['time']);
   assert.deepEqual(formToFields({ ...filled, date: '2026-03-29', time: '02:30' }, { now: NOW }).fieldErrors,
-    { time: 'Diese Uhrzeit gibt es an dem Tag nicht (Datum ungültig oder Zeitumstellung)' });
+    { time: 'Diese Uhrzeit gibt es nicht: bei der Zeitumstellung springt die Uhr von 02:00 auf 03:00. Bitte 03:00 oder später (oder 01:59 oder früher) eintragen' });
+  assert.deepEqual(formToFields({ ...filled, date: '2026-02-30', time: '10:00' }, { now: NOW }).fieldErrors,
+    { time: 'Datum gibt es nicht. Bitte als JJJJ-MM-TT eintragen, z. B. 2026-10-08' });
 });
 
 test('dates and times are typed in one fixed format: YYYY-MM-DD, 24-hour HH:MM', () => {
@@ -95,20 +97,21 @@ test('dates and times are typed in one fixed format: YYYY-MM-DD, 24-hour HH:MM',
   assert.equal(formToFields({ ...filled, date: '', time: '2:05 PM' }, { now: NOW }).fieldErrors.time, 'Uhrzeit als HH:MM, z. B. 14:05');
 });
 
-test('time: the hour that repeats when the clocks go back needs MESZ or MEZ', () => {
-  const night = '2026-10-25T02:10:00.000Z'; // 03:10 MEZ, after the change
-  assert.ok(needsZone('2026-10-25', '02:30'));
-  assert.ok(!needsZone('2026-10-25', '03:30'));
-  assert.equal(readDateTime('2026-10-25', '02:30', night, 'MESZ'), '2026-10-25T00:30:00.000Z');
-  assert.equal(readDateTime('2026-10-25', '02:30', night, 'MEZ'), '2026-10-25T01:30:00.000Z');
-  assert.equal(readDateTime('2026-10-25', '02:30', night), '2026-10-25T01:30:00.000Z', 'nearest now without a choice');
-  const m = save({ ...filled, date: '2026-10-25', time: '02:30', zone: 'MESZ' }, 1, night);
+test('time: the hour that repeats when the clocks go back is resolved without a choice', () => {
+  const night = '2026-10-25T02:10:00.000Z'; // 03:10 MEZ, after the change: not in the hour any more
+  assert.equal(readDateTime('2026-10-25', '02:30', night), '2026-10-25T00:30:00.000Z', 'now is outside the hour: the first run');
+  const m = save({ ...filled, date: '2026-10-25', time: '02:30' }, 1, night);
   assert.equal(m.ts, '2026-10-25T00:30:00.000Z');
   const f = messageToForm(m);
-  assert.deepEqual([f.date, f.time, f.zone], ['2026-10-25', '02:30', 'MESZ']);
-  assert.equal(formToFields({ ...f, zone: 'MEZ' }, { now: night }).fields.ts, '2026-10-25T01:30:00.000Z', 'choice changed on edit');
+  assert.ok(!('zone' in f), 'the form has no zone field');
+  assert.deepEqual([f.date, f.time], ['2026-10-25', '02:30']);
+  assert.equal(formToFields(f, { now: night, editing: true }).fields.ts, '2026-10-25T00:30:00.000Z', 'an edit keeps the stored instant');
+  const second = save({ ...filled, date: '2026-10-25', time: '02:30' }, 2, '2026-10-25T01:10:00.000Z'); // typed at 02:10 MEZ
+  assert.equal(second.ts, '2026-10-25T01:30:00.000Z', 'now is in the hour: the nearer run');
   const s = formSheet(m, OP, { now: night });
-  assert.deepEqual([s.date, s.time], ['2026-10-25', '02:30 MESZ']);
+  assert.deepEqual([s.date, s.time], ['2026-10-25', '02:30'], 'no zone on the printout');
+  // a draft from before (zone choice) restores; the stray field is dropped
+  assert.ok(!('zone' in upgradeForm({ ...filled, date: '2026-10-25', time: '02:30', zone: 'MEZ' })));
 });
 
 test('time of day (Stichzeit, Aufgabezeit, handover): the last one before, also the day before', () => {
