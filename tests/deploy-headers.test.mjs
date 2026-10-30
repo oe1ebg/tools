@@ -107,6 +107,7 @@ const URIS = () => [...new Set([
   ...pages('tools').map(([u]) => u), ...BUNDLES.map(b => `/${b}`),
   '/tools/', '/tools/confirm/js/app.js', '/tools/sota-alerts/js/map.js', '/tools/wavelog-import/index.html', '/tools/no-such-file',
   '/prefix/tools/adif/adif-editor.html', '/prefix/tools/sota-alerts/index.html',
+  '/tools/downloads/notfunk-einfuehrung/notfunk-einfuehrung.html', '/tools/downloads/notfunk-vordruck.pdf',
 ])];
 
 test('htaccess.example sends the same headers as nginx.conf.example', () => {
@@ -176,6 +177,21 @@ test('the inline scripts of the tool pages are allowed by hash, and no other has
 const SITE = join(ROOT, 'site', 'tools');
 test('the built pages (overview, manuals) need no other inline script', { skip: skipWithout(existsSync(SITE), 'run `just build` first') }, () => {
   checkInlineScripts(pages('site/tools'));
+});
+
+// The exported slides (downloads/notfunk-einfuehrung/, an HTML deck with
+// inline script and style) get the inline policy for their directory only,
+// and no network host: its font link (issue #161) stays blocked.
+test('the slides directory gets the inline policy, its neighbours the default', () => {
+  const slides = '/tools/downloads/notfunk-einfuehrung/notfunk-einfuehrung.html';
+  for (const uri of [slides, '/tools/downloads/notfunk-einfuehrung/notfunk-einfuehrung.pdf', '/prefix/tools/downloads/notfunk-einfuehrung/x.pptx']) {
+    const p = policyFor(uri);
+    assert.ok(directive(p, 'script-src').includes("'unsafe-inline'"), uri);
+    assert.ok(directive(p, 'style-src').includes("'unsafe-inline'"), uri);
+    assert.ok(!p.includes('http'), `${uri}: no host`);
+    assert.deepEqual(directive(p, 'frame-ancestors'), ["'none'"], uri);
+  }
+  assert.equal(policyFor('/tools/downloads/notfunk-vordruck.pdf'), CSP.default);
 });
 
 test('the SOTA Alerts Map may reach exactly the hosts in its code', () => {

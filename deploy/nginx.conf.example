@@ -36,6 +36,13 @@
 #                  location only. They are made to be saved and opened from
 #                  file:// (where no header applies); served here they
 #                  still load nothing from elsewhere.
+#   slides         downloads/notfunk-einfuehrung/: the exported slides of
+#                  the Notfunk introduction (PDF, PowerPoint, and an HTML
+#                  deck with its own inline script and style): the same
+#                  inline policy as the single-file bundles, for this
+#                  directory only. The HTML deck names Google Fonts for its
+#                  typeface; that host is not allowed here, so served from
+#                  here it shows a system font (issue #161).
 # Everything: no plugins, no <base>, no framing (frame-ancestors has to be a
 # header, it is ignored in a <meta> tag), except adif-editor.html by pages
 # of the same origin: tools/adif/README.md ("Zensical integration")
@@ -49,6 +56,7 @@ map $uri $oe1ebg_csp {
     ~/wavelog-import/                                      "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self'; connect-src 'self' https: http://localhost:* http://127.0.0.1:*; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
     ~/adif-editor\.html$                                   "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'";
     ~/(confirm-offline|notfunk-offline|netlog-offline)\.html$ "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
+    ~/downloads/notfunk-einfuehrung/                       "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
 }
 
 # X-Frame-Options for browsers without frame-ancestors, the same rule.
