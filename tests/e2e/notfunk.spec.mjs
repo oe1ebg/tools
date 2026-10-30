@@ -206,7 +206,7 @@ test('time: Austrian local time; the repeated hour needs no zone choice', async 
   await expect(page.locator('#m-date')).toHaveValue('2026-10-25');
   await expect(page.locator('#m-time')).toHaveValue('02:10');
   await expect(page.locator('#m-zone')).toHaveCount(0);
-  await page.locator('#m-time').fill('02:30');
+  await page.locator('#m-time').fill('02:05');
   await expect(page.locator('#m-zone')).toHaveCount(0);
   await page.locator('#m-peer').fill('OE1ABC');
   await page.locator('#m-subject').fill('Zeitumstellung');
@@ -214,10 +214,10 @@ test('time: Austrian local time; the repeated hour needs no zone choice', async 
   await page.locator('#m-readback').check();
   await page.locator('#btn-save').click();
   const row = page.locator('#book-body tr[data-id]').first();
-  await expect(row).toContainText('02:30');
+  await expect(row).toContainText('02:05');
   await expect(row).not.toContainText(/MESZ|MEZ/);
-  // now is in the second run (02:10 MEZ): the entered 02:30 is the second 02:30
-  await expect(row.locator('.when')).toHaveAttribute('title', '2026-10-25 02:30');
+  // now is in the second run (02:10 MEZ): the entered 02:05 is the second 02:05 (no future-time warning)
+  await expect(row.locator('.when')).toHaveAttribute('title', '2026-10-25 02:05');
   // the nonexistent hour in March is refused, with what to do
   await page.locator('#m-from').fill('LI 9');
   await page.locator('#m-date').fill('2026-03-29');
