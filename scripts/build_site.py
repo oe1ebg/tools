@@ -58,7 +58,7 @@ IGNORE = shutil.ignore_patterns("*.md", ".*", "__pycache__")
 # Every other docs/**/*.md is rendered too, titled by its first heading.
 MANUALS = {
     "confirm-anleitung": "Bestätigungsverkehr: Anleitung",
-    "notfunk-anleitung": "Notfunk-Meldebuch: Anleitung",
+    "notfunk-anleitung": "Notfunk-Meldebuch",
     "data-sources": "Datenquellen",
 }
 

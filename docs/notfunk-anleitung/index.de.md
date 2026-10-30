@@ -1,4 +1,4 @@
-# Notfunk-Meldebuch: Anleitung
+# Notfunk-Meldebuch
 
 [Notfunk-Meldebuch öffnen <span aria-hidden="true">→</span>](../notfunk/index.html){ .tool-launch }
 [Alle Tools](../index.md) ·
