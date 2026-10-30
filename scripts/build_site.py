@@ -249,6 +249,11 @@ def main() -> None:
         subprocess.run(["node", str(ROOT_DIR / "scripts" / "notfunk_vordruck.mjs"), str(OUT_DIR / "downloads" / "notfunk-vordruck.pdf")], check=True)
     except (OSError, subprocess.CalledProcessError) as err:
         print(f"warning: downloads/notfunk-vordruck.pdf not made ({err}); the manual links to it")
+    # the slides of the Notfunk introduction, exported from the deck and
+    # committed as they are (docs/static/): PDF, HTML, PowerPoint
+    slides = DOCS_DIR / "static" / "notfunk-einfuehrung"
+    if slides.is_dir():
+        shutil.copytree(slides, OUT_DIR / "downloads" / slides.name)
     gone = missing_manual_images(OUT_DIR / "img")
     if gone:
         print(f"warning: {len(gone)} manual screenshot(s) not generated yet ({', '.join(gone[:3])}{', …' if len(gone) > 3 else ''}): `just build` makes them, `just screenshots` after `just stage`; a release requires them")
