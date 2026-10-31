@@ -3,6 +3,7 @@
 // notes, and the data of the presence timeline. Pure: no DOM, no text.
 
 import { liveOf, rosterSorted, ncsFirst } from './model.js';
+import { ncsRuns } from './ncsruns.js';
 
 const rdIso = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 
@@ -35,18 +36,6 @@ function rdStretches(app, p, span) {
   }
   push(cur, t1);
   return out;
-}
-
-// who held net control when, in ms: Map id -> [[from, to]] (before the first handover, the
-// station it was taken from)
-function rdNcsRuns(app, t0, t1) {
-  const hands = liveOf(app.sd.events).filter(e => e.type === 'ncs' && e.time && e.time.iso).sort((a, b) => rdIso(a.time.iso, b.time.iso));
-  const runs = new Map();
-  let holder = hands.length ? hands[0].from : app.s.ncsId, since = t0;
-  const end = to => { if (holder && to > since) runs.set(holder, [...(runs.get(holder) || []), [since, to]]); };
-  for (const e of hands) { const ms = Math.min(Math.max(Date.parse(e.time.iso), t0), t1); end(ms); holder = e.to; since = ms; }
-  end(t1);
-  return runs;
 }
 
 // "00:56", "01:05" (hh:mm) for a span in ms; "-" for none or for more than a day (a net does not
@@ -99,7 +88,7 @@ export function rosterData(app) {
   if (span.start && span.end && roster.length) {
     const t0 = Date.parse(span.start);
     const t1 = Math.max(Date.parse(span.end), t0 + 60000);
-    const runs = rdNcsRuns(app, t0, t1);
+    const runs = ncsRuns(app.sd.events, app.s.ncsId, t0, t1);
     const notes = liveOf(app.sd.notes).filter(n => n.time && n.time.iso);
     chart = {
       t0,
