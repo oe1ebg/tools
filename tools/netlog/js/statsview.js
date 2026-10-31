@@ -10,14 +10,20 @@ import { sessionsOf } from './model.js';
 import { zone, timeMode } from './clock.js';
 import { seriesStatistics } from './stats.js';
 import { smSummary, smLeaderboard, smMatrix, smSessions, smRotation } from './statsmodel.js';
+import { download } from './dataui.js';
+import { NETLOG_CSV_MIME } from './export.js';
+import { seriesStatsCsv, seriesStatsBase } from './statsexport.js';
+import { statsPdfModel } from './statspdfmodel.js';
+import { statsPdf } from './statspdf.js';
 
 // the stores whose records statistics read (eventId = the session's id)
 const SV_STORES = ['participants', 'rounds', 'contributions', 'notes', 'events'];
 
-// Per series card: { open, busy, again, shown } (in memory only; the card is closed after a reload)
+// Per series card: { open, busy, again, shown, app, series, stats } (in memory only; the card is
+// closed after a reload). stats: the result on screen, what the export buttons write.
 const svState = new Map();
 const svOf = key => {
-  if (!svState.has(key)) svState.set(key, { open: false, busy: false, again: false, shown: '' });
+  if (!svState.has(key)) svState.set(key, { open: false, busy: false, again: false, shown: '', app: null, series: null, stats: null });
   return svState.get(key);
 };
 
@@ -136,6 +142,37 @@ function svDraw(id, stats) {
   ];
 }
 
+// ---------- export ----------
+
+// One file per button: the PDF sheet or the CSV of what is on screen. An export is no backup (no
+// backup time is recorded). The message goes through the page's live region; focus stays put.
+function svExport(key, kind) {
+  const st = svOf(key);
+  if (!st.stats || !st.stats.sessionCount || !st.app) return;
+  try {
+    const now = new Date().toISOString();
+    const name = st.series ? st.series.name : '';
+    const base = seriesStatsBase(name, now.slice(0, 10));
+    if (kind === 'csv') download(seriesStatsCsv(st.stats, name, t), `${base}_${t('stats.file.csv')}`, NETLOG_CSV_MIME);
+    else download(statsPdf(statsPdfModel(st.stats, { seriesName: name, generatedIso: now })), `${base}_${t('stats.file.pdf')}`, 'application/pdf');
+    st.app.announce(t('export.done'));
+  } catch {
+    st.app.announce(t('stats.exportFailed'));
+  }
+}
+
+// The buttons are usable once the shown result has sessions; else they are disabled and the text
+// beside them says why (no sessions yet, or still calculating).
+function svSyncExport(panel, st) {
+  const ready = Boolean(st.stats && st.stats.sessionCount);
+  const note = panel.querySelector('.st-export-note');
+  setText(panel.querySelector('.st-export-label'), t('stats.export'));
+  setText(panel.querySelector('.st-export-pdf'), t('stats.exportPdf'));
+  setText(panel.querySelector('.st-export-csv'), t('stats.exportCsv'));
+  for (const b of panel.querySelectorAll('.st-export button')) b.disabled = !ready;
+  setText(note, ready ? '' : t(st.stats ? 'stats.exportNone' : 'stats.exportWait'));
+}
+
 // ---------- the card ----------
 
 // The statistics panel of the series card `key`: (re)read and draw while it is open. The status
@@ -150,6 +187,7 @@ async function svRefresh(app, key, seriesId, panel) {
   try {
     if (!st.shown) setText(status, t('stats.loading'));
     const stats = seriesStatistics(await svLoad(app, seriesId));
+    if (st.open) { st.stats = stats; svSyncExport(panel, st); }
     const sig = `${lang()}|${timeMode()}|${JSON.stringify(stats)}`;
     if (st.open && sig !== st.shown) {
       st.shown = sig;
@@ -158,7 +196,9 @@ async function svRefresh(app, key, seriesId, panel) {
     setText(status, st.open ? t('stats.ready', { n: stats.sessionCount }) : '');
   } catch {
     st.shown = '';
+    st.stats = null;
     fill(body);
+    svSyncExport(panel, st);
     setText(status, t('stats.error'));
   } finally {
     st.busy = false;
@@ -167,19 +207,28 @@ async function svRefresh(app, key, seriesId, panel) {
 }
 
 export function statsPanel(key) {
-  return el('div', { class: 'stats-panel', id: `series-stats-${key}`, hidden: true },
+  const id = `series-stats-${key}`;
+  return el('div', { class: 'stats-panel', id, hidden: true },
     el('h4', { class: 'st-title' }),
     el('p', { class: 'st-status hint', role: 'status' }),
+    el('div', { class: 'st-export', role: 'group', 'aria-labelledby': `${id}-xl` },
+      el('span', { class: 'st-export-label', id: `${id}-xl` }),
+      el('button', { type: 'button', class: 'st-export-pdf', 'data-act': 'stats-pdf', 'aria-describedby': `${id}-xn`, onclick: () => svExport(key, 'pdf') }),
+      el('button', { type: 'button', class: 'st-export-csv', 'data-act': 'stats-csv', 'aria-describedby': `${id}-xn`, onclick: () => svExport(key, 'csv') }),
+      el('span', { class: 'st-export-note hint', id: `${id}-xn` })),
     el('div', { class: 'st-body' }));
 }
 
 // Bring a card's panel and its button up to date (called by every render of the list).
 export function syncStats(app, g, panel, btn) {
   const st = svOf(g.key);
+  st.app = app;
+  st.series = g.series;
   panel.hidden = !st.open;
   if (btn) btn.setAttribute('aria-expanded', String(st.open));
   if (!st.open) return;
   setText(panel.querySelector('.st-title'), t('stats.title'));
+  svSyncExport(panel, st);
   svRefresh(app, g.key, g.series.id, panel);
 }
 
@@ -187,6 +236,6 @@ export function syncStats(app, g, panel, btn) {
 export function toggleStats(app, g, panel, btn) {
   const st = svOf(g.key);
   st.open = !st.open;
-  if (!st.open) { st.shown = ''; fill(panel.querySelector('.st-body')); setText(panel.querySelector('.st-status'), ''); }
+  if (!st.open) { st.shown = ''; st.stats = null; fill(panel.querySelector('.st-body')); setText(panel.querySelector('.st-status'), ''); }
   syncStats(app, g, panel, btn);
 }

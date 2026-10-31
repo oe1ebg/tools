@@ -198,6 +198,100 @@ test('statistics card: 320 px, the page does not scroll sideways, tables scroll 
   if (process.env.STATS_SHOT_DIR) await page.screenshot({ path: `${process.env.STATS_SHOT_DIR}/stats-320.png`, fullPage: true });
 });
 
+const exportBtns = panel => ({ pdf: panel.locator('button.st-export-pdf'), csv: panel.locator('button.st-export-csv'), note: panel.locator('.st-export-note') });
+const csvRows = text => text.replace(/^﻿/, '').trimEnd().split('\r\n').map(l => l.split(';'));
+
+test('statistics export: CSV and PDF are one download each, named by date and series, no backup time', async ({ page }) => {
+  await open(page);
+  await seed(page);
+  const panel = await openStats(page);
+  const { pdf, csv, note } = exportBtns(panel);
+  await expect(panel.locator('.st-export-label')).toHaveText('Export');
+  await expect(pdf).toHaveText('Statistics (PDF)');
+  await expect(csv).toHaveText('Statistics (CSV)');
+  await expect(pdf).toBeEnabled();
+  await expect(note).toBeHidden();
+  const today = new Date().toISOString().slice(0, 10);
+
+  const [dl] = await Promise.all([page.waitForEvent('download'), csv.click()]);
+  expect(dl.suggestedFilename()).toBe(`${today}_evening-net_statistics.csv`);
+  const rows = csvRows(readFileSync(await dl.path(), 'utf8'));
+  expect(rows[0]).toHaveLength(21);
+  expect(rows[0].slice(0, 7)).toEqual(['Series', 'Session date', 'Session no.', 'Session start (UTC)', 'Callsign', 'Name', 'Attended']);
+  // 3 + 2 + 1 + 2 stations with a resolved call (the "?" participant is not in the file), oldest session first
+  expect(rows.length - 1).toBe(8);
+  expect(rows.slice(1).map(r => `${r[1]} ${r[4]}`)).toEqual([
+    '2026-09-02 OE0TEST', '2026-09-02 DL0XYZ', '2026-09-02 OE0AAA', '2026-09-09 OE0TEST', '2026-09-09 DL0XYZ',
+    '2026-09-16 OE0TEST', '2026-09-23 OE0TEST', '2026-09-23 OE0AAA']);
+  const first = rows[1];
+  expect(first.slice(0, 13)).toEqual(['Evening net', '2026-09-02', '1', '2026-09-02T18:00:00Z', 'OE0TEST', 'Mira', 'yes', '01:00:00', 'exact', '0', '2026-09-02T18:00:00Z', '00:00:00', 'exact']);
+  // the late joined session: unknown times are empty cells, never 0
+  const late = rows.find(r => r[1] === '2026-09-23' && r[4] === 'OE0TEST');
+  expect(late[3]).toBe('');
+  expect(late.slice(7, 9)).toEqual(['', 'unknown']);
+  // speaking time of the first station of session #1: an estimate with its quality column
+  expect(first[18]).toBe('00:10:00');
+  expect(first[19]).toBe('estimated');
+
+  const [dp] = await Promise.all([page.waitForEvent('download'), pdf.click()]);
+  expect(dp.suggestedFilename()).toBe(`${today}_evening-net_statistics.pdf`);
+  const bytes = readFileSync(await dp.path());
+  expect(bytes.subarray(0, 8).toString('latin1')).toBe('%PDF-1.4');
+  expect(bytes.toString('latin1')).toContain(Buffer.from('OE0TEST').toString('hex'));
+  // the message goes through the live region; focus stays on the button; an export is no backup
+  await expect(page.locator('#announce')).toHaveText('Export started (check your downloads)');
+  await expect(pdf).toBeFocused();
+  const backup = await page.evaluate(async () => (await globalThis.NETLOG_APP.store.getAll('meta')).filter(m => m.id.startsWith('backup:')).length);
+  expect(backup).toBe(0);
+});
+
+test('statistics export: German texts and file names', async ({ page }) => {
+  await open(page, { lang: 'de' });
+  await seed(page);
+  const panel = await openStats(page);
+  const { pdf, csv } = exportBtns(panel);
+  await expect(panel.locator('.st-export-label')).toHaveText('Exportieren');
+  await expect(pdf).toHaveText('Statistik (PDF)');
+  const [dl] = await Promise.all([page.waitForEvent('download'), csv.click()]);
+  expect(dl.suggestedFilename()).toMatch(/^\d{4}-\d{2}-\d{2}_evening-net_statistik\.csv$/);
+  const rows = csvRows(readFileSync(await dl.path(), 'utf8'));
+  expect(rows[0].slice(0, 7)).toEqual(['Serie', 'Sitzung Datum', 'Sitzung Nr.', 'Sitzung Beginn (UTC)', 'Rufzeichen', 'Name', 'Anwesend']);
+  expect(rows[1][6]).toBe('ja');
+  await expect(page.locator('#announce')).toHaveText('Export gestartet (Downloads prüfen)');
+});
+
+test('statistics export: disabled with a reason for a series without sessions', async ({ page }) => {
+  await open(page);
+  await seed(page);
+  const panel = await openStats(page, 'Workshop net');
+  const { pdf, csv, note } = exportBtns(panel);
+  await expect(pdf).toBeDisabled();
+  await expect(csv).toBeDisabled();
+  await expect(note).toHaveText('Nothing to export: this series has no sessions yet.');
+  // the reason is the buttons' description
+  await expect(pdf).toHaveAttribute('aria-describedby', await note.getAttribute('id'));
+});
+
+test('statistics export: keyboard only', async ({ page }) => {
+  await open(page);
+  await seed(page);
+  const c = card(page, 'Evening net');
+  await statsBtn(c).focus();
+  await page.keyboard.press('Enter');
+  const { pdf, csv } = exportBtns(c.locator('.stats-panel'));
+  await expect(csv).toBeEnabled();
+  // from the card's buttons Tab reaches PDF, then CSV, without a trap
+  for (let i = 0; i < 8 && !(await pdf.evaluate(n => n === document.activeElement)); i++) await page.keyboard.press('Tab');
+  await expect(pdf).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(csv).toBeFocused();
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.keyboard.press('Enter')]);
+  expect(dl.suggestedFilename()).toMatch(/_statistics\.csv$/);
+  await expect(csv).toBeFocused();
+  const [dp] = await Promise.all([page.waitForEvent('download'), pdf.focus().then(() => page.keyboard.press('Space'))]);
+  expect(dp.suggestedFilename()).toMatch(/_statistics\.pdf$/);
+});
+
 // axe-core is not a committed dependency (like @playwright/test; `just a11y-survey` installs it):
 // the check runs where it can be resolved and is skipped otherwise.
 let AXE = null;
@@ -212,6 +306,9 @@ for (const [label, theme, forced] of [['light', 'light', 'none'], ['dark', 'dark
     await seed(page);
     await openStats(page);
     await expect(page.locator('#series-stats-ser-a .st-status')).toHaveText('Statistics calculated.');
+    // the export buttons of a series without sessions (disabled, with their reason) are checked too
+    await openStats(page, 'Workshop net');
+    await expect(page.locator('#series-stats-ser-b .st-export-note')).toBeVisible();
     const violations = await page.evaluate(async () => {
       const r = await globalThis.axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] }, resultTypes: ['violations'] });
       return r.violations.map(v => `${v.id}: ${v.nodes.slice(0, 3).map(n => n.target.join(' ')).join(' | ')}`);
