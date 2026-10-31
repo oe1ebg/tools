@@ -73,6 +73,7 @@ test('Geschäftsbuch CSV: formula cells guarded, header unchanged', () => {
   assert.ok(csv.startsWith('﻿Notfunk-Nr.;Referenz Meldesammelstelle;'));
   assert.ok(csv.includes(`;"'=cmd|""/c calc""!A1";'+Strom;"'-5 Grad\nkalt";`), csv);
   assert.equal(csv.slice(1).trimEnd().split('\r\n')[1].split(';')[GB_COLUMNS.indexOf('Anmerkungen')], '-10', 'Anmerkungen -10: a number, unchanged');
+  assert.ok(csv.trimEnd().endsWith(';-10'), 'Anmerkungen is the last column');
   assert.ok(stats.guarded >= 3);
 });
 

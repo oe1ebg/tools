@@ -128,9 +128,9 @@ test('Geschäftsbuch CSV', () => {
   assert.ok(csv.startsWith('﻿Notfunk-Nr.;Referenz Meldesammelstelle;Datum;Uhrzeit;Zeitstempel (ISO 8601);Ein/Aus;'));
   const lines = csv.slice(1).trimEnd().split('\r\n');
   assert.equal(lines[0].split(';').length, GB_COLUMNS.length);
-  assert.match(lines[1], /^W1-020;;2026-10-05;14:07;2026-10-05T14:07:00\+02:00;Eingang;Lichtinsel Floridsdorf \/ OE1ABC;Stromausfall;"Seit 13:50 Uhr kein Strom\nim Bereich Am Spitz\.  Bitte um Info\.";Meldung;Dringend;Funk;;145,500 via OE1XUU;/);
+  assert.match(lines[1], /^W1-020;;2026-10-05;14:07:00\+02:00;2026-10-05T14:07:00\+02:00;Eingang;Lichtinsel Floridsdorf \/ OE1ABC;Stromausfall;"Seit 13:50 Uhr kein Strom\nim Bereich Am Spitz\.  Bitte um Info\.";Meldung;Dringend;Funk;;145,500 via OE1XUU;/);
   assert.match(lines.slice(2).join('\n'), /^W1-021;;.*;Ausgang;LI Floridsdorf \/ OE1ABC;"Re; Strom";/m);
-  assert.match(lines.slice(2).join('\n'), /;zur Übertragung;;;;Antwort auf W1-020;;OE1XYZ;OE1XKS;2026-10-05 14:07;;;;2026-10-05T14:07:00\+02:00$/m);
+  assert.match(lines.slice(2).join('\n'), /;zur Übertragung;;;;Antwort auf W1-020;;OE1XYZ;OE1XKS;2026-10-05T14:07:00\+02:00;$/m);
   assert.ok(!csv.includes('W1-022'), 'deleted messages are not in the Geschäftsbuch');
   // an Ort kept as text goes into the Ort column
   const t = toGeschaeftsbuchCSV([msg({ locationText: 'Hinterhof beim Gemeindebau' }, 23)]).slice(1).trimEnd().split('\r\n');

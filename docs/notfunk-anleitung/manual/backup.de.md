@@ -45,9 +45,11 @@ auch auf einem anderen Gerät.
 ## Geschäftsbuch für Excel
 
 **„Geschäftsbuch (CSV)“** schreibt eine Tabelle mit einer Zeile pro Meldung:
-Nummer, Referenz der Meldesammelstelle, Datum, Uhrzeit (Ortszeit), Richtung,
+Nummer, Referenz der Meldesammelstelle, Datum, Uhrzeit, Richtung,
 Betreff, Inhalt, Dringlichkeit, Funkstelle, Status, Übergabe und Bezug. Sie
-lässt sich in Excel oder LibreOffice öffnen.
+lässt sich in Excel oder LibreOffice öffnen. Alle Zeiten stehen in Ortszeit
+mit der Abweichung von UTC, z. B. `2026-10-08T14:05:00+02:00`; so sind sie
+auch in der Nacht der Zeitumstellung eindeutig.
 
 ## Daten schützen
 

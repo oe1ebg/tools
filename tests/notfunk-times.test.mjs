@@ -150,10 +150,12 @@ for (const tz of ZONES) {
     const col = (line, name) => line.split(';')[GB_COLUMNS.indexOf(name)];
     assert.equal(col(csv[1], 'Zeitstempel (ISO 8601)'), '2026-10-25T02:30:00+02:00');
     assert.equal(col(csv[2], 'Zeitstempel (ISO 8601)'), '2026-10-25T02:30:00+01:00');
-    assert.equal(col(csv[2], 'Übergeben / übertragen um'), '02:35');
-    assert.equal(col(csv[2], 'Übergeben / übertragen um (ISO 8601)'), '2026-10-25T02:35:00+01:00');
-    assert.equal(col(csv[2], 'Erfasst (ISO 8601)'), '2026-10-25T02:30:00+01:00');
-    assert.equal(col(csv[1], 'Übergeben / übertragen um (ISO 8601)'), '');
+    assert.equal(col(csv[1], 'Uhrzeit'), '02:30:00+02:00');
+    assert.equal(col(csv[2], 'Uhrzeit'), '02:30:00+01:00');
+    assert.equal(col(csv[2], 'Übergeben / übertragen um'), '2026-10-25T02:35:00+01:00');
+    assert.equal(col(csv[2], 'Erfasst'), '2026-10-25T02:30:00+01:00');
+    assert.equal(col(csv[1], 'Übergeben / übertragen um'), '');
+    assert.equal(GB_COLUMNS.at(-1), 'Anmerkungen');
     assert.ok(!csv.join('\n').match(/MESZ|MEZ/), 'no zone name in the CSV');
     // a draft saved by the version with the zone choice still restores
     const old = upgradeForm({ ...filled, date: D, time: '02:30', zone: 'MEZ' });

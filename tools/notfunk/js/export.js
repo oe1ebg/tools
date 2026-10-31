@@ -14,7 +14,7 @@
 //   only adds or updates records and never lowers a counter, so no message
 //   number is ever handed out twice (numbering.counterAfterImport()).
 
-import { DIRECTIONS, CHANNELS, MESSAGE_TYPES, PRIORITIES, REF_KINDS, STATUS_FLOW, validateMessage, messageFields, statusLabel, statusEntry, currentStatus, liveMessages, fmtVienna, viennaDate, viennaTime, isoVienna, fmtFreq } from './model.js';
+import { DIRECTIONS, CHANNELS, MESSAGE_TYPES, PRIORITIES, REF_KINDS, STATUS_FLOW, validateMessage, messageFields, statusLabel, statusEntry, currentStatus, liveMessages, viennaDate, isoVienna, isoTimeVienna, fmtFreq } from './model.js';
 import { counterAfterImport, counterKey, PREFIX_RE, formatNumber } from './numbering.js';
 import { csvSafeRows } from '../../shared/js/csv.js';
 import { splitToFit, partsTooManyRecords, backupTooLargeMessage, chunkRecord, applyChunks } from '../../shared/js/backup-parts.js';
@@ -39,8 +39,6 @@ export const GB_COLUMNS = [
   'Art', 'Dringlichkeit', 'Übermittlung', 'Funkstelle', 'Frequenz/Relais', 'Absender', 'Adressat', 'Verteiler',
   'Rücklesen bestätigt', 'Status', 'Übergeben / übertragen an', 'Übergeben / übertragen um', 'Übernommen / Empfang bestätigt durch',
   'Bezug', 'Ort', 'Aufgenommen von', 'Stationsrufzeichen', 'Erfasst', 'Anmerkungen',
-  // exact instants with offset (the cells above are Vienna wall-clock time only)
-  'Übergeben / übertragen um (ISO 8601)', 'Empfang bestätigt um (ISO 8601)', 'Erfasst (ISO 8601)',
 ];
 
 // stats (optional object): .guarded = number of cells that got a leading '
@@ -53,16 +51,15 @@ export function toGeschaeftsbuchCSV(msgs, sep = ';', stats) {
     const ack = statusEntry(m, 'acknowledged');
     const ref = m.replyTo ? byId.get(m.replyTo)?.number || m.refNumber || '' : m.refNumber || '';
     rows.push([
-      m.number, m.staffRef || '', viennaDate(m.ts), viennaTime(m.ts), isoVienna(m.ts), DIRECTIONS[m.direction],
+      m.number, m.staffRef || '', viennaDate(m.ts), isoTimeVienna(m.ts), isoVienna(m.ts), DIRECTIONS[m.direction],
       partyLabel(m.direction === 'in' ? m.from : m.to), m.subject, m.text,
       MESSAGE_TYPES[m.type], PRIORITIES[m.priority],
       CHANNELS[m.channel],
       m.peer || '', [fmtFreq(m.radio.freq), m.radio.via].filter(Boolean).join(' via '), partyLabel(m.from), partyLabel(m.to), m.distribution.join(', '),
       m.readBack ? 'ja' : '', statusLabel(currentStatus(m), m.direction),
-      fwd?.to || '', fwd ? viennaTime(fwd.at) : '', ack ? [ack.who, viennaTime(ack.at)].filter(Boolean).join(' ') : '',
+      fwd?.to || '', fwd ? isoVienna(fwd.at) : '', ack ? [ack.who, isoVienna(ack.at)].filter(Boolean).join(' ') : '',
       ref ? `${REF_KINDS[m.refKind] || REF_KINDS.antwort} ${ref}` : '',
-      m.location ? m.location.label || `${m.location.lat}, ${m.location.lon}` : m.locationText || '', m.operator, m.stationCall || '', fmtVienna(m.created), m.remarks,
-      fwd ? isoVienna(fwd.at) : '', ack ? isoVienna(ack.at) : '', isoVienna(m.created),
+      m.location ? m.location.label || `${m.location.lat}, ${m.location.lon}` : m.locationText || '', m.operator, m.stationCall || '', isoVienna(m.created), m.remarks,
     ]);
   }
   return '\ufeff' + csvSafeRows(rows, sep, stats) + '\r\n';

@@ -285,3 +285,8 @@ export function fmtVienna(iso) {
 export function isoVienna(iso) {
   return isoInZone(iso, ZONE);
 }
+
+// "14:07:00+02:00": the time of day with its offset, for the CSV.
+export function isoTimeVienna(iso) {
+  return isoVienna(iso).slice(11);
+}
