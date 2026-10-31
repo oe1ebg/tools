@@ -119,7 +119,7 @@ function svRotation(id, stats) {
         el('td', {}, r.holders.length
           ? r.holders.map(h => el('div', {},
             el('b', { class: 'call mono' }, h.call), ' ',
-            el('span', { class: 'mono' }, h.from || h.to ? `${h.from || '?'}–${h.to || '?'} ${h.zone}` : '', ' ', svQty(h.duration))))
+            el('span', { class: 'mono' }, h.from || h.to ? `${h.from || '?'}–${h.to || '?'} ${h.zone} · ` : '', svQty(h.duration))))
           : '–')))));
 }
 
