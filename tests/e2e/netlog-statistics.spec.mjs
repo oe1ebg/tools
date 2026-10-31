@@ -192,7 +192,10 @@ test('statistics card: 320 px, the page does not scroll sideways, tables scroll 
   const wide = await panel.locator('.st-scroll').evaluateAll(list => list.map(n => [n.scrollWidth > n.clientWidth, n.getBoundingClientRect().right <= document.documentElement.clientWidth + 1]));
   expect(wide.every(([, inside]) => inside)).toBe(true);
   expect(wide.some(([scrolls]) => scrolls)).toBe(true);
-  await page.screenshot({ path: process.env.STATS_SHOT_DIR ? `${process.env.STATS_SHOT_DIR}/stats-320.png` : undefined, fullPage: true });
+  // Only for the manual review shots (STATS_SHOT_DIR, Chromium): WebKit applies the style that
+  // Playwright injects for a screenshot as an inline <style>, which the page CSP blocks and the
+  // fixtures report as a console error.
+  if (process.env.STATS_SHOT_DIR) await page.screenshot({ path: `${process.env.STATS_SHOT_DIR}/stats-320.png`, fullPage: true });
 });
 
 // axe-core is not a committed dependency (like @playwright/test; `just a11y-survey` installs it):
