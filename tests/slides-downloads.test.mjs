@@ -24,10 +24,13 @@ test('slides: committed exports are real files of their format', () => {
   }
 });
 
-test('slides: the manual start page links every export, build stages them', () => {
+// The PowerPoint files are shipped for downloading by their direct URL
+// (downloads/notfunk-einfuehrung/), not linked from the start page.
+test('slides: the start page links PDF and HTML, not the PowerPoint files; build stages them all', () => {
   const index = text('docs/notfunk-anleitung/index.de.md');
   for (const [name] of SLIDES) {
-    assert.ok(index.includes(`](../downloads/notfunk-einfuehrung/${name})`), `${name} is linked from the start page`);
+    const linked = index.includes(`](../downloads/notfunk-einfuehrung/${name})`);
+    assert.equal(linked, !name.endsWith('.pptx'), `${name}: ${linked ? 'is linked' : 'is not linked'} from the start page`);
   }
   assert.ok(text('scripts/build_site.py').includes('shutil.copytree(slides, OUT_DIR / "downloads" / slides.name)'), 'build_site.py stages the directory');
 });

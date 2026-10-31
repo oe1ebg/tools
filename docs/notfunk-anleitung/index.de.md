@@ -23,9 +23,6 @@ und ohne Internet; alle Daten bleiben auf dem Gerät.
 Die Präsentation zur Einführung in das Notfunk-Meldebuch (Deutsch):
 
 - [PDF](../downloads/notfunk-einfuehrung/notfunk-einfuehrung.pdf){ download="notfunk-einfuehrung.pdf" }
-- PowerPoint:
-  [mit Schrift IBM Plex Sans](../downloads/notfunk-einfuehrung/notfunk-einfuehrung.pptx){ download="notfunk-einfuehrung.pptx" },
-  [mit Standardschriften](../downloads/notfunk-einfuehrung/notfunk-einfuehrung-basic.pptx){ download="notfunk-einfuehrung-basic.pptx" }
 - [HTML](../downloads/notfunk-einfuehrung/notfunk-einfuehrung.html)
   (im Browser blätterbar; hier erscheint eine Systemschrift, in einer gespeicherten Kopie mit Internet die Schrift IBM Plex Sans)
 
