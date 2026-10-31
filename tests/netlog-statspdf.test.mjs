@@ -51,7 +51,7 @@ test('model: German, the header, the summary, the estimate note and the marks as
   assert.equal(m.title, 'Netlog · Statistik der Serie');
   assert.equal(m.seriesName, 'Abendrunde');
   assert.equal(m.generated, 'Erstellt 2026-10-31 12:34 UTC');
-  assert.equal(m.sub, '2 Sitzungen gezählt · Erstellt 2026-10-31 12:34 UTC');
+  assert.equal(m.sub, '2 Sitzungen gezählt', 'the stamp is not repeated in the sub line');
   assert.equal(m.estimate.title, 'Geschätzt:');
   assert.match(m.estimate.text, /Sprechzeit ist eine Schätzung und eine obere Grenze/);
   assert.doesNotMatch(m.estimate.text, /[≈≥✓]/);
@@ -121,6 +121,11 @@ test('PDF: valid structure, header, texts in the sheet, the estimate note and th
   for (const s of ['Netlog · Statistik der Serie', 'Abendrunde', 'Geschätzt:', 'Stammgäste', 'Anwesenheit je Sitzung', 'Wechsel der Rundenleitung',
     'OE0TEST', 'DL0XYZ', 'Jörg Öhm', '2026-10-08', `Seite 1 von ${pages(pdf).length}`, 'NCS', 'Zeiten in UTC']) assert.ok(all.includes(s), s);
   assert.doesNotMatch(all, /[≈≥✓?]\s/, 'no marks that the font lacks');
+  // exactly one date stamp per page: ISO date, 24 h time, UTC; not the roster flow's "gedruckt"
+  const stamps = pages(pdf).map(p => p.filter(x => /\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(x.text) && x.size === 8.5).map(x => x.text));
+  stamps.forEach(s => assert.deepEqual(s, ['Erstellt 2026-10-31 12:34 UTC']));
+  assert.doesNotMatch(all, /gedruckt/);
+  assert.equal(all.match(/Erstellt/g).length, pages(pdf).length);
   assert.match(all, /Sprechzeit ist eine Schätzung/);
   useLang('en');
 });

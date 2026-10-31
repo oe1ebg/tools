@@ -22,7 +22,8 @@ import { smSummary, smLeaderboard, smMatrix, smSessions, smRotation } from './st
 
 export const spmAscii = s => String(s ?? '').replace(/≈/g, '~').replace(/≥/g, '>=').replace(/✓/g, '+').replace(/[ \t]+/g, ' ').trim();
 
-// "2026-10-31 12:00 UTC": the instant the sheet was made, always UTC
+// "2026-10-31 12:00 UTC": the instant the sheet was made, always UTC (ISO date, 24 h time); the
+// only date stamp of the sheet, shown top right on every page
 export function spmStamp(iso) {
   const d = new Date(iso);
   return `${d.toISOString().slice(0, 10)} ${d.toISOString().slice(11, 16)} UTC`;
@@ -35,7 +36,7 @@ export function statsPdfModel(stats, { seriesName, generatedIso }) {
   const generated = t('stats.pdf.generated', { stamp: spmStamp(generatedIso) });
   const head = {
     title: `Netlog · ${t('stats.title')}`,
-    sub: `${t('stats.sessions', { n: stats.sessionCount })} · ${generated}`,
+    sub: t('stats.sessions', { n: stats.sessionCount }), // the stamp (`generated`) is the page head's, once
     generated, generatedIso, seriesName: name,
     docTitle: `Netlog - ${t('stats.title')} - ${name}`,
     estimate: { title: t('stats.estimateTitle'), text: spmAscii(t('stats.estimateNote')) },

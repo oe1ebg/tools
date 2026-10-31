@@ -70,7 +70,7 @@ function spdMatrix(f, m) {
 }
 
 export function statsPdf(model) {
-  const f = npdfFlow(model.title, model.sub, model.generatedIso);
+  const f = npdfFlow(model.title, model.sub, model.generatedIso, model.generated);
   // the series, and the estimate note first: it applies to every speaking time on the sheet
   f.row([{ x: 0, w: NPDF_W, lines: [npdfNote(model.seriesName || '-', { bold: true, size: 12 })] }], { rule: false });
   f.row([
