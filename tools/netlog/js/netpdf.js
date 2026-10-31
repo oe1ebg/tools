@@ -20,7 +20,7 @@ const NPDF_PAGE = PDF_A4_PORTRAIT;
 const NPDF_M = 15; // mm margin
 const NPDF_TOP = 30; // mm: first line under the page head
 const NPDF_BOTTOM = NPDF_PAGE.height - 20;
-const NPDF_W = NPDF_PAGE.width - 2 * NPDF_M;
+export const NPDF_W = NPDF_PAGE.width - 2 * NPDF_M;
 const NPDF_PITCH = 4.4; // mm per text line
 const NPDF_PAD = 1.3; // mm above and below a row
 
@@ -36,15 +36,21 @@ function npdfStamp(iso = new Date().toISOString()) {
   return `${iso.slice(0, 10)} ${hm(iso)} ${zone(iso)}`;
 }
 
+// the lines of each column of a row, wrapped to the column's width (a line with wrap: false stays whole)
+const npdfCells = cols => cols.map(c => ({
+  ...c,
+  lines: c.lines.flatMap(l => (l.wrap === false ? [l] : pdfWrap(npdfPlain(l.t), c.w - 1.5, l.size || 9, !!l.bold).map(tt => ({ ...l, t: tt })))),
+}));
+
 // A document that flows onto A4 pages: page head and foot on each, rows of
 // columns that split between pages by lines.
-function npdfFlow(title, sub) {
+export function npdfFlow(title, sub, printedIso = undefined) {
   const pages = [];
   let cv = null;
   let y = NPDF_TOP;
   const head = () => {
     cv.text(npdfPlain(title), NPDF_M, NPDF_M + 4, { size: 14, bold: true });
-    cv.text(`${t('pdf.printed')} ${npdfStamp()}`, NPDF_PAGE.width - NPDF_M, NPDF_M + 4, { size: 8.5, align: 'right', gray: 0.3 });
+    cv.text(`${t('pdf.printed')} ${npdfStamp(printedIso)}`, NPDF_PAGE.width - NPDF_M, NPDF_M + 4, { size: 8.5, align: 'right', gray: 0.3 });
     cv.text(npdfPlain(sub), NPDF_M, NPDF_M + 10, { size: 9.5 });
     cv.line(NPDF_M, NPDF_M + 13, NPDF_PAGE.width - NPDF_M, NPDF_M + 13, { width: 1.2 });
   };
@@ -56,6 +62,10 @@ function npdfFlow(title, sub) {
     get y() { return y; },
     skip(mm) { y += mm; },
     need(mm) { if (y + mm > NPDF_BOTTOM) newPage(); },
+    // the height (mm) a row of these columns takes, wrapped as row() does; fits(mm): room left on this page
+    heightOf(cols) { return Math.max(1, ...npdfCells(cols).map(c => c.lines.length)) * NPDF_PITCH + 2 * NPDF_PAD; },
+    fits(mm) { return y + mm <= NPDF_BOTTOM; },
+    breakPage() { newPage(); },
     // a bar with a heading across the width (a round, a block of the page)
     bar(text, right = '') {
       api.need(NPDF_PITCH * 3);
@@ -67,10 +77,7 @@ function npdfFlow(title, sub) {
     // a row: cols = [{ x, w, lines: [{ t, bold, size, gray }] }] (x from the left margin);
     // lines are wrapped here when given as { text, ... } with wrap: true
     row(cols, { rule = true } = {}) {
-      const cells = cols.map(c => ({
-        ...c,
-        lines: c.lines.flatMap(l => (l.wrap === false ? [l] : pdfWrap(npdfPlain(l.t), c.w - 1.5, l.size || 9, !!l.bold).map(tt => ({ ...l, t: tt })))),
-      }));
+      const cells = npdfCells(cols);
       for (;;) {
         const total = Math.max(1, ...cells.map(c => c.lines.length));
         const fit = Math.max(room(), 0);
@@ -107,7 +114,7 @@ function npdfFlow(title, sub) {
   return api;
 }
 
-const npdfNote = (txt, o = {}) => ({ t: txt, ...o });
+export const npdfNote = (txt, o = {}) => ({ t: txt, ...o });
 
 const npdfDur = rosterDur;
 
