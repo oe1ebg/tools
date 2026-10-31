@@ -448,6 +448,8 @@ export const LANG_DE = {
   'help.pressKeys': 'Neue Kombination drücken (Esc bricht ab)…',
   'help.changed': 'Jetzt {keys}.',
   'help.editNote': 'Einzelbuchstaben-Befehle wirken nur außerhalb von Textfeldern; Tab, Umschalt+Tab und die Schaltflächen können ebenfalls alles.',
+  'help.statsTitle': 'Statistik einer Serie',
+  'help.stats': '„Statistik“ auf der Karte einer Serie (Sitzungen & Serien) wertet alle Sitzungen der Serie auf diesem Gerät aus: Stammgäste (besuchte Sitzungen, Anwesenheitszeit, Mal Rundenleitung, zuletzt gesehen), Anwesenheit je Sitzung, Dauer und Runden der Sitzungen und der Wechsel der Rundenleitung. Dieselbe Station heißt: dasselbe Stationsprofil oder dasselbe Grundrufzeichen, nie nach „Nicht dieselbe“ und nie zweimal in einer Sitzung; unvollständige Rufzeichen werden nicht gezählt. Die Sprechzeit ist eine Schätzung und eine obere Grenze: ein Beitrag dauert bis zum Beginn des nächsten, Pausen sind eingerechnet. ≈ bedeutet geschätzt, ≥ mindestens (Zeiten ohne bekannte Uhrzeit fehlen), – unbekannt; nichts wird ergänzt. „Statistik (PDF)“ und „Statistik (CSV)“ exportieren, was angezeigt wird; ein Export ist keine Sicherung.',
   'help.dataTitle': 'Daten',
   'help.data': '„gespeichert“ erscheint erst, wenn der Browser eine Änderung abgelegt hat. Ein Entwurf ist unfertiger Text, der für dich aufbewahrt wird, keine gespeicherte Notiz. Die Daten liegen pro Browser und Website; für eine Kopie anderswo eine Sicherung exportieren.',
   'help.tabs': 'Nur ein Tab oder Fenster bearbeitet eine Sitzung; andere zeigen sie nur an und bieten „Hier bearbeiten“.',

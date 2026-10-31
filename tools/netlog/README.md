@@ -537,6 +537,9 @@ rounds, contributions, notes and events are ignored).
     quality cell says `unknown` then. A "without time" column is
     empty only when the value is unknown and nothing was left out; else it
     holds the count (0 or more).
+- **Help.** The help dialog (`?`) has a short section "Statistik einer
+  Serie" / "Statistics of a series" (`help.stats*` in both language files)
+  that says the same in brief.
 - **Bundle.** The modules are plain ES modules in `tools/netlog/js/`: they
   are in `precache.js` (offline after the install) and in
   `netlog-offline.html`. The panel makes no network request.
