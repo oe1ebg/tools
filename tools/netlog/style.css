@@ -801,3 +801,26 @@ button[data-keys]::after{ font-family:-apple-system, system-ui, "Segoe UI Symbol
 .rr-note.on-light{ stroke:var(--text); }
 .rr-legend{ list-style:none; display:flex; flex-wrap:wrap; gap:.4em 1.2em; margin:.6em 0 0; padding:0; font-size:13.5px; }
 .rr-legend li{ display:inline-flex; align-items:center; gap:.4em; }
+
+/* ---------- series statistics card (#83): tables scroll in their own region ---------- */
+.stats-panel{ padding:.7em .9em .8em 1.6em; border-top:1px solid var(--line); }
+.stats-panel h4{ margin:0 0 .3em; font-size:16px; }
+.st-status:empty{ display:none; }
+.st-summary{ list-style:none; display:flex; flex-wrap:wrap; gap:.3em 1.2em; margin:.3em 0; padding:0; font-size:14px; }
+.st-summary li{ white-space:normal; }
+.st-estimate{ margin:.4em 0 .8em; font-size:14px; }
+.st-block{ margin-top:1em; }
+.st-block h5{ margin:0 0 .3em; font-size:15px; }
+.st-scroll{ overflow-x:auto; max-width:100%; }
+.st-table{ border-collapse:collapse; width:100%; font-size:14px; }
+.st-table th, .st-table td{ padding:.3em .6em; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; white-space:nowrap; }
+.st-table thead th{ font-size:13px; font-weight:600; color:var(--text-dim); border-bottom:1px solid var(--line-strong); }
+.st-table tbody th{ font-weight:400; }
+.st-table .st-num{ text-align:right; font-variant-numeric:tabular-nums; }
+.st-name{ color:var(--text-dim); }
+.st-note{ color:var(--text-dim); font-size:13px; }
+.st-cell.here{ background:var(--accent-soft); }
+.st-cell .rr-tag{ margin-left:.4em; }
+@media (forced-colors: active){
+  .st-cell.here{ border:1px solid CanvasText; }
+}
