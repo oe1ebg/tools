@@ -44,13 +44,15 @@ const npdfCells = cols => cols.map(c => ({
 
 // A document that flows onto A4 pages: page head and foot on each, rows of
 // columns that split between pages by lines.
-export function npdfFlow(title, sub, printedIso = undefined) {
+// stamp: the text for the top right instead of "printed <date time zone>" (the statistics sheet
+// shows its own UTC stamp, once); the roster and the log leave it out.
+export function npdfFlow(title, sub, printedIso = undefined, stamp = '') {
   const pages = [];
   let cv = null;
   let y = NPDF_TOP;
   const head = () => {
     cv.text(npdfPlain(title), NPDF_M, NPDF_M + 4, { size: 14, bold: true });
-    cv.text(`${t('pdf.printed')} ${npdfStamp(printedIso)}`, NPDF_PAGE.width - NPDF_M, NPDF_M + 4, { size: 8.5, align: 'right', gray: 0.3 });
+    cv.text(stamp ? npdfPlain(stamp) : `${t('pdf.printed')} ${npdfStamp(printedIso)}`, NPDF_PAGE.width - NPDF_M, NPDF_M + 4, { size: 8.5, align: 'right', gray: 0.3 });
     cv.text(npdfPlain(sub), NPDF_M, NPDF_M + 10, { size: 9.5 });
     cv.line(NPDF_M, NPDF_M + 13, NPDF_PAGE.width - NPDF_M, NPDF_M + 13, { width: 1.2 });
   };
