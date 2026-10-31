@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ADIF Editor</title>
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="ADIF-Logs (.adi) ansehen, prüfen und bearbeiten.">
+<!-- Link previews: a static card per tool (scripts/make_og_cards.py). Crawlers
+     want an absolute og:image URL; a host that embeds the bundle can set it. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="OE1EBG Tools">
+<meta property="og:title" content="ADIF-Editor">
+<meta property="og:description" content="ADIF-Logs (.adi) ansehen, prüfen und bearbeiten.">
+<meta property="og:image" content="og-card.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="ADIF-Editor – OE1EBG Tools">
+<meta property="og:locale" content="de_AT">
+<meta name="twitter:card" content="summary_large_image">
+<!-- Theme first (sets data-theme before anything paints), then the styles;
+     inlined into adif-editor.html by scripts/build_adif.py. -->
+<!-- ADIF-VENDOR-BEGIN -->
+<script src="../shared/js/theme.js"></script>
+<link rel="stylesheet" href="../shared/css/tools.css">
+<link rel="stylesheet" href="style.css">
+<!-- ADIF-VENDOR-END -->
+</head>
+<body>
+
+<header id="site-header">
+  <a id="home-link" href="../" data-de="← Alle Tools">← All tools</a>
+  <h1 class="title" data-de="ADIF-Editor">ADIF editor</h1>
+  <a class="hdr-link" href="adif-editor.html" download="adif-editor.html" title="the whole editor in one HTML file: save it and open it without a server" data-de-title="der ganze Editor in einer HTML-Datei: speichern und ohne Server öffnen" data-de="eine Datei ↓">single file ↓</a>
+  <a class="hdr-link" href="https://www.adif.org/318/ADIF_318.htm" target="_blank" rel="noopener"><span data-de="für ADIF 3.1.8">targets ADIF 3.1.8</span>&nbsp;<span aria-hidden="true">↗</span><span class="sr-only" data-de="(öffnet in neuem Tab)">(opens in a new tab)</span></a>
+  <a class="hdr-link" href="https://github.com/oe1ebg/tools/tree/main/tools/adif" target="_blank" rel="noopener" title="source code on GitHub" data-de-title="Quellcode auf GitHub"><span data-de="Quellcode">source</span>&nbsp;<span aria-hidden="true">↗</span><span class="sr-only" data-de="(öffnet in neuem Tab)">(opens in a new tab)</span></a>
+  <div class="hdr-controls">
+    <div id="lang-toggle" class="toggle" role="group" aria-label="language" data-de-aria-label="Sprache">
+      <button type="button" data-lang="de" lang="de" aria-pressed="false">DE</button>
+      <button type="button" data-lang="en" lang="en" aria-pressed="false">EN</button>
+    </div>
+    <div id="theme-toggle" class="toggle" role="group" aria-label="color theme" data-de-aria-label="Farbschema">
+      <button type="button" data-theme-choice="light" aria-pressed="false" title="light theme" data-de-title="helles Farbschema" data-de="hell">light</button>
+      <button type="button" data-theme-choice="auto" aria-pressed="false" title="match system theme" data-de-title="wie das System" data-de="auto">auto</button>
+      <button type="button" data-theme-choice="dark" aria-pressed="false" title="dark theme" data-de-title="dunkles Farbschema" data-de="dunkel">dark</button>
+    </div>
+    <button id="btn-help" type="button" aria-haspopup="dialog" aria-controls="help-dlg" aria-keyshortcuts="?" title="help: editing, keys, exports (? outside table cells and fields)" data-de-title="Hilfe: Bearbeiten, Tasten, Exporte (? außerhalb von Zellen und Feldern)"><span aria-hidden="true">?</span> <span data-de="Hilfe">Help</span></button>
+  </div>
+</header>
+
+<div id="toolbar">
+  <button type="button" id="btn-open" data-de="Datei(en) hinzufügen…">add file(s)…</button>
+  <button type="button" id="btn-new" title="start an empty log" data-de-title="ein leeres Log beginnen" data-de="neu">new</button>
+  <button type="button" id="btn-clear" title="remove the whole log from the editor" data-de-title="das ganze Log aus dem Editor entfernen" data-de="leeren…" disabled>clear…</button>
+  <input id="file-input" type="file" accept=".adi,.adif,.adx,.txt" multiple hidden>
+  <div id="col-order" class="toggle" role="group" aria-label="column order" data-de-aria-label="Reihenfolge der Spalten" title="the order of the table's columns; exports keep the file's order" data-de-title="die Reihenfolge der Spalten in der Tabelle; Exporte behalten die der Datei">
+    <button type="button" data-col-order="core" aria-pressed="true" data-de="Kernfelder zuerst">core fields first</button>
+    <button type="button" data-col-order="file" aria-pressed="false" data-de="wie in der Datei">file order</button>
+  </div>
+  <span id="stats"></span>
+  <div class="spacer"></div>
+  <input id="filename-input" type="text" value="export.adi" title="export filename" aria-label="export filename" data-de-title="Dateiname für den Export" data-de-aria-label="Dateiname für den Export" autocomplete="off" spellcheck="false">
+  <button type="button" id="btn-export" data-de=".adi exportieren" disabled>export .adi</button>
+  <button type="button" id="btn-export-adx" data-de=".adx exportieren" disabled>export .adx</button>
+  <button type="button" id="btn-export-csv" data-de=".csv exportieren" disabled>export .csv</button>
+  <span class="sep" aria-hidden="true">/</span>
+  <select id="sota-mode" title="SOTA CSV mode" aria-label="SOTA CSV mode" data-de-title="Art des SOTA-CSV" data-de-aria-label="Art des SOTA-CSV">
+    <option value="activator" data-de="Aktivierer">activator</option>
+    <option value="chaser" data-de="Jäger (Chaser)">chaser</option>
+  </select>
+  <button type="button" id="btn-export-sota" data-de="SOTA-CSV exportieren" disabled>export SOTA csv</button>
+  <span class="sep" aria-hidden="true">/</span>
+  <button type="button" id="btn-toggle-tools" aria-expanded="false" aria-controls="tools-panel"><span data-de="Werkzeuge">tools</span> <span aria-hidden="true">▾</span></button>
+</div>
+
+<div id="tools-panel">
+  <label for="tpl-input" data-de="leeres COMMENT füllen:">fill blank COMMENT:</label>
+  <input type="text" id="tpl-input" placeholder="{RST_SENT} {RST_RCVD} thx" data-de-placeholder="{RST_SENT} {RST_RCVD} tnx">
+  <button type="button" id="btn-apply-tpl" data-de="anwenden">apply</button>
+  <span class="hint" data-de="füllt nur Zeilen, deren COMMENT gerade leer ist — Platzhalter wie {RST_SENT} holen den Wert aus dem Feld dieses QSOs">only fills rows where COMMENT is currently empty — placeholders like {RST_SENT} pull from that record's field</span>
+</div>
+
+<!-- Search & filter (js/filter-ui.js, js/filter.js): only the table's view
+     changes, every export writes the whole log. -->
+<div id="filter-bar" role="search" aria-label="filter QSOs" data-de-aria-label="QSOs filtern" hidden>
+  <div class="flt-line">
+    <label for="flt-text" data-de="Suche">search</label>
+    <input type="search" id="flt-text" placeholder="call, comment, …" data-de-placeholder="Rufzeichen, Kommentar, …" autocomplete="off" spellcheck="false" enterkeyhint="search">
+    <select id="flt-text-field" aria-label="search in" data-de-aria-label="suchen in">
+      <option value="" data-de="alle Felder">all fields</option>
+    </select>
+    <label for="flt-status" data-de="Status">status</label>
+    <select id="flt-status">
+      <option value="any" data-de="alle">any</option>
+      <option value="errors" data-de="mit Fehlern">with errors</option>
+      <option value="warnings" data-de="mit Warnungen">with warnings</option>
+      <option value="info" data-de="mit Hinweisen">with info</option>
+      <option value="clean" data-de="ohne Befund">issue-free</option>
+    </select>
+    <span id="flt-file-wrap" hidden>
+      <label for="flt-file" data-de="Datei">file</label>
+      <select id="flt-file">
+        <option value="" data-de="alle Dateien">all files</option>
+      </select>
+    </span>
+    <label for="flt-from" data-de="QSO_DATE von">QSO_DATE from</label>
+    <input type="text" id="flt-from" class="flt-date" placeholder="YYYY-MM-DD" data-de-placeholder="JJJJ-MM-TT" inputmode="numeric" maxlength="10" autocomplete="off" spellcheck="false">
+    <button type="button" class="date-pick" data-for="flt-from" title="choose the first date" aria-label="choose the first date" data-de-title="das erste Datum wählen" data-de-aria-label="das erste Datum wählen"><svg class="icon-calendar" aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></button>
+    <label for="flt-to" data-de="bis">to</label>
+    <input type="text" id="flt-to" class="flt-date" placeholder="YYYY-MM-DD" data-de-placeholder="JJJJ-MM-TT" inputmode="numeric" maxlength="10" autocomplete="off" spellcheck="false">
+    <button type="button" class="date-pick" data-for="flt-to" title="choose the last date" aria-label="choose the last date" data-de-title="das letzte Datum wählen" data-de-aria-label="das letzte Datum wählen"><svg class="icon-calendar" aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></button>
+    <button type="button" id="flt-add-cond" data-de="+ Bedingung">+ condition</button>
+    <button type="button" id="flt-clear" data-de="Filter löschen">clear filters</button>
+    <span id="flt-count" role="status"></span>
+    <span id="flt-note" class="hint" data-de="Exporte enthalten alle QSOs" hidden>exports include all QSOs</span>
+  </div>
+  <div id="flt-conds"></div>
+</div>
+
+<!-- Under the filter bar, one line: validation, files, statistics, about.
+     A panel opened from it takes the whole width; while the table is
+     scrolled down, the parts only read now and then fold away (style.css,
+     body.compact). -->
+<div id="status-area">
+<div id="warnings" role="status"></div>
+
+<!-- A running import (js/app.js, js/load.js): progress and Cancel. The bar and
+     the line are for the eyes; the status region speaks every 10 %. -->
+<div id="import-progress" class="import-progress" role="group" aria-labelledby="import-title" hidden>
+  <strong id="import-title" data-de="Lade Datei(en)">Loading file(s)</strong>
+  <progress id="import-bar" max="100" value="0" aria-labelledby="import-title"></progress>
+  <span id="import-text"></span>
+  <button type="button" id="btn-cancel-import" data-de="Abbrechen">Cancel</button>
+  <span id="import-live" class="sr-only" role="status"></span>
+</div>
+
+<!-- ADIF validation (../shared/js/adif-validate.js): summary, then the issue list on demand. -->
+<div id="validation" class="validation" hidden>
+  <span id="validation-summary" role="status"></span>
+  <button type="button" id="btn-issues" aria-expanded="false" aria-controls="validation-issues"><span data-de="Befunde zeigen">show issues</span> <span aria-hidden="true">▾</span></button>
+</div>
+
+<div id="file-info"></div>
+
+<details id="log-statistics">
+  <summary data-de="Log-Statistik">Log statistics</summary>
+  <label for="statistics-scope" data-de="Bereich der Statistik">Statistics scope</label>
+  <select id="statistics-scope"><option value="whole" data-de="Ganzes Log">Whole log</option><option value="shown" data-de="Angezeigte QSOs">Shown QSOs</option></select>
+  <div id="statistics-body"></div>
+</details>
+
+<!-- What the validation covers, how the editor is verified, and this build's
+     commit / CI run (js/compliance.js, from build-info.js). -->
+<details id="compliance">
+  <summary data-de="Über ADIF-Konformität und Prüfung">About ADIF compliance &amp; validation</summary>
+  <div id="compliance-body"></div>
+</details>
+
+<div id="validation-issues" hidden></div>
+</div>
+
+<main id="drop" class="empty">
+  <div id="empty-msg">
+    <span data-de=".adi- / .adx-Datei(en) hierher ziehen">drag &amp; drop .adi / .adx file(s) here</span><br>
+    <span class="hint" data-de="oder „Datei(en) hinzufügen…“ klicken — Dateien kommen zum aktuellen Log dazu; nichts verlässt den Browser">or click "add file(s)…" — files are added to the current log; nothing leaves the browser</span>
+  </div>
+</main>
+
+<datalist id="adif-field-list"></datalist>
+
+<!-- Suggestions for the focused CONTEST_ID / SUBMODE cell (js/cell-editors.js):
+     the focus stays in the cell, the highlighted item is announced. -->
+<ul id="cell-suggest" role="listbox" aria-label="suggestions" data-de-aria-label="Vorschläge" hidden></ul>
+<!-- The calendar of the focused date cell (js/app.js, datePick): not in the
+     Tab order, Alt+↓ in the cell does the same. -->
+<button type="button" id="cell-date-btn" class="date-pick" tabindex="-1" title="choose a date (Alt+↓)" aria-label="choose a date" data-de-title="ein Datum wählen (Alt+↓)" data-de-aria-label="ein Datum wählen" hidden><svg class="icon-calendar" aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></button>
+<span id="cell-suggest-status" class="sr-only" role="status"></span>
+
+<!-- Help: "? Help" in the header or ? outside table cells and fields
+     (shared ../shared/js/helpdialog.js). Esc or "Close" closes it. -->
+<dialog id="help-dlg" class="help-dlg" aria-labelledby="help-title">
+  <div class="help-head">
+    <h2 id="help-title" data-de="Hilfe">Help</h2>
+    <a href="https://github.com/oe1ebg/tools/tree/main/tools/adif#readme" target="_blank" rel="noopener" data-de="Mehr im README (online, Englisch)">More in the README (online)</a>
+    <button type="button" id="help-close" class="primary" data-de="Schließen (Esc)">Close (Esc)</button>
+  </div>
+  <div class="help-body">
+    <nav class="help-nav" aria-label="help sections" data-de-aria-label="Abschnitte der Hilfe">
+      <a href="#h-load" data-de="Laden">Loading</a><a href="#h-edit" data-de="Bearbeiten">Editing</a><a href="#h-check" data-de="Prüfung">Checks</a><a href="#h-find" data-de="Suche und Filter">Search &amp; filter</a><a href="#h-export" data-de="Export">Export</a>
+    </nav>
+    <div class="help-content" data-lang-only="en" lang="en">
+      <section id="h-load" aria-labelledby="h-load-t">
+        <h3 id="h-load-t">Loading</h3>
+        <p>Drag .adi or .adx files onto the page, or use "add file(s)…". Files are added to the current log; "new" starts an empty one, "clear…" removes the whole log from the editor. Nothing leaves the browser.</p>
+        <p>"single file ↓" saves the whole editor as one HTML file that works without a server and without internet.</p>
+      </section>
+      <section id="h-edit" aria-labelledby="h-edit-t">
+        <h3 id="h-edit-t">Editing</h3>
+        <dl class="kb">
+          <dt><kbd>Enter</kbd></dt><dd>take the value and go one row down</dd>
+          <dt><kbd>Esc</kbd></dt><dd>restore the value from before the edit (in a list of suggestions: close the list first)</dd>
+          <dt><kbd>Tab</kbd></dt><dd>next field; at the end of a row, the next row</dd>
+          <dt><kbd>↓</kbd> <kbd>↑</kbd></dt><dd>in CONTEST_ID and SUBMODE: go through the suggestions, <kbd>Enter</kbd> takes one</dd>
+          <dt><kbd>Alt</kbd>+<kbd>↓</kbd></dt><dd>in a date field: open the calendar</dd>
+          <dt><kbd>?</kbd></dt><dd>this help (outside table cells and fields)</dd>
+        </dl>
+        <p>The table shows the core fields (CALL, date, time, band, mode …) first; "file order" in the toolbar shows the file's order. Exports always keep the file's order.</p>
+        <p>Fields with a fixed list in ADIF (BAND, MODE, DXCC, QSL status …) are drop-downs; the empty choice removes the field. A value is never changed by showing it. Dates are shown as YYYY-MM-DD, times as HH:MM or HH:MM:SS (UTC); the file keeps the ADIF format. Edits that were not exported make the browser ask before the tab closes.</p>
+      </section>
+      <section id="h-check" aria-labelledby="h-check-t">
+        <h3 id="h-check-t">Checks</h3>
+        <p>Every QSO is checked against ADIF 3.1.8. The issues button lists errors, warnings and notes; "row N" goes to the QSO. After a change of language the messages of a check already made stay as they are; the next check (after an edit, or when the file is loaded again) is in the new language.</p>
+      </section>
+      <section id="h-find" aria-labelledby="h-find-t">
+        <h3 id="h-find-t">Search &amp; filter</h3>
+        <p>The filter bar narrows the table only: text, validation status, field conditions, source file and a QSO_DATE range. Every export still writes the whole log.</p>
+      </section>
+      <section id="h-export" aria-labelledby="h-export-t">
+        <h3 id="h-export-t">Export</h3>
+        <p>"export .adi" and "export .adx" write a fresh ADIF file; CSV and the SOTA CSV are under the other exports. The file name is the field next to the buttons.</p>
+      </section>
+    </div>
+    <div class="help-content" data-lang-only="de" lang="de" hidden>
+      <section id="h-load-de" aria-labelledby="h-load-de-t">
+        <h3 id="h-load-de-t">Laden</h3>
+        <p>.adi- oder .adx-Dateien auf die Seite ziehen oder „Datei(en) hinzufügen…“ verwenden. Dateien kommen zum aktuellen Log dazu; „neu“ beginnt ein leeres Log, „leeren…“ entfernt das ganze Log aus dem Editor. Nichts verlässt den Browser.</p>
+        <p>„eine Datei ↓“ speichert den ganzen Editor als eine HTML-Datei, die ohne Server und ohne Internet funktioniert.</p>
+      </section>
+      <section id="h-edit-de" aria-labelledby="h-edit-de-t">
+        <h3 id="h-edit-de-t">Bearbeiten</h3>
+        <dl class="kb">
+          <dt><kbd>Enter</kbd></dt><dd>Wert übernehmen und eine Zeile nach unten</dd>
+          <dt><kbd>Esc</kbd></dt><dd>den Wert von vor der Änderung zurückholen (in einer Vorschlagsliste: zuerst die Liste schließen)</dd>
+          <dt><kbd>Tab</kbd></dt><dd>nächstes Feld; am Ende einer Zeile die nächste Zeile</dd>
+          <dt><kbd>↓</kbd> <kbd>↑</kbd></dt><dd>in CONTEST_ID und SUBMODE: durch die Vorschläge gehen, <kbd>Enter</kbd> übernimmt einen</dd>
+          <dt><kbd>Alt</kbd>+<kbd>↓</kbd></dt><dd>in einem Datumsfeld: den Kalender öffnen</dd>
+          <dt><kbd>?</kbd></dt><dd>diese Hilfe (außerhalb von Zellen und Feldern)</dd>
+        </dl>
+        <p>Die Tabelle zeigt die Kernfelder (CALL, Datum, Zeit, Band, Mode …) zuerst; „wie in der Datei“ in der Werkzeugleiste zeigt die Reihenfolge der Datei. Exporte behalten immer die Reihenfolge der Datei.</p>
+        <p>Felder mit fester Liste in ADIF (BAND, MODE, DXCC, QSL-Status …) sind Auswahllisten; die leere Wahl entfernt das Feld. Ein Wert ändert sich nie nur durch das Anzeigen. Daten erscheinen als JJJJ-MM-TT, Zeiten als HH:MM oder HH:MM:SS (UTC); die Datei behält das ADIF-Format. Bei Änderungen, die noch nicht exportiert sind, fragt der Browser vor dem Schließen des Tabs nach.</p>
+      </section>
+      <section id="h-check-de" aria-labelledby="h-check-de-t">
+        <h3 id="h-check-de-t">Prüfung</h3>
+        <p>Jedes QSO wird gegen ADIF 3.1.8 geprüft. Der Knopf „Befunde zeigen“ listet Fehler, Warnungen und Hinweise; „Zeile N“ springt zum QSO. Nach einem Wechsel der Sprache bleiben die Meldungen einer schon erfolgten Prüfung, wie sie sind; die nächste Prüfung (nach einer Änderung oder beim erneuten Laden) ist in der neuen Sprache.</p>
+      </section>
+      <section id="h-find-de" aria-labelledby="h-find-de-t">
+        <h3 id="h-find-de-t">Suche und Filter</h3>
+        <p>Die Filterleiste schränkt nur die Tabelle ein: Text, Prüfstatus, Feldbedingungen, Quelldatei und ein Bereich von QSO_DATE. Jeder Export schreibt trotzdem das ganze Log.</p>
+      </section>
+      <section id="h-export-de" aria-labelledby="h-export-de-t">
+        <h3 id="h-export-de-t">Export</h3>
+        <p>„.adi exportieren“ und „.adx exportieren“ schreiben eine neue ADIF-Datei; CSV und das SOTA-CSV stehen bei den anderen Exporten. Der Dateiname ist das Feld neben den Knöpfen.</p>
+      </section>
+    </div>
+  </div>
+</dialog>
+
+<!-- Confirmation for "new" and "clear…" (js/app.js, askConfirm). -->
+<dialog id="confirm-dlg" aria-labelledby="confirm-title" aria-describedby="confirm-msg">
+  <h2 id="confirm-title">Are you sure?</h2>
+  <p id="confirm-msg">This cannot be undone.</p>
+  <div class="dlg-buttons">
+    <button type="button" id="confirm-cancel" data-de="Abbrechen">Cancel</button>
+    <button type="button" id="confirm-ok" class="danger">OK</button>
+  </div>
+</dialog>
+
+<!-- ADIF-SCRIPT-BEGIN -->
+<!-- build-info.js (generated by scripts/build_adif.py): commit, CI run and
+     cross-check tool versions for the compliance panel; missing on a dev
+     server without a build = "development build".
+     ES modules; scripts/build_adif.py bundles them into the single-file
+     adif-editor.html (works from file://, no server). -->
+<script src="build-info.js"></script>
+<script type="module" src="js/app.js"></script>
+<!-- ADIF-SCRIPT-END -->
+</body>
+</html>

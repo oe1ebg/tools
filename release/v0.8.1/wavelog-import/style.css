@@ -1,0 +1,29 @@
+/* Wavelog import: the shared tokens (../shared/css/tools.css, forms.css)
+   plus a narrow single column. */
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-ui);
+  font-size:15px;
+  line-height:1.45;
+}
+.page{ max-width:44rem; margin:0 auto; padding:1rem 16px 3rem; }
+.card{ margin:0 0 1rem; }
+.field-err{ margin:.25em 0 0; color:var(--err); min-height:0; }
+.field-err:empty{ display:none; }
+.status{ margin:.5em 0 1rem; min-height:1.4em; }
+.status.err{ color:var(--err); }
+.status.err::before{ content:"✖ "; }
+.status.ok::before{ content:"✔ "; }
+#wl-progress{ width:100%; margin:.25em 0 0; }
+.src-row{ display:flex; flex-wrap:wrap; align-items:center; gap:.25em .75em; }
+.src-row small{ color:var(--text-dim); }
+.profile-list{ list-style:none; margin:0; padding:0; }
+.profile-row{ padding:.25em 0; border-top:1px solid var(--line); }
+.profile-row:first-child{ border-top:0; }
+.token-help p{ margin:.3em 0; }
+.token-help ul{ margin:.3em 0; padding-left:1.4em; }
+.token-help code{ font-family:var(--font-mono); font-size:.95em; }
+.token-note{ margin:.25em 0 .5em; }
+.page input[type=url], .page input[type=password]{ width:100%; box-sizing:border-box; }

@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Das Meldebuch</title>
+<script src="../../../shared/js/theme.js"></script>
+<link rel="stylesheet" href="../../../shared/css/tools.css">
+<link rel="stylesheet" href="../../../shared/css/docs.css">
+</head>
+<body>
+<main class="doc">
+<p class="doc-nav"><a href="../../../">← Alle Tools</a></p>
+<h1 id="das-meldebuch">Das Meldebuch</h1>
+<p class="doc-nav"><a href="../../">← Notfunk-Anleitung</a> · <a href="../../../notfunk/index.html">Notfunk-Meldebuch öffnen</a></p>
+<p><img alt="Meldebuch" src="../../../img/notfunk-meldebuch.png"></p>
+<p>Das Meldebuch zeigt alle Meldungen eines Einsatzes, die neuesten zuerst.
+Oben steht die Zusammenfassung: offene Notfälle, noch nicht bestätigte
+Meldungen, die Nummern und ob sie lückenlos sind. Mit den Filtern (alle,
+offen, Eingang, Ausgang, Notfall + Dringend) und der Suche (Nummer, Referenz,
+Betreff, Station, Text) finden Sie eine Meldung schnell.</p>
+<h2 id="eine-zeile-lesen">Eine Zeile lesen</h2>
+<ul>
+<li><strong>Nr. · Zeit:</strong> die Notfunk-Nummer, darunter die Zeit (Ortszeit Wien), die
+  Referenz der Meldesammelstelle und bei einer Antwort „↪“ mit der Nummer der
+  Meldung, auf die sie antwortet.</li>
+<li><strong>Gegenstelle:</strong> die andere Seite, mit <strong>↓</strong> (Eingang: von ihr) oder <strong>↑</strong>
+  (Ausgang: an sie).</li>
+<li><strong>Betreff · Inhalt:</strong> Meldungsart, Dringlichkeit (rot Notfall, gelb
+  Dringend), Betreff und der Anfang des Inhalts.</li>
+<li><strong>Status:</strong> der Stand der Meldung, mit Zeit und Operator des letzten
+  Schritts.</li>
+<li>Ganz rechts der <strong>nächste Schritt</strong> und <strong>PDF</strong> (die Meldung als Formular).</li>
+</ul>
+<p>Am Handy ist jede Meldung eine Karte mit denselben Angaben.</p>
+<h2 id="der-status">Der Status</h2>
+<p>Der Status hängt von der Richtung ab:</p>
+<table>
+<thead>
+<tr>
+<th>Richtung</th>
+<th>1</th>
+<th>2</th>
+<th>3</th>
+<th>danach</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>↓ Eingang</td>
+<td>erfasst</td>
+<td>übergeben</td>
+<td>übernommen</td>
+<td>beantwortet</td>
+</tr>
+<tr>
+<td>↑ Ausgang</td>
+<td>zur Übertragung</td>
+<td>übertragen</td>
+<td>Empfang bestätigt</td>
+<td>beantwortet</td>
+</tr>
+</tbody>
+</table>
+<p>Der Knopf in der Zeile („übergeben“, „Übernahme bestätigt“, „übertragen“,
+„Empfang bestätigt“) öffnet ein kleines Fenster für diesen Schritt: <strong>an wen</strong>
+bzw. <strong>durch wen</strong>, der <strong>Zeitpunkt</strong> (leer = jetzt) und bei „Übernahme
+bestätigt“ die <strong>Referenz der Meldesammelstelle</strong>, wenn sie genannt wird.
+<kbd>Enter</kbd> trägt ein, <kbd>Esc</kbd> schließt ohne Eintrag.</p>
+<p>„Beantwortet“ entsteht von selbst, sobald eine Antwort mit Bezug auf die
+Meldung gespeichert wird.</p>
+<h2 id="die-karte">Die Karte</h2>
+<p><img alt="Karte der Meldungen" src="../../../img/notfunk-karte.png"></p>
+<p><em>Im Bild der Beispiel-Einsatz zum Ausprobieren
+(<a href="https://raw.githubusercontent.com/oe1ebg/tools/main/examples/backups/notfunk-full.json">notfunk-full.json</a>,
+über „Wiederherstellen…“ einspielen).</em></p>
+<p>„Karte“ (neben der Suche) zeigt die Meldungen der aktuellen Auswahl an ihrem
+Ort, auf einer Wien-Karte, die auch ohne Internet funktioniert. Die Farbe
+eines Punkts ist die höchste Dringlichkeit: rot Notfall, gelb Dringend, blau
+Routine. Eine Zahl auf dem Punkt heißt: mehrere Meldungen am selben Ort. Mit
+der Maus darüber (am Handy: antippen) sehen Sie Nummer, Zeit, Betreff und
+Status; die Nummer führt zur Meldung. Der Stern ist der Standort Ihrer
+Station. Unter der Karte steht, welche Meldungen keinen Ort haben.</p>
+<h2 id="eine-meldung-im-detail">Eine Meldung im Detail</h2>
+<p><img alt="Meldung im Detail" src="../../../img/notfunk-meldung-detail.png"></p>
+<p>Ein Klick auf die Zeile (oder die Nummer) öffnet die Meldung: oben Status,
+Art, Richtung und Zeit, dann <strong>Von → An</strong>, der <strong>Wortlaut</strong>, darunter
+Übermittlung, Ort (mit kleiner Karte), Ursprung und Anmerkungen. Rechts steht
+der <strong>Ablauf</strong>: wann und von wem die Meldung erfasst, übergeben bzw.
+übertragen und bestätigt wurde.</p>
+<ul>
+<li><strong>Eingang:</strong> „Übergeben an“ (z. B. die Meldesammelstelle), dann „Übernommen
+  durch“ und, wenn genannt, die Referenz der Meldesammelstelle.</li>
+<li><strong>Ausgang:</strong> „Übertragen an“ (die Funkstelle), ggf. ob sie zurückgelesen hat,
+  dann „Empfang bestätigt durch“. Klappt eine Übertragung nicht oder gibt es
+  eine Rückfrage: „Fehlversuch / Rückfrage eintragen“.</li>
+<li>Zeitpunkt leer = jetzt; sonst die Uhrzeit, z. B. <code>14:10</code>.</li>
+</ul>
+<p><strong>Referenz der Meldesammelstelle:</strong> die Nummer, unter der die
+Meldesammelstelle die Meldung in ihrem Geschäftsbuch führt. Tragen Sie sie
+ein, sobald sie zurückgemeldet wird; so lassen sich die beiden Listen
+zuordnen. Die Notfunk-Nummer (<code>W1-007</code>) ist <strong>nicht</strong> die
+Geschäftsbuchnummer.</p>
+<p>Weitere Knöpfe bei der Meldung:</p>
+<ul>
+<li><strong>Antwort erfassen:</strong> Richtung, Absender und Adressat sind vertauscht, der
+  Bezug ist gesetzt.</li>
+<li><strong>Bearbeiten:</strong> korrigiert die Meldung; die vorige Fassung bleibt
+  gespeichert.</li>
+<li><strong>Ausdruck / PDF:</strong> siehe <a href="../printout/">Ausdruck und PDF</a>.</li>
+<li><strong>Löschen:</strong> die Meldung verschwindet aus der Liste, ihre Nummer bleibt
+  vergeben und wird nie wieder verwendet. Unter „Gelöschte Meldungen“ lässt
+  sie sich wiederherstellen.</li>
+</ul>
+<p>Weiter: <a href="../printout/">Ausdruck und PDF</a></p>
+<footer class="doc-footer">Quellcode: <a href="https://github.com/oe1ebg/tools">github.com/oe1ebg/tools</a> · Version main (commit <a href="https://github.com/oe1ebg/tools/commit/d9463c3e0770b57de240377d19ec6e9563b0cb9b">d9463c3</a>)</footer>
+</main>
+</body>
+</html>

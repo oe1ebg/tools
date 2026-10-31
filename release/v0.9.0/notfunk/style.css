@@ -1,0 +1,437 @@
+/* Notfunk-Meldebuch. Colour tokens, color-scheme, [hidden] and .sr-only
+   come from the shared tools.css; buttons, fields, completion, radio chips,
+   banners and chips from the shared forms.css. Same look as the
+   confirmation log. */
+
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-ui);
+  font-size:15px;
+  line-height:1.4;
+}
+.mono{ font-family:var(--font-mono); }
+.dim{ color:var(--text-dim); }
+.accent{ color:var(--accent-text); }
+.nowrap{ white-space:nowrap; }
+.err-text{ color:var(--err); }
+kbd{ font:12.5px var(--font-mono); border:1px solid var(--line-strong); border-bottom-width:2px; border-radius:3px; padding:0 .3em; }
+
+/* ---------- header ---------- */
+.chip-btn{ cursor:pointer; font:inherit; font-size:12.5px; background:none; }
+.chip-btn.ok{ color:var(--ok); border-color:var(--ok); }
+.chip-btn.warn{ color:var(--warn); border-color:var(--warn); background:var(--warn-soft); }
+.clock{ font-family:var(--font-mono); font-size:13.5px; color:var(--text-dim); white-space:nowrap; }
+.clock b{ font-size:18px; color:var(--text); }
+.tabs{ display:inline-flex; flex-wrap:wrap; max-width:100%; border:1px solid var(--line); border-radius:4px; overflow:hidden; }
+.tabs button + button{ border-left:1px solid var(--line); }
+.tabs button[aria-pressed="true"]{ background:var(--accent-soft); color:var(--accent-text); }
+.tabs button{ border:none; border-radius:0; background:none; }
+
+main{ max-width:1200px; margin:0 auto; padding:1em; }
+.toolbar h2{ font-size:18px; margin:0; letter-spacing:.03em; }
+.toolbar.form-foot{ margin:1em 0 0; }
+.banner.ok{ color:var(--ok); background:var(--bg-raised); }
+.banner.draft{ color:var(--text); background:var(--warn-soft); border-color:var(--warn); font-size:14.5px; margin-top:0;
+  display:flex; align-items:flex-start; gap:.6em; }
+.banner.draft p{ margin:0; flex:1; }
+.banner.draft[hidden]{ display:none; }
+/* ✕: hides the note until the next page load */
+.banner-close{ flex:none; margin:-.2em -.3em 0 0; padding:.1em .45em; min-width:24px; min-height:24px; background:none; border-color:transparent; color:var(--text-dim); }
+.banner-close:hover{ border-color:var(--line-strong); }
+.panel{ border:1px solid var(--line); border-radius:6px; padding:1em; margin-bottom:1em; background:var(--bg-raised); }
+.empty{ color:var(--text-dim); padding:2em; text-align:center; }
+button.mini{ font-size:13.5px; padding:.15em .55em; }
+.hint + .hint{ margin-top:.3em; }
+
+/* ---------- operations ---------- */
+#op-list{ list-style:none; margin:0; padding:0; display:grid; gap:.6em; }
+.op-card{
+  border:1px solid var(--line); border-radius:6px; padding:.7em 1em;
+  display:flex; gap:1em; align-items:center; flex-wrap:wrap; background:var(--bg-raised);
+}
+.op-card .info{ flex:1; min-width:16em; }
+.op-card.clickable{ cursor:pointer; }
+.op-card.clickable:hover{ border-color:var(--accent); }
+.op-card .t{ font-weight:600; font-size:17px; }
+.op-card .meta{ color:var(--text-dim); font-size:13.5px; }
+.op-card .actions{ display:flex; gap:.4em; flex-wrap:wrap; }
+/* the new-operation form and the entry form: a grid of equal columns, as
+   the confirmation log's header (a column holds a callsign or a time) */
+.grid-form{ display:grid; grid-template-columns:repeat(auto-fill, minmax(12em, 1fr)); gap:.6em 1em; align-items:start; }
+.grid-form > *{ min-width:0; }
+.grid-form .span-2{ grid-column:span 2; }
+.grid-form .span-3{ grid-column:span 3; }
+/* below ~760px the grid has fewer than three columns: whole row */
+@media (max-width: 760px){ .grid-form .span-3{ grid-column:1 / -1; } }
+.grid-form .wide{ grid-column:1 / -1; }
+.grid-form input:not([type]), .grid-form input[type=search], .grid-form select, .grid-form textarea{ width:100%; box-sizing:border-box; }
+.panel .hint{ margin:.6em 0 0; }
+/* "Ohne Internet arbeiten": about the tool, not an operation (as in confirm) */
+.offline-card{ display:flex; flex-wrap:wrap; gap:.6em 1em; align-items:center; margin-top:1.6em;
+  border:1px dashed var(--accent-dim); border-radius:6px; padding:.7em 1em; background:var(--accent-soft); position:relative; }
+.offline-card::before{ content:""; position:absolute; left:0; right:0; top:calc(-.8em - 1px); border-top:1px solid var(--line); }
+.offline-card .icon{ flex:none; width:2em; height:2em; border-radius:50%; display:grid; place-items:center; background:var(--accent); color:#fff; font-size:15px; }
+.offline-card .txt{ flex:1 1 20em; min-width:0; }
+.offline-card h2{ font-size:14px; margin:0 0 .15em; color:var(--accent-text); }
+.offline-card p{ margin:0; font-size:13.5px; color:var(--text-dim); }
+.offline-card .btn{ text-decoration:none; display:inline-flex; gap:.4em; align-items:center; background:var(--bg); border-color:var(--accent-dim); color:var(--accent-text); }
+
+/* ---------- the book ---------- */
+.book-bar #book-title{ font-size:18px; }
+/* the operation's header ("Einsatz"), like the confirmation log's Header */
+details.hdr{ margin-bottom:1em; border:1px solid var(--line); border-radius:6px; background:var(--bg-raised); }
+details.hdr > summary{ cursor:pointer; padding:.6em 1em; list-style:none; display:flex; gap:.6em; align-items:center; flex-wrap:wrap; font-size:15px; }
+details.hdr > summary::-webkit-details-marker{ display:none; }
+details.hdr > summary::before{ content:"▸"; color:var(--text-dim); }
+details.hdr[open] > summary::before{ content:"▾"; }
+details.hdr .body{ padding:0 1em 1em; }
+details.hdr .hint{ margin:.6em 0 0; }
+.hdr-actions{ margin-top:1em; }
+/* the Einsatz fields in groups: the own station, the person at the radio */
+fieldset.op-group{ margin:.8em 0 0; padding:.6em 0 0; border:none; border-top:1px dashed var(--line-strong); min-width:0; }
+fieldset.op-group > legend{ padding:0 .4em 0 0; font-size:13.5px; font-weight:700; color:var(--text); }
+.hdr-sum{ font-family:var(--font-mono); font-size:14.5px; }
+.warn-text{ color:var(--warn); }
+#msg-form{
+  border:2px solid var(--accent); border-radius:8px; padding:.8em 1em; margin-bottom:1em;
+  background:var(--bg-raised); display:flex; flex-direction:column; gap:.7em;
+}
+#msg-form.editing{ border-color:var(--warn); }
+#msg-form.urgent:not(.editing){ border-color:var(--err); }
+.form-head{ display:flex; flex-wrap:wrap; align-items:baseline; gap:.3em 1em; }
+.form-title{ font-weight:600; font-size:17px; }
+#form-number{ font-size:16px; font-weight:600; }
+/* first row of the form: Richtung, Zeit right next to it, Übermittlung */
+.row-flow{ display:flex; flex-wrap:wrap; gap:.6em 1.6em; align-items:flex-start; }
+.row-flow .time-field{ width:auto; }
+/* date and time side by side (text in a fixed format, never the browser's
+   locale) */
+.dt-pair{ display:flex; flex-wrap:wrap; gap:.3em .5em; align-items:center; }
+/* field + picker button + dropdown (js/picker.js); the dropdown keeps its
+   own text style inside the uppercase field labels */
+label.field > span.dt-wrap, .dt-wrap{ position:relative; display:inline-flex; align-items:center; gap:.15em; text-transform:none; letter-spacing:0; font-weight:normal; color:var(--text); }
+.dt-wrap > input.dt-date.mono{ width:7.6em; flex:none; box-sizing:border-box; }
+.dt-wrap > input.dt-time.mono{ width:4.4em; flex:none; box-sizing:border-box; }
+/* still running with the clock ("jetzt"), until changed */
+input.live{ color:var(--text-dim); }
+.dt-btn{ padding:.2em .35em; line-height:1.2; font-size:15px; background:none; border-color:transparent; }
+.dt-btn:hover{ border-color:var(--line-strong); }
+.dt-pop{
+  position:absolute; top:calc(100% + 2px); left:0; z-index:30; width:max-content;
+  padding:.45em; background:var(--bg); border:1px solid var(--accent); border-radius:6px; box-shadow:0 6px 18px #0003;
+  font-size:14px;
+}
+.dt-pop[hidden]{ display:none !important; }
+.dt-head{ display:flex; align-items:center; justify-content:space-between; gap:.5em; margin-bottom:.3em; }
+.dt-nav{ padding:.1em .6em; font-size:16px; }
+.dt-grid{ display:grid; gap:2px; }
+.dt-days{ grid-template-columns:repeat(7, 2.3em); }
+.dt-hours{ grid-template-columns:repeat(6, 2.6em); }
+.dt-mins{ grid-template-columns:repeat(6, 2.6em); }
+.dt-wd{ text-align:center; font-size:12.5px; color:var(--text-dim); padding:.15em 0; }
+.dt-day, .dt-cell{ padding:.3em 0; font-family:var(--font-mono); font-size:14px; border-color:transparent; background:none; }
+.dt-day:hover, .dt-cell:hover, .dt-day:focus, .dt-cell:focus{ background:var(--accent-soft); outline:none; }
+.dt-day.today, .dt-cell.today{ border-color:var(--line-strong); }
+.dt-day.on, .dt-cell.on{ border-color:var(--accent); color:var(--accent-text); font-weight:700; background:var(--accent-soft); }
+.dt-cap{ font-size:12.5px; color:var(--text-dim); margin:.3em 0 .15em; }
+.dt-foot{ display:flex; justify-content:flex-end; margin-top:.4em; }
+@media (pointer: coarse){
+  .dt-btn{ min-width:44px; }
+  .dt-days{ grid-template-columns:repeat(7, 2.8em); }
+  .dt-hours, .dt-mins{ grid-template-columns:repeat(6, 3em); }
+}
+.row-flow .channel-field{ flex:1 1 20em; min-width:0; }
+
+/* the priority buttons: equal width and height */
+.radio-group.prio label{ min-width:6.2em; display:inline-flex; justify-content:center; align-items:center; box-sizing:border-box; }
+.radio-group.prio label:has(input[value="emergency"]:checked){ border-color:var(--err); background:var(--err-soft); }
+.radio-group.prio input[value="emergency"]:checked + span{ color:var(--err); }
+.radio-group.prio label:has(input[value="priority"]:checked){ border-color:var(--warn); background:var(--warn-soft); }
+.radio-group.prio input[value="priority"]:checked + span{ color:var(--warn); }
+/* the verbatim text: bigger, grows with what is typed (app.js growText) */
+#m-text{ resize:vertical; min-height:6.5em; font-size:17px; line-height:1.5; }
+/* required fields and the errors at the field (only when there is one) */
+.req::after{ content:" *"; color:var(--err); font-weight:700; }
+label.field > .ferr, div.field > .ferr, .ferr{ color:var(--err); font-size:13.5px; font-weight:600; text-transform:none; letter-spacing:0; }
+.ferr:empty{ display:none; }
+#msg-form [aria-invalid="true"]{ border-color:var(--err); background:var(--err-soft); }
+/* warnings at the field (asked before saving, they don't block) */
+label.field > .fwarn, div.field > .fwarn, .fwarn{ color:var(--warn); font-size:13.5px; font-weight:600; text-transform:none; letter-spacing:0; }
+.fwarn:empty{ display:none; }
+#msg-form [data-warned="true"]{ border-color:var(--warn); background:var(--warn-soft); }
+/* rows of fields that belong together, each as wide as it needs */
+#msg-form > .row-flow, details.more .row-flow{ display:flex; flex-wrap:wrap; gap:.6em 1.2em; align-items:flex-start; }
+.radio-row{ border-left:3px solid var(--accent-soft); padding-left:.7em; }
+.call-field{ width:auto; min-width:10em; }
+/* callsign fields as wide as a callsign: a station's at most 12 characters
+   ("PP/AA0BBB/SS"), a repeater's and the Stationskürzel 6 (as in the
+   confirmation log); the info lines under them keep their room */
+#n-call, #e-call, #n-operator, #e-operator, #m-peer, #m-orig-station{ width:calc(12ch + 1.2em); max-width:100%; box-sizing:border-box; }
+#n-via, #e-via, #m-via, #n-prefix, #e-prefix{ width:calc(6ch + 1.6em); max-width:100%; box-sizing:border-box; }
+/* empty = direkt: the placeholder in plain dim text, not like a callsign */
+#n-via::placeholder, #e-via::placeholder, #m-via::placeholder{ font-family:var(--font-ui); color:var(--text-dim); }
+.freq-field{ width:9em; }
+.radio-row input, details.more .row-flow input{ width:100%; box-sizing:border-box; }
+.place-field{ width:16em; max-width:100%; }
+.dist-field{ width:14em; max-width:100%; }
+.ref-line{ display:flex; gap:.4em; }
+.ref-line select{ width:auto; }
+.ref-line input{ width:8em; }
+.stich-field{ width:9em; }
+.readback-check{ align-self:flex-start; }
+.form-head .link{ background:none; border:none; padding:0; cursor:pointer; color:var(--text-dim); font-size:13.5px; }
+.form-head .link b{ color:var(--text); }
+.draft-status{ font-size:13.5px; color:var(--ok); }
+/* "Vor dem Speichern prüfen" and "Eingabe verwerfen?" */
+.bar{ border-radius:6px; padding:.5em .8em; display:flex; flex-wrap:wrap; gap:.5em .8em; align-items:center; font-size:14.5px; }
+.bar.warn{ background:var(--warn-soft); border:1px solid var(--warn); }
+.bar.err{ background:var(--err-soft); border:1px solid var(--err); }
+.bar .spacer{ flex:1; }
+.ac-hints{ min-height:1.35em; font-size:13.5px; }
+.loc-hints .ac-info{ overflow-wrap:anywhere; }
+details.more > summary{ cursor:pointer; font-size:13.5px; color:var(--text-dim); margin-bottom:.4em; }
+details.more .hint{ margin:.4em 0 0; }
+.form-actions{ display:flex; flex-wrap:wrap; align-items:center; gap:.5em .8em; }
+/* when the row wraps, Speichern stays on the right */
+.form-actions #btn-save{ margin-left:auto; }
+.form-status{ font-size:14.5px; min-height:1.3em; }
+#op-status:empty{ display:none; }
+.form-status.err{ color:var(--err); font-weight:600; }
+.summary{ display:flex; flex-wrap:wrap; gap:.5em; margin-bottom:.8em; }
+.summary:empty{ display:none; }
+.sum{ padding:.35em .8em; border-radius:6px; background:var(--bg-raised); color:var(--text-dim); font-size:14.5px; }
+.sum b{ font-family:var(--font-mono); font-size:16px; color:var(--text); }
+.sum-err{ background:var(--err-soft); color:var(--err); }
+.sum-err b{ color:var(--err); }
+.sum-warn{ background:var(--warn-soft); color:var(--warn); }
+.sum-warn b{ color:var(--warn); }
+.filter-bar{ margin-bottom:.5em; }
+#book-search{ width:18em; max-width:100%; }
+.log-status{ min-height:1.7em; margin:0 0 .4em; font-size:14.5px; display:flex; flex-wrap:wrap; gap:.3em; align-items:center; }
+.log-status .ok-mark{ color:var(--ok); font-weight:700; }
+/* relative: the .sr-only texts in the table stay inside the scroll box
+   (absolutely positioned, they would widen the whole page on phones) */
+.table-wrap{ overflow-x:auto; position:relative; border:1px solid var(--line); border-radius:6px; }
+table.book{ width:100%; border-collapse:collapse; font-size:14.5px; min-width:44em; }
+table.book th, table.book td{ padding:.45em .6em; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
+/* column names: .sticky-head (the shared stylesheet) */
+table.book th{ font-size:12.5px; text-transform:uppercase; letter-spacing:.05em; }
+/* the wrapper clips (sticky column names), so the table must fit: its
+   narrowest layout is about 1060px wide (the cells' longest unbreakable
+   texts), it fits from a 1200px window up; between the cards (641px) and
+   there the wrapper scrolls sideways again and the names scroll with the
+   table */
+@media (min-width: 641px) and (max-width: 1199px){
+  .table-wrap.sticky-head{ overflow-x:auto; }
+}
+table.book .date{ display:block; font-size:12.5px; color:var(--text-dim); }
+/* Nr., below it the time and the references (Meldesammelstelle, Bezug) */
+table.book td.num{ width:1%; white-space:nowrap; }
+table.book td.num a{ font-family:var(--font-mono); font-weight:600; color:var(--accent-text); text-decoration:none; }
+table.book td.num .when{ font-weight:600; }
+table.book td.num .ref{ font-family:var(--font-mono); font-size:13px; color:var(--text-dim); }
+/* the other party: "↓ von …" / "↑ an …", a long name wraps beside the arrow */
+table.book td.peer{ min-width:10em; max-width:16em; }
+table.book .peer-line{ display:grid; grid-template-columns:auto 1fr; column-gap:.35em; font-weight:600; }
+table.book .peer-line .arrow{ color:var(--text-dim); font-weight:400; white-space:nowrap; }
+/* the type always as a label, the priority (not routine), the subject */
+table.book .subj{ display:flex; flex-wrap:wrap; gap:.2em .45em; align-items:baseline; margin-bottom:.5em; }
+.kind{ font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--accent-text);
+  border:1px solid var(--accent); border-radius:4px; padding:0 .4em; line-height:1.5; white-space:nowrap; }
+/* status: the state (all the same width), then time and operator */
+table.book td.st{ width:1%; padding-right:.3em; }
+table.book td.st .pill{ display:block; min-width:7.6em; box-sizing:border-box; text-align:center; }
+table.book td.st-when{ width:1%; white-space:nowrap; padding-left:.3em; font-size:13.5px; line-height:1.3; color:var(--text-dim); }
+/* the next step above Ausdruck, equally wide */
+table.book td.act{ width:1%; }
+table.book .act-stack{ display:grid; gap:.3em; }
+table.book .act-stack button{ width:100%; white-space:nowrap; }
+table.book .act-stack button.next{ border-color:var(--accent); color:var(--accent-text); }
+table.book tr.urgent td{ background:var(--err-soft); }
+table.book tbody tr[data-id]{ cursor:pointer; }
+table.book tbody tr[data-id]:hover td{ background:var(--accent-soft); }
+table.book tr.fresh td{ background:var(--accent-soft); }
+@media (min-width: 641px){
+  table.book tbody tr.row-editing[data-id]:hover > td{ background:var(--warn-soft); }
+}
+.sub{ font-size:13.5px; color:var(--text-dim); }
+.clamp{ display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
+.pill{ display:inline-block; font-size:13.5px; font-weight:600; border-radius:999px; padding:0 .6em; border:1px solid transparent; white-space:nowrap; }
+.pr-emergency{ background:var(--err); color:#fff; }
+.pr-priority{ background:var(--warn-soft); color:var(--warn); border-color:var(--warn); }
+.st-logged{ color:var(--err); border-color:var(--err); }
+.st-forwarded{ color:var(--warn); border-color:var(--warn); background:var(--warn-soft); }
+.st-acknowledged{ color:var(--accent-text); background:var(--accent-soft); }
+.st-answered{ color:var(--ok); border-color:var(--ok); }
+.st-deleted{ color:var(--text-dim); border-color:var(--line-strong); }
+details.misc{ margin-top:1em; font-size:14.5px; }
+details.misc > summary{ cursor:pointer; color:var(--text-dim); }
+#trash-list{ padding-left:1.2em; }
+#trash-list li{ margin:.3em 0; }
+
+/* ---------- one message ---------- */
+.msg-number{ font-size:24px; }
+.detail{ display:flex; flex-wrap:wrap; gap:1.5em; align-items:flex-start; }
+.detail-main{ flex:999 1 32em; min-width:0; display:flex; flex-direction:column; gap:.8em; }
+.detail-side{ flex:1 1 18em; min-width:0; display:flex; flex-direction:column; gap:1.2em; }
+.detail-side section + section{ border-top:1px solid var(--line); padding-top:1em; }
+.detail-side p{ margin:.3em 0; }
+.detail-tags{ display:flex; flex-wrap:wrap; gap:.5em; align-items:center; }
+.detail-subject{ font-size:20px; margin:0; }
+/* what the message refers to, under its subject */
+.detail-bezug{ font-size:14.5px; color:var(--text-dim); margin-top:-.4em; }
+.detail-bezug a{ font-weight:600; }
+/* Von → An above the text, as on the paper form; stacked when narrow */
+.route{ display:grid; grid-template-columns:minmax(0, 1fr) auto minmax(0, 1fr); gap:.2em .8em; align-items:start;
+  border:1px solid var(--line); border-radius:6px; padding:.55em .9em; }
+.route .who{ font-weight:600; overflow-wrap:anywhere; }
+.route .call{ font-family:var(--font-mono); font-size:13.5px; color:var(--text-dim); font-weight:400; }
+.route .arrow{ font-size:20px; line-height:1; color:var(--text-dim); padding-top:.35em; }
+.route .side-cap{ font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-dim); }
+.route .verteiler{ grid-column:1 / -1; font-size:13.5px; color:var(--text-dim); border-top:1px dashed var(--line); padding-top:.35em; }
+@media (max-width: 560px){
+  .route{ grid-template-columns:1fr; }
+  .route .arrow{ padding:0; transform:rotate(90deg); justify-self:start; }
+}
+/* the facts under the text: small blocks with a caption */
+.facts{ display:grid; grid-template-columns:repeat(auto-fit, minmax(14em, 1fr)); gap:.6em 1.4em; }
+.facts:empty{ display:none; }
+.fact .cap{ margin-bottom:.1em; }
+.fact .val{ font-size:14.5px; overflow-wrap:anywhere; }
+.fact.wide{ grid-column:1 / -1; }
+.fact .links{ font-size:13.5px; }
+/* the Ort on a small map (mapview.js notfunkMiniMap()) */
+/* (no layer switcher here: the book's big map has it) */
+.msg-map .leaflet-control-layers{ display:none; }
+.msg-map{ height:220px; border:1px solid var(--line); border-radius:6px; background:var(--bg); position:relative; z-index:0; isolation:isolate; }
+.verbatim{ border:1px solid var(--line); border-radius:6px; background:var(--bg-raised); padding:.8em 1em; }
+.verbatim p{ margin:.3em 0 0; font-size:16px; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; }
+.cap{ font-size:12.5px; font-weight:500; text-transform:uppercase; letter-spacing:.05em; color:var(--text-dim); margin:0 0 .4em; }
+.cap .ok, .ok{ color:var(--ok); text-transform:none; letter-spacing:0; }
+dl.kv{ display:grid; grid-template-columns:max-content 1fr; gap:.35em 1em; margin:0; }
+dl.kv dt{ font-size:12.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-dim); padding-top:.15em; }
+dl.kv dd{ margin:0; overflow-wrap:anywhere; }
+.map-links a{ font-size:13.5px; margin-right:.5em; }
+html.offline .online-only{ display:none; }
+ol.steps{ list-style:none; margin:0; padding:0; }
+ol.steps li{ display:grid; grid-template-columns:1.2em 1fr; gap:.6em; min-height:3em; position:relative; }
+/* the line runs from a dot's bottom to the next dot's top, through the
+   dots' centre (the middle of the 1.2em column) */
+ol.steps li:not(:last-child)::after{ content:""; position:absolute; left:calc(.6em - 1px); top:1.1em; bottom:-.2em; width:2px; background:var(--line); }
+ol.steps li.done:not(:last-child)::after{ background:var(--accent); }
+ol.steps .dot{ width:.9em; height:.9em; border-radius:50%; border:2px solid var(--line-strong); background:var(--bg); margin-top:.2em; box-sizing:border-box; justify-self:center; }
+ol.steps li.done .dot{ background:var(--accent); border-color:var(--accent); }
+ol.steps li.next .dot{ border-color:var(--accent); }
+ol.steps li.next .step-label{ color:var(--accent-text); font-weight:600; }
+ol.steps li.done .step-label{ font-weight:600; }
+ol.steps li.skipped .step-label, ol.steps li:not(.done):not(.next) .step-label{ color:var(--text-dim); }
+ol.steps li.attempt .dot{ border-color:var(--warn); border-style:dashed; }
+ol.steps li.attempt .step-label{ color:var(--warn); }
+/* small forms in the detail view (status step, reference, announcement) */
+.inline-form{ display:flex; flex-direction:column; gap:.4em; margin:.4em 0 .2em; }
+.inline-fields{ display:grid; grid-template-columns:repeat(auto-fill, minmax(9em, 1fr)); gap:.4em .6em; }
+.inline-fields .field input{ width:100%; box-sizing:border-box; }
+.inline-foot{ display:flex; flex-wrap:wrap; gap:.4em .8em; align-items:center; }
+.staff-card{ border:1.5px dashed var(--line-strong); border-radius:6px; padding:.6em .8em; }
+details.attempt-add{ margin:.3em 0; font-size:14.5px; }
+details.attempt-add > summary{ cursor:pointer; color:var(--text-dim); }
+.verbatim .sub.ok{ color:var(--ok); }
+ul.revs{ list-style:none; margin:0; padding:0; font-size:14.5px; }
+ul.revs summary{ cursor:pointer; }
+
+/* ---------- dialogs: help (base: shared tools.css), status step ---------- */
+dialog{ background:var(--bg); color:var(--text); border:1px solid var(--line-strong); border-radius:8px; padding:0; box-shadow:0 10px 40px rgba(0,0,0,.35); }
+dialog::backdrop{ background:rgba(0,0,0,.35); }
+.flow-list{ margin:.3em 0; padding-left:1.4em; }
+.flow-list li{ margin:.2em 0; }
+.ex{ font-family:var(--font-mono); font-size:13.5px; background:var(--bg-raised); border:1px solid var(--line); border-radius:3px; padding:0 .3em; color:var(--text); white-space:nowrap; }
+/* a status step from the book (openStepDialog) */
+.step-dlg{ width:min(480px, calc(100vw - 2em)); }
+.step-dlg-body{ padding:1em 1.2em; display:grid; gap:.4em; }
+.step-dlg h2{ margin:0; font-size:18px; }
+.step-dlg .sub{ margin:0 0 .3em; }
+.step-dlg .inline-fields{ grid-template-columns:1fr; }
+
+/* ---------- footer ---------- */
+body > footer{ max-width:1200px; margin:2em auto 1em; padding:0 1em; font-size:12.5px; color:var(--text-dim); }
+body > footer a{ color:inherit; }
+body > footer .sources{ margin-top:.5em; }
+body > footer .sources > summary{ cursor:pointer; width:max-content; max-width:100%; }
+body > footer .sources dl{ display:grid; grid-template-columns:max-content 1fr; gap:.3em 1em; margin:.5em 0 0; }
+body > footer .sources dt{ color:var(--text); white-space:nowrap; }
+body > footer .sources dd{ margin:0; }
+body > footer .src-list > span:not(:empty) ~ span:not(:empty)::before{ content:" · "; }
+.source{ white-space:normal; }
+body > footer details.vendor-license{ margin-top:.4em; }
+body > footer details.vendor-license pre{ white-space:pre-wrap; }
+
+/* ---------- small screens and touch ---------- */
+/* iOS Safari zooms into focused fields with text under 16px. */
+@media (pointer: coarse){
+  :root input, :root select, :root textarea{ font-size:16px; }
+  .radio-group label{ padding:.5em .8em; }
+  button{ min-height:2.6em; }
+}
+@media (max-width: 640px){
+  main{ padding:.6em; }
+  #st-storage{ display:none; }
+  #book-search{ width:100%; }
+  .grid-form{ grid-template-columns:repeat(2, minmax(0, 1fr)); }
+  .grid-form .span-2, .grid-form .span-3{ grid-column:1 / -1; }
+  footer .sources dl, dl.kv{ grid-template-columns:1fr; }
+  /* save stays in reach while typing a long text (the Handy design) */
+  .form-actions{ position:sticky; bottom:0; z-index:5; background:var(--bg-raised); padding:.5em 0; border-top:1px solid var(--line); }
+  .form-actions.over-suggestions{ z-index:31; } /* sticky stays, above an open suggestion list */
+  .form-actions .kbd-hint{ display:none; }
+  #btn-save{ flex:1; font-size:16px; font-weight:600; }
+  /* the message book as cards (#108 B1): number, time and references,
+     the status on top; the other party; type, subject and text; time and
+     operator of the status and the buttons. The column heads stay for
+     screen readers (roles: app.js). */
+  table.book{ min-width:0; }
+  table.book, table.book tbody{ display:block; }
+  table.book thead{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+  table.book tr{ display:grid; grid-template-columns:minmax(0, 1fr) max-content; column-gap:.6em; row-gap:.2em; padding:.45em .55em; border-bottom:1px solid var(--line); }
+  table.book tr > td{ display:block; padding:0; border:none; min-width:0; max-width:none; width:auto; }
+  table.book tr > td.num{ grid-area:1 / 1; display:flex; flex-wrap:wrap; align-items:baseline; gap:0 .5em; white-space:normal; }
+  table.book tr > td.num > *{ white-space:nowrap; }
+  table.book tr > td.st{ grid-area:1 / 2; }
+  /* (the wide layout's width:1% cells: auto here) */
+  table.book tr > td:is(.num, .st, .st-when, .act){ width:auto; }
+  table.book tr > td.st .pill{ display:inline-block; min-width:0; }
+  table.book tr > td:is(.st, .act){ justify-self:end; }
+  table.book .act-stack button{ width:auto; }
+  table.book tr > td.peer{ grid-area:2 / 1 / 3 / -1; }
+  table.book tr > td.content{ grid-area:3 / 1 / 4 / -1; }
+  table.book tr > td.st-when{ grid-area:4 / 1; align-self:center; padding:0; }
+  table.book tr > td.st-when br{ display:none; }
+  table.book tr > td.st-when .by{ margin-left:.5em; }
+  table.book tr > td.act{ grid-area:4 / 2; }
+  table.book .act-stack{ grid-auto-flow:column; }
+  table.book tr > td.empty{ grid-column:1 / -1; }
+  table.book tr.urgent{ background:var(--err-soft); }
+  table.book tr.urgent td{ background:none; }
+  table.book tr.fresh, table.book tbody tr[data-id]:hover{ background:var(--accent-soft); }
+  table.book .date{ display:inline; margin-right:.3em; }
+  table.book tr.row-editing, table.book tbody tr.row-editing[data-id]:hover{ background:var(--warn-soft); box-shadow:inset 4px 0 0 var(--warn), inset 0 0 0 2px var(--warn); }
+  table.book.row-marks tbody tr.row-editing > td{ border:none; background:none; } /* beats the shared .row-marks frame */
+  table.book.row-marks tbody tr.row-editing > td:first-child{ box-shadow:none; }
+  /* the card is tinted as a whole, not cell by cell (gaps between them) */
+  table.book tr.fresh td, table.book tbody tr[data-id]:hover td{ background:none; }
+}
+
+/* ---------- print ---------- */
+/* The printouts (message form, book, empty form) are PDFs written by the
+   app (paperpdf.js, bookpdf.js), not this page. A print of the page itself
+   (browser menu) leaves out what is not for paper. */
+@media print{
+  :root{ color-scheme:light; }
+  html, body{ background:#fff; color:#000; font-size:10.5pt; }
+  .no-print, #site-header, body > footer, dialog{ display:none !important; }
+  main{ max-width:none; padding:0; margin:0; }
+}
+
+/* "Auf der Karte" scrolls the map into view below the sticky page header */
+#map-panel{ scroll-margin-top:calc(var(--site-header-h, 0px) + .5em); }
