@@ -13,6 +13,7 @@ import { createSession, createSeries, updateSeries, assignSeries, deleteSession 
 import { sessionAction, exportBackup, importFile } from './dataui.js';
 import { historyData } from './historyui.js';
 import { seriesStats } from './history.js';
+import { statsPanel, syncStats, toggleStats } from './statsview.js';
 import { attachRepeaterField, attachCallField } from './fieldsearch.js';
 
 export const OWN_PREF = 'oe1ebg-netlog-own-call';
@@ -174,6 +175,11 @@ export function initSessions(app) {
       setCardOpen(sec.dataset.key, open);
       renderSessions(app);
     }
+    if (b.dataset.act === 'stats') {
+      const sec = b.closest('section');
+      const series = app.data.series.find(s => s.id === id);
+      if (series) toggleStats(app, { key: id, series }, sec.querySelector('.stats-panel'), b);
+    }
     if (b.dataset.act === 'export-series') await exportBackup(app, null, { seriesId: id, msg: b.closest('section').querySelector('.card-msg') });
     if (b.dataset.act === 'restore-series') {
       importTarget = { seriesId: id, msg: b.closest('section').querySelector('.card-msg') };
@@ -262,9 +268,10 @@ export function renderSessions(app) {
           el('span', { class: 'spacer' }), el('span', { class: 'tools' })),
         el('p', { class: 'series-stats' })),
       el('p', { class: 'card-msg data-msg', role: 'status' }),
+      statsPanel(g.key),
       el('div', { class: 'series-body', id: `series-body-${g.key}` }, el('p', { class: 'hint sub' }), el('ul', { class: 'session-rows' }))),
     update: (sec, g) => {
-      const [head, , body] = sec.children;
+      const [head, , panel, body] = sec.children;
       const [bar, stats] = head.children;
       const [sub, ul] = body.children;
       const [h, , tools] = bar.children;
@@ -289,12 +296,14 @@ export function renderSessions(app) {
       if (tools.dataset.sig !== toolSig) {
         tools.dataset.sig = toolSig;
         fill(tools, g.series ? [
+          el('button', { type: 'button', class: 'mini', 'data-act': 'stats', 'data-id': g.series.id, 'aria-expanded': 'false', 'aria-controls': `series-stats-${g.key}`, 'aria-label': t('stats.buttonLabel', { name: g.series.name }) }, t('stats.button')),
           el('button', { type: 'button', class: 'mini', 'data-act': 'new-in', 'data-id': g.series.id, 'aria-label': t('series.newInLabel', { name: g.series.name }) }, t('series.newIn')),
           el('button', { type: 'button', class: 'mini', 'data-act': 'edit-series', 'data-id': g.series.id, 'aria-label': t('series.editLabel', { name: g.series.name }) }, t('common.edit')),
           el('button', { type: 'button', class: 'mini', 'data-act': 'export-series', 'data-id': g.series.id, 'aria-label': t('series.exportLabel', { name: g.series.name }) }, t('series.export')),
           el('button', { type: 'button', class: 'mini', 'data-act': 'restore-series', 'data-id': g.series.id, 'aria-label': t('series.restoreLabel', { name: g.series.name }) }, t('series.restore')),
         ] : []);
       }
+      if (g.series) syncStats(app, g, panel, tools.querySelector('[data-act=stats]'));
       keyedList(ul, g.sessions, {
         key: s => s.id,
         create: () => el('li', { class: 'session-row' }),
