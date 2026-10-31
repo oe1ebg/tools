@@ -271,10 +271,13 @@ export function reportData({ session, participants, rounds, notes }) {
   return { stations: ncsFirst(rosterSorted(liveOf(participants)), session.ncsId), rounds: out };
 }
 
+// "wiener-runde-12": a label as a file name part (ASCII, lower case, at most 60 characters).
+export function exportSlug(label) {
+  return String(label || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'netlog';
+}
+
 // "2026-10-16_wiener-runde-12": the file name base of a session's exports.
 export function exportBase(session, series) {
-  const label = sessionLabel(session, series) || 'netlog';
-  const slug = label.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'netlog';
-  return `${session.date || 'session'}_${slug}`;
+  return `${session.date || 'session'}_${exportSlug(sessionLabel(session, series) || 'netlog')}`;
 }
