@@ -447,6 +447,8 @@ export const LANG_EN = {
   'help.pressKeys': 'Press the new combination (Esc cancels)…',
   'help.changed': 'Now {keys}.',
   'help.editNote': 'Single-letter commands only work outside text fields; Tab, Shift+Tab and the buttons do everything as well.',
+  'help.statsTitle': 'Statistics of a series',
+  'help.stats': '"Statistics" on a series card (Sessions & series) evaluates all sessions of the series on this device: regulars (sessions attended, time present, times net control, last seen), attendance per session, length and rounds of the sessions, and the net control rotation. The same station means the same station profile or the same base callsign, never after "Not the same" and never twice in one session; incomplete callsigns are not counted. Speaking time is an estimate and an upper bound: a turn lasts until the next one starts, so pauses are included. ≈ means estimated, ≥ at least (times without a known clock time are missing), – unknown; nothing is filled in. "Statistics (PDF)" and "Statistics (CSV)" export what is shown; an export is not a backup.',
   'help.dataTitle': 'Data',
   'help.data': '"saved" appears only once the browser has stored a change. A draft is unfinished text that is kept for you, not a saved note. Data is stored per browser and site; export a backup to keep it elsewhere.',
   'help.tabs': 'Only one tab or window edits a session; others show it read-only and offer "Edit here".',

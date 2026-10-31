@@ -59,6 +59,8 @@ function helpContent(app) {
     el('p', {}, t('help.speaking')),
     el('h3', {}, t('help.historyTitle')),
     el('p', {}, t('help.history')),
+    el('h3', {}, t('help.statsTitle')),
+    el('p', {}, t('help.stats')),
     el('h3', {}, t('help.dataTitle')),
     el('p', {}, t('help.data')),
     el('p', {}, t('help.tabs')),
