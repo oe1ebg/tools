@@ -58,7 +58,8 @@ offers the export, as on any other page without IndexedDB.
   shown: sessions, date range, ⌀ stations per session, different stations
   (by station profile, else complete base callsign; partial calls not
   counted separately), notes and open follow-ups (`seriesStats()` in
-  `js/history.js`). "Back up (JSON)" saves the series with all its sessions
+  `js/history.js`; a simpler rule than the statistics', see "Statistics").
+  "Statistics" opens the series statistics below the card. "Back up (JSON)" saves the series with all its sessions
   (deleted ones too) and the profiles they use as one JSON backup (scope
   `series`); "Restore…" on its card accepts only a backup of that series
   and imports it like any backup (checked first, one transaction,
@@ -417,6 +418,137 @@ offers the export, as on any other page without IndexedDB.
   it read-only with "Edit here" (which takes over; the first one turns
   read-only).
 
+## Statistics
+
+The **"Statistik" / "Statistics"** button on a series card (Sessions &
+series; `aria-expanded`, the card keeps focus) opens the statistics of that
+series below the card. They are calculated when the card is opened, from
+the records on this device (never at startup), and again when the data
+changes while it is open; nothing is sent anywhere. Series only: ad-hoc
+sessions have no series card, so no statistics. A date-range filter, a
+manual merge of stations and a statistics view across series are not part
+of it. The data model is unchanged (no schema change, no new store or
+field; `NETLOG_SCHEMA.version` stays 1): the numbers are always derived,
+never stored, and live records only (soft-deleted sessions, participants,
+rounds, contributions, notes and events are ignored).
+
+- **Per session** (`sessionStatistics()` in `js/stats.js`):
+  - *Attended*: a participant with a resolved callsign who has a presence
+    interval, a check-in event or a status event. Someone merely on the
+    roster does not count.
+  - *Time present*: the sum of the presence intervals. An interval still
+    open runs to the end of the session. An interval whose start or end
+    is unknown cannot be measured: it is not in the sum and counted as
+    left out. Someone who attended but has no interval at all has an
+    unknown time present.
+  - *Check-in offset*: the first check-in (else the start of the first
+    interval) minus the session start. Unknown when the session start is
+    unknown (a session joined late) or when the result would be negative.
+  - *Session length*: start to end. The end is the session's end, else the
+    time of the last "net closed" event, else unknown.
+  - *Rounds*: a round lasts until the next round starts; the last one until
+    the session end. Each round also counts its turns (contributions) and
+    notes.
+  - *Net control (NCS)*: a station that held net control at any time (or is
+    the session's current NCS); *NCS time* is the sum of its runs. The
+    **rotation** lists the runs in time order with period (the page's
+    time mode and zone) and duration, also for stations with an
+    incomplete callsign. The runs are the ones of the roster PDF
+    (`js/ncsruns.js`): before the first handover the holder is the station
+    it was taken from; handovers are clamped to the session; a handover
+    without a time is ignored.
+  - *Turns* and *notes*: live contributions and notes of the station;
+    *totals* per session.
+  - *Speaking time* is an **estimate and an upper bound**, not a
+    measurement: a turn counts from its own time until the next turn in the
+    same round starts, the last turn of a round until the next round
+    starts. Pauses between turns are therefore included. A turn counts
+    only when both times are exact; the others (also the last turn of the
+    last round, which has no bounding time, and any turn bounded by an
+    estimated time) are left out and counted. No turns: 0, still marked
+    as an estimate. Turns without any measurable time: unknown.
+  - Participants whose callsign is incomplete (`?`, `*`, empty) are not
+    counted as stations; they are counted as *excluded* (the page and the
+    PDF say how many, the CSV does not contain them).
+- **Per series** (`seriesStatistics()`): the sessions oldest first (date,
+  number, creation time), and per station over all sessions:
+  - *Identity across sessions.* Participants are joined greedily in
+    chronological order into one station when they share a station profile
+    or the same base callsign (`OE/DL0QXA/P` and `DL0QXA` are one).
+    They are never joined when one is marked "not the same" (`notSame`)
+    against the other, or when both took part in the same session (a
+    callsign reused by two people). Unresolved callsigns are never joined
+    and never counted as stations. The displayed callsign is the one of
+    the latest attended session, the name the latest given.
+  - *Leaderboard* ("Stammgäste" / "Regulars"): rank, station, sessions
+    attended as "n/total (percent)", time present (sum), speaking time
+    (sum, estimate), times net control, last seen (ISO date of the latest
+    attended session). Order: sessions attended (more first), then time
+    present (longer first, unknown last), then callsign.
+  - *Attendance matrix*: stations by sessions; a cell shows "✓" with the
+    time present when the station attended, "–" when not, "NCS" when it
+    held net control in that session.
+  - *Sessions table*: date, number and name, start to end (time mode and
+    zone) and length, the rounds with their durations, stations present,
+    net control.
+- **Quality of every duration** (`exact | estimated | unknown`): nothing is
+  invented. *exact* is built from exact times only; "≈" marks *estimated*
+  (built from an estimated time, or the speaking time, which is always one);
+  "≥" ("at least") marks a sum in which items could not be measured (the
+  number follows as "(+n ohne Zeit)" / "(+n without time)"): the true
+  value is that or more. An unknown value is "–" and never 0; its left-out
+  count, where there is one, is shown. Hours are not limited, minutes
+  are floored.
+- **Screen**: summary line (sessions counted, stations, sessions without
+  known times, excluded participants), the estimate note, then the blocks
+  above. Tables sit in scrolling regions of their own that take focus, so the
+  page itself does not scroll sideways at 320 px. A series without sessions
+  says so; one without stations with a callsign says that.
+- **Exports** (group "Exportieren" / "Export" in the panel with the buttons
+  "Statistik (PDF)" and "Statistik (CSV)" / "Statistics (PDF)" and
+  "Statistics (CSV)"; disabled with the reason beside them for a series
+  without sessions or while it is calculating). Each is one download of what is on screen, named
+  `<date UTC>_<series>_statistik.pdf|csv` (`statistics` in English). An
+  export is not a backup: it is no restore source, and no backup time is
+  recorded.
+  - *PDF*, A4: one date stamp top right of every page ("Erstellt" /
+    "Generated", ISO date, 24 h time, UTC), the series name, the estimate
+    note, the summary (also the sessions without a known start or end and
+    the number of presence intervals and turns left out), then the
+    leaderboard, the attendance matrix (in blocks of sessions that fit
+    the width), the sessions and the net control rotation. Tables continue
+    on further pages with their head repeated. The marks are ASCII ("~",
+    ">=", "+") because the PDF font is WinAnsi. Callsigns and names only,
+    no notes.
+  - *CSV*: ';' separated, quoted cells, BOM, CR LF, spreadsheet-safe like
+    the other Netlog CSVs, titles and the words yes/no and
+    exact/estimated/unknown in the interface language. One row per
+    station and session (sessions oldest first, stations in roster
+    order), also for a station that did not attend (`attended` = no);
+    stations with an incomplete callsign are not in it. 21 columns in
+    this order: series; session date (ISO); session number; session
+    start (UTC, ISO 8601 with Z); callsign; name; attended; time present
+    (hh:mm:ss); time present quality; presence intervals without time;
+    check-in (UTC, ISO 8601 with Z); check-in offset to the session start
+    (hh:mm:ss); its quality; net control (yes/no); net control time
+    (hh:mm:ss); its quality; turns; notes; speaking time ESTIMATE, an
+    upper bound (hh:mm:ss); its quality; turns without time. Durations
+    are hh:mm:ss. **An unknown value is an empty cell, never 0**; the
+    quality cell says `unknown` then. A "without time" column is
+    empty only when the value is unknown and nothing was left out; else it
+    holds the count (0 or more).
+- **Bundle.** The modules are plain ES modules in `tools/netlog/js/`: they
+  are in `precache.js` (offline after the install) and in
+  `netlog-offline.html`. The panel makes no network request.
+
+Code: `js/stats.js` (pure numbers; the definitions are in its header),
+`js/statsmodel.js` (texts and rows), `js/statsview.js` (the panel),
+`js/statsexport.js` (CSV), `js/statspdfmodel.js` and `js/statspdf.js`
+(PDF), `js/ncsruns.js`. Tests: `tests/netlog-stats.test.mjs`,
+`tests/netlog-statsmodel.test.mjs`, `tests/netlog-statsexport.test.mjs`,
+`tests/netlog-statspdf.test.mjs`, `tests/e2e/netlog-statistics.spec.mjs`
+(panel, 320 px, keyboard, axe-core, exports).
+
 ## Keyboard
 
 Navigation mode (focus outside text fields) takes single keys without
@@ -666,6 +798,12 @@ Never rename (root `README.md`, "Stable identifiers"):
 | `js/speak.js` | running the round: on air, next, "Next", the next round |
 | `js/search.js` | offline search (pure, node-tested) |
 | `js/searchui.js` | the search dialog and opening a result |
+| `js/ncsruns.js` | who held net control when (pure; roster PDF and statistics) |
+| `js/stats.js` | series statistics: pure numbers and their definitions |
+| `js/statsmodel.js` | statistics as texts and rows (≈ ≥ – marks) |
+| `js/statsview.js` | the statistics panel of a series card and its export buttons |
+| `js/statsexport.js` | statistics CSV (21 columns) |
+| `js/statspdfmodel.js`, `js/statspdf.js` | statistics PDF: content model, layout |
 
 Plain ES modules following the bundler rules of `scripts/single_file.py`
 (named imports, no `as`, no default exports, unique top-level names):
@@ -693,6 +831,11 @@ shared `callbook.js` `baseCall()` on purpose; the names must stay apart.
   history, response state and order, the open turn, drafts), copies with
   remapped references on clashes, rejected files, size limits (below and
   above, multi-byte text), a failing import changes nothing, erasure.
+- `tests/netlog-stats.test.mjs`, `tests/netlog-statsmodel.test.mjs`,
+  `tests/netlog-statsexport.test.mjs`, `tests/netlog-statspdf.test.mjs`:
+  the statistics (definitions, identity, quality marks, CSV, PDF).
+  `tests/e2e/netlog-statistics.spec.mjs`: the panel, exports, keyboard,
+  320 px, axe-core.
 - `tests/netlog-links.test.mjs`: lookup links and how a Wavelog address is read.
 - In `tests/e2e/netlog.spec.mjs` also: backup export, erase all, import,
   re-import and bad files; a failed save (storage full) that keeps the text
