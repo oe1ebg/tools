@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Notfunk-Meldung</title>
-<!-- Winlink form "OE Notfunk Meldung" (viewer), part of the Notfunk-Meldebuch
+<!-- Winlink form "OE1 Notfunk Meldung" (viewer), part of the Notfunk-Meldebuch
      (oe1ebg tools, issue 179). Contract: FORMAT.md next to this file.
      The client replaces each var slot below with the received value: Pat
      XML-escaped, Winlink Express raw. Textareas (RCDATA) read both. Never
@@ -122,9 +122,9 @@ main{max-width:none;padding:0}
 <textarea id="payload" rows="4" readonly spellcheck="false"></textarea>
 <div class="row"><button type="button" class="primary" id="copy">Kopieren</button><button type="button" id="save" aria-describedby="save-h">Speichern</button></div>
 <p id="mb-status" role="status"></p>
-<p class="hint" id="save-h" hidden>In Pat kann diese Ansicht keine Dateien speichern: &bdquo;Kopieren&ldquo; verwenden oder in der Nachricht den Anhang RMS_Express_Form_OE_Notfunk_Meldung_Viewer.xml herunterladen; das Meldebuch liest auch diese Datei.</p>
+<p class="hint" id="save-h" hidden>In Pat kann diese Ansicht keine Dateien speichern: &bdquo;Kopieren&ldquo; verwenden oder in der Nachricht den Anhang RMS_Express_Form_OE1_Notfunk_Meldung_Viewer.xml herunterladen; das Meldebuch liest auch diese Datei.</p>
 </div>
-<p class="hint" id="mb-off" hidden>Ohne Meldebuch-Daten: im Meldebuch die ganze Nachricht (.b2f) oder ihren Anhang RMS_Express_Form_OE_Notfunk_Meldung_Viewer.xml importieren; dann werden die Felder oben &uuml;bernommen.</p>
+<p class="hint" id="mb-off" hidden>Ohne Meldebuch-Daten: im Meldebuch die ganze Nachricht (.b2f) oder ihren Anhang RMS_Express_Form_OE1_Notfunk_Meldung_Viewer.xml importieren; dann werden die Felder oben &uuml;bernommen.</p>
 </section>
 </main>
 <script>
@@ -335,7 +335,7 @@ main{max-width:none;padding:0}
       o = JSON.parse(raw);
       if (!o || typeof o !== 'object' || o.format !== FORMAT || !o.message || typeof o.message !== 'object') problem = 'Die Meldebuch-Daten im Anhang sind unvollst\u00e4ndig.';
       else if (!(o.version >= 1)) problem = 'Die Format-Version der Meldebuch-Daten ist ung\u00fcltig.';
-      else if (o.version > VERSION) problem = 'Diese Meldung wurde mit einer neueren Version erstellt (Format-Version ' + o.version + '). Bitte das Formular \u201eOE Notfunk Meldung\u201c aktualisieren, um alles zu sehen.';
+      else if (o.version > VERSION) problem = 'Diese Meldung wurde mit einer neueren Version erstellt (Format-Version ' + o.version + '). Bitte das Formular \u201eOE1 Notfunk Meldung\u201c aktualisieren, um alles zu sehen.';
     } catch (e) {
       problem = 'Die Meldebuch-Daten im Anhang sind besch\u00e4digt und k\u00f6nnen nicht gelesen werden.';
     }

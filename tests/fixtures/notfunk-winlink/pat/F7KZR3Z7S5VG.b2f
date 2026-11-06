@@ -1,9 +1,9 @@
-Mid: XI3ANHPBSOTX
-Body: 1123
+Mid: F7KZR3Z7S5VG
+Body: 1125
 Content-Transfer-Encoding: 8bit
 Content-Type: text/plain; charset=ISO-8859-1
-Date: 2026/11/06 20:26
-File: 7187 RMS_Express_Form_OE_Notfunk_Meldung_Viewer.xml
+Date: 2026/11/06 20:44
+File: 7189 RMS_Express_Form_OE1_Notfunk_Meldung_Viewer.xml
 From: OE1XYZ
 Mbo: OE1XYZ
 Subject: =?ISO-8859-1?q?[=DCBUNG]_Dringend_W1-007:_Nachschub_Notstrom_<dringend>_&_Treibstoff?=
@@ -39,19 +39,19 @@ Verlauf:
 2026-11-06 17:55 UTC �bertragen an OE3ABC: per Winlink (OE1XYZ)
 
 ----------------------------------------
-Gesendet von OE1XYZ, Formular OE Notfunk Meldung 1.0.
+Gesendet von OE1XYZ, Formular OE1 Notfunk Meldung 1.0.
 Die ganze Meldung mit Verlauf steht im Anhang (Formular
-"OE Notfunk Meldung"); das Notfunk-Meldebuch liest sie von dort ein.
+"OE1 Notfunk Meldung"); das Notfunk-Meldebuch liest sie von dort ein.
 
 <?xml version="1.0" encoding="UTF-8"?>
 <RMS_Express_Form>
     <form_parameters>
         <xml_file_version>1.0</xml_file_version>
         <rms_express_version>Pat v1.0.0 (2e6a8d1)</rms_express_version>
-        <submission_datetime>20261106202603</submission_datetime>
+        <submission_datetime>20261106204436</submission_datetime>
         <senders_callsign>OE1XYZ</senders_callsign>
         <grid_square>JN88</grid_square>
-        <display_form>OE_Notfunk_Meldung_Viewer.html</display_form>
+        <display_form>OE1_Notfunk_Meldung_Viewer.html</display_form>
         <reply_template></reply_template>
     </form_parameters>
     <variables>
@@ -76,7 +76,7 @@ Die ganze Meldung mit Verlauf steht im Anhang (Formular
         <nummer>W1-007</nummer>
         <prioritaet>Dringend</prioritaet>
         <station>OE1XYZ</station>
-        <templateversion>OE Notfunk Meldung 1.0</templateversion>
+        <templateversion>OE1 Notfunk Meldung 1.0</templateversion>
         <txtstr></txtstr>
         <uebung>=== ACHTUNG ÜBUNG ===</uebung>
         <verlauf>2026-11-06 17:42 UTC zur Übertragung (OE1XYZ)&#xD;&#xA;2026-11-06 17:48 UTC Fehlversuch/Rückfrage: keine Antwort auf 145,500 (OE1XYZ)&#xD;&#xA;2026-11-06 17:55 UTC übertragen an OE3ABC: per Winlink (OE1XYZ)</verlauf>

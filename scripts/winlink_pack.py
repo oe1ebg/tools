@@ -5,8 +5,8 @@ import zipfile
 from pathlib import Path
 
 # The Winlink form pack of the Notfunk-Meldebuch (tools/notfunk/winlink/,
-# issue #179) as a download for operators: oe-notfunk-meldung-winlink.zip
-# with the folder "OE Notfunk/" (template, input form, viewer) to copy into
+# issue #179) as a download for operators: oe1-notfunk-meldung-winlink.zip
+# with the folder "OE1 Notfunk/" (template, input form, viewer) to copy into
 # the Winlink client's templates/forms folder, and README.txt next to it
 # (not inside: Winlink Express would list every .txt there as a template).
 # Deterministic: fixed timestamps, sorted entries, fixed permissions.
@@ -14,9 +14,9 @@ from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 PACK_DIR = ROOT_DIR / "tools" / "notfunk" / "winlink"
-ZIP_NAME = "oe-notfunk-meldung-winlink.zip"
-FOLDER = "OE Notfunk"
-FORM_FILES = ["OE_Notfunk_Meldung.txt", "OE_Notfunk_Meldung_Initial.html", "OE_Notfunk_Meldung_Viewer.html"]
+ZIP_NAME = "oe1-notfunk-meldung-winlink.zip"
+FOLDER = "OE1 Notfunk"
+FORM_FILES = ["OE1_Notfunk_Meldung.txt", "OE1_Notfunk_Meldung_Initial.html", "OE1_Notfunk_Meldung_Viewer.html"]
 README = "README.txt"
 EPOCH = (1980, 1, 1, 0, 0, 0)
 

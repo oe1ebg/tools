@@ -3,7 +3,7 @@
 [← Notfunk-Anleitung](../index.de.md) · [Notfunk-Meldebuch öffnen](../../notfunk/index.html)
 { .doc-nav }
 
-Das Winlink-Formular **„OE Notfunk Meldung“** braucht jede Station, die
+Das Winlink-Formular **„OE1 Notfunk Meldung“** braucht jede Station, die
 Meldungen mit dem Notfunk-Meldebuch über Winlink **sendet** oder
 **empfangen und ins Meldebuch übernehmen** will (siehe
 [Winlink](winlink.de.md)). Es wird einmal installiert und danach nur bei
@@ -15,17 +15,17 @@ ausführlich.
 
 ## 1. Herunterladen und auspacken
 
-1. [**oe-notfunk-meldung-winlink.zip** herunterladen](../../downloads/oe-notfunk-meldung-winlink.zip){ download="oe-notfunk-meldung-winlink.zip" }.
+1. [**oe1-notfunk-meldung-winlink.zip** herunterladen](../../downloads/oe1-notfunk-meldung-winlink.zip){ download="oe1-notfunk-meldung-winlink.zip" }.
 2. Auspacken:
     - **Windows:** rechte Maustaste auf die Datei → **„Alle extrahieren…“** →
       „Extrahieren“.
     - **macOS:** Doppelklick auf die Datei.
-    - **Linux / Raspberry Pi:** `unzip oe-notfunk-meldung-winlink.zip`
-3. Darin liegen der Ordner **„OE Notfunk“** mit drei Dateien
-   (`OE_Notfunk_Meldung.txt`, `OE_Notfunk_Meldung_Initial.html`,
-   `OE_Notfunk_Meldung_Viewer.html`) und `README.txt` (Kurzanleitung).
+    - **Linux / Raspberry Pi:** `unzip oe1-notfunk-meldung-winlink.zip`
+3. Darin liegen der Ordner **„OE1 Notfunk“** mit drei Dateien
+   (`OE1_Notfunk_Meldung.txt`, `OE1_Notfunk_Meldung_Initial.html`,
+   `OE1_Notfunk_Meldung_Viewer.html`) und `README.txt` (Kurzanleitung).
 
-Wichtig: Kopiert wird immer der **ganze Ordner „OE Notfunk“**, nicht die
+Wichtig: Kopiert wird immer der **ganze Ordner „OE1 Notfunk“**, nicht die
 einzelnen Dateien, und nicht ein Ordner, der ihn noch einmal enthält.
 
 ## 2a. Winlink Express (Windows)
@@ -40,13 +40,13 @@ einzelnen Dateien, und nicht ein Ordner, der ihn noch einmal enthält.
    `RMS Express.exe`.
 3. Gibt es darin keinen Ordner **„Templates“**, ihn anlegen (rechte
    Maustaste → Neu → Ordner → `Templates`).
-4. Den Ordner **„OE Notfunk“** nach `C:\RMS Express\Global Folders\Templates\`
+4. Den Ordner **„OE1 Notfunk“** nach `C:\RMS Express\Global Folders\Templates\`
    kopieren. Danach gibt es
-   `C:\RMS Express\Global Folders\Templates\OE Notfunk\OE_Notfunk_Meldung.txt`.
+   `C:\RMS Express\Global Folders\Templates\OE1 Notfunk\OE1_Notfunk_Meldung.txt`.
     - Nur für ein Rufzeichen statt für alle: stattdessen nach
       `C:\RMS Express\<RUFZEICHEN>\Templates\`.
 5. Winlink Express starten. **Neue Nachricht** → **„Select Template“** →
-   **Global Templates** → **OE Notfunk** → **OE_Notfunk_Meldung**.
+   **Global Templates** → **OE1 Notfunk** → **OE1_Notfunk_Meldung**.
 
 ## 2b. MacWinlink (macOS)
 
@@ -55,8 +55,8 @@ erstellen.
 
 1. MacWinlink öffnen, **Templates & Forms** öffnen und links
    **Global Templates** wählen.
-2. **Import** → im ausgepackten Ordner **„OE Notfunk“** die Datei
-   `OE_Notfunk_Meldung.txt` wählen. Die beiden `.html`-Dateien müssen daneben
+2. **Import** → im ausgepackten Ordner **„OE1 Notfunk“** die Datei
+   `OE1_Notfunk_Meldung.txt` wählen. Die beiden `.html`-Dateien müssen daneben
    im selben Ordner liegen.
 3. Formular wählen → **„Compose New Message with Form“**.
 4. Entfernen: in der Forms Library rechte Maustaste auf das Formular →
@@ -73,48 +73,48 @@ erstellen.
     Die Zeile `PAT_FORMS_PATH` nennt ihn. Üblich sind
     `~/.local/share/pat/Standard_Forms` (Linux, Raspberry Pi) und
     `~/Library/Application Support/pat/Standard_Forms` (macOS).
-2. Den Ordner **„OE Notfunk“** dorthin kopieren. Der Name enthält ein
+2. Den Ordner **„OE1 Notfunk“** dorthin kopieren. Der Name enthält ein
    Leerzeichen, darum in Anführungszeichen, z. B. unter Linux:
 
     ```
-    unzip oe-notfunk-meldung-winlink.zip -d /tmp/oe-notfunk
+    unzip oe1-notfunk-meldung-winlink.zip -d /tmp/oe-notfunk
     mkdir -p ~/.local/share/pat/Standard_Forms
-    cp -r "/tmp/oe-notfunk/OE Notfunk" ~/.local/share/pat/Standard_Forms/
+    cp -r "/tmp/oe-notfunk/OE1 Notfunk" ~/.local/share/pat/Standard_Forms/
     ```
 
     macOS:
 
     ```
-    cp -r "OE Notfunk" ~/Library/Application\ Support/pat/Standard_Forms/
+    cp -r "OE1 Notfunk" ~/Library/Application\ Support/pat/Standard_Forms/
     ```
 
 3. Pat muss nicht neu gestartet werden. In der Weboberfläche: **Neue
-   Nachricht** → **Template** → **OE Notfunk** → **OE_Notfunk_Meldung**.
+   Nachricht** → **Template** → **OE1 Notfunk** → **OE1_Notfunk_Meldung**.
 
 Ein Update der Standard-Formulare von Pat („Update forms“ bzw.
-`pat templates update`) lässt den Ordner „OE Notfunk“ stehen (geprüft im
+`pat templates update`) lässt den Ordner „OE1 Notfunk“ stehen (geprüft im
 Quelltext von Pat 1.0).
 
 ## 3. Prüfen
 
 Das Formular öffnen wie oben. Es zeigt die Überschrift **„Notfunk-Meldung“**
-und darunter **„Winlink-Formular „OE Notfunk Meldung“ · Version 1.0“**, dazu
+und darunter **„Winlink-Formular „OE1 Notfunk Meldung“ · Version 1.0“**, dazu
 „Aus Meldebuch laden“. Dann ist es richtig installiert.
 
 ## Neue Version, Entfernen
 
 - **Neue Version:** die neue Zip-Datei auspacken und den Ordner
-  „OE Notfunk“ am selben Ort **ersetzen** (alten Ordner löschen, neuen
+  „OE1 Notfunk“ am selben Ort **ersetzen** (alten Ordner löschen, neuen
   hineinkopieren; MacWinlink: löschen und neu importieren). Die Version
   steht unter der Überschrift des Formulars. Sender und Empfänger sollten
   dieselbe Version verwenden.
-- **Entfernen:** den Ordner „OE Notfunk“ löschen (MacWinlink: rechte
+- **Entfernen:** den Ordner „OE1 Notfunk“ löschen (MacWinlink: rechte
   Maustaste → „Delete…“).
 
 ## Wenn etwas nicht klappt
 
 - **Das Formular fehlt in der Liste.** Liegt der Ordner am richtigen Ort?
-  Häufig ist er doppelt verschachtelt (`…\Templates\OE Notfunk\OE Notfunk\`)
+  Häufig ist er doppelt verschachtelt (`…\Templates\OE1 Notfunk\OE1 Notfunk\`)
   nach dem Auspacken: dann den inneren Ordner nach oben verschieben. Bei
   Pat mit `pat env` den Pfad prüfen; Winlink Express neu starten.
 - **Das Formular sagt, es sei „nicht in einem Winlink-Programm geöffnet“,
@@ -129,7 +129,7 @@ und darunter **„Winlink-Formular „OE Notfunk Meldung“ · Version 1.0“**,
 - **Der Empfänger sieht nur einfachen Text statt der Meldung mit Verlauf.**
   Bei ihm ist das Formular nicht installiert. Er kann es nachinstallieren
   und die Nachricht neu öffnen; ins Meldebuch übernehmen kann er sie auch
-  ohne Formular über den Anhang `RMS_Express_Form_OE_Notfunk_Meldung_Viewer.xml`.
+  ohne Formular über den Anhang `RMS_Express_Form_OE1_Notfunk_Meldung_Viewer.xml`.
 
 ---
 

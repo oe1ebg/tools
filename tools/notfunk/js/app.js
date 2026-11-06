@@ -2152,7 +2152,7 @@ function openWinlinkExport(m) {
     if (check.tooLarge) return;
     const name = `${m.number}.winlink.json`;
     download(winlinkJson(payload), name, 'application/json');
-    fill(status, el('span', { class: 'ok-mark', 'aria-hidden': 'true' }, '✓'), ` Download von „${name}“ gestartet. Jetzt im Winlink-Programm das Formular „OE Notfunk Meldung“ öffnen und „Aus Meldebuch laden“ wählen.`);
+    fill(status, el('span', { class: 'ok-mark', 'aria-hidden': 'true' }, '✓'), ` Download von „${name}“ gestartet. Jetzt im Winlink-Programm das Formular „OE1 Notfunk Meldung“ öffnen und „Aus Meldebuch laden“ wählen.`);
     bookStatus(`${m.number}: Datei für Winlink gespeichert (${name}); den Status „übertragen“ eintragen, wenn die Nachricht gesendet ist`);
   });
   btnCopy.addEventListener('click', async () => {
@@ -2187,7 +2187,7 @@ function openWinlinkExport(m) {
     el('p', { class: 'sub' }, m.subject || ''),
     el('div', { class: 'field' }, el('label', { for: 'wl-to' }, 'Winlink-Adresse des Empfängers'), to, toErr),
     size, notes,
-    el('p', { class: 'hint' }, 'Die Datei für das Formular: in Winlink Express oder Pat eine neue Nachricht mit dem Formular „OE Notfunk Meldung“ beginnen, „Aus Meldebuch laden“, Empfänger prüfen, absenden. Statt der Datei geht auch „Daten kopieren“ und im Formular unter „Oder den Inhalt der Datei einfügen“ einfügen. Die Pat-Datei (.b2f) ist schon fertig und kommt in den Ordner out/ des Postfachs. Der Status bleibt „zur Übertragung“, bis Sie „übertragen“ eintragen.'),
+    el('p', { class: 'hint' }, 'Die Datei für das Formular: in Winlink Express oder Pat eine neue Nachricht mit dem Formular „OE1 Notfunk Meldung“ beginnen, „Aus Meldebuch laden“, Empfänger prüfen, absenden. Statt der Datei geht auch „Daten kopieren“ und im Formular unter „Oder den Inhalt der Datei einfügen“ einfügen. Die Pat-Datei (.b2f) ist schon fertig und kommt in den Ordner out/ des Postfachs. Der Status bleibt „zur Übertragung“, bis Sie „übertragen“ eintragen.'),
     el('div', { class: 'inline-foot' }, btnJson, btnCopy, btnB2f, el('button', { type: 'button', onclick: () => dlg.close() }, 'Schließen')),
     copyBox,
     status));

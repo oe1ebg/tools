@@ -1,4 +1,4 @@
-Winlink-Formular „OE Notfunk Meldung“ (Entwurf)
+Winlink-Formular „OE1 Notfunk Meldung“ (Entwurf)
 ================================================
 
 Schickt eine Meldung aus dem Notfunk-Meldebuch über Winlink. Der Empfänger
@@ -8,16 +8,16 @@ ausfüllen.
 
 Installieren
 ------------
-Winlink Express: den Ordner „OE Notfunk“ nach
+Winlink Express: den Ordner „OE1 Notfunk“ nach
   C:\RMS Express\Global Folders\Templates\
-kopieren. Neue Nachricht -> Select Template -> OE Notfunk -> OE_Notfunk_Meldung.
+kopieren. Neue Nachricht -> Select Template -> OE1 Notfunk -> OE1_Notfunk_Meldung.
 
-Pat: den Ordner „OE Notfunk“ in den Formular-Ordner von Pat kopieren
+Pat: den Ordner „OE1 Notfunk“ in den Formular-Ordner von Pat kopieren
 („pat env“ zeigt ihn als PAT_FORMS_PATH), z. B.
   Linux/Raspberry Pi: ~/.local/share/pat/Standard_Forms/
   macOS: ~/Library/Application Support/pat/Standard_Forms/
 Ein Update der Standard-Formulare lässt den Ordner stehen.
-Neue Nachricht -> Template -> OE Notfunk -> OE_Notfunk_Meldung.
+Neue Nachricht -> Template -> OE1 Notfunk -> OE1_Notfunk_Meldung.
 
 Senden
 ------
@@ -42,7 +42,7 @@ Empfangen
 Die Nachricht öffnen: das Formular zeigt die ganze Meldung. Unter
 „Für das Meldebuch“ auf „Kopieren“ und im Meldebuch beim Import einfügen,
 oder „Speichern“. In Pat ist Speichern dort gesperrt: kopieren oder den
-Anhang RMS_Express_Form_OE_Notfunk_Meldung_Viewer.xml der Nachricht
+Anhang RMS_Express_Form_OE1_Notfunk_Meldung_Viewer.xml der Nachricht
 herunterladen; das Meldebuch liest auch diese Datei.
 
 Datum und Zeit sind immer in UTC (JJJJ-MM-TT HH:MM).

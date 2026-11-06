@@ -5,13 +5,13 @@ Winlink form pack (`tools/notfunk/winlink/`). Both sides must follow it exactly.
 
 ## Transport
 
-The form „OE Notfunk Meldung“ (files `OE_Notfunk_Meldung.txt`,
-`OE_Notfunk_Meldung_Initial.html`, `OE_Notfunk_Meldung_Viewer.html`) posts its
+The form „OE1 Notfunk Meldung“ (files `OE1_Notfunk_Meldung.txt`,
+`OE1_Notfunk_Meldung_Initial.html`, `OE1_Notfunk_Meldung_Viewer.html`) posts its
 fields to the Winlink client (Winlink Express or Pat). The client:
 
 - builds subject and plain-text body from the `.txt` template (`<var x>` slots);
   the body is ISO-8859-1 in transit (umlauts fine, `€`, `„“`, emoji become `?`);
-- attaches `RMS_Express_Form_OE_Notfunk_Meldung_Viewer.xml` with **every**
+- attaches `RMS_Express_Form_OE1_Notfunk_Meldung_Viewer.xml` with **every**
   posted field under `<variables>`, names lower-cased, values trimmed and
   XML-escaped;
 - on the receiving side opens the viewer with `{var name}` replaced by the
@@ -96,7 +96,7 @@ hand when the form is used without the Meldebuch:
 | `kennung` | `[ÜBUNG]` for an exercise, else empty (subject prefix) |
 | `uebung` | `=== ACHTUNG ÜBUNG ===` for an exercise, else empty (body) |
 | `format_version` | `1` |
-| `templateversion` | form version, e.g. `OE Notfunk Meldung 1.0` |
+| `templateversion` | form version, e.g. `OE1 Notfunk Meldung 1.0` |
 
 Subject (template): `<kennung> <prioritaet> <nummer>: <betreff>` – the
 clients trim the subject, so without `kennung` it starts with the priority.
