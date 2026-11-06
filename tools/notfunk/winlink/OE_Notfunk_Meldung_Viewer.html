@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="de-AT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notfunk-Meldung</title>
+<!-- Winlink form "OE Notfunk Meldung" (viewer), part of the Notfunk-Meldebuch
+     (oe1ebg tools, issue 179). Contract: FORMAT.md next to this file.
+     The client replaces each var slot below with the received value: Pat
+     XML-escaped, Winlink Express raw. Textareas (RCDATA) read both. Never
+     write an insertion tag name in braces anywhere else in this file. -->
+<style>
+:root{color-scheme:light dark;--bg:#fff;--raised:#f5f5f5;--line:#00000024;--line2:#00000061;--text:#000000de;--dim:#000000a3;--accent:#4560f0;--accent-t:#3f55d9;--warn:#8f5f00;--warn-soft:#f9a8251f;--err:#c62828;--err-soft:#c628281a;--on-err:#fff;--ok:#2e7d32;--font:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;--mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace}
+@media (prefers-color-scheme:dark){:root{--bg:hsl(225,15%,6%);--raised:hsl(225,20%,10%);--line:hsla(225,15%,90%,.16);--line2:hsla(225,15%,90%,.4);--text:hsla(225,15%,92%,.88);--dim:hsla(225,15%,90%,.64);--accent-t:#9aa8f5;--warn:#e0b35c;--warn-soft:#e0b35c1f;--err:#e0776b;--err-soft:#e0776b24;--on-err:#1b0605;--ok:#7bc47f}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 var(--font)}
+main{max-width:50rem;margin:0 auto;padding:16px 16px 40px}
+.kicker{color:var(--dim);font-size:.85rem;margin:0;letter-spacing:.02em}
+.title{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin:2px 0 4px}
+h1{font:700 1.6rem/1.2 var(--font);font-variant-numeric:tabular-nums;margin:0}
+.subj{font-size:1.2rem;font-weight:600;margin:4px 0 14px;overflow-wrap:anywhere}
+h2{font-size:1rem;margin:0 0 8px}
+.card{border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:0 0 14px;min-width:0}
+.prio{display:inline-block;border:1px solid var(--line2);border-radius:4px;padding:1px 8px;font-weight:700;font-size:.85rem;color:var(--dim)}
+.prio.p-dringend{color:var(--warn);background:var(--warn-soft);border-color:var(--warn)}
+.prio.p-notfall{color:var(--on-err);background:var(--err);border-color:var(--err)}
+.art{color:var(--dim);font-weight:600}
+dl{display:grid;grid-template-columns:max-content 1fr;gap:5px 14px;margin:0}
+dt{color:var(--dim);font-size:.9rem;padding-top:1px}
+dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.text{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--raised);border-radius:6px;padding:10px 12px;margin:12px 0 0;font-size:1.02rem}
+.mono{font-family:var(--mono)}
+.dim{color:var(--dim)}
+ol,ul{margin:0;padding-left:20px}
+li{margin:2px 0}
+.t{font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--dim)}
+.note{border-radius:8px;padding:10px 12px;margin:0 0 14px;border:1px solid var(--warn);background:var(--warn-soft)}
+.note.bad{border-color:var(--err);background:var(--err-soft)}
+.rev+.rev{margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+.rev p{margin:0 0 4px;font-weight:600}
+del,ins{text-decoration:none}
+del{color:var(--dim)}
+del::before{content:"\201E"}del::after{content:"\201C"}ins::before{content:"\201E"}ins::after{content:"\201C"}
+details summary{cursor:pointer;color:var(--accent-t)}
+textarea{font:13px/1.4 var(--mono);color:inherit;background:var(--raised);border:1px solid var(--line2);border-radius:6px;padding:7px 9px;width:100%;resize:vertical}
+label{display:block;font-weight:600;font-size:.9rem;margin:10px 0 4px}
+.row{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;margin-top:10px}
+button{font:inherit;font-weight:600;border-radius:6px;border:1px solid var(--line2);background:var(--raised);color:var(--text);padding:6px 16px;min-height:40px;cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button:disabled{opacity:.55;cursor:not-allowed}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.hint{color:var(--dim);font-size:.88rem;overflow-wrap:anywhere;margin:6px 0 0}
+#mb-status{font-weight:600;margin:8px 0 0;min-height:1.4em}
+[hidden]{display:none!important}
+@media (max-width:30rem){main{padding:12px 10px 32px}.card{padding:12px}dl{grid-template-columns:1fr;gap:0}dd{margin-bottom:6px}h1{font-size:1.35rem}}
+@media (forced-colors:active){.prio,button,.note{border:1px solid CanvasText}}
+@media print{
+@page{size:A4;margin:15mm}
+:root{--bg:#fff;--raised:#fff;--text:#000;--dim:#333;--line:#999;--line2:#000;--warn:#000;--warn-soft:#fff;--err:#000;--err-soft:#fff;--on-err:#000;color-scheme:light}
+body{font-size:11pt;background:#fff;color:#000}
+main{max-width:none;padding:0}
+.card{border:0;border-top:1px solid #999;border-radius:0;padding:8px 0 0;margin:0 0 10px;break-inside:avoid}
+.text{border:1px solid #999;padding:6px 8px}
+.prio{border-color:#000}
+.noprint{display:none!important}
+}
+</style>
+</head>
+<body>
+<textarea hidden id="d-meldung">{var meldung}</textarea>
+<textarea hidden id="d-nummer">{var nummer}</textarea>
+<textarea hidden id="d-prioritaet">{var prioritaet}</textarea>
+<textarea hidden id="d-art">{var art}</textarea>
+<textarea hidden id="d-zeit">{var zeit}</textarea>
+<textarea hidden id="d-von">{var von}</textarea>
+<textarea hidden id="d-an">{var an}</textarea>
+<textarea hidden id="d-betreff">{var betreff}</textarea>
+<textarea hidden id="d-inhalt">{var inhalt}</textarea>
+<textarea hidden id="d-bezug">{var bezug}</textarea>
+<textarea hidden id="d-verlauf">{var verlauf}</textarea>
+<textarea hidden id="d-station">{var station}</textarea>
+<textarea hidden id="d-templateversion">{var templateversion}</textarea>
+<main>
+<p class="kicker">Notfunk-Meldung &middot; &uuml;ber Winlink empfangen</p>
+<div class="title"><h1 id="num">&ndash;</h1><span id="prio" class="prio">Routine</span><span id="art" class="art"></span></div>
+<p class="subj" id="subj"></p>
+<p class="note bad" id="deleted" hidden>Diese Meldung ist im Meldebuch des Absenders als gel&ouml;scht markiert.</p>
+<p class="note" id="flat" hidden>Diese Nachricht enth&auml;lt nur die Felder des Formulars (von Hand ausgef&uuml;llt oder von einem anderen Programm), keinen vollst&auml;ndigen Meldebuch-Datensatz.</p>
+<p class="note bad" id="bad" hidden></p>
+
+<section class="card" aria-labelledby="h-msg">
+<h2 id="h-msg">Meldung</h2>
+<dl id="main-dl"></dl>
+<div class="text" id="text" aria-label="Inhalt"></div>
+</section>
+
+<section class="card" id="s-hist" aria-labelledby="h-hist" hidden>
+<h2 id="h-hist">Verlauf beim Absender</h2>
+<ol id="hist"></ol>
+</section>
+
+<section class="card" id="s-rev" aria-labelledby="h-rev" hidden>
+<h2 id="h-rev">Bearbeitungen</h2>
+<div id="revs"></div>
+</section>
+
+<section class="card" id="s-orig" aria-labelledby="h-orig">
+<h2 id="h-orig">Herkunft</h2>
+<dl id="orig-dl"></dl>
+</section>
+
+<section class="card noprint" id="s-mb" aria-labelledby="h-mb">
+<h2 id="h-mb">F&uuml;r das Meldebuch</h2>
+<div id="mb-on">
+<p class="hint">Im Notfunk-Meldebuch &bdquo;Winlink-Nachricht importieren&ldquo; w&auml;hlen und diese Daten speichern oder einf&uuml;gen. Das Meldebuch legt daraus eine eingehende Meldung zur Pr&uuml;fung an.</p>
+<label for="payload">Meldebuch-Daten</label>
+<textarea id="payload" rows="4" readonly spellcheck="false"></textarea>
+<div class="row"><button type="button" class="primary" id="copy">Kopieren</button><button type="button" id="save" aria-describedby="save-h">Speichern</button></div>
+<p id="mb-status" role="status"></p>
+<p class="hint" id="save-h" hidden>In Pat kann diese Ansicht keine Dateien speichern: &bdquo;Kopieren&ldquo; verwenden oder in der Nachricht den Anhang RMS_Express_Form_OE_Notfunk_Meldung_Viewer.xml herunterladen; das Meldebuch liest auch diese Datei.</p>
+</div>
+<p class="hint" id="mb-off" hidden>Ohne Meldebuch-Daten: im Meldebuch die ganze Nachricht (.b2f) oder ihren Anhang RMS_Express_Form_OE_Notfunk_Meldung_Viewer.xml importieren; dann werden die Felder oben &uuml;bernommen.</p>
+</section>
+</main>
+<script>
+'use strict';
+(function () {
+  const $ = id => document.getElementById(id);
+  const FORMAT = 'oe1ebg-notfunk-winlink', VERSION = 1;
+  const PRIO = { routine: 'Routine', priority: 'Dringend', emergency: 'Notfall' };
+  const TYPES = { meldung: 'Meldung', auftrag: 'Auftrag', frage: 'Frage', anforderung: 'Anforderung', lagemeldung: 'Lagemeldung' };
+  const CHANNELS = { funk: 'Funk', telefon: 'Telefon', muendlich: 'm\u00fcndlich', melder: 'Melder', email: 'E-Mail', fax: 'Fax', anders: 'anders', winlink: 'Winlink' };
+  const DIRS = { in: 'Eingang', out: 'Ausgang' };
+  const REFK = { antwort: 'Antwort auf', korrektur: 'Korrektur zu', ergaenzung: 'Erg\u00e4nzung zu' };
+  const WORDS = {
+    in: { logged: 'erfasst', forwarded: '\u00fcbergeben', acknowledged: '\u00fcbernommen', answered: 'beantwortet' },
+    out: { logged: 'zur \u00dcbertragung', forwarded: '\u00fcbertragen', acknowledged: 'Empfang best\u00e4tigt', answered: 'beantwortet' },
+  };
+
+  // A substituted value, or '' when the slot was left as it is.
+  function slot(name) {
+    const v = $('d-' + name).value.trim();
+    return /^\{\s*var\s/i.test(v) ? '' : v;
+  }
+  function el(tag, text, cls) {
+    const e = document.createElement(tag);
+    if (text != null) e.textContent = text;
+    if (cls) e.className = cls;
+    return e;
+  }
+  function utc(v) {
+    if (!v) return '';
+    const d = new Date(v);
+    if (isNaN(d) || !/^\d{4}-\d\d-\d\dT/.test(String(v))) return String(v);
+    const s = d.toISOString();
+    return s.slice(0, 10) + ' ' + s.slice(11, 16) + ' UTC';
+  }
+  const party = p => p ? [p.name, p.call].filter(Boolean).join(' / ') + (p.contact ? ' (' + p.contact + ')' : '') : '';
+  const radio = r => r ? [r.freq ? r.freq.replace('.', ',') + ' MHz' : '', r.via ? '\u00fcber ' + r.via : ''].filter(Boolean).join(' ') : '';
+  const origin = o => o ? [o.station, o.place, o.filed ? 'aufgegeben ' + utc(o.filed) : ''].filter(Boolean).join(', ') : '';
+  const place = (l, text) => l ? (l.label || l.input || (l.lat != null ? l.lat + ', ' + l.lon : '')) : (text || '');
+  const list = a => Array.isArray(a) ? a.join(', ') : '';
+  function bezug(m, ref) {
+    const num = ref && ref.number ? ref.number + (ref.station ? ' (' + ref.station + ')' : '') : m.refNumber;
+    return num ? (REFK[m.refKind] || 'Bezug:') + ' ' + num : '';
+  }
+  function dlAdd(dl, k, v, cls) {
+    if (!v) return;
+    const dd = el('dd', v, cls);
+    dl.append(el('dt', k), dd);
+  }
+  function setHead(num, prio, art, subj) {
+    $('num').textContent = num || '\u2013';
+    $('prio').textContent = prio || 'Routine';
+    $('prio').className = 'prio p-' + (prio || 'routine').toLowerCase();
+    $('art').textContent = art || '';
+    $('subj').textContent = subj || '';
+    document.title = 'Notfunk-Meldung ' + (num || '') + (subj ? ': ' + subj : '');
+  }
+
+  // Fields compared between versions: [key, label, format].
+  const FIELDS = [
+    ['ts', 'Zeit', utc], ['direction', 'Richtung', v => DIRS[v] || v], ['channel', '\u00dcbermittlung', v => CHANNELS[v] || v],
+    ['radio', 'Frequenz/Relais', radio], ['peer', 'Funkstelle'], ['type', 'Art', v => TYPES[v] || v],
+    ['priority', 'Dringlichkeit', v => PRIO[v] || v], ['from', 'Absender', party], ['to', 'Adressat', party],
+    ['distribution', 'Verteiler', list], ['subject', 'Betreff'], ['text', 'Inhalt'], ['stichzeit', 'Stichzeit', utc],
+    ['origin', 'Ursprung', origin], ['readBack', 'R\u00fccklesen', v => v ? 'ja' : 'nein'], ['location', 'Ort', l => place(l)],
+    ['locationText', 'Ort'], ['refKind', 'Bezug', v => REFK[v] || v], ['refNumber', 'Bezug-Nummer'],
+    ['staffRef', 'Nr. der Meldesammelstelle'], ['remarks', 'Anmerkungen'],
+  ];
+  const fmt = (f, v) => (f[2] ? f[2](v) : (v == null ? '' : String(v))) || '';
+
+  function showFull(o, raw) {
+    const m = o.message;
+    setHead(m.number, PRIO[m.priority] || 'Routine', TYPES[m.type] || m.type, m.subject);
+    $('deleted').hidden = !m.deleted;
+    const dl = $('main-dl');
+    dlAdd(dl, 'Zeit', utc(m.ts) + (m.direction ? ' (' + (DIRS[m.direction] || m.direction) + ' beim Absender)' : ''));
+    dlAdd(dl, 'Von', party(m.from));
+    dlAdd(dl, 'An', party(m.to));
+    dlAdd(dl, 'Verteiler', list(m.distribution));
+    dlAdd(dl, 'Bezug', bezug(m, o.ref) + (o.ref && o.ref.source && o.ref.source.number ? ', urspr\u00fcnglich ' + o.ref.source.number + ' (' + o.ref.source.station + ')' : ''));
+    dlAdd(dl, '\u00dcbermittlung', [CHANNELS[m.channel] || m.channel, radio(m.radio)].filter(Boolean).join(', '));
+    dlAdd(dl, 'Funkstelle', m.peer);
+    dlAdd(dl, 'Ursprung', origin(m.origin));
+    dlAdd(dl, 'Ort', place(m.location, m.locationText));
+    dlAdd(dl, 'Stichzeit', utc(m.stichzeit));
+    dlAdd(dl, 'R\u00fccklesen', m.readBack ? 'erfolgt und best\u00e4tigt' : '');
+    dlAdd(dl, 'Nr. der Meldesammelstelle', m.staffRef);
+    dlAdd(dl, 'Anmerkungen', m.remarks);
+    $('text').textContent = m.text || '';
+    $('text').hidden = !m.text;
+
+    const words = WORDS[m.direction] || WORDS.in;
+    const rows = (Array.isArray(m.status) ? m.status : []).map(s => [s.at, words[s.state] || s.state,
+      [s.to ? 'an ' + s.to : '', s.who ? 'von ' + s.who : '', s.readBack ? 'r\u00fcckgelesen' : '', s.note, s.by ? 'Operator ' + s.by : ''].filter(Boolean).join(', ')]);
+    for (const a of Array.isArray(m.attempts) ? m.attempts : []) rows.push([a.at, 'Fehlversuch / R\u00fcckfrage', [a.note, a.by ? 'Operator ' + a.by : ''].filter(Boolean).join(', ')]);
+    rows.sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+    for (const [at, word, rest] of rows) {
+      const li = el('li');
+      li.append(el('span', utc(at), 't'), ' ', el('b', word), rest ? ' \u2013 ' + rest : '');
+      $('hist').append(li);
+    }
+    $('s-hist').hidden = !rows.length;
+
+    const revs = Array.isArray(o.revisions) ? o.revisions : [];
+    revs.forEach((r, i) => {
+      const before = r.old || {}, after = (revs[i + 1] && revs[i + 1].old) || m;
+      const box = el('div', null, 'rev');
+      box.append(el('p', utc(r.at) + (r.by ? ', bearbeitet von ' + r.by : '')));
+      const dl2 = el('dl');
+      for (const f of FIELDS) {
+        const a = fmt(f, before[f[0]]), b = fmt(f, after[f[0]]);
+        if (a === b) continue;
+        const dd = el('dd');
+        if (f[0] === 'text') {
+          const d = el('details');
+          d.append(el('summary', 'ge\u00e4ndert, vorher anzeigen'), el('div', a || '(leer)', 'text'));
+          dd.append(d);
+        } else {
+          dd.append(a ? el('del', a) : '(leer)', ' \u2192 ', b ? el('ins', b) : '(leer)');
+        }
+        dl2.append(el('dt', f[1]), dd);
+      }
+      if (!dl2.childNodes.length) dl2.append(el('dt', 'Felder'), el('dd', 'unver\u00e4ndert'));
+      box.append(dl2);
+      $('revs').append(box);
+    });
+    $('s-rev').hidden = !revs.length;
+
+    const od = $('orig-dl'), st = o.station || {};
+    dlAdd(od, 'Station', [st.call, st.operation ? '\u201e' + st.operation + '\u201c' : '', st.prefix ? 'Pr\u00e4fix ' + st.prefix : ''].filter(Boolean).join(', '));
+    dlAdd(od, 'Operator', st.operator);
+    dlAdd(od, 'Erfasst', [utc(m.created), m.operator ? 'von ' + m.operator : ''].filter(Boolean).join(' '));
+    if (m.updated && m.updated !== m.created) dlAdd(od, 'Zuletzt ge\u00e4ndert', [utc(m.updated), m.editedBy ? 'von ' + m.editedBy : ''].filter(Boolean).join(' '));
+    const src = m.source;
+    if (src && typeof src === 'object') dlAdd(od, '\u00dcbernommen von', [src.station, src.number ? 'dort Nr. ' + src.number : ''].filter(Boolean).join(', '));
+    dlAdd(od, 'Exportiert', [utc(o.exported), o.app ? 'Meldebuch ' + o.app : ''].filter(Boolean).join(', '));
+    winlinkOrigin(od);
+
+    $('payload').value = raw;
+  }
+
+  function winlinkOrigin(dl) {
+    dlAdd(dl, '\u00dcber Winlink von', slot('station'));
+    dlAdd(dl, 'Formular', slot('templateversion'));
+  }
+
+  function showFlat() {
+    setHead(slot('nummer'), slot('prioritaet'), slot('art'), slot('betreff'));
+    const dl = $('main-dl');
+    dlAdd(dl, 'Zeit', slot('zeit'));
+    dlAdd(dl, 'Von', slot('von'));
+    dlAdd(dl, 'An', slot('an'));
+    dlAdd(dl, 'Bezug', slot('bezug'));
+    $('text').textContent = slot('inhalt');
+    $('text').hidden = !slot('inhalt');
+    const lines = slot('verlauf').split('\n').filter(l => l.trim());
+    for (const l of lines) $('hist').append(el('li', l));
+    $('s-hist').hidden = !lines.length;
+    winlinkOrigin($('orig-dl'));
+    $('mb-on').hidden = true;
+    $('mb-off').hidden = false;
+  }
+
+  function status(msg) {
+    $('mb-status').textContent = '';
+    setTimeout(() => { $('mb-status').textContent = msg; }, 50);
+  }
+  async function copy() {
+    const t = $('payload');
+    try {
+      await navigator.clipboard.writeText(t.value);
+      return status('Kopiert. Im Meldebuch unter \u201eWinlink-Nachricht importieren\u201c einf\u00fcgen.');
+    } catch (e) { /* fall back below */ }
+    t.focus();
+    t.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    status(ok ? 'Kopiert. Im Meldebuch unter \u201eWinlink-Nachricht importieren\u201c einf\u00fcgen.'
+      : 'Der Text ist markiert: jetzt mit Strg+C (Mac: \u2318+C) kopieren.');
+  }
+  function save(name) {
+    try {
+      const url = URL.createObjectURL(new Blob([$('payload').value], { type: 'application/json' }));
+      const a = el('a');
+      a.href = url;
+      a.download = name;
+      document.body.append(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      status('Gespeichert als ' + name + ' (im Download-Ordner). Falls keine Datei ankommt: \u201eKopieren\u201c verwenden.');
+    } catch (e) {
+      status('Speichern ist hier nicht m\u00f6glich: bitte \u201eKopieren\u201c verwenden.');
+    }
+  }
+
+  const raw = slot('meldung');
+  let o = null, problem = '';
+  if (raw) {
+    try {
+      o = JSON.parse(raw);
+      if (!o || typeof o !== 'object' || o.format !== FORMAT || !o.message || typeof o.message !== 'object') problem = 'Die Meldebuch-Daten im Anhang sind unvollst\u00e4ndig.';
+      else if (!(o.version >= 1)) problem = 'Die Format-Version der Meldebuch-Daten ist ung\u00fcltig.';
+      else if (o.version > VERSION) problem = 'Diese Meldung wurde mit einer neueren Version erstellt (Format-Version ' + o.version + '). Bitte das Formular \u201eOE Notfunk Meldung\u201c aktualisieren, um alles zu sehen.';
+    } catch (e) {
+      problem = 'Die Meldebuch-Daten im Anhang sind besch\u00e4digt und k\u00f6nnen nicht gelesen werden.';
+    }
+  }
+  if (o && !problem) {
+    showFull(o, raw);
+    const name = String(o.message.number || 'meldung').replace(/[^\w.-]+/g, '_') + '.winlink.json';
+    $('payload').previousElementSibling.textContent = 'Meldebuch-Daten (' + name + ')';
+    $('copy').addEventListener('click', copy);
+    $('save').addEventListener('click', () => save(name));
+    // Pat shows forms in a sandbox without downloads (opaque origin over http)
+    if (location.protocol !== 'file:' && self.origin === 'null') {
+      $('save').disabled = true;
+      $('save-h').hidden = false;
+    }
+  } else {
+    const any = ['nummer', 'betreff', 'inhalt'].some(slot);
+    if (problem) {
+      $('bad').textContent = problem + ' Angezeigt werden die Felder der Nachricht.';
+      $('bad').hidden = false;
+    } else if (!any) {
+      $('bad').textContent = 'Keine Nachricht geladen: Diese Ansicht zeigt empfangene Meldungen nur, wenn Winlink Express oder Pat sie \u00f6ffnet.';
+      $('bad').hidden = false;
+    } else $('flat').hidden = false;
+    showFlat();
+    // a newer format: the Meldebuch may still read the data
+    if (o && typeof o === 'object' && o.format === FORMAT) {
+      $('payload').value = raw;
+      $('mb-on').hidden = false;
+      $('mb-off').hidden = true;
+      $('copy').addEventListener('click', copy);
+      $('save').addEventListener('click', () => save('meldung.winlink.json'));
+    }
+  }
+})();
+</script>
+</body>
+</html>

@@ -42,6 +42,10 @@ Die Präsentation zur Einführung in das Notfunk-Meldebuch (Deutsch):
 - [Das Meldebuch](manual/logbook.de.md): Liste, Status, Karte, Meldung im Detail.
 - [Ausdruck und PDF](manual/printout.de.md): das Formular für Papier, Meldungen und Meldebuch als PDF.
 - [Sicherung und Wiederherstellung](manual/backup.de.md)
+- [Winlink (Prototyp)](manual/winlink.de.md): Meldungen über Winlink Express
+  oder Pat senden und empfangen.
+- [Winlink-Formular installieren](manual/winlink-formular.de.md): das
+  Formular „OE Notfunk Meldung“ Schritt für Schritt einrichten.
 
 ## Nachschlagen
 

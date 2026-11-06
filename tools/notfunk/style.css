@@ -216,6 +216,7 @@ details.more .hint{ margin:.4em 0 0; }
 .form-status{ font-size:14.5px; min-height:1.3em; }
 #op-status:empty{ display:none; }
 .form-status.err{ color:var(--err); font-weight:600; }
+.form-status.warn{ color:var(--warn); }
 .summary{ display:flex; flex-wrap:wrap; gap:.5em; margin-bottom:.8em; }
 .summary:empty{ display:none; }
 .sum{ padding:.35em .8em; border-radius:6px; background:var(--bg-raised); color:var(--text-dim); font-size:14.5px; }
@@ -452,3 +453,16 @@ body > footer details.vendor-license pre{ white-space:pre-wrap; }
 
 /* "Auf der Karte" scrolls the map into view below the sticky page header */
 #map-panel{ scroll-margin-top:calc(var(--site-header-h, 0px) + .5em); }
+
+/* ---------- Winlink (issue #179): export and import dialogs, sender's record ---------- */
+.wl-dlg{ width:min(560px, calc(100vw - 2em)); }
+.wl-dlg .field{ display:flex; flex-direction:column; gap:.2em; }
+.wl-dlg textarea{ width:100%; box-sizing:border-box; font-family:var(--font-mono); font-size:13.5px; }
+.wl-drop{ display:flex; flex-wrap:wrap; align-items:center; gap:.5em .8em; padding:.8em; border:2px dashed var(--line-strong); border-radius:6px; }
+.wl-drop.over{ border-color:var(--accent); border-style:solid; }
+.wl-notes{ margin:0; padding-left:1.2em; font-size:14px; }
+.wl-notes:empty{ display:none; }
+.wl-source{ border:1.5px dashed var(--line-strong); border-radius:6px; padding:.6em .8em; font-size:14.5px; }
+.wl-source p{ margin:.2em 0; }
+ol.wl-steps{ margin:.3em 0; padding-left:1.2em; }
+.wl-history{ white-space:pre-wrap; font-size:13.5px; }
