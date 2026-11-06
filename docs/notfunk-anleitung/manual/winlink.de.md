@@ -22,19 +22,27 @@ Formular liest die Meldung trotzdem: als einfachen Text.
 
 1. Die Meldung im Meldebuch öffnen (Klick auf ihre Zeile) und
    **„Für Winlink exportieren…“** wählen.
-2. Im Fenster steht die **Winlink-Adresse des Empfängers** (vorbelegt mit
+2. Oben steht, ob die Nachricht als **Übung** gekennzeichnet wird: bei
+   einem Einsatz mit Haken **„Übung“** (Vorgabe) steht im Betreff
+   `[ÜBUNG]`, im Text als erste Zeile und vor und nach dem Spruch eine
+   eigene Zeile `=== ACHTUNG ÜBUNG ===` und im Formular über dem Inhalt der Balken
+   „⚠ ACHTUNG ÜBUNG“. Ohne Haken steht dort „Ernstfall“.
+   Im Fenster steht die **Winlink-Adresse des Empfängers** (vorbelegt mit
    dem Rufzeichen des Adressaten) und die **Größe** der Nachricht.
    Hinweise darunter beachten:
     - Zeichen wie `€`, `„“` oder Emoji erscheinen im Text der
       Winlink-Nachricht als `?`; im Formular und beim Einlesen ins Meldebuch
       bleiben sie erhalten.
-    - Ein Betreff über 128 Byte (Dringlichkeit, Nummer und Betreff zusammen)
+    - Ein Betreff über 128 Byte (Übungskennung, Dringlichkeit, Nummer und Betreff zusammen)
       wird gemeldet: besser den Betreff kürzen.
     - Über **120 KB** (mit allen Fassungen und dem Verlauf) exportiert das
       Meldebuch nichts; gekürzt wird nie. Den Inhalt dann auf mehrere
       Meldungen aufteilen.
 3. **„Datei für das Formular speichern“** lädt `W1-007.winlink.json`
-   herunter (die Nummer der Meldung).
+   herunter (die Nummer der Meldung). Ohne Datei geht es auch über die
+   Zwischenablage: **„Daten kopieren“**, dann im Formular
+   **„Oder den Inhalt der Datei einfügen“** aufklappen, einfügen und
+   **„Übernehmen“**.
 4. Im Winlink-Programm eine neue Nachricht mit dem Formular **„OE Notfunk
    Meldung“** beginnen, **„Aus Meldebuch laden“**, die Datei wählen (oder
    ihren Inhalt einfügen), die Winlink-Adresse des Empfängers prüfen und

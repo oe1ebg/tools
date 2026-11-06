@@ -154,8 +154,9 @@ name, and a distribution list ("Verteiler").
   flagged; no schema change or migration, the backup format stays version 1
   (an older app restores a newer backup and ignores the field; a damaged,
   non-boolean value rejects the file like a damaged station code). While
-  set: "ÜBUNG" in the page header (a chip at a fixed place left of the
-  status chips; also "Übung" in the Einsatz summary), and under the Inhalt
+  set: a calm yellow full-width bar "ÜBUNG" with the draft note at the
+  top (not dismissible, while the operation is open; also "Übung" in the
+  Einsatz summary), and under the Inhalt
   the reminder "ÜBUNG: Vor und nach dem Spruch: „ACHTUNG ÜBUNG“" (words,
   not colour alone; part of the Inhalt's `aria-describedby` only while
   shown, no live region). The stored text stays verbatim: nothing is added
@@ -314,10 +315,20 @@ for the book and the form pack); the book's side is `js/winlink.js` (pure,
 `winlink/README.md`. Manual: `docs/notfunk-anleitung/manual/winlink.de.md`
 (use) and `winlink-formular.de.md` (installing the form).
 
+**Exercise (Übung).** The operation's `exercise` flag (#186; missing =
+not flagged) is shown as a calm yellow full-width bar „ÜBUNG“ under the draft
+note at the top (not dismissible; only while an exercise is open). A Winlink export carries
+`exercise` in the payload and, for an exercise, `[ÜBUNG]` before the subject,
+the line `=== ACHTUNG ÜBUNG ===` as the first body line and with a blank
+line before and after the Spruch, and the banner „⚠ ACHTUNG ÜBUNG“ above the text in both forms. An
+import never takes marker lines into the Inhalt and keeps `source.exercise`
+(the review chip and the detail card say so). A payload without
+`exercise` (older exports) counts as an exercise.
+
 **Formats.**
 
 - *Payload* (`winlinkPayload()`): `{ format: "oe1ebg-notfunk-winlink",
-  version: 1, app, exported, station: { call, operation, prefix, operator },
+  version: 1, app, exported, exercise, station: { call, operation, prefix, operator },
   message, revisions, ref }`. `message` is the stored record without
   `eventId`/`replyTo`; `revisions` oldest first without local ids; `ref` =
   the linked Bezug as `{ id, number, station, source }` (`source` = that
@@ -347,7 +358,7 @@ operator saves):
   (time = receipt, read-back unset), prefilled with the sender's fields; the
   sender's record goes with the draft and is saved as `message.source` =
   `{ format_version, station, operation, operator, id, number, direction, ts,
-  status, attempts, revisions, updated, exported, mid? }` (flat imports:
+  status, attempts, revisions, updated, exported, exercise, mid? }` (flat imports:
   `id: null`, `form`, `history`). Saved through `saveNewMessage()` as usual:
   own number, status from „erfasst“.
 - Bezug: `ref.id` or `ref.source.id` equal to a live message's `id` or

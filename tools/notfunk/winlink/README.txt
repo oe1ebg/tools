@@ -29,6 +29,14 @@ Senden
    Nachrichtenfenster „Send“ wählen. Übertragen wird bei der nächsten
    Verbindung.
 
+Übung
+-----
+Eine Übung ist deutlich gekennzeichnet: „[ÜBUNG]“ vor dem Betreff, die
+Zeile „=== ACHTUNG ÜBUNG ===“ als erste Zeile und vor und nach dem
+Spruch (mit Leerzeile) und
+im Formular über dem Inhalt der Balken „ACHTUNG ÜBUNG“. Das Meldebuch nimmt
+das aus dem Einsatz (Haken „Übung“); von Hand: Haken „Übung“ (Vorgabe).
+
 Empfangen
 ---------
 Die Nachricht öffnen: das Formular zeigt die ganze Meldung. Unter

@@ -50,9 +50,12 @@ button:disabled{opacity:.55;cursor:not-allowed}
 :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .hint{color:var(--dim);font-size:.88rem;overflow-wrap:anywhere;margin:6px 0 0}
 #mb-status{font-weight:600;margin:8px 0 0;min-height:1.4em}
+/* exercise marker: a banner above the text (symbol, text, border; not colour alone, not text styling) */
+.ex{margin:12px 0 0;padding:6px 10px;border:2px solid var(--warn);border-radius:6px;background:var(--warn-soft);color:var(--warn);font-weight:800;letter-spacing:.06em;text-align:center}
+.ex+.text{margin-top:6px}
 [hidden]{display:none!important}
 @media (max-width:30rem){main{padding:12px 10px 32px}.card{padding:12px}dl{grid-template-columns:1fr;gap:0}dd{margin-bottom:6px}h1{font-size:1.35rem}}
-@media (forced-colors:active){.prio,button,.note{border:1px solid CanvasText}}
+@media (forced-colors:active){.prio,button,.note,.ex{border:1px solid CanvasText}}
 @media print{
 @page{size:A4;margin:15mm}
 :root{--bg:#fff;--raised:#fff;--text:#000;--dim:#333;--line:#999;--line2:#000;--warn:#000;--warn-soft:#fff;--err:#000;--err-soft:#fff;--on-err:#000;color-scheme:light}
@@ -60,6 +63,7 @@ body{font-size:11pt;background:#fff;color:#000}
 main{max-width:none;padding:0}
 .card{border:0;border-top:1px solid #999;border-radius:0;padding:8px 0 0;margin:0 0 10px;break-inside:avoid}
 .text{border:1px solid #999;padding:6px 8px}
+.ex{border:2px solid #000;color:#000;background:#fff}
 .prio{border-color:#000}
 .noprint{display:none!important}
 }
@@ -79,6 +83,7 @@ main{max-width:none;padding:0}
 <textarea hidden id="d-verlauf">{var verlauf}</textarea>
 <textarea hidden id="d-station">{var station}</textarea>
 <textarea hidden id="d-templateversion">{var templateversion}</textarea>
+<textarea hidden id="d-uebung">{var uebung}</textarea>
 <main>
 <p class="kicker">Notfunk-Meldung &middot; &uuml;ber Winlink empfangen</p>
 <div class="title"><h1 id="num">&ndash;</h1><span id="prio" class="prio">Routine</span><span id="art" class="art"></span></div>
@@ -90,6 +95,7 @@ main{max-width:none;padding:0}
 <section class="card" aria-labelledby="h-msg">
 <h2 id="h-msg">Meldung</h2>
 <dl id="main-dl"></dl>
+<p class="ex" id="ex-a" hidden><span aria-hidden="true">&#9888;</span> ACHTUNG &Uuml;BUNG</p>
 <div class="text" id="text" aria-label="Inhalt"></div>
 </section>
 
@@ -137,6 +143,11 @@ main{max-width:none;padding:0}
   };
 
   // A substituted value, or '' when the slot was left as it is.
+  // ACHTUNG UEBUNG as a banner above the text (an exercise; a payload without
+  // `exercise` is an older export: unknown, so marked)
+  function exercise(on) {
+    $('ex-a').hidden = !on;
+  }
   function slot(name) {
     const v = $('d-' + name).value.trim();
     return /^\{\s*var\s/i.test(v) ? '' : v;
@@ -209,6 +220,7 @@ main{max-width:none;padding:0}
     dlAdd(dl, 'Anmerkungen', m.remarks);
     $('text').textContent = m.text || '';
     $('text').hidden = !m.text;
+    exercise(o.exercise !== false);
 
     const words = WORDS[m.direction] || WORDS.in;
     const rows = (Array.isArray(m.status) ? m.status : []).map(s => [s.at, words[s.state] || s.state,
@@ -274,6 +286,7 @@ main{max-width:none;padding:0}
     dlAdd(dl, 'Bezug', slot('bezug'));
     $('text').textContent = slot('inhalt');
     $('text').hidden = !slot('inhalt');
+    exercise(!!slot('uebung'));
     const lines = slot('verlauf').split('\n').filter(l => l.trim());
     for (const l of lines) $('hist').append(el('li', l));
     $('s-hist').hidden = !lines.length;

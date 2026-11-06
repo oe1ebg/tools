@@ -43,7 +43,6 @@
   <a id="manual-link" class="hdr-link" href="../notfunk-anleitung/" target="_blank" rel="noopener" title="Ausführliche Anleitung mit Bildern (online)">Anleitung</a>
   <button id="btn-loc" type="button" aria-expanded="false" aria-controls="loc-panel" title="Offline-Standortsuche Wien: Adresse, Ort, PLZ, Koordinaten, Locator, UTMREF"><span aria-hidden="true">📍</span> Standort</button>
   <div class="hdr-status">
-    <span id="st-exercise" class="chip exercise-chip" hidden title="Dieser Einsatz ist eine Übung: jede Meldung am Funk mit „ACHTUNG ÜBUNG“ einleiten und beenden">ÜBUNG</span>
     <span id="st-offline" class="chip">offline: prüfe…</span>
     <span id="st-storage" class="chip">Speicher: prüfe…</span>
     <button type="button" id="st-backup" class="chip chip-btn" hidden title="Download der Sicherung (JSON) dieses Einsatzes jetzt starten; ob die Datei angekommen ist, meldet der Browser nicht"></button>
@@ -72,6 +71,8 @@
   <!-- ✕ hides it until the next page load (js/app.js wire()) -->
   <div id="draft-banner" class="banner draft no-print"><p><strong>Entwurf.</strong> Das Meldungsformat ist noch nicht mit dem Notfunkreferat Wien und dem Krisenstab abgestimmt; Felder und Bezeichnungen können sich ändern. Für Übungen gedacht.</p>
     <button type="button" id="btn-draft-banner" class="banner-close" aria-label="Hinweis ausblenden" title="Hinweis ausblenden (bis zum nächsten Laden der Seite)">✕</button></div>
+  <!-- the open operation is an exercise (js/app.js renderExerciseBar()); not dismissible -->
+  <div id="exercise-bar" class="banner exercise-bar no-print" hidden title="Dieser Einsatz ist eine Übung: jede Meldung am Funk mit „ACHTUNG ÜBUNG“ einleiten und beenden; Winlink-Nachrichten und Ausdrucke sind als Übung gekennzeichnet">ÜBUNG</div>
 
   <!-- ===== Einsätze ===== -->
   <!-- ===== Standortsuche (offline, Wien; shared js/locationui.js, as in Confirm) ===== -->
@@ -148,7 +149,7 @@
             <div class="ac-hints"><div id="n-operator-info" class="ac-info" aria-live="polite"></div></div></div>
         </div>
       </fieldset>
-      <p class="hint" id="n-exercise-help">Übung: jede Meldung wird am Funk mit „ACHTUNG ÜBUNG“ eingeleitet und beendet. Das Formular erinnert daran, oben steht „ÜBUNG“, Ausdrucke und Geschäftsbuch sind als Übung gekennzeichnet; der Inhalt wird wörtlich gespeichert, ohne Zusatz. Lässt sich später im Einsatz ändern.</p>
+      <p class="hint" id="n-exercise-help">Übung: jede Meldung wird am Funk mit „ACHTUNG ÜBUNG“ eingeleitet und beendet. Das Formular erinnert daran, oben steht ein gelber Balken „ÜBUNG“, Ausdrucke und Geschäftsbuch sind als Übung gekennzeichnet, Winlink-Nachrichten tragen „[ÜBUNG]“ im Betreff und „ACHTUNG ÜBUNG“ vor und nach dem Spruch; der Inhalt wird wörtlich gespeichert, ohne Zusatz. Lässt sich später im Einsatz ändern.</p>
       <p class="hint" id="n-prefix-help">Das Kürzel steht vor jeder Nummer (W1-001, W1-002 …). Jedes Gerät bzw. jede Station eines Einsatzes bekommt ein eigenes Kürzel, dann lassen sich die Bücher ohne doppelte Nummern zusammenführen.</p>
       <p class="hint" id="n-station-help">Stationsrufzeichen und Standort der Station (Adresse): die eigene Funkstation, z. B. OE1XKS in der Lichtinsel 12; das Rufzeichen kann vom Operator abweichen. Beides steht oben im Ausdruck.</p>
       <p class="hint" id="n-home-help">Für Stelle: für wen die Station arbeitet, z. B. Stab. Steht bei neuen Meldungen als Adressat eingehender und Absender ausgehender Meldungen, solange nichts anderes eingetragen ist.</p>
@@ -469,7 +470,7 @@
         </ol>
         <p><b>Weiterleiten</b> (Verbindungsstation): bei einem Eingang „Weiterleiten“ wählen. Das Formular wird ein neuer Ausgang mit gleichem Absender, Betreff und wörtlichem Inhalt, Bezug „Weiterleitung von …“ und Ursprung; An und Übermittlung (Funk, Melder, mündlich …) eintragen und speichern. Der Eingang wird dabei als „übergeben an …“ mit dem Weg vermerkt.</p>
         <p>Ein Ausgang zeigt im Meldebuch, ob er nur <i>zur Übertragung</i> vorliegt, <i>übertragen</i> wurde oder der <i>Empfang bestätigt</i> ist. „Übergeben“ oder „übertragen“ heißt nie, dass ein Auftrag im Inhalt erledigt ist.</p>
-        <p><b>Übung:</b> Ist der Einsatz als Übung markiert (Kästchen „Übung“ beim Anlegen oder unter „Einsatz“), steht oben „ÜBUNG“ und unter dem Inhalt die Erinnerung „Vor und nach dem Spruch: „ACHTUNG ÜBUNG““. Am Funk jede Meldung damit einleiten und beenden. Das Meldebuch fügt es nicht in den Inhalt ein: gespeichert wird der Wortlaut, wie eingegeben. Ausdrucke (PDF) tragen „ÜBUNG“, das Geschäftsbuch (CSV) hat am Ende die Spalte „Übung“ (ja / nein).</p>
+        <p><b>Übung:</b> Ist der Einsatz als Übung markiert (Kästchen „Übung“ beim Anlegen oder unter „Einsatz“), steht oben ein gelber Balken „ÜBUNG“ und unter dem Inhalt die Erinnerung „Vor und nach dem Spruch: „ACHTUNG ÜBUNG““. Am Funk jede Meldung damit einleiten und beenden. Das Meldebuch fügt es nicht in den Inhalt ein: gespeichert wird der Wortlaut, wie eingegeben. Ausdrucke (PDF) tragen „ÜBUNG“, das Geschäftsbuch (CSV) hat am Ende die Spalte „Übung“ (ja / nein); Winlink-Nachrichten tragen „[ÜBUNG]“ im Betreff und „ACHTUNG ÜBUNG“ vor und nach dem Spruch.</p>
         <p>Der halb ausgefüllte Entwurf wird laufend zwischengesichert („Entwurf gesichert“ oben im Formular) und kommt nach einem Neuladen zurück. Er ist keine gespeicherte Meldung und kann verloren gehen; steht dort „Entwurf nicht gesichert!“ oder ein Hinweis zum Entwurf, ist er gerade nicht im Speicher. Vor einem Update fertige Meldungen speichern und wichtige unfertige Eingaben außerhalb des Meldebuchs kopieren; scheitert das Sichern, wartet das Update („Update wartet: Eingabe klären“), bis die Eingabe geklärt ist.</p>
       </section>
       <section id="h-who" aria-labelledby="h-who-t">
@@ -545,7 +546,7 @@
         <h3 id="h-wl-t">Winlink (Prototyp)</h3>
         <dl class="kb">
           <dt>Formular</dt><dd>Senden und Empfangen brauchen das Winlink-Formular „OE Notfunk Meldung“ im Winlink-Programm.<span id="help-wl-form"> <a href="../downloads/oe-notfunk-meldung-winlink.zip" download="oe-notfunk-meldung-winlink.zip">Formular herunterladen (Zip)</a> · <a href="../notfunk-anleitung/manual/winlink-formular/" target="_blank" rel="noopener">Installieren (Anleitung, online)</a></span></dd>
-          <dt>Senden</dt><dd>bei der Meldung „Für Winlink exportieren…“: „Datei für das Formular speichern“, dann in Winlink Express oder Pat eine Nachricht mit dem Formular „OE Notfunk Meldung“ beginnen, „Aus Meldebuch laden“, absenden. Für Pat geht auch „Für Pat (.b2f) speichern“ und die Datei in den Ordner <span class="ex">out/</span> des Postfachs legen. Danach „übertragen“ eintragen; der Status ändert sich nicht von selbst.</dd>
+          <dt>Senden</dt><dd>bei der Meldung „Für Winlink exportieren…“: „Datei für das Formular speichern“ (oder „Daten kopieren“), dann in Winlink Express oder Pat eine Nachricht mit dem Formular „OE Notfunk Meldung“ beginnen, „Aus Meldebuch laden“ (oder unter „Oder den Inhalt der Datei einfügen“ einfügen), absenden. Für Pat geht auch „Für Pat (.b2f) speichern“ und die Datei in den Ordner <span class="ex">out/</span> des Postfachs legen. Danach „übertragen“ eintragen; der Status ändert sich nicht von selbst.</dd>
           <dt>Empfangen</dt><dd>„Winlink-Nachricht importieren…“ über dem Meldebuch: die Datei aus dem Formular, den Anhang <span class="ex">RMS_Express_Form_….xml</span> oder die <span class="ex">.b2f</span>-Datei wählen oder hierher ziehen, oder den kopierten Text einfügen. Die Meldung öffnet sich als neuer Eingang im Formular; erst Speichern vergibt die Nummer.</dd>
           <dt>Bezug</dt><dd>eine Antwort auf eine eigene Meldung wird mit ihr verknüpft und markiert sie als beantwortet; sonst steht der Bezug als Text da, z. B. <span class="ex">W1-003 (OE1XYZ)</span>.</dd>
           <dt>Noch einmal</dt><dd>dieselbe Nachricht noch einmal übernommen: nichts ändert sich; ist sie beim Absender neuer, kommen nur seine Angaben (Verlauf, Fassungen) neu hinzu.</dd>

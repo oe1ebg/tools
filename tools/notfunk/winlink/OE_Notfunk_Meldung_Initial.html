@@ -54,9 +54,13 @@ details[open] textarea{margin:4px 0 8px}
 .pv .lbl{margin-top:10px}
 .pv .text{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--raised);border-radius:6px;padding:8px 10px;margin:10px 0 0}
 .pv ul{margin:4px 0 0;padding-left:18px}
+/* exercise marker: text, border and weight, not colour alone */
+.ex{display:block;margin:10px 0 6px;padding:6px 10px;border:2px solid var(--warn);border-radius:6px;background:var(--warn-soft);color:var(--warn);font-weight:800;letter-spacing:.06em;text-align:center}
+.chk{display:flex;gap:8px;align-items:center;font-weight:600;min-height:24px}
+.chk input{width:1.2em;height:1.2em;min-height:0;margin:0}
 [hidden]{display:none!important}
 @media (max-width:30rem){main{padding:12px 10px 32px}.card{padding:12px}.pv dl{grid-template-columns:1fr}.pv dd{margin-bottom:4px}}
-@media (forced-colors:active){.prio,button,.note{border:1px solid CanvasText}}
+@media (forced-colors:active){.prio,button,.note,.ex{border:1px solid CanvasText}}
 </style>
 </head>
 <body>
@@ -72,6 +76,8 @@ details[open] textarea{margin:4px 0 8px}
 <input type="hidden" name="meldung" id="meldung" value="">
 <input type="hidden" name="verlauf" id="verlauf" value="">
 <input type="hidden" name="zeit" id="zeit" value="">
+<input type="hidden" name="kennung" id="kennung" value="">
+<input type="hidden" name="uebung" id="uebung" value="">
 
 <section class="card" aria-labelledby="msgto-l">
 <label for="msgto" id="msgto-l" class="req">Winlink-Adresse des Empf&auml;ngers</label>
@@ -111,7 +117,8 @@ details[open] textarea{margin:4px 0 8px}
 <div><label for="von">Von (Absender)</label><input id="von" name="von" autocomplete="off" aria-describedby="von-h"><p class="hint" id="von-h">Name / Rufzeichen</p></div>
 <div><label for="an">An (Adressat)</label><input id="an" name="an" autocomplete="off"></div>
 <div class="wide"><label for="betreff" class="req">Betreff</label><input id="betreff" name="betreff" autocomplete="off" aria-describedby="betreff-e betreff-w"><p class="err" id="betreff-e" hidden></p><p class="hint" id="betreff-w" hidden></p></div>
-<div class="wide"><label for="inhalt" class="req">Inhalt</label><textarea id="inhalt" name="inhalt" rows="7" aria-describedby="inhalt-e"></textarea><p class="err" id="inhalt-e" hidden></p></div>
+<div class="wide"><label class="chk" for="ex-in"><input type="checkbox" id="ex-in" checked aria-describedby="ex-h"> &Uuml;bung</label><p class="hint" id="ex-h">Eine &Uuml;bung tr&auml;gt &bdquo;=== ACHTUNG &Uuml;BUNG ===&ldquo; als erste Zeile und vor und nach dem Inhalt und &bdquo;[&Uuml;BUNG]&ldquo; im Betreff. Nur f&uuml;r einen echten Einsatz abschalten.</p></div>
+<div class="wide"><label for="inhalt" class="req">Inhalt</label><p class="ex" id="ex-man"><span aria-hidden="true">&#9888;</span> ACHTUNG &Uuml;BUNG</p><textarea id="inhalt" name="inhalt" rows="7" aria-describedby="inhalt-e"></textarea><p class="err" id="inhalt-e" hidden></p></div>
 <div class="wide"><label for="bezug">Bezug</label><input id="bezug" name="bezug" autocomplete="off" aria-describedby="bezug-h"><p class="hint" id="bezug-h">z. B. Antwort auf W1-003 (OE1XYZ)</p></div>
 </div>
 </fieldset>
@@ -135,6 +142,7 @@ details[open] textarea{margin:4px 0 8px}
     out: { logged: 'zur \u00dcbertragung', forwarded: '\u00fcbertragen', acknowledged: 'Empfang best\u00e4tigt', answered: 'beantwortet' },
   };
   const MANUAL = ['nummer', 'zeit-in', 'betreff', 'inhalt'];
+  const EX_TAG = '[\u00dcBUNG]', EX_LINE = '=== ACHTUNG \u00dcBUNG ===';
   const FLAT = ['nummer', 'prioritaet', 'art', 'von', 'an', 'betreff', 'inhalt', 'bezug'];
   const form = $('f');
   // Not in a Winlink client: the station field still holds the unreplaced tag.
@@ -213,6 +221,7 @@ details[open] textarea{margin:4px 0 8px}
     add('Bezug', bezug(m, o.ref));
     add('Station', o.station ? [o.station.call, o.station.operation].filter(Boolean).join(', ') : '');
     box.append(dl);
+    if (o.exercise !== false) box.append(el('p', '\u26a0 ACHTUNG \u00dcBUNG', 'ex'));
     if (m.text) box.append(el('div', m.text, 'text'));
     const h = history(m);
     if (h.length) {
@@ -225,6 +234,13 @@ details[open] textarea{margin:4px 0 8px}
     if (Array.isArray(o.revisions) && o.revisions.length) box.append(el('p', 'Mit ' + o.revisions.length + ' fr\u00fcheren Fassung(en); der Empf\u00e4nger sieht sie im Formular.', 'hint'));
   }
 
+  // missing `exercise` (older export): unknown, so marked as exercise
+  function setExercise(on) {
+    $('kennung').value = on ? EX_TAG : '';
+    $('uebung').value = on ? EX_LINE : '';
+    $('ex-man').hidden = !on;
+    subjectLength();
+  }
   function setRequired(on) {
     for (const id of MANUAL) $(id).required = on;
   }
@@ -242,6 +258,8 @@ details[open] textarea{margin:4px 0 8px}
     $('bezug').value = bezug(m, o.ref);
     $('zeit').value = utc(m.ts);
     $('verlauf').value = history(m).join('\n');
+    $('ex-in').checked = o.exercise !== false;
+    setExercise(o.exercise !== false);
     // an outgoing message's Funkstelle is the likely Winlink recipient
     if (!$('msgto').value.trim() && m.direction === 'out' && /^[A-Z0-9]{1,3}[0-9][A-Z0-9]{0,4}(-\d{1,2})?$/.test(m.peer || '')) $('msgto').value = m.peer;
     for (const id of MANUAL) showErr(id, '');
@@ -260,6 +278,8 @@ details[open] textarea{margin:4px 0 8px}
     $('prioritaet').value = 'Routine';
     $('art').value = 'Meldung';
     $('zeit-in').value = utc(new Date()).slice(0, 16);
+    $('ex-in').checked = true;
+    setExercise(true);
     setRequired(true);
     $('loaded').hidden = true;
     $('load').hidden = false;
@@ -280,9 +300,9 @@ details[open] textarea{margin:4px 0 8px}
     apply(o);
   }
 
-  // Subject = "<Dringlichkeit> <Nummer>: <Betreff>"; Winlink allows 128 bytes.
+  // Subject = "[UEBUNG] <Dringlichkeit> <Nummer>: <Betreff>"; Winlink allows 128 bytes.
   function subjectLength() {
-    const s = $('prioritaet').value + ' ' + $('nummer').value.trim() + ': ' + $('betreff').value.trim();
+    const s = ($('kennung').value ? $('kennung').value + ' ' : '') + $('prioritaet').value + ' ' + $('nummer').value.trim() + ': ' + $('betreff').value.trim();
     const w = $('betreff-w'), long = s.length > 128;
     w.hidden = !long;
     w.textContent = long ? 'Der Betreff der Nachricht wird ' + s.length + ' Zeichen lang; erlaubt sind 128. Bitte k\u00fcrzen.' : '';
@@ -309,6 +329,8 @@ details[open] textarea{margin:4px 0 8px}
     $('outside').hidden = false;
   }
   $('zeit-in').value = utc(new Date()).slice(0, 16);
+  setExercise($('ex-in').checked);
+  $('ex-in').addEventListener('change', () => setExercise($('ex-in').checked));
   $('file').addEventListener('change', () => {
     const f = $('file').files[0];
     if (!f) return;

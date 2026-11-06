@@ -29,12 +29,15 @@ stehen im Ausdruck („Aufgenommen von OE1EBG, an Station OE1ABC“).
 Bei einer Übung wird jede Meldung am Funk mit **„ACHTUNG ÜBUNG“** eingeleitet
 und beendet. Setzen Sie dafür beim Anlegen das Kästchen **„Übung“**. Dann
 
-- steht oben in der Kopfzeile **„ÜBUNG“**, solange der Einsatz offen ist,
+- steht oben auf der Seite, beim Entwurfs-Hinweis, ein gelber Balken
+  **„ÜBUNG“**, solange der Einsatz offen ist (nicht wegklickbar),
 - erinnert unter dem Inhalt der Hinweis **„Vor und nach dem Spruch:
   „ACHTUNG ÜBUNG““**,
 - tragen die Ausdrucke (Meldung, Meldebuch, leeres Formular) oben und in der
   Fußzeile „ÜBUNG“, und das Geschäftsbuch (CSV) hat am Ende die Spalte
-  „Übung“ mit „ja“.
+  „Übung“ mit „ja“,
+- tragen Winlink-Nachrichten „[ÜBUNG]“ im Betreff und „=== ACHTUNG ÜBUNG ===“
+  als erste Zeile und vor und nach dem Spruch ([Winlink](winlink.de.md)).
 
 Das Meldebuch fügt „ACHTUNG ÜBUNG“ **nicht** in den Inhalt ein: gespeichert
 wird der Wortlaut, wie Sie ihn eintippen. Einsätze, die vor dieser Funktion

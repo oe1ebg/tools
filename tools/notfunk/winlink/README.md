@@ -65,7 +65,16 @@ New message → Template → `OE Notfunk` → `OE_Notfunk_Meldung`.
    „Send“ there. Transmission happens at the next connection.
 
 Without the Meldebuch the same form takes the fields by hand (number, time
-UTC, Dringlichkeit, Art, Von, An, Betreff, Inhalt, Bezug).
+UTC, Dringlichkeit, Art, Von, An, Betreff, Inhalt, Bezug, and „Übung“,
+checked by default).
+
+**Exercise marker** (FORMAT.md): from the payload's `exercise` (missing =
+exercise) or the manual checkbox, the form posts `kennung` = `[ÜBUNG]` and
+`uebung` = `=== ACHTUNG ÜBUNG ===`. The template puts `kennung` before the
+subject and `uebung` as the first body line and on its own line before and after the
+Inhalt, each with a blank line; both forms show the banner „⚠ ACHTUNG ÜBUNG“ directly above the
+text box (border, symbol and text; also in print and forced colours). Not an
+exercise: both empty, nothing shown.
 
 ## Receive into the Meldebuch
 

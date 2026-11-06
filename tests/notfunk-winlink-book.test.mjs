@@ -130,6 +130,8 @@ test('flat fields: exactly the variables of FORMAT.md', () => {
   const f = winlinkFlatFields(payloadA(), 'OE3ABC');
   assert.deepEqual(f, {
     msgto: 'OE3ABC',
+    kennung: '[ÜBUNG]',
+    uebung: '=== ACHTUNG ÜBUNG ===',
     nummer: 'W1-007',
     prioritaet: 'Dringend',
     art: 'Anforderung',
@@ -156,6 +158,14 @@ test('flat fields: exactly the variables of FORMAT.md', () => {
   assert.equal(winlinkFlatFields(p).bezug, 'Korrektur zu K-099');
   p.message.refNumber = '';
   assert.equal(winlinkFlatFields(p).bezug, '');
+  // exercise: from the operation; a payload without the field counts as exercise
+  assert.equal(p.exercise, true);
+  p.exercise = false;
+  assert.deepEqual([winlinkFlatFields(p).kennung, winlinkFlatFields(p).uebung], ['', '']);
+  delete p.exercise;
+  assert.equal(winlinkFlatFields(p).kennung, '[ÜBUNG]');
+  assert.equal(winlinkPayload(bookA().w7, [], null, { ...STATION_A, exercise: false }, '0.9.0', NOW).exercise, false);
+  assert.equal(winlinkPayload(bookA().w7, [], null, STATION_A, '0.9.0', NOW).exercise, true, 'operations without the field are exercises');
 });
 
 test('the template is the form pack\'s OE_Notfunk_Meldung.txt', () => {
@@ -163,9 +173,16 @@ test('the template is the form pack\'s OE_Notfunk_Meldung.txt', () => {
   assert.equal(WINLINK_TEMPLATE, fs.readFileSync(file, 'utf8').replace(/^﻿/, '').replace(/\r\n/g, '\n'));
   const r = winlinkRenderTemplate(WINLINK_TEMPLATE, winlinkFlatFields(payloadA(), 'OE3ABC'));
   assert.equal(r.to, 'OE3ABC');
-  assert.equal(r.subject, 'Dringend W1-007: Notstrom <2×> & Treibstoff');
-  assert.match(r.body, /^NOTFUNK-MELDUNG W1-007\n/);
-  assert.match(r.body, /\nInhalt:\nZeile 1: äöü/);
+  assert.equal(r.subject, '[ÜBUNG] Dringend W1-007: Notstrom <2×> & Treibstoff');
+  assert.match(r.body, /^=== ACHTUNG ÜBUNG ===\nNOTFUNK-MELDUNG W1-007\n/, 'the marker is the first line');
+  assert.match(r.body, /\nInhalt:\n=== ACHTUNG ÜBUNG ===\n\nZeile 1: äöü[^]*\nEnde\n\n=== ACHTUNG ÜBUNG ===\n\nVerlauf:/);
+  // not an exercise: no marker, no subject prefix (Pat trims the subject)
+  const p = payloadA();
+  p.exercise = false;
+  const e = winlinkRenderTemplate(WINLINK_TEMPLATE, winlinkFlatFields(p, 'OE3ABC'));
+  assert.equal(e.subject, 'Dringend W1-007: Notstrom <2×> & Treibstoff');
+  assert.doesNotMatch(e.body, /ÜBUNG/);
+  assert.match(e.body, /^\nNOTFUNK-MELDUNG W1-007\n/);
   assert.match(r.body, /\nVerlauf:\n2026-11-06 17:05 UTC zur Übertragung/);
   assert.doesNotMatch(r.body, /<var /i, 'every slot filled');
 });
@@ -204,23 +221,23 @@ test('b2f: wl2k-go layout, Latin-1 body, XML attachment, parsed back to the same
   assert.ok(lb.includes(`\n${'z'.repeat(998)}\n${'z'.repeat(998)}\n${'z'.repeat(504)}\n`));
 });
 
-test('b2f and XML: byte for byte what Pat v1.0.0 writes (recorded fixtures)', { skip: !fs.existsSync(path.join(PAT, 'ANVOW37IVAEH.b2f')) && 'no Pat fixtures' }, () => {
+test('b2f and XML: byte for byte what Pat v1.0.0 writes (recorded fixtures)', { skip: !fs.existsSync(path.join(PAT, 'XI3ANHPBSOTX.b2f')) && 'no Pat fixtures' }, () => {
   const payload = JSON.parse(fs.readFileSync(path.join(PAT, 'W1-007.winlink.json'), 'utf8'));
-  const pat = read(path.join(PAT, 'ANVOW37IVAEH.b2f'));
-  const mine = winlinkB2f(payload, { mycall: 'OE1XYZ', msgto: 'OE3ABC', now: '2026-11-06T17:48:34.000Z', mid: 'ANVOW37IVAEH', appVersion: 'Pat v1.0.0 (2e6a8d1)', grid: 'JN88' });
+  const pat = read(path.join(PAT, 'XI3ANHPBSOTX.b2f'));
+  const mine = winlinkB2f(payload, { mycall: 'OE1XYZ', msgto: 'OE3ABC', now: '2026-11-06T20:26:03.000Z', mid: 'XI3ANHPBSOTX', appVersion: 'Pat v1.0.0 (2e6a8d1)', grid: 'JN88' });
   assert.equal(Buffer.compare(Buffer.from(mine.bytes), Buffer.from(pat)), 0);
   assert.equal(mine.xml, fs.readFileSync(path.join(PAT, 'RMS_Express_Form_OE_Notfunk_Meldung_Viewer.xml'), 'utf8'));
   // and read back: the b2f, the XML attachment, the payload file
-  for (const name of ['ANVOW37IVAEH.b2f', 'RMS_Express_Form_OE_Notfunk_Meldung_Viewer.xml', 'W1-007.winlink.json']) {
+  for (const name of ['XI3ANHPBSOTX.b2f', 'RMS_Express_Form_OE_Notfunk_Meldung_Viewer.xml', 'W1-007.winlink.json']) {
     const r = parseWinlinkInput(name, read(path.join(PAT, name)));
     assert.equal(r.kind, 'payload', name);
     assert.deepEqual(r.payload, payload, name);
   }
-  assert.equal(parseWinlinkInput('x.b2f', pat).mid, 'ANVOW37IVAEH');
+  assert.equal(parseWinlinkInput('x.b2f', pat).mid, 'XI3ANHPBSOTX');
 });
 
-test('our form filled in by hand (no `meldung`): the flat fields, recorded with Pat', { skip: !fs.existsSync(path.join(PAT, 'manual-QA65ABRZ4VDP.b2f')) && 'no Pat fixtures' }, () => {
-  for (const name of ['manual-QA65ABRZ4VDP.b2f', 'manual-RMS_Express_Form_OE_Notfunk_Meldung_Viewer.xml']) {
+test('our form filled in by hand (no `meldung`): the flat fields, recorded with Pat', { skip: !fs.existsSync(path.join(PAT, 'manual-5VZ7K4AHV4SK.b2f')) && 'no Pat fixtures' }, () => {
+  for (const name of ['manual-5VZ7K4AHV4SK.b2f', 'manual-RMS_Express_Form_OE_Notfunk_Meldung_Viewer.xml']) {
     const r = parseWinlinkInput(name, read(path.join(PAT, name)));
     assert.equal(r.kind, 'flat', name);
     assert.equal(r.flat.ours, true);
@@ -235,6 +252,8 @@ test('our form filled in by hand (no `meldung`): the flat fields, recorded with 
     assert.equal(plan.fields.channel, 'winlink');
     assert.equal(plan.source.number, 'K-001');
     assert.equal(plan.source.station, 'OE1XYZ');
+    assert.equal(plan.source.exercise, true, 'manual entry: Übung checked by default');
+    assert.doesNotMatch(plan.fields.text, /ACHTUNG/);
   }
 });
 
@@ -298,6 +317,23 @@ test('other forms and plain messages: subject, text and sender only', () => {
   const r3 = parseWinlinkInput('y.b2f', withIcs);
   assert.equal(r3.flat.subject, 'Pegel Donau');
   assert.equal(r3.mid, 'ABCDEFGHIJKL');
+  // exercise marker lines are never part of an imported text; the marker is kept as such
+  const markedBody = Buffer.from('=== ACHTUNG \xdcBUNG ===\r\n\r\nPegel steigt.\r\nZweite Zeile\r\n\r\n*** ACHTUNG UEBUNG ***\r\n', 'latin1');
+  const marked = Buffer.concat([Buffer.from(`${head.replace(/^Body: \d+$/m, `Body: ${markedBody.length}`)}\r\n\r\n`, 'latin1'), markedBody]);
+  const r4 = parseWinlinkInput('m.b2f', marked);
+  assert.equal(r4.flat.text, 'Pegel steigt.\nZweite Zeile');
+  assert.equal(r4.flat.exercise, true);
+  const p4 = winlinkImportPlan(r4, [], { home: 'Stab', now: NOW });
+  assert.equal(p4.fields.text, 'Pegel steigt.\nZweite Zeile');
+  assert.equal(p4.source.exercise, true);
+  // in another form's text, and the subject tag
+  const icsEx = ics.replace('<subjectline>Pegel Donau', '<subjectline>[ÜBUNG] Pegel Donau').replace('<message>Pegel steigt.', '<message>ACHTUNG ÜBUNG\nPegel steigt.\nACHTUNG ÜBUNG');
+  const r5 = parseWinlinkInput('i.xml', icsEx);
+  assert.deepEqual([r5.flat.subject, r5.flat.text, r5.flat.exercise], ['Pegel Donau', 'Pegel steigt.', true]);
+  assert.equal(r.flat.exercise, null, 'no marker: unknown');
+  // a text that merely mentions the words keeps them
+  const mention = parseWinlinkInput('i.xml', ics.replace('<message>Pegel steigt.', '<message>Achtung Übung morgen um 9 Uhr'));
+  assert.equal(mention.flat.text, 'Achtung Übung morgen um 9 Uhr');
   // a truncated .b2f is refused
   assert.throws(() => parseWinlinkInput('z.b2f', withIcs.subarray(0, withIcs.length - 40)), /unvollständig oder beschädigt/);
 });
@@ -356,9 +392,11 @@ test('export limit: 120 KB below, at and above; subject 128 bytes below, at and 
   const big = winlinkExportCheck(q, { msgto: 'OE3ABC', mycall: 'OE1XYZ', now: NOW });
   assert.equal(big.tooLarge, true);
   assert.match(big.error, /Fassungen \(40\)/);
-  // subject: "<Dringlichkeit> <Nummer>: <Betreff>" in bytes
+  // subject: "<Dringlichkeit> <Nummer>: <Betreff>" in bytes (not an exercise;
+  // the exercise prefix counts, Q-encoded, below)
   const subj = n => {
     const s = structuredClone(p);
+    s.exercise = false;
     s.message.subject = 'b'.repeat(n - 'Dringend W1-007: '.length);
     return winlinkExportCheck(s, { msgto: 'OE3ABC', mycall: 'OE1XYZ', now: NOW });
   };
@@ -372,6 +410,13 @@ test('export limit: 120 KB below, at and above; subject 128 bytes below, at and 
   const u = structuredClone(p);
   u.message.subject = 'ü'.repeat(40);
   assert.ok(winlinkExportCheck(u, { msgto: 'OE3ABC', mycall: 'OE1XYZ', now: NOW }).subjectBytes > 128);
+  // the exercise prefix "[ÜBUNG] " counts, Q-encoded (the Ü makes the whole subject an encoded word)
+  const ex = structuredClone(p);
+  ex.message.subject = 'b'.repeat(80);
+  const plain = { ...structuredClone(ex), exercise: false };
+  const withTag = winlinkExportCheck(ex, { msgto: 'OE3ABC', mycall: 'OE1XYZ', now: NOW }).subjectBytes;
+  assert.ok(withTag > winlinkExportCheck(plain, { msgto: 'OE3ABC', mycall: 'OE1XYZ', now: NOW }).subjectBytes + '[ÜBUNG] '.length, `${withTag}`);
+  assert.equal(withTag, winlinkHeaderText(`[ÜBUNG] Dringend W1-007: ${'b'.repeat(80)}`).length);
 });
 
 test('a newer format version is rejected in every form', () => {
@@ -429,8 +474,10 @@ test('import plan: a new incoming message for review, with the sender\'s record 
   assert.ok(!('source' in f));
   assert.deepEqual(plan.source, {
     format_version: 1, station: 'OE1XYZ', operation: 'Übung Donau', operator: 'OE1XYZ', id: 'a-w7', number: 'W1-007', direction: 'out', ts: T1,
-    status: p.message.status, attempts: p.message.attempts, revisions: p.revisions, updated: p.message.updated, exported: NOW, mid: 'MID123456789',
+    status: p.message.status, attempts: p.message.attempts, revisions: p.revisions, updated: p.message.updated, exported: NOW, exercise: true, mid: 'MID123456789',
   });
+  // not an exercise at the sender: kept as such
+  assert.equal(winlinkImportPlan({ kind: 'payload', payload: { ...p, exercise: false } }, bookB(), { now: NOW }).source.exercise, false);
   // saved like any new message: own number, status starts at "erfasst", source kept
   const msg = newMessage({ ...f, source: plan.source }, num('K', 6), meta('b-k6', 'opB', STATION_B, NOW));
   assert.equal(currentStatus(msg), 'logged');
@@ -564,12 +611,13 @@ test('model: channel winlink; `source` kept by edits, the form and backups; olde
   const stored = await updateMessage(store, w3, cur => editMessage(cur, changes, { revisionId: 'r10', operator: 'OE1XYZ', now: NOW }));
   assert.deepEqual(stored.source, w3.source);
   // backup round trip: channel winlink and source survive; a message without them stays as it was
-  const op = { id: 'opA', name: 'Übung Donau', prefix: 'W1', created: T0, updated: T0 };
+  const op = { id: 'opA', name: 'Übung Donau', prefix: 'W1', created: T0, updated: T0, exercise: false };
   const legacy = newMessage({ direction: 'in', ts: T0, channel: 'funk', from: { name: 'X' }, to: { name: 'Y' }, subject: 'alt', text: 'alt' }, num('W1', 1), meta('a-w1', 'opA', STATION_A));
   const json = toBackup({ operation: op, messages: [legacy, w3, w7], revisions, counters: [] }, NOW);
   const back = parseBackup(json);
   assert.deepEqual(back.dropped, []);
   assert.deepEqual(back.messages, [legacy, w3, w7]);
+  assert.equal(back.operation.exercise, false, 'the operation\'s exercise flag survives the backup');
   assert.ok(!('source' in back.messages[0]));
   const merged = mergeBackup(back, { operation: null, messages: [], revisions: [], counters: [] });
   assert.equal(merged.added, 3);
