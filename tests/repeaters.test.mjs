@@ -96,6 +96,13 @@ test('generated repeater list is plausible', { skip: skipWithout(existsSync(real
   const xuu = searchRepeaters(ri, 'OE1XUU')[0].r;
   assert.equal(xuu.out, 438.95);
   assert.equal(xuu.shift, -7.6);
+  // local correction (scripts/data/repeater-overrides.json, issue #180)
+  assert.ok(ri.corrections >= 1);
+  assert.match(ri.source, /\+ lokale Korrekturen$/);
+  const xuf = ri.list.find(r => r.call === 'OE1XUF' && r.band === '70cm');
+  assert.equal(xuf.out, 438.3375);
+  assert.equal(xuf.ctcss, 162.2);
+  assert.equal(xuf.shift, -7.6);
 });
 
 test('GHz repeaters are searchable by frequency', () => {

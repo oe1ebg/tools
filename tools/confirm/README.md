@@ -527,6 +527,9 @@ voice repeaters, 54 KiB) from the **ÖVSV repeater database**
   (`REPEATERS_FORCE_REFRESH=1` forces a refresh). If the API is down and
   there is no cache, the build continues **without** a repeater list: the
   header fields can still be filled in by hand, and the UI says so.
+- **Local corrections.** Wrong upstream values are patched by
+  `scripts/data/repeater-overrides.json`, cached or fresh (see
+  `tools/shared/README.md`, “Local corrections”).
 - **In the tool.** The **"Relais"** field in the log header (for new
   events and existing logs) is also the search box: typing opens a
   completion dropdown (↓/Enter, like the per-line repeater in the entry

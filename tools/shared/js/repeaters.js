@@ -17,7 +17,8 @@ export function buildRepeaterIndex(data) {
     key: compactKey(foldName(`${r.site} ${r.city}`)),
     callKey: r.call.toLowerCase(),
   }));
-  return { list, retrieved: data.retrieved || '', source: data.source || '' };
+  // corrections: records patched by scripts/data/repeater-overrides.json
+  return { list, retrieved: data.retrieved || '', source: data.source || '', corrections: data.corrections || 0 };
 }
 
 // Own position from a locator ("JN88ef") as the locator's center.

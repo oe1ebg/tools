@@ -63,6 +63,44 @@ all), published at `/shared/data/`:
 | `austria-areas.json` | `build_austria_areas.py` |
 | `vienna-map.json` | `build_map_data.py` |
 
+### Local corrections (`scripts/data/repeater-overrides.json`)
+
+Wrong values of the ÖVSV repeater database are corrected by a committed,
+reviewed override file. `fetch_repeaters.py` applies it after every build of
+the list, from a fresh download or the cache (`scripts/data_overrides.py`,
+generic over the record type). The output then states
+`"source": "… + lokale Korrekturen"` and the number of corrected repeaters
+in `"corrections"`; the Confirm and Notfunk source lists show it
+("1 lokal korrigiert").
+
+```json
+{"overrides": [{
+  "match": {"call": "OE1XUF", "band": "70cm"},
+  "set": {"out": 438.3375, "in": 430.7375, "ctcss": 162.2, "ch": "RU667"},
+  "reason": "What is wrong, who confirmed the correct value, what is assumed",
+  "date": "2026-11-06"
+}]}
+```
+
+To add an entry:
+
+1. `match` must select exactly one repeater of `repeaters-at.json`: the
+   callsign, plus `band` (or `out`) when the callsign has several entries.
+   Strings compare case-insensitively.
+2. `set` lists only the wrong fields, in the output format (MHz, Hz;
+   `call`, `band`, `out`, `in`, `shift`, `ctcss`, `ch`, `cc`, `modes`,
+   `status`, `site`, …). A corrected `in` or `out` recomputes `shift`
+   unless `set` gives it.
+3. `reason` says what is wrong, the source of the correct value, and what is
+   assumed and still to be verified; `date` is the ISO date of the entry.
+4. Run `just fetch-repeaters` and `node --test tests/repeater-overrides.test.mjs`,
+   and report the error to the ÖVSV repeater database as well.
+
+A malformed entry (unknown field, missing reason, non-ISO date) fails the
+build. Stale entries are logged as `WARNING` at every build: an entry that
+matches no repeater or several (not applied), and fields upstream already
+has corrected (remove them; the whole entry once all are).
+
 Formats are documented in `../confirm/AGENTS.md`. Load them with
 `loadDataFile('name.json')` and a string literal: the offline tools' build
 scripts collect those literals to precache and inline exactly the files the

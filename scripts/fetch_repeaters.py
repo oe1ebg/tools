@@ -7,6 +7,8 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
+from data_overrides import apply_overrides, load_overrides
+
 # All Austrian voice repeaters for the confirmation log (tools/confirm/):
 # search/select the "Relais" in the log header and fill in callsign, output
 # frequency, shift, CTCSS and mode — offline, so built here.
@@ -25,6 +27,10 @@ from pathlib import Path
 # Cached in .cache/repeaters/ (7 days, REPEATERS_FORCE_REFRESH=1). Unlike
 # the callsign list, a fetch failure without any cache is NOT fatal: the
 # tool then simply has no repeater list (manual entry still works).
+#
+# Wrong upstream values are corrected by scripts/data/repeater-overrides.json
+# (scripts/data_overrides.py), applied to every build, cached or fresh; the
+# output then counts them in "corrections" and names them in "source".
 
 API = "https://repeater.oevsv.at/api"
 CACHE_MAX_AGE_SECONDS = 7 * 24 * 60 * 60
@@ -34,6 +40,11 @@ MODES = [("fm", "FM"), ("dmr", "DMR"), ("c4fm", "C4FM"), ("dstar", "DSTAR"), ("t
 OE1EBG_DIR = Path(__file__).resolve().parent.parent
 CACHE_DIR = OE1EBG_DIR / ".cache" / "repeaters"
 OUTPUT_PATH = OE1EBG_DIR / "tools" / "shared" / "data" / "repeaters-at.json"
+OVERRIDES_PATH = OE1EBG_DIR / "scripts" / "data" / "repeater-overrides.json"
+# Fields an override may match on or set (scripts/data_overrides.py).
+OVERRIDE_FIELDS = {"call", "site", "city", "lat", "lon", "locator", "alt", "band", "out", "in", "shift",
+                   "ctcss", "modes", "status", "ch", "cc", "echolink", "comment"}
+SOURCE = "ÖVSV Repeater-Datenbank, repeater.oevsv.at"
 
 
 def log(msg: str) -> None:
@@ -104,6 +115,17 @@ def build(trx: list[dict], sites: list[dict]) -> list[dict]:
     return out
 
 
+def correct(reps: list[dict], overrides: list[dict]) -> tuple[int, list[str]]:
+    """Apply the overrides; returns (records corrected, warnings). A shift
+    not set by the override follows corrected in/out frequencies."""
+    applied, warnings = apply_overrides(reps, overrides, OVERRIDE_FIELDS)
+    for r, patch in applied:
+        if ("in" in patch or "out" in patch) and "shift" not in patch and r.get("in") is not None:
+            r["shift"] = round(r["in"] - r["out"], 4)
+    reps.sort(key=lambda r: (r["call"], r["out"]))
+    return len(applied), warnings
+
+
 def main() -> None:
     try:
         trx, t_time = cached_get("trx")
@@ -113,15 +135,19 @@ def main() -> None:
         OUTPUT_PATH.unlink(missing_ok=True)
         return
     reps = build(trx, sites)
+    corrections, warnings = correct(reps, load_overrides(OVERRIDES_PATH))
+    for w in warnings:
+        log(f"WARNING: {OVERRIDES_PATH.name}: {w}")
     iso = datetime.fromtimestamp(t_time, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT_PATH.write_text(json.dumps({
-        "source": "ÖVSV Repeater-Datenbank, repeater.oevsv.at",
+        "source": SOURCE + (" + lokale Korrekturen" if corrections else ""),
         "retrieved": iso,
+        "corrections": corrections,
         "repeaters": reps,
     }, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-    log(f"wrote {len(reps)} voice repeaters ({sum(1 for r in reps if r['status'] == 'active')} active) "
-        f"-> {OUTPUT_PATH.relative_to(OE1EBG_DIR)} ({OUTPUT_PATH.stat().st_size / 1024:.0f} KiB)")
+    log(f"wrote {len(reps)} voice repeaters ({sum(1 for r in reps if r['status'] == 'active')} active, "
+        f"{corrections} locally corrected) -> {OUTPUT_PATH.relative_to(OE1EBG_DIR)} ({OUTPUT_PATH.stat().st_size / 1024:.0f} KiB)")
 
 
 if __name__ == "__main__":

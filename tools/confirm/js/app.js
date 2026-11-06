@@ -2663,7 +2663,7 @@ async function loadCallbook() {
 async function loadRepeaterFooter() {
   const idx = await loadRepeaterIndex();
   fill($('#st-repeaters'), idx
-    ? sourceItem('repeaters', `Stand ${fmtStand(idx.retrieved.slice(0, 10))}, ${idx.list.length} Sprach-Relais`)
+    ? sourceItem('repeaters', `Stand ${fmtStand(idx.retrieved.slice(0, 10))}, ${idx.list.length} Sprach-Relais${idx.corrections ? `, ${idx.corrections} lokal korrigiert` : ''}`)
     : 'Relaisliste nicht verfügbar');
 }
 

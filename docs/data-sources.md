@@ -53,7 +53,11 @@ from either service by the tool.
   `/api/trx` and `/api/site`; code at
   [github.com/oevsv/repeater-db](https://github.com/oevsv/repeater-db))
 - **Refresh:** weekly build (7-day cache).
-- **Attribution:** "ÖVSV Repeater-Datenbank, Stand ‹date›"
+- **Local corrections:** known wrong values are patched by
+  `scripts/data/repeater-overrides.json`, each with reason and date (e.g.
+  OE1XUF output and CTCSS).
+- **Attribution:** "ÖVSV Repeater-Datenbank, Stand ‹date›, ‹n› Sprach-Relais,
+  ‹k› lokal korrigiert"
 
 ### Stadt Wien – Adressen Standorte Wien
 
