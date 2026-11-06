@@ -78,6 +78,8 @@ test('Notfunk-Meldebuch', async ({ page }) => {
   await page.locator('#n-home').fill('Stab');
   await page.locator('#n-freq').fill('145,5');
   await page.locator('#n-freq').press('Tab');
+  // an exercise: "ÜBUNG" in the header, the reminder under the Inhalt, marked printouts (#186)
+  await page.locator('#n-exercise').check();
   await shotAround(page, ['#new-op'], 'notfunk-einsatz-neu');
   await page.getByRole('button', { name: 'Einsatz anlegen' }).click();
   await expect(page.locator('#view-book')).toBeVisible();
@@ -282,6 +284,7 @@ test('Notfunk-Meldebuch: Tutorial (Lichtinsel)', async ({ page }) => {
   await page.locator('#n-home').fill('Stab');
   await page.locator('#n-freq').fill('438,950');
   await page.locator('#n-freq').press('Tab');
+  await page.locator('#n-exercise').check();
   await page.getByRole('button', { name: 'Einsatz anlegen' }).click();
   await expect(page.locator('#view-book')).toBeVisible();
 

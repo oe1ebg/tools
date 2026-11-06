@@ -37,6 +37,10 @@ auch auf einem anderen Gerät.
   der Rest wird übernommen. Das Ergebnis sagt, wie viele Meldungen neu und wie
   viele aktualisiert wurden. Bereits vorhandene, neuere Meldungen werden nicht
   überschrieben, und die Nummern gehen nie zurück.
+- Die Angaben des Einsatzes (Name, Station, „Übung“ …) kommen nur mit, wenn
+  es den Einsatz auf dem Gerät noch nicht gibt; ein vorhandener Einsatz
+  behält seine eigenen. Ältere Sicherungen ohne „Übung“ gelten als keine
+  Übung.
 - Meldungen, deren Nummer schon für eine andere Meldung vergeben ist, werden
   unter „Nicht übernommen“ mit der Nummer aufgelistet.
 - Bücher mehrerer Geräte lassen sich so zusammenführen, wenn jedes Gerät sein
@@ -46,8 +50,9 @@ auch auf einem anderen Gerät.
 
 **„Geschäftsbuch (CSV)“** schreibt eine Tabelle mit einer Zeile pro Meldung:
 Nummer, Referenz der Meldesammelstelle, Datum, Uhrzeit, Richtung,
-Betreff, Inhalt, Dringlichkeit, Funkstelle, Status, Übergabe und Bezug. Sie
-lässt sich in Excel oder LibreOffice öffnen. Alle Zeiten stehen in Ortszeit
+Betreff, Inhalt, Dringlichkeit, Funkstelle, Status, Übergabe und Bezug; die
+letzte Spalte „Übung“ sagt „ja“ bei einem als Übung markierten Einsatz,
+sonst „nein“. Sie lässt sich in Excel oder LibreOffice öffnen. Alle Zeiten stehen in Ortszeit
 mit der Abweichung von UTC, z. B. `2026-10-08T14:05:00+02:00`; so sind sie
 auch in der Nacht der Zeitumstellung eindeutig.
 

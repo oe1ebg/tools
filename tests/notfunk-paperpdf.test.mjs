@@ -243,3 +243,64 @@ test('bookPdf: a row longer than a page is split, nothing truncated; empty range
     }
   }
 });
+
+// An Einsatz flagged "Übung" (op.exercise): "ÜBUNG" framed in the head of every
+// page and in the footer of the form, the Vordruck and the book; the Inhalt as
+// stored (nothing added). Not flagged, or an older Einsatz without the field:
+// no mark. (The Einsatz name "Übung Blackout Wien" is printed in capitals in
+// the title line, so the mark is checked as a text of its own.)
+const exerciseRect = c => /^1\.2 w 0 G \[\] 0 d [\d.]+ [\d.]+ [\d.]+ [\d.]+ re S$/m.test(c);
+test('Übung: every page of the form, Vordruck and book is marked; the text stays as stored', () => {
+  const OPX = { ...OPL, exercise: true };
+  const line = i => `Zeile ${i}: Die Station meldet den Stand der Dinge am Einsatzort mit mehreren Anmerkungen zur Lage.`;
+  const long = msg(12, {}, { text: Array.from({ length: 70 }, (_, i) => line(i + 1)).join('\n') });
+  for (const [what, pdf] of [
+    ['form', latin1(formPdf(msg(12), OPX, { now: NOWL }))],
+    ['long form', latin1(formPdf(long, OPX, { now: NOWL }))],
+    ['Vordruck', latin1(blankFormPdf(OPX, { now: NOWL }))],
+    ['book', latin1(bookPdf([msg(1), msg(2)], OPX, { now: NOWL }))],
+  ]) {
+    const per = pageTexts(pdf);
+    assert.ok(per.length >= (what === 'long form' ? 3 : 1), what);
+    per.forEach((t, i) => {
+      assert.ok(t.includes('ÜBUNG'), `${what} page ${i + 1}: the mark`);
+      assert.ok(t.some(x => x.startsWith('Notfunk-Meldebuch · ÜBUNG · ')), `${what} page ${i + 1}: the footer`);
+    });
+    const W = what === 'book' ? 297 * PDF_MM : WM, H = what === 'book' ? 210 * PDF_MM : HM;
+    for (const c of streams(pdf)) {
+      assert.ok(exerciseRect(c), `${what}: framed`);
+      // no filled area on the forms (the book fills only priority labels)
+      if (what !== 'book') assert.ok(!/ re f$/m.test(c), `${what}: no filled area`);
+      for (const op of c.replace(/<[0-9a-f]+>/g, '').match(/(?:-?\d+(?:\.\d+)? ){4}re\b|-?\d+(?:\.\d+)? -?\d+(?:\.\d+)? (?:m|l|Td)\b/g) || []) {
+        const v = op.split(' ').map(Number);
+        const right = / re$/.test(op) ? v[0] + v[2] : v[0];
+        assert.ok(v[0] >= 9 * PDF_MM - 0.01 && right <= W - 9 * PDF_MM + 0.01 && v[1] >= 0 && v[1] <= H, `${what} ${op}`);
+      }
+    }
+  }
+  // the Inhalt is printed as stored: no "ACHTUNG ÜBUNG" added
+  const t = texts(latin1(formPdf(msg(12), OPX, { now: NOWL })));
+  assert.ok(t.includes('Aggregat seit 14:45 aus.') && !t.some(x => x.includes('ACHTUNG')));
+});
+
+test('Übung: the mark sits between the title and the number box, the title line shortened before it', () => {
+  const pdf = latin1(formPdf(msg(13), { ...OPL, name: 'Ein sehr langer Name des Einsatzes mit Bezirk, Datum, Uhrzeit, Leitstelle, Abschnitt und noch viel mehr Text dazu', exercise: true }, { now: NOWL }));
+  const c = streams(pdf)[0];
+  const rect = c.match(/^1\.2 w 0 G \[\] 0 d ([\d.]+) ([\d.]+) ([\d.]+) ([\d.]+) re S$/m).slice(1).map(Number);
+  const left = rect[0] / PDF_MM, right = (rect[0] + rect[2]) / PDF_MM;
+  assert.ok(left > 10 + 78 + 2, `after the title (${left} mm)`);
+  assert.ok(right <= 210 - 10 - 50 - 3, `before the number box (${right} mm)`);
+  // the title line is cut with "…" before the mark
+  const top = texts(pdf).find(x => x.startsWith('ÖVSV NOTFUNK · EIN SEHR LANGER'));
+  assert.ok(top.endsWith('…'), top);
+});
+
+test('Übung: not flagged, or an Einsatz without the field (older data), and no Einsatz: no mark', () => {
+  for (const op of [OPL, { ...OPL, exercise: false }]) {
+    for (const pdf of [latin1(formPdf(msg(14), op, { now: NOWL })), latin1(blankFormPdf(op, { now: NOWL })), latin1(bookPdf([msg(1)], op, { now: NOWL }))]) {
+      const t = texts(pdf);
+      assert.ok(!t.includes('ÜBUNG') && !t.some(x => x.startsWith('Notfunk-Meldebuch · ÜBUNG')));
+    }
+  }
+  assert.ok(!texts(latin1(blankFormPdf(null, { now: NOWL }))).includes('ÜBUNG'));
+});

@@ -9,6 +9,8 @@
 //   with a BOM, so Excel in a German locale opens it directly.
 //   Datum/Uhrzeit are Austrian local time; "Zeitstempel (ISO 8601)" has
 //   the offset (2026-10-05T14:07:00+02:00), unambiguous for programs.
+//   The last column "Übung" (ja / nein) says whether the Einsatz is flagged
+//   as an exercise; it is last so the earlier columns keep their places.
 // - toBackup() / parseBackup() / mergeBackup(): the full JSON backup of an
 //   operation (messages incl. deleted ones, revisions, counters). A restore
 //   only adds or updates records and never lowers a counter, so no message
@@ -38,12 +40,14 @@ export const GB_COLUMNS = [
   'Notfunk-Nr.', 'Referenz Meldesammelstelle', 'Datum', 'Uhrzeit', 'Zeitstempel (ISO 8601)', 'Ein/Aus', 'eingegangen von / weitergeleitet an', 'Betreff', 'Inhalt',
   'Art', 'Dringlichkeit', 'Übermittlung', 'Funkstelle', 'Frequenz/Relais', 'Absender', 'Adressat', 'Verteiler',
   'Rücklesen bestätigt', 'Status', 'Übergeben / übertragen an', 'Übergeben / übertragen um', 'Übernommen / Empfang bestätigt durch',
-  'Bezug', 'Ort', 'Aufgenommen von', 'Stationsrufzeichen', 'Erfasst', 'Anmerkungen',
+  'Bezug', 'Ort', 'Aufgenommen von', 'Stationsrufzeichen', 'Erfasst', 'Anmerkungen', 'Übung',
 ];
 
 // stats (optional object): .guarded = number of cells that got a leading '
 // because they started like a spreadsheet formula (../../shared/js/csv.js).
-export function toGeschaeftsbuchCSV(msgs, sep = ';', stats) {
+// op (optional): the Einsatz; op.exercise fills the column "Übung".
+export function toGeschaeftsbuchCSV(msgs, sep = ';', stats, op = null) {
+  const exercise = op?.exercise ? 'ja' : 'nein';
   const byId = new Map(msgs.map(m => [m.id, m]));
   const rows = [GB_COLUMNS];
   for (const m of liveMessages(msgs)) {
@@ -59,7 +63,7 @@ export function toGeschaeftsbuchCSV(msgs, sep = ';', stats) {
       m.readBack ? 'ja' : '', statusLabel(currentStatus(m), m.direction),
       fwd?.to || '', fwd ? isoVienna(fwd.at) : '', ack ? [ack.who, isoVienna(ack.at)].filter(Boolean).join(' ') : '',
       ref ? `${REF_KINDS[m.refKind] || REF_KINDS.antwort} ${ref}` : '',
-      m.location ? m.location.label || `${m.location.lat}, ${m.location.lon}` : m.locationText || '', m.operator, m.stationCall || '', isoVienna(m.created), m.remarks,
+      m.location ? m.location.label || `${m.location.lat}, ${m.location.lon}` : m.locationText || '', m.operator, m.stationCall || '', isoVienna(m.created), m.remarks, exercise,
     ]);
   }
   return '\ufeff' + csvSafeRows(rows, sep, stats) + '\r\n';
@@ -168,6 +172,8 @@ function checkFile(d, opts = {}) {
   if (!isObj(op) || typeof op.id !== 'string' || !ID_RE.test(op.id)) throw new Error('Sicherung unvollständig (operation)');
   if (typeof op.name !== 'string' || !op.name.trim()) throw new Error('Sicherung unvollständig (Name des Einsatzes)');
   if (op.prefix != null && !PREFIX_RE.test(op.prefix)) throw new Error('Sicherung fehlerhaft: Stationskürzel des Einsatzes');
+  // "Übung" (newer backups); an older backup has no such field = not flagged
+  if (op.exercise !== undefined && typeof op.exercise !== 'boolean') throw new Error('Sicherung fehlerhaft: Übung des Einsatzes');
   const records = d.messages.length + d.revisions.length;
   if (records > BACKUP_MAX_RECORDS && !opts.combined) throw new Error(`Die Sicherung enthält ${records} Meldungen und Fassungen; mehr als ${BACKUP_MAX_RECORDS} werden in einer Datei nicht importiert (zu groß für diesen Browser)`);
   return op;

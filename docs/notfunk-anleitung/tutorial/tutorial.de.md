@@ -23,8 +23,10 @@ einen eigenen Einsatz an, dann sehen Sie jeden Schritt.
 2. **„+ Neuer Einsatz“.** Tragen Sie ein: Einsatz „Übung Blackout Wien“,
    Stationskürzel **W1**, Ihr Stationsrufzeichen (hier OE1ABC), den Standort
    („Lichtinsel 12 Floridsdorf“), Ihr Rufzeichen als Operator, „Für Stelle“
-   **Stab** und die Frequenz des lokalen Informationsnetzes.
-   Dann „Einsatz anlegen“.
+   **Stab** und die Frequenz des lokalen Informationsnetzes. Kreuzen Sie
+   **„Übung“** an: Dann erinnert das Formular daran, jede Meldung am Funk mit
+   „ACHTUNG ÜBUNG“ einzuleiten und zu beenden, und die Ausdrucke tragen
+   „ÜBUNG“. Zum Schluss „Einsatz anlegen“.
 
     ![Neuer Einsatz](../../img/notfunk-einsatz-neu.png)
 

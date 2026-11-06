@@ -393,6 +393,21 @@ test('Meldebuch printout: range, deleted left out, oldest first', () => {
   assert.match(part.range, /^2026-10-07 13:30 bis 2026-10-07 14:00$/);
 });
 
+test('printouts of an Einsatz flagged "Übung": every sheet says so, the text as stored', () => {
+  const a = save(filled, 1, '2026-10-07T11:00:00.000Z');
+  const flagged = { ...OP, exercise: true };
+  assert.equal(formSheet(a, flagged, { now: NOW }).exercise, true);
+  assert.equal(formSheet(a, flagged, { now: NOW }).text, a.text, 'nothing added to the Inhalt');
+  assert.equal(blankFormSheet(flagged, { now: NOW }).exercise, true, 'Vordruck printed for a flagged Einsatz');
+  assert.equal(bookSheet([a], flagged, { now: NOW }).exercise, true);
+  // not flagged, an older Einsatz without the field, no Einsatz: not marked
+  for (const op of [OP, { ...OP, exercise: false }, null]) {
+    assert.equal(formSheet(a, op, { now: NOW }).exercise, false);
+    assert.equal(blankFormSheet(op, { now: NOW }).exercise, false);
+    assert.equal(bookSheet([a], op, { now: NOW }).exercise, false);
+  }
+});
+
 test('date picker: months from Monday, ISO dates; month steps across the year', async () => {
   const { pickerMonth, shiftMonth } = await import('../tools/notfunk/js/picker.js');
   const oct = pickerMonth('2026-10');

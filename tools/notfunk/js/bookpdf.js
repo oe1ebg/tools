@@ -8,6 +8,8 @@
 // range, print time), the column heads and "Seite n von N". Black thin lines
 // on white, 9-10 pt: readable at arm's length. Written with the shared PDF
 // writer; the arrows of the direction are drawn as shapes (not in WinAnsi).
+// An Einsatz flagged "Übung" (sheet.exercise): "ÜBUNG" in a thin frame after
+// the heading of every page and in the footer.
 
 import { bookSheet } from './print.js';
 import { PDF_A4_LANDSCAPE, pdfCanvas, pdfDocument, pdfWrap, pdfTextWidth, pdfFooterUrl } from '../../shared/js/pdf.js';
@@ -132,6 +134,12 @@ function nbpPage(b, rows, n, total) {
   const cv = pdfCanvas(NBP_PAGE);
   const x0 = NBP_MARGIN, x1 = NBP_PAGE.width - NBP_MARGIN;
   cv.text('Notfunk-Meldebuch', x0, NBP_MARGIN + 5, { size: 15, bold: true });
+  if (b.exercise) {
+    // black on white: a frame and the bold word, no filled area
+    const mx = x0 + pdfTextWidth('Notfunk-Meldebuch', 15, true) + 5, mw = pdfTextWidth('ÜBUNG', 12, true) + 5;
+    cv.rect(mx, NBP_MARGIN - 0.6, mw, 7.4, { width: 1.2 });
+    cv.text('ÜBUNG', mx + mw / 2, NBP_MARGIN + 4.8, { size: 12, bold: true, align: 'center' });
+  }
   cv.text(`gedruckt ${b.printed}`, x1, NBP_MARGIN + 5, { size: 9, align: 'right' });
   cv.text(b.title || 'Einsatz', x0, NBP_MARGIN + 11, { size: 10.5, bold: true });
   // every field of the Einsatz header, labelled (one line; shortened only
@@ -164,7 +172,7 @@ function nbpPage(b, rows, n, total) {
     y += lines * NBP_PITCH + 2 * NBP_PAD;
     cv.line(x0, y, x1, y, { width: 0.4 });
   }
-  cv.text(`Notfunk-Meldebuch${b.title ? ` · ${b.title}` : ''}`, x0, NBP_PAGE.height - NBP_MARGIN + 0.5, { size: 8, gray: 0.2 });
+  cv.text(`Notfunk-Meldebuch${b.exercise ? ' · ÜBUNG' : ''}${b.title ? ` · ${b.title}` : ''}`, x0, NBP_PAGE.height - NBP_MARGIN + 0.5, { size: 8, gray: 0.2 });
   cv.text(`Seite ${n} von ${total}`, x1, NBP_PAGE.height - NBP_MARGIN + 0.5, { size: 9, align: 'right' });
   pdfFooterUrl(cv, x0, NBP_PAGE.height - NBP_MARGIN + 4);
   return cv.ops.join('\n');

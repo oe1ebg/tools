@@ -12,6 +12,7 @@ Nummerierung. Legen Sie ihn mit **„+ Neuer Einsatz“** an.
 | --- | --- | --- |
 | Einsatz / Übung | Name des Einsatzes | Übung Blackout Wien |
 | Stationskürzel | steht vor jeder Nummer; jedes Gerät eines Einsatzes bekommt ein eigenes | W1 |
+| Übung | Kästchen: der Einsatz ist eine Übung (siehe unten) | angekreuzt |
 | **Eigene Station:** | | |
 | Stationsrufzeichen | Rufzeichen Ihrer Funkstation, kann vom Rufzeichen des Operators abweichen | OE1ABC |
 | Standort der Station (Adresse) | wo Ihr Funkgerät steht; steht oben im Ausdruck | Lichtinsel 12 Floridsdorf |
@@ -23,11 +24,30 @@ Nummerierung. Legen Sie ihn mit **„+ Neuer Einsatz“** an.
 Stationsrufzeichen und Operator werden bei jeder Meldung mitgespeichert und
 stehen im Ausdruck („Aufgenommen von OE1EBG, an Station OE1ABC“).
 
+## Übung
+
+Bei einer Übung wird jede Meldung am Funk mit **„ACHTUNG ÜBUNG“** eingeleitet
+und beendet. Setzen Sie dafür beim Anlegen das Kästchen **„Übung“**. Dann
+
+- steht oben in der Kopfzeile **„ÜBUNG“**, solange der Einsatz offen ist,
+- erinnert unter dem Inhalt der Hinweis **„Vor und nach dem Spruch:
+  „ACHTUNG ÜBUNG““**,
+- tragen die Ausdrucke (Meldung, Meldebuch, leeres Formular) oben und in der
+  Fußzeile „ÜBUNG“, und das Geschäftsbuch (CSV) hat am Ende die Spalte
+  „Übung“ mit „ja“.
+
+Das Meldebuch fügt „ACHTUNG ÜBUNG“ **nicht** in den Inhalt ein: gespeichert
+wird der Wortlaut, wie Sie ihn eintippen. Einsätze, die vor dieser Funktion
+angelegt wurden, gelten als keine Übung; das Kästchen lässt sich jederzeit
+im Feld „Einsatz“ setzen oder löschen.
+
 ## Später ändern
 
 Alles außer dem Stationskürzel lässt sich im aufklappbaren Feld **„Einsatz“**
 über dem Formular ändern; Änderungen gelten für neue Meldungen. Das
-Stationskürzel bleibt fest, sobald die erste Meldung gespeichert ist.
+Kästchen „Übung“ gilt für den ganzen Einsatz, auch für Ausdrucke älterer
+Meldungen. Das Stationskürzel bleibt fest, sobald die erste Meldung
+gespeichert ist.
 
 **Schichtwechsel:** im Feld „Einsatz“ den Operator ändern (oder oben im
 Formular auf „Aufnahme OE1EBG“ klicken). Gespeicherte Meldungen behalten den
