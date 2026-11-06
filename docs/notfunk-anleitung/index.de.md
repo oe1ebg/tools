@@ -35,7 +35,7 @@ Die Präsentation zur Einführung in das Notfunk-Meldebuch (Deutsch):
 
 - [Einführung: der Weg einer Notmeldung](manual/introduction.de.md): wie eine
   Meldung von der Lichtinsel zum Kriseneinsatzstab und die Antwort zurück
-  gelangt, und was Funkamateure dabei tun (und nicht tun).
+  gelangt, und was Operatoren dabei tun (und nicht tun).
 - [Vorbereitung](manual/preparation.de.md): offline verwenden, Daten sichern, Updates.
 - [Einen Einsatz anlegen](manual/operation.de.md)
 - [Eine Meldung aufnehmen](manual/message.de.md): alle Felder, Speichern, Dringlichkeit.
