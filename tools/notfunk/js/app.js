@@ -37,14 +37,14 @@ import { initOffline, setChip } from '../../shared/js/offline.js';
 import {
   DIRECTIONS, CHANNELS, MESSAGE_TYPES, PRIORITIES, REF_KINDS, statusLabel, statusEntry, timeLabel, readBackLabel,
   editMessage, messageFields, softDelete, restoreDeleted, setStatus, addAttempt, currentStatus, filterMessages,
-  repliesTo, fmtVienna, viennaTime, viennaDate, normFreq, fmtFreq,
+  repliesTo, forwardsOf, channelText, fmtVienna, viennaTime, viennaDate, normFreq, fmtFreq,
 } from './model.js';
 import { normalizePrefix, PREFIX_RE, nextSeq, formatNumber, counterKey } from './numbering.js';
 import { toGeschaeftsbuchCSV, toBackupTexts, checkBackup, combineBackupParts, BACKUP_MAX_BYTES } from './export.js';
 import { groupParts, partFileName, partsTooLarge } from '../../shared/js/backup-parts.js';
 import { saveNewMessage, updateMessage, changedFields, editBaseOf, editTarget, draftEditState, applyBackup, patchOperation, writeDraft, clearDraft } from './ops.js';
 import {
-  emptyForm, setDirection, formToFields, formIsBlank, messageToForm, replyForm, nextStep, statusSteps, bookSummary, partyText,
+  emptyForm, setDirection, formToFields, formIsBlank, messageToForm, replyForm, forwardForm, nextStep, statusSteps, bookSummary, partyText,
   readDateTime, readClock, readBound, normDate, normTime, dateText, clockText, upgradeForm, normalizeRef, refChoices,
 } from './form.js';
 import { blankFormPdf, formPdf } from './paperpdf.js';
@@ -1088,7 +1088,9 @@ async function saveMessageNow(anyway) {
     console.warn('Anzeige nach dem Speichern', e);
     notes.push('Die Anzeige konnte nicht aktualisiert werden – bitte die Seite neu laden.');
   }
-  bookStatus(`${saved.number} ${wasEdit ? 'geändert (vorige Fassung gespeichert)' : 'gespeichert'}: ${saved.subject || saved.text.slice(0, 60)}`);
+  // a forwarding marked its original "übergeben" in the same transaction
+  const passedOn = !wasEdit && saved.refKind === 'weiterleitung' && state.msgs.find(x => x.id === saved.replyTo && statusEntry(x, 'forwarded')?.note?.includes(saved.number));
+  bookStatus(`${saved.number} ${wasEdit ? 'geändert (vorige Fassung gespeichert)' : 'gespeichert'}: ${saved.subject || saved.text.slice(0, 60)}${passedOn ? ` · ${passedOn.number} als übergeben vermerkt` : ''}`);
   if (notes.length) showNotice(`${saved.number} ist gespeichert. `, ...notes, ' ');
   broadcast({ type: 'msgs', opId: op.id });
   flashRow(saved.id);
@@ -1157,6 +1159,15 @@ function startReply(msg) {
   writeForm(replyForm(msg, state.op));
   location.hash = `#/e/${state.op.id}`;
   setTimeout(() => $('#m-text').focus(), 0);
+}
+
+// Weiterleiten: the incoming message as a new outgoing one (forwardForm());
+// the An and the way on (Übermittlung) are what is left to fill in.
+function startForward(msg) {
+  setEditing(null);
+  writeForm(forwardForm(msg, state.op));
+  location.hash = `#/e/${state.op.id}`;
+  setTimeout(() => $('#m-to').focus(), 0);
 }
 
 function initForm() {
@@ -1448,7 +1459,7 @@ function renderBook() {
         el('td', { class: 'num' }, el('a', { href: `#/e/${state.op.id}/m/${m.id}` }, m.number),
           el('div', { class: 'when mono', title: fmtVienna(m.ts) }, ...[dated(m.ts, viennaTime(m.ts))].flat()),
           m.staffRef ? el('div', { class: 'ref', title: 'Referenz der Meldesammelstelle' }, m.staffRef) : null,
-          refTo ? el('div', { class: 'ref', title: 'Bezug: Antwort auf diese Meldung' }, `↪ ${refTo}`) : null),
+          refTo ? el('div', { class: 'ref', title: `Bezug: ${REF_KINDS[m.refKind] || REF_KINDS.antwort} ${refTo}` }, `↪ ${refTo}`) : null),
         el('td', { class: 'peer' },
           el('div', { class: 'peer-line', title: inbound ? 'Eingang: von' : 'Ausgang: an' },
             // the arrow alone on screen; screen readers hear "von" / "an"
@@ -1598,7 +1609,7 @@ function flowCard(m) {
     return inlineForm(fields, button, submit);
   };
   items.push(item(!!fwd, out ? 'Übertragen' : 'Übergeben',
-    fwd ? el('div', { class: 'sub mono' }, [fwd.to && `an ${fwd.to}`, when(fwd.at, fwd.by), fwd.readBack ? 'rückgelesen ✓' : ''].filter(Boolean).join(' · ')) : stepForm('forwarded')));
+    fwd ? el('div', { class: 'sub mono' }, [fwd.to && `an ${fwd.to}`, when(fwd.at, fwd.by), fwd.readBack ? 'rückgelesen ✓' : '', fwd.note].filter(Boolean).join(' · ')) : stepForm('forwarded')));
   items.push(item(!!ack, out ? 'Empfang bestätigt' : 'Übernahme bestätigt',
     ack ? el('div', { class: 'sub mono' }, [ack.who && `durch ${ack.who}`, when(ack.at, ack.by)].filter(Boolean).join(' · ')) : stepForm('acknowledged')));
   items.push(item(!!ans, 'Beantwortet', el('div', { class: 'sub' }, ans ? `${when(ans.at, ans.by)}${ans.note ? ` · ${ans.note}` : ''}` : 'mit „Antwort erfassen“')));
@@ -1748,6 +1759,7 @@ function renderDetail(id) {
   const party = p => [p?.name || p?.call || '–', p?.name && p?.call && p.call !== p.name ? el('span', { class: 'call' }, ` ${p.call}`) : null];
   const link = x => el('a', { href: `#/e/${state.op.id}/m/${x.id}`, class: 'mono' }, x.number);
   const replies = repliesTo(state.msgs, m.id);
+  const forwards = forwardsOf(state.msgs, m.id);
   const ref = m.replyTo && byId.get(m.replyTo);
   const refKind = REF_KINDS[m.refKind] || REF_KINDS.antwort;
   fill(box, el('div', { class: 'detail' },
@@ -1790,6 +1802,7 @@ function renderDetail(id) {
       m.location ? el('div', { id: 'msg-map-slot', class: 'msg-map-slot' }) : null,
       el('div', { class: 'toolbar detail-actions' },
         m.deleted ? null : el('button', { type: 'button', onclick: () => startReply(m) }, 'Antwort erfassen'),
+        m.deleted || m.direction !== 'in' ? null : el('button', { type: 'button', onclick: () => startForward(m), title: 'Als neue Ausgangsmeldung weitergeben: Inhalt wörtlich, Bezug gesetzt' }, 'Weiterleiten'),
         m.deleted ? null : el('button', { type: 'button', onclick: () => startEdit(m) }, 'Bearbeiten'),
         el('button', { type: 'button', class: 'primary', onclick: () => printForm(m) }, 'Ausdruck / PDF'),
         m.deleted
@@ -1801,6 +1814,9 @@ function renderDetail(id) {
       el('section', { 'aria-label': 'Antworten' },
         el('h3', { class: 'cap' }, 'Antworten'),
         el('p', {}, replies.length ? replies.flatMap((r, i) => [i ? ', ' : '', link(r)]) : el('span', { class: 'dim' }, 'noch keine'))),
+      forwards.length ? el('section', { 'aria-label': 'Weitergeleitet als' },
+        el('h3', { class: 'cap' }, 'Weitergeleitet als'),
+        el('p', {}, forwards.flatMap((r, i) => [i ? ', ' : '', link(r), ` ${channelText(r)}`]))) : null,
       el('section', { 'aria-label': 'Fassungen' },
         el('h3', { class: 'cap' }, 'Fassungen'),
         revs.length ? el('ul', { class: 'revs' }, revs.map(r => el('li', {},

@@ -96,6 +96,23 @@ Verbindungsstation an Sie.
 
     ![Das Meldebuch nach der Antwort](../../img/notfunk-tutorial-buch.png)
 
+## Variante: als Verbindungsstation weiterleiten
+
+Sitzen Sie stattdessen am K-Vorsorgestandort (OE1DEF), kommt die Meldung bei
+Ihnen als **Eingang** an, und Sie geben sie weiter, zum Beispiel mit einem
+Melder auf Papier an die Meldesammelstelle.
+
+1. Nehmen Sie die Meldung der Lichtinsel wie gewohnt als **Eingang** auf
+   (Funkstelle OE1ABC) und speichern Sie, z. B. als **K1-001**.
+2. Öffnen Sie K1-001 und wählen Sie **„Weiterleiten“**. Das Formular kommt
+   als **Ausgang** mit Absender, Betreff und Wortlaut der Lichtinsel, Bezug
+   „Weiterleitung von K1-001“ und Ursprung OE1ABC.
+3. **An:** „Meldesammelstelle“. **Übermittlung:** „Melder“. Speichern
+   (**K1-002**).
+4. K1-001 steht jetzt auf **übergeben** („weitergeleitet als K1-002 ·
+   Melder“). Bestätigt die Meldesammelstelle den Empfang, tragen Sie bei
+   K1-002 „Empfang bestätigt“ ein.
+
 ## 5. Am Ende
 
 - **Sichern:** Der Sicherungsstand oben rechts zeigt, wie viele Meldungen

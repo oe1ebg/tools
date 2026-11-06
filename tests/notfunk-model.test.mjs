@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   newMessage, editMessage, softDelete, setStatus, currentStatus, validateMessage, messageFields,
-  filterMessages, repliesTo, fmtVienna, viennaTime, isoVienna, statusEntry, statusLabel, addAttempt,
+  filterMessages, repliesTo, forwardsOf, markForwarded, channelText, REF_KINDS, fmtVienna, viennaTime, isoVienna, statusEntry, statusLabel, addAttempt,
 } from '../tools/notfunk/js/model.js';
 import { toGeschaeftsbuchCSV, toBackup, parseBackup, mergeBackup, GB_COLUMNS } from '../tools/notfunk/js/export.js';
 import { formatNumber } from '../tools/notfunk/js/numbering.js';
@@ -105,6 +105,38 @@ test('filters, replies, deleted messages hidden', () => {
   assert.deepEqual(filterMessages(all, { query: 'am spitz' }).map(m => m.number), ['W1-010', 'W1-011']);
   assert.deepEqual(filterMessages([setStatus(a, 'acknowledged', { operator: 'x', now: T0 }), b], { open: true }).map(m => m.number), ['W1-011']);
   assert.deepEqual(repliesTo(all, 'm10').map(m => m.number), ['W1-011']);
+});
+
+test('forwarding: the original is marked "übergeben" once, with the way on; listed apart from replies', () => {
+  const orig = msg({}, 20);
+  const fwd = msg({ direction: 'out', ts: '2026-10-05T12:15:00.000Z', channel: 'melder', from: base.from, to: { name: 'Meldesammelstelle' }, replyTo: 'm20', refKind: 'weiterleitung', refNumber: 'W1-020' }, 21);
+  assert.equal(fwd.refKind, 'weiterleitung');
+  assert.equal(REF_KINDS[fwd.refKind], 'Weiterleitung von');
+  const next = markForwarded(orig, fwd, { operator: 'oe1xyz', now: T0 });
+  const step = statusEntry(next, 'forwarded');
+  assert.deepEqual([step.at, step.to, step.note, step.by], ['2026-10-05T12:15:00.000Z', 'Meldesammelstelle', 'weitergeleitet als W1-021 · Melder', 'OE1XYZ']);
+  assert.equal(statusLabel(currentStatus(next), next.direction), 'übergeben');
+  assert.deepEqual(next.text, orig.text, 'the original is not changed otherwise');
+  // never twice, never back, never an outgoing original
+  assert.equal(markForwarded(next, fwd, { operator: 'x', now: T0 }), null);
+  assert.equal(markForwarded(setStatus(orig, 'acknowledged', { operator: 'x', now: T0 }), fwd, { operator: 'x', now: T0 }), null);
+  assert.equal(markForwarded({ ...orig, direction: 'out' }, fwd, { operator: 'x', now: T0 }), null);
+  // an answered original still gets its handover
+  assert.equal(statusEntry(markForwarded(setStatus(orig, 'answered', { operator: 'x', now: T0 }), fwd, { operator: 'x', now: T0 }), 'forwarded').to, 'Meldesammelstelle');
+  // by radio: frequency and relay in the note
+  const byRadio = msg({ direction: 'out', from: base.from, to: { name: 'ELS', call: 'oe1els' }, replyTo: 'm20', refKind: 'weiterleitung' }, 22);
+  assert.equal(channelText(byRadio), 'Funk 145,500 MHz via OE1XUU');
+  assert.equal(statusEntry(markForwarded(orig, byRadio, { operator: 'x', now: T0 }), 'forwarded').to, 'ELS / OE1ELS');
+  // replies and forwardings apart
+  const reply = msg({ direction: 'out', from: { name: 'Stab' }, to: base.from, replyTo: 'm20' }, 23);
+  assert.deepEqual(repliesTo([orig, fwd, reply], 'm20').map(m => m.number), ['W1-023']);
+  assert.deepEqual(forwardsOf([orig, fwd, reply, softDelete(byRadio, { operator: 'x', now: T0 })], 'm20').map(m => m.number), ['W1-021']);
+  // older records without a kind still read as an answer
+  assert.equal(messageFields({ ...base, replyTo: 'm20' }).refKind, 'antwort');
+  // the CSV: the Bezug at the forwarding, the handover at the original
+  const csv = toGeschaeftsbuchCSV([next, fwd]);
+  assert.match(csv, /;Weiterleitung von W1-020;/);
+  assert.match(csv, /W1-020;[^\r]*;übergeben;Meldesammelstelle;/);
 });
 
 test('time formats: Austrian local time, never a zone name', () => {

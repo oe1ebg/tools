@@ -4,7 +4,7 @@ process.env.TZ = 'America/New_York'; // Austrian time must not depend on the dev
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  emptyForm, setDirection, parseParty, partyText, formToFields, messageToForm, replyForm,
+  emptyForm, setDirection, parseParty, partyText, formToFields, messageToForm, replyForm, forwardForm,
   nextStep, statusSteps, bookSummary, normDate, normTime, readDateTime, readClock, readBound, dateText, clockText, upgradeForm, formIsBlank, normalizeRef, refChoices,
 } from '../tools/notfunk/js/form.js';
 import { formSheet, blankFormSheet, bookSheet } from '../tools/notfunk/js/print.js';
@@ -269,6 +269,36 @@ test('reply: other direction, parties swapped, linked', () => {
   assert.equal(r.type, 'meldung');
   assert.equal(r.subject, 'Antwort: Aggregat ausgefallen');
   assert.equal(replyForm(save({ ...r, text: 'Tankwagen um 16 Uhr.' }, 2), OP).subject, 'Antwort: Aggregat ausgefallen');
+});
+
+test('forward: a new Ausgang, Von and verbatim Inhalt kept, Ursprung, linked as Weiterleitung', () => {
+  const m = save({ ...filled, peer: 'oe1abc', to: 'K-Vorsorge Floridsdorf', text: 'Aggregat seit 14:45 aus.\n  40 Personen   vor Ort.', distribution: 'S3, S4', time: '14:50' }, 1);
+  const f = forwardForm(m, OP);
+  assert.equal(f.direction, 'out');
+  assert.equal(f.from, 'Lichtinsel 12 Floridsdorf', 'the original sender, not the own post');
+  assert.equal(f.to, 'K-Vorsorge Floridsdorf');
+  assert.deepEqual([f.subject, f.text, f.type, f.priority, f.distribution], [m.subject, m.text, 'anforderung', 'emergency', 'S3, S4']);
+  assert.deepEqual([f.replyTo, f.ref, f.refKind], ['m1', 'W1-001', 'weiterleitung']);
+  // no Ursprung recorded: the station heard and the time it came in
+  assert.deepEqual([f.origStation, f.origPlace, f.origFiled], ['OE1ABC', '', '14:50']);
+  // the way on is for the operator to choose: a new message's defaults
+  assert.deepEqual([f.channel, f.freq, f.peer, f.readBack, f.date, f.time], ['funk', '145.500', '', false, '', '']);
+  // saved, the link and the text are kept; Bezug from the form
+  const byNumber = new Map([[m.number, m]]);
+  const { fields, errors } = formToFields({ ...f, channel: 'melder' }, { now: NOW, byNumber });
+  assert.deepEqual(errors, []);
+  assert.deepEqual([fields.replyTo, fields.refKind, fields.refNumber, fields.text], ['m1', 'weiterleitung', 'W1-001', m.text]);
+  assert.deepEqual([fields.origin.station, fields.origin.filed], ['OE1ABC', '2026-10-07T12:50:00.000Z']);
+  // the own post as addressee is not taken over; a recorded Ursprung is
+  const viaRelay = save({ ...filled, to: 'Stab', origStation: 'oe3xyz', origPlace: 'Wolkersdorf', origFiled: '14:30', peer: 'OE1ABC' }, 2);
+  const g = forwardForm(viaRelay, OP);
+  assert.equal(g.to, '');
+  assert.deepEqual([g.origStation, g.origPlace, g.origFiled], ['OE3XYZ', 'Wolkersdorf', '14:30']);
+  // the form shows a forwarding as one; an edit keeps the kind
+  const fwd = save({ ...f, to: 'Stab' }, 3);
+  assert.equal(messageToForm(fwd).refKind, 'weiterleitung');
+  // the printout shows the link where the Bezug is
+  assert.equal(formSheet(fwd, OP, { now: NOW, byId: new Map([[m.id, m]]) }).ref, 'Weiterleitung von W1-001');
 });
 
 test('next step and status steps', () => {
