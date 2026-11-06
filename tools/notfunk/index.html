@@ -302,7 +302,8 @@
           <div class="ac-wrap"><input id="m-loc" enterkeyhint="next" spellcheck="false" aria-describedby="m-loc-info" title="Wo das gemeldete Ereignis ist: Adresse, Ort, Locator oder UTMREF"><div id="m-loc-pop" class="ac-pop"></div></div>
           <div class="ac-hints loc-hints"><div id="m-loc-info" class="ac-info" aria-live="polite"></div></div></div>
         <label class="field wide"><span class="req">Inhalt – wörtlich</span>
-          <textarea id="m-text" rows="4" enterkeyhint="enter" aria-describedby="m-text-err" title="Wortlaut, wie übermittelt. Enter = neue Zeile"></textarea>
+          <textarea id="m-text" rows="4" enterkeyhint="enter" aria-describedby="m-text-5w m-text-err" title="Wortlaut, wie übermittelt. Enter = neue Zeile"></textarea>
+          <span id="m-text-5w" class="five-w" aria-hidden="true">Vollständig? Wer · Wann · Was · Wo · Wie</span>
           <span id="m-text-err" class="ferr" data-field="text"></span></label>
       </div>
       <label class="check readback-check"><input type="checkbox" id="m-readback"> <span id="m-readback-label">Rücklesen erfolgt und vom Absender als richtig bestätigt</span></label>
@@ -449,6 +450,18 @@
           <dt>Stationsrufzeichen</dt><dd>das Rufzeichen der eigenen Funkstation <span class="ex">OE1XKS</span>, z. B. einer Klubstation; im Einsatz eingetragen und bei jeder Meldung mitgespeichert. Kann vom Rufzeichen des Operators abweichen.</dd>
           <dt>Operator</dt><dd>wer hier am Gerät aufnimmt („Aufnahme“ oben im Formular). Beim Schichtwechsel im Feld „Einsatz“ ändern; gespeicherte Meldungen behalten ihren Operator.</dd>
         </dl>
+      </section>
+      <section id="h-5w" aria-labelledby="h-5w-t">
+        <h3 id="h-5w-t">Meldung von Bürgern: die 5 W</h3>
+        <p class="hint">Meldungen aus der Bevölkerung sind oft unvollständig. Unter dem Inhalt steht als Gedächtnisstütze <span class="ex">Wer · Wann · Was · Wo · Wie</span>. Sie ist nur ein Hinweis: Nichts davon ist Pflicht, und der Inhalt wird weiterhin wörtlich aufgenommen.</p>
+        <dl class="kb">
+          <dt>Wer</dt><dd>wer meldet, mit Name und Rückruf, und wer betroffen ist.</dd>
+          <dt>Wann</dt><dd>wann es passiert ist bzw. seit wann.</dd>
+          <dt>Was</dt><dd>was genau passiert ist.</dd>
+          <dt>Wo</dt><dd>Adresse oder Ort; dafür gibt es das Feld Ort.</dd>
+          <dt>Wie</dt><dd>wie schlimm: wie viele Personen, welche Gefahr, was wird gebraucht.</dd>
+        </dl>
+        <p class="hint">Beispiel (Stromausfall-Übung): <span class="ex">Frau Huber, Tel. 0660 1234567, meldet: Seit etwa 14:30 ist in der Lichtinsel 12 der Strom aus. Im 3. Stock wohnt ein Herr mit Beatmungsgerät; der Akku hält noch zwei Stunden. Er braucht ein Notstromaggregat.</span> Wer: Frau Huber · Wann: seit 14:30 · Was: Stromausfall · Wo: Lichtinsel 12 · Wie: Beatmungsgerät, zwei Stunden Akku.</p>
       </section>
       <section id="h-where" aria-labelledby="h-where-t">
         <h3 id="h-where-t">Orte</h3>

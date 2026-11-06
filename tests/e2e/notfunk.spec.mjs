@@ -155,6 +155,9 @@ test('keyboard: Shift+Enter saves, warnings ask once, Esc asks before discarding
   // missing text: an error at the field, nothing saved
   await page.locator('#m-subject').press('Shift+Enter');
   await expect(page.locator('#m-text-err')).toHaveText('Inhalt fehlt');
+  // the 5 W reminder is always there and part of the field's description
+  await expect(page.locator('#m-text-5w')).toHaveText('Vollständig? Wer · Wann · Was · Wo · Wie');
+  await expect(page.locator('#m-text')).toHaveAttribute('aria-describedby', 'm-text-5w m-text-err');
   await expect(page.locator('#m-text')).toBeFocused();
   // Enter in the text is a new line
   await page.locator('#m-text').type('Zeile 1');

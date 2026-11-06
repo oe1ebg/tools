@@ -152,6 +152,8 @@ input.live{ color:var(--text-dim); }
 .radio-group.prio input[value="priority"]:checked + span{ color:var(--warn); }
 /* the verbatim text: bigger, grows with what is typed (app.js growText) */
 #m-text{ resize:vertical; min-height:6.5em; font-size:17px; line-height:1.5; }
+/* quiet 5 W reminder under the Inhalt (always shown, no layout shift) */
+.five-w{ color:var(--text-dim); font-size:14px; font-weight:400; text-transform:none; letter-spacing:0; }
 /* required fields and the errors at the field (only when there is one) */
 .req::after{ content:" *"; color:var(--err); font-weight:700; }
 label.field > .ferr, div.field > .ferr, .ferr{ color:var(--err); font-size:13.5px; font-weight:600; text-transform:none; letter-spacing:0; }

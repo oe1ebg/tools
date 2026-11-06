@@ -31,6 +31,25 @@ Alle Zeiten sind **Ortszeit**, in 24-Stunden-Schreibweise.
 und Inhalt. Fehlt eines, steht der Hinweis direkt am Feld, und der Cursor
 springt dorthin.
 
+## Meldungen aus der Bevölkerung: die 5 W
+
+Meldungen von Bürgern sind oft unvollständig. Unter dem Inhalt steht deshalb
+als Gedächtnisstütze **„Vollständig? Wer · Wann · Was · Wo · Wie“**. Sie ist
+nur ein Hinweis, nichts davon ist Pflicht, und der Inhalt wird weiterhin
+wörtlich aufgenommen.
+
+- **Wer:** wer meldet (Name, Rückruf) und wer betroffen ist.
+- **Wann:** wann es passiert ist bzw. seit wann.
+- **Was:** was genau passiert ist.
+- **Wo:** Adresse oder Ort; dafür gibt es das Feld Ort.
+- **Wie:** wie schlimm: wie viele Personen, welche Gefahr, was wird gebraucht.
+
+Beispiel aus einer Stromausfall-Übung: „Frau Huber, Tel. 0660 1234567, meldet:
+Seit etwa 14:30 ist in der Lichtinsel 12 der Strom aus. Im 3. Stock wohnt ein
+Herr mit Beatmungsgerät; der Akku hält noch zwei Stunden. Er braucht ein
+Notstromaggregat.“ Wer: Frau Huber · Wann: seit 14:30 · Was: Stromausfall ·
+Wo: Lichtinsel 12 · Wie: Beatmungsgerät, zwei Stunden Akku.
+
 Unter **„Weitere Felder“** stehen:
 
 | Feld | Bedeutung | Beispiel |
