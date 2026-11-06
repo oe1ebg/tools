@@ -176,6 +176,12 @@ name, and a distribution list ("Verteiler").
   the lookup doesn't resolve is stored as text (`locationText`; `''` when
   `location` holds the resolved snapshot, whose `input`/`label` keep the
   text). Messages saved before this kept no text for an unresolved Ort.
+  The Bezug is a combobox (shared `popover()`) listing this operation's
+  messages, newest first, the edited one left out (`refChoices()` in
+  `js/form.js`): typing filters as the book's search does (`matchesQuery()`
+  in `js/model.js`), the typed number (`w1-3`, or `3`) first, at most 50;
+  picking sets `replyTo` as "Antwort erfassen" does, typed text is kept as
+  `refNumber` (no stored-format change).
   **"Karte"** (in the filter bar, so the map opens right there, above the
   list; the form stays on top) shows the messages of the book's current list
   (filter, search) at their Ort on the shared offline map

@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   emptyForm, setDirection, parseParty, partyText, formToFields, messageToForm, replyForm,
-  nextStep, statusSteps, bookSummary, normDate, normTime, readDateTime, readClock, readBound, dateText, clockText, upgradeForm, formIsBlank, normalizeRef,
+  nextStep, statusSteps, bookSummary, normDate, normTime, readDateTime, readClock, readBound, dateText, clockText, upgradeForm, formIsBlank, normalizeRef, refChoices,
 } from '../tools/notfunk/js/form.js';
 import { formSheet, blankFormSheet, bookSheet } from '../tools/notfunk/js/print.js';
 import { newMessage, setStatus, softDelete, addAttempt, normFreq, fmtFreq } from '../tools/notfunk/js/model.js';
@@ -184,6 +184,40 @@ test('Bezug: a number of this operation links, anything else stays text', () => 
   const other = formToFields({ ...filled, ref: 'K2-010' }, { now: NOW, byNumber }).fields;
   assert.deepEqual([other.replyTo, other.refNumber, other.refKind], [null, 'K2-010', 'antwort']);
   assert.equal(formToFields(filled, { now: NOW, byNumber }).fields.refKind, null);
+});
+
+test('Bezug list: newest first, searched like the book, the typed number first, limited', () => {
+  const at = h => `2026-10-07T${String(h).padStart(2, '0')}:00:00.000Z`;
+  const msg = (seq, h, extra) => save({ ...filled, ...extra }, seq, at(h));
+  const msgs = [
+    msg(1, 6, { subject: 'Strom weg', peer: 'OE3ABC' }),
+    msg(2, 7, { subject: 'Wasser', text: 'Kein Strom im Heim.' }),
+    msg(3, 8, { subject: 'Lage', peer: 'OE1XYZ' }),
+    msg(13, 9, { subject: 'Nachtrag' }),
+    msg(30, 10, { subject: 'Ende' }),
+  ];
+  const nums = r => r.items.map(m => m.number);
+  // empty: all, newest first
+  assert.deepEqual(nums(refChoices(msgs, '')), ['W1-030', 'W1-013', 'W1-003', 'W1-002', 'W1-001']);
+  // a word of Betreff or Inhalt, any case
+  assert.deepEqual(nums(refChoices(msgs, 'STROM')), ['W1-002', 'W1-001']);
+  // the Gegenstelle (Funkstelle)
+  assert.deepEqual(nums(refChoices(msgs, 'oe1xyz')), ['W1-003']);
+  // a number as typed: the exact one first, then numbers containing it, newest first
+  assert.deepEqual(nums(refChoices(msgs, 'w1-3')), ['W1-003']);
+  // the sequence number alone, too; then numbers containing it, then other text (OE3ABC)
+  assert.deepEqual(nums(refChoices(msgs, '3')), ['W1-003', 'W1-030', 'W1-013', 'W1-001']);
+  assert.deepEqual(nums(refChoices(msgs, '03')), ['W1-003', 'W1-030']);
+  // the message being edited and deleted ones are not offered
+  assert.deepEqual(nums(refChoices(msgs, '', { excludeId: 'm30' })), ['W1-013', 'W1-003', 'W1-002', 'W1-001']);
+  assert.deepEqual(nums(refChoices([...msgs.slice(1), softDelete(msgs[0], { now: NOW, operator: 'x' })], 'strom')), ['W1-002']);
+  // limited, with the number of all matches
+  const many = Array.from({ length: 120 }, (_, i) => save(filled, i + 1, at(0).replace('00:00:00', `00:${String(Math.floor(i / 60)).padStart(2, '0')}:${String(i % 60).padStart(2, '0')}`)));
+  const r = refChoices(many, '', { limit: 50 });
+  assert.equal(r.items.length, 50);
+  assert.equal(r.total, 120);
+  assert.equal(r.items[0].number, 'W1-120');
+  assert.deepEqual(refChoices(msgs, 'nichts dergleichen'), { items: [], total: 0 });
 });
 
 test('form -> message: verbatim text, Stichzeit only for Lagemeldung', () => {
