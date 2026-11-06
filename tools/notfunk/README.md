@@ -111,7 +111,11 @@ name, and a distribution list ("Verteiler").
   - Crisis management is the *Magistratsdirektion – Krisenmanagement und
     Sicherheit*, not MA 68.
   - The Notfunknetz Wien has four levels: Einsatzleitstelle, K-Vorsorge
-    sites, Lichtinseln, all stations.
+    sites, Lichtinseln, all stations. A Lichtinsel's counterpart on air is a
+    Verbindungsstation: an amateur station of the Notfunkteam Wien that
+    takes messages from the local information net and passes them on to the
+    K-Vorsorge site or the Einsatzleitstelle (via the Informationsnetz Wien
+    if the K-Vorsorge site cannot be reached).
   - The Notfunkreferat Wien staffed twelve Lichtinseln in the 2024 blackout
     exercise.
   - **No public document says which format Vienna expects from Notfunk.**
@@ -341,16 +345,16 @@ To confirm with the Notfunkreferat Wien and the Krisenstab (MD-KS) side:
 3. Is a priority marking wanted? If so, in which wording: staff-style
    (Sofort/Blitz), ITU (MAYDAY/PAN PAN), or ARENA (E/P/R)?
 4. Is a DTG used anywhere? (Documents for the staff are in local time for now; the CSV carries an ISO 8601 timestamp with offset.)
-5. Numbering: confirm a Notfunk running number per station (K-Vorsorge
-   site / Lichtinsel), next to the staff's Geschäftszahl. Which station code
+5. Numbering: confirm a Notfunk running number per station (Verbindungsstation /
+   K-Vorsorge site / Lichtinsel), next to the staff's Geschäftszahl. Which station code
    format?
 6. Is the ARENA Radiogram the current Notfunk Wien standard for formal
    traffic, or only for HF/welfare traffic? Is the Notfunk-Konzept revision
    published?
 7. Which identifiers should appear on messages: personal callsign, special
    callsign, location name, or SKKM station callsign?
-8. Which standard templates are wanted from Lichtinseln and K-Vorsorge
-   sites: Lagemeldung, Anforderung, Stärkemeldung, requests for help from
+8. Which standard templates are wanted from Lichtinseln, Verbindungsstationen and
+   K-Vorsorge sites: Lagemeldung, Anforderung, Stärkemeldung, requests for help from
    the public?
 9. Privacy versus retention: ÖVSV says keep records ≥ 10 years and hand them
    to the authorities. Does that fit the City's data-protection rules for

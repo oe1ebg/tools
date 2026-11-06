@@ -25,13 +25,13 @@ Einsatzleitstelle an die **Meldesammelstelle** des Kriseneinsatzstabs
 <figure class="diagram">
 <svg viewBox="0 0 760 372" role="img" aria-labelledby="nf-ablauf-t nf-ablauf-d" xmlns="http://www.w3.org/2000/svg" fill="currentColor" font-family="inherit" font-size="14">
 <title id="nf-ablauf-t">Der Weg einer Notmeldung und der Rückweg der Antwort</title>
-<desc id="nf-ablauf-d">Fünf Stationen von links nach rechts: Hilfesuchende (kein Funkamateur), Lichtinsel, K-Vorsorgestandort, Funkstelle in der Einsatzleitstelle und Meldesammelstelle des Kriseneinsatzstabs (kein Funkamateur). Ein langer Pfeil oberhalb von links nach rechts steht für den Weg der Meldung, zum Beispiel „Wir brauchen Hilfe!“. Ein langer gestrichelter Pfeil unterhalb von rechts nach links steht für den Rückweg der Antwort, zum Beispiel „Hilfe ist unterwegs“. Ein Funkamateur nimmt die Meldung auf der Lichtinsel auf (ein Rücklesen wird empfohlen); sie geht über das K-Vorsorgestandort an die Funkstelle in der Einsatzleitstelle. Der Funkamateur dort übergibt sie an die Meldesammelstelle; hier endet die Aufgabe der Funkamateure. Die Meldesammelstelle nennt eine Referenz. Funkamateure arbeiten an den drei mittleren Stationen und übermitteln wörtlich, ohne Zusatz und ohne eigene Bewertung.</desc>
+<desc id="nf-ablauf-d">Fünf Stationen von links nach rechts: Hilfesuchende (kein Funkamateur), Lichtinsel, Verbindungsstation, Funkstelle in der Einsatzleitstelle und Meldesammelstelle des Kriseneinsatzstabs (kein Funkamateur). Ein langer Pfeil oberhalb von links nach rechts steht für den Weg der Meldung, zum Beispiel „Wir brauchen Hilfe!“. Ein langer gestrichelter Pfeil unterhalb von rechts nach links steht für den Rückweg der Antwort, zum Beispiel „Hilfe ist unterwegs“. Ein Funkamateur nimmt die Meldung auf der Lichtinsel auf (ein Rücklesen wird empfohlen); sie geht über die Verbindungsstation an die Funkstelle in der Einsatzleitstelle. Der Funkamateur dort übergibt sie an die Meldesammelstelle; hier endet die Aufgabe der Funkamateure. Die Meldesammelstelle nennt eine Referenz. Funkamateure arbeiten an den drei mittleren Stationen und übermitteln wörtlich, ohne Zusatz und ohne eigene Bewertung.</desc>
 <defs><marker id="nf-pfeil" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>
 <g stroke="currentColor" stroke-width="3" fill="none"><path d="M0 34H756" marker-end="url(#nf-pfeil)"/><path d="M756 246H4" stroke-dasharray="8 5" marker-end="url(#nf-pfeil)"/></g>
 <g text-anchor="middle" font-weight="700" font-size="15"><text x="380" y="22">Meldung (hin), z. B. „Wir brauchen Hilfe!“</text><text x="380" y="270">Antwort (zurück), z. B. „Hilfe ist unterwegs“</text></g>
 <g transform="translate(0 40)">
 <g fill="none"><rect x="0" y="10" width="128" height="170" rx="8" stroke="#808080" stroke-width="3" stroke-dasharray="6 5" fill="#808080" fill-opacity=".06"/><rect x="158" y="10" width="128" height="170" rx="8" stroke="#3a7fc1" stroke-width="4" fill="#3a7fc1" fill-opacity=".16"/><rect x="316" y="10" width="128" height="170" rx="8" stroke="#d4680f" stroke-width="4" fill="#d4680f" fill-opacity=".16"/><rect x="474" y="10" width="128" height="170" rx="8" stroke="#3d9a4f" stroke-width="4" fill="#3d9a4f" fill-opacity=".16"/><rect x="632" y="10" width="128" height="170" rx="8" stroke="#9a6bc0" stroke-width="3" stroke-dasharray="6 5" fill="#9a6bc0" fill-opacity=".06"/></g>
-<g text-anchor="middle"><text x="64" y="40" font-weight="700" font-size="16">Hilfesuchende</text><text x="64" y="69" font-size="14">Bürgerinnen</text><text x="64" y="90" font-size="14">und Bürger</text><text x="64" y="166" font-size="13" fill-opacity=".8">kein Funkamateur</text><text x="222" y="40" font-weight="700" font-size="16">Lichtinsel</text><text x="222" y="69" font-size="14">Funkamateur</text><text x="222" y="90" font-size="14">nimmt den</text><text x="222" y="111" font-size="14">Wortlaut auf</text><text x="222" y="166" font-size="13" fill-opacity=".8">Eingang ↓</text><text x="380" y="40" font-weight="700" font-size="16">K-Vorsorge-</text><text x="380" y="60" font-weight="700" font-size="16">standort</text><text x="380" y="89" font-size="14">gibt die Meldung</text><text x="380" y="110" font-size="14">weiter</text><text x="380" y="166" font-size="13" fill-opacity=".8">Weitergabe ↔</text><text x="538" y="40" font-weight="700" font-size="16">Funkstelle</text><text x="538" y="60" font-weight="700" font-size="16">der ELS</text><text x="538" y="89" font-size="14">Funkamateur</text><text x="538" y="110" font-size="14">übergibt an die</text><text x="538" y="131" font-size="14">Meldesammelstelle</text><text x="538" y="166" font-size="13" fill-opacity=".8">Ausgang ↑</text><text x="696" y="40" font-weight="700" font-size="16">Melde-</text><text x="696" y="60" font-weight="700" font-size="16">sammelstelle</text><text x="696" y="89" font-size="14">Kriseneinsatzstab</text><text x="696" y="110" font-size="14">vergibt die</text><text x="696" y="131" font-size="14">Referenz</text><text x="696" y="166" font-size="13" fill-opacity=".8">kein Funkamateur</text></g></g>
+<g text-anchor="middle"><text x="64" y="40" font-weight="700" font-size="16">Hilfesuchende</text><text x="64" y="69" font-size="14">Bürgerinnen</text><text x="64" y="90" font-size="14">und Bürger</text><text x="64" y="166" font-size="13" fill-opacity=".8">kein Funkamateur</text><text x="222" y="40" font-weight="700" font-size="16">Lichtinsel</text><text x="222" y="69" font-size="14">Funkamateur</text><text x="222" y="90" font-size="14">nimmt den</text><text x="222" y="111" font-size="14">Wortlaut auf</text><text x="222" y="166" font-size="13" fill-opacity=".8">Eingang ↓</text><text x="380" y="40" font-weight="700" font-size="16">Verbindungs-</text><text x="380" y="60" font-weight="700" font-size="16">station</text><text x="380" y="89" font-size="14">gibt die Meldung</text><text x="380" y="110" font-size="14">weiter</text><text x="380" y="166" font-size="13" fill-opacity=".8">Weitergabe ↔</text><text x="538" y="40" font-weight="700" font-size="16">Funkstelle</text><text x="538" y="60" font-weight="700" font-size="16">der ELS</text><text x="538" y="89" font-size="14">Funkamateur</text><text x="538" y="110" font-size="14">übergibt an die</text><text x="538" y="131" font-size="14">Meldesammelstelle</text><text x="538" y="166" font-size="13" fill-opacity=".8">Ausgang ↑</text><text x="696" y="40" font-weight="700" font-size="16">Melde-</text><text x="696" y="60" font-weight="700" font-size="16">sammelstelle</text><text x="696" y="89" font-size="14">Kriseneinsatzstab</text><text x="696" y="110" font-size="14">vergibt die</text><text x="696" y="131" font-size="14">Referenz</text><text x="696" y="166" font-size="13" fill-opacity=".8">kein Funkamateur</text></g></g>
 <path d="M158 290V300H602V290" stroke="currentColor" stroke-width="2" fill="none"/>
 <g text-anchor="middle" font-weight="700" font-size="15"><text x="380" y="322">Hier arbeiten Funkamateure:</text><text x="380" y="342">sie übermitteln, was aufgenommen wurde –</text><text x="380" y="362">wörtlich, ohne Zusatz, ohne eigene Bewertung.</text></g></svg>
 <figcaption>Der Weg, den eine Notmeldung nimmt, und der Rückweg der Antwort.</figcaption>
@@ -43,13 +43,15 @@ Einsatzleitstelle an die **Meldesammelstelle** des Kriseneinsatzstabs
    Lichtinsel schreibt den Wortlaut auf (Meldeaufnahmeformular oder
    Meldebuch). Zur Sicherheit liest er ihn zurück; die Person bestätigt, dass
    es stimmt (empfohlen, nicht zwingend).
-2. **Funken.** Die Meldung geht im lokalen Informationsnetz an den
-   zuständigen K-Vorsorgestandort ([Betriebsregeln](#betriebsregeln-in-kurze)).
+2. **Funken.** Die Meldung geht im lokalen Informationsnetz an die
+   zuständige Verbindungsstation ([Betriebsregeln](#betriebsregeln-in-kurze)).
    Ein Rücklesen durch den Empfänger ist empfohlen, aber nicht zwingend. Ist die Lichtinsel in kein lokales Netz eingecheckt,
    läuft es über das Informationsnetz Wien.
-3. **Weitergeben.** Vom K-Vorsorgestandort geht die Meldung an die
-   Einsatzleitstelle (ELS) des Krisenmanagements, normalerweise über
-   BOS-Funk, als Backup über das taktische Amateurfunknetz. Dort nimmt die
+3. **Weitergeben.** Die Verbindungsstation ist eine Amateurfunkstelle des
+   Notfunkteams Wien und gibt die Meldung an den K-Vorsorgestandort oder die
+   Einsatzleitstelle (ELS) des Krisenmanagements weiter; vom
+   K-Vorsorgestandort geht sie normalerweise über BOS-Funk, als Backup über
+   das taktische Amateurfunknetz, an die ELS. Dort nimmt die
    Amateurfunkstelle (OE1XKS, solange die ELS am üblichen Ort arbeitet; sonst
    hat sie ein anderes Rufzeichen) sie auf.
 4. **Übergeben.** Der Funkamateur in der ELS übergibt die Meldung an die
@@ -64,8 +66,8 @@ Einsatzleitstelle an die **Meldesammelstelle** des Kriseneinsatzstabs
 5. Der Stab entscheidet und antwortet über die Meldesammelstelle, zum
    Beispiel: „Diesel ist unterwegs, Ankunft 15:30.“
 6. Die Meldesammelstelle übergibt die Antwort dem Funkamateur in der ELS. Er
-   nimmt sie wörtlich auf, funkt sie an den K-Vorsorgestandort.
-7. Der K-Vorsorgestandort gibt sie im lokalen Informationsnetz an die
+   nimmt sie wörtlich auf, funkt sie an die Verbindungsstation.
+7. Die Verbindungsstation gibt sie im lokalen Informationsnetz an die
    Lichtinsel weiter.
 8. Der Funkamateur an der Lichtinsel nimmt die Antwort auf
    und **sagt sie der Person, die den Notfall gemeldet hat**: „Hilfe ist
@@ -156,7 +158,7 @@ aktuelle Ausgabe gilt):
 | Netz | Frequenz | Zweck |
 | --- | --- | --- |
 | Informationsnetz Wien | 438,950 MHz (Relais Kahlenberg OE1XUU, Ablage −7,6 MHz, CTCSS 162,2 Hz); 438,650 MHz (Relais Laaerberg OE1XFW); 433,500 MHz bei Totalausfall der Relais | Ein- und Auschecken, allgemeine Nachrichten, Notmeldungen, wenn das lokale Netz nicht erreichbar ist |
-| Lokale Informationsnetze | je Gruppe von Bezirken ein eigener UHF-Kanal (um 430 MHz) | Lichtinseln und Amateurfunkstellen mit dem K-Vorsorgestandort |
+| Lokale Informationsnetze | je Gruppe von Bezirken ein eigener UHF-Kanal (um 430 MHz) | Lichtinseln und Verbindungsstationen (weiter zum K-Vorsorgestandort) |
 | Taktisches Netz | 70 cm, DMR | ELS und K-Vorsorgestandorte |
 | Notruffrequenz | 145,500 MHz | wird nach Möglichkeit mitgehört |
 
