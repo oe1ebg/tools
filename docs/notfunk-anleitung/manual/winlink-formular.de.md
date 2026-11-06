@@ -50,14 +50,16 @@ einzelnen Dateien, und nicht ein Ordner, der ihn noch einmal enthält.
 
 ## 2b. MacWinlink (macOS)
 
-!!! note "Noch nicht getestet"
-    Wir prüfen diese Schritte noch mit MacWinlink 0.99.
+Geprüft mit MacWinlink 0.99.62: Formular importieren und Nachricht
+erstellen.
 
-1. MacWinlink öffnen, die **Forms Library** öffnen.
+1. MacWinlink öffnen, **Templates & Forms** öffnen und links
+   **Global Templates** wählen.
 2. **Import** → im ausgepackten Ordner **„OE Notfunk“** die Datei
    `OE_Notfunk_Meldung.txt` wählen. Die beiden `.html`-Dateien müssen daneben
    im selben Ordner liegen.
-3. Entfernen: in der Forms Library rechte Maustaste auf das Formular →
+3. Formular wählen → **„Compose New Message with Form“**.
+4. Entfernen: in der Forms Library rechte Maustaste auf das Formular →
    **„Delete…“**.
 
 ## 2c. Pat (Linux, Raspberry Pi, macOS, Windows)
@@ -119,6 +121,11 @@ und darunter **„Winlink-Formular „OE Notfunk Meldung“ · Version 1.0“**,
   und der Knopf zum Erstellen fehlt.** Die HTML-Datei wurde direkt per
   Doppelklick geöffnet. Senden geht nur aus Winlink Express, MacWinlink oder
   Pat: dort eine neue Nachricht beginnen und das Formular wählen.
+- **MacWinlink: das Formular bleibt beim Erstellen der Nachricht weiß,**
+  oder der Import meldet „… couldn't be copied because you don't have
+  permission to access" mit dem eigenen Rufzeichen. Das Formular unter den
+  Vorlagen des Rufzeichens (z. B. „OE1EBG Templates“) löschen und unter
+  **Global Templates** neu importieren.
 - **Der Empfänger sieht nur einfachen Text statt der Meldung mit Verlauf.**
   Bei ihm ist das Formular nicht installiert. Er kann es nachinstallieren
   und die Nachricht neu öffnen; ins Meldebuch übernehmen kann er sie auch
