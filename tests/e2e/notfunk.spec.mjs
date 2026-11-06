@@ -180,6 +180,13 @@ test('Bezug: search by number and Betreff, pick from the list, saved linked', as
   await page.keyboard.press('Tab');
   await expect(ref).toHaveValue('K2-010');
   await expect(page.locator('#m-ref-info')).toContainText('nicht in diesem Einsatz');
+
+  // emptied by hand, the field drops the link too: saved without a Bezug
+  await ref.fill('');
+  await page.locator('#btn-save').click();
+  await expect(row).not.toContainText('↪');
+  await row.locator('td.num a').click();
+  await expect(page.locator('.detail-bezug')).toHaveCount(0);
 });
 
 // Issue #15: the book keeps its rows between renders (keyed by message and
@@ -681,6 +688,7 @@ test('Übung: header mark and reminder; printouts and CSV marked; the text verba
   await expect(hint).toBeVisible();
   await expect(hint).toHaveText('ÜBUNG: Vor und nach dem Spruch: „ACHTUNG ÜBUNG“');
   await expect(text).toHaveAccessibleDescription(/Vor und nach dem Spruch: „ACHTUNG ÜBUNG“/);
+  await expect(text).toHaveAccessibleDescription(/Wer · Wann · Was · Wo · Wie/); // the 5 W hint stays
   await expect(page.locator('#op-sum')).toContainText('Übung');
   // the text is stored as typed: nothing added
   await addMessage(page, 'Lichtinsel 3', 'Wasser', 'Kein Wasser im Haus.');

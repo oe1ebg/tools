@@ -102,10 +102,10 @@ export function releaseText(release) {
   return /^v\d+\.\d+\.\d+(-[0-9a-z.]+)?$/.test(String(release || '')) ? `${release} · ` : '';
 }
 
-// "2026-10-04..." -> "04.10.2026"
+// "2026-10-04T..." -> "2026-10-04" (ISO 8601 dates everywhere, AGENTS.md)
 export function standDate(iso) {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
-  return m ? `${m[3]}.${m[2]}.${m[1]}` : String(iso || '?');
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : String(iso || '?');
 }
 
 export function extLink(url, text) {
