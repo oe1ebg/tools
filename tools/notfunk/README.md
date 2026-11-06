@@ -306,8 +306,8 @@ name, and a distribution list ("Verteiler").
 ## Winlink (Prototyp)
 
 Issue #179. A Meldung goes to another station over Winlink (Winlink Express,
-MacWinlink, Pat) as the form „OE Notfunk Meldung“ (`winlink/`, shipped as
-`downloads/oe-notfunk-meldung-winlink.zip`), and a received one comes into the
+MacWinlink, Pat) as the form „OE1 Notfunk Meldung“ (`winlink/`, shipped as
+`downloads/oe1-notfunk-meldung-winlink.zip`), and a received one comes into the
 book without retyping. The book stays offline: files and copy/paste only, no
 connection to Pat's API. The exchange format is `winlink/FORMAT.md` (binding
 for the book and the form pack); the book's side is `js/winlink.js` (pure,
@@ -339,8 +339,8 @@ import never takes marker lines into the Inhalt and keeps `source.exercise`
   for the form's „Aus Meldebuch laden“, or `<MID>.b2f` for Pat's `out/`
   folder (`winlinkB2f()`): wl2k-go layout (Mid first, other headers sorted,
   CRLF, subject Q-encoded ISO-8859-1, body ISO-8859-1 from the form's template
-  `winlink/OE_Notfunk_Meldung.txt` with `?` outside Latin-1, lines over 998
-  bytes split) and the attachment `RMS_Express_Form_OE_Notfunk_Meldung_Viewer.xml`
+  `winlink/OE1_Notfunk_Meldung.txt` with `?` outside Latin-1, lines over 998
+  bytes split) and the attachment `RMS_Express_Form_OE1_Notfunk_Meldung_Viewer.xml`
   as Pat's `buildXML()` writes it (Go `encoding/xml` escaping, variables
   sorted, CRLF as a browser posts it). Byte for byte equal to Pat v1.0.0's
   output (`tests/fixtures/notfunk-winlink/pat/`). The status stays manual.

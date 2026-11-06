@@ -15,9 +15,9 @@ const OE1EBG = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIR = join(OE1EBG, 'tools', 'notfunk', 'winlink');
 const FIX = join(OE1EBG, 'tests', 'fixtures', 'notfunk-winlink', 'pat');
 const read = name => readFileSync(join(DIR, name), 'utf8');
-const TEMPLATE = read('OE_Notfunk_Meldung.txt');
-const INITIAL = read('OE_Notfunk_Meldung_Initial.html');
-const VIEWER = read('OE_Notfunk_Meldung_Viewer.html');
+const TEMPLATE = read('OE1_Notfunk_Meldung.txt');
+const INITIAL = read('OE1_Notfunk_Meldung_Initial.html');
+const VIEWER = read('OE1_Notfunk_Meldung_Viewer.html');
 
 // Insertion tags Pat replaces in form HTML (internal/forms/builder.go,
 // insertionTagReplacer; Winlink Express has the same set and more).
@@ -30,7 +30,7 @@ const scripts = html => [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(
 
 test('template: header lines, both forms, ASCII only', () => {
   const lines = TEMPLATE.split('\n');
-  assert.equal(lines[0], 'Form: OE_Notfunk_Meldung_Initial.html,OE_Notfunk_Meldung_Viewer.html');
+  assert.equal(lines[0], 'Form: OE1_Notfunk_Meldung_Initial.html,OE1_Notfunk_Meldung_Viewer.html');
   assert.ok(lines.includes('To: <var msgto>'));
   assert.ok(lines.includes('Subject: <var kennung> <var prioritaet> <var nummer>: <var betreff>'));
   // exercise marker: the first body line; its own line, a blank line, the Inhalt, a blank line, the marker
@@ -121,14 +121,14 @@ test('payload: ASCII, no < > &, no line breaks, and what Pat recorded', () => {
   assert.deepEqual(JSON.parse(s), sample);
   assert.equal(JSON.parse(serialiser()({ t: '😀 {var x}' })).t, '😀 {var x}');
   // Pat's XML attachment carries exactly this string, XML-escaped
-  const xml = readFileSync(join(FIX, 'RMS_Express_Form_OE_Notfunk_Meldung_Viewer.xml'), 'utf8');
+  const xml = readFileSync(join(FIX, 'RMS_Express_Form_OE1_Notfunk_Meldung_Viewer.xml'), 'utf8');
   const raw = /<meldung>([^<]*)<\/meldung>/.exec(xml)[1].replace(/&#34;/g, '"').replace(/&#39;/g, "'");
   assert.equal(raw, s);
-  assert.match(xml, /<display_form>OE_Notfunk_Meldung_Viewer\.html<\/display_form>/);
+  assert.match(xml, /<display_form>OE1_Notfunk_Meldung_Viewer\.html<\/display_form>/);
   // the .b2f: ISO-8859-1 body, one attachment with that name and size
-  const b2f = readFileSync(join(FIX, 'XI3ANHPBSOTX.b2f')).toString('latin1');
+  const b2f = readFileSync(join(FIX, 'F7KZR3Z7S5VG.b2f')).toString('latin1');
   assert.match(b2f, /\r\nContent-Type: text\/plain; charset=ISO-8859-1\r\n/);
-  assert.match(b2f, /\r\nFile: \d+ RMS_Express_Form_OE_Notfunk_Meldung_Viewer\.xml\r\n/);
+  assert.match(b2f, /\r\nFile: \d+ RMS_Express_Form_OE1_Notfunk_Meldung_Viewer\.xml\r\n/);
   assert.match(b2f, /\r\nSubject: =\?ISO-8859-1\?q\?\[=DCBUNG\]_Dringend_W1-007:_Nachschub_Notstrom_<dringend>_&_Treibstoff\?=\r\n/);
   // the marker framed, with a blank line on both sides of the Inhalt
   assert.ok(b2f.includes('\r\n\r\n=== ACHTUNG \xdcBUNG ===\r\nNOTFUNK-MELDUNG W1-007\r\n'), 'first body line');
@@ -149,7 +149,7 @@ function python(args) {
   throw new Error('no python');
 }
 
-test('operator download: deterministic zip with the folder "OE Notfunk"', () => {
+test('operator download: deterministic zip with the folder "OE1 Notfunk"', () => {
   const tmp = mkdtempSync(join(tmpdir(), 'winlink-zip-'));
   try {
     const a = join(tmp, 'a.zip'), b = join(tmp, 'b.zip');
@@ -158,8 +158,8 @@ test('operator download: deterministic zip with the folder "OE Notfunk"', () => 
     assert.ok(readFileSync(a).equals(readFileSync(b)), 'same bytes twice');
     const names = python(['-c', 'import sys, zipfile; print("\\n".join(i.filename + " " + str(i.date_time[0]) for i in zipfile.ZipFile(sys.argv[1]).infolist()))', a]).trim().split('\n');
     assert.deepEqual(names, [
-      'OE Notfunk/ 1980', 'OE Notfunk/OE_Notfunk_Meldung.txt 1980',
-      'OE Notfunk/OE_Notfunk_Meldung_Initial.html 1980', 'OE Notfunk/OE_Notfunk_Meldung_Viewer.html 1980', 'README.txt 1980',
+      'OE1 Notfunk/ 1980', 'OE1 Notfunk/OE1_Notfunk_Meldung.txt 1980',
+      'OE1 Notfunk/OE1_Notfunk_Meldung_Initial.html 1980', 'OE1 Notfunk/OE1_Notfunk_Meldung_Viewer.html 1980', 'README.txt 1980',
     ]);
   } finally {
     rmSync(tmp, { recursive: true, force: true });

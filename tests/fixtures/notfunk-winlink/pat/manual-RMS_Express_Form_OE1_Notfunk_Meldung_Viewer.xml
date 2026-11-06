@@ -1,52 +1,12 @@
-Mid: 5VZ7K4AHV4SK
-Body: 621
-Content-Transfer-Encoding: 8bit
-Content-Type: text/plain; charset=ISO-8859-1
-Date: 2026/11/06 20:26
-File: 1533 RMS_Express_Form_OE_Notfunk_Meldung_Viewer.xml
-From: OE1XYZ
-Mbo: OE1XYZ
-Subject: =?ISO-8859-1?q?[=DCBUNG]_Notfall_K-001:_Br=FCcke_gesperrt?=
-To: OE3ABC
-Type: Private
-
-=== ACHTUNG ÜBUNG ===
-NOTFUNK-MELDUNG K-001
-========================================
-Nummer:        K-001
-Dringlichkeit: Notfall
-Art:           Meldung
-Zeit:          2026-11-06 19:00 UTC
-Von:           Feuerwehr / OE3ABC
-An:            
-Betreff:       Brücke gesperrt
-Bezug:         
-
-Inhalt:
-=== ACHTUNG ÜBUNG ===
-
-Zeile 1 äöü ?
-Zeile 2
-
-=== ACHTUNG ÜBUNG ===
-
-Verlauf:
-
-
-----------------------------------------
-Gesendet von OE1XYZ, Formular OE Notfunk Meldung 1.0.
-Die ganze Meldung mit Verlauf steht im Anhang (Formular
-"OE Notfunk Meldung"); das Notfunk-Meldebuch liest sie von dort ein.
-
 <?xml version="1.0" encoding="UTF-8"?>
 <RMS_Express_Form>
     <form_parameters>
         <xml_file_version>1.0</xml_file_version>
         <rms_express_version>Pat v1.0.0 (2e6a8d1)</rms_express_version>
-        <submission_datetime>20261106202604</submission_datetime>
+        <submission_datetime>20261106204441</submission_datetime>
         <senders_callsign>OE1XYZ</senders_callsign>
         <grid_square>JN88</grid_square>
-        <display_form>OE_Notfunk_Meldung_Viewer.html</display_form>
+        <display_form>OE1_Notfunk_Meldung_Viewer.html</display_form>
         <reply_template></reply_template>
     </form_parameters>
     <variables>
@@ -71,7 +31,7 @@ Die ganze Meldung mit Verlauf steht im Anhang (Formular
         <nummer>K-001</nummer>
         <prioritaet>Notfall</prioritaet>
         <station>OE1XYZ</station>
-        <templateversion>OE Notfunk Meldung 1.0</templateversion>
+        <templateversion>OE1 Notfunk Meldung 1.0</templateversion>
         <txtstr></txtstr>
         <uebung>=== ACHTUNG ÃœBUNG ===</uebung>
         <verlauf></verlauf>

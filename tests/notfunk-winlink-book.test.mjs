@@ -148,7 +148,7 @@ test('flat fields: exactly the variables of FORMAT.md', () => {
       '2026-11-06 17:30 UTC übertragen an OE3ABC: per Winlink (OE1XYZ)',
     ].join('\n'),
     format_version: '1',
-    templateversion: 'OE Notfunk Meldung 1.0',
+    templateversion: 'OE1 Notfunk Meldung 1.0',
   });
   // a Bezug typed as text (no linked message)
   const p = payloadA();
@@ -168,8 +168,8 @@ test('flat fields: exactly the variables of FORMAT.md', () => {
   assert.equal(winlinkPayload(bookA().w7, [], null, STATION_A, '0.9.0', NOW).exercise, true, 'operations without the field are exercises');
 });
 
-test('the template is the form pack\'s OE_Notfunk_Meldung.txt', () => {
-  const file = path.join(ROOT, 'tools/notfunk/winlink/OE_Notfunk_Meldung.txt');
+test('the template is the form pack\'s OE1_Notfunk_Meldung.txt', () => {
+  const file = path.join(ROOT, 'tools/notfunk/winlink/OE1_Notfunk_Meldung.txt');
   assert.equal(WINLINK_TEMPLATE, fs.readFileSync(file, 'utf8').replace(/^﻿/, '').replace(/\r\n/g, '\n'));
   const r = winlinkRenderTemplate(WINLINK_TEMPLATE, winlinkFlatFields(payloadA(), 'OE3ABC'));
   assert.equal(r.to, 'OE3ABC');
@@ -221,23 +221,23 @@ test('b2f: wl2k-go layout, Latin-1 body, XML attachment, parsed back to the same
   assert.ok(lb.includes(`\n${'z'.repeat(998)}\n${'z'.repeat(998)}\n${'z'.repeat(504)}\n`));
 });
 
-test('b2f and XML: byte for byte what Pat v1.0.0 writes (recorded fixtures)', { skip: !fs.existsSync(path.join(PAT, 'XI3ANHPBSOTX.b2f')) && 'no Pat fixtures' }, () => {
+test('b2f and XML: byte for byte what Pat v1.0.0 writes (recorded fixtures)', { skip: !fs.existsSync(path.join(PAT, 'F7KZR3Z7S5VG.b2f')) && 'no Pat fixtures' }, () => {
   const payload = JSON.parse(fs.readFileSync(path.join(PAT, 'W1-007.winlink.json'), 'utf8'));
-  const pat = read(path.join(PAT, 'XI3ANHPBSOTX.b2f'));
-  const mine = winlinkB2f(payload, { mycall: 'OE1XYZ', msgto: 'OE3ABC', now: '2026-11-06T20:26:03.000Z', mid: 'XI3ANHPBSOTX', appVersion: 'Pat v1.0.0 (2e6a8d1)', grid: 'JN88' });
+  const pat = read(path.join(PAT, 'F7KZR3Z7S5VG.b2f'));
+  const mine = winlinkB2f(payload, { mycall: 'OE1XYZ', msgto: 'OE3ABC', now: '2026-11-06T20:44:36.000Z', mid: 'F7KZR3Z7S5VG', appVersion: 'Pat v1.0.0 (2e6a8d1)', grid: 'JN88' });
   assert.equal(Buffer.compare(Buffer.from(mine.bytes), Buffer.from(pat)), 0);
-  assert.equal(mine.xml, fs.readFileSync(path.join(PAT, 'RMS_Express_Form_OE_Notfunk_Meldung_Viewer.xml'), 'utf8'));
+  assert.equal(mine.xml, fs.readFileSync(path.join(PAT, 'RMS_Express_Form_OE1_Notfunk_Meldung_Viewer.xml'), 'utf8'));
   // and read back: the b2f, the XML attachment, the payload file
-  for (const name of ['XI3ANHPBSOTX.b2f', 'RMS_Express_Form_OE_Notfunk_Meldung_Viewer.xml', 'W1-007.winlink.json']) {
+  for (const name of ['F7KZR3Z7S5VG.b2f', 'RMS_Express_Form_OE1_Notfunk_Meldung_Viewer.xml', 'W1-007.winlink.json']) {
     const r = parseWinlinkInput(name, read(path.join(PAT, name)));
     assert.equal(r.kind, 'payload', name);
     assert.deepEqual(r.payload, payload, name);
   }
-  assert.equal(parseWinlinkInput('x.b2f', pat).mid, 'XI3ANHPBSOTX');
+  assert.equal(parseWinlinkInput('x.b2f', pat).mid, 'F7KZR3Z7S5VG');
 });
 
-test('our form filled in by hand (no `meldung`): the flat fields, recorded with Pat', { skip: !fs.existsSync(path.join(PAT, 'manual-5VZ7K4AHV4SK.b2f')) && 'no Pat fixtures' }, () => {
-  for (const name of ['manual-5VZ7K4AHV4SK.b2f', 'manual-RMS_Express_Form_OE_Notfunk_Meldung_Viewer.xml']) {
+test('our form filled in by hand (no `meldung`): the flat fields, recorded with Pat', { skip: !fs.existsSync(path.join(PAT, 'manual-5MSFGUMHUD7T.b2f')) && 'no Pat fixtures' }, () => {
+  for (const name of ['manual-5MSFGUMHUD7T.b2f', 'manual-RMS_Express_Form_OE1_Notfunk_Meldung_Viewer.xml']) {
     const r = parseWinlinkInput(name, read(path.join(PAT, name)));
     assert.equal(r.kind, 'flat', name);
     assert.equal(r.flat.ours, true);
@@ -260,7 +260,7 @@ test('our form filled in by hand (no `meldung`): the flat fields, recorded with 
 test('XML as Pat escapes it (encoding/xml): entities, CRLF, CDATA, BOM, Latin-1', () => {
   const p = payloadA();
   const meldung = winlinkJson(p).replace(/"/g, '&#34;');
-  const xml = `﻿<?xml version="1.0" encoding="UTF-8"?>\r\n<RMS_Express_Form>\r\n  <form_parameters><display_form>OE_Notfunk_Meldung_Viewer.html</display_form><senders_callsign>OE1XYZ</senders_callsign></form_parameters>\r\n  <variables>\r\n    <Inhalt>A &amp; B &lt;c&gt; &#34;d&#34; &#39;e&#39;&#xD;&#xA;f &#228; &#x1F4FB;</Inhalt>\r\n    <leer/>\r\n    <meldung>${meldung}</meldung>\r\n  </variables>\r\n</RMS_Express_Form>`;
+  const xml = `﻿<?xml version="1.0" encoding="UTF-8"?>\r\n<RMS_Express_Form>\r\n  <form_parameters><display_form>OE1_Notfunk_Meldung_Viewer.html</display_form><senders_callsign>OE1XYZ</senders_callsign></form_parameters>\r\n  <variables>\r\n    <Inhalt>A &amp; B &lt;c&gt; &#34;d&#34; &#39;e&#39;&#xD;&#xA;f &#228; &#x1F4FB;</Inhalt>\r\n    <leer/>\r\n    <meldung>${meldung}</meldung>\r\n  </variables>\r\n</RMS_Express_Form>`;
   assert.deepEqual(parseWinlinkInput('f.xml', Buffer.from(xml, 'utf8')).payload, p);
   // without meldung: flat, with the escapes decoded
   const flat = parseWinlinkInput('f.xml', xml.replace(/<meldung>.*<\/meldung>/, '<betreff><![CDATA[x < y]]></betreff>'));

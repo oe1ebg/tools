@@ -13,7 +13,7 @@ oder Pat) sendet.
     Getestet mit Pat 1.0. Winlink Express ist noch nicht ausprobiert. Für
     Übungen gedacht.
 
-Beide Stationen brauchen dafür das Winlink-Formular **„OE Notfunk
+Beide Stationen brauchen dafür das Winlink-Formular **„OE1 Notfunk
 Meldung“**; wie man es installiert, steht in
 [Winlink-Formular installieren](winlink-formular.de.md). Eine Station ohne
 Formular liest die Meldung trotzdem: als einfachen Text.
@@ -43,7 +43,7 @@ Formular liest die Meldung trotzdem: als einfachen Text.
    Zwischenablage: **„Daten kopieren“**, dann im Formular
    **„Oder den Inhalt der Datei einfügen“** aufklappen, einfügen und
    **„Übernehmen“**.
-4. Im Winlink-Programm eine neue Nachricht mit dem Formular **„OE Notfunk
+4. Im Winlink-Programm eine neue Nachricht mit dem Formular **„OE1 Notfunk
    Meldung“** beginnen, **„Aus Meldebuch laden“**, die Datei wählen (oder
    ihren Inhalt einfügen), die Winlink-Adresse des Empfängers prüfen und
    **„Nachricht erstellen“**.
@@ -67,10 +67,10 @@ Die Nachricht im Winlink-Programm öffnen. Mit installiertem Formular zeigt
 es die ganze Meldung mit Verlauf. Unter **„Für das Meldebuch“**:
 
 - **Winlink Express:** „Speichern“ (Datei `…winlink.json`) oder
-  „Kopieren“; oder den Anhang `RMS_Express_Form_OE_Notfunk_Meldung_Viewer.xml`
+  „Kopieren“; oder den Anhang `RMS_Express_Form_OE1_Notfunk_Meldung_Viewer.xml`
   der Nachricht speichern.
 - **Pat:** „Kopieren“ (Speichern ist in Pat gesperrt); oder in der
-  Nachricht den Anhang `RMS_Express_Form_OE_Notfunk_Meldung_Viewer.xml`
+  Nachricht den Anhang `RMS_Express_Form_OE1_Notfunk_Meldung_Viewer.xml`
   herunterladen; oder die Datei `<MID>.b2f` aus dem Ordner `in/` des
   Postfachs nehmen (`~/.local/share/pat/mailbox/<RUFZEICHEN>/in/`, macOS
   `~/Library/Application Support/pat/mailbox/<RUFZEICHEN>/in/`).

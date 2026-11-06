@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>OE Notfunk Meldung &ndash; erstellen</title>
-<!-- Winlink form "OE Notfunk Meldung" (input form), part of the Notfunk-Meldebuch
+<title>OE1 Notfunk Meldung &ndash; erstellen</title>
+<!-- Winlink form "OE1 Notfunk Meldung" (input form), part of the Notfunk-Meldebuch
      (oe1ebg tools, issue 179). Contract: FORMAT.md next to this file.
      Pat and Winlink Express replace insertion tags in braces in this whole file
      (also in the script below): never write one of their names in braces here,
@@ -66,12 +66,12 @@ details[open] textarea{margin:4px 0 8px}
 <body>
 <main>
 <h1>Notfunk-Meldung</h1>
-<p class="sub">Winlink-Formular &bdquo;OE Notfunk Meldung&ldquo; &middot; Version 1.0</p>
-<p id="outside" class="note" role="note" hidden>Dieses Formular ist nicht in einem Winlink-Programm ge&ouml;ffnet, darum fehlt der Knopf zum Erstellen der Nachricht. Senden geht nur aus Winlink Express oder Pat: dort eine neue Nachricht beginnen und das Formular &bdquo;OE Notfunk Meldung&ldquo; w&auml;hlen.</p>
+<p class="sub">Winlink-Formular &bdquo;OE1 Notfunk Meldung&ldquo; &middot; Version 1.0</p>
+<p id="outside" class="note" role="note" hidden>Dieses Formular ist nicht in einem Winlink-Programm ge&ouml;ffnet, darum fehlt der Knopf zum Erstellen der Nachricht. Senden geht nur aus Winlink Express oder Pat: dort eine neue Nachricht beginnen und das Formular &bdquo;OE1 Notfunk Meldung&ldquo; w&auml;hlen.</p>
 
 <form id="f" method="post" enctype="multipart/form-data" action="http://{FormServer}:{FormPort}" novalidate>
 <input type="hidden" name="format_version" value="1">
-<input type="hidden" name="templateversion" value="OE Notfunk Meldung 1.0">
+<input type="hidden" name="templateversion" value="OE1 Notfunk Meldung 1.0">
 <input type="hidden" name="station" id="station" value="{MsgSender}">
 <input type="hidden" name="meldung" id="meldung" value="">
 <input type="hidden" name="verlauf" id="verlauf" value="">
@@ -180,7 +180,7 @@ details[open] textarea{margin:4px 0 8px}
   function check(o) {
     if (!o || typeof o !== 'object' || o.format !== FORMAT) return 'Das ist keine Exportdatei des Notfunk-Meldebuchs f\u00fcr Winlink (Kennung \u201e' + FORMAT + '\u201c fehlt).';
     if (!Number.isInteger(o.version) || o.version < 1) return 'Die Format-Version der Datei ist ung\u00fcltig.';
-    if (o.version > VERSION) return 'Diese Meldung wurde mit einer neueren Version erstellt (Format-Version ' + o.version + '). Bitte das Formular \u201eOE Notfunk Meldung\u201c aktualisieren.';
+    if (o.version > VERSION) return 'Diese Meldung wurde mit einer neueren Version erstellt (Format-Version ' + o.version + '). Bitte das Formular \u201eOE1 Notfunk Meldung\u201c aktualisieren.';
     const m = o.message;
     if (!m || typeof m !== 'object' || typeof m.number !== 'string' || !m.number) return 'In der Datei fehlt die Meldung oder ihre Nummer.';
     if ((m.status && !Array.isArray(m.status)) || (o.revisions && !Array.isArray(o.revisions))) return 'Die Datei ist besch\u00e4digt (Verlauf).';

@@ -63,7 +63,7 @@ BUILD_INFO_NAME = "build-info.js"
 UNHASHED = [BUILD_INFO_NAME]
 # (tool, folder): sources inside a tool's directory that are not part of the
 # served tool, neither precached nor staged (scripts/build_site.py). The
-# Notfunk Winlink form pack ships only as downloads/oe-notfunk-meldung-winlink.zip.
+# Notfunk Winlink form pack ships only as downloads/oe1-notfunk-meldung-winlink.zip.
 SOURCE_ONLY_DIRS = [("notfunk", "winlink")]
 
 

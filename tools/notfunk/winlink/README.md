@@ -1,4 +1,4 @@
-# Winlink form pack „OE Notfunk Meldung“ (prototype, issue #179)
+# Winlink form pack „OE1 Notfunk Meldung“ (prototype, issue #179)
 
 Sends a Meldung of the Notfunk-Meldebuch over Winlink as a form, so the
 receiver sees the whole message (fields, Bezug, status history, attempts,
@@ -7,13 +7,13 @@ format is [FORMAT.md](FORMAT.md); it is binding for both sides.
 
 | File | Role |
 | --- | --- |
-| `OE_Notfunk_Meldung.txt` | template: `To:`, subject `<Dringlichkeit> <Nummer>: <Betreff>`, plain-text body |
-| `OE_Notfunk_Meldung_Initial.html` | input form: „Aus Meldebuch laden“ (the `.winlink.json` export, file or pasted) or manual entry |
-| `OE_Notfunk_Meldung_Viewer.html` | viewer: the full message from `meldung`, else the flat fields; „Für das Meldebuch“ copy/save |
+| `OE1_Notfunk_Meldung.txt` | template: `To:`, subject `<Dringlichkeit> <Nummer>: <Betreff>`, plain-text body |
+| `OE1_Notfunk_Meldung_Initial.html` | input form: „Aus Meldebuch laden“ (the `.winlink.json` export, file or pasted) or manual entry |
+| `OE1_Notfunk_Meldung_Viewer.html` | viewer: the full message from `meldung`, else the flat fields; „Für das Meldebuch“ copy/save |
 | `README.txt` | operator instructions shipped in the zip (German) |
 
-The bundle ships the pack only as `downloads/oe-notfunk-meldung-winlink.zip`
-(folder `OE Notfunk/`, built by `scripts/winlink_pack.py` from
+The bundle ships the pack only as `downloads/oe1-notfunk-meldung-winlink.zip`
+(folder `OE1 Notfunk/`, built by `scripts/winlink_pack.py` from
 `scripts/build_site.py`). The HTML files are not staged as pages and not
 precached: they are Winlink artifacts (`http://{FormServer}:{FormPort}` is
 not a URL until the client replaces it).
@@ -42,19 +42,19 @@ not a URL until the client replaces it).
 
 ## Install
 
-**Winlink Express:** copy the folder `OE Notfunk` with the three files to
-`C:\RMS Express\Global Folders\Templates\OE Notfunk\` (or the Templates
-folder of one callsign). New message → „Select Template“ → `OE Notfunk` →
-`OE_Notfunk_Meldung`.
+**Winlink Express:** copy the folder `OE1 Notfunk` with the three files to
+`C:\RMS Express\Global Folders\Templates\OE1 Notfunk\` (or the Templates
+folder of one callsign). New message → „Select Template“ → `OE1 Notfunk` →
+`OE1_Notfunk_Meldung`.
 
 **Pat:** copy the folder into Pat's forms directory, e.g.
-`~/.local/share/pat/Standard_Forms/OE Notfunk/` (Linux, Raspberry Pi) or
-`~/Library/Application Support/pat/Standard_Forms/OE Notfunk/` (macOS);
+`~/.local/share/pat/Standard_Forms/OE1 Notfunk/` (Linux, Raspberry Pi) or
+`~/Library/Application Support/pat/Standard_Forms/OE1 Notfunk/` (macOS);
 `pat env` shows `PAT_FORMS_PATH`. Pat finds subfolders by itself (no
 restart needed). `pat templates update` / „Update forms“ only unzips the
 Standard Forms over that directory: it does not delete other folders, so
-`OE Notfunk/` survives (Pat v1.0.0, `internal/forms/unzip.go`). Web UI:
-New message → Template → `OE Notfunk` → `OE_Notfunk_Meldung`.
+`OE1 Notfunk/` survives (Pat v1.0.0, `internal/forms/unzip.go`). Web UI:
+New message → Template → `OE1 Notfunk` → `OE1_Notfunk_Meldung`.
 
 ## Send
 
@@ -82,7 +82,7 @@ Open the message; the client shows the viewer. Under „Für das Meldebuch“:
 „Kopieren“ and paste in the Meldebuch's import, or „Speichern“
 (`<Nummer>.winlink.json`). Pat's viewer runs in a sandbox without downloads:
 „Speichern“ is disabled there; copy, or download the attachment
-`RMS_Express_Form_OE_Notfunk_Meldung_Viewer.xml` from the message (the
+`RMS_Express_Form_OE1_Notfunk_Meldung_Viewer.xml` from the message (the
 Meldebuch reads it too), or take the `.b2f` from Pat's mailbox
 (`<mailbox>/<CALL>/in/<MID>.b2f`).
 

@@ -1,7 +1,7 @@
 // Winlink exchange of the Notfunk-Meldebuch (issue #179). Pure functions, no
 // DOM, no storage; unit-tested in oe1ebg/tests/notfunk-winlink.test.mjs.
 //
-// The contract with the Winlink form „OE Notfunk Meldung“ is
+// The contract with the Winlink form „OE1 Notfunk Meldung“ is
 // ../winlink/FORMAT.md: one form variable `meldung` carries the complete
 // message as compact, ASCII-only JSON (the payload), next to flat display
 // fields for the plain-text body. This module
@@ -19,9 +19,9 @@ import { parseParty } from './form.js';
 
 export const WINLINK_FORMAT = 'oe1ebg-notfunk-winlink';
 export const WINLINK_VERSION = 1;
-export const WINLINK_TEMPLATE_VERSION = 'OE Notfunk Meldung 1.0';
-export const WINLINK_VIEWER = 'OE_Notfunk_Meldung_Viewer.html';
-export const WINLINK_XML_NAME = 'RMS_Express_Form_OE_Notfunk_Meldung_Viewer.xml';
+export const WINLINK_TEMPLATE_VERSION = 'OE1 Notfunk Meldung 1.0';
+export const WINLINK_VIEWER = 'OE1_Notfunk_Meldung_Viewer.html';
+export const WINLINK_XML_NAME = 'RMS_Express_Form_OE1_Notfunk_Meldung_Viewer.xml';
 // Limits (FORMAT.md): a file read for import, the whole message as sent (body
 // and attachment, before Winlink's compression) and the subject header.
 export const WINLINK_INPUT_MAX_BYTES = 1024 * 1024;
@@ -53,9 +53,9 @@ export function winlinkIsExercise(payload) {
   return payload?.exercise !== false;
 }
 
-// The form's template (../winlink/OE_Notfunk_Meldung.txt, kept identical:
+// The form's template (../winlink/OE1_Notfunk_Meldung.txt, kept identical:
 // the tests compare them). Winlink Express and Pat fill the <var x> slots.
-export const WINLINK_TEMPLATE = `Form: OE_Notfunk_Meldung_Initial.html,OE_Notfunk_Meldung_Viewer.html
+export const WINLINK_TEMPLATE = `Form: OE1_Notfunk_Meldung_Initial.html,OE1_Notfunk_Meldung_Viewer.html
 To: <var msgto>
 Subject: <var kennung> <var prioritaet> <var nummer>: <var betreff>
 Msg:
@@ -84,7 +84,7 @@ Verlauf:
 ----------------------------------------
 Gesendet von <var station>, Formular <var templateversion>.
 Die ganze Meldung mit Verlauf steht im Anhang (Formular
-"OE Notfunk Meldung"); das Notfunk-Meldebuch liest sie von dort ein.
+"OE1 Notfunk Meldung"); das Notfunk-Meldebuch liest sie von dort ein.
 `;
 
 const WL_ID_RE = /^[A-Za-z0-9_-]{1,100}$/;
@@ -150,7 +150,7 @@ export function winlinkUtc(iso) {
 // The status history and the attempts of a message as text lines, oldest
 // first: "2026-11-06 18:05 UTC übertragen an OE3ABC, rückgelesen (OE1XYZ)".
 // Latin-1 only, so the lines survive the plain-text body; the same words as
-// the form's input page (../winlink/OE_Notfunk_Meldung_Initial.html).
+// the form's input page (../winlink/OE1_Notfunk_Meldung_Initial.html).
 export function winlinkHistory(status, attempts, direction) {
   const lines = [];
   for (const s of Array.isArray(status) ? status : []) {
@@ -667,7 +667,7 @@ export function parseWinlinkInput(name, input) {
     const subj = winlinkStripExerciseTag(subject);
     return { ...base, kind: 'flat', flat: { form: '', ours: false, subject: subj.subject, text: text.text, from, to: '', station: from, exercise: text.exercise || subj.exercise ? true : null } };
   }
-  throw new Error(`${name ? `„${name}“` : 'Der Text'}: nicht erkannt. Erwartet: die Datei aus dem Formular „OE Notfunk Meldung“ (.json), ein RMS_Express_Form_….xml oder eine Winlink-Nachricht (.b2f)`);
+  throw new Error(`${name ? `„${name}“` : 'Der Text'}: nicht erkannt. Erwartet: die Datei aus dem Formular „OE1 Notfunk Meldung“ (.json), ein RMS_Express_Form_….xml oder eine Winlink-Nachricht (.b2f)`);
 }
 
 /* ---------------------------------------------------------------- import plan */
