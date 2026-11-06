@@ -38,8 +38,8 @@ Frau Huber schildert den Notfall. Sie nehmen im Formular oben auf. Weil Sie
 die Meldung **weiterfunken**, ist die Richtung **Ausgang (↑)**.
 
 1. **Richtung:** Ausgang. **Übermittlung:** Funk. **Funkstelle:** das
-   Rufzeichen der Gegenstelle, an die Sie funken (hier OE1DEF, der
-   K-Vorsorgestandort); Frequenz und Relais sind vorbelegt.
+   Rufzeichen der Gegenstelle, an die Sie funken (hier OE1DEF, die
+   Verbindungsstation); Frequenz und Relais sind vorbelegt.
 2. **Von:** „Pflegeheim Brünner Straße 68, Frau Huber“. **An:** „Stab“.
    Den Absender nennt die Person, nicht Sie.
 3. **Dringlichkeit:** hier „Dringend“ (vor Routine zu übermitteln); „Notfall“
@@ -63,7 +63,7 @@ Die Meldung steht jetzt im Meldebuch mit dem Status **zur Übertragung**.
 
 ## 3. Funken und Übertragung festhalten
 
-Sie rufen den K-Vorsorgestandort und lesen die Meldung vor. Der Empfänger
+Sie rufen die Verbindungsstation und lesen die Meldung vor. Der Empfänger
 liest zurück.
 
 1. Klicken Sie in der Zeile von W1-001 auf **„übertragen“**; es öffnet sich
@@ -82,8 +82,8 @@ Operator. Hier endet Ihre Aufgabe für diese Meldung, bis die Antwort kommt.
 ## 4. Die Antwort entgegennehmen
 
 Der Stab antwortet: „Tankwagen mit 200 Liter Diesel ist unterwegs, Ankunft
-ca. 15:30.“ Die Antwort geht über die Meldesammelstelle, die Funkstelle der ELS und den
-K-Vorsorgestandort an Sie.
+ca. 15:30.“ Die Antwort geht über die Meldesammelstelle, die Funkstelle der ELS und die
+Verbindungsstation an Sie.
 
 1. Öffnen Sie W1-001 und wählen Sie **„Antwort erfassen“**. Das Formular
    kommt mit Richtung **Eingang**, vertauschtem Absender und Adressat und
