@@ -24,6 +24,8 @@ import { loadDataFile } from '../../shared/js/data.js';
 import { normalizeCall } from '../../shared/js/callbook.js';
 import { createCallsignService } from '../../shared/js/callsign-service.js';
 import { createCallsignLists } from '../../shared/js/callsignlists.js';
+import { createPlacesService } from '../../shared/js/places-service.js';
+import { createPlaceLists } from '../../shared/js/placelists.js';
 import { formatMHz } from '../../shared/js/repeaters.js';
 import { newId, nowIso } from '../../shared/js/time.js';
 import { attachCallSearch } from '../../shared/js/callsearch.js';
@@ -70,8 +72,12 @@ const state = {
   // The callsign lookup (shared/js/callsign-service.js): the Austrian list
   // and the user's own lists; redraws via onCallsigns().
   calls: createCallsignService({ getLang: () => 'de', onChange: () => onCallsigns() }),
+  // The user's named places (shared/js/places-service.js, issue #181):
+  // offered by the location fields, placed on the map.
+  places: createPlacesService({ onChange: () => onPlaces() }),
   locField: null,
   origLocField: null,
+  stationFields: {}, // 'n' / 'e': the location field of "Standort der Station"
   rptSearch: null,
   showErrors: false, // field errors are shown after the first save attempt
   warned: '',        // the warnings already shown once (saving again = save anyway)
@@ -235,6 +241,7 @@ function openNewOpForm() {
   $('#n-prefix').value = last.prefix || '';
   $('#n-call').value = last.call || '';
   $('#n-station').value = last.station || '';
+  syncStationField('n');
   $('#n-operator').value = last.operator || '';
   $('#n-home').value = last.home || 'Stab';
   $('#n-freq').value = fmtFreq(last.freq || '');
@@ -285,6 +292,7 @@ function renderOpPanel() {
   for (const [k, sel] of Object.entries(OP_FIELDS)) if (document.activeElement !== $(sel)) $(sel).value = k === 'freq' ? fmtFreq(op[k] || '') : op[k] || '';
   $('#e-exercise').checked = !!op.exercise;
   renderExercise();
+  syncStationField('e');
   $('#e-prefix').readOnly = state.msgs.length > 0;
   renderPartyInfo('#e-operator', '#e-operator-info');
   renderPartyInfo('#e-call', '#e-call-info');
@@ -443,6 +451,14 @@ function attachOpLookups(prefix, onChange) {
     onPick: () => { renderPartyInfo(`#${prefix}-call`, `#${prefix}-call-info`); onChange(); },
   });
   stationCall.addEventListener('input', () => renderPartyInfo(`#${prefix}-call`, `#${prefix}-call-info`));
+  // Standort der Station: completed like Ort (addresses and named places);
+  // the operation stores the text, the map resolves it again.
+  const station = $(`#${prefix}-station`);
+  state.stationFields[prefix] = createLocationField({
+    input: station, chip: $(`#${prefix}-station-info`), results: $(`#${prefix}-station-pop`),
+    places: state.places, onChange: () => {}, onPick: () => { station.dataset.shown = station.value; onChange(); },
+  });
+  station.addEventListener('input', () => { station.dataset.shown = station.value; });
   const via = $(`#${prefix}-via`);
   return attachRepeaterSearch({
     input: via, pop: $(`#${prefix}-via-pop`), info: $(`#${prefix}-via-info`),
@@ -453,6 +469,17 @@ function attachOpLookups(prefix, onChange) {
       onChange();
     },
   });
+}
+
+// The station field's info line follows a value put in from elsewhere (the
+// stored operation, another tab, "Rückgängig"); typing resolves by itself.
+function syncStationField(prefix) {
+  const input = $(`#${prefix}-station`);
+  const field = state.stationFields[prefix];
+  if (!field || input.dataset.shown === input.value) return;
+  input.dataset.shown = input.value;
+  field.clear();
+  if (input.value.trim()) field.refresh();
 }
 
 function initOpPanel() {
@@ -503,11 +530,16 @@ function mapContext(list) {
       status: statusLabel(currentStatus(m), m.direction),
     }),
     hrefOf: m => `#/e/${state.op.id}/m/${m.id}`,
-    // a place text counts only if it resolves confidently (as in Confirm)
+    // a place text counts only if it names a place of the own lists
+    // exactly or resolves confidently (as in Confirm)
     resolve: async text => {
+      const named = state.places.resolve(text);
+      if (named) return named;
       const idx = await loadLocationIndex();
       return idx ? locate(idx, text, { autoSelect: 'high' }).autoSelect : null;
     },
+    // texts resolved before are looked up again after the places changed
+    resolveKey: state.places.version(),
   };
 }
 
@@ -1295,10 +1327,10 @@ function initForm() {
   // Location lookups: they add a resolved place next to the text typed,
   // never change the message text.
   state.locField = createLocationField({
-    input: $('#m-loc'), chip: $('#m-loc-info'), results: $('#m-loc-pop'), onChange: onFormChange,
+    input: $('#m-loc'), chip: $('#m-loc-info'), results: $('#m-loc-pop'), onChange: onFormChange, places: state.places,
   });
   state.origLocField = createLocationField({
-    input: $('#m-orig-place'), chip: $('#m-orig-place-info'), results: $('#m-orig-place-pop'), onChange: onFormChange,
+    input: $('#m-orig-place'), chip: $('#m-orig-place-info'), results: $('#m-orig-place-pop'), onChange: onFormChange, places: state.places,
   });
   attachRefSearch();
   initHelpDialog({ keys: ['F1'] }); // "? Hilfe" in the header, F1, ? outside text fields
@@ -2063,6 +2095,26 @@ async function loadCallbook() {
   await state.calls.init();
 }
 
+// The named places changed (loaded, imported, another tab): the footer,
+// the station's info line and the map.
+function onPlaces() {
+  const sm = state.places.summary();
+  $('#places-summary').textContent = !sm.available ? '(brauchen IndexedDB)'
+    : sm.lists ? `(${sm.places} Orte in ${sm.lists} ${sm.lists === 1 ? 'Liste' : 'Listen'})` : '(keine)';
+  for (const p of Object.keys(state.stationFields)) {
+    delete $(`#${p}-station`).dataset.shown;
+    syncStationField(p);
+  }
+  if (state.op && notfunkMapVisible()) notfunkRefreshMap(mapContext(state.bookList || []));
+}
+
+async function loadPlaces() {
+  const dlg = createPlaceLists({ service: state.places });
+  $('#btn-places-open').addEventListener('click', ev => dlg.open(ev.currentTarget));
+  state.places.watchFocus();
+  await state.places.init();
+}
+
 async function loadRepeaterFooter() {
   const idx = await loadRepeaterIndex();
   fill($('#st-repeaters'), idx
@@ -2169,6 +2221,7 @@ async function main() {
   });
   fill($('#st-source'), ' · ', repoLink('Quellcode', 'tools/notfunk'));
   loadCallbook();
+  loadPlaces();
   loadRepeaterFooter();
   // "📍 Standort": the offline location search (as in Confirm); it also
   // builds the big location index in the background, after the page is up

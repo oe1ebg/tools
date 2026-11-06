@@ -100,6 +100,12 @@ für ganz Österreich Postleitzahlen, Gemeinden und Bezirke. Ein Vorschlag
 ergänzt Postleitzahl und Locator. Passt nichts, bleibt Ihr Text, wie er ist;
 der **Inhalt der Meldung wird nie verändert**.
 
+Haben Sie eine [Ortsliste](preparation.de.md#ortslisten-lichtinseln-und-andere-eigene-orte)
+geladen (Lichtinseln, K-Vorsorgestandorte …), stehen deren Orte mit ihrer
+Adresse an erster Stelle der Vorschläge, auch beim Standort der Station. Ein
+genau getippter Name oder Alias wird automatisch zugeordnet; die Meldung
+erscheint dann an diesem Ort auf der Karte.
+
 **„📍 Standort“** oben in der Kopfzeile öffnet die Standortsuche: Adresse, Ort,
 Koordinaten, Locator oder UTMREF eintippen und umrechnen lassen, ohne das
 Formular zu verlassen.

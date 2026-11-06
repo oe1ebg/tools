@@ -15,6 +15,7 @@ import { locate } from './location/index.js';
 import { latLonToMaidenhead } from './maidenhead.js';
 import { mgrsOf } from './utm.js';
 import { LOC_ORIGINS, LOC_NAME_TYPES } from './locmeta.js';
+import { placesMerge } from './places.js';
 
 const LOC_CONF_TEXT = { exact: 'exakt', high: 'hoch', likely: 'wahrscheinlich', ambiguous: 'mehrdeutig', low: 'unsicher' };
 
@@ -39,6 +40,13 @@ export function snapshotLocation(r, input, manual, origin = 'search') {
   if (r.areaInfo) snap.areaLocators = r.areaInfo.locators.map(l => l[0]);
   // A typed UTMREF is kept as typed (its precision); others are computed.
   if (r.utm) snap.utm = r.utm;
+  // A named place of the user's own lists (places.js): its address, kind
+  // and list.
+  if (r.type === 'place') {
+    snap.address = r.address || '';
+    snap.placeType = r.placeType || '';
+    snap.list = r.list || '';
+  }
   return snap;
 }
 
@@ -49,7 +57,8 @@ export function describeLocation(loc, utmDigits = 0) {
   const more = loc.areaLocators?.length > 1 ? ` (+${loc.areaLocators.length - 1})` : '';
   const plz = loc.postcode && !loc.label.includes(loc.postcode) ? `, ${loc.postcode}${loc.city ? ' ' + loc.city : ''}` : '';
   const utm = utmDigits && loc.type !== 'utm' ? mgrsOf(loc, utmDigits) : '';
-  return `${loc.label}${plz} · ${loc.maidenhead}${more}${utm ? ' · ' + utm : ''}`;
+  const addr = loc.address ? `, ${loc.address}` : '';
+  return `${loc.label}${addr}${plz} · ${loc.maidenhead}${more}${utm ? ' · ' + utm : ''}`;
 }
 
 // The text to put into the field for a chosen location: the full official
@@ -97,8 +106,11 @@ export function locationOptions(rec, listed) {
 
 // Elements: input (the field), results (its dropdown), chip (status line
 // under the field), plzInput (optional PLZ field to fill). onChange is
-// called whenever the resolution changes (for draft saving).
-export function createLocationField({ input, plzInput, chip, results, onChange }) {
+// called whenever the resolution changes (for draft saving); onPick
+// (optional) after a candidate was chosen from the dropdown. places
+// (optional): the user's named places (places-service.js), offered next
+// to the address lookup; an exact name is taken like an exact address.
+export function createLocationField({ input, plzInput, chip, results, onChange, onPick = null, places = null }) {
   const pop = popover(input, results);
   const chipBase = chip.className;
   let loc = null;
@@ -182,6 +194,7 @@ export function createLocationField({ input, plzInput, chip, results, onChange }
     results.replaceChildren();
     pop.hide();
     input.focus();
+    if (onPick) onPick(snap);
   }
 
   async function resolve() {
@@ -194,7 +207,8 @@ export function createLocationField({ input, plzInput, chip, results, onChange }
     }
     const idx = await loadLocationIndex();
     if (my !== seq) return; // a newer keystroke superseded this one
-    if (!idx) {
+    const named = places ? places.search(text, 4) : [];
+    if (!idx && !named.length) {
       fill(results, el('div', { class: 'ac-head' }, 'Standortdaten nicht verfügbar – Eingabe wird als Text gespeichert.'));
       pop.update();
       return;
@@ -202,7 +216,8 @@ export function createLocationField({ input, plzInput, chip, results, onChange }
     // The callsign-list city was picked on purpose: take its best match
     // down to "likely" (Vienna PLZ like "1220 Wien" are never "high").
     const level = textOrigin ? 'likely' : autoSelectLevel();
-    const res = locate(idx, text, { autoSelect: level === 'never' ? 'none' : level, limit: 6, utmRef: utmRef() });
+    let res = idx ? locate(idx, text, { autoSelect: level === 'never' ? 'none' : level, limit: 6, utmRef: utmRef() }) : null;
+    if (named.length || !res) res = placesMerge(res, named, { level });
     renderCandidates(results, res, { compact: true, onPick: r => choose(r, text) });
     pop.update();
     setLoc(res.autoSelect ? snapshotLocation(res.autoSelect, textOrigin ? '' : text, !!textOrigin, textOrigin || 'search') : null);

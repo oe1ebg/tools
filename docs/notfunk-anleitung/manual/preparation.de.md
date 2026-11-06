@@ -58,6 +58,52 @@ Installation und kein Internet.
   Entscheiden Sie sich in einem Einsatz für **eine** davon; zum Umziehen
   verwenden Sie die [Sicherung](backup.de.md).
 
+## Ortslisten: Lichtinseln und andere eigene Orte
+
+In Meldungen heißen Orte oft nur beim Namen: eine Lichtinsel, ein
+K-Vorsorgestandort, eine Verbindungsstation. Damit das Meldebuch diese Namen
+kennt, laden Sie **vor dem Einsatz** eine eigene Ortsliste. Das Werkzeug
+selbst enthält keine solchen Orte; Ihre Liste bleibt auf diesem Gerät und wird
+nirgends hingeschickt.
+
+Die Ortsliste ist eine CSV-Datei (Excel, LibreOffice oder ein Texteditor).
+Die erste Zeile benennt die Spalten, jede weitere ist ein Ort:
+
+```
+Name;Typ;Adresse;Breite;Länge;Aliase
+Lichtinsel Musterpark;Lichtinsel;Mustergasse 1, 1210 Wien;48,2701;16,4012;LI Musterpark|Musterpark
+```
+
+1. Legen Sie die Datei an:
+    - **Name**, **Breite** und **Länge** sind Pflicht; Breite und Länge in Grad
+      (WGS84, wie in einer Karten-App), mit Komma oder Punkt.
+    - **Typ**, **Adresse** und **Aliase** sind freiwillig. Aliase sind andere
+      Namen desselben Orts, getrennt durch `|`.
+    - Getrennt wird mit Strichpunkt oder Komma. Die Datei darf UTF-8 sein oder
+      so, wie Excel sie als „CSV (Trennzeichen-getrennt)“ speichert.
+2. Unten auf der Seite: **„Ortslisten … verwalten…“** → **„Liste
+   hinzufügen…“** und die Datei wählen. Das Meldebuch nennt Zeilen, die es
+   überspringt (ohne Name, ohne gültige Koordinaten, Breite und Länge
+   vertauscht), mit ihrer Zeilennummer.
+3. **Probe:** Im Dialog unter „Ort suchen“ einen Namen oder Alias eintippen.
+
+Im Einsatz schlagen **Ort**, **Ursprungsort** und **Standort der Station**
+die passenden Orte mit ihrer Adresse vor; ein genau getippter Name oder Alias
+wird automatisch zugeordnet. So steht die Meldung auf der Karte.
+
+- **Ersetzen…** liest eine neue Fassung der Liste ein; **Rückgängig** holt die
+  vorige zurück. **Exportieren** speichert die Liste wieder als CSV.
+  **Löschen** blendet sie aus und lässt sich wiederherstellen; erst
+  **Endgültig löschen** entfernt sie vom Gerät.
+- Höchstens 2 MB und 10.000 Orte je Datei, 50.000 Orte insgesamt; eine
+  größere Datei wird abgelehnt, ohne etwas zu ändern.
+- Die Ortslisten gelten für alle Werkzeuge auf diesem Gerät, sind aber
+  **nicht in der Sicherung** enthalten: Bewahren Sie die CSV-Datei auf. Die
+  Offline-Datei hat ihren eigenen Speicher; laden Sie die Liste dort
+  ebenfalls.
+- Bereits gespeicherte Meldungen behalten den Ort, den sie beim Speichern
+  hatten.
+
 ## Papier als Rückfall
 
 Auch das beste Gerät kann ausfallen. Drucken Sie vor dem Einsatz das

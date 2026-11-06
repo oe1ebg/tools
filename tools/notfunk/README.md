@@ -209,12 +209,26 @@ name, and a distribution list ("Verteiler").
   `js/mapdata.js`, node-tested): one pin per place, coloured by the most
   pressing priority, a card with links to the messages; the own station
   ("Standort der Station") as the star. A stored Ort is used as stored; one
-  kept only as text is looked up and shown only on a confident match.
+  kept only as text is looked up and shown only on a confident match (an
+  exact name or alias of a named place counts, see below).
   "📍 Standort" in the header opens the same offline location search as
   in Confirm (`initLocationPanel()`, shared `locationui.js`; the panel's
   settings are the shared location prefs, so they apply in both tools).
   Frequencies take a comma or a point and are shown as `145,500`. The
   half-typed message is kept as a draft ("✓ Entwurf gesichert").
+- **Named places** (issue #181): Lichtinseln, K-Vorsorgestandorte,
+  Verbindungsstationen … by name and aliases. The real lists are private, so
+  nothing is bundled: the user imports a CSV into the shared place store
+  (`tools/shared/README.md`, "Named places"), managed in the shared dialog
+  from the footer ("Ortslisten … verwalten…"). Ort, Ursprungsort and
+  Standort der Station (new op form and Einsatz panel) complete them next
+  to the address lookup (`createLocationField({ places })`), with the
+  address in the info line; an exact name or alias is taken automatically
+  (unless the auto-select setting is "never"). A picked place is stored as a
+  location snapshot of `type: 'place'` (label = name, plus `address`,
+  `placeType`, `list`), so the map, the message view and the printout show
+  it like an address (the printout adds the address). The station is still
+  stored as text; the map resolves it (an exact place name first).
 - **Callsign lists** (issue #81). The lookup is the shared callsign service
   (`tools/shared/js/callsign-service.js`, see `tools/shared/README.md`,
   "Callsign store"): the Austrian list and the user's own lists, managed in

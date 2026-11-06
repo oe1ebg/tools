@@ -21,6 +21,7 @@ let nfOwn = null;
 let nfLastCtx = null;
 let nfFittedFor = null;
 const nfResolved = new Map(); // place text -> location or null (looked up once)
+let nfResolvedKey = null;     // ctx.resolveKey they were looked up with
 
 const nfWeak = loc => loc.confidence === 'low' || loc.confidence === 'ambiguous';
 
@@ -97,6 +98,8 @@ const nfMarkerOf = new Map();
 
 async function nfRender(ctx, refit, focusId = null) {
   nfLastCtx = ctx;
+  // the named places changed: look the texts up again
+  if (ctx.resolveKey !== nfResolvedKey) { nfResolved.clear(); nfResolvedKey = ctx.resolveKey; }
   // texts of an Ort without a stored place: looked up once each
   for (const text of placeTextsToResolve(ctx.msgs, nfResolved)) nfResolved.set(text, await ctx.resolve(text));
   if (nfLastCtx !== ctx) return; // a newer render took over meanwhile
@@ -153,7 +156,8 @@ export function notfunkMapVisible() {
 
 // ctx: { opId, msgs (the book's current list), station (text), call,
 // describe(msg) -> { time, dir, subject, status }, hrefOf(msg),
-// resolve(text) -> location | null (confident only) }
+// resolve(text) -> location | null (confident only), resolveKey (changes
+// when resolve() may answer differently: the named places changed) }
 // focusId: a message to centre the map on (its card open).
 export async function notfunkOpenMap(ctx, focusId = null) {
   const panel = document.getElementById('map-panel');

@@ -5,7 +5,11 @@
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join as pathJoin } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { test, expect, downloadText, offlineSettled } from './fixtures.mjs';
+
+// invented places only: the real lists are private (issue #181)
+const PLACES_CSV = fileURLToPath(new URL('../fixtures/places/orte-erfunden.csv', import.meta.url));
 
 async function openNewOp(page, name, prefix) {
   await page.goto('tools/notfunk/');
@@ -581,6 +585,10 @@ test('Einsatz panel: Esc puts a field back, Rückgängig restores the opened sta
   await expect(page.locator('#book-status')).toContainText('Standort der Station');
   await station.focus();
   await station.fill('Dachboden');
+  // the location lookup answers first (its list takes the first Esc)
+  await expect(page.locator('#e-station-pop')).toContainText(/boden|Kein Treffer/, { timeout: 30_000 });
+  await station.press('Escape');
+  await expect(page.locator('#e-station-pop')).toBeHidden();
   await station.press('Escape');
   await expect(station).toHaveValue('Keller');
   await page.locator('#e-home').focus();
@@ -1056,6 +1064,72 @@ test('map: messages with an Ort as pins, priority colour, link to the message, f
   await page.getByRole('button', { name: '← Meldebuch' }).click();
   await expect(page.locator('#map-panel')).toBeHidden();
   await expect(btn).toHaveAttribute('aria-pressed', 'false');
+});
+
+// Named places (issue #181): a CSV of invented places imported in the
+// shared "Ortslisten" dialog; Ort and Standort der Station offer them with
+// their address, an exact name or alias is taken, and the map shows the
+// message at the place and the station as the star. Delete is undoable.
+test('named places: import, completion with address, map, delete and restore', async ({ page }) => {
+  await openNewOp(page, 'E2E Orte', 'o1');
+  await page.locator('#btn-places-open').click();
+  const dlg = page.locator('#place-lists-dlg');
+  await expect(dlg).toBeVisible();
+  await expect(dlg).toContainText('Noch keine Ortsliste.');
+  await dlg.locator('input[type=file]').setInputFiles(PLACES_CSV);
+  await expect(dlg.locator('.cl-msg')).toContainText('Liste „orte-erfunden“ hinzugefügt: 4 Orte. 2 Zeilen übersprungen: Zeile 6 ohne gültige Breite/Länge; Zeile 7 Breite und Länge vertauscht?');
+  await expect(dlg.locator('.cl-table tbody tr')).toHaveCount(1);
+  await dlg.locator('#pl-test-search').fill('vs nord');
+  await expect(dlg.locator('.cl-entries tbody')).toContainText('Am Erfundenen Berg 2; 1190 Wien');
+  await dlg.getByRole('button', { name: 'Schließen' }).click();
+  await expect(page.locator('#places-summary')).toHaveText('(4 Orte in 1 Liste)');
+
+  // Ort: the places with their address, an alias is taken automatically
+  await page.locator('#m-from').fill('Lichtinsel');
+  await page.locator('#m-peer').fill('OE1ABC');
+  await page.locator('#m-subject').fill('Wasser');
+  await page.locator('#m-loc').fill('Lichtinsel');
+  await expect(page.locator('#m-loc-pop .ac-item').first()).toContainText('Lichtinsel Musterhof', { timeout: 30_000 });
+  await expect(page.locator('#m-loc-pop')).toContainText('Erfundene Gasse 1, 1210 Wien');
+  await page.locator('#m-loc').fill('LI Testpark');
+  await expect(page.locator('#m-loc-info')).toContainText('✓ Lichtinsel Testpark, Erfundene Gasse 1, 1210 Wien', { timeout: 30_000 });
+  await expect(page.locator('#m-loc-info')).toContainText('eingegeben als „LI Testpark“');
+  await page.locator('#m-loc').press('Escape');
+  await page.locator('#m-text').fill('Kein Wasser.');
+  await page.locator('#m-readback').check();
+  await page.locator('#btn-save').click();
+  await expect(page.locator('#book-body')).toContainText('Wasser');
+
+  // Standort der Station: picked from the dropdown, saved, shown as the star
+  await page.locator('#op-panel > summary').click();
+  await page.locator('#e-station').fill('Musterhof');
+  const pick = page.locator('#e-station-pop .ac-item', { hasText: 'Lichtinsel Musterhof' });
+  await expect(pick).toContainText('Beispielweg 7, 1220 Wien', { timeout: 30_000 });
+  await pick.click();
+  await expect(page.locator('#e-station')).toHaveValue('Lichtinsel Musterhof');
+  await expect(page.locator('#book-status')).toContainText('Standort der Station');
+  await expect(page.locator('#e-station-info')).toContainText('Beispielweg 7, 1220 Wien');
+
+  await page.getByRole('button', { name: 'Karte' }).click();
+  await expect(page.locator('#map .map-pin')).toHaveCount(1);
+  await expect(page.locator('#map .map-own')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Karte' }).click();
+
+  // delete: the stored message keeps its place, the station text no longer
+  // resolves; restore brings the list back
+  await page.locator('#btn-places-open').click();
+  await dlg.getByRole('button', { name: 'Löschen – orte-erfunden' }).click();
+  await expect(dlg.locator('.cl-msg')).toContainText('gelöscht. Wiederherstellen ist möglich.');
+  await expect(dlg.getByRole('button', { name: 'Wiederherstellen – orte-erfunden' })).toBeFocused();
+  await dlg.getByRole('button', { name: 'Schließen' }).click();
+  await expect(page.locator('#places-summary')).toHaveText('(keine)');
+  await page.getByRole('button', { name: 'Karte' }).click();
+  await expect(page.locator('#map .map-pin')).toHaveCount(1);
+  await expect(page.locator('#map .map-own')).toHaveCount(0);
+  await page.locator('#btn-places-open').click();
+  await dlg.getByRole('button', { name: 'Wiederherstellen – orte-erfunden' }).click();
+  await dlg.getByRole('button', { name: 'Schließen' }).click();
+  await expect(page.locator('#map .map-own')).toHaveCount(1);
 });
 
 // An Ort that the lookup doesn't know is saved as text, as the field says
