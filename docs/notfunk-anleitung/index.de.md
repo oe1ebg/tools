@@ -4,6 +4,7 @@
 [Alle Tools](../index.md) ·
 [Offline-Datei](../notfunk/notfunk-offline.html){ download="notfunk-meldebuch-offline.html" } ·
 [Leeres Formular (PDF)](../downloads/notfunk-vordruck.pdf){ download="notfunk-vordruck.pdf" } ·
+[Winlink-Formular (Zip)](../downloads/oe-notfunk-meldung-winlink.zip){ download="oe-notfunk-meldung-winlink.zip" } ·
 [Datenquellen](../data-sources.md#notfunk-meldebuch) ·
 [Quellcode](https://github.com/oe1ebg/tools/tree/main/tools/notfunk)
 { .tool-actions }
