@@ -20,7 +20,7 @@ auch wenn sonst nichts mehr geht ([Quellen](../reference/sources.de.md): Richtli
 Kommen Menschen mit einem Notfall zur Lichtinsel, wird ihre Meldung
 **aufgenommen**, **funkend weitergegeben** und von der Funkstelle in der
 Einsatzleitstelle an die **Meldesammelstelle** des Kriseneinsatzstabs
-**übergeben**; dort endet der Weg für die Funkamateure. Der Stab entscheidet, die Antwort geht denselben Weg **zurück**.
+**übergeben**; dort endet der Weg für die Operatoren. Der Stab entscheidet, die Antwort geht denselben Weg **zurück**.
 
 <figure class="diagram">
 <svg viewBox="0 0 760 372" role="img" aria-labelledby="nf-ablauf-t nf-ablauf-d" xmlns="http://www.w3.org/2000/svg" fill="currentColor" font-family="inherit" font-size="14">
@@ -33,13 +33,13 @@ Einsatzleitstelle an die **Meldesammelstelle** des Kriseneinsatzstabs
 <g fill="none"><rect x="0" y="10" width="128" height="170" rx="8" stroke="#808080" stroke-width="3" stroke-dasharray="6 5" fill="#808080" fill-opacity=".06"/><rect x="158" y="10" width="128" height="170" rx="8" stroke="#3a7fc1" stroke-width="4" fill="#3a7fc1" fill-opacity=".16"/><rect x="316" y="10" width="128" height="170" rx="8" stroke="#d4680f" stroke-width="4" fill="#d4680f" fill-opacity=".16"/><rect x="474" y="10" width="128" height="170" rx="8" stroke="#3d9a4f" stroke-width="4" fill="#3d9a4f" fill-opacity=".16"/><rect x="632" y="10" width="128" height="170" rx="8" stroke="#9a6bc0" stroke-width="3" stroke-dasharray="6 5" fill="#9a6bc0" fill-opacity=".06"/></g>
 <g text-anchor="middle"><text x="64" y="40" font-weight="700" font-size="16">Hilfesuchende</text><text x="64" y="69" font-size="14">Bürgerinnen</text><text x="64" y="90" font-size="14">und Bürger</text><text x="64" y="166" font-size="13" fill-opacity=".8">kein Funkamateur</text><text x="222" y="40" font-weight="700" font-size="16">Lichtinsel</text><text x="222" y="69" font-size="14">Funkamateur</text><text x="222" y="90" font-size="14">nimmt den</text><text x="222" y="111" font-size="14">Wortlaut auf</text><text x="222" y="166" font-size="13" fill-opacity=".8">Eingang ↓</text><text x="380" y="40" font-weight="700" font-size="16">Verbindungs-</text><text x="380" y="60" font-weight="700" font-size="16">station</text><text x="380" y="89" font-size="14">gibt die Meldung</text><text x="380" y="110" font-size="14">weiter</text><text x="380" y="166" font-size="13" fill-opacity=".8">Weitergabe ↔</text><text x="538" y="40" font-weight="700" font-size="16">Funkstelle</text><text x="538" y="60" font-weight="700" font-size="16">der ELS</text><text x="538" y="89" font-size="14">Funkamateur</text><text x="538" y="110" font-size="14">übergibt an die</text><text x="538" y="131" font-size="14">Meldesammelstelle</text><text x="538" y="166" font-size="13" fill-opacity=".8">Ausgang ↑</text><text x="696" y="40" font-weight="700" font-size="16">Melde-</text><text x="696" y="60" font-weight="700" font-size="16">sammelstelle</text><text x="696" y="89" font-size="14">Kriseneinsatzstab</text><text x="696" y="110" font-size="14">vergibt die</text><text x="696" y="131" font-size="14">Referenz</text><text x="696" y="166" font-size="13" fill-opacity=".8">kein Funkamateur</text></g></g>
 <path d="M158 290V300H602V290" stroke="currentColor" stroke-width="2" fill="none"/>
-<g text-anchor="middle" font-weight="700" font-size="15"><text x="380" y="322">Hier arbeiten Funkamateure:</text><text x="380" y="342">sie übermitteln, was aufgenommen wurde –</text><text x="380" y="362">wörtlich, ohne Zusatz, ohne eigene Bewertung.</text></g></svg>
+<g text-anchor="middle" font-weight="700" font-size="15"><text x="380" y="322">Hier arbeiten Operatoren:</text><text x="380" y="342">sie übermitteln, was aufgenommen wurde –</text><text x="380" y="362">wörtlich, ohne Zusatz, ohne eigene Bewertung.</text></g></svg>
 <figcaption>Der Weg, den eine Notmeldung nimmt, und der Rückweg der Antwort.</figcaption>
 </figure>
 
 **Hin:**
 
-1. **Aufnehmen.** Eine Person schildert den Notfall. Der Funkamateur an der
+1. **Aufnehmen.** Eine Person schildert den Notfall. Der Operator an der
    Lichtinsel schreibt den Wortlaut auf (Meldeaufnahmeformular oder
    Meldebuch). Zur Sicherheit liest er ihn zurück; die Person bestätigt, dass
    es stimmt (empfohlen, nicht zwingend).
@@ -56,7 +56,7 @@ Einsatzleitstelle an die **Meldesammelstelle** des Kriseneinsatzstabs
    hat sie ein anderes Rufzeichen) sie auf.
 4. **Übergeben.** Der Funkamateur in der ELS übergibt die Meldung an die
    **Meldesammelstelle**. Sie gehört zum **Kriseneinsatzstab**, nicht zum
-   Amateurfunk. Hier endet die Aufgabe der Funkamateure: Was der Stab mit der
+   Amateurfunk. Hier endet die Aufgabe der Operatoren: Was der Stab mit der
    Meldung macht, entscheidet er. Die Meldesammelstelle nimmt die Meldung in
    ihr Geschäftsbuch auf und nennt eine **Referenz**; der Funkamateur trägt
    sie in sein Meldebuch ein.
@@ -69,7 +69,7 @@ Einsatzleitstelle an die **Meldesammelstelle** des Kriseneinsatzstabs
    nimmt sie wörtlich auf, funkt sie an die Verbindungsstation.
 7. Die Verbindungsstation gibt sie im lokalen Informationsnetz an die
    Lichtinsel weiter.
-8. Der Funkamateur an der Lichtinsel nimmt die Antwort auf
+8. Der Operator an der Lichtinsel nimmt die Antwort auf
    und **sagt sie der Person, die den Notfall gemeldet hat**: „Hilfe ist
    unterwegs.“
 
@@ -88,20 +88,20 @@ Zwei Rückmeldungen sind zu unterscheiden:
 Welche Stationen der Weg im Einzelfall wirklich berührt, hängt von der Lage
 ab. Das Bild zeigt den Regelweg der [Richtlinie Notfunk Teil 2 – Wien](../reference/sources.de.md).
 
-## Was Funkamateure dabei tun, und was nicht
+## Was Operatoren dabei tun, und was nicht
 
-Funkamateure sind in dieser Kette **Überbringer**, mehr nicht. Die
+Operatoren sind in dieser Kette **Überbringer**, mehr nicht. Die
 Richtlinie sagt es so: Amateurfunkstellen sollen nicht selbst Nachrichten
 erzeugen, sondern nur übermitteln.
 
-**Funkamateure …**
+**Operatoren …**
 
 - nehmen den **Wortlaut** auf, wie er genannt wird,
 - lesen wenn möglich **zurück**, damit nichts falsch ankommt,
 - funken die Meldung weiter und geben die Antwort **wörtlich** zurück,
 - halten **Übergabe und Empfang** fest.
 
-**Funkamateure …**
+**Operatoren …**
 
 - deuten, ergänzen, kürzen oder „verbessern“ den Inhalt **nicht**,
 - geben keine Vermutungen oder ungeprüften Informationen weiter,

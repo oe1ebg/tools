@@ -3,7 +3,7 @@
 [← Notfunk-Anleitung](../index.de.md) · [Notfunk-Meldebuch öffnen](../../notfunk/index.html)
 { .doc-nav }
 
-Das Beispiel: Übung „Blackout Wien“. Sie sind Funkamateur an der Lichtinsel
+Das Beispiel: Übung „Blackout Wien“. Sie sind Operator an der Lichtinsel
 Floridsdorf. Frau Huber, Pflegedienstleiterin eines Pflegeheims in der
 Brünner Straße 68, kommt zu Fuß: Das Notstromaggregat läuft nur bis etwa
 18 Uhr, und 6 beatmete Bewohner sind auf den Strom angewiesen. Das Heim
