@@ -2489,7 +2489,7 @@ async function main() {
       state.forUpdate = true;
       return flushDraft().finally(() => { state.forUpdate = false; });
     },
-    fileHidden: ['#offline-file-link', '#offline-card', '#data-sources-link', '#home-link', '#manual-link', '#help-manual'],
+    fileHidden: ['#offline-file-link', '#offline-card', '#data-sources-link', '#home-link', '#manual-link', '#help-manual', '#help-wl-form'],
   });
   fill($('#st-source'), ' · ', repoLink('Quellcode', 'tools/notfunk'));
   loadCallbook();
