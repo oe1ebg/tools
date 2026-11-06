@@ -2120,7 +2120,7 @@ function openWinlinkExport(m) {
   const notes = el('ul', { class: 'wl-notes' });
   const status = el('div', { class: 'form-status', role: 'status' });
   const btnJson = el('button', { type: 'button', class: 'primary' }, 'Datei für das Formular speichern');
-  const btnCopy = el('button', { type: 'button', 'aria-describedby': 'wl-json-hint' }, 'JSON-Daten kopieren');
+  const btnCopy = el('button', { type: 'button', class: 'mini', 'aria-describedby': 'wl-json-hint' }, 'JSON-Daten kopieren');
   const btnB2f = el('button', { type: 'button' }, 'Für Pat (.b2f) speichern');
   // the same data as the file, to copy and paste into the form („Oder den
   // Inhalt der Datei einfügen“); also the fallback when the clipboard is refused
@@ -2181,7 +2181,9 @@ function openWinlinkExport(m) {
     bookStatus(`${m.number}: Winlink-Nachricht für Pat gespeichert (${b2f.mid}.b2f); den Status „übertragen“ eintragen, wenn sie gesendet ist`);
   });
   fill(dlg, el('div', { class: 'step-dlg-body' },
-    el('h2', { id: 'wl-export-title' }, `${m.number} für Winlink exportieren`),
+    el('div', { class: 'dlg-head' },
+      el('h2', { id: 'wl-export-title' }, `${m.number} für Winlink exportieren`),
+      el('button', { type: 'button', class: 'dlg-x', 'aria-label': 'Schließen', title: 'Schließen (Esc)', onclick: () => dlg.close() }, el('span', { 'aria-hidden': 'true' }, '×'))),
     payload.exercise
       ? el('p', { class: 'wl-exercise' }, el('strong', {}, 'ACHTUNG ÜBUNG'), ' – steht vor und nach dem Spruch, im Formular über dem Inhalt und als [ÜBUNG] im Betreff.')
       : el('p', { class: 'warn-text' }, el('strong', {}, 'Ernstfall:'), ' der Einsatz ist nicht als Übung markiert, die Nachricht trägt keine Übungskennung.'),
@@ -2192,9 +2194,12 @@ function openWinlinkExport(m) {
     el('div', { class: 'field wl-json-field' },
       el('label', { for: 'wl-json' }, 'JSON-Daten für das Formular'),
       copyBox,
-      el('p', { class: 'hint', id: 'wl-json-hint' }, 'Statt der Datei: kopieren und im Formular unter „Oder den Inhalt der Datei einfügen“ einfügen.'),
-      el('div', { class: 'inline-foot' }, btnCopy)),
-    el('div', { class: 'inline-foot' }, btnJson, btnB2f, el('button', { type: 'button', onclick: () => dlg.close() }, 'Schließen')),
+      // the button first: right under the field (row-reverse), also when
+      // the hint wraps below it on a narrow screen
+      el('div', { class: 'wl-json-actions' },
+        btnCopy,
+        el('p', { class: 'hint', id: 'wl-json-hint' }, 'Statt der Datei: kopieren und im Formular unter „Oder den Inhalt der Datei einfügen“ einfügen.'))),
+    el('div', { class: 'inline-foot dlg-foot' }, btnJson, btnB2f, el('button', { type: 'button', class: 'foot-end', onclick: () => dlg.close() }, 'Schließen')),
     status));
   refresh();
   const opener = document.activeElement;
@@ -2296,6 +2301,7 @@ function initWinlink() {
   const dlg = $('#wl-import-dlg');
   $('#btn-wl-import').addEventListener('click', openWinlinkImport);
   $('#btn-wl-import-close').addEventListener('click', () => dlg.close());
+  $('#btn-wl-import-x').addEventListener('click', () => dlg.close());
   dlg.addEventListener('close', () => {
     ($(state.wlToForm ? '#m-subject' : '#btn-wl-import'))?.focus();
     state.wlToForm = false;
