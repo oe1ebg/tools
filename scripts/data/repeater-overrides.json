@@ -1,0 +1,11 @@
+{
+  "about": "Local corrections of wrong values in the ÖVSV repeater database, applied by scripts/fetch_repeaters.py to tools/shared/data/repeaters-at.json. Format and how to add an entry: tools/shared/README.md, \"Local corrections\".",
+  "overrides": [
+    {
+      "match": { "call": "OE1XUF", "band": "70cm" },
+      "set": { "out": 438.3375, "in": 430.7375, "ctcss": 162.2, "ch": "RU667" },
+      "reason": "Output 438.3375 MHz and CTCSS 162.2 Hz (not DCS) confirmed by a local operator; upstream has 438.575 MHz and no tone. The input is assumed: upstream shift -7.6 MHz kept (in = out - 7.6) — to be verified. ch follows the new output (RU + (out - 430 MHz) / 12.5 kHz, like upstream ch_new). Reported upstream: pending.",
+      "date": "2026-11-06"
+    }
+  ]
+}

@@ -1974,7 +1974,7 @@ async function loadCallbook() {
 async function loadRepeaterFooter() {
   const idx = await loadRepeaterIndex();
   fill($('#st-repeaters'), idx
-    ? sourceItem('repeaters', `Stand ${standDate(idx.retrieved)}, ${idx.list.length} Sprach-Relais`)
+    ? sourceItem('repeaters', `Stand ${standDate(idx.retrieved)}, ${idx.list.length} Sprach-Relais${idx.corrections ? `, ${idx.corrections} lokal korrigiert` : ''}`)
     : 'Relaisliste nicht verfügbar');
 }
 
