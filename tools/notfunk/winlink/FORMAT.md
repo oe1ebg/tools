@@ -47,6 +47,7 @@ cost a few percent on German text.
   "version": 1,
   "app": "0.9.0",
   "exported": "2026-11-06T18:00:00Z",
+  "exercise": true,
   "station": { "call": "OE1XYZ", "operation": "Übung Donau", "prefix": "W1", "operator": "OE1ABC" },
   "message": { /* the full message record, see below */ },
   "revisions": [ { "at": "…Z", "by": "OE1ABC", "old": { /* previous version, same shape as message */ } } ],
@@ -55,6 +56,9 @@ cost a few percent on German text.
 }
 ```
 
+- `exercise`: the sending operation is an exercise (Übung). Missing means
+  unknown and counts as an exercise (the safe side); only `false` drops the
+  marker. Added within version 1: older readers ignore it.
 - `format` and `version` are required. Readers accept every `version` ≤ their
   own and reject newer ones with a German message („Diese Meldung wurde mit
   einer neueren Version erstellt …“). Version 1 is this document.
@@ -89,11 +93,24 @@ hand when the form is used without the Meldebuch:
 | `bezug` | e.g. `Antwort auf W1-003 (OE1XYZ)` |
 | `station` | sending station callsign |
 | `verlauf` | status history as text lines (`YYYY-MM-DD HH:MM UTC übertragen an OE3ABC`) |
+| `kennung` | `[ÜBUNG]` for an exercise, else empty (subject prefix) |
+| `uebung` | `=== ACHTUNG ÜBUNG ===` for an exercise, else empty (body) |
 | `format_version` | `1` |
 | `templateversion` | form version, e.g. `OE Notfunk Meldung 1.0` |
 
-Subject (template): `<prioritaet> <nummer>: <betreff>` – the Meldebuch export
-warns when it exceeds 128 bytes.
+Subject (template): `<kennung> <prioritaet> <nummer>: <betreff>` – the
+clients trim the subject, so without `kennung` it starts with the priority.
+The Meldebuch export warns when it exceeds 128 bytes (Q-encoded: the `Ü` of
+the prefix makes the whole subject an encoded word).
+
+Exercise marker in the body: `<var uebung>` as the very first line, and
+before the Inhalt the line `<var uebung>`, a blank line, the Inhalt, a blank
+line, `<var uebung>` – framed so it reads as a marker, not as
+part of the Spruch. The forms show „⚠ ACHTUNG ÜBUNG“ as a banner directly
+above the text box. Import never takes marker lines into the Inhalt: lines
+consisting only of „ACHTUNG ÜBUNG“ (optionally framed with `===`, `***`,
+`---`, `###`, or written UEBUNG) and a leading `[ÜBUNG]` in a subject are
+removed and set `exercise: true`.
 
 ## Files the Meldebuch reads and writes
 
@@ -113,7 +130,7 @@ warns when it exceeds 128 bytes.
   operation with its own number; the operator reviews it before saving.
 - The sender's data is kept read-only as `source`:
   `{ format_version, station, operation, operator, id, number, direction, ts,
-  updated, status, attempts, revisions, exported, mid? }` (`station` is the
+  updated, status, attempts, revisions, exported, exercise, mid? }` (`station` is the
   callsign as a string, as in `ref`). Imports of foreign forms or of our form
   filled in by hand have `id: null` plus `form` and `history`.
   The receiver's own `status` starts at `logged`.

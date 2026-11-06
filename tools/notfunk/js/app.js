@@ -18,7 +18,7 @@ import { openNotfunkStorage } from './db.js';
 import { requestPersistence, ConflictError } from '../../shared/js/storage.js';
 import { openStorageWithNotices, offerFallbackMigration } from '../../shared/js/storageui.js';
 import { initHelpDialog } from '../../shared/js/helpdialog.js';
-import { $, el, fill, focusNext, submitForm, isComposing, trackExpanded, rowRoles, tableRoles, revertOnEscape, popover } from '../../shared/js/dom.js';
+import { $, el, fill, focusNext, submitForm, isComposing, trackExpanded, rowRoles, tableRoles, revertOnEscape, popover, copyToClipboard } from '../../shared/js/dom.js';
 import { prefGet, prefSet } from '../../shared/js/prefs.js';
 import { loadDataFile } from '../../shared/js/data.js';
 import { normalizeCall } from '../../shared/js/callbook.js';
@@ -315,14 +315,14 @@ function renderOpPanel() {
   updateOpUndo();
 }
 
-// An Einsatz flagged "Übung" (op.exercise; missing = not flagged): "ÜBUNG"
-// in the page header (a fixed place, next to the status chips) and the
-// reminder under the Inhalt, read by screen readers as part of the Inhalt's
+// An Einsatz flagged "Übung" (op.exercise; missing = not flagged): the
+// "ÜBUNG" bar at the top (renderExerciseBar) and the reminder under the
+// Inhalt, read by screen readers as part of the Inhalt's
 // description (not announced on every change). The stored text stays as
 // typed: nothing is added to it.
 function renderExercise() {
   const on = !!state.op?.exercise;
-  $('#st-exercise').hidden = !on;
+  renderExerciseBar();
   $('#m-exercise').hidden = !on;
   $('#m-text').setAttribute('aria-describedby', on ? 'm-text-5w m-exercise m-text-err' : 'm-text-5w m-text-err');
 }
@@ -513,6 +513,13 @@ function showView(id) {
   for (const v of ['#view-ops', '#view-book', '#view-msg']) $(v).hidden = v !== id;
   if (id !== '#view-book') closeMap(); // the map belongs to the book
   renderBackupChip();
+  renderExerciseBar();
+}
+
+// „ÜBUNG“ at the top (with the draft note) while an exercise is open: the
+// book and its messages; not on the list of operations.
+function renderExerciseBar() {
+  $('#exercise-bar').hidden = !state.op || !$('#view-ops').hidden || !state.op.exercise;
 }
 
 /* ---------------------------------------------------------------- map */
@@ -743,7 +750,7 @@ function renderFormState() {
   // taken over from Winlink: whose message it is (saved with it)
   const src = !editing && f.source;
   $('#form-source').hidden = !src;
-  setText($('#form-source'), src ? `von ${[src.number, src.station && `(${src.station})`].filter(Boolean).join(' ') || 'Winlink'}` : '');
+  setText($('#form-source'), src ? `${src.exercise ? 'ÜBUNG · ' : ''}von ${[src.number, src.station && `(${src.station})`].filter(Boolean).join(' ') || 'Winlink'}` : '');
   setText($('#form-number'), editing ? editing.number : `→ ${previewNumber()}`);
   setText($('#form-station'), state.op.call ? `Station ${state.op.call} · ` : '');
   setText($('#form-op'), state.op.operator || 'Operator fehlt');
@@ -2106,14 +2113,17 @@ function openWinlinkExport(m) {
   const mycall = normalizeCall(op.call || m.stationCall || op.operator || '');
   const refMsg = m.replyTo ? state.msgs.find(x => x.id === m.replyTo) : null;
   const payload = winlinkPayload(m, state.revisions.filter(r => r.messageId === m.id), refMsg,
-    { call: op.call || m.stationCall || '', operation: op.name, prefix: op.prefix, operator: op.operator || '' }, appVersion(), now);
+    { call: op.call || m.stationCall || '', operation: op.name, prefix: op.prefix, operator: op.operator || '', exercise: !!op.exercise }, appVersion(), now);
   const to = el('input', { id: 'wl-to', class: 'mono call-input', value: winlinkRecipient(m), autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false', 'aria-describedby': 'wl-to-err' });
   const toErr = el('span', { id: 'wl-to-err', class: 'ferr' });
   const size = el('p', { class: 'sub', id: 'wl-size' });
   const notes = el('ul', { class: 'wl-notes' });
   const status = el('div', { class: 'form-status', role: 'status' });
   const btnJson = el('button', { type: 'button', class: 'primary' }, 'Datei für das Formular speichern');
+  const btnCopy = el('button', { type: 'button' }, 'Daten kopieren');
   const btnB2f = el('button', { type: 'button' }, 'Für Pat (.b2f) speichern');
+  // fallback when the clipboard is refused: the data selected, to copy by hand
+  const copyBox = el('textarea', { class: 'mono wl-copy', readonly: true, rows: '3', hidden: true, 'aria-label': 'Daten für das Winlink-Formular' });
   const address = () => {
     const a = to.value.trim();
     return a.includes('@') ? a : a.toUpperCase();
@@ -2130,6 +2140,7 @@ function openWinlinkExport(m) {
     fill(notes, items);
     notes.hidden = !items.some(Boolean);
     btnJson.disabled = check.tooLarge;
+    btnCopy.disabled = check.tooLarge;
     const why = winlinkAddressProblem(to.value);
     setText(toErr, to.value.trim() ? why : '');
     btnB2f.disabled = check.tooLarge || !!why || !mycall;
@@ -2144,6 +2155,22 @@ function openWinlinkExport(m) {
     fill(status, el('span', { class: 'ok-mark', 'aria-hidden': 'true' }, '✓'), ` Download von „${name}“ gestartet. Jetzt im Winlink-Programm das Formular „OE Notfunk Meldung“ öffnen und „Aus Meldebuch laden“ wählen.`);
     bookStatus(`${m.number}: Datei für Winlink gespeichert (${name}); den Status „übertragen“ eintragen, wenn die Nachricht gesendet ist`);
   });
+  btnCopy.addEventListener('click', async () => {
+    refresh();
+    if (check.tooLarge) return;
+    const data = winlinkJson(payload);
+    if (await copyToClipboard(data)) {
+      copyBox.hidden = true;
+      fill(status, el('span', { class: 'ok-mark', 'aria-hidden': 'true' }, '✓'), ' Kopiert – im Winlink-Formular unter „Oder den Inhalt der Datei einfügen“ einfügen.');
+      bookStatus(`${m.number}: Daten für Winlink kopiert; den Status „übertragen“ eintragen, wenn die Nachricht gesendet ist`);
+    } else {
+      copyBox.value = data;
+      copyBox.hidden = false;
+      copyBox.focus();
+      copyBox.select();
+      fill(status, 'Kopieren ging nicht automatisch: der Text unten ist markiert – mit Strg+C bzw. ⌘C kopieren und im Winlink-Formular unter „Oder den Inhalt der Datei einfügen“ einfügen.');
+    }
+  });
   btnB2f.addEventListener('click', () => {
     refresh();
     if (btnB2f.disabled) { if (!to.value.trim()) setText(toErr, winlinkAddressProblem('')); to.focus(); return; }
@@ -2154,11 +2181,15 @@ function openWinlinkExport(m) {
   });
   fill(dlg, el('div', { class: 'step-dlg-body' },
     el('h2', { id: 'wl-export-title' }, `${m.number} für Winlink exportieren`),
+    payload.exercise
+      ? el('p', { class: 'wl-exercise' }, el('strong', {}, 'ACHTUNG ÜBUNG'), ' – steht vor und nach dem Spruch, im Formular über dem Inhalt und als [ÜBUNG] im Betreff.')
+      : el('p', { class: 'warn-text' }, el('strong', {}, 'Ernstfall:'), ' der Einsatz ist nicht als Übung markiert, die Nachricht trägt keine Übungskennung.'),
     el('p', { class: 'sub' }, m.subject || ''),
     el('div', { class: 'field' }, el('label', { for: 'wl-to' }, 'Winlink-Adresse des Empfängers'), to, toErr),
     size, notes,
-    el('p', { class: 'hint' }, 'Die Datei für das Formular: in Winlink Express oder Pat eine neue Nachricht mit dem Formular „OE Notfunk Meldung“ beginnen, „Aus Meldebuch laden“, Empfänger prüfen, absenden. Die Pat-Datei (.b2f) ist schon fertig und kommt in den Ordner out/ des Postfachs. Der Status bleibt „zur Übertragung“, bis Sie „übertragen“ eintragen.'),
-    el('div', { class: 'inline-foot' }, btnJson, btnB2f, el('button', { type: 'button', onclick: () => dlg.close() }, 'Schließen')),
+    el('p', { class: 'hint' }, 'Die Datei für das Formular: in Winlink Express oder Pat eine neue Nachricht mit dem Formular „OE Notfunk Meldung“ beginnen, „Aus Meldebuch laden“, Empfänger prüfen, absenden. Statt der Datei geht auch „Daten kopieren“ und im Formular unter „Oder den Inhalt der Datei einfügen“ einfügen. Die Pat-Datei (.b2f) ist schon fertig und kommt in den Ordner out/ des Postfachs. Der Status bleibt „zur Übertragung“, bis Sie „übertragen“ eintragen.'),
+    el('div', { class: 'inline-foot' }, btnJson, btnCopy, btnB2f, el('button', { type: 'button', onclick: () => dlg.close() }, 'Schließen')),
+    copyBox,
     status));
   refresh();
   const opener = document.activeElement;
@@ -2311,6 +2342,7 @@ function winlinkSourceCard(m) {
   const revs = list(s.revisions, x => x);
   return el('section', { class: 'wl-source', 'aria-label': 'Von Winlink übernommen' },
     el('h3', { class: 'cap' }, 'Von Winlink übernommen'),
+    s.exercise === true ? el('p', { class: 'wl-exercise' }, el('strong', {}, 'ACHTUNG ÜBUNG'), ' – vom Absender als Übung gesendet') : null,
     el('p', {}, el('span', { class: 'dim' }, 'Station '), el('span', { class: 'mono' }, str(s.station) || '–'), s.operation ? ` · ${str(s.operation)}` : ''),
     s.number ? el('p', {}, el('span', { class: 'dim' }, 'Nummer beim Absender '), el('span', { class: 'mono' }, str(s.number)), s.ts ? el('span', { class: 'mono' }, ` · ${fmtVienna(str(s.ts))}`) : null) : null,
     steps.length ? el('ol', { class: 'wl-steps' }, steps.map(x => el('li', {}, el('span', { class: 'mono' }, fmtVienna(x.at)), ` ${x.text}`, x.by ? el('span', { class: 'dim' }, ` · ${x.by}`) : null))) : null,

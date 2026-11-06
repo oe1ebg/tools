@@ -14,8 +14,13 @@ async function openOp(page) {
   await page.locator('#n-prefix').fill('W1');
   await page.locator('#n-call').fill('OE1XYZ');
   await page.locator('#n-operator').fill('OE1XYZ');
+  await page.locator('#n-exercise').check(); // flagged "Übung" (#186)
   await page.getByRole('button', { name: 'Einsatz anlegen' }).click();
   await expect(page.locator('#view-book')).toBeVisible();
+  // an exercise: the bar at the top, with the draft note
+  await expect(page.locator('#exercise-bar')).toBeVisible();
+  await expect(page.locator('#exercise-bar')).toHaveText('ÜBUNG');
+  await expect(page.locator('#exercise-bar button')).toHaveCount(0); // not dismissible
 }
 
 async function outgoing(page) {
@@ -38,6 +43,7 @@ test('export: the file for the form and the .b2f for Pat; own message coming bac
   await expect(dlg.getByLabel('Winlink-Adresse des Empfängers')).toHaveValue('OE3ABC');
   await expect(dlg).toContainText(/Größe: \d+,\d KB \(höchstens 120 KB\)/);
   await expect(dlg).toContainText('als „?“');
+  await expect(dlg.locator('.wl-exercise')).toContainText('ACHTUNG ÜBUNG');
 
   const json = page.waitForEvent('download');
   await dlg.getByRole('button', { name: 'Datei für das Formular speichern' }).click();
@@ -48,6 +54,7 @@ test('export: the file for the form and the .b2f for Pat; own message coming bac
   const payload = JSON.parse(text);
   expect(payload.format).toBe('oe1ebg-notfunk-winlink');
   expect(payload.station.call).toBe('OE1XYZ');
+  expect(payload.exercise).toBe(true);
   expect(payload.message.text).toContain('1.500 € <frei> & "jetzt".\nZweite Zeile 📻');
   await expect(dlg.getByRole('status')).toContainText('Download von „W1-001.winlink.json“ gestartet');
 
@@ -63,6 +70,8 @@ test('export: the file for the form and the .b2f for Pat; own message coming bac
   const raw = await downloadText(b2f);
   expect(raw).toMatch(/^Mid: [A-Z2-7]{12}\r\nBody: \d+\r\n/);
   expect(raw).toContain('\r\nTo: OE3ABC\r\n');
+  expect(raw).toContain('\r\nSubject: =?ISO-8859-1?q?[=DCBUNG]_Routine_W1-001:');
+  expect(raw).toContain('Inhalt:\r\n=== ACHTUNG \ufffdBUNG ===\r\n\r\nBen');
   expect(raw).toContain('File: ');
   await dlg.getByRole('button', { name: 'Schließen' }).click();
   await expect(dlg).toBeHidden();
@@ -76,6 +85,25 @@ test('export: the file for the form and the .b2f for Pat; own message coming bac
   await expect(page.locator('#wl-import-msg')).toContainText('Das ist die eigene Meldung W1-001');
   await page.locator('#btn-wl-import-close').click();
   await expect(page.locator('#form-number')).toHaveText('→ W1-002');
+
+  // not an exercise (unchecked in the Einsatz panel): no bar, no marker in the export
+  await page.locator('#op-panel summary').click();
+  await page.locator('#e-exercise').uncheck();
+  await expect(page.locator('#exercise-bar')).toBeHidden();
+  await page.locator('#book-body a', { hasText: 'W1-001' }).click();
+  await page.getByRole('button', { name: 'Für Winlink exportieren…' }).click();
+  await expect(dlg).toContainText('Ernstfall');
+  const plainDl = page.waitForEvent('download');
+  await dlg.getByRole('button', { name: 'Datei für das Formular speichern' }).click();
+  expect(JSON.parse(await downloadText(await plainDl)).exercise).toBe(false);
+  await dlg.getByRole('button', { name: 'Schließen' }).click();
+  // checked again: back; the list of operations has no bar
+  await page.getByRole('button', { name: '← Meldebuch' }).click();
+  await page.locator('#e-exercise').check();
+  await expect(page.locator('#exercise-bar')).toBeVisible();
+  await page.locator('#btn-back').click();
+  await expect(page.locator('#view-ops')).toBeVisible();
+  await expect(page.locator('#exercise-bar')).toBeHidden();
 });
 
 test('import: review in the form, save with the sender\'s record, again = already there; paste and drop', async ({ page }) => {
@@ -102,7 +130,7 @@ test('import: review in the form, save with the sender\'s record, again = alread
   await page.locator('#wl-file').setInputFiles({ name: 'K-007.winlink.json', mimeType: 'application/json', buffer: Buffer.from(text) });
   await expect(page.locator('#wl-import-dlg')).toBeHidden();
   await expect(page.locator('#form-title')).toHaveText('Neue Meldung von Winlink');
-  await expect(page.locator('#form-source')).toHaveText('von K-007 (OE3ABC)');
+  await expect(page.locator('#form-source')).toHaveText('ÜBUNG · von K-007 (OE3ABC)');
   await expect(page.locator('#m-subject')).toHaveValue('Pegel Donau');
   await expect(page.locator('#m-subject')).toBeFocused();
   await expect(page.locator('#form-status')).toContainText('bitte prüfen und speichern');
@@ -113,7 +141,7 @@ test('import: review in the form, save with the sender\'s record, again = alread
   await expect(page.locator('#draft-status')).toContainText('Entwurf gesichert');
   await page.reload();
   await expect.poll(() => page.evaluate(() => globalThis.NOTFUNK_READY === true)).toBe(true);
-  await expect(page.locator('#form-source')).toHaveText('von K-007 (OE3ABC)');
+  await expect(page.locator('#form-source')).toHaveText('ÜBUNG · von K-007 (OE3ABC)');
   await page.locator('#btn-save').click();
   await expect(page.locator('#book-body')).toContainText('Pegel Donau');
   await page.locator('#book-body a', { hasText: 'W1-001' }).click();
@@ -121,6 +149,7 @@ test('import: review in the form, save with the sender\'s record, again = alread
   await expect(card).toContainText('Von Winlink übernommen');
   await expect(card).toContainText('OE3ABC');
   await expect(card).toContainText('K-007');
+  await expect(card.locator('.wl-exercise')).toContainText('ACHTUNG ÜBUNG');
   await expect(card).toContainText('übertragen · an OE1XYZ');
   await expect(page.locator('#msg-detail .detail-tags')).toContainText('erfasst');
   await page.getByRole('button', { name: '← Meldebuch' }).click();
@@ -170,5 +199,42 @@ test('import: review in the form, save with the sender\'s record, again = alread
     target.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }));
     target.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }));
   }, text.replace('b-k7', 'b-k8').replace('K-007', 'K-008').replace('"seq":7', '"seq":8'));
-  await expect(page.locator('#form-source')).toHaveText('von K-008 (OE3ABC)');
+  await expect(page.locator('#form-source')).toHaveText('ÜBUNG · von K-008 (OE3ABC)');
+});
+
+test('export: „Daten kopieren“ puts the payload (with `exercise`) on the clipboard', async ({ page, context, browserName }) => {
+  test.skip(browserName !== 'chromium', 'clipboard permissions: Chromium only');
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await openOp(page);
+  await outgoing(page);
+  await page.locator('#book-body a', { hasText: 'W1-001' }).click();
+  await page.getByRole('button', { name: 'Für Winlink exportieren…' }).click();
+  const dlg = page.locator('#wl-export-dlg');
+  await dlg.getByRole('button', { name: 'Daten kopieren' }).click();
+  await expect(dlg.getByRole('status')).toContainText('Kopiert – im Winlink-Formular unter „Oder den Inhalt der Datei einfügen“ einfügen.');
+  const copied = await page.evaluate(() => navigator.clipboard.readText());
+  expect(copied).toMatch(/^[\x20-\x7e]+$/);
+  const payload = JSON.parse(copied);
+  expect(payload.format).toBe('oe1ebg-notfunk-winlink');
+  expect(payload.exercise).toBe(true);
+  expect(payload.message.number).toBe('W1-001');
+  await expect(dlg.locator('textarea.wl-copy')).toBeHidden();
+});
+
+test('export: when copying is refused, the data is offered selected to copy by hand', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText: () => Promise.reject(new Error('denied')) }, configurable: true });
+    document.execCommand = () => false;
+  });
+  await openOp(page);
+  await outgoing(page);
+  await page.locator('#book-body a', { hasText: 'W1-001' }).click();
+  await page.getByRole('button', { name: 'Für Winlink exportieren…' }).click();
+  const dlg = page.locator('#wl-export-dlg');
+  await dlg.getByRole('button', { name: 'Daten kopieren' }).click();
+  await expect(dlg.getByRole('status')).toContainText('Kopieren ging nicht automatisch');
+  const box = dlg.getByLabel('Daten für das Winlink-Formular');
+  await expect(box).toBeVisible();
+  await expect(box).toBeFocused();
+  expect(JSON.parse(await box.inputValue()).exercise).toBe(true);
 });

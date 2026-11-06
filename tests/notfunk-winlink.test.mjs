@@ -32,7 +32,11 @@ test('template: header lines, both forms, ASCII only', () => {
   const lines = TEMPLATE.split('\n');
   assert.equal(lines[0], 'Form: OE_Notfunk_Meldung_Initial.html,OE_Notfunk_Meldung_Viewer.html');
   assert.ok(lines.includes('To: <var msgto>'));
-  assert.ok(lines.includes('Subject: <var prioritaet> <var nummer>: <var betreff>'));
+  assert.ok(lines.includes('Subject: <var kennung> <var prioritaet> <var nummer>: <var betreff>'));
+  // exercise marker: the first body line; its own line, a blank line, the Inhalt, a blank line, the marker
+  assert.equal(lines[lines.indexOf('Msg:') + 1], '<var uebung>');
+  const i = lines.indexOf('<var inhalt>');
+  assert.deepEqual(lines.slice(i - 2, i + 3), ['<var uebung>', '', '<var inhalt>', '', '<var uebung>']);
   assert.ok(lines.includes('Msg:'));
   for (const f of lines[0].slice(6).split(',')) assert.ok(read(f.trim()), f);
   assert.ok(/^[\n -~]*$/.test(TEMPLATE), 'template is ASCII');
@@ -43,11 +47,12 @@ test('every template variable is a named field of the input form', () => {
   const names = new Set([...INITIAL.matchAll(/\sname="([^"]+)"/g)].map(m => m[1]));
   for (const v of vars) assert.ok(names.has(v), `<var ${v}> has no field`);
   // FORMAT.md: the flat fields and the payload
-  for (const n of ['meldung', 'msgto', 'nummer', 'prioritaet', 'art', 'von', 'an', 'betreff', 'inhalt', 'zeit', 'bezug', 'station', 'verlauf', 'format_version', 'templateversion']) {
+  for (const n of ['meldung', 'msgto', 'nummer', 'prioritaet', 'art', 'von', 'an', 'betreff', 'inhalt', 'zeit', 'bezug', 'station', 'verlauf', 'format_version', 'templateversion', 'kennung', 'uebung']) {
     assert.ok(names.has(n), n);
   }
   for (const n of names) assert.equal(n, n.toLowerCase(), 'clients lower-case field names');
-  // the file input and the paste box are not posted
+  // the file input, the paste box and the exercise checkbox are not posted
+  assert.doesNotMatch(INITIAL, /<input[^>]*type="checkbox"[^>]*name=/);
   assert.doesNotMatch(INITIAL, /<input[^>]*type="file"[^>]*name=/);
   assert.doesNotMatch(INITIAL, /<textarea[^>]*id="paste"[^>]*name=/);
   assert.match(INITIAL, /<form [^>]*method="post" enctype="multipart\/form-data" action="http:\/\/\{FormServer\}:\{FormPort\}"/);
@@ -86,6 +91,21 @@ test('forms are standalone: no external URLs or resources, ASCII, small, scripts
   }
 });
 
+test('exercise marker: a banner above the text in both forms, from the payload or the flat field', () => {
+  // viewer: the banner directly above the text box, from `exercise` or the flat `uebung`
+  assert.match(VIEWER, /<p class="ex" id="ex-a" hidden><span aria-hidden="true">&#9888;<\/span> ACHTUNG &Uuml;BUNG<\/p>\n<div class="text" id="text"/);
+  assert.match(VIEWER, /<textarea hidden id="d-uebung">\{var uebung\}<\/textarea>/);
+  assert.match(scripts(VIEWER)[0], /exercise\(o\.exercise !== false\)/);
+  assert.match(scripts(VIEWER)[0], /exercise\(!!slot\('uebung'\)\)/);
+  // input form: hidden kennung/uebung; manual entry checked by default, banner above the Inhalt box
+  assert.match(INITIAL, /<input type="checkbox" id="ex-in" checked/);
+  assert.match(INITIAL, /<label for="inhalt" class="req">Inhalt<\/label><p class="ex" id="ex-man">/);
+  assert.match(scripts(INITIAL)[0], /EX_TAG = '\[\\u00dcBUNG\]', EX_LINE = '=== ACHTUNG \\u00dcBUNG ==='/);
+  // print and forced colours keep the border
+  assert.match(VIEWER, /@media \(forced-colors:active\)\{[^}]*\.ex\{/);
+  assert.match(VIEWER, /@media print\{[\s\S]*\.ex\{border:2px solid #000/);
+});
+
 // The input form's serialiser, taken from the file, on the recorded payload.
 function serialiser() {
   const src = scripts(INITIAL)[0];
@@ -106,10 +126,15 @@ test('payload: ASCII, no < > &, no line breaks, and what Pat recorded', () => {
   assert.equal(raw, s);
   assert.match(xml, /<display_form>OE_Notfunk_Meldung_Viewer\.html<\/display_form>/);
   // the .b2f: ISO-8859-1 body, one attachment with that name and size
-  const b2f = readFileSync(join(FIX, 'ANVOW37IVAEH.b2f')).toString('latin1');
+  const b2f = readFileSync(join(FIX, 'XI3ANHPBSOTX.b2f')).toString('latin1');
   assert.match(b2f, /\r\nContent-Type: text\/plain; charset=ISO-8859-1\r\n/);
   assert.match(b2f, /\r\nFile: \d+ RMS_Express_Form_OE_Notfunk_Meldung_Viewer\.xml\r\n/);
-  assert.match(b2f, /\r\nSubject: Dringend W1-007: Nachschub Notstrom <dringend> & Treibstoff\r\n/);
+  assert.match(b2f, /\r\nSubject: =\?ISO-8859-1\?q\?\[=DCBUNG\]_Dringend_W1-007:_Nachschub_Notstrom_<dringend>_&_Treibstoff\?=\r\n/);
+  // the marker framed, with a blank line on both sides of the Inhalt
+  assert.ok(b2f.includes('\r\n\r\n=== ACHTUNG \xdcBUNG ===\r\nNOTFUNK-MELDUNG W1-007\r\n'), 'first body line');
+  assert.ok(b2f.includes('Inhalt:\r\n=== ACHTUNG \xdcBUNG ===\r\n\r\nBen\xf6tigen'));
+  assert.ok(b2f.includes('Tor 3\'.\r\nTest: <b>kein HTML</b>'));
+  assert.match(b2f, /\r\n\r\n=== ACHTUNG \xdcBUNG ===\r\n\r\nVerlauf:/);
   assert.ok(b2f.includes('Von:           Einsatzleitung Übungsraum Nord / OE1XYZ\r\n'));
 });
 

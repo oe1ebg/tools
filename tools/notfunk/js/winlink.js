@@ -27,13 +27,39 @@ export const WINLINK_XML_NAME = 'RMS_Express_Form_OE_Notfunk_Meldung_Viewer.xml'
 export const WINLINK_INPUT_MAX_BYTES = 1024 * 1024;
 export const WINLINK_MESSAGE_MAX_BYTES = 120 * 1024;
 export const WINLINK_SUBJECT_MAX_BYTES = 128;
+// The exercise marker (FORMAT.md): subject prefix, the first line of the
+// body, and its own line before and after the Spruch (Inhalt).
+export const WINLINK_EXERCISE_TAG = '[ÜBUNG]';
+export const WINLINK_EXERCISE_LINE = '=== ACHTUNG ÜBUNG ===';
+
+// Marker lines („=== ACHTUNG ÜBUNG ===“, also framed with *** or bare, or
+// written UEBUNG) are never part of an imported text: { text, exercise }.
+const WL_EXERCISE_LINE_RE = /^[ \t]*(?:[=*#-]{2,}[ \t]*)?ACHTUNG[ \t]+(?:ÜBUNG|UEBUNG|UBUNG)(?:[ \t]*[=*#-]{2,})?[ \t]*$/gim;
+export function winlinkStripExercise(text) {
+  const src = String(text ?? '');
+  const out = src.replace(WL_EXERCISE_LINE_RE, '');
+  if (out === src) return { text: src, exercise: false };
+  return { text: out.replace(/^(?:[ \t]*\n)+/, '').replace(/(?:\n[ \t]*)+$/, '').replace(/\n{3,}/g, '\n\n'), exercise: true };
+}
+// "[ÜBUNG] Dringend …" -> { subject: "Dringend …", exercise: true }
+export function winlinkStripExerciseTag(subject) {
+  const m = /^\s*\[(?:ÜBUNG|UEBUNG)[^\]]*\]\s*/i.exec(String(subject ?? ''));
+  return m ? { subject: String(subject).slice(m[0].length), exercise: true } : { subject: String(subject ?? ''), exercise: false };
+}
+
+// A payload is an exercise unless it says `exercise: false` (missing:
+// unknown, so marked; the safe side).
+export function winlinkIsExercise(payload) {
+  return payload?.exercise !== false;
+}
 
 // The form's template (../winlink/OE_Notfunk_Meldung.txt, kept identical:
 // the tests compare them). Winlink Express and Pat fill the <var x> slots.
 export const WINLINK_TEMPLATE = `Form: OE_Notfunk_Meldung_Initial.html,OE_Notfunk_Meldung_Viewer.html
 To: <var msgto>
-Subject: <var prioritaet> <var nummer>: <var betreff>
+Subject: <var kennung> <var prioritaet> <var nummer>: <var betreff>
 Msg:
+<var uebung>
 NOTFUNK-MELDUNG <var nummer>
 ========================================
 Nummer:        <var nummer>
@@ -46,7 +72,11 @@ Betreff:       <var betreff>
 Bezug:         <var bezug>
 
 Inhalt:
+<var uebung>
+
 <var inhalt>
+
+<var uebung>
 
 Verlauf:
 <var verlauf>
@@ -72,7 +102,8 @@ function wlStripLocal(rec) {
 
 // The payload of a stored message. revisions: the message's revision records
 // (any order); refMsg: the message it refers to (replyTo), if there is one;
-// station: { call, operation, prefix, operator } of the sending book.
+// station: { call, operation, prefix, operator, exercise } of the sending
+// book (exercise: the operation is an Übung; missing counts as true).
 export function winlinkPayload(msg, revisions, refMsg, station, appVersion, now) {
   const revs = (revisions || []).filter(r => !r.messageId || r.messageId === msg.id)
     .slice().sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0))
@@ -89,6 +120,7 @@ export function winlinkPayload(msg, revisions, refMsg, station, appVersion, now)
     version: WINLINK_VERSION,
     app: appVersion || 'dev',
     exported: now,
+    exercise: station?.exercise !== false,
     station: {
       call: wlStr(station?.call).toUpperCase(), operation: wlStr(station?.operation),
       prefix: wlStr(station?.prefix), operator: wlStr(station?.operator).toUpperCase(),
@@ -150,6 +182,8 @@ export function winlinkFlatFields(payload, msgto = '') {
   const m = payload.message;
   return {
     msgto: wlStr(msgto).trim(),
+    kennung: winlinkIsExercise(payload) ? WINLINK_EXERCISE_TAG : '',
+    uebung: winlinkIsExercise(payload) ? WINLINK_EXERCISE_LINE : '',
     nummer: m.number,
     prioritaet: PRIORITIES[m.priority] || PRIORITIES.routine,
     art: MESSAGE_TYPES[m.type] || MESSAGE_TYPES.meldung,
@@ -403,6 +437,7 @@ function wlPayloadProblem(d) {
   if (d.version > WINLINK_VERSION) return `Diese Meldung wurde mit einer neueren Version des Notfunk-Meldebuchs erstellt (Format ${d.version}, hier ${WINLINK_VERSION}). Bitte das Meldebuch aktualisieren`;
   if (!wlIsObj(d.station) || typeof d.station.call !== 'string') return 'Meldung unvollständig (Station)';
   if (d.exported != null && !wlIsIso(d.exported)) return 'Meldung fehlerhaft (Exportzeit)';
+  if (d.exercise != null && typeof d.exercise !== 'boolean') return 'Meldung fehlerhaft (Übung)';
   const m = d.message;
   if (!wlIsObj(m)) return 'Meldung unvollständig (message)';
   if (typeof m.id !== 'string' || !WL_ID_RE.test(m.id)) return 'Meldung fehlerhaft (ID)';
@@ -500,11 +535,15 @@ function wlUtcIso(text) {
 // The flat fields of our form or another one (best effort).
 function wlFlatFromVars(vars, params, fallback = {}) {
   const ours = 'nummer' in vars || 'prioritaet' in vars || wlStr(params.display_form).toLowerCase() === WINLINK_VIEWER.toLowerCase();
+  const text = winlinkStripExercise(wlFirst(vars, WL_FLAT_TEXT) || fallback.text || '');
+  const subj = winlinkStripExerciseTag(wlFirst(vars, WL_FLAT_SUBJECT) || fallback.subject || '');
   const flat = {
     form: wlStr(params.display_form),
     ours,
-    subject: wlFirst(vars, WL_FLAT_SUBJECT) || fallback.subject || '',
-    text: wlFirst(vars, WL_FLAT_TEXT) || fallback.text || '',
+    subject: subj.subject,
+    text: text.text,
+    // foreign forms and plain messages: a marker line or subject tag
+    exercise: text.exercise || subj.exercise ? true : null,
     from: wlFirst(vars, WL_FLAT_FROM) || fallback.from || wlStr(params.senders_callsign),
     to: wlFirst(vars, WL_FLAT_TO),
     station: (ours ? wlStr(vars.station).trim() : '') || wlStr(params.senders_callsign).trim() || fallback.station || '',
@@ -517,6 +556,9 @@ function wlFlatFromVars(vars, params, fallback = {}) {
       ts: wlUtcIso(vars.zeit),
       bezug: wlStr(vars.bezug).trim(),
       formatVersion: wlStr(vars.format_version).trim(),
+      // our form since the marker: kennung/uebung filled = exercise; older
+      // form versions without the fields: unknown (null)
+      exercise: 'kennung' in vars || 'uebung' in vars ? !!(wlStr(vars.kennung).trim() || wlStr(vars.uebung).trim()) : null,
       history: wlStr(vars.verlauf).trim(),
     });
   }
@@ -621,7 +663,9 @@ export function parseWinlinkInput(name, input) {
       const { params, vars } = winlinkParseXml(wlDecode(ours.data));
       return wlFromVars(vars, params, base, fallback);
     }
-    return { ...base, kind: 'flat', flat: { form: '', ours: false, subject, text: b2f.body.trim(), from, to: '', station: from } };
+    const text = winlinkStripExercise(b2f.body.trim());
+    const subj = winlinkStripExerciseTag(subject);
+    return { ...base, kind: 'flat', flat: { form: '', ours: false, subject: subj.subject, text: text.text, from, to: '', station: from, exercise: text.exercise || subj.exercise ? true : null } };
   }
   throw new Error(`${name ? `„${name}“` : 'Der Text'}: nicht erkannt. Erwartet: die Datei aus dem Formular „OE Notfunk Meldung“ (.json), ein RMS_Express_Form_….xml oder eine Winlink-Nachricht (.b2f)`);
 }
@@ -645,6 +689,7 @@ export function winlinkSource(payload, extra = {}) {
     revisions: payload.revisions,
     updated: m.updated,
     exported: payload.exported || null,
+    exercise: winlinkIsExercise(payload),
   };
   if (extra.mid) src.mid = extra.mid;
   return src;
@@ -739,6 +784,7 @@ export function winlinkImportPlan(parsed, localMessages, { allMessages = localMe
     ts: f.ts || null,
     status: [], attempts: [], revisions: [],
     exported: null,
+    ...(f.exercise != null ? { exercise: f.exercise } : {}),
     ...(f.history ? { history: f.history } : {}),
     ...(f.form ? { form: f.form } : {}),
     ...(parsed.mid ? { mid: parsed.mid } : {}),

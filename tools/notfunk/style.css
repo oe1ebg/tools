@@ -23,7 +23,6 @@ kbd{ font:12.5px var(--font-mono); border:1px solid var(--line-strong); border-b
 .chip-btn.ok{ color:var(--ok); border-color:var(--ok); }
 .chip-btn.warn{ color:var(--warn); border-color:var(--warn); background:var(--warn-soft); }
 /* an Einsatz flagged "Übung": the word, bold and framed (not colour alone) */
-.chip.exercise-chip{ font-size:13.5px; font-weight:800; letter-spacing:.06em; color:var(--warn); border:2px solid currentColor; background:var(--warn-soft); }
 .clock{ font-family:var(--font-mono); font-size:13.5px; color:var(--text-dim); white-space:nowrap; }
 .clock b{ font-size:18px; color:var(--text); }
 .tabs{ display:inline-flex; flex-wrap:wrap; max-width:100%; border:1px solid var(--line); border-radius:4px; overflow:hidden; }
@@ -460,9 +459,22 @@ body > footer details.vendor-license pre{ white-space:pre-wrap; }
 .wl-dlg textarea{ width:100%; box-sizing:border-box; font-family:var(--font-mono); font-size:13.5px; }
 .wl-drop{ display:flex; flex-wrap:wrap; align-items:center; gap:.5em .8em; padding:.8em; border:2px dashed var(--line-strong); border-radius:6px; }
 .wl-drop.over{ border-color:var(--accent); border-style:solid; }
+.wl-copy{ width:100%; box-sizing:border-box; margin-top:.5em; font-size:13px; }
+.wl-copy[hidden]{ display:none; }
 .wl-notes{ margin:0; padding-left:1.2em; font-size:14px; }
 .wl-notes:empty{ display:none; }
 .wl-source{ border:1.5px dashed var(--line-strong); border-radius:6px; padding:.6em .8em; font-size:14.5px; }
 .wl-source p{ margin:.2em 0; }
 ol.wl-steps{ margin:.3em 0; padding-left:1.2em; }
 .wl-history{ white-space:pre-wrap; font-size:13.5px; }
+/* Übung / exercise (operation flag): marked in Winlink exports and imports */
+.wl-exercise{ margin:.3em 0; padding:.35em .6em; border:2px solid var(--warn); border-radius:6px; background:var(--warn-soft); color:var(--text); }
+.wl-exercise strong{ color:var(--warn); letter-spacing:.03em; }
+/* the open operation is an exercise: „ÜBUNG“ under the draft note, yellow
+   like it but calm and not dismissible; told apart by its place, the
+   centred spaced word and a solid frame (the draft note has text and ✕).
+   Fixed per operation, so no shift while working. */
+.banner.exercise-bar{ padding:.25em 1em; color:var(--text); background:var(--warn-soft); border:1.5px solid var(--warn);
+  font-size:14.5px; font-weight:700; letter-spacing:.18em; text-align:center; }
+.banner.exercise-bar[hidden]{ display:none; }
+@media (forced-colors: active){ .exercise-bar{ border-color:CanvasText; } }
