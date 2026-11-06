@@ -73,7 +73,9 @@ test('export: the file for the form and the .b2f for Pat; own message coming bac
   expect(raw).toContain('\r\nSubject: =?ISO-8859-1?q?[=DCBUNG]_Routine_W1-001:');
   expect(raw).toContain('Inhalt:\r\n=== ACHTUNG \ufffdBUNG ===\r\n\r\nBen');
   expect(raw).toContain('File: ');
-  await dlg.getByRole('button', { name: 'Schließen' }).click();
+  // two ways to close: × at the top, „Schließen“ at the end of the footer
+  await expect(dlg.locator('.dlg-x')).toHaveAccessibleName('Schließen');
+  await dlg.locator('.dlg-x').click();
   await expect(dlg).toBeHidden();
   // the status stays manual
   await expect(page.locator('#msg-detail .detail-tags')).toContainText('zur Übertragung');
@@ -96,7 +98,8 @@ test('export: the file for the form and the .b2f for Pat; own message coming bac
   const plainDl = page.waitForEvent('download');
   await dlg.getByRole('button', { name: 'Datei für das Formular speichern' }).click();
   expect(JSON.parse(await downloadText(await plainDl)).exercise).toBe(false);
-  await dlg.getByRole('button', { name: 'Schließen' }).click();
+  await dlg.locator('.dlg-foot').getByRole('button', { name: 'Schließen' }).click();
+  await expect(dlg).toBeHidden();
   // checked again: back; the list of operations has no bar
   await page.getByRole('button', { name: '← Meldebuch' }).click();
   await page.locator('#e-exercise').check();
