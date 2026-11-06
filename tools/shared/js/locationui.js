@@ -21,7 +21,7 @@ const CONF_LABEL = { exact: 'exakt', high: 'hoch', likely: 'wahrscheinlich', amb
 const TYPE_LABEL = { address: 'Adresse', street: 'Straße', intersection: 'Kreuzung', between: 'Bereich', poi: 'Ort', coordinate: 'Koordinate', maidenhead: 'Locator', utm: 'UTMREF', district: 'Bezirk', bezirk: 'Bezirk', postcode: 'PLZ' };
 // How a result was named when not by its own name (index.js NAME_TYPES).
 const NAME_TYPE_LABEL = { alias: 'anderer Name', colloquial: 'umgangssprachlich', historical: 'früherer Name', generated: 'Kurzform' };
-const SOURCE_LABEL = { 'vienna-ogd': 'Stadt Wien', osm: 'OpenStreetMap', gip: 'Stadt Wien (GIP-Namen)', wl: 'Wiener Linien', computed: 'berechnet', alias: 'kuratiert', bev: 'Adressregister' };
+const SOURCE_LABEL = { places: 'eigene Ortsliste', 'vienna-ogd': 'Stadt Wien', osm: 'OpenStreetMap', gip: 'Stadt Wien (GIP-Namen)', wl: 'Wiener Linien', computed: 'berechnet', alias: 'kuratiert', bev: 'Adressregister' };
 const EXAMPLES = ['Währinger Straße 42', '1100 Quellenstr', 'Donauturm', 'Donauinsel JN88ge', '48.2083, 16.3731', 'JN88ee', '33U XP 0201 4038', '2340', 'Bezirk Liezen'];
 
 let indexPromise = null;
@@ -129,6 +129,7 @@ function copyButton(label, text) {
 }
 
 function typeLabel(r) {
+  if (r.type === 'place') return r.placeType || 'eigener Ort';
   return r.type === 'poi' && r.role === 'stop' ? 'Haltestelle' : TYPE_LABEL[r.type] || r.type;
 }
 
@@ -166,7 +167,10 @@ function renderCompact(container, res, opts) {
     el('b', {}, r.label),
     el('small', {},
       r.matchedName ? [el('i', { class: 'alt' }, `„${r.matchedName}“${r.nameType === 'historical' ? ', früher' : r.nameType === 'colloquial' ? ', umgangssprachlich' : ''}`), ' · '] : null,
-      [plzText(r), r.district ? `${r.district}. Bez.` : null, locatorWithMore(r, prec), typeLabel(r), r.umland ? 'außerhalb Wiens' : null].filter(Boolean).join(' · ')),
+      (r.type === 'place'
+        // a named place of the user's own lists: its address first
+        ? [r.address, locatorFor(r, prec), typeLabel(r), r.list ? `Liste „${r.list}“` : null]
+        : [plzText(r), r.district ? `${r.district}. Bez.` : null, locatorWithMore(r, prec), typeLabel(r), r.umland ? 'außerhalb Wiens' : null]).filter(Boolean).join(' · ')),
     el('span', { class: 'lc-conf' }, CONF_LABEL[r.confidence] || r.confidence))));
 }
 

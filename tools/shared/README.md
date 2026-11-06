@@ -291,6 +291,58 @@ fallback; without it the tools keep the bundled Austrian list.
 - No network code here. Names in these modules start with `callsign`/
   `CALLSIGN_` (single-file bundles share one scope).
 
+## Named places (`js/places*.js`, `js/placelists.js`, issue #181)
+
+The user's own places by name (Lichtinseln, K-Vorsorgestandorte,
+Verbindungsstationen …): name and aliases -> address, coordinates and kind
+of place. Such lists are often not public, so **no place data is bundled
+or committed**; the user imports a CSV file, it stays on the device. Tests
+use invented places only (`tests/fixtures/places/`).
+
+- **Store** (`places-store.js`): IndexedDB `oe1ebg-places` (v1: `lists`,
+  `places` by list, `meta`), shared by every tool on the origin, no
+  localStorage fallback (without IndexedDB there are no own places). Like
+  the callsign store: one list per imported file; replacing a list writes a
+  new generation and keeps the one before (`Rückgängig` swaps them, older
+  ones are erased); deleting is a soft delete (`Wiederherstellen`),
+  `Endgültig löschen` removes the list and its places. Not in any tool's
+  backup (keep the file; `Exportieren` writes it again).
+- **CSV** (`places.js`, `placesParseCsv()`): a header line is required and
+  names the columns in any order: `Name;Typ;Adresse;Breite;Länge;Aliase`
+  (also `name, type, address, lat/latitude, lon/lng/longitude, alias`).
+  Name, Breite and Länge are required (decimal degrees WGS84, point or
+  comma), the rest optional; aliases separated by `|`. Separator `;`,
+  tab or `,` by the header line; quoted cells as RFC 4180. UTF-8 with or
+  without BOM, else read as Windows-1252 (Excel's "CSV"). Rows without a
+  name or valid coordinates, with latitude/longitude swapped (an Austrian
+  place as 16 N / 48 E), with texts over 300 characters or over 20 aliases
+  are skipped and reported by line; a file without any valid row writes
+  nothing. A formula guard `'` of our export is taken off again. Export
+  (`placesToCsv()`): the same format with `;`, decimal comma, BOM, CRLF.
+- **Resource limits**, checked before anything is written, the import
+  refused as a whole with a German message: a file over 2 MB (from the
+  file size, before reading), more than 10,000 places in a file, more than
+  50,000 places in all lists together (`PLACES_MAX_*`; also when restoring
+  a deleted list).
+- **Lookup** (`places-service.js`, `createPlacesService()`): the current
+  places of the lists that are not deleted, as an in-memory index; `search(text, n)`
+  (folded like the address lookup: case, umlauts, ß, punctuation; exact,
+  prefix, word prefixes, substring from 3 characters) returns location
+  results of `type: 'place'` (`placesResult()`); `resolve(text)` only an
+  exact name or alias. `watchFocus()` re-reads after a change in another
+  tab or tool.
+- **Location field** (`locfield.js`): `createLocationField({ places })`
+  merges the places into the dropdown (`placesMerge()`): an exact name
+  wins and is taken automatically (unless the auto-select level is
+  `never`), otherwise places come after an automatic address match, or
+  first. The snapshot of a place keeps `address`, `placeType` and `list`;
+  `describeLocation()` shows the address after the name. Without `places`
+  nothing changes (Confirm does not pass it yet).
+- **Dialog** (`placelists.js`, `createPlaceLists()`): the same classes and
+  layout as the callsign lists' dialog, German only; says first that the
+  lists are shared by all tools (or, in a `file://` bundle, only in this
+  file). Top-level names start with `places`/`PLACES_`/`placeLists`.
+
 ## Move to /tools/ (October 2026)
 
 Until issue #30 (item 5) the tools were published at `/<tool>/` and this

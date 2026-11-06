@@ -37,7 +37,7 @@ const PAPER_CHANNELS = [['funk', 'Funk'], ['telefon', 'Telefon'], ['muendlich', 
 
 function locationLine(loc) {
   if (!loc) return '';
-  return [loc.label, loc.postcode && !loc.label.includes(loc.postcode) ? loc.postcode : '', loc.maidenhead].filter(Boolean).join(' · ');
+  return [loc.label, loc.address || '', loc.postcode && !loc.label.includes(loc.postcode) ? loc.postcode : '', loc.maidenhead].filter(Boolean).join(' · ');
 }
 
 function paperOptions(list, chosen) {

@@ -1,0 +1,7 @@
+﻿Name;Typ;Adresse;Breite;Länge;Aliase
+Lichtinsel Testpark;Lichtinsel;Erfundene Gasse 1, 1210 Wien;48,2701;16,4012;LI Testpark|Testpark
+Lichtinsel Musterhof;Lichtinsel;Beispielweg 7, 1220 Wien;48,2302;16,4705;LI Musterhof
+K-Vorsorge Probeschule;K-Vorsorgestandort;Probestraße 3, 1100 Wien;48,1702;16,3801;
+"Verbindungsstation ""Nord""";Verbindungsstation;"Am Erfundenen Berg 2; 1190 Wien";48,2701;16,3402;VS Nord
+Ohne Koordinaten;Lichtinsel;Irgendwo 1;;;
+Vertauscht;Lichtinsel;Irgendwo 2;16,4;48,2;

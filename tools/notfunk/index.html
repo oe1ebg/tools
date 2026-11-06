@@ -128,8 +128,9 @@
           <div class="field"><label for="n-call">Stationsrufzeichen</label>
             <div class="ac-wrap"><input id="n-call" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" placeholder="OE1XKS" aria-describedby="n-call-info" title="Rufzeichen der eigenen Funkstation, z. B. die Klubstation; kann vom Rufzeichen des Operators abweichen"><div id="n-call-pop" class="ac-pop"></div></div>
             <div class="ac-hints"><div id="n-call-info" class="ac-info" aria-live="polite"></div></div></div>
-          <label class="field span-2"><span>Standort der Station (Adresse)</span>
-            <input id="n-station" enterkeyhint="next" placeholder="z. B. Lichtinsel 12, Brünner Straße 68" aria-describedby="n-station-help" title="Wo das eigene Funkgerät steht (steht oben im Ausdruck)"></label>
+          <div class="field ac-field span-2"><label for="n-station">Standort der Station (Adresse)</label>
+            <div class="ac-wrap"><input id="n-station" enterkeyhint="next" spellcheck="false" placeholder="z. B. Lichtinsel 12, Brünner Straße 68" aria-describedby="n-station-info n-station-help" title="Wo das eigene Funkgerät steht (steht oben im Ausdruck): Adresse oder Ort aus einer Ortsliste"><div id="n-station-pop" class="ac-pop"></div></div>
+            <div class="ac-hints loc-hints"><div id="n-station-info" class="ac-info" aria-live="polite"></div></div></div>
           <label class="field"><span>Für Stelle</span>
             <input id="n-home" enterkeyhint="next" placeholder="Stab" aria-describedby="n-home-help" title="Für wen die Station arbeitet, z. B. Stab: Vorgabe für An (Eingang) bzw. Von (Ausgang)"></label>
           <label class="field"><span>Frequenz MHz</span>
@@ -215,8 +216,9 @@
             <div class="field"><label for="e-call">Stationsrufzeichen</label>
               <div class="ac-wrap"><input id="e-call" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-describedby="e-call-info" title="Rufzeichen der eigenen Funkstation, z. B. die Klubstation; kann vom Rufzeichen des Operators abweichen"><div id="e-call-pop" class="ac-pop"></div></div>
               <div class="ac-hints"><div id="e-call-info" class="ac-info" aria-live="polite"></div></div></div>
-            <label class="field span-2"><span>Standort der Station (Adresse)</span>
-              <input id="e-station" enterkeyhint="next" title="Wo das eigene Funkgerät steht (steht oben im Ausdruck)"></label>
+            <div class="field ac-field span-2"><label for="e-station">Standort der Station (Adresse)</label>
+              <div class="ac-wrap"><input id="e-station" enterkeyhint="next" spellcheck="false" aria-describedby="e-station-info" title="Wo das eigene Funkgerät steht (steht oben im Ausdruck): Adresse oder Ort aus einer Ortsliste"><div id="e-station-pop" class="ac-pop"></div></div>
+              <div class="ac-hints loc-hints"><div id="e-station-info" class="ac-info" aria-live="polite"></div></div></div>
             <label class="field"><span>Für Stelle</span>
               <input id="e-home" enterkeyhint="next" title="Für wen die Station arbeitet, z. B. Stab: Vorgabe für An (Eingang) bzw. Von (Ausgang)"></label>
             <label class="field"><span>Frequenz MHz</span>
@@ -474,10 +476,11 @@
       <section id="h-where" aria-labelledby="h-where-t">
         <h3 id="h-where-t">Orte</h3>
         <dl class="kb">
-          <dt>Ort</dt><dd>wo das gemeldete Ereignis ist. <span class="ex">Brünner Straße 68</span> <span class="ex">JN88EG</span> Ein Vorschlag ergänzt Postleitzahl und Locator; der Inhalt der Meldung bleibt unverändert.</dd>
+          <dt>Ort</dt><dd>wo das gemeldete Ereignis ist. <span class="ex">Brünner Straße 68</span> <span class="ex">JN88EG</span> Ein Vorschlag ergänzt Postleitzahl und Locator; der Inhalt der Meldung bleibt unverändert. Orte aus einer Ortsliste (z. B. <span class="ex">Lichtinsel …</span>) stehen mit ihrer Adresse in den Vorschlägen; ihr genauer Name oder Alias wird automatisch zugeordnet und auf der Karte gezeigt.</dd>
           <dt>Ursprungsort</dt><dd>wo die Meldung ursprünglich aufgegeben wurde; kann vom Ereignisort abweichen.</dd>
           <dt>📍 Standort</dt><dd>oben in der Kopfzeile: die Offline-Standortsuche Wien (Adresse, Ort, PLZ, Koordinaten, Locator, UTMREF), zum Prüfen oder Umrechnen einer Ortsangabe; das Formular bleibt, wie es ist.</dd>
-          <dt>Standort der Station (Adresse)</dt><dd>wo das eigene Funkgerät steht <span class="ex">Lichtinsel 12 Floridsdorf</span>; im Einsatz eingetragen, gilt für alle Meldungen.</dd>
+          <dt>Standort der Station (Adresse)</dt><dd>wo das eigene Funkgerät steht <span class="ex">Lichtinsel 12 Floridsdorf</span>; im Einsatz eingetragen, gilt für alle Meldungen. Vorschläge wie bei Ort; die Karte zeigt die Station als ★.</dd>
+          <dt>Ortslisten</dt><dd>unten auf der Seite „Ortslisten … verwalten…“: eigene Orte mit Name, Adresse und Koordinaten (Lichtinseln, K-Vorsorgestandorte, Verbindungsstationen …) aus einer CSV-Datei mit der Kopfzeile <span class="ex">Name;Typ;Adresse;Breite;Länge;Aliase</span>. Sie bleiben auf diesem Gerät, gelten für alle Tools und sind in keiner Sicherung: die Datei aufbewahren. Ersetzen, Rückgängig, Exportieren und Löschen (wiederherstellbar) im selben Dialog.</dd>
         </dl>
       </section>
       <section id="h-when" aria-labelledby="h-when-t">
@@ -526,6 +529,7 @@
   <span id="st-source" class="online-only"></span>
   <span id="offline-file-link"> · <a href="notfunk-offline.html" download="notfunk-meldebuch-offline.html">Offline-Datei</a></span>
   <span class="lists-line"> · Rufzeichenlisten (gemeinsam für alle Tools): <button type="button" id="btn-lists-open" class="link" aria-haspopup="dialog">verwalten…</button> <span id="lists-summary"></span></span>
+  <span class="lists-line"> · Ortslisten (Lichtinseln u. a., gemeinsam für alle Tools): <button type="button" id="btn-places-open" class="link" aria-haspopup="dialog">verwalten…</button> <span id="places-summary"></span></span>
   <details class="sources">
     <summary>Datenquellen und Lizenzen (alle offline enthalten)</summary>
     <dl>

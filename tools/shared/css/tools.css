@@ -202,6 +202,8 @@ dl.kb dd{ margin:0; color:var(--text-dim); }
 .cl-msg.ok::before{ content:"✔ "; }
 .cl-msg.err{ color:var(--err); }
 .cl-msg.err::before{ content:"✖ "; }
+.cl-msg.warn::before{ content:"⚠ "; }
+.cl-body pre{ white-space:pre-wrap; overflow-wrap:anywhere; font-size:13.5px; padding:.4em .6em; border:1px solid var(--line); border-radius:4px; }
 /* phone: one card per list or entry, each value with its column name */
 @media (max-width: 640px){
   .cl-table, .cl-table tbody, .cl-table tr, .cl-table td{ display:block; }
