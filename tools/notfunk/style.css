@@ -454,12 +454,22 @@ body > footer details.vendor-license pre{ white-space:pre-wrap; }
 #map-panel{ scroll-margin-top:calc(var(--site-header-h, 0px) + .5em); }
 
 /* ---------- Winlink (issue #179): export and import dialogs, sender's record ---------- */
-.wl-dlg{ width:min(560px, calc(100vw - 2em)); }
+.wl-dlg{ width:min(620px, calc(100vw - 2em)); }
 .wl-dlg .field{ display:flex; flex-direction:column; gap:.2em; }
 .wl-dlg textarea{ width:100%; box-sizing:border-box; font-family:var(--font-mono); font-size:13.5px; }
 .wl-drop{ display:flex; flex-wrap:wrap; align-items:center; gap:.5em .8em; padding:.8em; border:2px dashed var(--line-strong); border-radius:6px; }
 .wl-drop.over{ border-color:var(--accent); border-style:solid; }
-.wl-copy{ width:100%; box-sizing:border-box; margin-top:.5em; font-size:13px; }
+.wl-copy{ width:100%; box-sizing:border-box; font-size:13px; }
+/* JSON field: the copy button right under the text field, the hint beside it */
+.wl-json-actions{ display:flex; flex-flow:row-reverse wrap; align-items:flex-start; justify-content:space-between; gap:.3em .8em; }
+.wl-json-actions .hint{ margin:0; flex:1 1 14em; }
+.wl-json-actions button{ flex:none; }
+/* Dialog head with a small close button (×) at the top right; Schließen
+   last in the footer, at its right end */
+.dlg-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:.5em; }
+.dlg-x{ flex:none; min-width:32px; min-height:32px; padding:0; margin:-.3em -.5em 0 0; border-color:transparent; background:none; font-size:22px; line-height:1; color:var(--text-dim); }
+.dlg-x:hover:not(:disabled){ border-color:var(--line-strong); }
+.foot-end{ margin-left:auto; }
 .wl-copy[hidden]{ display:none; }
 .wl-notes{ margin:0; padding-left:1.2em; font-size:14px; }
 .wl-notes:empty{ display:none; }

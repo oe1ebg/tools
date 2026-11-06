@@ -416,7 +416,7 @@
      picker or dropped here, or pasted text; the message opens in the form. -->
 <dialog id="wl-import-dlg" class="step-dlg wl-dlg" aria-labelledby="wl-import-title">
   <div class="step-dlg-body">
-    <h2 id="wl-import-title">Winlink-Nachricht importieren</h2>
+    <div class="dlg-head"><h2 id="wl-import-title">Winlink-Nachricht importieren</h2><button type="button" id="btn-wl-import-x" class="dlg-x" aria-label="Schließen" title="Schließen (Esc)"><span aria-hidden="true">×</span></button></div>
     <p class="hint" id="wl-import-help">Die Datei aus dem Formular „OE1 Notfunk Meldung“ („Für Meldebuch speichern“), den Anhang <span class="mono">RMS_Express_Form_….xml</span> oder eine Nachricht (.b2f) aus dem Postfach von Pat. Die Meldung öffnet sich als neuer Eingang im Formular; gespeichert wird sie erst, wenn Sie speichern. Andere Formulare und einfache Nachrichten: nur Betreff, Text und Absender.</p>
     <div id="wl-drop" class="wl-drop">
       <span>Datei hierher ziehen oder</span>
@@ -427,7 +427,7 @@
       <textarea id="wl-paste" rows="4" spellcheck="false" autocomplete="off" aria-describedby="wl-import-msg"></textarea></div>
     <div class="inline-foot">
       <button type="button" id="btn-wl-paste">Text übernehmen</button>
-      <button type="button" id="btn-wl-import-close">Schließen</button>
+      <button type="button" id="btn-wl-import-close" class="foot-end">Schließen</button>
     </div>
     <div id="wl-import-msg" class="form-status" role="status" aria-live="polite"></div>
   </div>
