@@ -7,7 +7,7 @@
 // node tests run them on the real storage layer.
 
 import { saveNumbered } from './numbering.js';
-import { newMessage, setStatus, currentStatus, messageFields, STATUS_FLOW } from './model.js';
+import { newMessage, setStatus, currentStatus, messageFields, markForwarded, STATUS_FLOW } from './model.js';
 import { mergeBackup } from './export.js';
 
 // The compare-and-set token of a record is its `updated`. A wall clock is not
@@ -52,17 +52,27 @@ export function editTarget(current, base) {
 }
 
 // A new message: number, message and (for a reply) the "answered" status of
-// the message it answers in ONE transaction. messageId is kept for as long
-// as the entry is the same, so a retry returns the committed message.
+// the message it answers, or (for a forwarding) the handover step of the
+// message it passes on, in ONE transaction. The step is applied to the
+// original as stored in that transaction, so nothing another tab changed is
+// overwritten. messageId is kept for as long as the entry is the same, so a
+// retry returns the committed message (and marks nothing twice).
 // meta: { operator, stationCall, now }.
 export function saveNewMessage(store, { op, fields, messageId, meta }) {
   return saveNumbered(store, { opId: op.id, prefix: op.prefix, recordStore: 'messages', id: messageId },
     numbered => newMessage(fields, numbered, { id: messageId, opId: op.id, ...meta }),
     async ({ get, put }, saved) => {
-      if (saved.refKind !== 'antwort' || !saved.replyTo) return;
+      if (!saved.replyTo || (saved.refKind !== 'antwort' && saved.refKind !== 'weiterleitung')) return;
       const orig = await get('messages', saved.replyTo);
-      if (!orig || orig.eventId !== op.id || STATUS_FLOW.indexOf(currentStatus(orig)) >= STATUS_FLOW.indexOf('answered')) return;
-      const next = setStatus(orig, 'answered', { operator: meta.operator, now: meta.now, note: saved.number });
+      if (!orig || orig.eventId !== op.id) return;
+      let next;
+      if (saved.refKind === 'weiterleitung') {
+        next = markForwarded(orig, saved, { operator: meta.operator, now: meta.now });
+        if (!next) return;
+      } else {
+        if (STATUS_FLOW.indexOf(currentStatus(orig)) >= STATUS_FLOW.indexOf('answered')) return;
+        next = setStatus(orig, 'answered', { operator: meta.operator, now: meta.now, note: saved.number });
+      }
       put('messages', { ...next, updated: bumpUpdated(orig.updated, next.updated) });
     });
 }

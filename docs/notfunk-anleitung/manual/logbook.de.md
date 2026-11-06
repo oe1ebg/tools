@@ -42,7 +42,8 @@ bestätigt“ die **Referenz der Meldesammelstelle**, wenn sie genannt wird.
 <kbd>Enter</kbd> trägt ein, <kbd>Esc</kbd> schließt ohne Eintrag.
 
 „Beantwortet“ entsteht von selbst, sobald eine Antwort mit Bezug auf die
-Meldung gespeichert wird.
+Meldung gespeichert wird. „Übergeben“ entsteht von selbst, wenn ein Eingang
+weitergeleitet wird (siehe unten).
 
 ## Die Karte
 
@@ -87,11 +88,40 @@ Weitere Knöpfe bei der Meldung:
 
 - **Antwort erfassen:** Richtung, Absender und Adressat sind vertauscht, der
   Bezug ist gesetzt.
+- **Weiterleiten** (nur bei einem Eingang): die Meldung als neuer Ausgang
+  weitergeben, siehe unten.
 - **Bearbeiten:** korrigiert die Meldung; die vorige Fassung bleibt
   gespeichert.
 - **Ausdruck / PDF:** siehe [Ausdruck und PDF](printout.de.md).
 - **Löschen:** die Meldung verschwindet aus der Liste, ihre Nummer bleibt
   vergeben und wird nie wieder verwendet. Unter „Gelöschte Meldungen“ lässt
   sie sich wiederherstellen.
+
+## Eine Meldung weiterleiten (Verbindungsstation)
+
+An einer Verbindungsstation nimmt dieselbe Person eine Meldung auf und gibt
+sie weiter: über Funk auf einer anderen Frequenz oder einem Relais, auf Papier
+mit einem Melder oder mündlich. Dafür braucht es keine zweite Eingabe von
+Hand:
+
+1. Den Eingang öffnen und **„Weiterleiten“** wählen.
+2. Das Formular kommt als **Ausgang** mit demselben Absender (Von), Betreff
+   und **wörtlichem Inhalt**, Art, Dringlichkeit, Ort und Verteiler, dem
+   Bezug **„Weiterleitung von …“** und dem **Ursprung**: wie beim Eingang
+   eingetragen, sonst dessen Funkstelle (oder Absender-Rufzeichen) und
+   Empfangszeit. Alles bleibt änderbar.
+3. **An** eintragen (vorbelegt mit dem Adressaten des Eingangs, wenn das
+   nicht die eigene Stelle ist) und die **Übermittlung**: Funk mit Frequenz,
+   Relais und Funkstelle, **Melder** (auf Papier), **mündlich** oder anders.
+4. Speichern. Der Ausgang bekommt die nächste Nummer; im selben Schritt wird
+   der Eingang als **übergeben** vermerkt: an den Adressaten, zur Zeit des
+   Ausgangs, mit „weitergeleitet als W1-… · Melder“. War die Übergabe schon
+   eingetragen, bleibt sie, wie sie ist.
+
+Den Rest erledigt der Ablauf des Ausgangs: „übertragen“ und „Empfang
+bestätigt“, sobald die Gegenstelle oder der Empfänger den Empfang bestätigt.
+Beim Eingang stehen die Weiterleitungen unter „Weitergeleitet als“; im
+Ausdruck und in der Geschäftsbuch-CSV steht beim Ausgang der Bezug
+„Weiterleitung von …“, beim Eingang die Übergabe.
 
 Weiter: [Ausdruck und PDF](printout.de.md)

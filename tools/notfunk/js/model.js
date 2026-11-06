@@ -43,7 +43,10 @@ export function statusLabel(state, direction) {
 }
 // Bezug: what a message refers to (replyTo = the id of that message in
 // this operation, refNumber = its number as typed, also from elsewhere).
-export const REF_KINDS = { antwort: 'Antwort auf', korrektur: 'Korrektur zu', ergaenzung: 'Ergänzung zu' };
+// weiterleitung: an outgoing message that passes an incoming one on
+// verbatim (Verbindungsstation, see markForwarded()). Records without a
+// kind (older drafts) still read as antwort.
+export const REF_KINDS = { antwort: 'Antwort auf', korrektur: 'Korrektur zu', ergaenzung: 'Ergänzung zu', weiterleitung: 'Weiterleitung von' };
 
 const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
 
@@ -241,9 +244,31 @@ export function liveMessages(msgs) {
   return msgs.filter(m => !m.deleted).sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : a.prefix < b.prefix ? -1 : a.prefix > b.prefix ? 1 : a.seq - b.seq));
 }
 
-// Replies to a message (replyTo = its id), oldest first.
+// Messages referring to a message (replyTo = its id), oldest first; the
+// forwardings of it are listed apart (forwardsOf()).
 export function repliesTo(msgs, id) {
-  return liveMessages(msgs).filter(m => m.replyTo === id);
+  return liveMessages(msgs).filter(m => m.replyTo === id && m.refKind !== 'weiterleitung');
+}
+
+export function forwardsOf(msgs, id) {
+  return liveMessages(msgs).filter(m => m.replyTo === id && m.refKind === 'weiterleitung');
+}
+
+// The way a message went: "Melder", "Funk 145,500 MHz via OE1XUU".
+export function channelText(m) {
+  if (m.channel !== 'funk') return CHANNELS[m.channel] || m.channel;
+  return [CHANNELS.funk, m.radio?.freq && `${fmtFreq(m.radio.freq)} MHz`, m.radio?.via && `via ${m.radio.via}`].filter(Boolean).join(' ');
+}
+
+// An incoming message passed on as the outgoing message fwd (Bezug
+// "Weiterleitung von"): its handover step, "übergeben an <An of fwd>" at the
+// time of fwd, the note naming fwd and the way it went. null when there is
+// nothing to record (not an incoming message, or its handover is recorded
+// already: a step is never recorded twice or undone).
+export function markForwarded(orig, fwd, { operator, now }) {
+  if (orig.direction !== 'in' || fwd.direction !== 'out' || nextHandover(orig) !== 'forwarded') return null;
+  const to = [fwd.to.name, fwd.to.call && fwd.to.call !== fwd.to.name ? fwd.to.call : ''].filter(Boolean).join(' / ');
+  return setStatus(orig, 'forwarded', { operator, now, at: fwd.ts, to, note: `weitergeleitet als ${fwd.number} · ${channelText(fwd)}` });
 }
 
 // Filters for the message book and the map: { direction, priority, status,

@@ -384,6 +384,41 @@ test('handover: steps with who and when, the staff reference apart from the numb
   await expect(row.locator('td.num .ref')).toHaveText('GZ 0412');
 });
 
+// Issue #185: a Verbindungsstation passes an incoming message on; one save
+// numbers the outgoing message and records the original's handover.
+test('forward: an incoming message becomes a new Ausgang, the original is handed over', async ({ page }) => {
+  await openNewOp(page, 'E2E Weiterleiten', 'v1');
+  await addMessage(page, 'Lichtinsel 12 Floridsdorf', 'Diesel benötigt', 'Aggregat läuft bis 18 Uhr.\n6 beatmete Bewohner.');
+  await page.locator('#book-body a', { hasText: 'V1-001' }).click();
+  await page.getByRole('button', { name: 'Weiterleiten' }).click();
+  await expect(page.locator('#form-reply')).toContainText('Weiterleitung von V1-001');
+  await expect(page.locator('#m-dir-out')).toBeChecked();
+  await expect(page.locator('#m-from')).toHaveValue('Lichtinsel 12 Floridsdorf');
+  await expect(page.locator('#m-subject')).toHaveValue('Diesel benötigt');
+  await expect(page.locator('#m-text')).toHaveValue('Aggregat läuft bis 18 Uhr.\n6 beatmete Bewohner.');
+  await expect(page.locator('#m-orig-station')).toHaveValue('OE1ABC');
+  await expect(page.locator('#m-to')).toBeFocused();
+  await page.locator('#m-to').fill('Meldesammelstelle');
+  await page.locator('label[for="m-channel-melder"]').click();
+  await expect(page.locator('#m-channel-melder')).toBeChecked();
+  await page.locator('#btn-save').click();
+  await expect.poll(() => numbers(page)).toEqual(['V1-002', 'V1-001']);
+  await expect(page.locator('#book-status')).toContainText('V1-001 als übergeben vermerkt');
+  await expect(page.locator('#book-body tr', { has: page.locator('td.num a', { hasText: 'V1-001' }) })).toContainText('übergeben');
+  // the original: handed over with the way on, the forwarding linked
+  await page.locator('#book-body a', { hasText: 'V1-001' }).click();
+  await expect(page.locator('#msg-detail')).toContainText('an Meldesammelstelle');
+  await expect(page.locator('#msg-detail')).toContainText('weitergeleitet als V1-002 · Melder');
+  await expect(page.getByRole('region', { name: 'Weitergeleitet als' })).toContainText('V1-002 Melder');
+  await expect(page.getByRole('region', { name: 'Antworten' })).toContainText('noch keine');
+  // the forwarding: an Ausgang with its Bezug; no Weiterleiten on an Ausgang
+  await page.getByRole('region', { name: 'Weitergeleitet als' }).getByRole('link', { name: 'V1-002' }).click();
+  await expect(page.locator('#msg-title')).toHaveText('V1-002');
+  await expect(page.locator('#msg-detail .detail-bezug')).toContainText('Weiterleitung von V1-001');
+  await expect(page.locator('#msg-detail')).toContainText('Melder');
+  await expect(page.getByRole('button', { name: 'Weiterleiten' })).toHaveCount(0);
+});
+
 // The book's step button opens a small dialog with the step's inputs.
 test('book step dialog: prefilled with the last target, Enter records, focus returns to the row, the reference shows', async ({ page }) => {
   await openNewOp(page, 'E2E Schritt', 's1');

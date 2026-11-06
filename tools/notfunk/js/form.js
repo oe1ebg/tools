@@ -304,6 +304,34 @@ export function replyForm(msg, op) {
   };
 }
 
+// The form for passing an incoming message on (Verbindungsstation): a new
+// outgoing message with the same Von, Betreff and Inhalt (verbatim, still
+// editable), Art, Dringlichkeit, Ort and Verteiler; the Ursprung as recorded,
+// else the station it came from and the time it came in; An = the original
+// addressee unless that is the own post; the way on (Übermittlung) as for a
+// new message. Linked by replyTo as "Weiterleitung von"; saving it records
+// the original's handover (ops.saveNewMessage()).
+export function forwardForm(msg, op) {
+  const to = partyText(msg.to);
+  const origin = msg.origin || {};
+  const recorded = !!(origin.station || origin.place || origin.filed);
+  return {
+    ...emptyForm(op),
+    direction: 'out',
+    type: msg.type, priority: msg.priority,
+    from: partyText(msg.from), to: to && to !== (op?.home || '') ? to : '',
+    subject: msg.subject || '', text: msg.text || '',
+    stichzeit: msg.type === 'lagemeldung' ? clockText(msg.stichzeit) : '',
+    distribution: (msg.distribution || []).join(', '),
+    origStation: recorded ? origin.station || '' : msg.peer || msg.from?.call || '',
+    origPlace: origin.place || '', origPlaceLoc: origin.place ? origin.placeLoc || null : null,
+    origFiled: clockText(recorded ? origin.filed : msg.ts),
+    location: msg.location || null,
+    locationText: msg.location ? msg.location.input || msg.location.label || '' : msg.locationText || '',
+    replyTo: msg.id, refKind: 'weiterleitung', ref: msg.number,
+  };
+}
+
 // The next handling step offered as a button in the book: handing over /
 // transmitting and the confirmation are explicit; "beantwortet" follows
 // from saving a reply (and doesn't stop the handover being recorded).

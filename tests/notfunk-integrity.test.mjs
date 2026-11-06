@@ -270,6 +270,41 @@ test('a reply and the "answered" status of its original are one transaction', as
   assert.equal(currentStatus(await store.get('messages', orig.id)), 'answered');
 });
 
+test('a forwarding and the handover of its original are one transaction, on the stored version', async () => {
+  const orig = await create();
+  // another tab records something on the original meanwhile (a reply): kept
+  await saveNewMessage(store, { op: OP, fields: fields({ direction: 'out', from: { name: 'Stab' }, to: { name: 'Lichtinsel 3' }, replyTo: orig.id, refKind: 'antwort' }), messageId: 'r1', meta: META });
+  const fwd = {
+    op: OP, messageId: 'fwd1', meta: { ...META, now: T1 },
+    fields: fields({ direction: 'out', ts: T1, channel: 'muendlich', to: { name: 'K-Vorsorge' }, replyTo: orig.id, refKind: 'weiterleitung', refNumber: orig.number }),
+  };
+  const faulty = {
+    ...store,
+    atomic: (names, fn) => store.atomic(names, api => fn({
+      ...api,
+      put: (s, v) => { if (s === 'messages' && v.status?.some(x => x.state === 'forwarded')) throw new Error('boom'); api.put(s, v); },
+    })),
+  };
+  await assert.rejects(saveNewMessage(faulty, fwd), /boom/);
+  assert.equal((await store.getByEvent('messages', 'op1')).length, 2, 'no forwarding');
+  assert.equal((await store.get('counters', 'op1:W1')).last, 2, 'no number consumed');
+  const before = await store.get('messages', orig.id);
+  const saved = await saveNewMessage(store, fwd);
+  assert.deepEqual([saved.number, saved.refKind, saved.text], ['W1-003', 'weiterleitung', orig.text]);
+  const marked = await store.get('messages', orig.id);
+  assert.deepEqual(marked.status.map(s => s.state), ['logged', 'answered', 'forwarded']);
+  const step = marked.status.at(-1);
+  assert.deepEqual([step.to, step.note, step.at], ['K-Vorsorge', 'weitergeleitet als W1-003 · mündlich', T1]);
+  assert.ok(marked.updated > before.updated, 'a new compare-and-set token');
+  // a retry with the same id: the committed message, nothing marked twice
+  assert.deepEqual(await saveNewMessage(store, fwd), saved);
+  assert.equal((await store.get('messages', orig.id)).status.length, 3);
+  // a second forwarding numbers on, the handover recorded first stays
+  const second = await saveNewMessage(store, { ...fwd, messageId: 'fwd2', fields: { ...fwd.fields, to: { name: 'ELS' } } });
+  assert.equal(second.number, 'W1-004');
+  assert.deepEqual(await store.get('messages', orig.id), marked);
+});
+
 test('a retry after a partial success returns the committed message, not a new number', async () => {
   const first = await saveNewMessage(store, { op: OP, fields: fields(), messageId: 'draft-1', meta: META });
   // the later step (station completion) fails; the message is committed and the book shows it

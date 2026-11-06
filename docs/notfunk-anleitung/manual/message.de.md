@@ -54,7 +54,7 @@ Unter **„Weitere Felder“** stehen:
 
 | Feld | Bedeutung | Beispiel |
 | --- | --- | --- |
-| Bezug | Antwort, Korrektur oder Ergänzung zu einer anderen Meldung, mit deren Nummer; die Liste unter dem Feld hilft beim Finden (siehe unten) | Antwort auf W1-003 |
+| Bezug | Antwort, Korrektur, Ergänzung oder Weiterleitung zu einer anderen Meldung, mit deren Nummer; die Liste unter dem Feld hilft beim Finden (siehe unten) | Antwort auf W1-003 |
 | Verteiler | wer die Meldung noch bekommt | S3, S4 |
 | Ursprungsstation | Station, bei der die Meldung ursprünglich aufgegeben wurde (bei Weitergaben) | OE3XYZ |
 | Ursprungsort | Ort der ursprünglichen Aufgabe | Wolkersdorf |
