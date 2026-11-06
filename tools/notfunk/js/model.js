@@ -255,7 +255,24 @@ export function filterMessages(msgs, flt = {}) {
     && (!flt.priority || m.priority === flt.priority)
     && (!flt.status || currentStatus(m) === flt.status)
     && (!flt.open || !m.status.some(x => x.state === 'acknowledged'))
-    && (!q || [m.number, m.staffRef, m.peer, m.subject, m.text, m.from.name, m.from.call, m.to.name, m.to.call].join(' ').toLowerCase().includes(q)));
+    && matchesQuery(m, q));
+}
+
+// The text search of the book (and of the Bezug list): `q` (lower case,
+// trimmed; empty = every message) anywhere in number, reference, Funkstelle,
+// Betreff, Inhalt, Von or An. The searched text is kept per stored message
+// object (an edit stores a new one), so a search per keystroke stays cheap
+// in a long book.
+const searchTexts = new WeakMap();
+
+export function matchesQuery(m, q) {
+  if (!q) return true;
+  let t = searchTexts.get(m);
+  if (t === undefined) {
+    t = [m.number, m.staffRef, m.peer, m.subject, m.text, m.from?.name, m.from?.call, m.to?.name, m.to?.call].join(' ').toLowerCase();
+    searchTexts.set(m, t);
+  }
+  return t.includes(q);
 }
 
 // All times are Austrian local time (Europe/Vienna), on any device: typed,

@@ -9,7 +9,7 @@
 // (`op.home`, e.g. "Stab") is the default recipient of incoming and the
 // default sender of outgoing messages.
 
-import { STATUS_FLOW, statusLabel, currentStatus, nextHandover, messageFields, validateMessage, liveMessages, normFreq, ZONE } from './model.js';
+import { STATUS_FLOW, statusLabel, currentStatus, nextHandover, messageFields, validateMessage, liveMessages, matchesQuery, normFreq, ZONE } from './model.js';
 import { numberGaps, parseNumber, formatNumber } from './numbering.js';
 import { normalizeCall, isPlausibleCall } from '../../shared/js/callbook.js';
 import { wallClock, wallToInstants, closestTo } from '../../shared/js/time.js';
@@ -140,6 +140,23 @@ export function normalizeRef(text) {
   const t = String(text ?? '').trim();
   const n = parseNumber(t);
   return n ? formatNumber(n.prefix, n.seq) : t.toUpperCase();
+}
+
+// The messages offered for the Bezug: the live messages of this operation
+// (msgs) except the one being edited (excludeId), newest first. Typed text
+// filters them as the book's search does (number, Betreff, Inhalt,
+// Funkstelle, …); a message whose number is the typed one ("w1-3" or
+// just "3" = W1-003) comes first, then those whose number contains it, then the
+// rest. At most `limit`; total = all that match.
+export function refChoices(msgs, query, { excludeId = null, limit = 50 } = {}) {
+  const q = String(query ?? '').trim().toLowerCase();
+  const exactNo = q ? normalizeRef(q) : '';
+  const seq = /^\d{1,6}$/.test(q) ? Number(q) : null;
+  const exact = m => m.number === exactNo || m.seq === seq;
+  const rank = m => (!q ? 2 : exact(m) ? 0 : m.number.toLowerCase().includes(q) ? 1 : 2);
+  const hits = liveMessages(msgs).filter(m => m.id !== excludeId && (exact(m) || matchesQuery(m, q))).reverse();
+  const ranked = hits.map((m, i) => [rank(m), i, m]).sort((a, b) => a[0] - b[0] || a[1] - b[1]).map(x => x[2]);
+  return { items: ranked.slice(0, limit), total: ranked.length };
 }
 
 // Drafts from before date and time were split hold "2026-10-07 14:05" in

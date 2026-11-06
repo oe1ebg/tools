@@ -45,7 +45,7 @@ import { groupParts, partFileName, partsTooLarge } from '../../shared/js/backup-
 import { saveNewMessage, updateMessage, changedFields, editBaseOf, editTarget, draftEditState, applyBackup, patchOperation, writeDraft, clearDraft } from './ops.js';
 import {
   emptyForm, setDirection, formToFields, formIsBlank, messageToForm, replyForm, nextStep, statusSteps, bookSummary, partyText,
-  readDateTime, readClock, readBound, normDate, normTime, dateText, clockText, upgradeForm, normalizeRef,
+  readDateTime, readClock, readBound, normDate, normTime, dateText, clockText, upgradeForm, normalizeRef, refChoices,
 } from './form.js';
 import { blankFormPdf, formPdf } from './paperpdf.js';
 import { bookPdf } from './bookpdf.js';
@@ -1266,7 +1266,60 @@ function initForm() {
   state.origLocField = createLocationField({
     input: $('#m-orig-place'), chip: $('#m-orig-place-info'), results: $('#m-orig-place-pop'), onChange: onFormChange,
   });
+  attachRefSearch();
   initHelpDialog({ keys: ['F1'] }); // "? Hilfe" in the header, F1, ? outside text fields
+}
+
+// Bezug: the messages of this operation as a list under the field, newest
+// first, filtered live by what is typed (number, Betreff, Inhalt,
+// Funkstelle, as the book's search). ↓ opens it, ↓/↑ and Enter or a click
+// picks a message (linked like "Antwort erfassen"); Enter alone and Tab
+// keep the typed text (a number of another station is kept as text).
+const REF_LIMIT = 50;
+
+function attachRefSearch() {
+  const input = $('#m-ref'), pop = $('#m-ref-pop');
+  const ctl = popover(input, pop, { enterPicksFirst: false, label: 'Meldungen dieses Einsatzes' });
+  const pick = m => {
+    input.value = m.number;
+    $('#msg-form').dataset.replyTo = m.id;
+    fill(pop);
+    ctl.hide();
+    onFormChange();
+    input.focus();
+  };
+  const render = () => {
+    const wasHidden = pop.hidden;
+    const { items, total } = refChoices(state.msgs, input.value, { excludeId: state.editing?.id || null, limit: REF_LIMIT });
+    const q = input.value.trim();
+    // the field already holds exactly the one message found: nothing to offer
+    const done = items.length === 1 && items[0].number === normalizeRef(q);
+    fill(pop, done ? null : [
+      total > items.length ? el('div', { class: 'ac-head' }, `Die neuesten ${items.length} von ${total}; weitertippen grenzt ein:`) : null,
+      items.map(m => el('button', { type: 'button', class: 'ac-item ref-item', onclick: () => pick(m) },
+        el('b', {}, m.number),
+        el('small', { class: 'mono' }, fmtVienna(m.ts)),
+        // the Gegenstelle as in the book: the arrow on screen, "von"/"an" for screen readers
+        el('small', {}, el('span', { 'aria-hidden': 'true' }, m.direction === 'in' ? '↓ ' : '↑ '),
+          el('span', { class: 'sr-only' }, m.direction === 'in' ? 'von ' : 'an '), partyName(m.direction === 'in' ? m.from : m.to) || '–'),
+        el('span', { class: 'alt' }, m.subject || m.text.slice(0, 50)))),
+    ]);
+    ctl.update();
+    // the opened list in view; on the phone not under the sticky save row
+    if (wasHidden && !pop.hidden) {
+      pop.scrollIntoView({ block: 'nearest' });
+      const bar = $('#msg-form .form-actions');
+      const over = getComputedStyle(bar).position === 'sticky' ? pop.getBoundingClientRect().bottom - bar.getBoundingClientRect().top : 0;
+      if (over > 0) window.scrollBy(0, over + 4);
+    }
+  };
+  // only while typing, or with ↓: an open list never covers the fields
+  // under it when the field just gets the focus
+  input.addEventListener('input', render);
+  input.addEventListener('keydown', ev => {
+    if (ev.key === 'ArrowDown' && pop.hidden && !isComposing(ev)) { ev.preventDefault(); render(); pop.querySelector('button')?.focus(); }
+  });
+  input.addEventListener('blur', () => setTimeout(() => { if (!pop.contains(document.activeElement) && document.activeElement !== input) fill(pop); }, 200));
 }
 
 /* ---------------------------------------------------------------- help */

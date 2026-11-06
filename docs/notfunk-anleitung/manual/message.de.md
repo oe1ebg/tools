@@ -54,13 +54,25 @@ Unter **„Weitere Felder“** stehen:
 
 | Feld | Bedeutung | Beispiel |
 | --- | --- | --- |
-| Bezug | Antwort, Korrektur oder Ergänzung zu einer anderen Meldung, mit deren Nummer | Antwort auf W1-003 |
+| Bezug | Antwort, Korrektur oder Ergänzung zu einer anderen Meldung, mit deren Nummer; die Liste unter dem Feld hilft beim Finden (siehe unten) | Antwort auf W1-003 |
 | Verteiler | wer die Meldung noch bekommt | S3, S4 |
 | Ursprungsstation | Station, bei der die Meldung ursprünglich aufgegeben wurde (bei Weitergaben) | OE3XYZ |
 | Ursprungsort | Ort der ursprünglichen Aufgabe | Wolkersdorf |
 | Aufgabezeit | wann die Meldung dort aufgegeben wurde (Uhrzeit) | 13:50 |
 | Stichzeit | nur bei Lagemeldungen: auf welche Uhrzeit sich die Lage bezieht | 14:00 |
 | Anmerkungen | eigene Notizen | |
+
+**Bezug aus der Liste wählen:** Die Nummer der anderen Meldung müssen Sie
+nicht erst im Meldebuch nachschlagen. Tippen Sie im Feld „Bezug“ oder drücken
+Sie <kbd>↓</kbd>: Unter dem Feld stehen die Meldungen dieses Einsatzes, die
+neuesten zuerst, mit Nummer, Zeit, Gegenstelle und Betreff. Was Sie tippen,
+sucht darin wie die Suche im Meldebuch, in Nummer, Betreff, Inhalt und
+Gegenstelle, etwa `Strom` oder `3` für W1-003. Mit <kbd>↓</kbd>
+<kbd>↑</kbd> und <kbd>Enter</kbd> oder einem Tipp übernehmen Sie eine
+Meldung; darunter steht dann ihr Betreff. <kbd>Esc</kbd> schließt die Liste,
+<kbd>Tab</kbd> lässt den getippten Text stehen. Die Nummer einer anderen
+Station tippen Sie einfach ein: Sie wird als Text gespeichert („nicht in
+diesem Einsatz“).
 
 ### Wer ist wer
 

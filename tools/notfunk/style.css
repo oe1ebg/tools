@@ -181,6 +181,15 @@ label.field > .fwarn, div.field > .fwarn, .fwarn{ color:var(--warn); font-size:1
 .ref-line{ display:flex; gap:.4em; }
 .ref-line select{ width:auto; }
 .ref-line input{ width:8em; }
+/* the Bezug list: under the whole line (kind and number), scrolls within
+   itself (app.js scrolls it clear of the sticky save row on the phone) */
+.ref-line{ position:relative; }
+.ref-line .ac-wrap{ position:static; }
+#m-ref-pop{ max-height:min(22em, 50vh); overflow-y:auto; }
+/* number, time and Gegenstelle on one line, the Betreff under them */
+#m-ref-pop .ref-item{ flex-wrap:wrap; row-gap:0; }
+#m-ref-pop .ref-item b, #m-ref-pop .ref-item small{ white-space:nowrap; }
+#m-ref-pop .ref-item .alt{ flex-basis:100%; }
 .stich-field{ width:9em; }
 .readback-check{ align-self:flex-start; }
 .form-head .link{ background:none; border:none; padding:0; cursor:pointer; color:var(--text-dim); font-size:13.5px; }

@@ -99,6 +99,85 @@ test('numbers, status, reply, edit, delete and CSV', async ({ page }) => {
   expect(text).not.toContain('W1-002');
 });
 
+// Issue #184: the Bezug is picked from a list of this operation's messages,
+// searched live by number or Betreff; free text for other stations stays.
+test('Bezug: search by number and Betreff, pick from the list, saved linked', async ({ page }) => {
+  await openNewOp(page, 'E2E Bezug', 'w1');
+  await addMessage(page, 'Lichtinsel 3', 'Wasser');
+  await addMessage(page, 'Lichtinsel 4', 'Strom ausgefallen');
+  await addMessage(page, 'Lichtinsel 5', 'Diesel');
+  await page.locator('#m-from').fill('Stab');
+  await page.locator('#m-subject').fill('Rückfrage');
+  await page.locator('#m-text').fill('Wie viel Diesel?');
+  await page.locator('#m-more summary').click();
+  const ref = page.locator('#m-ref');
+  const pop = page.locator('#m-ref-pop');
+  const options = pop.getByRole('option');
+  await expect(ref).toHaveRole('combobox');
+  await expect(ref).toHaveAttribute('aria-expanded', 'false');
+
+  // by number: the typed number first
+  await ref.pressSequentially('2');
+  await expect(ref).toHaveAttribute('aria-expanded', 'true');
+  await expect(options.first()).toContainText('W1-002');
+  await expect(options.first()).toContainText('Strom ausgefallen');
+  // Esc closes the list first; the text stays and the form is not discarded
+  await ref.press('Escape');
+  await expect(pop).toBeHidden();
+  await expect(ref).toHaveAttribute('aria-expanded', 'false');
+  await expect(ref).toHaveValue('2');
+  await expect(page.locator('#btn-discard-yes')).toBeHidden();
+
+  // by a word of the Betreff, any case; newest first without a query
+  await ref.fill('');
+  await ref.press('ArrowDown');
+  await expect(options).toHaveText([/W1-003/, /W1-002/, /W1-001/]);
+  // phone: the open list is scrolled clear of the sticky save row
+  const overlap = await page.evaluate(() => {
+    const bar = document.querySelector('#msg-form .form-actions');
+    if (getComputedStyle(bar).position !== 'sticky') return 0;
+    return document.querySelector('#m-ref-pop').getBoundingClientRect().bottom - bar.getBoundingClientRect().top;
+  });
+  expect(overlap).toBeLessThanOrEqual(0);
+  await ref.press('Escape');
+  await ref.pressSequentially('strom');
+  await expect(options).toHaveCount(1);
+  await expect(options.first()).toContainText('W1-002');
+  // ↓ marks it, Enter picks it: the Bezug info line shows it
+  await ref.press('ArrowDown');
+  await expect(options.first()).toBeFocused();
+  await expect(options.first()).toHaveAttribute('aria-selected', 'true');
+  await page.keyboard.press('Enter');
+  await expect(ref).toHaveValue('W1-002');
+  await expect(ref).toBeFocused();
+  await expect(pop).toBeHidden();
+  await expect(page.locator('#m-ref-info')).toHaveText('W1-002: Strom ausgefallen');
+  await expect(page.locator('#form-reply')).toContainText('Antwort auf W1-002');
+
+  await page.locator('#m-peer').fill('OE1ABC');
+  await page.locator('#btn-save').click();
+  const row = page.locator('#book-body tr', { has: page.locator('td.num a', { hasText: 'W1-004' }) });
+  await expect(row).toContainText('↪ W1-002');
+  await expect(page.locator('#book-body tr', { has: page.locator('td.num a', { hasText: 'W1-002' }) })).toContainText('beantwortet');
+  await row.locator('td.num a').click();
+  await expect(page.locator('.detail-bezug a')).toHaveText('W1-002');
+  await page.getByRole('button', { name: '← Meldebuch' }).click();
+
+  // the message being edited is not offered; free text stays text
+  await page.locator('#book-body a', { hasText: 'W1-004' }).click();
+  await page.getByRole('button', { name: 'Bearbeiten' }).click();
+  await expect(page.locator('#m-more')).toHaveAttribute('open', ''); // a Bezug opens "Weitere Felder"
+  await expect(ref).toHaveValue('W1-002');
+  await ref.fill('');
+  await ref.press('ArrowDown');
+  await expect(options).toHaveText([/W1-003/, /W1-002/, /W1-001/]);
+  await ref.press('Escape');
+  await ref.pressSequentially('K2-010');
+  await page.keyboard.press('Tab');
+  await expect(ref).toHaveValue('K2-010');
+  await expect(page.locator('#m-ref-info')).toContainText('nicht in diesem Einsatz');
+});
+
 // Issue #15: the book keeps its rows between renders (keyed by message and
 // its `updated` token); search and filter show exactly the matching rows.
 test('search, filter and a status step keep the rows of unchanged messages', async ({ page }) => {
