@@ -43,6 +43,7 @@
   <a id="manual-link" class="hdr-link" href="../notfunk-anleitung/" target="_blank" rel="noopener" title="Ausführliche Anleitung mit Bildern (online)">Anleitung</a>
   <button id="btn-loc" type="button" aria-expanded="false" aria-controls="loc-panel" title="Offline-Standortsuche Wien: Adresse, Ort, PLZ, Koordinaten, Locator, UTMREF"><span aria-hidden="true">📍</span> Standort</button>
   <div class="hdr-status">
+    <span id="st-exercise" class="chip exercise-chip" hidden title="Dieser Einsatz ist eine Übung: jede Meldung am Funk mit „ACHTUNG ÜBUNG“ einleiten und beenden">ÜBUNG</span>
     <span id="st-offline" class="chip">offline: prüfe…</span>
     <span id="st-storage" class="chip">Speicher: prüfe…</span>
     <button type="button" id="st-backup" class="chip chip-btn" hidden title="Download der Sicherung (JSON) dieses Einsatzes jetzt starten; ob die Datei angekommen ist, meldet der Browser nicht"></button>
@@ -120,6 +121,7 @@
         <label class="field"><span>Stationskürzel</span>
           <input id="n-prefix" required maxlength="6" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" placeholder="W1" aria-describedby="n-prefix-help"></label>
       </div>
+      <label class="check op-exercise"><input type="checkbox" id="n-exercise" aria-describedby="n-exercise-help"> Übung</label>
       <fieldset class="op-group">
         <legend>Eigene Station</legend>
         <div class="grid-form op-grid">
@@ -145,6 +147,7 @@
             <div class="ac-hints"><div id="n-operator-info" class="ac-info" aria-live="polite"></div></div></div>
         </div>
       </fieldset>
+      <p class="hint" id="n-exercise-help">Übung: jede Meldung wird am Funk mit „ACHTUNG ÜBUNG“ eingeleitet und beendet. Das Formular erinnert daran, oben steht „ÜBUNG“, Ausdrucke und Geschäftsbuch sind als Übung gekennzeichnet; der Inhalt wird wörtlich gespeichert, ohne Zusatz. Lässt sich später im Einsatz ändern.</p>
       <p class="hint" id="n-prefix-help">Das Kürzel steht vor jeder Nummer (W1-001, W1-002 …). Jedes Gerät bzw. jede Station eines Einsatzes bekommt ein eigenes Kürzel, dann lassen sich die Bücher ohne doppelte Nummern zusammenführen.</p>
       <p class="hint" id="n-station-help">Stationsrufzeichen und Standort der Station (Adresse): die eigene Funkstation, z. B. OE1XKS in der Lichtinsel 12; das Rufzeichen kann vom Operator abweichen. Beides steht oben im Ausdruck.</p>
       <p class="hint" id="n-home-help">Für Stelle: für wen die Station arbeitet, z. B. Stab. Steht bei neuen Meldungen als Adressat eingehender und Absender ausgehender Meldungen, solange nichts anderes eingetragen ist.</p>
@@ -205,6 +208,7 @@
           <label class="field"><span>Stationskürzel</span>
             <input id="e-prefix" maxlength="6" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-describedby="e-prefix-help"></label>
         </div>
+        <label class="check op-exercise"><input type="checkbox" id="e-exercise" aria-describedby="e-exercise-help"> Übung</label>
         <fieldset class="op-group">
           <legend>Eigene Station</legend>
           <div class="grid-form op-grid">
@@ -235,6 +239,7 @@
         <div class="hdr-actions"><button type="button" id="btn-op-undo" disabled title="Einsatz wie beim Öffnen von „Einsatz“">Rückgängig</button></div>
         <p class="hint">Änderungen gelten für neue Meldungen; gespeicherte behalten Stationsrufzeichen, Operator, Frequenz und Nummer vom Zeitpunkt der Aufnahme. Ein Operatorwechsel (Schichtwechsel) wird hier eingetragen.<br>
           Tastatur: Tab/Enter nächstes Feld · ↓ Vorschläge, Enter übernimmt · Esc stellt das Feld zurück</p>
+        <p class="hint" id="e-exercise-help">Übung: jede Meldung am Funk mit „ACHTUNG ÜBUNG“ einleiten und beenden; das Formular erinnert daran, Ausdrucke und Geschäftsbuch des ganzen Einsatzes sind als Übung gekennzeichnet. Der Inhalt bleibt wörtlich, ohne Zusatz.</p>
         <p class="hint" id="e-prefix-help">Das Stationskürzel lässt sich nur ändern, solange der Einsatz noch keine Meldung hat.</p>
         <p id="op-status" class="form-status" role="status"></p>
       </div>
@@ -306,6 +311,7 @@
           <span id="m-text-5w" class="five-w" aria-hidden="true">Vollständig? Wer · Wann · Was · Wo · Wie</span>
           <span id="m-text-err" class="ferr" data-field="text"></span></label>
       </div>
+      <p id="m-exercise" class="exercise-hint" hidden><b>ÜBUNG:</b> Vor und nach dem Spruch: „ACHTUNG ÜBUNG“</p>
       <label class="check readback-check"><input type="checkbox" id="m-readback"> <span id="m-readback-label">Rücklesen erfolgt und vom Absender als richtig bestätigt</span></label>
 
       <details id="m-more" class="more">
@@ -438,6 +444,7 @@
         </ol>
         <p><b>Weiterleiten</b> (Verbindungsstation): bei einem Eingang „Weiterleiten“ wählen. Das Formular wird ein neuer Ausgang mit gleichem Absender, Betreff und wörtlichem Inhalt, Bezug „Weiterleitung von …“ und Ursprung; An und Übermittlung (Funk, Melder, mündlich …) eintragen und speichern. Der Eingang wird dabei als „übergeben an …“ mit dem Weg vermerkt.</p>
         <p>Ein Ausgang zeigt im Meldebuch, ob er nur <i>zur Übertragung</i> vorliegt, <i>übertragen</i> wurde oder der <i>Empfang bestätigt</i> ist. „Übergeben“ oder „übertragen“ heißt nie, dass ein Auftrag im Inhalt erledigt ist.</p>
+        <p><b>Übung:</b> Ist der Einsatz als Übung markiert (Kästchen „Übung“ beim Anlegen oder unter „Einsatz“), steht oben „ÜBUNG“ und unter dem Inhalt die Erinnerung „Vor und nach dem Spruch: „ACHTUNG ÜBUNG““. Am Funk jede Meldung damit einleiten und beenden. Das Meldebuch fügt es nicht in den Inhalt ein: gespeichert wird der Wortlaut, wie eingegeben. Ausdrucke (PDF) tragen „ÜBUNG“, das Geschäftsbuch (CSV) hat am Ende die Spalte „Übung“ (ja / nein).</p>
         <p>Der halb ausgefüllte Entwurf wird laufend zwischengesichert („Entwurf gesichert“ oben im Formular) und kommt nach einem Neuladen zurück. Er ist keine gespeicherte Meldung und kann verloren gehen; steht dort „Entwurf nicht gesichert!“ oder ein Hinweis zum Entwurf, ist er gerade nicht im Speicher. Vor einem Update fertige Meldungen speichern und wichtige unfertige Eingaben außerhalb des Meldebuchs kopieren; scheitert das Sichern, wartet das Update („Update wartet: Eingabe klären“), bis die Eingabe geklärt ist.</p>
       </section>
       <section id="h-who" aria-labelledby="h-who-t">

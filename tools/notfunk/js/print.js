@@ -12,6 +12,9 @@
 //    without a device.
 // 2. bookSheet(): the message book for a time range, the Geschäftsbuch
 //    columns (one row per message, deleted ones left out).
+//
+// `exercise` of every sheet: the Einsatz is flagged "Übung" (op.exercise; a
+// missing field = not flagged); the PDFs then mark every page "ÜBUNG".
 
 import {
   DIRECTIONS, CHANNELS, MESSAGE_TYPES, PRIORITIES, REF_KINDS, statusLabel, statusEntry, timeLabel, readBackLabel,
@@ -61,6 +64,7 @@ export function formSheet(msg, op, { now, revisions = 0, byId = new Map() }) {
     : [fwd?.to || '', fwd ? viennaTime(fwd.at) : '', ack?.who || '', ack ? viennaTime(ack.at) : ''];
   return {
     title: op?.name || '',
+    exercise: !!op?.exercise,
     station: [op?.prefix, msg.stationCall || op?.call, op?.station].filter(Boolean).join(' · '),
     einsatz: einsatzFields(op),
     number: msg.number,
@@ -108,6 +112,8 @@ export function blankFormSheet(op, { now }) {
   return {
     blank: true,
     title: op?.name || '',
+    // printed for an Einsatz flagged "Übung": marked as such
+    exercise: !!op?.exercise,
     station: '',
     // printed before an Einsatz starts: its header is not known yet
     einsatz: [],
@@ -176,6 +182,7 @@ export function bookSheet(msgs, op, { now, fromIso = null, toIso = null }) {
     });
   return {
     title: op?.name || '',
+    exercise: !!op?.exercise,
     station: [op?.prefix, op?.call, op?.station].filter(Boolean).join(' · '),
     einsatz: einsatzFields(op),
     range,

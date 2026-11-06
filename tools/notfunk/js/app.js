@@ -255,7 +255,8 @@ async function createOp() {
   const now = nowIso();
   const op = {
     id: newId(), name: v('#n-name'), prefix, call: normalizeCall(v('#n-call')), station: v('#n-station'), operator: normalizeCall(v('#n-operator')),
-    home: v('#n-home'), freq: normFreq(v('#n-freq')), via: normalizeCall(v('#n-via')), created: now, updated: now, archived: false, deleted: null,
+    home: v('#n-home'), freq: normFreq(v('#n-freq')), via: normalizeCall(v('#n-via')), exercise: $('#n-exercise').checked,
+    created: now, updated: now, archived: false, deleted: null,
   };
   try {
     await state.store.tx([{ store: 'operations', put: op }]);
@@ -282,12 +283,15 @@ const OP_PANEL_KEY = 'oe1ebg-notfunk-op-open';
 function renderOpPanel() {
   const op = state.op;
   for (const [k, sel] of Object.entries(OP_FIELDS)) if (document.activeElement !== $(sel)) $(sel).value = k === 'freq' ? fmtFreq(op[k] || '') : op[k] || '';
+  $('#e-exercise').checked = !!op.exercise;
+  renderExercise();
   $('#e-prefix').readOnly = state.msgs.length > 0;
   renderPartyInfo('#e-operator', '#e-operator-info');
   renderPartyInfo('#e-call', '#e-call-info');
   state.opRpt?.refresh();
   $('#book-title').textContent = op.name;
   setText($('#op-sum'), [
+    op.exercise && 'Übung',
     op.prefix,
     op.call,
     op.station,
@@ -301,6 +305,18 @@ function renderOpPanel() {
   updateOpUndo();
 }
 
+// An Einsatz flagged "Übung" (op.exercise; missing = not flagged): "ÜBUNG"
+// in the page header (a fixed place, next to the status chips) and the
+// reminder under the Inhalt, read by screen readers as part of the Inhalt's
+// description (not announced on every change). The stored text stays as
+// typed: nothing is added to it.
+function renderExercise() {
+  const on = !!state.op?.exercise;
+  $('#st-exercise').hidden = !on;
+  $('#m-exercise').hidden = !on;
+  $('#m-text').setAttribute('aria-describedby', on ? 'm-text-err m-exercise' : 'm-text-err');
+}
+
 // "Rückgängig" in the Einsatz panel: the panel's fields as they were when
 // the panel was opened (or the book loaded with it open). Taken from the
 // operation as this tab has it; another tab's later change to the operation
@@ -308,7 +324,7 @@ function renderOpPanel() {
 // any edit here would). The Stationskürzel is not part of it once messages
 // use it.
 function takeOpUndo() {
-  state.opUndo = state.op ? Object.fromEntries(Object.keys(OP_FIELDS).map(k => [k, state.op[k] || ''])) : null;
+  state.opUndo = state.op ? { ...Object.fromEntries(Object.keys(OP_FIELDS).map(k => [k, state.op[k] || ''])), exercise: !!state.op.exercise } : null;
 }
 
 function opUndoPatch() {
@@ -317,7 +333,7 @@ function opUndoPatch() {
   const patch = {};
   for (const [k, val] of Object.entries(u)) {
     if (k === 'prefix' && state.msgs.length) continue;
-    if ((op[k] || '') !== val) patch[k] = val;
+    if (!sameOpValue(op, k, val)) patch[k] = val;
   }
   return patch;
 }
@@ -333,13 +349,19 @@ async function undoOp() {
   bookStatus('Einsatz wie beim Öffnen.');
 }
 
+// A field of the operation equals a value of the panel ("Übung" a boolean,
+// a missing one false; the others text, a missing one '').
+function sameOpValue(op, k, val) {
+  return k === 'exercise' ? !!op.exercise === val : (op[k] || '') === val;
+}
+
 async function saveOpPanel() {
   const op = state.op;
   const v = sel => $(sel).value.trim();
   const status = $('#op-status');
   const patch = {
     name: v('#e-name') || op.name, call: normalizeCall(v('#e-call')), station: v('#e-station'), operator: normalizeCall(v('#e-operator')),
-    home: v('#e-home'), freq: normFreq(v('#e-freq')), via: normalizeCall(v('#e-via')),
+    home: v('#e-home'), freq: normFreq(v('#e-freq')), via: normalizeCall(v('#e-via')), exercise: $('#e-exercise').checked,
   };
   const prefix = normalizePrefix(v('#e-prefix'));
   if (prefix !== op.prefix) {
@@ -354,9 +376,9 @@ async function saveOpPanel() {
   } else {
     status.textContent = '';
   }
-  if (Object.entries(patch).every(([k, val]) => (op[k] || '') === val)) { renderOpPanel(); return; }
+  if (Object.entries(patch).every(([k, val]) => sameOpValue(op, k, val))) { renderOpPanel(); return; }
   await applyOpPatch(patch);
-  bookStatus(`Einsatz geändert: ${Object.keys(patch).filter(k => (op[k] || '') !== patch[k]).map(k => OP_LABELS[k]).join(', ')}`);
+  bookStatus(`Einsatz geändert: ${Object.keys(patch).filter(k => !sameOpValue(op, k, patch[k])).map(k => OP_LABELS[k]).join(', ')}`);
 }
 
 // Store a patch of the operation; an untouched message form follows the new
@@ -378,7 +400,7 @@ async function applyOpPatch(patch) {
   renderFormState();
 }
 
-const OP_LABELS = { name: 'Name', prefix: 'Stationskürzel', call: 'Stationsrufzeichen', station: 'Standort der Station (Adresse)', operator: 'Operator', home: 'Für Stelle', freq: 'Frequenz', via: 'Relais' };
+const OP_LABELS = { name: 'Name', prefix: 'Stationskürzel', call: 'Stationsrufzeichen', station: 'Standort der Station (Adresse)', operator: 'Operator', home: 'Für Stelle', freq: 'Frequenz', via: 'Relais', exercise: 'Übung' };
 
 // Completion on the operator and relay fields of an operation (the
 // "+ Neuer Einsatz" form and the Einsatz panel), as in the confirmation
@@ -564,6 +586,7 @@ async function leaveOp() {
   await flushDraft();
   state.op = null;
   state.msgs = [];
+  renderExercise();
   setEditing(null);
   document.title = 'Notfunk-Meldebuch';
 }
@@ -2092,7 +2115,7 @@ function wire() {
   });
   $('#btn-csv').addEventListener('click', () => {
     const csvStats = { guarded: 0 };
-    download(toGeschaeftsbuchCSV(state.msgs, ';', csvStats), `${fileStem()}.csv`, 'text/csv');
+    download(toGeschaeftsbuchCSV(state.msgs, ';', csvStats, state.op), `${fileStem()}.csv`, 'text/csv');
     // Cells that started like a formula got a leading ' (../shared/js/csv.js).
     bookStatus('Geschäftsbuch (CSV) heruntergeladen', csvStats.guarded
       ? ` · ${csvStats.guarded} ${csvStats.guarded === 1 ? 'Wert' : 'Werte'} mit vorangestelltem ' (Anfang =, +, -, @ oder Steuerzeichen: Schutz vor Formeln im Tabellenprogramm; die JSON-Sicherung bleibt unverändert)`

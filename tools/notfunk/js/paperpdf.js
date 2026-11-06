@@ -21,6 +21,10 @@
 // The words (options, headings of the handover row, the footer) come from
 // the sheet and model.js; only the captions of the fields are written here
 // (NFP_CAPTIONS).
+//
+// An Einsatz flagged "Übung" (sheet.exercise): "ÜBUNG" in a thin frame in the
+// head of every page, left of the number's box, and in the footer. The
+// Inhalt stays as stored (verbatim).
 
 import { blankFormSheet, formSheet } from './print.js';
 import { PDF_A4_PORTRAIT, pdfCanvas, pdfDocument, pdfTextWidth, pdfWrap, pdfFooterUrl } from '../../shared/js/pdf.js';
@@ -83,6 +87,21 @@ const NFP_TEXT_SIZES = [12, 11, 10.5, 10]; // pt, the largest that fits one page
 const NFP_VALUE_SIZES = [10.5, 9.5, 8.5, 7.5];
 const NFP_FOOT_Y = NFP_PAGE.height - NFP_MARGIN + 0.5;
 const NFP_CONT_TOP = 43; // mm: where the text of a continuation page starts
+const NFP_EXERCISE = 'ÜBUNG';
+const NFP_EXERCISE_SIZE = 13; // pt, bold
+
+// The width (mm) of the "ÜBUNG" mark: its frame around the word.
+function nfpExerciseWidth() {
+  return pdfTextWidth(NFP_EXERCISE, NFP_EXERCISE_SIZE, true) + 6;
+}
+
+// The "ÜBUNG" mark, its frame's right edge at xr and top at y (9 mm high):
+// black on white, a frame and the bold word (no filled area).
+function nfpExerciseMark(cv, xr, y) {
+  const w = nfpExerciseWidth();
+  cv.rect(xr - w, y, w, 9, { width: 1.2 });
+  cv.text(NFP_EXERCISE, xr - w / 2, y + 6.4, { size: NFP_EXERCISE_SIZE, bold: true, align: 'center' });
+}
 
 // The footer of a page: the status, the print time and the version of a
 // filled form (of the empty one: what it is and when printed), "Seite n von N" of a
@@ -90,11 +109,12 @@ const NFP_CONT_TOP = 43; // mm: where the text of a continuation page starts
 function nfpFooter(cv, s, n, total) {
   const x0 = NFP_MARGIN, x1 = NFP_PAGE.width - NFP_MARGIN;
   pdfFooterUrl(cv, x0, NFP_FOOT_Y + 3.4);
+  const head = `Notfunk-Meldebuch${s.exercise ? ` · ${NFP_EXERCISE}` : ''}`;
   if (s.blank) {
-    cv.text(`Notfunk-Meldebuch · Vordruck, gedruckt ${s.printed}`, x0, NFP_FOOT_Y, { size: 7, gray: 0.2 });
+    cv.text(`${head} · Vordruck, gedruckt ${s.printed}`, x0, NFP_FOOT_Y, { size: 7, gray: 0.2 });
     return;
   }
-  cv.text(`Notfunk-Meldebuch · Status ${s.status} · gedruckt ${s.printed} · Zeiten in Ortszeit Wien`, x0, NFP_FOOT_Y, { size: 7, gray: 0.2 });
+  cv.text(`${head} · Status ${s.status} · gedruckt ${s.printed} · Zeiten in Ortszeit Wien`, x0, NFP_FOOT_Y, { size: 7, gray: 0.2 });
   const right = [total > 1 ? `Seite ${n} von ${total}` : '', s.version ? `Fassung ${s.version}` : ''].filter(Boolean).join(' · ');
   cv.text(right, x1, NFP_FOOT_Y, { size: 7, gray: 0.2, align: 'right' });
 }
@@ -173,7 +193,10 @@ function nfpFirstPage(s, plan) {
   // ---- header: title, Eingang / Ausgang, the number's box
   let y = NFP_MARGIN;
   const numW = 50, numX = x1 - numW, headH = 24.5;
-  caption(nfpFit([NFP_CAPTIONS.org, s.title].filter(Boolean).join(' · ').toUpperCase(), numX - x0 - 4, [7, 6.2, 5.5]).text, x0, y + 3.2, { size: 7 });
+  // "ÜBUNG" left of the number's box; the title line then ends before it
+  const markW = s.exercise ? nfpExerciseWidth() + 3 : 0;
+  if (s.exercise) nfpExerciseMark(cv, numX - 4, y + 1);
+  caption(nfpFit([NFP_CAPTIONS.org, s.title].filter(Boolean).join(' · ').toUpperCase(), numX - x0 - 4 - markW, [7, 6.2, 5.5]).text, x0, y + 3.2, { size: 7 });
   cv.text(NFP_CAPTIONS.title, x0, y + 11.5, { size: 19, bold: true });
   const dirW = (numX - 5 - x0 - 3) / 2;
   const chosen = s.directions.some(d => d.checked);
@@ -365,7 +388,13 @@ function nfpContinuationPage(s, lines, size, n, total) {
   const cv = pdfCanvas(NFP_PAGE);
   const x0 = NFP_MARGIN, x1 = NFP_PAGE.width - NFP_MARGIN;
   const y = NFP_MARGIN;
-  cv.text([NFP_CAPTIONS.org, s.title].filter(Boolean).join(' · ').toUpperCase(), x0, y + 3.2, { size: 7, gray: 0.15 });
+  if (s.exercise) {
+    nfpExerciseMark(cv, x1 - 54, y + 1);
+    const top = nfpFit([NFP_CAPTIONS.org, s.title].filter(Boolean).join(' · ').toUpperCase(), x1 - 54 - nfpExerciseWidth() - 3 - x0, [7, 6.2, 5.5]);
+    cv.text(top.text, x0, y + 3.2, { size: top.size, gray: 0.15 });
+  } else {
+    cv.text([NFP_CAPTIONS.org, s.title].filter(Boolean).join(' · ').toUpperCase(), x0, y + 3.2, { size: 7, gray: 0.15 });
+  }
   cv.text(`${NFP_CAPTIONS.title} – Fortsetzung`, x0, y + 11, { size: 14, bold: true });
   cv.rect(x1 - 50, y, 50, 14, { width: NFP_LINE });
   cv.text(NFP_CAPTIONS.number.toUpperCase(), x1 - 47.5, y + 3.8, { size: 6.8, gray: 0.15 });

@@ -167,6 +167,38 @@ test('applyBackup: decides and writes in one transaction, ids are global, counte
   assert.equal((await store.get('counters', 'op1:W1')).last, 40);
 });
 
+// "Übung" (op.exercise, #186): an optional field of the operation, no schema
+// change. Older operations and backups have no such field and read as not
+// flagged; a backup keeps the flag; restoring into an operation that is
+// already here keeps that operation's header (as for its other fields).
+test('Übung flag: older backups restore unflagged, the flag survives backup and restore, merge keeps the stored header', async () => {
+  // an older backup (no field): restored as it was, read as not flagged
+  await applyBackup(store, parse(backupOf([mk(1)])));
+  const old = await store.get('operations', 'op1');
+  assert.ok(!('exercise' in old) && !old.exercise);
+  // set in the Einsatz panel: the other fields stay
+  await patchOperation(store, 'op1', { exercise: true }, T1);
+  const flagged = await store.get('operations', 'op1');
+  assert.equal(flagged.exercise, true);
+  assert.equal(flagged.name, 'Übung');
+  // backup and restore into another browser (empty): flag kept
+  const json = toBackup({ operation: flagged, messages: [mk(1)], revisions: [], counters: [] }, T1);
+  assert.equal(parseBackup(json).operation.exercise, true);
+  globalThis.localStorage = new MemoryStorage();
+  store = await openToolStorage(SCHEMA);
+  await applyBackup(store, parseBackup(json));
+  assert.equal((await store.get('operations', 'op1')).exercise, true);
+  // into an operation that is here: its own header stays, either way
+  await applyBackup(store, parse(backupOf([mk(2)], { operation: { ...OP, exercise: false } })));
+  assert.equal((await store.get('operations', 'op1')).exercise, true);
+  await patchOperation(store, 'op1', { exercise: false }, T1);
+  await applyBackup(store, parseBackup(json));
+  assert.equal((await store.get('operations', 'op1')).exercise, false);
+  assert.ok(await store.get('messages', 'b2'), 'the messages are merged as usual');
+  // a damaged flag rejects the file (as a damaged Stationskürzel)
+  assert.throws(() => parse(backupOf([mk(1)], { operation: { ...OP, exercise: 'ja' } })), /Übung des Einsatzes/);
+});
+
 test('applyBackup concurrently with a save: no number twice, counter at the highest', async () => {
   await store.tx([{ store: 'operations', put: OP }]);
   const incoming = parse(backupOf([mk(1), mk(2), mk(3)]));

@@ -56,4 +56,13 @@ Das PDF (A4 quer) hat die Spalten des Meldebuchs, den ganzen Inhalt jeder
 Meldung und auf jeder Seite Einsatz, Zeitraum und „Seite n von N“. Notfall
 und Dringend sind auch schwarzweiß gedruckt erkennbar.
 
+## Übung
+
+Ist der Einsatz als **Übung** markiert ([Einen Einsatz anlegen](operation.de.md)),
+steht auf jeder Seite der Meldung, des Meldebuchs und des leeren Formulars
+oben **„ÜBUNG“** in einem Rahmen und in der Fußzeile „Notfunk-Meldebuch ·
+ÜBUNG“, auch schwarzweiß gut lesbar. Der Inhalt bleibt, wie er gespeichert
+ist. Das leere Formular trägt „ÜBUNG“ nur, wenn Sie es in einem solchen
+Einsatz drucken; das Formular zum Herunterladen oben ist unmarkiert.
+
 Weiter: [Sicherung und Wiederherstellung](backup.de.md)

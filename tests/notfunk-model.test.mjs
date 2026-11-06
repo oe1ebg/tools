@@ -162,11 +162,31 @@ test('Geschäftsbuch CSV', () => {
   assert.equal(lines[0].split(';').length, GB_COLUMNS.length);
   assert.match(lines[1], /^W1-020;;2026-10-05;14:07:00\+02:00;2026-10-05T14:07:00\+02:00;Eingang;Lichtinsel Floridsdorf \/ OE1ABC;Stromausfall;"Seit 13:50 Uhr kein Strom\nim Bereich Am Spitz\.  Bitte um Info\.";Meldung;Dringend;Funk;;145,500 via OE1XUU;/);
   assert.match(lines.slice(2).join('\n'), /^W1-021;;.*;Ausgang;LI Floridsdorf \/ OE1ABC;"Re; Strom";/m);
-  assert.match(lines.slice(2).join('\n'), /;zur Übertragung;;;;Antwort auf W1-020;;OE1XYZ;OE1XKS;2026-10-05T14:07:00\+02:00;$/m);
+  assert.match(lines.slice(2).join('\n'), /;zur Übertragung;;;;Antwort auf W1-020;;OE1XYZ;OE1XKS;2026-10-05T14:07:00\+02:00;;nein$/m);
   assert.ok(!csv.includes('W1-022'), 'deleted messages are not in the Geschäftsbuch');
   // an Ort kept as text goes into the Ort column
   const t = toGeschaeftsbuchCSV([msg({ locationText: 'Hinterhof beim Gemeindebau' }, 23)]).slice(1).trimEnd().split('\r\n');
   assert.equal(t[1].split(';')[GB_COLUMNS.indexOf('Ort')], 'Hinterhof beim Gemeindebau');
+});
+
+test('Geschäftsbuch CSV: "Übung" is the last column, the others keep their places; the text stays verbatim', () => {
+  // the columns before it are those of earlier versions, in the same order
+  assert.deepEqual(GB_COLUMNS.slice(-3), ['Erfasst', 'Anmerkungen', 'Übung']);
+  assert.equal(GB_COLUMNS.indexOf('Notfunk-Nr.'), 0);
+  assert.equal(GB_COLUMNS.indexOf('Inhalt'), 8);
+  assert.equal(GB_COLUMNS.length, 29);
+  const m = msg({ remarks: 'Rückruf' }, 24);
+  const rows = op => toGeschaeftsbuchCSV([m], ';', undefined, op).slice(1).trimEnd().split('\r\n').map(l => l.split(';'));
+  for (const [op, want] of [[{ id: 'op1', exercise: true }, 'ja'], [{ id: 'op1', exercise: false }, 'nein'], [{ id: 'op1' }, 'nein'], [null, 'nein']]) {
+    const [head, row] = rows(op);
+    assert.equal(head.at(-1), 'Übung');
+    assert.equal(row.at(-1), want, JSON.stringify(op));
+    assert.equal(row[GB_COLUMNS.indexOf('Anmerkungen')], 'Rückruf');
+  }
+  // nothing is added to the Inhalt of an exercise
+  const csv = toGeschaeftsbuchCSV([m], ';', undefined, { exercise: true });
+  assert.ok(!csv.includes('ACHTUNG'));
+  assert.ok(csv.includes('"Seit 13:50 Uhr kein Strom\nim Bereich Am Spitz.  Bitte um Info."'));
 });
 
 test('backup round trip and merge: no lost edits, counters never go down', () => {

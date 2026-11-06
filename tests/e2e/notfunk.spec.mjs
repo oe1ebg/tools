@@ -652,6 +652,66 @@ test('print: the empty form (Vordruck) opens a one-page A4 PDF', async ({ page }
   await expect(page.locator('#view-ops')).toBeVisible();
 });
 
+// #186: an Einsatz flagged "Übung": "ÜBUNG" in the page header, the reminder
+// under the Inhalt (also the Inhalt's description for screen readers), the
+// printouts and the CSV marked; the stored text stays as typed.
+test('Übung: header mark and reminder; printouts and CSV marked; the text verbatim; can be switched off', async ({ page }) => {
+  await page.goto('tools/notfunk/');
+  await expect.poll(() => page.evaluate(() => globalThis.NOTFUNK_READY === true)).toBe(true);
+  await offlineSettled(page);
+  await expect(page.locator('#st-exercise')).toBeHidden();
+  await page.getByRole('button', { name: '+ Neuer Einsatz' }).click();
+  await page.locator('#n-name').fill('E2E Übungsflag');
+  await page.locator('#n-prefix').fill('u1');
+  await page.locator('#n-operator').fill('oe1ebg');
+  await page.getByRole('checkbox', { name: 'Übung' }).check();
+  await page.getByRole('button', { name: 'Einsatz anlegen' }).click();
+  await expect(page.locator('#view-book')).toBeVisible();
+  const mark = page.locator('#st-exercise'), hint = page.locator('#m-exercise'), text = page.locator('#m-text');
+  await expect(mark).toBeVisible();
+  await expect(mark).toHaveText('ÜBUNG');
+  await expect(hint).toBeVisible();
+  await expect(hint).toHaveText('ÜBUNG: Vor und nach dem Spruch: „ACHTUNG ÜBUNG“');
+  await expect(text).toHaveAccessibleDescription(/Vor und nach dem Spruch: „ACHTUNG ÜBUNG“/);
+  await expect(page.locator('#op-sum')).toContainText('Übung');
+  // the text is stored as typed: nothing added
+  await addMessage(page, 'Lichtinsel 3', 'Wasser', 'Kein Wasser im Haus.');
+  await page.locator('#book-body a', { hasText: 'U1-001' }).click();
+  await expect(page.locator('#msg-detail')).toContainText('Kein Wasser im Haus.');
+  await expect(page.locator('#msg-detail')).not.toContainText('ACHTUNG');
+  await expect(mark).toBeVisible();
+  await capturePdfs(page);
+  await page.getByRole('button', { name: 'Ausdruck / PDF' }).click();
+  const form = pdfTexts((await lastPdf(page)).text);
+  expect(form).toContain('ÜBUNG');
+  expect(form.some(x => x.startsWith('Notfunk-Meldebuch · ÜBUNG · '))).toBe(true);
+  await page.getByRole('button', { name: '← Meldebuch' }).click();
+  const csv = page.waitForEvent('download');
+  await page.locator('#btn-csv').click();
+  const lines = (await downloadText(await csv)).trimEnd().split('\r\n');
+  expect(lines[0].endsWith(';Anmerkungen;Übung')).toBe(true);
+  expect(lines[1].endsWith(';ja')).toBe(true);
+  // kept over a reload
+  await page.reload();
+  await expect(mark).toBeVisible();
+  await expect(hint).toBeVisible();
+  // switched off in the Einsatz panel: mark and reminder go, the description too
+  await page.locator('#op-panel > summary').click();
+  await expect(page.locator('#e-exercise')).toBeChecked();
+  await page.locator('#e-exercise').uncheck();
+  await expect(mark).toBeHidden();
+  await expect(hint).toBeHidden();
+  await expect(text).not.toHaveAccessibleDescription(/ACHTUNG/);
+  await expect(page.locator('#op-sum')).not.toContainText('Übung');
+  // Rückgängig puts it back
+  await page.locator('#btn-op-undo').click();
+  await expect(page.locator('#e-exercise')).toBeChecked();
+  await expect(mark).toBeVisible();
+  // the list of operations: no mark in the header
+  await page.getByRole('button', { name: '← Einsätze' }).click();
+  await expect(mark).toBeHidden();
+});
+
 test('service worker installs the offline copy', async ({ page, browserName }) => {
   test.skip(browserName !== 'chromium', 'service workers: Chromium only');
   await page.goto('tools/notfunk/');

@@ -22,6 +22,8 @@ kbd{ font:12.5px var(--font-mono); border:1px solid var(--line-strong); border-b
 .chip-btn{ cursor:pointer; font:inherit; font-size:12.5px; background:none; }
 .chip-btn.ok{ color:var(--ok); border-color:var(--ok); }
 .chip-btn.warn{ color:var(--warn); border-color:var(--warn); background:var(--warn-soft); }
+/* an Einsatz flagged "Übung": the word, bold and framed (not colour alone) */
+.chip.exercise-chip{ font-size:13.5px; font-weight:800; letter-spacing:.06em; color:var(--warn); border:2px solid currentColor; background:var(--warn-soft); }
 .clock{ font-family:var(--font-mono); font-size:13.5px; color:var(--text-dim); white-space:nowrap; }
 .clock b{ font-size:18px; color:var(--text); }
 .tabs{ display:inline-flex; flex-wrap:wrap; max-width:100%; border:1px solid var(--line); border-radius:4px; overflow:hidden; }
@@ -192,6 +194,10 @@ label.field > .fwarn, div.field > .fwarn, .fwarn{ color:var(--warn); font-size:1
 #m-ref-pop .ref-item .alt{ flex-basis:100%; }
 .stich-field{ width:9em; }
 .readback-check{ align-self:flex-start; }
+/* the reminder of an exercise under the Inhalt: words and a bar, not colour alone */
+.exercise-hint{ margin:0; padding:.3em .6em; border-left:4px solid var(--warn); background:var(--warn-soft); font-size:15px; }
+.exercise-hint b{ color:var(--warn); letter-spacing:.04em; }
+.op-exercise{ margin-top:.6em; }
 .form-head .link{ background:none; border:none; padding:0; cursor:pointer; color:var(--text-dim); font-size:13.5px; }
 .form-head .link b{ color:var(--text); }
 .draft-status{ font-size:13.5px; color:var(--ok); }
