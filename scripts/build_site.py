@@ -15,7 +15,8 @@ from markdown.extensions import Extension
 from markdown.treeprocessors import Treeprocessor
 
 from check_manual_images import missing as missing_manual_images
-from offline_tool import RELEASE_TAG_RE
+from offline_tool import RELEASE_TAG_RE, SOURCE_ONLY_DIRS
+from winlink_pack import ZIP_NAME as WINLINK_ZIP, build_zip as build_winlink_zip
 
 # Assembles the deployable bundle in site/tools/ (git-ignored): a copy of
 # tools/<tool>/ without Markdown and dotfiles, the manuals from docs/
@@ -50,6 +51,16 @@ MANUAL_IMG_DIR = ROOT_DIR / "build" / "manual-img"
 REPO_URL = "https://github.com/oe1ebg/tools"
 
 IGNORE = shutil.ignore_patterns("*.md", ".*", "__pycache__")
+
+
+def ignore(directory: str, names: list[str]) -> set[str]:
+    """IGNORE, and the tools' source-only folders (SOURCE_ONLY_DIRS, e.g. the
+    Winlink form pack, shipped only as a zip in downloads/)."""
+    skip = set(IGNORE(directory, names))
+    for tool, sub in SOURCE_ONLY_DIRS:
+        if Path(directory).resolve() == (TOOLS_DIR / tool).resolve() and sub in names:
+            skip.add(sub)
+    return skip
 
 # The manuals on the overview page, in this order: docs/<name>.md ->
 # <name>/index.html, or docs/<name>/index.md for a manual with sub pages
@@ -215,7 +226,7 @@ def main() -> None:
         if src.name != "shared" and not (src / "index.html").exists():
             print(f"skipped tools/{src.name}/ (no index.html yet)")
             continue
-        shutil.copytree(src, OUT_DIR / src.name, ignore=IGNORE)
+        shutil.copytree(src, OUT_DIR / src.name, ignore=ignore)
         print(f"staged tools/{src.name}/")
     if (OUT_DIR / "sota-alerts").is_dir():
         (OUT_DIR / "sota-alerts" / "build-info.js").write_text(sota_build_info(version, sha), encoding="utf-8")
@@ -249,6 +260,8 @@ def main() -> None:
         subprocess.run(["node", str(ROOT_DIR / "scripts" / "notfunk_vordruck.mjs"), str(OUT_DIR / "downloads" / "notfunk-vordruck.pdf")], check=True)
     except (OSError, subprocess.CalledProcessError) as err:
         print(f"warning: downloads/notfunk-vordruck.pdf not made ({err}); the manual links to it")
+    # the Notfunk Winlink form pack (tools/notfunk/winlink/, scripts/winlink_pack.py)
+    build_winlink_zip(OUT_DIR / "downloads" / WINLINK_ZIP)
     # the slides of the Notfunk introduction, exported from the deck and
     # committed as they are (docs/static/): PDF, HTML, PowerPoint
     slides = DOCS_DIR / "static" / "notfunk-einfuehrung"

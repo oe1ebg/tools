@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RMS_Express_Form>
+    <form_parameters>
+        <xml_file_version>1.0</xml_file_version>
+        <rms_express_version>Pat v1.0.0 (2e6a8d1)</rms_express_version>
+        <submission_datetime>20261106174838</submission_datetime>
+        <senders_callsign>OE1XYZ</senders_callsign>
+        <grid_square>JN88</grid_square>
+        <display_form>OE_Notfunk_Meldung_Viewer.html</display_form>
+        <reply_template></reply_template>
+    </form_parameters>
+    <variables>
+        <an></an>
+        <art>Meldung</art>
+        <betreff>Brücke gesperrt</betreff>
+        <bezug></bezug>
+        <format_version>1</format_version>
+        <inhalt>Zeile 1 äöü €&#xD;&#xA;Zeile 2</inhalt>
+        <meldung></meldung>
+        <msgbody></msgbody>
+        <msgcc></msgcc>
+        <msgisacknowledgement>False</msgisacknowledgement>
+        <msgisforward>False</msgisforward>
+        <msgisreply>False</msgisreply>
+        <msgp2p></msgp2p>
+        <msgsender>OE1XYZ</msgsender>
+        <msgseqnum>0</msgseqnum>
+        <msgsubject></msgsubject>
+        <msgto>OE3ABC</msgto>
+        <nummer>K-001</nummer>
+        <prioritaet>Notfall</prioritaet>
+        <station>OE1XYZ</station>
+        <templateversion>OE Notfunk Meldung 1.0</templateversion>
+        <txtstr></txtstr>
+        <verlauf></verlauf>
+        <von>Feuerwehr / OE3ABC</von>
+        <zeit>2026-11-06 19:00 UTC</zeit>
+    </variables>
+</RMS_Express_Form>

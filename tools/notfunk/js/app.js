@@ -44,7 +44,8 @@ import {
 import { normalizePrefix, PREFIX_RE, nextSeq, formatNumber, counterKey } from './numbering.js';
 import { toGeschaeftsbuchCSV, toBackupTexts, checkBackup, combineBackupParts, BACKUP_MAX_BYTES } from './export.js';
 import { groupParts, partFileName, partsTooLarge } from '../../shared/js/backup-parts.js';
-import { saveNewMessage, updateMessage, changedFields, editBaseOf, editTarget, draftEditState, applyBackup, patchOperation, writeDraft, clearDraft } from './ops.js';
+import { saveNewMessage, updateMessage, changedFields, editBaseOf, editTarget, draftEditState, applyBackup, patchOperation, writeDraft, clearDraft, replaceSource } from './ops.js';
+import { winlinkPayload, winlinkJson, winlinkB2f, winlinkExportCheck, winlinkAddressProblem, parseWinlinkInput, winlinkImportPlan, WINLINK_INPUT_MAX_BYTES } from './winlink.js';
 import {
   emptyForm, setDirection, formToFields, formIsBlank, messageToForm, replyForm, forwardForm, nextStep, statusSteps, bookSummary, partyText,
   readDateTime, readClock, readBound, normDate, normTime, dateText, clockText, upgradeForm, normalizeRef, refChoices,
@@ -91,6 +92,7 @@ const state = {
   draftSeen: undefined, // `updated` of the draft this tab last read or wrote (undefined: none); another one = another tab's
   channel: null,
   draftTimer: null,
+  formSource: null, // a message taken over from Winlink: the sender's record (winlink.js), saved with it
 };
 
 /* ---------------------------------------------------------------- errors */
@@ -674,6 +676,7 @@ function readForm() {
     replyTo: $('#msg-form').dataset.replyTo || null,
     ...keptTimes(),
     location: state.locField?.get() || null, locationText: v('#m-loc'),
+    source: state.formSource,
   };
 }
 
@@ -703,6 +706,7 @@ function writeForm(form) {
   set('#m-orig-station', f.origStation); set('#m-orig-filed', f.origFiled);
   set('#m-ref-kind', f.refKind || 'antwort'); set('#m-ref', f.ref);
   $('#m-readback').checked = !!f.readBack;
+  state.formSource = f.source || null;
   if (f.replyTo) $('#msg-form').dataset.replyTo = f.replyTo;
   else delete $('#msg-form').dataset.replyTo;
   for (const k of KEPT_TIMES) {
@@ -735,7 +739,11 @@ function writeForm(form) {
 function renderFormState() {
   const f = readForm();
   const editing = state.editing;
-  setText($('#form-title'), editing ? 'Meldung bearbeiten' : 'Neue Meldung');
+  setText($('#form-title'), editing ? 'Meldung bearbeiten' : f.source ? 'Neue Meldung von Winlink' : 'Neue Meldung');
+  // taken over from Winlink: whose message it is (saved with it)
+  const src = !editing && f.source;
+  $('#form-source').hidden = !src;
+  setText($('#form-source'), src ? `von ${[src.number, src.station && `(${src.station})`].filter(Boolean).join(' ') || 'Winlink'}` : '');
   setText($('#form-number'), editing ? editing.number : `→ ${previewNumber()}`);
   setText($('#form-station'), state.op.call ? `Station ${state.op.call} · ` : '');
   setText($('#form-op'), state.op.operator || 'Operator fehlt');
@@ -1863,11 +1871,13 @@ function renderDetail(id) {
         m.deleted || m.direction !== 'in' ? null : el('button', { type: 'button', onclick: () => startForward(m), title: 'Als neue Ausgangsmeldung weitergeben: Inhalt wörtlich, Bezug gesetzt' }, 'Weiterleiten'),
         m.deleted ? null : el('button', { type: 'button', onclick: () => startEdit(m) }, 'Bearbeiten'),
         el('button', { type: 'button', class: 'primary', onclick: () => printForm(m) }, 'Ausdruck / PDF'),
+        m.deleted ? null : el('button', { type: 'button', 'aria-haspopup': 'dialog', onclick: () => openWinlinkExport(m) }, 'Für Winlink exportieren…'),
         m.deleted
           ? el('button', { type: 'button', onclick: () => restoreMsg(m) }, 'Wiederherstellen')
           : el('button', { type: 'button', class: 'danger', onclick: () => deleteMsg(m) }, 'Löschen'))),
     el('aside', { class: 'detail-side' },
       flowCard(m),
+      winlinkSourceCard(m),
       staffRefCard(m),
       el('section', { 'aria-label': 'Antworten' },
         el('h3', { class: 'cap' }, 'Antworten'),
@@ -2054,6 +2064,264 @@ async function restore(backup) {
   };
 }
 
+/* ---------------------------------------------------------------- Winlink (issue #179) */
+
+// Exchange with Winlink Express and Pat through files and copy/paste only
+// (winlink.js, ../winlink/FORMAT.md): nothing here talks to the network.
+
+function appVersion() {
+  const b = globalThis.NOTFUNK_BUILD || {};
+  return b.release || b.commit || 'dev';
+}
+
+function downloadBytes(bytes, name, type) {
+  const url = URL.createObjectURL(new Blob([bytes], { type }));
+  const a = el('a', { href: url, download: name });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+// A message's Winlink address to send to: the addressee's callsign, else the
+// station a reply goes back to (the one the answered message came from),
+// else the Funkstelle.
+function winlinkRecipient(m) {
+  const ref = m.replyTo ? state.msgs.find(x => x.id === m.replyTo) : null;
+  return m.to?.call || ref?.source?.station || m.source?.station || m.peer || '';
+}
+
+// „Für Winlink exportieren“: the file for the form („Aus Meldebuch laden“) or
+// a ready .b2f for Pat's out/ folder. Checked before any download (size,
+// subject); too large is refused, nothing is shortened. The status stays
+// manual: „übertragen“ is recorded when the message has gone.
+function openWinlinkExport(m) {
+  let dlg = $('#wl-export-dlg');
+  if (!dlg) {
+    dlg = el('dialog', { id: 'wl-export-dlg', class: 'step-dlg wl-dlg', 'aria-labelledby': 'wl-export-title' });
+    document.body.append(dlg);
+  }
+  const op = state.op;
+  const now = nowIso();
+  const mycall = normalizeCall(op.call || m.stationCall || op.operator || '');
+  const refMsg = m.replyTo ? state.msgs.find(x => x.id === m.replyTo) : null;
+  const payload = winlinkPayload(m, state.revisions.filter(r => r.messageId === m.id), refMsg,
+    { call: op.call || m.stationCall || '', operation: op.name, prefix: op.prefix, operator: op.operator || '' }, appVersion(), now);
+  const to = el('input', { id: 'wl-to', class: 'mono call-input', value: winlinkRecipient(m), autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false', 'aria-describedby': 'wl-to-err' });
+  const toErr = el('span', { id: 'wl-to-err', class: 'ferr' });
+  const size = el('p', { class: 'sub', id: 'wl-size' });
+  const notes = el('ul', { class: 'wl-notes' });
+  const status = el('div', { class: 'form-status', role: 'status' });
+  const btnJson = el('button', { type: 'button', class: 'primary' }, 'Datei für das Formular speichern');
+  const btnB2f = el('button', { type: 'button' }, 'Für Pat (.b2f) speichern');
+  const address = () => {
+    const a = to.value.trim();
+    return a.includes('@') ? a : a.toUpperCase();
+  };
+  let check = null;
+  const refresh = () => {
+    check = winlinkExportCheck(payload, { msgto: address(), mycall, now });
+    setText(size, `Größe: ${check.size} (höchstens 120 KB)`);
+    const items = [
+      check.error ? el('li', { class: 'err-text' }, el('strong', {}, 'Nicht möglich: '), check.error) : null,
+      !payload.station.call ? el('li', { class: 'warn-text' }, 'Das Stationsrufzeichen fehlt im Einsatz: der Empfänger sieht Bezüge ohne Station. Im Feld „Einsatz“ eintragen.') : null,
+      ...check.warnings.map(w => el('li', { class: 'warn-text' }, w)),
+    ];
+    fill(notes, items);
+    notes.hidden = !items.some(Boolean);
+    btnJson.disabled = check.tooLarge;
+    const why = winlinkAddressProblem(to.value);
+    setText(toErr, to.value.trim() ? why : '');
+    btnB2f.disabled = check.tooLarge || !!why || !mycall;
+    btnB2f.title = !mycall ? 'Stationsrufzeichen fehlt (Feld „Einsatz“)' : why || 'Fertige Nachricht für den Ordner out/ des Postfachs von Pat';
+  };
+  to.addEventListener('input', refresh);
+  btnJson.addEventListener('click', () => {
+    refresh();
+    if (check.tooLarge) return;
+    const name = `${m.number}.winlink.json`;
+    download(winlinkJson(payload), name, 'application/json');
+    fill(status, el('span', { class: 'ok-mark', 'aria-hidden': 'true' }, '✓'), ` Download von „${name}“ gestartet. Jetzt im Winlink-Programm das Formular „OE Notfunk Meldung“ öffnen und „Aus Meldebuch laden“ wählen.`);
+    bookStatus(`${m.number}: Datei für Winlink gespeichert (${name}); den Status „übertragen“ eintragen, wenn die Nachricht gesendet ist`);
+  });
+  btnB2f.addEventListener('click', () => {
+    refresh();
+    if (btnB2f.disabled) { if (!to.value.trim()) setText(toErr, winlinkAddressProblem('')); to.focus(); return; }
+    const b2f = winlinkB2f(payload, { mycall, msgto: address(), now });
+    downloadBytes(b2f.bytes, `${b2f.mid}.b2f`, 'application/octet-stream');
+    fill(status, el('span', { class: 'ok-mark', 'aria-hidden': 'true' }, '✓'), ` Download von „${b2f.mid}.b2f“ gestartet. Die Datei in den Ordner out/ des Postfachs von Pat (${mycall}) legen; Pat sendet sie bei der nächsten Verbindung.`);
+    bookStatus(`${m.number}: Winlink-Nachricht für Pat gespeichert (${b2f.mid}.b2f); den Status „übertragen“ eintragen, wenn sie gesendet ist`);
+  });
+  fill(dlg, el('div', { class: 'step-dlg-body' },
+    el('h2', { id: 'wl-export-title' }, `${m.number} für Winlink exportieren`),
+    el('p', { class: 'sub' }, m.subject || ''),
+    el('div', { class: 'field' }, el('label', { for: 'wl-to' }, 'Winlink-Adresse des Empfängers'), to, toErr),
+    size, notes,
+    el('p', { class: 'hint' }, 'Die Datei für das Formular: in Winlink Express oder Pat eine neue Nachricht mit dem Formular „OE Notfunk Meldung“ beginnen, „Aus Meldebuch laden“, Empfänger prüfen, absenden. Die Pat-Datei (.b2f) ist schon fertig und kommt in den Ordner out/ des Postfachs. Der Status bleibt „zur Übertragung“, bis Sie „übertragen“ eintragen.'),
+    el('div', { class: 'inline-foot' }, btnJson, btnB2f, el('button', { type: 'button', onclick: () => dlg.close() }, 'Schließen')),
+    status));
+  refresh();
+  const opener = document.activeElement;
+  dlg.onclose = () => opener?.focus?.();
+  dlg.showModal();
+  (btnJson.disabled ? dlg.querySelector('button:not([disabled])') : btnJson).focus();
+}
+
+// „Winlink-Nachricht importieren“: a file (picker or dropped) or pasted text
+// becomes a new incoming message in the form, for review: nothing is
+// written before the operator saves. Duplicates and own messages are only
+// reported; a newer state of an imported message updates its sender's record.
+function winlinkSay(cls, ...content) {
+  const box = $('#wl-import-msg');
+  box.className = `form-status ${cls}`;
+  fill(box, ...content);
+}
+
+function openWinlinkImport() {
+  const dlg = $('#wl-import-dlg');
+  if (!dlg.open) {
+    winlinkSay('', '');
+    dlg.showModal();
+  }
+  $('#btn-wl-file').focus();
+}
+
+async function winlinkImportFile(file) {
+  if (file.size > WINLINK_INPUT_MAX_BYTES) {
+    winlinkSay('err', el('strong', {}, 'Nicht übernommen: '), `„${file.name}“ ist größer als 1 MB. Es wurde nichts geändert.`);
+    return;
+  }
+  let bytes;
+  try {
+    bytes = new Uint8Array(await file.arrayBuffer());
+  } catch {
+    winlinkSay('err', el('strong', {}, 'Nicht übernommen: '), `„${file.name}“ konnte nicht gelesen werden.`);
+    return;
+  }
+  await winlinkImport(file.name, bytes);
+}
+
+async function winlinkImport(name, input) {
+  const link = x => (x.eventId === state.op.id ? el('a', { href: `#/e/${state.op.id}/m/${x.id}`, class: 'mono', onclick: () => $('#wl-import-dlg').close() }, x.number) : el('span', { class: 'mono' }, x.number));
+  let plan;
+  try {
+    const parsed = parseWinlinkInput(name, input);
+    plan = winlinkImportPlan(parsed, state.msgs, { allMessages: await state.store.getAll('messages'), home: state.op.home || '', now: nowIso() });
+  } catch (e) {
+    winlinkSay('err', el('strong', {}, 'Nicht übernommen: '), `${e.message}. Es wurde nichts geändert.`);
+    return;
+  }
+  const where = x => (x.eventId === state.op.id ? '' : ' (in einem anderen Einsatz)');
+  if (plan.kind === 'own') {
+    winlinkSay('warn', el('strong', {}, 'Nicht übernommen: '), 'Das ist die eigene Meldung ', link(plan.local), `${where(plan.local)} aus diesem Meldebuch, zurückgekommen. Eigene Daten stellt die Sicherung wieder her.`);
+    return;
+  }
+  if (plan.kind === 'duplicate') {
+    winlinkSay('ok', 'Bereits übernommen als ', link(plan.local), `${where(plan.local)}; nichts geändert.`);
+    return;
+  }
+  if (plan.kind === 'update-source') {
+    try {
+      await replaceSource(state.store, plan.local, plan.source, nowIso());
+    } catch (e) {
+      if (e instanceof ConflictError) await onConflict(plan.local.number, false);
+      else showSaveError(e);
+      winlinkSay('err', el('strong', {}, 'Nicht gespeichert. '), 'Bitte noch einmal übernehmen.');
+      return;
+    }
+    await reloadMsgs();
+    broadcast({ type: 'msgs', opId: plan.local.eventId });
+    winlinkSay('ok', el('span', { class: 'ok-mark', 'aria-hidden': 'true' }, '✓'), ' Bereits übernommen als ', link(plan.local), `${where(plan.local)}: die Angaben des Absenders (Verlauf, Fassungen) sind aktualisiert. Ihre eigenen Angaben bleiben unverändert.`);
+    return;
+  }
+  // a new incoming message: into the form, unless something is being typed there
+  if (state.editing || !formIsEmpty(readForm())) {
+    winlinkSay('err', el('strong', {}, 'Nicht übernommen: '), 'Im Formular steht noch eine Eingabe. Bitte sie zuerst speichern oder verwerfen, dann die Nachricht noch einmal übernehmen.');
+    return;
+  }
+  setEditing(null);
+  state.saveKey = null;
+  writeForm({ ...messageToForm({ ...plan.fields }), source: plan.source });
+  flushDraft();
+  state.wlToForm = true; // the dialog's close handler moves the focus to the form
+  $('#wl-import-dlg').close();
+  $('#wl-paste').value = '';
+  if ($('#view-book').hidden) location.hash = `#/e/${state.op.id}`;
+  const status = $('#form-status');
+  status.className = plan.warnings.length ? 'form-status warn' : 'form-status';
+  status.textContent = `Von Winlink übernommen${plan.source.number ? ` (${plan.source.number}${plan.source.station ? ` von ${plan.source.station}` : ''})` : ''}: bitte prüfen und speichern (⇧⏎). Gespeichert ist noch nichts.${plan.warnings.length ? ` ${plan.warnings.join(' ')}` : ''}`;
+}
+
+function hasFiles(ev) {
+  return [...(ev.dataTransfer?.types || [])].includes('Files');
+}
+
+function initWinlink() {
+  const dlg = $('#wl-import-dlg');
+  $('#btn-wl-import').addEventListener('click', openWinlinkImport);
+  $('#btn-wl-import-close').addEventListener('click', () => dlg.close());
+  dlg.addEventListener('close', () => {
+    ($(state.wlToForm ? '#m-subject' : '#btn-wl-import'))?.focus();
+    state.wlToForm = false;
+  });
+  $('#btn-wl-file').addEventListener('click', () => $('#wl-file').click());
+  $('#wl-file').addEventListener('change', ev => {
+    const [file] = ev.target.files;
+    ev.target.value = '';
+    if (file) winlinkImportFile(file);
+  });
+  $('#btn-wl-paste').addEventListener('click', () => {
+    const text = $('#wl-paste').value;
+    if (!text.trim()) { winlinkSay('err', 'Bitte zuerst den kopierten Text in das Feld einfügen.'); $('#wl-paste').focus(); return; }
+    winlinkImport('', text);
+  });
+  // Files dropped from the file manager onto the book or the dialog
+  // (dragging straight from Pat's web page would need the network).
+  for (const zone of [$('#view-book'), dlg]) {
+    zone.addEventListener('dragover', ev => {
+      if (!hasFiles(ev) || !state.op) return;
+      ev.preventDefault();
+      ev.dataTransfer.dropEffect = 'copy';
+      $('#wl-drop').classList.add('over');
+    });
+    zone.addEventListener('dragleave', ev => { if (!zone.contains(ev.relatedTarget)) $('#wl-drop').classList.remove('over'); });
+    zone.addEventListener('drop', ev => {
+      if (!hasFiles(ev) || !state.op) return;
+      ev.preventDefault();
+      $('#wl-drop').classList.remove('over');
+      const files = [...ev.dataTransfer.files];
+      openWinlinkImport();
+      if (files.length !== 1) { winlinkSay('err', 'Bitte genau eine Datei auf einmal hierher ziehen.'); return; }
+      winlinkImportFile(files[0]);
+    });
+  }
+}
+
+// The sender's record of a message taken over from Winlink (read-only).
+function winlinkSourceCard(m) {
+  const s = m.source;
+  if (!s || typeof s !== 'object') return null;
+  const str = v => (typeof v === 'string' ? v : v == null ? '' : String(v));
+  const dir = s.direction === 'in' ? 'in' : 'out';
+  const list = (arr, fn) => (Array.isArray(arr) ? arr.filter(x => x && typeof x === 'object').map(fn) : []);
+  const steps = [
+    ...list(s.status, x => ({ at: str(x.at), text: [statusLabel(x.state, dir), x.to && `an ${str(x.to)}`, x.who && `durch ${str(x.who)}`, x.note && str(x.note)].filter(Boolean).join(' · '), by: str(x.by) })),
+    ...list(s.attempts, x => ({ at: str(x.at), text: ['Fehlversuch / Rückfrage', x.note && str(x.note)].filter(Boolean).join(' · '), by: str(x.by) })),
+  ].sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
+  const revs = list(s.revisions, x => x);
+  return el('section', { class: 'wl-source', 'aria-label': 'Von Winlink übernommen' },
+    el('h3', { class: 'cap' }, 'Von Winlink übernommen'),
+    el('p', {}, el('span', { class: 'dim' }, 'Station '), el('span', { class: 'mono' }, str(s.station) || '–'), s.operation ? ` · ${str(s.operation)}` : ''),
+    s.number ? el('p', {}, el('span', { class: 'dim' }, 'Nummer beim Absender '), el('span', { class: 'mono' }, str(s.number)), s.ts ? el('span', { class: 'mono' }, ` · ${fmtVienna(str(s.ts))}`) : null) : null,
+    steps.length ? el('ol', { class: 'wl-steps' }, steps.map(x => el('li', {}, el('span', { class: 'mono' }, fmtVienna(x.at)), ` ${x.text}`, x.by ? el('span', { class: 'dim' }, ` · ${x.by}`) : null))) : null,
+    s.history ? el('p', { class: 'wl-history mono' }, str(s.history)) : null,
+    revs.length ? el('details', {},
+      el('summary', {}, `${revs.length} ${revs.length === 1 ? 'frühere Fassung' : 'frühere Fassungen'} beim Absender`),
+      el('ul', { class: 'revs' }, revs.map(r => el('li', {}, el('span', { class: 'mono' }, `${fmtVienna(str(r.at))} ${str(r.by)}`), ' vorher: ',
+        el('b', {}, str(r.old?.subject)), ' ', str(r.old?.text))))) : null,
+    el('p', { class: 'hint' }, `Angaben des Absenders, nur zum Lesen${s.mid ? ` (Winlink-Nachricht ${str(s.mid)})` : ''}${s.form ? `, Formular ${str(s.form)}` : ''}. Wird dieselbe Meldung später noch einmal übernommen, kommt hier ihr neuerer Stand hinein.`));
+}
+
 /* ---------------------------------------------------------------- tabs, data, footer */
 
 function broadcast(msg) {
@@ -2156,6 +2424,7 @@ function wire() {
   $('#btn-back').addEventListener('click', () => { location.hash = '#/'; });
   $('#btn-msg-back').addEventListener('click', () => { location.hash = `#/e/${state.op.id}`; });
   initOpPanel();
+  initWinlink();
   for (const b of document.querySelectorAll('#view-book [data-filter]')) {
     b.addEventListener('click', () => {
       state.filter = b.dataset.filter;

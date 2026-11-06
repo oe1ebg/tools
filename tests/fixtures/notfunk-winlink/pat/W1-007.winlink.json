@@ -1,0 +1,79 @@
+{
+  "format": "oe1ebg-notfunk-winlink",
+  "version": 1,
+  "app": "0.9.0",
+  "exported": "2026-11-06T18:05:12Z",
+  "station": { "call": "OE1XYZ", "operation": "Übung Donau 2026", "prefix": "W1", "operator": "OE1XYZ" },
+  "message": {
+    "id": "6f1c2a4e-8b3d-4c1a-9e2f-0a1b2c3d4e5f",
+    "number": "W1-007",
+    "prefix": "W1",
+    "seq": 7,
+    "direction": "out",
+    "ts": "2026-11-06T17:42:00Z",
+    "channel": "funk",
+    "radio": { "freq": "145.500", "via": "OE1XUU" },
+    "peer": "OE3ABC",
+    "type": "anforderung",
+    "priority": "priority",
+    "from": { "name": "Einsatzleitung Übungsraum Nord", "call": "OE1XYZ", "contact": "" },
+    "to": { "name": "Bezirksstab Tulln", "call": "OE3ABC", "contact": "" },
+    "distribution": ["Lagezentrum", "Sanität & Logistik"],
+    "subject": "Nachschub Notstrom <dringend> & Treibstoff",
+    "text": "Benötigen 2× Notstromaggregat (≥ 5 kVA) für die Sammelstelle „Schule Süd“.\nKosten bis 1.500 € freigegeben.\n\n  Eingerückt: Anfahrt über \"Hauptstraße\" – Zufahrt 'Tor 3'.\nTest: <b>kein HTML</b> & {var nummer} & {MsgSender} 📻✅",
+    "stichzeit": null,
+    "origin": { "station": "OE1XYZ", "place": "Wien-Floridsdorf", "filed": "2026-11-06T17:38:00Z", "placeLoc": null },
+    "readBack": true,
+    "location": null,
+    "locationText": "Sammelstelle Schule Süd",
+    "refKind": "antwort",
+    "refNumber": "",
+    "staffRef": "",
+    "remarks": "Rückruf über Kanal 2 möglich.",
+    "operator": "OE1XYZ",
+    "stationCall": "OE1XYZ",
+    "status": [
+      { "state": "logged", "at": "2026-11-06T17:42:00Z", "by": "OE1XYZ", "note": "" },
+      { "state": "forwarded", "at": "2026-11-06T17:55:00Z", "recorded": "2026-11-06T17:56:10Z", "by": "OE1XYZ", "to": "OE3ABC", "who": "", "note": "per Winlink" }
+    ],
+    "attempts": [
+      { "at": "2026-11-06T17:48:00Z", "recorded": "2026-11-06T17:48:30Z", "by": "OE1XYZ", "note": "keine Antwort auf 145,500" }
+    ],
+    "created": "2026-11-06T17:42:31Z",
+    "updated": "2026-11-06T17:56:10Z",
+    "deleted": null,
+    "editedBy": "OE1XYZ"
+  },
+  "revisions": [
+    {
+      "at": "2026-11-06T17:45:02Z",
+      "by": "OE1XYZ",
+      "old": {
+        "id": "6f1c2a4e-8b3d-4c1a-9e2f-0a1b2c3d4e5f",
+        "number": "W1-007", "prefix": "W1", "seq": 7,
+        "direction": "out", "ts": "2026-11-06T17:42:00Z", "channel": "funk",
+        "radio": { "freq": "145.500", "via": "OE1XUU" }, "peer": "OE3ABC",
+        "type": "meldung", "priority": "routine",
+        "from": { "name": "Einsatzleitung Übungsraum Nord", "call": "OE1XYZ", "contact": "" },
+        "to": { "name": "Bezirksstab Tulln", "call": "OE3ABC", "contact": "" },
+        "distribution": ["Lagezentrum"],
+        "subject": "Nachschub Notstrom",
+        "text": "Benötigen 1× Notstromaggregat für die Sammelstelle „Schule Süd“.",
+        "stichzeit": null,
+        "origin": { "station": "OE1XYZ", "place": "Wien-Floridsdorf", "filed": "2026-11-06T17:38:00Z", "placeLoc": null },
+        "readBack": false, "location": null, "locationText": "Sammelstelle Schule Süd",
+        "refKind": "antwort", "refNumber": "", "staffRef": "", "remarks": "",
+        "operator": "OE1XYZ", "stationCall": "OE1XYZ",
+        "status": [ { "state": "logged", "at": "2026-11-06T17:42:00Z", "by": "OE1XYZ", "note": "" } ],
+        "attempts": [],
+        "created": "2026-11-06T17:42:31Z", "updated": "2026-11-06T17:42:31Z", "deleted": null
+      }
+    }
+  ],
+  "ref": {
+    "id": "0d9e8f7a-6b5c-4d3e-8f1a-2b3c4d5e6f70",
+    "number": "W1-003",
+    "station": "OE1XYZ",
+    "source": { "id": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d", "number": "K-012", "station": "OE3ABC" }
+  }
+}

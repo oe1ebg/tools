@@ -22,6 +22,9 @@ export const FORM_DEFAULTS = {
   // the stored times of an edited message: kept as they are (seconds
   // included) as long as the fields still show them
   ts: null, stichzeitTs: null, origFiledTs: null,
+  // a message taken over from Winlink: the sender's record (winlink.js),
+  // saved with the new message; null otherwise
+  source: null,
 };
 
 // A fresh form for an operation: its default frequency/relay and own post.
@@ -247,6 +250,7 @@ export function formToFields(form, { now, byNumber = new Map(), editing = false,
     refKind: refNumber || form.replyTo ? form.refKind : null,
     refNumber: refMsg ? refMsg.number : refNumber,
     remarks: form.remarks,
+    source: editing ? null : form.source || null,
   });
   // Unreadable times were replaced above (now / none), and the form asks
   // for more than the model, so the model adds only what is left.

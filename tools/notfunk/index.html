@@ -178,6 +178,7 @@
       <button type="button" id="btn-back">← Einsätze</button>
       <h2 id="book-title">Meldebuch</h2>
       <span class="spacer"></span>
+      <button type="button" id="btn-wl-import" aria-haspopup="dialog" aria-controls="wl-import-dlg" title="Eine Meldung aus Winlink Express oder Pat übernehmen: Datei, Anhang (.xml), Nachricht (.b2f) oder kopierter Text; sie öffnet sich zur Prüfung im Formular">Winlink-Nachricht importieren…</button>
       <button type="button" id="btn-csv" title="Geschäftsbuch-Spalten (SKKM / ÖBFV E-31) für Excel">Geschäftsbuch (CSV)</button>
       <button type="button" id="btn-backup" title="Vollständige Sicherung dieses Einsatzes, auch gelöschte Meldungen und Fassungen">Sichern (JSON)</button>
       <button type="button" id="btn-print-book" aria-expanded="false" aria-controls="print-range">Drucken / PDF…</button>
@@ -255,6 +256,7 @@
         <span id="form-number" class="mono accent" title="Die Nummer wird erst beim Speichern vergeben"></span>
         <button type="button" id="btn-form-op" class="link sub" title="Station und Operator (Schichtwechsel): im Feld „Einsatz“"><span id="form-station"></span>Aufnahme <b id="form-op" class="mono"></b></button>
         <span id="form-reply" class="chip" hidden></span>
+        <span id="form-source" class="chip" hidden title="Von Winlink übernommen: die Nummer und Station des Absenders; seine Angaben werden mit der Meldung gespeichert"></span>
         <span class="spacer"></span>
         <span id="draft-status" class="draft-status" role="status"></span>
       </div>
@@ -409,6 +411,27 @@
 
 </main>
 
+<!-- „Winlink-Nachricht importieren“ (js/app.js initWinlink()): a file from the
+     picker or dropped here, or pasted text; the message opens in the form. -->
+<dialog id="wl-import-dlg" class="step-dlg wl-dlg" aria-labelledby="wl-import-title">
+  <div class="step-dlg-body">
+    <h2 id="wl-import-title">Winlink-Nachricht importieren</h2>
+    <p class="hint" id="wl-import-help">Die Datei aus dem Formular „OE Notfunk Meldung“ („Für Meldebuch speichern“), den Anhang <span class="mono">RMS_Express_Form_….xml</span> oder eine Nachricht (.b2f) aus dem Postfach von Pat. Die Meldung öffnet sich als neuer Eingang im Formular; gespeichert wird sie erst, wenn Sie speichern. Andere Formulare und einfache Nachrichten: nur Betreff, Text und Absender.</p>
+    <div id="wl-drop" class="wl-drop">
+      <span>Datei hierher ziehen oder</span>
+      <button type="button" id="btn-wl-file" class="primary">Datei wählen…</button>
+      <input type="file" id="wl-file" accept=".json,.xml,.b2f,application/json,text/xml,application/xml" hidden aria-label="Winlink-Datei wählen">
+    </div>
+    <div class="field"><label for="wl-paste">Oder den kopierten Text einfügen</label>
+      <textarea id="wl-paste" rows="4" spellcheck="false" autocomplete="off" aria-describedby="wl-import-msg"></textarea></div>
+    <div class="inline-foot">
+      <button type="button" id="btn-wl-paste">Text übernehmen</button>
+      <button type="button" id="btn-wl-import-close">Schließen</button>
+    </div>
+    <div id="wl-import-msg" class="form-status" role="status" aria-live="polite"></div>
+  </div>
+</dialog>
+
 <!-- Help: "? Hilfe" in the header, F1, or ? outside text fields (shared
      js/helpdialog.js). Esc or "Schließen" closes it; the focus goes back. -->
 <dialog id="help-dlg" class="help-dlg" aria-labelledby="help-title">
@@ -420,14 +443,14 @@
   <div class="help-body">
     <nav class="help-nav" aria-label="Abschnitte der Hilfe">
       <a href="#h-kb">Tastatur</a><a href="#h-flow">Ablauf</a><a href="#h-who">Wer ist wer</a><a href="#h-where">Orte</a>
-      <a href="#h-when">Zeiten</a><a href="#h-conf">Bestätigungen</a><a href="#h-num">Nummern</a><a href="#h-prio">Dringlichkeit</a>
+      <a href="#h-when">Zeiten</a><a href="#h-conf">Bestätigungen</a><a href="#h-num">Nummern</a><a href="#h-prio">Dringlichkeit</a><a href="#h-wl">Winlink</a>
     </nav>
     <div class="help-content">
       <section id="h-kb" aria-labelledby="h-kb-t">
         <h3 id="h-kb-t">Tastatur</h3>
         <dl class="kb">
           <dt><kbd>Tab</kbd> / <kbd>Enter</kbd></dt><dd>nächstes Feld; <kbd>⇧</kbd>+<kbd>Tab</kbd> zurück. Im Inhalt macht <kbd>Enter</kbd> eine neue Zeile.</dd>
-          <dt><kbd>1</kbd>–<kbd>7</kbd>, <kbd>←</kbd> <kbd>→</kbd></dt><dd>in Richtung, Übermittlung und Dringlichkeit: Ziffer wählt die n-te Möglichkeit, Pfeiltasten wechseln</dd>
+          <dt><kbd>1</kbd>–<kbd>8</kbd>, <kbd>←</kbd> <kbd>→</kbd></dt><dd>in Richtung, Übermittlung und Dringlichkeit: Ziffer wählt die n-te Möglichkeit, Pfeiltasten wechseln</dd>
           <dt><kbd>↓</kbd> <kbd>↑</kbd>, <kbd>Enter</kbd></dt><dd>in Funkstelle, Relais, Ort, Ursprungsstation und Ursprungsort: Vorschläge durchgehen, <kbd>Enter</kbd> übernimmt den markierten. Ohne Markierung übernimmt <kbd>Enter</kbd> nur einen Vorschlag, der das Getippte vervollständigt; sonst bleibt der getippte Text.<br>Im Bezug: Tippen oder <kbd>↓</kbd> zeigt die Meldungen dieses Einsatzes, die neuesten zuerst; das Getippte sucht in Nummer, Betreff, Inhalt und Gegenstelle. <kbd>↓</kbd> <kbd>↑</kbd> und <kbd>Enter</kbd> übernimmt die markierte Meldung; <kbd>Enter</kbd> oder <kbd>Tab</kbd> ohne Markierung lässt den getippten Text stehen (z. B. die Nummer einer anderen Station).</dd>
           <dt><kbd>Leertaste</kbd></dt><dd>Kästchen setzen oder löschen (Rücklesen)</dd>
           <dt><kbd>⇧</kbd>+<kbd>Enter</kbd>, <kbd>Strg</kbd>+<kbd>Enter</kbd></dt><dd>speichern, aus jedem Feld (am Mac auch <kbd>⌘</kbd>+<kbd>Enter</kbd>). Fehlt etwas, steht der Hinweis direkt am Feld. Gibt es nur Hinweise (z. B. Funkstelle fehlt), fragt das Formular nach; noch einmal <kbd>⇧</kbd>+<kbd>Enter</kbd> speichert trotzdem.</dd>
@@ -517,6 +540,15 @@
           <dt>Notfall</dt><dd>Gefahr für Leib und Leben oder unmittelbar drohender großer Schaden: sofort.</dd>
         </dl>
         <p class="hint">Vorläufig: die Stufen sind noch mit der Meldesammelstelle abzustimmen.</p>
+      </section>
+      <section id="h-wl" aria-labelledby="h-wl-t">
+        <h3 id="h-wl-t">Winlink (Prototyp)</h3>
+        <dl class="kb">
+          <dt>Senden</dt><dd>bei der Meldung „Für Winlink exportieren…“: „Datei für das Formular speichern“, dann in Winlink Express oder Pat eine Nachricht mit dem Formular „OE Notfunk Meldung“ beginnen, „Aus Meldebuch laden“, absenden. Für Pat geht auch „Für Pat (.b2f) speichern“ und die Datei in den Ordner <span class="ex">out/</span> des Postfachs legen. Danach „übertragen“ eintragen; der Status ändert sich nicht von selbst.</dd>
+          <dt>Empfangen</dt><dd>„Winlink-Nachricht importieren…“ über dem Meldebuch: die Datei aus dem Formular, den Anhang <span class="ex">RMS_Express_Form_….xml</span> oder die <span class="ex">.b2f</span>-Datei wählen oder hierher ziehen, oder den kopierten Text einfügen. Die Meldung öffnet sich als neuer Eingang im Formular; erst Speichern vergibt die Nummer.</dd>
+          <dt>Bezug</dt><dd>eine Antwort auf eine eigene Meldung wird mit ihr verknüpft und markiert sie als beantwortet; sonst steht der Bezug als Text da, z. B. <span class="ex">W1-003 (OE1XYZ)</span>.</dd>
+          <dt>Noch einmal</dt><dd>dieselbe Nachricht noch einmal übernommen: nichts ändert sich; ist sie beim Absender neuer, kommen nur seine Angaben (Verlauf, Fassungen) neu hinzu.</dd>
+        </dl>
       </section>
     </div>
   </div>
