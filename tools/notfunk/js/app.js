@@ -2120,10 +2120,14 @@ function openWinlinkExport(m) {
   const notes = el('ul', { class: 'wl-notes' });
   const status = el('div', { class: 'form-status', role: 'status' });
   const btnJson = el('button', { type: 'button', class: 'primary' }, 'Datei für das Formular speichern');
-  const btnCopy = el('button', { type: 'button' }, 'Daten kopieren');
+  const btnCopy = el('button', { type: 'button', 'aria-describedby': 'wl-json-hint' }, 'JSON-Daten kopieren');
   const btnB2f = el('button', { type: 'button' }, 'Für Pat (.b2f) speichern');
-  // fallback when the clipboard is refused: the data selected, to copy by hand
-  const copyBox = el('textarea', { class: 'mono wl-copy', readonly: true, rows: '3', hidden: true, 'aria-label': 'Daten für das Winlink-Formular' });
+  // the same data as the file, to copy and paste into the form („Oder den
+  // Inhalt der Datei einfügen“); also the fallback when the clipboard is refused
+  const data = winlinkJson(payload);
+  const copyBox = el('textarea', { id: 'wl-json', class: 'mono wl-copy', readonly: true, rows: '3', spellcheck: 'false', 'aria-describedby': 'wl-json-hint' });
+  copyBox.value = data;
+  copyBox.addEventListener('focus', () => copyBox.select());
   const address = () => {
     const a = to.value.trim();
     return a.includes('@') ? a : a.toUpperCase();
@@ -2141,6 +2145,7 @@ function openWinlinkExport(m) {
     notes.hidden = !items.some(Boolean);
     btnJson.disabled = check.tooLarge;
     btnCopy.disabled = check.tooLarge;
+    copyBox.value = check.tooLarge ? '' : data;
     const why = winlinkAddressProblem(to.value);
     setText(toErr, to.value.trim() ? why : '');
     btnB2f.disabled = check.tooLarge || !!why || !mycall;
@@ -2158,17 +2163,13 @@ function openWinlinkExport(m) {
   btnCopy.addEventListener('click', async () => {
     refresh();
     if (check.tooLarge) return;
-    const data = winlinkJson(payload);
     if (await copyToClipboard(data)) {
-      copyBox.hidden = true;
       fill(status, el('span', { class: 'ok-mark', 'aria-hidden': 'true' }, '✓'), ' Kopiert – im Winlink-Formular unter „Oder den Inhalt der Datei einfügen“ einfügen.');
       bookStatus(`${m.number}: Daten für Winlink kopiert; den Status „übertragen“ eintragen, wenn die Nachricht gesendet ist`);
     } else {
-      copyBox.value = data;
-      copyBox.hidden = false;
       copyBox.focus();
       copyBox.select();
-      fill(status, 'Kopieren ging nicht automatisch: der Text unten ist markiert – mit Strg+C bzw. ⌘C kopieren und im Winlink-Formular unter „Oder den Inhalt der Datei einfügen“ einfügen.');
+      fill(status, 'Kopieren ging nicht automatisch: die JSON-Daten oben sind markiert – mit Strg+C bzw. ⌘C kopieren und im Winlink-Formular unter „Oder den Inhalt der Datei einfügen“ einfügen.');
     }
   });
   btnB2f.addEventListener('click', () => {
@@ -2187,9 +2188,13 @@ function openWinlinkExport(m) {
     el('p', { class: 'sub' }, m.subject || ''),
     el('div', { class: 'field' }, el('label', { for: 'wl-to' }, 'Winlink-Adresse des Empfängers'), to, toErr),
     size, notes,
-    el('p', { class: 'hint' }, 'Die Datei für das Formular: in Winlink Express oder Pat eine neue Nachricht mit dem Formular „OE1 Notfunk Meldung“ beginnen, „Aus Meldebuch laden“, Empfänger prüfen, absenden. Statt der Datei geht auch „Daten kopieren“ und im Formular unter „Oder den Inhalt der Datei einfügen“ einfügen. Die Pat-Datei (.b2f) ist schon fertig und kommt in den Ordner out/ des Postfachs. Der Status bleibt „zur Übertragung“, bis Sie „übertragen“ eintragen.'),
-    el('div', { class: 'inline-foot' }, btnJson, btnCopy, btnB2f, el('button', { type: 'button', onclick: () => dlg.close() }, 'Schließen')),
-    copyBox,
+    el('p', { class: 'hint' }, 'Die Datei für das Formular: in Winlink Express oder Pat eine neue Nachricht mit dem Formular „OE1 Notfunk Meldung“ beginnen, „Aus Meldebuch laden“, Empfänger prüfen, absenden. Die Pat-Datei (.b2f) ist schon fertig und kommt in den Ordner out/ des Postfachs. Der Status bleibt „zur Übertragung“, bis Sie „übertragen“ eintragen.'),
+    el('div', { class: 'field wl-json-field' },
+      el('label', { for: 'wl-json' }, 'JSON-Daten für das Formular'),
+      copyBox,
+      el('p', { class: 'hint', id: 'wl-json-hint' }, 'Statt der Datei: kopieren und im Formular unter „Oder den Inhalt der Datei einfügen“ einfügen.'),
+      el('div', { class: 'inline-foot' }, btnCopy)),
+    el('div', { class: 'inline-foot' }, btnJson, btnB2f, el('button', { type: 'button', onclick: () => dlg.close() }, 'Schließen')),
     status));
   refresh();
   const opener = document.activeElement;

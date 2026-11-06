@@ -40,7 +40,8 @@ Formular liest die Meldung trotzdem: als einfachen Text.
       Meldungen aufteilen.
 3. **„Datei für das Formular speichern“** lädt `W1-007.winlink.json`
    herunter (die Nummer der Meldung). Ohne Datei geht es auch über die
-   Zwischenablage: **„Daten kopieren“**, dann im Formular
+   Zwischenablage: das Feld **„JSON-Daten für das Formular“** zeigt dieselben
+   Daten; **„JSON-Daten kopieren“**, dann im Formular
    **„Oder den Inhalt der Datei einfügen“** aufklappen, einfügen und
    **„Übernehmen“**.
 4. Im Winlink-Programm eine neue Nachricht mit dem Formular **„OE1 Notfunk

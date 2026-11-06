@@ -202,7 +202,7 @@ test('import: review in the form, save with the sender\'s record, again = alread
   await expect(page.locator('#form-source')).toHaveText('ÜBUNG · von K-008 (OE3ABC)');
 });
 
-test('export: „Daten kopieren“ puts the payload (with `exercise`) on the clipboard', async ({ page, context, browserName }) => {
+test('export: „JSON-Daten kopieren“ puts the payload (with `exercise`) on the clipboard', async ({ page, context, browserName }) => {
   test.skip(browserName !== 'chromium', 'clipboard permissions: Chromium only');
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await openOp(page);
@@ -210,7 +210,7 @@ test('export: „Daten kopieren“ puts the payload (with `exercise`) on the cli
   await page.locator('#book-body a', { hasText: 'W1-001' }).click();
   await page.getByRole('button', { name: 'Für Winlink exportieren…' }).click();
   const dlg = page.locator('#wl-export-dlg');
-  await dlg.getByRole('button', { name: 'Daten kopieren' }).click();
+  await dlg.getByRole('button', { name: 'JSON-Daten kopieren' }).click();
   await expect(dlg.getByRole('status')).toContainText('Kopiert – im Winlink-Formular unter „Oder den Inhalt der Datei einfügen“ einfügen.');
   const copied = await page.evaluate(() => navigator.clipboard.readText());
   expect(copied).toMatch(/^[\x20-\x7e]+$/);
@@ -218,7 +218,9 @@ test('export: „Daten kopieren“ puts the payload (with `exercise`) on the cli
   expect(payload.format).toBe('oe1ebg-notfunk-winlink');
   expect(payload.exercise).toBe(true);
   expect(payload.message.number).toBe('W1-001');
-  await expect(dlg.locator('textarea.wl-copy')).toBeHidden();
+  const box = dlg.getByLabel('JSON-Daten für das Formular');
+  await expect(box).toBeVisible();
+  expect(await box.inputValue()).toBe(copied);
 });
 
 test('export: when copying is refused, the data is offered selected to copy by hand', async ({ page }) => {
@@ -231,9 +233,9 @@ test('export: when copying is refused, the data is offered selected to copy by h
   await page.locator('#book-body a', { hasText: 'W1-001' }).click();
   await page.getByRole('button', { name: 'Für Winlink exportieren…' }).click();
   const dlg = page.locator('#wl-export-dlg');
-  await dlg.getByRole('button', { name: 'Daten kopieren' }).click();
+  await dlg.getByRole('button', { name: 'JSON-Daten kopieren' }).click();
   await expect(dlg.getByRole('status')).toContainText('Kopieren ging nicht automatisch');
-  const box = dlg.getByLabel('Daten für das Winlink-Formular');
+  const box = dlg.getByLabel('JSON-Daten für das Formular');
   await expect(box).toBeVisible();
   await expect(box).toBeFocused();
   expect(JSON.parse(await box.inputValue()).exercise).toBe(true);
