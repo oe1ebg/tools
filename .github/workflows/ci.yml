@@ -187,7 +187,7 @@ jobs:
 
       - name: Set up uv (ADX schema checks)
         if: needs.changes.outputs.adif == 'true'
-        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
 
       - name: Install locked XML test dependencies
         if: needs.changes.outputs.adif == 'true'
@@ -225,7 +225,7 @@ jobs:
 
       - name: Test report
         if: ${{ !cancelled() }}
-        uses: mikepenz/action-junit-report@6ef3fdcfcd5f0b5d14df3e659ef19b8c6820f93d # v6.6.1
+        uses: mikepenz/action-junit-report@4a26df3e2ae132254ba12a53f65a388d0961e786 # v6.7.0
         with:
           report_paths: tests/reports/node.xml
           check_name: Unit tests
@@ -260,7 +260,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
 
       - name: Data epoch
         id: epoch
@@ -423,7 +423,7 @@ jobs:
       # "Browser tests" check with every test per browser project.
       - name: Browser test report
         if: ${{ !cancelled() && hashFiles('tests/reports/e2e.xml') != '' }}
-        uses: mikepenz/action-junit-report@6ef3fdcfcd5f0b5d14df3e659ef19b8c6820f93d # v6.6.1
+        uses: mikepenz/action-junit-report@4a26df3e2ae132254ba12a53f65a388d0961e786 # v6.7.0
         with:
           report_paths: tests/reports/e2e.xml
           check_name: Browser tests (${{ matrix.project }})
