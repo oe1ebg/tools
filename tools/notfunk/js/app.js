@@ -322,7 +322,7 @@ function renderExercise() {
   const on = !!state.op?.exercise;
   $('#st-exercise').hidden = !on;
   $('#m-exercise').hidden = !on;
-  $('#m-text').setAttribute('aria-describedby', on ? 'm-text-err m-exercise' : 'm-text-err');
+  $('#m-text').setAttribute('aria-describedby', on ? 'm-text-5w m-exercise m-text-err' : 'm-text-5w m-text-err');
 }
 
 // "Rückgängig" in the Einsatz panel: the panel's fields as they were when
@@ -1382,6 +1382,9 @@ function attachRefSearch() {
   // only while typing, or with ↓: an open list never covers the fields
   // under it when the field just gets the focus
   input.addEventListener('input', render);
+  // a field emptied by hand drops the link too, as the ✕ does (a typed
+  // number of this operation links again on saving)
+  input.addEventListener('input', () => { if (!input.value.trim()) delete $('#msg-form').dataset.replyTo; });
   input.addEventListener('keydown', ev => {
     if (ev.key === 'ArrowDown' && pop.hidden && !isComposing(ev)) { ev.preventDefault(); render(); pop.querySelector('button')?.focus(); }
   });
