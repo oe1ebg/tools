@@ -316,15 +316,17 @@ function renderOpPanel() {
 }
 
 // An Einsatz flagged "Übung" (op.exercise; missing = not flagged): the
-// "ÜBUNG" bar at the top (renderExerciseBar) and the reminder under the
-// Inhalt, read by screen readers as part of the Inhalt's
-// description (not announced on every change). The stored text stays as
-// typed: nothing is added to it.
+// "ÜBUNG" bar at the top (renderExerciseBar) and the reminder above Von, the
+// start of the Spruch, where the eye begins when reading it out (a warning
+// precedes the step it is for). Screen readers get it with the description
+// of Von and of the Inhalt (not announced on every change). The stored text
+// stays as typed: nothing is added to it.
 function renderExercise() {
   const on = !!state.op?.exercise;
   renderExerciseBar();
   $('#m-exercise').hidden = !on;
   $('#m-text').setAttribute('aria-describedby', on ? 'm-text-5w m-exercise m-text-err' : 'm-text-5w m-text-err');
+  $('#m-from').setAttribute('aria-describedby', on ? 'm-exercise m-from-err' : 'm-from-err');
 }
 
 // "Rückgängig" in the Einsatz panel: the panel's fields as they were when

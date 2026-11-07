@@ -156,10 +156,10 @@ name, and a distribution list ("Verteiler").
   non-boolean value rejects the file like a damaged station code). While
   set: a calm yellow full-width bar "ÜBUNG" with the draft note at the
   top (not dismissible, while the operation is open; also "Übung" in the
-  Einsatz summary), and under the Inhalt
-  the reminder "ÜBUNG: Vor und nach dem Spruch: „ACHTUNG ÜBUNG“" (words,
-  not colour alone; part of the Inhalt's `aria-describedby` only while
-  shown, no live region). The stored text stays verbatim: nothing is added
+  Einsatz summary), and above Von (the start of the Spruch, read before
+  it is spoken) the reminder "ÜBUNG: Vor und nach dem Spruch: „ACHTUNG
+  ÜBUNG“" (words, not colour alone; part of Von's and the Inhalt's
+  `aria-describedby` only while shown, no live region). The stored text stays verbatim: nothing is added
   to the Inhalt. The message PDF, the book PDF and a Vordruck printed for a
   flagged operation carry "ÜBUNG" framed in the head of every page (left
   of the number box, the title line shortened before it; after the
