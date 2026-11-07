@@ -74,10 +74,13 @@ const sha256 = s => `'sha256-${createHash('sha256').update(s, 'utf8').digest('ba
 const inlineScripts = html => [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)]
   .filter(([, attrs]) => !/\ssrc\s*=/i.test(attrs)).map(([, , body]) => body);
 
+// Source-only folders, neither staged nor served (scripts/offline_tool.py,
+// SOURCE_ONLY_DIRS): the Winlink form pack ships as a zip in downloads/.
+const SOURCE_ONLY = [join(ROOT, 'tools', 'notfunk', 'winlink')];
 function htmlFiles(dir) {
   return readdirSync(dir).flatMap(n => {
     const p = join(dir, n);
-    if (statSync(p).isDirectory()) return n === 'data' || n === 'vendor' || n === 'node_modules' ? [] : htmlFiles(p);
+    if (statSync(p).isDirectory()) return n === 'data' || n === 'vendor' || n === 'node_modules' || SOURCE_ONLY.includes(p) ? [] : htmlFiles(p);
     return n.endsWith('.html') ? [p] : [];
   });
 }

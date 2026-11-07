@@ -4,6 +4,7 @@
 [Alle Tools](../index.md) ·
 [Offline-Datei](../notfunk/notfunk-offline.html){ download="notfunk-meldebuch-offline.html" } ·
 [Leeres Formular (PDF)](../downloads/notfunk-vordruck.pdf){ download="notfunk-vordruck.pdf" } ·
+[Winlink-Formular (Zip)](../downloads/oe1-notfunk-meldung-winlink.zip){ download="oe1-notfunk-meldung-winlink.zip" } ·
 [Datenquellen](../data-sources.md#notfunk-meldebuch) ·
 [Quellcode](https://github.com/oe1ebg/tools/tree/main/tools/notfunk)
 { .tool-actions }
@@ -42,6 +43,10 @@ Die Präsentation zur Einführung in das Notfunk-Meldebuch (Deutsch):
 - [Das Meldebuch](manual/logbook.de.md): Liste, Status, Karte, Meldung im Detail.
 - [Ausdruck und PDF](manual/printout.de.md): das Formular für Papier, Meldungen und Meldebuch als PDF.
 - [Sicherung und Wiederherstellung](manual/backup.de.md)
+- [Winlink (Prototyp)](manual/winlink.de.md): Meldungen über Winlink Express
+  oder Pat senden und empfangen.
+- [Winlink-Formular installieren](manual/winlink-formular.de.md): das
+  Formular „OE1 Notfunk Meldung“ Schritt für Schritt einrichten.
 
 ## Nachschlagen
 

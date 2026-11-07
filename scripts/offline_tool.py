@@ -61,6 +61,10 @@ PRECACHE_NAME = "precache.js"
 BUILD_INFO_NAME = "build-info.js"
 # Precached, but not part of the content hash (see build-info.js above).
 UNHASHED = [BUILD_INFO_NAME]
+# (tool, folder): sources inside a tool's directory that are not part of the
+# served tool, neither precached nor staged (scripts/build_site.py). The
+# Notfunk Winlink form pack ships only as downloads/oe1-notfunk-meldung-winlink.zip.
+SOURCE_ONLY_DIRS = [("notfunk", "winlink")]
 
 
 @dataclass(frozen=True)
@@ -191,7 +195,10 @@ def shared_files(tool: OfflineTool) -> list[Path]:
 
 def shipped_files(tool: OfflineTool) -> list[Path]:
     files = []
+    skip = [tool.dir / sub for name, sub in SOURCE_ONLY_DIRS if name == tool.name]
     for p in sorted(tool.dir.rglob("*")):
+        if any(p.is_relative_to(d) for d in skip):
+            continue
         if p.is_file() and p.name not in tool.exclude and p.suffix != ".md" and not p.name.startswith("."):
             files.append(p)
     return files + shared_files(tool)

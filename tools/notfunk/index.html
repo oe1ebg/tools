@@ -43,7 +43,6 @@
   <a id="manual-link" class="hdr-link" href="../notfunk-anleitung/" target="_blank" rel="noopener" title="Ausführliche Anleitung mit Bildern (online)">Anleitung</a>
   <button id="btn-loc" type="button" aria-expanded="false" aria-controls="loc-panel" title="Offline-Standortsuche Wien: Adresse, Ort, PLZ, Koordinaten, Locator, UTMREF"><span aria-hidden="true">📍</span> Standort</button>
   <div class="hdr-status">
-    <span id="st-exercise" class="chip exercise-chip" hidden title="Dieser Einsatz ist eine Übung: jede Meldung am Funk mit „ACHTUNG ÜBUNG“ einleiten und beenden">ÜBUNG</span>
     <span id="st-offline" class="chip">offline: prüfe…</span>
     <span id="st-storage" class="chip">Speicher: prüfe…</span>
     <button type="button" id="st-backup" class="chip chip-btn" hidden title="Download der Sicherung (JSON) dieses Einsatzes jetzt starten; ob die Datei angekommen ist, meldet der Browser nicht"></button>
@@ -72,6 +71,8 @@
   <!-- ✕ hides it until the next page load (js/app.js wire()) -->
   <div id="draft-banner" class="banner draft no-print"><p><strong>Entwurf.</strong> Das Meldungsformat ist noch nicht mit dem Notfunkreferat Wien und dem Krisenstab abgestimmt; Felder und Bezeichnungen können sich ändern. Für Übungen gedacht.</p>
     <button type="button" id="btn-draft-banner" class="banner-close" aria-label="Hinweis ausblenden" title="Hinweis ausblenden (bis zum nächsten Laden der Seite)">✕</button></div>
+  <!-- the open operation is an exercise (js/app.js renderExerciseBar()); not dismissible -->
+  <div id="exercise-bar" class="banner exercise-bar no-print" hidden title="Dieser Einsatz ist eine Übung: jede Meldung am Funk mit „ACHTUNG ÜBUNG“ einleiten und beenden; Winlink-Nachrichten und Ausdrucke sind als Übung gekennzeichnet">ÜBUNG</div>
 
   <!-- ===== Einsätze ===== -->
   <!-- ===== Standortsuche (offline, Wien; shared js/locationui.js, as in Confirm) ===== -->
@@ -148,7 +149,7 @@
             <div class="ac-hints"><div id="n-operator-info" class="ac-info" aria-live="polite"></div></div></div>
         </div>
       </fieldset>
-      <p class="hint" id="n-exercise-help">Übung: jede Meldung wird am Funk mit „ACHTUNG ÜBUNG“ eingeleitet und beendet. Das Formular erinnert daran, oben steht „ÜBUNG“, Ausdrucke und Geschäftsbuch sind als Übung gekennzeichnet; der Inhalt wird wörtlich gespeichert, ohne Zusatz. Lässt sich später im Einsatz ändern.</p>
+      <p class="hint" id="n-exercise-help">Übung: jede Meldung wird am Funk mit „ACHTUNG ÜBUNG“ eingeleitet und beendet. Das Formular erinnert daran, oben steht ein gelber Balken „ÜBUNG“, Ausdrucke und Geschäftsbuch sind als Übung gekennzeichnet, Winlink-Nachrichten tragen „[ÜBUNG]“ im Betreff und „ACHTUNG ÜBUNG“ vor und nach dem Spruch; der Inhalt wird wörtlich gespeichert, ohne Zusatz. Lässt sich später im Einsatz ändern.</p>
       <p class="hint" id="n-prefix-help">Das Kürzel steht vor jeder Nummer (W1-001, W1-002 …). Jedes Gerät bzw. jede Station eines Einsatzes bekommt ein eigenes Kürzel, dann lassen sich die Bücher ohne doppelte Nummern zusammenführen.</p>
       <p class="hint" id="n-station-help">Stationsrufzeichen und Standort der Station (Adresse): die eigene Funkstation, z. B. OE1XKS in der Lichtinsel 12; das Rufzeichen kann vom Operator abweichen. Beides steht oben im Ausdruck.</p>
       <p class="hint" id="n-home-help">Für Stelle: für wen die Station arbeitet, z. B. Stab. Steht bei neuen Meldungen als Adressat eingehender und Absender ausgehender Meldungen, solange nichts anderes eingetragen ist.</p>
@@ -178,6 +179,7 @@
       <button type="button" id="btn-back">← Einsätze</button>
       <h2 id="book-title">Meldebuch</h2>
       <span class="spacer"></span>
+      <button type="button" id="btn-wl-import" aria-haspopup="dialog" aria-controls="wl-import-dlg" title="Eine Meldung aus Winlink Express oder Pat übernehmen: Datei, Anhang (.xml), Nachricht (.b2f) oder kopierter Text; sie öffnet sich zur Prüfung im Formular">Winlink-Nachricht importieren…</button>
       <button type="button" id="btn-csv" title="Geschäftsbuch-Spalten (SKKM / ÖBFV E-31) für Excel">Geschäftsbuch (CSV)</button>
       <button type="button" id="btn-backup" title="Vollständige Sicherung dieses Einsatzes, auch gelöschte Meldungen und Fassungen">Sichern (JSON)</button>
       <button type="button" id="btn-print-book" aria-expanded="false" aria-controls="print-range">Drucken / PDF…</button>
@@ -255,6 +257,7 @@
         <span id="form-number" class="mono accent" title="Die Nummer wird erst beim Speichern vergeben"></span>
         <button type="button" id="btn-form-op" class="link sub" title="Station und Operator (Schichtwechsel): im Feld „Einsatz“"><span id="form-station"></span>Aufnahme <b id="form-op" class="mono"></b></button>
         <span id="form-reply" class="chip" hidden></span>
+        <span id="form-source" class="chip" hidden title="Von Winlink übernommen: die Nummer und Station des Absenders; seine Angaben werden mit der Meldung gespeichert"></span>
         <span class="spacer"></span>
         <span id="draft-status" class="draft-status" role="status"></span>
       </div>
@@ -284,6 +287,7 @@
           <div class="ac-hints"><div id="m-via-info" class="ac-info" aria-live="polite"></div></div></div>
       </div>
 
+      <p id="m-exercise" class="exercise-hint" hidden><b>ÜBUNG:</b> Vor und nach dem Spruch: „ACHTUNG ÜBUNG“</p>
       <div class="grid-form msg-grid">
         <div class="field span-2"><label for="m-from" class="req">Von (Absender)</label>
           <input id="m-from" enterkeyhint="next" spellcheck="false" aria-describedby="m-from-err" title="Wer die Meldung aufgibt, z. B. FF Floridsdorf, Einsatzleiter">
@@ -313,7 +317,6 @@
           <span id="m-text-5w" class="five-w" aria-hidden="true">Vollständig? Wer · Wann · Was · Wo · Wie</span>
           <span id="m-text-err" class="ferr" data-field="text"></span></label>
       </div>
-      <p id="m-exercise" class="exercise-hint" hidden><b>ÜBUNG:</b> Vor und nach dem Spruch: „ACHTUNG ÜBUNG“</p>
       <label class="check readback-check"><input type="checkbox" id="m-readback"> <span id="m-readback-label">Rücklesen erfolgt und vom Absender als richtig bestätigt</span></label>
 
       <details id="m-more" class="more">
@@ -409,6 +412,27 @@
 
 </main>
 
+<!-- „Winlink-Nachricht importieren“ (js/app.js initWinlink()): a file from the
+     picker or dropped here, or pasted text; the message opens in the form. -->
+<dialog id="wl-import-dlg" class="step-dlg wl-dlg" aria-labelledby="wl-import-title">
+  <div class="step-dlg-body">
+    <div class="dlg-head"><h2 id="wl-import-title">Winlink-Nachricht importieren</h2><button type="button" id="btn-wl-import-x" class="dlg-x" aria-label="Schließen" title="Schließen (Esc)"><span aria-hidden="true">×</span></button></div>
+    <p class="hint" id="wl-import-help">Die Datei aus dem Formular „OE1 Notfunk Meldung“ („Für Meldebuch speichern“), den Anhang <span class="mono">RMS_Express_Form_….xml</span> oder eine Nachricht (.b2f) aus dem Postfach von Pat. Die Meldung öffnet sich als neuer Eingang im Formular; gespeichert wird sie erst, wenn Sie speichern. Andere Formulare und einfache Nachrichten: nur Betreff, Text und Absender.</p>
+    <div id="wl-drop" class="wl-drop">
+      <span>Datei hierher ziehen oder</span>
+      <button type="button" id="btn-wl-file" class="primary">Datei wählen…</button>
+      <input type="file" id="wl-file" accept=".json,.xml,.b2f,application/json,text/xml,application/xml" hidden aria-label="Winlink-Datei wählen">
+    </div>
+    <div class="field"><label for="wl-paste">Oder den kopierten Text einfügen</label>
+      <textarea id="wl-paste" rows="4" spellcheck="false" autocomplete="off" aria-describedby="wl-import-msg"></textarea></div>
+    <div class="inline-foot">
+      <button type="button" id="btn-wl-paste">Text übernehmen</button>
+      <button type="button" id="btn-wl-import-close" class="foot-end">Schließen</button>
+    </div>
+    <div id="wl-import-msg" class="form-status" role="status" aria-live="polite"></div>
+  </div>
+</dialog>
+
 <!-- Help: "? Hilfe" in the header, F1, or ? outside text fields (shared
      js/helpdialog.js). Esc or "Schließen" closes it; the focus goes back. -->
 <dialog id="help-dlg" class="help-dlg" aria-labelledby="help-title">
@@ -420,14 +444,14 @@
   <div class="help-body">
     <nav class="help-nav" aria-label="Abschnitte der Hilfe">
       <a href="#h-kb">Tastatur</a><a href="#h-flow">Ablauf</a><a href="#h-who">Wer ist wer</a><a href="#h-where">Orte</a>
-      <a href="#h-when">Zeiten</a><a href="#h-conf">Bestätigungen</a><a href="#h-num">Nummern</a><a href="#h-prio">Dringlichkeit</a>
+      <a href="#h-when">Zeiten</a><a href="#h-conf">Bestätigungen</a><a href="#h-num">Nummern</a><a href="#h-prio">Dringlichkeit</a><a href="#h-wl">Winlink</a>
     </nav>
     <div class="help-content">
       <section id="h-kb" aria-labelledby="h-kb-t">
         <h3 id="h-kb-t">Tastatur</h3>
         <dl class="kb">
           <dt><kbd>Tab</kbd> / <kbd>Enter</kbd></dt><dd>nächstes Feld; <kbd>⇧</kbd>+<kbd>Tab</kbd> zurück. Im Inhalt macht <kbd>Enter</kbd> eine neue Zeile.</dd>
-          <dt><kbd>1</kbd>–<kbd>7</kbd>, <kbd>←</kbd> <kbd>→</kbd></dt><dd>in Richtung, Übermittlung und Dringlichkeit: Ziffer wählt die n-te Möglichkeit, Pfeiltasten wechseln</dd>
+          <dt><kbd>1</kbd>–<kbd>8</kbd>, <kbd>←</kbd> <kbd>→</kbd></dt><dd>in Richtung, Übermittlung und Dringlichkeit: Ziffer wählt die n-te Möglichkeit, Pfeiltasten wechseln</dd>
           <dt><kbd>↓</kbd> <kbd>↑</kbd>, <kbd>Enter</kbd></dt><dd>in Funkstelle, Relais, Ort, Ursprungsstation und Ursprungsort: Vorschläge durchgehen, <kbd>Enter</kbd> übernimmt den markierten. Ohne Markierung übernimmt <kbd>Enter</kbd> nur einen Vorschlag, der das Getippte vervollständigt; sonst bleibt der getippte Text.<br>Im Bezug: Tippen oder <kbd>↓</kbd> zeigt die Meldungen dieses Einsatzes, die neuesten zuerst; das Getippte sucht in Nummer, Betreff, Inhalt und Gegenstelle. <kbd>↓</kbd> <kbd>↑</kbd> und <kbd>Enter</kbd> übernimmt die markierte Meldung; <kbd>Enter</kbd> oder <kbd>Tab</kbd> ohne Markierung lässt den getippten Text stehen (z. B. die Nummer einer anderen Station).</dd>
           <dt><kbd>Leertaste</kbd></dt><dd>Kästchen setzen oder löschen (Rücklesen)</dd>
           <dt><kbd>⇧</kbd>+<kbd>Enter</kbd>, <kbd>Strg</kbd>+<kbd>Enter</kbd></dt><dd>speichern, aus jedem Feld (am Mac auch <kbd>⌘</kbd>+<kbd>Enter</kbd>). Fehlt etwas, steht der Hinweis direkt am Feld. Gibt es nur Hinweise (z. B. Funkstelle fehlt), fragt das Formular nach; noch einmal <kbd>⇧</kbd>+<kbd>Enter</kbd> speichert trotzdem.</dd>
@@ -446,7 +470,7 @@
         </ol>
         <p><b>Weiterleiten</b> (Verbindungsstation): bei einem Eingang „Weiterleiten“ wählen. Das Formular wird ein neuer Ausgang mit gleichem Absender, Betreff und wörtlichem Inhalt, Bezug „Weiterleitung von …“ und Ursprung; An und Übermittlung (Funk, Melder, mündlich …) eintragen und speichern. Der Eingang wird dabei als „übergeben an …“ mit dem Weg vermerkt.</p>
         <p>Ein Ausgang zeigt im Meldebuch, ob er nur <i>zur Übertragung</i> vorliegt, <i>übertragen</i> wurde oder der <i>Empfang bestätigt</i> ist. „Übergeben“ oder „übertragen“ heißt nie, dass ein Auftrag im Inhalt erledigt ist.</p>
-        <p><b>Übung:</b> Ist der Einsatz als Übung markiert (Kästchen „Übung“ beim Anlegen oder unter „Einsatz“), steht oben „ÜBUNG“ und unter dem Inhalt die Erinnerung „Vor und nach dem Spruch: „ACHTUNG ÜBUNG““. Am Funk jede Meldung damit einleiten und beenden. Das Meldebuch fügt es nicht in den Inhalt ein: gespeichert wird der Wortlaut, wie eingegeben. Ausdrucke (PDF) tragen „ÜBUNG“, das Geschäftsbuch (CSV) hat am Ende die Spalte „Übung“ (ja / nein).</p>
+        <p><b>Übung:</b> Ist der Einsatz als Übung markiert (Kästchen „Übung“ beim Anlegen oder unter „Einsatz“), steht oben ein gelber Balken „ÜBUNG“ und über dem Absender die Erinnerung „Vor und nach dem Spruch: „ACHTUNG ÜBUNG““. Am Funk jede Meldung damit einleiten und beenden. Das Meldebuch fügt es nicht in den Inhalt ein: gespeichert wird der Wortlaut, wie eingegeben. Ausdrucke (PDF) tragen „ÜBUNG“, das Geschäftsbuch (CSV) hat am Ende die Spalte „Übung“ (ja / nein); Winlink-Nachrichten tragen „[ÜBUNG]“ im Betreff und „ACHTUNG ÜBUNG“ vor und nach dem Spruch.</p>
         <p>Der halb ausgefüllte Entwurf wird laufend zwischengesichert („Entwurf gesichert“ oben im Formular) und kommt nach einem Neuladen zurück. Er ist keine gespeicherte Meldung und kann verloren gehen; steht dort „Entwurf nicht gesichert!“ oder ein Hinweis zum Entwurf, ist er gerade nicht im Speicher. Vor einem Update fertige Meldungen speichern und wichtige unfertige Eingaben außerhalb des Meldebuchs kopieren; scheitert das Sichern, wartet das Update („Update wartet: Eingabe klären“), bis die Eingabe geklärt ist.</p>
       </section>
       <section id="h-who" aria-labelledby="h-who-t">
@@ -517,6 +541,16 @@
           <dt>Notfall</dt><dd>Gefahr für Leib und Leben oder unmittelbar drohender großer Schaden: sofort.</dd>
         </dl>
         <p class="hint">Vorläufig: die Stufen sind noch mit der Meldesammelstelle abzustimmen.</p>
+      </section>
+      <section id="h-wl" aria-labelledby="h-wl-t">
+        <h3 id="h-wl-t">Winlink (Prototyp)</h3>
+        <dl class="kb">
+          <dt>Formular</dt><dd>Senden und Empfangen brauchen das Winlink-Formular „OE1 Notfunk Meldung“ im Winlink-Programm.<span id="help-wl-form"> <a href="../downloads/oe1-notfunk-meldung-winlink.zip" download="oe1-notfunk-meldung-winlink.zip">Formular herunterladen (Zip)</a> · <a href="../notfunk-anleitung/manual/winlink-formular/" target="_blank" rel="noopener">Installieren (Anleitung, online)</a></span></dd>
+          <dt>Senden</dt><dd>bei der Meldung „Für Winlink exportieren…“: „Datei für das Formular speichern“ (oder die angezeigten JSON-Daten mit „JSON-Daten kopieren“), dann in Winlink Express oder Pat eine Nachricht mit dem Formular „OE1 Notfunk Meldung“ beginnen, „Aus Meldebuch laden“ (oder unter „Oder den Inhalt der Datei einfügen“ einfügen), absenden. Für Pat geht auch „Für Pat (.b2f) speichern“ und die Datei in den Ordner <span class="ex">out/</span> des Postfachs legen. Danach „übertragen“ eintragen; der Status ändert sich nicht von selbst.</dd>
+          <dt>Empfangen</dt><dd>„Winlink-Nachricht importieren…“ über dem Meldebuch: die Datei aus dem Formular, den Anhang <span class="ex">RMS_Express_Form_….xml</span> oder die <span class="ex">.b2f</span>-Datei wählen oder hierher ziehen, oder den kopierten Text einfügen. Die Meldung öffnet sich als neuer Eingang im Formular; erst Speichern vergibt die Nummer.</dd>
+          <dt>Bezug</dt><dd>eine Antwort auf eine eigene Meldung wird mit ihr verknüpft und markiert sie als beantwortet; sonst steht der Bezug als Text da, z. B. <span class="ex">W1-003 (OE1XYZ)</span>.</dd>
+          <dt>Noch einmal</dt><dd>dieselbe Nachricht noch einmal übernommen: nichts ändert sich; ist sie beim Absender neuer, kommen nur seine Angaben (Verlauf, Fassungen) neu hinzu.</dd>
+        </dl>
       </section>
     </div>
   </div>
