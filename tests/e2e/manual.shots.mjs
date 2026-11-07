@@ -78,7 +78,7 @@ test('Notfunk-Meldebuch', async ({ page }) => {
   await page.locator('#n-home').fill('Stab');
   await page.locator('#n-freq').fill('145,5');
   await page.locator('#n-freq').press('Tab');
-  // an exercise: the "ÜBUNG" bar at the top, the reminder under the Inhalt, marked printouts (#186)
+  // an exercise: the "ÜBUNG" bar at the top, the reminder above Von, marked printouts (#186)
   await page.locator('#n-exercise').check();
   await shotAround(page, ['#new-op'], 'notfunk-einsatz-neu');
   await page.getByRole('button', { name: 'Einsatz anlegen' }).click();

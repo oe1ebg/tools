@@ -668,8 +668,8 @@ test('print: the empty form (Vordruck) opens a one-page A4 PDF', async ({ page }
 });
 
 // #186: an Einsatz flagged "Übung": the "ÜBUNG" bar at the top, the reminder
-// under the Inhalt (also the Inhalt's description for screen readers), the
-// printouts and the CSV marked; the stored text stays as typed.
+// above Von, the start of the Spruch (also in the descriptions of Von and the
+// Inhalt for screen readers), the printouts and the CSV marked; the stored text stays as typed.
 test('Übung: bar at the top and reminder; printouts and CSV marked; the text verbatim; can be switched off', async ({ page }) => {
   await page.goto('tools/notfunk/');
   await expect.poll(() => page.evaluate(() => globalThis.NOTFUNK_READY === true)).toBe(true);
@@ -689,6 +689,10 @@ test('Übung: bar at the top and reminder; printouts and CSV marked; the text ve
   await expect(hint).toHaveText('ÜBUNG: Vor und nach dem Spruch: „ACHTUNG ÜBUNG“');
   await expect(text).toHaveAccessibleDescription(/Vor und nach dem Spruch: „ACHTUNG ÜBUNG“/);
   await expect(text).toHaveAccessibleDescription(/Wer · Wann · Was · Wo · Wie/); // the 5 W hint stays
+  await expect(page.locator('#m-from')).toHaveAccessibleDescription(/ACHTUNG ÜBUNG/);
+  // above the start of the Spruch, before Von and Betreff
+  const y = async sel => (await page.locator(sel).boundingBox()).y;
+  expect(await y('#m-exercise')).toBeLessThan(await y('#m-from'));
   await expect(page.locator('#op-sum')).toContainText('Übung');
   // the text is stored as typed: nothing added
   await addMessage(page, 'Lichtinsel 3', 'Wasser', 'Kein Wasser im Haus.');
@@ -718,6 +722,7 @@ test('Übung: bar at the top and reminder; printouts and CSV marked; the text ve
   await expect(mark).toBeHidden();
   await expect(hint).toBeHidden();
   await expect(text).not.toHaveAccessibleDescription(/ACHTUNG/);
+  await expect(page.locator('#m-from')).not.toHaveAccessibleDescription(/ACHTUNG/);
   await expect(page.locator('#op-sum')).not.toContainText('Übung');
   // Rückgängig puts it back
   await page.locator('#btn-op-undo').click();

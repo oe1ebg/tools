@@ -31,8 +31,8 @@ und beendet. Setzen Sie dafür beim Anlegen das Kästchen **„Übung“**. Dann
 
 - steht oben auf der Seite, beim Entwurfs-Hinweis, ein gelber Balken
   **„ÜBUNG“**, solange der Einsatz offen ist (nicht wegklickbar),
-- erinnert unter dem Inhalt der Hinweis **„Vor und nach dem Spruch:
-  „ACHTUNG ÜBUNG““**,
+- erinnert über dem Absender (Von), wo der Spruch beginnt, der Hinweis
+  **„Vor und nach dem Spruch: „ACHTUNG ÜBUNG““**,
 - tragen die Ausdrucke (Meldung, Meldebuch, leeres Formular) oben und in der
   Fußzeile „ÜBUNG“, und das Geschäftsbuch (CSV) hat am Ende die Spalte
   „Übung“ mit „ja“,
