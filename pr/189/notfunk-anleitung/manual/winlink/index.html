@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Winlink (Prototyp)</title>
+<script src="../../../shared/js/theme.js"></script>
+<link rel="stylesheet" href="../../../shared/css/tools.css">
+<link rel="stylesheet" href="../../../shared/css/docs.css">
+</head>
+<body>
+<main class="doc">
+<p class="doc-nav"><a href="../../../">← Alle Tools</a></p>
+<h1 id="winlink-prototyp">Winlink (Prototyp)</h1>
+<p class="doc-nav"><a href="../../">← Notfunk-Anleitung</a> · <a href="../../../notfunk/index.html">Notfunk-Meldebuch öffnen</a></p>
+<p>Eine Meldung lässt sich über <strong>Winlink</strong> an eine andere Station schicken, und
+eine über Winlink empfangene Meldung lässt sich ohne Abtippen ins Meldebuch
+übernehmen. Das Meldebuch bleibt dabei offline: Der Austausch läuft über
+Dateien oder Kopieren und Einfügen, das Winlink-Programm (Winlink Express
+oder Pat) sendet.</p>
+<div class="admonition warning">
+<p class="admonition-title">Prototyp</p>
+<p>Getestet mit Pat 1.0. Winlink Express ist noch nicht ausprobiert. Für
+Übungen gedacht.</p>
+</div>
+<p>Beide Stationen brauchen dafür das Winlink-Formular <strong>„OE1 Notfunk
+Meldung“</strong>; wie man es installiert, steht in
+<a href="../winlink-formular/">Winlink-Formular installieren</a>. Eine Station ohne
+Formular liest die Meldung trotzdem: als einfachen Text.</p>
+<h2 id="senden">Senden</h2>
+<ol>
+<li>Die Meldung im Meldebuch öffnen (Klick auf ihre Zeile) und
+   <strong>„Für Winlink exportieren…“</strong> wählen.</li>
+<li>Oben steht, ob die Nachricht als <strong>Übung</strong> gekennzeichnet wird: bei
+   einem Einsatz mit Haken <strong>„Übung“</strong> (Vorgabe) steht im Betreff
+   <code>[ÜBUNG]</code>, im Text als erste Zeile und vor und nach dem Spruch eine
+   eigene Zeile <code>=== ACHTUNG ÜBUNG ===</code> und im Formular über dem Inhalt der Balken
+   „⚠ ACHTUNG ÜBUNG“. Ohne Haken steht dort „Ernstfall“.
+   Im Fenster steht die <strong>Winlink-Adresse des Empfängers</strong> (vorbelegt mit
+   dem Rufzeichen des Adressaten) und die <strong>Größe</strong> der Nachricht.
+   Hinweise darunter beachten:<ul>
+<li>Zeichen wie <code>€</code>, <code>„“</code> oder Emoji erscheinen im Text der
+  Winlink-Nachricht als <code>?</code>; im Formular und beim Einlesen ins Meldebuch
+  bleiben sie erhalten.</li>
+<li>Ein Betreff über 128 Byte (Übungskennung, Dringlichkeit, Nummer und Betreff zusammen)
+  wird gemeldet: besser den Betreff kürzen.</li>
+<li>Über <strong>120 KB</strong> (mit allen Fassungen und dem Verlauf) exportiert das
+  Meldebuch nichts; gekürzt wird nie. Den Inhalt dann auf mehrere
+  Meldungen aufteilen.</li>
+</ul>
+</li>
+<li><strong>„Datei für das Formular speichern“</strong> lädt <code>W1-007.winlink.json</code>
+   herunter (die Nummer der Meldung). Ohne Datei geht es auch über die
+   Zwischenablage: das Feld <strong>„JSON-Daten für das Formular“</strong> zeigt dieselben
+   Daten; <strong>„JSON-Daten kopieren“</strong>, dann im Formular
+   <strong>„Oder den Inhalt der Datei einfügen“</strong> aufklappen, einfügen und
+   <strong>„Übernehmen“</strong>.</li>
+<li>Im Winlink-Programm eine neue Nachricht mit dem Formular <strong>„OE1 Notfunk
+   Meldung“</strong> beginnen, <strong>„Aus Meldebuch laden“</strong>, die Datei wählen (oder
+   ihren Inhalt einfügen), die Winlink-Adresse des Empfängers prüfen und
+   <strong>„Nachricht erstellen“</strong>.<ul>
+<li><strong>Winlink Express</strong> legt die Nachricht in den Postausgang.</li>
+<li><strong>Pat</strong> füllt das Nachrichtenfenster: dort <strong>„Send“</strong>.
+Übertragen wird bei der nächsten Verbindung.</li>
+</ul>
+</li>
+<li>Wenn die Nachricht gesendet ist, im Meldebuch <strong>„übertragen“</strong>
+   eintragen. Der Status ändert sich nicht von selbst.</li>
+</ol>
+<p><strong>Nur Pat:</strong> Statt Schritt 3 und 4 geht auch <strong>„Für Pat (.b2f) speichern“</strong>.
+Das ist die fertige Nachricht (<code>ABCDEFGHIJKL.b2f</code>); sie kommt in den Ordner
+<code>out/</code> des Postfachs von Pat, z. B.
+<code>~/.local/share/pat/mailbox/OE1XYZ/out/</code> (macOS:
+<code>~/Library/Application Support/pat/mailbox/OE1XYZ/out/</code>). Dafür muss im
+Einsatz das Stationsrufzeichen eingetragen sein, und es muss das Rufzeichen
+sein, mit dem Pat sendet.</p>
+<h2 id="empfangen">Empfangen</h2>
+<p>Die Nachricht im Winlink-Programm öffnen. Mit installiertem Formular zeigt
+es die ganze Meldung mit Verlauf. Unter <strong>„Für das Meldebuch“</strong>:</p>
+<ul>
+<li><strong>Winlink Express:</strong> „Speichern“ (Datei <code>…winlink.json</code>) oder
+  „Kopieren“; oder den Anhang <code>RMS_Express_Form_OE1_Notfunk_Meldung_Viewer.xml</code>
+  der Nachricht speichern.</li>
+<li><strong>Pat:</strong> „Kopieren“ (Speichern ist in Pat gesperrt); oder in der
+  Nachricht den Anhang <code>RMS_Express_Form_OE1_Notfunk_Meldung_Viewer.xml</code>
+  herunterladen; oder die Datei <code>&lt;MID&gt;.b2f</code> aus dem Ordner <code>in/</code> des
+  Postfachs nehmen (<code>~/.local/share/pat/mailbox/&lt;RUFZEICHEN&gt;/in/</code>, macOS
+  <code>~/Library/Application Support/pat/mailbox/&lt;RUFZEICHEN&gt;/in/</code>).</li>
+</ul>
+<p>Dann im Meldebuch über der Liste <strong>„Winlink-Nachricht importieren…“</strong>:</p>
+<ul>
+<li><strong>„Datei wählen…“</strong> (<code>.json</code>, <code>.xml</code> oder <code>.b2f</code>), oder</li>
+<li>die Datei aus dem Dateimanager auf das Fenster oder das Meldebuch ziehen,
+  oder</li>
+<li>den kopierten Text in das Feld einfügen und <strong>„Text übernehmen“</strong>.</li>
+</ul>
+<p>Die Meldung öffnet sich als <strong>neuer Eingang</strong> im Formular („Neue Meldung von
+Winlink“, daneben Nummer und Station des Absenders). Prüfen, ergänzen und
+speichern: Erst Speichern vergibt die eigene Nummer, der Status beginnt bei
+„erfasst“. Steht im Formular schon eine Eingabe, wird nichts übernommen;
+erst speichern oder verwerfen.</p>
+<p>Ziehen direkt aus der Weboberfläche von Pat geht nicht (das bräuchte eine
+Netzwerkverbindung); zuerst die Datei speichern.</p>
+<h3 id="was-ubernommen-wird">Was übernommen wird</h3>
+<ul>
+<li>Alle Felder der Meldung. Die Angaben des Absenders (Station, seine Nummer,
+  sein Verlauf, Fehlversuche, frühere Fassungen) stehen bei der Meldung im
+  Abschnitt <strong>„Von Winlink übernommen“</strong>, nur zum Lesen.</li>
+<li><strong>Bezug:</strong> Ist die Meldung eine Antwort auf eine eigene Meldung, wird sie
+  damit verknüpft, und die eigene Meldung wird beim Speichern
+  „beantwortet“. Sonst steht der Bezug als Text da, mit der Station, z. B.
+  <code>W1-003 (OE1XYZ)</code>: Nummern gelten nur bei der Station, die sie vergeben
+  hat.</li>
+<li><strong>Dieselbe Meldung noch einmal:</strong> „Bereits übernommen als …“, es ändert
+  sich nichts. Ist sie beim Absender inzwischen weiter (z. B. Empfang
+  bestätigt), werden nur seine Angaben aktualisiert; die eigenen Felder
+  bleiben.</li>
+<li><strong>Eine eigene Meldung</strong>, die zurückkommt, wird nicht übernommen; eigene
+  Daten stellt die <a href="../backup/">Sicherung</a> wieder her.</li>
+<li><strong>Andere Formulare</strong> (z. B. ICS-213, IARU) und Nachrichten ohne Formular:
+  nur Betreff, Text und Absender.</li>
+<li>Dateien über 1 MB, beschädigte Dateien und Meldungen aus einer neueren
+  Version des Meldebuchs werden abgelehnt; es ändert sich nichts, die
+  Meldung im Fenster sagt warum.</li>
+</ul>
+<hr>
+<p class="doc-nav"><a href="../../">← Notfunk-Anleitung</a> · <a href="../winlink-formular/">Winlink-Formular installieren</a></p>
+<footer class="doc-footer">Quellcode: <a href="https://github.com/oe1ebg/tools">github.com/oe1ebg/tools</a> · Version pr-189 (commit <a href="https://github.com/oe1ebg/tools/commit/ae99afbca2f588e653521e0ae9eba0a29a4c5870">ae99afb</a>)</footer>
+</main>
+</body>
+</html>

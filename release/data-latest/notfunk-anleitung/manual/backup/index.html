@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sicherung und Wiederherstellung</title>
+<script src="../../../shared/js/theme.js"></script>
+<link rel="stylesheet" href="../../../shared/css/tools.css">
+<link rel="stylesheet" href="../../../shared/css/docs.css">
+</head>
+<body>
+<main class="doc">
+<p class="doc-nav"><a href="../../../">← Alle Tools</a></p>
+<h1 id="sicherung-und-wiederherstellung">Sicherung und Wiederherstellung</h1>
+<p class="doc-nav"><a href="../../">← Notfunk-Anleitung</a> · <a href="../../../notfunk/index.html">Notfunk-Meldebuch öffnen</a></p>
+<p>Alle Daten liegen nur im Browser dieses Geräts. Eine Sicherungsdatei schützt
+vor Verlust und ermöglicht den Umzug auf ein anderes Gerät.</p>
+<h2 id="sichern">Sichern</h2>
+<p><strong>„Sichern (JSON)“</strong> lädt eine Datei mit dem ganzen Einsatz herunter: alle
+Meldungen, auch gelöschte, mit allen Fassungen. Auch ein Klick auf den
+Sicherungsstand oben rechts sichert.</p>
+<ul>
+<li>Die Datei ist <strong>nicht verschlüsselt</strong>. Bewahren Sie sie an einem Ort auf,
+  den Sie kontrollieren (USB-Stick, anderer Rechner).</li>
+<li>„Sicherung gestartet 14:40“ heißt nur: Der Download hat begonnen. Prüfen
+  Sie, dass die Datei wirklich angekommen ist, und probieren Sie die
+  Wiederherstellung einmal aus.</li>
+<li>Bei einem sehr großen Einsatz teilt das Meldebuch die Sicherung selbst in
+  mehrere Dateien („…_teil-1-von-3.json“). Erlauben Sie dem Browser
+  mehrere Downloads und prüfen Sie, dass alle angekommen sind. Meldet das
+  Meldebuch „Zu groß für eine einzige Sicherung“, exportieren Sie das
+  Geschäftsbuch (siehe unten) und beginnen für weitere Meldungen einen neuen
+  Einsatz; heruntergeladen wird in diesem Fall nichts.</li>
+</ul>
+<h2 id="wiederherstellen">Wiederherstellen</h2>
+<p>Auf der Startseite <strong>„Wiederherstellen…“</strong>, dann die Sicherungsdatei wählen,
+auch auf einem anderen Gerät.</p>
+<ul>
+<li>Bei geteilten Sicherungen markieren Sie <strong>alle Teile gemeinsam</strong>. Fehlt ein
+  Teil, wird nichts importiert, und die Meldung nennt den fehlenden Teil.</li>
+<li>Das Meldebuch prüft die Datei vollständig, bevor es etwas ändert. Ist sie
+  unbrauchbar („Nicht importiert“), bleibt alles unverändert.</li>
+<li>Einzelne fehlerhafte Einträge werden ausgelassen und mit Grund aufgelistet;
+  der Rest wird übernommen. Das Ergebnis sagt, wie viele Meldungen neu und wie
+  viele aktualisiert wurden. Bereits vorhandene, neuere Meldungen werden nicht
+  überschrieben, und die Nummern gehen nie zurück.</li>
+<li>Meldungen, deren Nummer schon für eine andere Meldung vergeben ist, werden
+  unter „Nicht übernommen“ mit der Nummer aufgelistet.</li>
+<li>Bücher mehrerer Geräte lassen sich so zusammenführen, wenn jedes Gerät sein
+  eigenes Stationskürzel hat.</li>
+</ul>
+<h2 id="geschaftsbuch-fur-excel">Geschäftsbuch für Excel</h2>
+<p><strong>„Geschäftsbuch (CSV)“</strong> schreibt eine Tabelle mit einer Zeile pro Meldung:
+Nummer, Referenz der Meldesammelstelle, Datum, Uhrzeit (Ortszeit), Richtung,
+Betreff, Inhalt, Dringlichkeit, Funkstelle, Status, Übergabe und Bezug. Sie
+lässt sich in Excel oder LibreOffice öffnen.</p>
+<h2 id="daten-schutzen">Daten schützen</h2>
+<ul>
+<li>Die Daten und Sicherungen sind unverschlüsselt. Verwenden Sie
+  Bildschirmsperre und Festplattenverschlüsselung und teilen Sie das Gerät
+  nicht über ein gemeinsames Benutzerkonto.</li>
+<li>Der Verlauf der Fassungen schützt vor Versehen, nicht vor Manipulation.</li>
+<li>Die Offline-Datei und die Seite im Netz haben <strong>getrennte</strong> Daten. Zum
+  Umziehen verwenden Sie die Sicherung.</li>
+<li>Personenbezogene Daten sind zu löschen, wenn sie nicht mehr gebraucht
+  werden (Richtlinie Notfunk Wien, Abschnitt Datenschutz). Das Meldebuch
+  löscht nie von selbst.</li>
+</ul>
+<p>Weiter: <a href="../../reference/notices/">Wenn etwas nicht klappt</a></p>
+<footer class="doc-footer">Quellcode: <a href="https://github.com/oe1ebg/tools">github.com/oe1ebg/tools</a> · Version v0.8.2 (commit <a href="https://github.com/oe1ebg/tools/commit/05c73fe7bf6602c82bfb2d192cd25c801673e923">05c73fe</a>)</footer>
+</main>
+</body>
+</html>

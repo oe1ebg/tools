@@ -1,0 +1,517 @@
+/* ADIF editor. Colour tokens, color-scheme, [hidden] and .sr-only come
+   from the shared tools.css. */
+
+html,body{ height:100%; }
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-ui);
+  font-size:13px;
+  line-height:1.4;
+  display:flex;
+  flex-direction:column;
+}
+#toolbar{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:.6em 1.2em;
+  padding:.6em .8em;
+  background:var(--bg-raised);
+  border-bottom:1px solid var(--line);
+}
+#toolbar .sep{ color:var(--line); }
+button, .btn{
+  font-family:var(--font-ui);
+  font-size:12px;
+  background:transparent;
+  color:var(--accent-text);
+  border:1px solid var(--accent-dim);
+  padding:.35em .7em;
+  cursor:pointer;
+  border-radius:.2rem;
+}
+button:hover, .btn:hover{ background:var(--accent-soft); }
+button:disabled{ color:var(--text-dim); border-color:var(--line); cursor:not-allowed; }
+button.danger{ color:var(--err); border-color:#5a3a33; }
+button.danger:hover{ background:rgba(217,112,90,0.1); }
+input[type=text], select{
+  font-family:var(--font-ui);
+  font-size:12px;
+  background:var(--bg);
+  color:var(--text);
+  border:1px solid var(--line-strong);
+  padding:.35em .5em;
+  border-radius:.2rem;
+}
+input[type=text]:focus, td[contenteditable]:focus{
+  outline:1px solid var(--accent);
+  outline-offset:-1px;
+}
+#stats{ color:var(--text-dim); white-space:nowrap; }
+#stats b{ color:var(--text); font-weight:600; }
+.spacer{ flex:1; }
+
+#tools-panel{
+  display:none;
+  align-items:center;
+  gap:.6em;
+  padding:.5em .8em;
+  background:var(--bg-raised);
+  border-bottom:1px solid var(--line);
+  font-size:12px;
+}
+#tools-panel.show{ display:flex; flex-wrap:wrap; }
+#tools-panel input[type=text]{ width:16em; }
+#tools-panel .hint{ color:var(--text-dim); }
+
+#file-info{
+  padding:.2em .8em;
+  color:var(--text-dim);
+  font-size:11px;
+}
+
+#warnings{
+  display:none;
+  padding:.5em .8em;
+  /* the shared warning colours: the old fixed dark box was a dark bar
+     with low-contrast text in light mode */
+  background:var(--warn-soft);
+  border-bottom:1px solid var(--line);
+  color:var(--warn);
+  font-size:12px;
+  max-height:6em;
+  overflow:auto;
+}
+#warnings.show{ display:block; }
+#warnings div{ padding:.1em 0; }
+
+#drop{
+  flex:1;
+  position:relative;
+  overflow:auto;
+  padding: 0 0 3em 0;
+}
+#drop.empty{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:0;
+}
+#empty-msg{
+  text-align:center;
+  color:var(--text-dim);
+  border:1px dashed var(--line);
+  padding:3em 4em;
+}
+#empty-msg .hint{ color:var(--accent-dim); font-size:12px; margin-top:.6em; }
+#drop.dragover::after{
+  content:"drop .adi / .adx file(s)";
+  position:absolute; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(82,108,254,0.08);
+  border:2px dashed var(--accent);
+  color:var(--accent-text);
+  font-size:14px;
+  z-index:5;
+  pointer-events:none;
+}
+
+table{
+  border-collapse:separate;
+  border-spacing:0;
+  table-layout:fixed; /* the width is set from the columns (js/app.js, setTableWidth) */
+  width:max-content;
+  min-width:100%;
+  font-family:var(--font-mono);
+}
+thead th{
+  position:sticky; top:0; z-index:2;
+  background:var(--bg-raised);
+  border-bottom:1px solid var(--accent-dim);
+  border-right:1px solid var(--line);
+  text-align:left;
+  padding:.4em .6em;
+  white-space:nowrap;
+  font-weight:600;
+  font-family:var(--font-ui);
+  color:var(--accent-text);
+}
+thead th .colhead{
+  display:flex; align-items:center; gap:.5em; min-width:0;
+}
+thead th{ overflow:hidden; }
+thead th .sortcol{ min-width:0; overflow:hidden; text-overflow:ellipsis; }
+thead th .colhead button{
+  background:none; border:none; border-radius:0; padding:0; margin:0;
+  font:inherit; color:inherit; text-align:left;
+}
+thead th .colhead button:hover{ background:none; }
+thead th .rmcol{
+  flex:none;
+  color:var(--text-dim);
+  cursor:pointer;
+  font-weight:400;
+}
+thead th .rmcol:hover{ color:var(--err); }
+th.rownum-col, td.rownum{
+  position:sticky; left:0; z-index:1;
+  background:var(--bg-raised);
+  color:var(--text-dim);
+  text-align:right;
+  padding:.4em .6em;
+  border-right:1px solid var(--accent-dim);
+  user-select:none;
+  font-family:var(--font-ui);
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+}
+td.rownum{ background:var(--bg); z-index:1; }
+td.rownum .del{ cursor:pointer; color:var(--text-dim); margin-left:.6em; background:none; border:none; padding:0; font:inherit; }
+td.rownum .del:hover{ background:none; }
+td.rownum .del:hover{ color:var(--err); }
+/* The body is virtualized (js/table.js): rows of one fixed height, so
+   values stay on one line (cut with …) until the cell is edited; the
+   column widths come from a <colgroup> sized to the longest value. */
+tbody td{
+  border-bottom:1px solid var(--line);
+  border-right:1px solid var(--line);
+  padding:.35em .6em;
+  white-space:pre;
+  min-width:4em;
+  max-width:28em;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+tbody td[contenteditable]:focus{
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+  text-overflow:clip;
+}
+.char-probe{
+  position:absolute;
+  visibility:hidden;
+  white-space:pre;
+  font-family:var(--font-mono);
+}
+tbody tr.spacer td{
+  padding:0;
+  border:0;
+  min-width:0;
+  background:none;
+}
+tbody tr:hover td{ background:rgba(82,108,254,0.04); }
+tbody tr.spacer:hover td{ background:none; }
+#addcol{
+  display:flex; align-items:center; gap:.4em;
+  padding:.3em .5em;
+}
+#addcol input{ width:10em; }
+#addrow-row td{
+  padding:.5em .6em;
+  color:var(--text-dim);
+}
+#addrow-row .btn{ display:inline-flex; }
+
+#filename-input{ width:14em; }
+.add-row{ padding:.6em .8em; }
+.add-row input{ margin-left:.6em; width:14em; }
+.add-row .add-col{ margin-left:.4em; }
+
+/* A running import: progress bar, what it is doing, Cancel. */
+.import-progress{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:.4em 1em;
+  padding:.4em .8em;
+  border-bottom:1px solid var(--line);
+  background:var(--bg-raised);
+  font-size:12px;
+}
+.import-progress[hidden]{ display:none; }
+.import-progress progress{ width:16em; max-width:100%; accent-color:var(--accent); }
+#import-text{ color:var(--text-dim); font-variant-numeric:tabular-nums; }
+
+/* ADIF validation: summary line, issue list, flagged cells. */
+.validation{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:.4em 1em;
+  padding:.4em .8em;
+  border-bottom:1px solid var(--line);
+  font-size:12px;
+}
+.validation.is-warn{ background:var(--warn-soft); }
+.validation.is-invalid{ background:var(--err-soft); }
+#validation-summary{ display:flex; flex-wrap:wrap; align-items:baseline; gap:.3em 1em; }
+.verdict{ font-weight:600; }
+.is-valid .verdict{ color:var(--ok); }
+.is-warn .verdict{ color:var(--warn); }
+.is-invalid .verdict{ color:var(--err); }
+.v-counts{ display:flex; gap:.9em; color:var(--text-dim); font-variant-numeric:tabular-nums; }
+.v-counts .n-error{ color:var(--err); }
+.v-counts .n-warning{ color:var(--warn); }
+.v-counts .n-info{ color:var(--accent-text); }
+.v-scope{ color:var(--text-dim); }
+.v-checking{ color:var(--text-dim); font-style:italic; }
+.validation.is-checking #validation-summary{ opacity:.6; }
+
+#validation-issues{
+  display:grid;
+  gap:.7em;
+  padding:.4em .8em .8em;
+  border-bottom:1px solid var(--line);
+  max-height:16em;
+  overflow:auto;
+  font-size:12px;
+}
+.v-group h2{ margin:0 0 .2em; font-size:12px; font-weight:600; }
+.v-group h2 .dim, .v-loc, .v-code, .v-more{ color:var(--text-dim); font-weight:400; }
+.v-group ul{ list-style:none; margin:0; padding:0; display:grid; gap:.15em; }
+.v-group li{ display:grid; grid-template-columns:1.2em minmax(6em, 11em) minmax(0, 1fr); gap:.4em; align-items:baseline; }
+.v-field{ font-family:var(--font-mono); font-size:11.5px; overflow-wrap:anywhere; }
+.v-code{ font-family:var(--font-mono); font-size:10.5px; margin-left:.5em; }
+.v-loc{ font-size:11px; margin-left:.5em; }
+.sev-error{ color:var(--err); }
+.sev-warning{ color:var(--warn); }
+.sev-info{ color:var(--accent-text); }
+
+/* "About ADIF compliance & validation" (js/compliance.js). */
+#compliance{
+  border-bottom:1px solid var(--line);
+  font-size:12px;
+}
+#compliance > summary{
+  padding:.3em .8em;
+  color:var(--text-dim);
+  cursor:pointer;
+}
+#compliance > summary:hover{ color:var(--accent-text); }
+#compliance-body{
+  padding:0 .8em .6em;
+  max-width:60em;
+}
+#compliance-body h2{ margin:.7em 0 .2em; font-size:12px; font-weight:600; }
+#compliance-body p, #compliance-body ul{ margin:.2em 0; }
+#compliance-body ul{ padding-left:1.4em; }
+#compliance-body a{ color:var(--accent-text); }
+
+/* Enumeration cells (js/cell-editors.js): a borderless select filling the
+   cell, as high as a text cell (js/table.js measures the row height once),
+   also under pointer: coarse; the arrow only on hover and focus (a
+   gradient: the CSP allows no data: images). */
+tbody td.enum-cell{ padding:0; }
+tbody td.enum-cell select.cell-select{
+  -webkit-appearance:none;
+  -moz-appearance:none;
+  appearance:none;
+  display:block;
+  box-sizing:border-box;
+  width:100%;
+  height:calc(1.4em + .7em);
+  margin:0;
+  padding:.35em .6em;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  color:inherit;
+  font:inherit;
+  font-size:inherit;
+  line-height:1.4;
+  white-space:pre;
+  text-overflow:ellipsis;
+  cursor:pointer;
+}
+tbody td.enum-cell select.cell-select:hover,
+tbody td.enum-cell select.cell-select:focus{
+  padding-right:1.6em;
+  background-image:linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position:calc(100% - .9em) 55%, calc(100% - .55em) 55%;
+  background-size:.35em .35em;
+  background-repeat:no-repeat;
+}
+tbody td.enum-cell select.cell-select:focus{
+  outline:1px solid var(--accent);
+  outline-offset:-1px;
+}
+tbody td.enum-cell select.cell-select option{ background:var(--bg); color:var(--text); }
+
+/* Suggestions of a CONTEST_ID / SUBMODE cell, placed next to it. */
+#cell-suggest{
+  position:fixed;
+  z-index:30;
+  margin:0;
+  padding:.2em 0;
+  list-style:none;
+  max-height:16em;
+  max-width:calc(100vw - 16px);
+  overflow:auto;
+  background:var(--bg-raised);
+  color:var(--text);
+  border:1px solid var(--line-strong);
+  border-radius:.2rem;
+  box-shadow:0 4px 14px rgba(0,0,0,.25);
+  font-family:var(--font-mono);
+}
+#cell-suggest li{ padding:.25em .6em; cursor:pointer; white-space:pre; }
+#cell-suggest li:hover, #cell-suggest li[aria-selected="true"]{ background:var(--accent-soft); color:var(--accent-text); }
+#cell-suggest li.more{ color:var(--text-dim); cursor:default; background:none; }
+
+/* "new" / "clear…" confirmation. */
+#confirm-dlg{
+  max-width:min(32em, calc(100vw - 32px));
+  padding:1em 1.2em;
+  background:var(--bg-raised);
+  color:var(--text);
+  border:1px solid var(--line-strong);
+  border-radius:.3rem;
+}
+/* a literal colour: older Chrome and Safari don't pass custom properties to ::backdrop */
+#confirm-dlg::backdrop{ background:rgba(0,0,0,.45); }
+#confirm-dlg h2{ margin:0 0 .5em; font-size:14px; }
+#confirm-dlg p{ margin:0 0 1em; }
+.dlg-buttons{ display:flex; flex-wrap:wrap; justify-content:flex-end; gap:.6em; }
+
+tbody td.cell-error{ background:var(--err-soft); box-shadow:inset 0 -2px 0 var(--err); }
+tbody td.cell-warning{ background:var(--warn-soft); box-shadow:inset 0 -2px 0 var(--warn); }
+tbody td.cell-info{ box-shadow:inset 0 -2px 0 var(--accent-dim); }
+td.rownum.row-error{ color:var(--err); font-weight:600; }
+td.rownum.row-warning{ color:var(--warn); font-weight:600; }
+
+@media (max-width: 600px){
+  .v-group li{ grid-template-columns:1.2em minmax(0, 1fr); }
+  .v-group li > :nth-child(3){ grid-column:2; }
+}
+
+/* iOS Safari zooms into focused fields with text under 16px. */
+@media (pointer: coarse){
+  :root input, :root select, :root textarea{ font-size:16px; }
+}
+
+/* Search & filter bar (js/filter-ui.js). */
+#filter-bar{
+  display:grid;
+  gap:.4em;
+  padding:.45em .8em;
+  background:var(--bg-raised);
+  border-bottom:1px solid var(--line);
+  font-size:12px;
+}
+#filter-bar[hidden]{ display:none; }
+.flt-line, .flt-cond, #flt-file-wrap{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:.4em .6em;
+}
+#flt-conds{ display:grid; gap:.3em; }
+#flt-conds:empty{ display:none; }
+#filter-bar label{ color:var(--text-dim); }
+#filter-bar input[type=search], #filter-bar input.flt-date{
+  font-family:var(--font-ui);
+  font-size:12px;
+  background:var(--bg);
+  color:var(--text);
+  border:1px solid var(--line-strong);
+  padding:.3em .5em;
+  border-radius:.2rem;
+}
+#filter-bar input:focus{ outline:1px solid var(--accent); outline-offset:-1px; }
+#flt-text{ width:14em; }
+.flt-cond-field{ width:12em; }
+.flt-cond-value{ width:14em; }
+.flt-cond-rm{ padding:.2em .55em; }
+#flt-count{ font-weight:600; font-variant-numeric:tabular-nums; }
+#filter-bar .hint{ color:var(--text-dim); }
+/* "row N" in the issue list: jumps to that QSO */
+.v-goto{
+  background:none; border:none; padding:0;
+  font:inherit; color:var(--accent-text);
+  text-decoration:underline; cursor:pointer;
+}
+.v-goto:hover{ background:none; }
+
+#stats{ display:flex; flex-wrap:wrap; align-items:baseline; gap:.25em .6em; }
+.statistics-item + .statistics-item::before{ content:"· "; }
+#statistics-body{ display:flex; flex-wrap:wrap; gap:1em; }
+#statistics-body > p{ flex-basis:100%; margin:.5em 0; }
+#statistics-body section{ max-width:100%; overflow:auto; }
+#statistics-body h2{ font-size:1em; }
+.statistics-table{ border-collapse:collapse; }
+.statistics-table th, .statistics-table td{ padding:.3em .6em; text-align:left; border-bottom:1px solid var(--line); overflow-wrap:anywhere; }
+.statistics-table td{ white-space:nowrap; }
+#stats{ white-space:normal; }
+#drop{ min-height:160px; }
+#statistics-body{ max-height:45vh; overflow:auto; }
+
+#export-decisions{ background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:.4em; max-width:min(90vw, 52em); max-height:85vh; }
+#export-decisions::backdrop{ background:rgba(0,0,0,.5); }
+.export-decisions-body{ max-height:55vh; overflow:auto; }
+.export-decisions-body section{ border-top:1px solid var(--line); padding:.5em 0; }
+.export-decisions-body h3{ font-size:1em; }
+.export-decisions-body li{ overflow-wrap:anywhere; }
+.export-decisions-body select{ max-width:100%; }
+.export-decisions-actions{ display:flex; flex-wrap:wrap; gap:.5em; margin-top:1em; }
+
+/* The status line under the filter bar (index.html, #status-area). */
+#status-area{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  border-bottom:1px solid var(--line);
+  font-size:12px;
+}
+#status-area > *{ flex:0 1 auto; }
+#warnings, #import-progress, #validation-issues, #status-area > details[open]{ flex-basis:100%; }
+#status-area .validation{ border-bottom:none; padding:.3em .8em; }
+#file-info{ padding:.3em .8em; }
+#file-info:empty{ display:none; }
+#log-statistics{ margin:0; }
+#log-statistics > summary{ padding:.3em .8em; cursor:pointer; }
+#log-statistics[open]{ padding:0 .8em .5em; }
+#log-statistics[open] > summary{ padding-left:0; }
+#compliance{ border-bottom:none; }
+#status-area > details:not([open]) > summary{ color:var(--text-dim); }
+#status-area > details:not([open]) > summary:hover{ color:var(--accent-text); }
+#validation-issues{ border-top:1px solid var(--line); border-bottom:none; }
+
+/* Folded while the table is scrolled down (js/app.js, updateCompact): the
+   log overview, file versions and the closed "Log statistics" / "About"
+   lines. What has the focus or was opened stays. */
+body.compact #stats,
+body.compact #file-info,
+body.compact #status-area > details:not([open]):not(:focus-within){ display:none; }
+body.compact #toolbar{ column-gap:.6em; }
+/* On a phone the page header goes too, and the toolbar and the filter line
+   become one row each that scrolls sideways. */
+@media (max-width: 600px){
+  body.compact #site-header:not(:focus-within){ display:none; }
+  body.compact #toolbar, body.compact .flt-line{ flex-wrap:nowrap; overflow-x:auto; }
+  body.compact #toolbar > *, body.compact .flt-line > *{ flex-shrink:0; }
+}
+
+/* ISO dates (js/datetime.js): typed as text, the browser's calendar only
+   as a picker. */
+#filter-bar input.flt-date{ width:8.6em; font-variant-numeric:tabular-nums; }
+#filter-bar input.flt-date[aria-invalid="true"]{ border-color:var(--err); }
+.date-pick{ display:inline-flex; align-items:center; padding:.25em .35em; }
+.icon-calendar{ width:1.1em; height:1.1em; }
+#filter-bar .date-pick{ margin-left:-.3em; }
+#cell-date-btn{ position:fixed; z-index:25; padding:.1em .2em; background:var(--bg-raised); }
+
+
+/* "×" (remove column / delete row): at least 24×24 CSS px (WCAG 2.5.8);
+   the row keeps its height (negative margins), the virtual table measures
+   it from the first row */
+thead th .rmcol{ display:inline-flex; align-items:center; justify-content:center; min-width:24px; min-height:24px; }
+td.rownum .del{ display:inline-flex; align-items:center; justify-content:center; min-width:24px; min-height:24px; margin:-.35em -.2em -.35em .4em; }
+
+/* calendar buttons next to ISO date fields: at least 24x24 px (WCAG 2.5.8) */
+.date-pick{ min-width:24px; min-height:24px; justify-content:center; }
+
+/* filter selects never wider than the screen (WCAG 1.4.10): long field names are cut in the closed select */
+.flt-line select{ max-width:100%; min-width:0; }
+#filter-bar{ grid-template-columns:minmax(0, 1fr); }

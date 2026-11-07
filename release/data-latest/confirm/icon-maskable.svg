@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Full-bleed variant of icon.svg for "maskable" / iOS home-screen icons:
+       the platform cuts its own shape, so no rounded corners and the mark
+       sits inside the 80 % safe zone. PNGs: see README.md (Icons). -->
+  <rect width="512" height="512" fill="#526cfe"/>
+  <g transform="translate(51.2 51.2) scale(.8)" fill="none" stroke="#fff" stroke-width="28" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M146 270l70 70 150-170"/>
+    <path d="M96 150a220 220 0 0 1 60-50M416 150a220 220 0 0 0-60-50" opacity=".7"/>
+  </g>
+</svg>

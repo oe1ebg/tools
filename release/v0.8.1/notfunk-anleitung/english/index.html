@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notfunk logbook: introduction and tutorial (English)</title>
+<script src="../../shared/js/theme.js"></script>
+<link rel="stylesheet" href="../../shared/css/tools.css">
+<link rel="stylesheet" href="../../shared/css/docs.css">
+</head>
+<body>
+<main class="doc">
+<p class="doc-nav"><a href="../../">← Alle Tools</a></p>
+<h1 id="notfunk-logbook-introduction-and-tutorial">Notfunk logbook: introduction and tutorial</h1>
+<p class="tool-actions"><a class="tool-launch" href="../../notfunk/index.html">Open the Notfunk logbook <span aria-hidden="true">→</span></a>
+<a href="../../">All tools</a> ·
+<a href="../">Deutsche Anleitung (full manual)</a> ·
+<a download="notfunk-vordruck.pdf" href="../../downloads/notfunk-vordruck.pdf">Empty form (PDF)</a> ·
+<a href="https://github.com/oe1ebg/tools/tree/main/tools/notfunk">Source code</a></p>
+<p>The <a href="../../notfunk/index.html">Notfunk logbook</a> (<em>Notfunk-Meldebuch</em>) is a logbook
+for emergency radio in Vienna, Austria: take down messages, number them
+without gaps, hand them over, transmit them and print them. It runs entirely
+in the browser, works offline, and keeps all data on the device. The tool
+itself is in German; this page explains the idea and walks through an
+example. The complete reference of every field and button is the
+<a href="../">German manual</a>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Draft</p>
+<p>The message format has not yet been agreed with the Notfunkreferat Wien
+and the Meldesammelstelle. Fields, labels and urgency levels may change.
+Intended for exercises.</p>
+</div>
+<h2 id="introduction-the-path-of-an-emergency-message">Introduction: the path of an emergency message</h2>
+<h3 id="the-situation">The situation</h3>
+<p>In a large-scale communication outage, such as a blackout, the usual ways
+fail: calls to emergency numbers by phone or mobile no longer get through.
+For this case the City of Vienna sets up <strong>Lichtinseln</strong> ("islands of
+light"), places run by religious communities where citizens can get help
+and information. They are equipped with radios and, where possible, staffed
+by radio amateurs of the Notfunkreferat. A message from the neighbourhood
+can thus reach the city's crisis management even when nothing else works
+(<a href="#sources">sources</a>).</p>
+<h3 id="the-path-of-a-message">The path of a message</h3>
+<p>Someone comes to the Lichtinsel with an emergency. Their message is
+<strong>taken down</strong>, <strong>relayed by radio</strong>, <strong>received</strong> by the crisis staff and
+decided on; the reply travels the same path <strong>back</strong>.</p>
+<figure class="diagram">
+<svg viewBox="0 0 1048 430" role="img" aria-labelledby="nf-ablauf-t nf-ablauf-d" xmlns="http://www.w3.org/2000/svg" fill="currentColor" font-family="inherit" font-size="14">
+<title id="nf-ablauf-t">Der Weg einer Notmeldung und der Rückweg der Antwort</title>
+<desc id="nf-ablauf-d">Von links nach rechts: Hilfesuchende kommen zur Lichtinsel, wo ein Funkamateur die Meldung aufnimmt (ein Rücklesen wird empfohlen). Über das lokale Informationsnetz geht sie an den K-Vorsorgestandort, von dort über BOS-Funk oder das taktische Netz an die Funkstelle in der Einsatzleitstelle. Der Funkamateur dort übergibt sie an die Meldesammelstelle des Kriseneinsatzstabs; hier endet die Aufgabe der Funkamateure. Die Meldesammelstelle nennt eine Referenz. Die Antwort nimmt denselben Weg zurück bis zu den Hilfesuchenden.</desc>
+<defs>
+<marker id="nf-pfeil" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker>
+</defs>
+<g font-size="13" text-anchor="middle" fill-opacity=".8">
+<text x="195" y="60">mündlich,</text><text x="195" y="76">schriftlich</text>
+<text x="409" y="60">Funk: lokales</text><text x="409" y="76">Informationsnetz</text>
+<text x="623" y="44">BOS-Funk, Backup:</text><text x="623" y="60">taktisches Netz</text><text x="623" y="76">(Amateurfunk, DMR)</text>
+<text x="837" y="60">Übergabe, Referenz</text><text x="837" y="76">(Papier, mündlich)</text>
+</g>
+<g stroke="currentColor" stroke-width="1.5" fill="none">
+<rect x="10" y="100" width="172" height="170" rx="8" stroke-dasharray="6 5"/>
+<rect x="224" y="100" width="172" height="170" rx="8" stroke-width="3" fill="currentColor" fill-opacity=".08"/>
+<rect x="438" y="100" width="172" height="170" rx="8" stroke-width="3" fill="currentColor" fill-opacity=".08"/>
+<rect x="652" y="100" width="172" height="170" rx="8" stroke-width="3" fill="currentColor" fill-opacity=".08"/>
+<rect x="866" y="100" width="172" height="170" rx="8" stroke-dasharray="6 5"/>
+</g>
+<g text-anchor="middle">
+<text x="96" y="132" font-weight="700" font-size="16">Hilfesuchende</text>
+<text x="96" y="160">Bürgerinnen und Bürger</text>
+<text x="96" y="182">kommen zur Lichtinsel</text>
+<text x="96" y="236" font-size="13" fill-opacity=".8">kein Funkamateur</text>
+
+<text x="310" y="132" font-weight="700" font-size="16">Lichtinsel</text>
+<text x="310" y="160">Funkamateur</text>
+<text x="310" y="182">nimmt den Wortlaut auf</text>
+<text x="310" y="204">(Rücklesen empfohlen)</text>
+<text x="310" y="236" font-size="13" fill-opacity=".8">Meldung ↑ Ausgang</text>
+
+<text x="524" y="132" font-weight="700" font-size="16">K-Vorsorgestandort</text>
+<text x="524" y="160">Leitstelle des lokalen</text>
+<text x="524" y="182">Informationsnetzes</text>
+<text x="524" y="204">gibt weiter</text>
+<text x="524" y="236" font-size="13" fill-opacity=".8">Weitergabe ↓ ↑</text>
+
+<text x="738" y="132" font-weight="700" font-size="16">Funkstelle der ELS</text>
+<text x="738" y="160">Funkamateur nimmt auf,</text>
+<text x="738" y="182">übergibt an die</text>
+<text x="738" y="204">Meldesammelstelle</text>
+<text x="738" y="236" font-size="13" fill-opacity=".8">Meldung ↓ Eingang</text>
+
+<text x="952" y="132" font-weight="700" font-size="16">Meldesammelstelle</text>
+<text x="952" y="160">des Kriseneinsatzstabs</text>
+<text x="952" y="182">vergibt die Referenz,</text>
+<text x="952" y="204">der Stab entscheidet</text>
+<text x="952" y="236" font-size="13" fill-opacity=".8">kein Funkamateur</text>
+</g>
+<g stroke="currentColor" stroke-width="2.5" fill="none">
+<path d="M186 160H220" marker-end="url(#nf-pfeil)"/>
+<path d="M400 160H434" marker-end="url(#nf-pfeil)"/>
+<path d="M614 160H648" marker-end="url(#nf-pfeil)"/>
+<path d="M828 160H862" marker-end="url(#nf-pfeil)"/>
+<g stroke-dasharray="7 4">
+<path d="M862 220H828" marker-end="url(#nf-pfeil)"/>
+<path d="M648 220H614" marker-end="url(#nf-pfeil)"/>
+<path d="M434 220H400" marker-end="url(#nf-pfeil)"/>
+<path d="M220 220H186" marker-end="url(#nf-pfeil)"/>
+</g>
+</g>
+<g text-anchor="middle" font-size="13" font-weight="700">
+<g stroke="currentColor" stroke-width="3" fill="none"><circle cx="203" cy="140" r="11"/><circle cx="417" cy="140" r="11"/><circle cx="631" cy="140" r="11"/><circle cx="845" cy="140" r="11"/></g>
+<g stroke="currentColor" stroke-width="2" fill="none"><circle cx="845" cy="240" r="11"/><circle cx="631" cy="240" r="11"/><circle cx="417" cy="240" r="11"/><circle cx="203" cy="240" r="11"/></g>
+<text x="203" y="145">1</text><text x="417" y="145">2</text><text x="631" y="145">3</text><text x="845" y="145">4</text>
+<text x="845" y="245">5</text><text x="631" y="245">6</text><text x="417" y="245">7</text><text x="203" y="245">8</text>
+</g>
+<g stroke="currentColor" stroke-width="2" fill="none">
+<path d="M224 296V306H824V296"/>
+</g>
+<text x="524" y="328" text-anchor="middle" font-weight="700">Hier arbeiten Funkamateure: sie übermitteln, was aufgenommen wurde –</text>
+<text x="524" y="348" text-anchor="middle" font-weight="700">wörtlich, ohne Zusatz, ohne eigene Bewertung.</text>
+<g font-size="13">
+<path d="M10 396H60" stroke="currentColor" stroke-width="2.5" marker-end="url(#nf-pfeil)"/>
+<text x="68" y="401">1 – 4 Meldung (hin)</text>
+<path d="M300 396H350" stroke="currentColor" stroke-width="2.5" stroke-dasharray="7 4" marker-end="url(#nf-pfeil)"/>
+<text x="358" y="401">5 – 8 Rückmeldung (zurück), z. B. „Hilfe ist unterwegs“</text>
+</g>
+</svg>
+<figcaption>The path of an emergency message (1 to 4) and of the reply (5 to 8). Bold outline: radio amateurs work here. Labels in German as in the tool.</figcaption>
+</figure>
+
+<p><strong>Forward:</strong></p>
+<ol>
+<li><strong>Take down.</strong> A person describes the emergency. The radio amateur at
+   the Lichtinsel writes down the exact wording. For safety they read it back
+   and the person confirms it is right (recommended, not mandatory).</li>
+<li><strong>Transmit.</strong> The message goes over the local information network to the
+   responsible K-Vorsorgestandort (a district support site). Reading back by the receiver is recommended, but not
+   mandatory. If the Lichtinsel is not checked in to a local
+   network, it goes over the Informationsnetz Wien.</li>
+<li><strong>Relay.</strong> The K-Vorsorgestandort passes it to the Einsatzleitstelle
+   (ELS, the operations centre of the crisis management), normally over
+   authorities' radio (BOS-Funk), with the tactical amateur radio network as
+   backup. There the amateur station (OE1XKS while the ELS works at its usual
+   place; otherwise another callsign) takes it down.</li>
+<li><strong>Hand over.</strong> The radio amateur in the ELS hands the message to the
+   <strong>Meldesammelstelle</strong> (message collection point). It belongs to the
+   <strong>Kriseneinsatzstab</strong> (crisis staff), not to amateur radio. This is where
+   the radio amateurs' job ends: what the staff does with the message is
+   their decision. The Meldesammelstelle enters it in its registry and gives a
+   <strong>reference</strong>; the radio amateur records it in the logbook.</li>
+</ol>
+<p><strong>Back:</strong></p>
+<ol>
+<li>The staff decides and replies through the Meldesammelstelle, for example "Tanker with 200 litres of
+   diesel is on its way, arrival about 15:30."</li>
+<li>The Meldesammelstelle gives the reply to the radio amateur in the ELS,
+   who takes it down word for word, transmits it to the K-Vorsorgestandort.</li>
+<li>The K-Vorsorgestandort passes it on to the Lichtinsel.</li>
+<li>The radio amateur at the Lichtinsel takes it down and
+   <strong>tells the person who reported the emergency</strong>: "Help is on its way."</li>
+</ol>
+<p>Two kinds of feedback differ:</p>
+<ul>
+<li>The <strong>takeover</strong> ("message received, reference GZ 0412") only confirms the
+  message is with the Meldesammelstelle. It comes quickly and says nothing about help.</li>
+<li>The <strong>reply</strong> ("help is on its way") comes when the staff has decided. It
+  is a message of its own that refers to the original.</li>
+</ul>
+<p>Which stations a message actually passes depends on the situation; the
+picture shows the regular path of the <em>Richtlinie Notfunk Teil 2 – Wien</em>
+(<a href="#sources">sources</a>).</p>
+<h3 id="what-radio-amateurs-do-and-what-they-dont">What radio amateurs do, and what they don't</h3>
+<p>In this chain radio amateurs are <strong>messengers</strong>, nothing more. The guideline
+says: amateur stations should not create messages themselves, only transmit
+them.</p>
+<p><strong>Radio amateurs …</strong></p>
+<ul>
+<li>take down the <strong>exact wording</strong> as given,</li>
+<li>read back where possible, so nothing arrives wrong,</li>
+<li>transmit the message and pass on the reply word for word,</li>
+<li>record <strong>handover and receipt</strong>.</li>
+</ul>
+<p><strong>Radio amateurs do not …</strong></p>
+<ul>
+<li>interpret, add to, shorten or "improve" the content,</li>
+<li>pass on guesses or unverified information,</li>
+<li>arrange or promise help themselves.</li>
+</ul>
+<p><strong>Every message that is transmitted belongs in the logbook</strong>, as it actually
+went: with wording, times, handovers and replies. The message flow should be
+traceable without gaps, as far as possible. If there is no time right now,
+write on paper and enter the message afterwards ("Nachtrag vom Papier").</p>
+<p>The logbook helps: the wording is stored unchanged, numbers are gapless,
+every version is kept, and it shows who handed over what and when.</p>
+<h3 id="where-the-logbook-fits-in">Where the logbook fits in</h3>
+<p>Every station keeps a logbook and every message gets a number. A message's
+progress is its status:</p>
+<table>
+<thead>
+<tr>
+<th>Station</th>
+<th>Direction</th>
+<th>Status in the logbook</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Lichtinsel, message to the staff</td>
+<td>↑ Ausgang (outgoing)</td>
+<td>zur Übertragung → übertragen → Empfang bestätigt → beantwortet</td>
+</tr>
+<tr>
+<td>Lichtinsel, reply from the staff</td>
+<td>↓ Eingang (incoming)</td>
+<td>erfasst → übergeben (to the person) → übernommen</td>
+</tr>
+<tr>
+<td>Station in the ELS, message from the Lichtinsel</td>
+<td>↓ Eingang</td>
+<td>erfasst → übergeben (to the Meldesammelstelle) → übernommen (with the <strong>reference</strong>) → beantwortet</td>
+</tr>
+<tr>
+<td>Station in the ELS, reply from the staff</td>
+<td>↑ Ausgang</td>
+<td>zur Übertragung → übertragen → Empfang bestätigt</td>
+</tr>
+</tbody>
+</table>
+<p>The <strong>Notfunk number</strong> (<code>W1-007</code>) belongs to the station, the <strong>reference</strong>
+to the staff's own registry (<em>Geschäftsbuch</em>). The logbook keeps both apart
+so the two lists can be matched.</p>
+<p>The logbook is built to run reliably offline. Even so, be prepared for
+<strong>paper-only</strong> operation in case the device or the power fails: <strong>print the
+paper forms in advance</strong> and keep a stack ready (link below). Enter the
+messages in the logbook afterwards.
+<a download="notfunk-vordruck.pdf" href="../../downloads/notfunk-vordruck.pdf">Download the empty form (PDF)</a>
+(German; the same form the tool prints). Personal data must be deleted when
+no longer needed; the logbook never deletes by itself, so you manage
+operations and backups yourself.</p>
+<h2 id="tutorial-a-message-from-the-lichtinsel-to-the-staff">Tutorial: a message from the Lichtinsel to the staff</h2>
+<p>The example: exercise "Blackout Wien". You are a radio amateur at the
+Lichtinsel Floridsdorf. Ms Huber, head of nursing at a care home at
+Brünner Straße 68, arrives on foot: the emergency generator only runs until
+about 18:00, and 6 ventilated residents depend on the power. The home needs
+diesel for the generator.
+Callsigns and names are made up.</p>
+<h3 id="1-prepare">1. Prepare</h3>
+<ol>
+<li><a href="../../notfunk/index.html">Open the logbook</a> once with internet and install it
+   as an app (browser menu: "Install app" / "Add to Home Screen"); afterwards
+   it works offline ("offline bereit ✓" top right). For laptops without
+   internet there is a single offline HTML file to carry on a USB stick.</li>
+<li>
+<p><strong>"+ Neuer Einsatz"</strong> (new operation): operation name, station prefix
+   <strong>W1</strong>, your station callsign, location, operator, "Für Stelle" <strong>Stab</strong>
+   and the frequency of the local network. Then "Einsatz anlegen".</p>
+<p><img alt="New operation" src="../../img/notfunk-einsatz-neu.png"></p>
+</li>
+</ol>
+<p>The prefix stands before every number. If the Lichtinsel has two
+   devices, each gets its own prefix (W1, W2) so numbers never collide.</p>
+<h3 id="2-take-down-the-message">2. Take down the message</h3>
+<p>You transmit the message, so the direction is <strong>Ausgang (↑)</strong>.</p>
+<ol>
+<li><strong>Richtung:</strong> Ausgang. <strong>Übermittlung:</strong> Funk. <strong>Funkstelle:</strong> the
+   callsign of the station you transmit to (OE1DEF, the K-Vorsorgestandort).</li>
+<li><strong>Von:</strong> "Pflegeheim Brünner Straße 68, Frau Huber"; <strong>An:</strong> "Stab". The
+   sender is the person, not you.</li>
+<li><strong>Dringlichkeit:</strong> "Dringend" (to be transmitted before routine);
+   "Notfall" is for immediate danger to life. When in doubt, ask the control
+   station.</li>
+<li><strong>Betreff</strong> (subject) and <strong>Ort</strong> (location; the address search suggests
+   matches offline).</li>
+<li><strong>Inhalt – wörtlich:</strong> the exact wording.</li>
+<li>
+<p><strong>Rücklesen</strong> (recommended, not mandatory): read the message back to the
+   person; when they say "right", tick the box, otherwise leave it empty.</p>
+<p><img alt="The form &quot;Neue Meldung&quot;" src="../../img/notfunk-tutorial-meldung.png"></p>
+</li>
+<li>
+<p><strong>Save</strong> with <kbd>⇧</kbd>+<kbd>Enter</kbd>. Only now the number is
+   assigned: <strong>W1-001</strong>.</p>
+</li>
+</ol>
+<h3 id="3-transmit-and-record-it">3. Transmit and record it</h3>
+<ol>
+<li>In the message's row click <strong>"übertragen"</strong> and enter who you transmitted
+   to (time empty = now).</li>
+<li>When the other station has confirmed receipt (and read back, if you did), enter <strong>"Empfang
+   bestätigt"</strong>.</li>
+<li>
+<p>When the Meldesammelstelle reports a <strong>reference</strong> ("GZ 0412"), enter it.</p>
+<p><img alt="The message with its flow" src="../../img/notfunk-tutorial-ablauf.png"></p>
+</li>
+</ol>
+<h3 id="4-receive-the-reply">4. Receive the reply</h3>
+<ol>
+<li>Open W1-001 and choose <strong>"Antwort erfassen"</strong>: the form opens as
+   <strong>Eingang</strong> with sender and addressee swapped and the reference set.</li>
+<li>Enter the exact wording of the reply, read it back, save (<strong>W1-002</strong>).
+   W1-001 is now <strong>beantwortet</strong>.</li>
+<li>
+<p>Tell Ms Huber, and record that you passed it on.</p>
+<p><img alt="The logbook after the reply" src="../../img/notfunk-tutorial-buch.png"></p>
+</li>
+</ol>
+<h3 id="5-at-the-end">5. At the end</h3>
+<p>Download a <strong>backup (JSON)</strong> (the status top right counts messages not yet
+backed up), and print messages or the whole logbook as PDF. Details are in
+the <a href="../">German manual</a>.</p>
+<h2 id="sources">Sources</h2>
+<p>The introduction rests on these documents; they apply, not this page.</p>
+<ul>
+<li><strong>Richtlinie Notfunk, Teil 2 – Wien</strong>, edition 1.0 of 2024-10-20,
+  Notfunkreferat of the Landesverband Wien of the ÖVSV:
+  <a href="https://oe1.oevsv.at/export/sites/oe1/not-und-katastrophenfunk/doc/Richtlinie-NF-Wien-1_0.pdf">Richtlinie-NF-Wien-1_0.pdf</a>
+  (network structure, message handling, operating technique, frequencies,
+  documentation, data protection).</li>
+<li><strong>ÖVSV Landesverband Wien (OE1):</strong> <a href="https://oe1.oevsv.at/">oe1.oevsv.at</a>.</li>
+<li><strong>ÖVSV wiki, category Notfunk:</strong>
+  <a href="https://wiki.oevsv.at/wiki/Kategorie:NOTFUNK">wiki.oevsv.at/wiki/Kategorie:NOTFUNK</a>.</li>
+<li><strong>SKKM-Richtlinie für das Führen im Katastropheneinsatz</strong> (Federal Ministry
+  of the Interior):
+  <a href="https://www.bmi.gv.at/204/download/files/skkm-richtlinie-fuer-das-fuehren-im-katastropheneinsatz_bf_20260820.pdf">PDF</a>.</li>
+<li><strong>ÖBFV Info E-31</strong> (2022):
+  <a href="https://www.bundesfeuerwehrverband.at/wp-content/uploads/2022/12/E-31-Info_2022.pdf">PDF</a>.</li>
+<li><strong>Lichtinseln of the City of Vienna:</strong>
+  <a href="https://wien.orf.at/stories/3253406/">ORF Wien</a>,
+  <a href="https://erzdioezese-wien.at/site/home/nachrichten/article/128073.html">Erzdiözese Wien</a>
+  (background).</li>
+<li><strong>Legal basis named by the guideline:</strong> Datenschutzgesetz § 10 in the
+  <a href="https://www.ris.bka.gv.at/">Rechtsinformationssystem</a>; <a href="https://www.gemeinderecht.wien.at/recht/landesrecht-wien/landesgesetzblatt/jahrgang/2003/pdf/lg2003060.pdf">W-KKG, LGBl.
+  60/2003</a>.</li>
+</ul>
+<hr>
+<p class="tool-actions"><a class="tool-launch" href="../../notfunk/index.html">Open the Notfunk logbook <span aria-hidden="true">→</span></a></p>
+<footer class="doc-footer">Quellcode: <a href="https://github.com/oe1ebg/tools">github.com/oe1ebg/tools</a> · Version v0.8.1 (commit <a href="https://github.com/oe1ebg/tools/commit/66c91843d4a80d1f389c04216023b4924eb1bf2a">66c9184</a>)</footer>
+</main>
+</body>
+</html>

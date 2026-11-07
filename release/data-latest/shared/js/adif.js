@@ -1,0 +1,395 @@
+// ADIF (.adi) helpers shared by the ADIF editor and the confirmation log's
+// export. Only the ADI text format (spec: adif.org.uk).
+
+import { tx } from './i18n.js';
+
+const ADIF_PRINTABLE_RE = /^[\x20-\x7e]*$/;
+
+// ADIF .adi is an ASCII format: transliterate German characters, replace
+// anything else non-ASCII. By default also drop "<" ">": legal inside a
+// length-delimited value, but naive readers split on them, and the
+// confirmation log's free text doesn't need them. keepBrackets: for the
+// ADIF editor, which shouldn't change other programs' data more than needed.
+// multiline: for MultilineString fields, keeps line breaks (as CR LF, the
+// only line break ADIF allows); otherwise they become blanks.
+export function adifAscii(s, { keepBrackets = false, multiline = false } = {}) {
+  const raw = String(s ?? '');
+  // fast path: printable ASCII only (the usual case) needs no transliteration
+  if (ADIF_PRINTABLE_RE.test(raw)) return (keepBrackets ? raw : raw.replace(/[<>]/g, '')).trim();
+  let t = raw
+    .replace(/Ä/g, 'Ae').replace(/Ö/g, 'Oe').replace(/Ü/g, 'Ue')
+    .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+    .normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
+  t = multiline
+    ? t.replace(/\r\n|\r|\n/g, '\r\n').replace(/\t/g, ' ')
+    : t.replace(/[\r\n\t]+/g, ' ');
+  return (keepBrackets ? t : t.replace(/[<>]/g, ''))
+    .replace(multiline ? /[^\x20-\x7e\r\n]/g : /[^\x20-\x7e]/g, '?')
+    .trim();
+}
+
+// One `<NAME:len>value ` field, or '' for an empty/missing value (ADIF has
+// no empty fields). The value is written as is; see adifAsciiField().
+// type: an optional data type indicator (<NAME:len:N>).
+export function adifField(name, value, type = '') {
+  if (value === undefined || value === null || value === '') return '';
+  const v = String(value);
+  return `<${name}:${v.length}${type ? ':' + type : ''}>${v} `;
+}
+
+// adifField() with the value made plain ASCII first (adifAscii()).
+export function adifAsciiField(name, value, opts, type = '') {
+  return adifField(name, adifAscii(value, opts), type);
+}
+
+// A plausible tag: <EOR>, <EOH> or a name with a length.
+const ADIF_PLAUSIBLE_TAG_RE = /<(?:eor|eoh|[A-Za-z][A-Za-z0-9_]*:\d+(?::[A-Za-z])?)>/iy;
+
+// Where a value declared as text[start, end) must be cut: only when the
+// text ends before `end` (a length past the end of the file), at the first
+// tag inside it; -1 otherwise. A length that fits always holds (ADIF 3.1.7
+// IV.A.1), whatever tag-shaped text lies inside or after it: characters
+// outside fields are ignored (IV.A.6). adif-validate.js reads it the same.
+function adifCutAt(text, start, end) {
+  if (end <= text.length) return -1;
+  for (let i = text.indexOf('<', start); i >= 0; i = text.indexOf('<', i + 1)) {
+    ADIF_PLAUSIBLE_TAG_RE.lastIndex = i;
+    if (ADIF_PLAUSIBLE_TAG_RE.test(text)) return i;
+  }
+  return -1;
+}
+
+// The fields of an ADI header, read by their lengths (so "<EOH>" inside a
+// value doesn't end it), up to <EOH>: { end (after <EOH>), fields:
+// [[NAME, value, type]] }, or null when there is no <EOH> that way.
+// resync (for a header whose lengths don't lead to an <EOH>): like the
+// validator, a value with tag-shaped text in it that doesn't end cleanly
+// (a separator, the next tag or the end of the text after it) is cut at
+// that text and its name goes to `bad`, so the fields before and after a
+// wrong length are still read and an <EOH> inside a correct value doesn't
+// end the header.
+const ADIF_TAG_TEXT = /<(?:eoh|eor|[A-Za-z][A-Za-z0-9_]*:\d+(?::[A-Za-z])?)>/i;
+const ADIF_TAG_AT = new RegExp(ADIF_TAG_TEXT.source, 'iy');
+function adifCleanEnd(text, end) {
+  if (end >= text.length) return true;
+  const c = text[end];
+  if (c === ' ' || c === '\t' || c === '\n' || c === '\r') return true;
+  if (c !== '<') return false;
+  ADIF_TAG_AT.lastIndex = end;
+  return ADIF_TAG_AT.test(text);
+}
+function adifHeaderFields(text, resync = false, bad = []) {
+  const re = /<([A-Za-z0-9_]+)(?::(\d+)(?::([A-Za-z]+))?)?>/g;
+  const fields = [];
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    const name = m[1].toUpperCase();
+    if (name === 'EOH' && m[2] === undefined) return { end: re.lastIndex, fields };
+    if (m[2] === undefined) continue;
+    const start = re.lastIndex;
+    const type = m[3] ? m[3].toUpperCase() : '';
+    let end = start + parseInt(m[2], 10);
+    if (resync) {
+      // a tag starting inside the value, also one the length ends in
+      const next = ADIF_TAG_TEXT.exec(text.slice(start, Math.min(end, text.length) + 80));
+      if (next && next.index < end - start && !(end <= text.length && adifCleanEnd(text, end))) {
+        end = start + next.index;
+        bad.push(name);
+        fields.push([name, text.slice(start, end).trimEnd(), type]);
+        re.lastIndex = end;
+        continue;
+      }
+    }
+    fields.push([name, text.slice(start, end), type]);
+    re.lastIndex = end;
+  }
+  return null;
+}
+
+// Records of an ADI file as [{FIELD: value}] (field names upper-cased).
+// Problems go to `warnings` (prefixed with sourceLabel); ADIF_VER,
+// PROGRAMID and PROGRAMVERSION from a header (text before <EOH>) are copied
+// into headerInfo when given. stats (optional): stats.unclean counts the
+// values that don't end where a separator or the next tag starts, a sign
+// that the lengths were counted in another unit (see parseADIFAuto()).
+// defs (optional): what the file says about the fields' types, for an
+// export that keeps it: defs.userdefs = [{ name, type, spec }] from the
+// header's USERDEFn fields (name upper-cased, type the indicator letter or
+// '', spec the declaration as written: NAME, NAME,{A,B} or NAME,{min:max});
+// defs.types = { NAME: 'N' }, the data type indicator of each field in the
+// records: for APP_ fields that of the first occurrence ('' when it has
+// none, which ADIF reads as MultilineString), else the first one given.
+export function parseADIF(text, warnings, sourceLabel, headerInfo, stats, defs, limits) {
+  return adifRunSteps(parseADIFSteps(text, warnings, sourceLabel, headerInfo, stats, defs, limits));
+}
+
+// Runs a steps generator (below) to its end and returns its result: how the
+// synchronous functions are the same code as the chunked ones.
+export function adifRunSteps(gen) {
+  let r = gen.next();
+  while (!r.done) r = gen.next();
+  return r.value;
+}
+
+// A limit of the reader was hit (see `limits` of parseADIFSteps()); `code`
+// says which (RECORDS, VALUE, FIELDS, COLUMNS), `limit` and `at` (the QSO's
+// number, 1-based, where it happened) are there for the message.
+export class AdifLimitError extends Error {
+  constructor(code, message, extra = {}) {
+    super(message);
+    this.name = 'AdifLimitError';
+    this.code = code;
+    Object.assign(this, extra);
+  }
+}
+
+// Number of tags between two progress reports of the steps generators.
+const ADIF_STEP_TAGS = 4096;
+
+// parseADIF() as a generator for chunked reading: it yields
+// { phase: 'parse', pos, total, records } every few thousand tags (pos of
+// total characters of the text read, records so far) and returns the same
+// records, warnings, headerInfo, stats and defs as parseADIF(), whatever
+// the caller does in between (the result never depends on where it paused).
+// limits (optional): { maxRecords, maxValueChars, maxFieldsPerRecord,
+// maxFields (all together), maxColumns (different names, counting those in limits.columns, an iterable of the names the log has already) }: a file over one of them stops with an AdifLimitError before
+// the memory is spent (a declared length is checked before the value is
+// cut out), nothing is returned. At the end limits.fieldsRead is the number
+// of fields read and limits.columnsRead the Set of the names.
+export function* parseADIFSteps(text, warnings, sourceLabel, headerInfo, stats, defs, limits, internal = {}) {
+  // internal (for adifCountsBytesSteps/parseADIFAutoSteps): discard (read
+  // for stats and limits only: no records, values or warnings are kept),
+  // byteSource (the text is a UTF-8 byte string, one char per byte:
+  // maxValueChars is then checked on the decoded value).
+  const { discard = false, byteSource = false } = internal;
+  // at most limits.maxWarnings are kept, the rest is counted and said once
+  const maxWarn = limits && limits.maxWarnings > 0 ? limits.maxWarnings : Infinity;
+  let warnOmitted = 0;
+  const warn = msg => {
+    if (discard) return;
+    if (warnings.length >= maxWarn) warnOmitted++;
+    else warnings.push(msg);
+  };
+  const tagRe = /<([A-Za-z0-9_]+)(?::(\d+)(?::([A-Za-z]+))?)?>/g;
+  let bodyStart = 0;
+  let header = [];
+  const firstNonWs = text.match(/\S/);
+  if (!firstNonWs || firstNonWs[0] !== '<' || !/^\s*<[A-Za-z]+:\d/.test(text)) {
+    // Likely has a free-text header: read its fields up to <EOH>; if the
+    // lengths don't lead there (a wrong length), resync at tags like the
+    // validator; without any header that way, the first "<EOH>" text.
+    const h = adifHeaderFields(text);
+    if (h) {
+      bodyStart = h.end;
+      header = h.fields;
+    } else {
+      const bad = [];
+      const r = adifHeaderFields(text, true, bad);
+      const eoh = /<eoh>/i.exec(text);
+      if (r) {
+        bodyStart = r.end;
+        header = r.fields;
+        for (const name of bad) {
+          warn(tx(`${sourceLabel}: header field ${name} declares a length that runs past <EOH>; read up to the next tag, the other header fields are kept.`, `${sourceLabel}: Das Header-Feld ${name} gibt eine Länge an, die über <EOH> hinausreicht; bis zum nächsten Tag gelesen, die anderen Header-Felder bleiben.`));
+        }
+      } else if (eoh) {
+        bodyStart = eoh.index + eoh[0].length;
+      } else if (firstNonWs && firstNonWs[0] !== '<') {
+        warn(tx(`${sourceLabel}: no <EOH> tag found; parsing entire file as records.`, `${sourceLabel}: kein <EOH> gefunden; die ganze Datei wird als QSOs gelesen.`));
+      }
+    }
+  }
+  if (defs) {
+    defs.userdefs = defs.userdefs || [];
+    defs.types = defs.types || {};
+  }
+  for (const [hname, hval, htype] of header) {
+    if (headerInfo && (hname === 'ADIF_VER' || hname === 'PROGRAMID' || hname === 'PROGRAMVERSION')) {
+      headerInfo[hname] = hval;
+    }
+    if (defs && /^USERDEF\d+$/.test(hname)) {
+      const spec = hval.trim();
+      const name = spec.split(/[,{]/)[0].trim().toUpperCase();
+      if (name) defs.userdefs.push({ name, type: htype, spec });
+    }
+  }
+  const body = text.slice(bodyStart);
+  const records = [];
+  let recordCount = 0;
+  let current = {};
+  let any = false;
+  let fieldsInRecord = 0;
+  let fieldsTotal = 0;
+  const columnNames = limits && limits.maxColumns ? new Set(limits.columns || []) : null;
+  let tags = 0;
+  // every record goes through here, so the ceiling holds for all of them
+  // (also a final one without <EOR>)
+  const appendRecord = () => {
+    if (!discard) records.push(current);
+    recordCount++;
+    current = {};
+    any = false;
+    fieldsInRecord = 0;
+    if (limits && limits.maxRecords && recordCount > limits.maxRecords) {
+      throw new AdifLimitError('RECORDS', tx(`more than ${limits.maxRecords} QSOs`, `mehr als ${limits.maxRecords} QSOs`), { limit: limits.maxRecords, at: recordCount });
+    }
+  };
+  tagRe.lastIndex = 0;
+  let m;
+  while ((m = tagRe.exec(body)) !== null) {
+    if (++tags % ADIF_STEP_TAGS === 0) yield { phase: 'parse', pos: tagRe.lastIndex, total: body.length, records: recordCount };
+    const name = m[1].toUpperCase();
+    const lenStr = m[2];
+    const tagEnd = tagRe.lastIndex;
+    if (name === 'EOR') {
+      appendRecord();
+      continue;
+    }
+    if (name === 'EOH') continue;
+    if (lenStr === undefined) {
+      warn(tx(`${sourceLabel}: field <${name}> has no length, skipped.`, `${sourceLabel}: Das Feld <${name}> hat keine Länge, übersprungen.`));
+      continue;
+    }
+    const len = parseInt(lenStr, 10);
+    if (limits) {
+      fieldsTotal++;
+      if (limits.maxFields && fieldsTotal > limits.maxFields) {
+        throw new AdifLimitError('FIELDS_TOTAL', tx(`more than ${limits.maxFields} fields in total`, `insgesamt mehr als ${limits.maxFields} Felder`), { limit: limits.maxFields, at: recordCount + 1 });
+      }
+      if (limits.maxFieldsPerRecord && ++fieldsInRecord > limits.maxFieldsPerRecord) {
+        throw new AdifLimitError('FIELDS', tx(`a QSO with more than ${limits.maxFieldsPerRecord} fields`, `ein QSO mit mehr als ${limits.maxFieldsPerRecord} Feldern`), { limit: limits.maxFieldsPerRecord, at: recordCount + 1 });
+      }
+      if (columnNames && !columnNames.has(name)) {
+        columnNames.add(name);
+        if (columnNames.size > limits.maxColumns) {
+          throw new AdifLimitError('COLUMNS', tx(`more than ${limits.maxColumns} different field names`, `mehr als ${limits.maxColumns} verschiedene Feldnamen`), { limit: limits.maxColumns, at: recordCount + 1 });
+        }
+      }
+    }
+    // A length past the end of the text: cut at the first tag inside it
+    // (as adif-validate.js does); a length that fits always holds.
+    const cutAt = adifCutAt(body, tagEnd, tagEnd + len);
+    const valueEnd = cutAt >= 0 ? cutAt : tagEnd + len;
+    // the limit is on the value as it is cut (a length past the end of the
+    // file doesn't count), before it is sliced out
+    const available = Math.min(valueEnd, body.length);
+    // (not in the detection: it reads both ways, only the one that wins is
+    // refused for a long value, which the real parse does)
+    if (limits && limits.maxValueChars && !discard) {
+      let actual = available - tagEnd;
+      // the limit is on characters: a byte source holds one char per byte
+      // (never fewer than the decoded value, so only a long one is counted)
+      if (byteSource && actual > limits.maxValueChars) actual = adifDecodedLength(body, tagEnd, available);
+      if (actual > limits.maxValueChars) {
+        throw new AdifLimitError('VALUE', tx(`<${name}:${len}> is longer than ${limits.maxValueChars} characters`, `<${name}:${len}> ist länger als ${limits.maxValueChars} Zeichen`), { limit: limits.maxValueChars, at: recordCount + 1, field: name, length: actual });
+      }
+    }
+    if (cutAt >= 0) warn(tx(`${sourceLabel}: <${name}:${len}> runs past the end of the file; the value was cut at the next tag.`, `${sourceLabel}: <${name}:${len}> reicht über das Dateiende hinaus; der Wert wurde am nächsten Tag abgeschnitten.`));
+    if (stats) {
+      const next = body.charAt(tagEnd + len);
+      // does the value end in a blank or '<'? (its last char, not sliced out)
+      const last = available > tagEnd ? body.charAt(available - 1) : '';
+      if (cutAt >= 0 || (next !== '' && next !== '<' && !/\s/.test(next)) || /[\s<]/.test(last)) stats.unclean++;
+    }
+    if (discard) { any = true; tagRe.lastIndex = valueEnd; continue; }
+    const value = cutAt >= 0 ? body.slice(tagEnd, cutAt).replace(/\s+$/, '') : body.slice(tagEnd, valueEnd);
+    current[name] = value;
+    if (defs && !(name in defs.types)) {
+      // An application-defined field's first occurrence determines its type
+      // (ADIF 3.1.7 IV.A.4), '' = no indicator = MultilineString; other
+      // fields: the first indicator given.
+      if (name.startsWith('APP_')) defs.types[name] = m[3] ? m[3].toUpperCase() : '';
+      else if (m[3]) defs.types[name] = m[3].toUpperCase();
+    }
+    any = true;
+    tagRe.lastIndex = valueEnd;
+  }
+  if (any) {
+    warn(tx(`${sourceLabel}: trailing fields after last <EOR>, appended as final record.`, `${sourceLabel}: Felder nach dem letzten <EOR>, als letztes QSO angefügt.`));
+    appendRecord();
+  }
+  if (warnOmitted) warnings.push(tx(`${sourceLabel}: ${warnOmitted} further warning(s) about the file's structure are not shown.`, `${sourceLabel}: ${warnOmitted} weitere Warnung(en) zum Aufbau der Datei werden nicht angezeigt.`));
+  if (limits) { limits.fieldsRead = fieldsTotal; limits.columnsRead = columnNames; } // for the caller's totals
+  return records;
+}
+
+// Length of the decoded text (UTF-16 units) of the UTF-8 bytes
+// bytes[from, to) of a byte string (one char per byte), without decoding.
+export function adifDecodedLength(bytes, from, to) {
+  let n = 0;
+  for (let i = from; i < to; i++) {
+    const c = bytes.charCodeAt(i);
+    if (c < 0x80) n++;
+    else if (c >= 0xf0) n += 2; // 4-byte sequence: a surrogate pair
+    else if (c >= 0xc0) n++;    // lead byte; continuation bytes (0x80-0xbf) add nothing
+  }
+  return n;
+}
+
+// The text's UTF-8 bytes as a string of one char per byte, and back.
+export function adifUtf8Bytes(text) {
+  const bytes = new TextEncoder().encode(text);
+  let out = '';
+  for (let i = 0; i < bytes.length; i += 8192) out += String.fromCharCode(...bytes.subarray(i, i + 8192));
+  return out;
+}
+
+export function adifFromUtf8Bytes(s) {
+  return new TextDecoder().decode(Uint8Array.from(s, c => c.charCodeAt(0)));
+}
+
+// parseADIF() for files from other programs. ADIF counts a value's length in
+// characters and allows only ASCII, but many loggers write UTF-8 and count
+// bytes: then every value with an umlaut is cut in the wrong place. For a
+// non-ASCII file both readings are tried, and the byte reading wins when its
+// values line up with the separators and tags better (stats.unclean).
+export function parseADIFAuto(text, warnings, sourceLabel, headerInfo, defs, limits) {
+  return adifRunSteps(parseADIFAutoSteps(text, warnings, sourceLabel, headerInfo, defs, limits));
+}
+
+// parseADIFAuto() as a generator (see parseADIFSteps(); the yielded
+// progress is that of the reading that produces the result, a non-ASCII
+// file's first yields come from the check of how its lengths count).
+export function* parseADIFAutoSteps(text, warnings, sourceLabel, headerInfo, defs, limits) {
+  const bytes = yield* adifCountsBytesSteps(text, limits);
+  if (limits) limits.countsBytes = bytes; // for the validator: no second detection
+  if (!bytes) return yield* parseADIFSteps(text, warnings, sourceLabel, headerInfo, undefined, defs, limits);
+  const byteHeader = {}, byteDefs = {};
+  const asBytes = yield* parseADIFSteps(adifUtf8Bytes(text), warnings, sourceLabel, byteHeader, undefined, byteDefs, limits, { byteSource: true });
+  warnings.push(tx(`${sourceLabel}: field lengths count UTF-8 bytes, not characters (as the file's program writes them); read that way.`, `${sourceLabel}: Die Feldlängen zählen UTF-8-Bytes, nicht Zeichen (so schreibt sie das Programm der Datei); so gelesen.`));
+  if (headerInfo) for (const [k, v] of Object.entries(byteHeader)) headerInfo[k] = adifFromUtf8Bytes(v);
+  if (defs) {
+    defs.userdefs = (defs.userdefs || []).concat(byteDefs.userdefs.map(u => ({ ...u, spec: adifFromUtf8Bytes(u.spec) })));
+    defs.types = Object.assign(defs.types || {}, byteDefs.types);
+  }
+  const out = [];
+  for (let i = 0; i < asBytes.length; i++) {
+    const rec = {};
+    for (const k in asBytes[i]) rec[k] = adifFromUtf8Bytes(asBytes[i][k]);
+    out.push(rec);
+    if ((i & 511) === 511) yield { phase: 'decode', pos: i + 1, total: asBytes.length, records: asBytes.length };
+  }
+  return out;
+}
+
+// Do the field lengths of this text count UTF-8 bytes rather than
+// characters? Only for non-ASCII text: both readings are tried, and the
+// byte reading wins when its values line up with the separators and tags
+// better (stats.unclean). Shared by parseADIFAuto() and the validator
+// (adif-validate.js), so both read a file the same way.
+export function adifCountsBytes(text, limits) {
+  return adifRunSteps(adifCountsBytesSteps(text, limits));
+}
+
+// adifCountsBytes() as a generator (yields what the two readings yield,
+// with phase 'detect').
+export function* adifCountsBytesSteps(text, limits) {
+  if (!/[^\x00-\x7f]/.test(text)) return false;
+  const charStats = { unclean: 0 }, byteStats = { unclean: 0 };
+  // read for the stats and the limits only: no records or values are built
+  for (const [src, stats, byteSource] of [[text, charStats, false], [adifUtf8Bytes(text), byteStats, true]]) {
+    const gen = parseADIFSteps(src, [], '', undefined, stats, undefined, limits, { discard: true, byteSource });
+    for (let r = gen.next(); !r.done; r = gen.next()) yield { ...r.value, phase: 'detect' };
+  }
+  return byteStats.unclean < charStats.unclean;
+}

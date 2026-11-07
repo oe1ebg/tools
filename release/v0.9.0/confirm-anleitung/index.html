@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bestätigungsverkehr: Anleitung</title>
+<script src="../shared/js/theme.js"></script>
+<link rel="stylesheet" href="../shared/css/tools.css">
+<link rel="stylesheet" href="../shared/css/docs.css">
+</head>
+<body>
+<main class="doc">
+<p class="doc-nav"><a href="../">← Alle Tools</a></p>
+<h1 id="bestatigungsverkehr-anleitung">Bestätigungsverkehr: Anleitung</h1>
+<p class="tool-actions"><a class="tool-launch" href="../confirm/index.html">Bestätigungsverkehr öffnen <span aria-hidden="true">→</span></a>
+<a href="../">Alle Tools</a> ·
+<a download="bestaetigungsverkehr-offline.html" href="../confirm/confirm-offline.html">Offline-Datei</a> ·
+<a href="../data-sources/#bestatigungsverkehr-confirmation-log">Datenquellen</a> ·
+<a href="https://github.com/oe1ebg/tools/tree/main/tools/confirm">Quellcode</a></p>
+<p>Der <a href="../confirm/index.html">Bestätigungsverkehr</a> ist ein Logbuch für Runden, in
+denen sich Stationen nur melden: Bestätigungsverkehr nach einem Rundspruch,
+RST-Runden oder Umfragen wie den Zivilschutz-Probealarm. Er läuft vollständig
+im Browser und ohne Internet; alle Daten bleiben auf dem Gerät.</p>
+<p>Die Kurzfassung steht im Werkzeug selbst: <strong>„? Hilfe“</strong> ganz rechts in der
+Kopfzeile oder die Taste <kbd>?</kbd> (außerhalb von Textfeldern).</p>
+<h2 id="kurz-so-gehts-los">Kurz: so geht's los</h2>
+<ol>
+<li><a href="../confirm/index.html">Bestätigungsverkehr öffnen</a>, einmal mit Internet;
+   danach läuft er auch offline (<a href="#vorbereitung">Vorbereitung</a>).</li>
+<li>„+ Neues Log“: Titel und Vorlage wählen (<a href="#ein-log-anlegen">Ein Log anlegen</a>),
+   dann Operator, Station und Relais eintragen (<a href="#betrieb">Betrieb</a>).</li>
+<li>Das erste Rufzeichen eintippen und mit <kbd>⇧</kbd>+<kbd>Enter</kbd>
+   speichern (<a href="#check-ins-aufnehmen">Check-ins aufnehmen</a>).</li>
+<li>Am Ende „Exportieren ▾“ → „Sichern (JSON)“, dazu CSV oder ADIF
+   (<a href="#export-und-sicherung">Export und Sicherung</a>).</li>
+</ol>
+<h2 id="vorbereitung">Vorbereitung</h2>
+<p><strong>Offline verwenden.</strong> Beim ersten Öffnen mit Internet lädt das Werkzeug
+alles, was es braucht: die österreichische Rufzeichenliste, die Relaisliste
+des ÖVSV, Wiener Adressen und Orte, österreichische Postleitzahlen und
+Bezirke sowie die Karte. Danach funktioniert es ohne Verbindung; „offline
+bereit ✓“ oben rechts zeigt das an. Am Handy oder Tablet über „Zum
+Startbildschirm hinzufügen“ als App ablegen. Für Laptops ohne Internet gibt es
+die <strong>Offline-Datei</strong> (eine HTML-Datei, etwa 7 MB, unten auf der Startseite),
+etwa für einen USB-Stick.</p>
+<p><strong>Speicher.</strong> „Speicher dauerhaft ✓“ heißt, der Browser löscht die Daten
+nicht von selbst. Steht dort „nicht dauerhaft“, regelmäßig eine Sicherung
+(JSON) exportieren.</p>
+<p><strong>Offline-Status.</strong> „offline bereit ✓“ oben rechts heißt: alles ist
+im Browser gespeichert. „offline: lädt…“ dauert beim ersten
+Öffnen kurz. „offline nicht bereit“ heißt: der Browser hat die
+Offline-Kopie gelöscht; mit Internet geöffnet, repariert sie sich selbst
+(„Offline-Kopie wird repariert…“). Gibt es auf dem Server inzwischen eine
+neue Version, steht „Neue Version auf dem Server – bitte aktualisieren“;
+dann über „Neue Version verwenden“ wechseln. Bei „Offline-Einrichtung
+fehlgeschlagen“ oder „Reparatur fehlgeschlagen“ die Seite mit Internet neu
+laden.
+„Entwicklungsmodus (nicht offline)“ gibt es nur auf
+Entwicklungsservern.</p>
+<p><strong>Neue Version.</strong> Erscheint oben der Balken „Neue Version bereit“, ist eine
+neue Version schon geladen. Sie wird erst mit „Jetzt verwenden“ aktiv, nicht
+von selbst; „Später“ schließt den Balken, und „Neue Version verwenden“ in
+der Kopfzeile erinnert bis zum nächsten Öffnen daran. Der
+Klick lädt aber <strong>alle</strong> offenen Tabs und Fenster des Werkzeugs neu; einen
+Aufschub, den man je Tab wählen kann, gibt es nicht. Gespeicherte Zeilen und
+Logs bleiben unverändert. Vor dem Neuladen sichert jeder Tab die halb
+getippte Zeile und den Betrieb als Entwurf und holt sie danach zurück.
+Gelingt das Sichern in einem Tab nicht (zum Beispiel bei vollem Speicher),
+wird dieser Tab <strong>nicht</strong> neu geladen: die Eingabe bleibt stehen, der Knopf
+heißt „Update wartet: Eingabe klären“, und eine rote Meldung unter der
+Kopfzeile sagt, was nicht gesichert ist. Dort kann man den Text in die
+Zwischenablage kopieren (geht das nicht, erscheint er zum Markieren und
+Kopieren von Hand), „Erneut versuchen“ oder, mit Rückfrage, „Trotzdem
+aktualisieren“ (der genannte Text geht dann verloren). Hat ein anderer Tab
+das Update schon installiert, steht dieselbe Meldung dort („Neuladen nicht
+ausgeführt“), und die Seite läuft bis zum Neuladen mit der alten Version.
+Schlägt das Laden der neuen Version oder die Suche danach fehl, steht
+„Update fehlgeschlagen“ bzw. „Update-Prüfung fehlgeschlagen“ daneben; die
+installierte Version läuft weiter. <strong>Trotzdem vor jedem Update:</strong> fertige
+Zeilen speichern (<kbd>⇧</kbd>+<kbd>Enter</kbd>) und wichtige unfertige
+Eingaben außerhalb des Werkzeugs kopieren. Ein Entwurf ist keine gespeicherte
+Zeile, und die Sicherung (JSON) enthält keine unfertigen Eingaben (siehe
+<a href="#gespeichert-entwurf-und-sicherung">Gespeichert, Entwurf und Sicherung</a>).</p>
+<p><img alt="Update wartet: Eingabe klären" src="../img/confirm-update-wartet.png"></p>
+<p><strong>Mehrere Tabs.</strong> Ein Log sollte nur in einem Tab offen sein; sonst warnt
+das Werkzeug („nur ein Tab pro Log!“).</p>
+<h2 id="gespeichert-entwurf-und-sicherung">Gespeichert, Entwurf und Sicherung</h2>
+<p><strong>Gespeichert</strong> heißt: die Zeile ist im Speicher des Browsers abgeschlossen
+(„gespeichert“ erscheint erst danach). Schlägt das Speichern fehl, erscheint
+ein rotes Banner und die Eingabe bleibt im Formular.</p>
+<p><strong>Entwurf</strong> ist die halb getippte Zeile. Sie wird laufend zwischengesichert
+und nach einem Neuladen oder Absturz zurückgeholt, kann aber verloren gehen
+(zum Beispiel wenn der Browser die Website-Daten löscht oder der Speicher
+voll ist). Was zählt, ist die gespeicherte Zeile.</p>
+<p><strong>Sicherung (JSON).</strong> „Download gestartet“ ist nicht „Sicherung
+aufbewahrt“: Der Browser meldet dem Werkzeug nur, dass er die Datei
+bekommen hat, nicht ob und wo sie liegt. Eine Sicherung ist erst eine
+Sicherung, wenn die Datei an einem Ort liegt, den Sie kontrollieren (anderer
+Datenträger, USB-Stick, anderer Rechner). Probieren Sie den Import
+gelegentlich aus. Die Sicherung ist eine Momentaufnahme dieses Logs mit
+allen Zeilen, auch den gelöschten, und enthält die Daten <strong>unverschlüsselt</strong>.</p>
+<p><strong>Wiederherstellen.</strong> „Wiederherstellen…“ auf der Startseite liest eine Sicherung ein:</p>
+<ul>
+<li>Die Datei wird zuerst geprüft. Ist sie keine gültige Sicherung des
+  Bestätigungsverkehrs, wird nichts importiert und nichts verändert.</li>
+<li>Alle Logs der Datei werden <strong>ganz oder gar nicht</strong> übernommen.</li>
+<li>Sehr große Sicherungen (über 50 MB oder 200000 Zeilen und Versionen) werden
+  beim Sichern automatisch in mehrere Dateien „…_teil-1-von-3.json“ usw.
+  geteilt, nichts geht verloren. Beim Importieren <strong>alle Teile gemeinsam
+  auswählen</strong> (in der Dateiauswahl mehrere Dateien markieren): sie werden
+  wie eine einzige Sicherung, ganz oder gar nicht, übernommen. Fehlt ein Teil,
+  wird nichts importiert und die Meldung nennt den fehlenden Teil.
+  Der Browser fragt dabei eventuell, ob mehrere Downloads erlaubt sind; die
+  Meldung sagt nur, dass N Dateien gestartet wurden – <strong>prüfen Sie, dass alle
+  N angekommen sind</strong> (die Sicherung gilt dann nicht automatisch als
+  gemacht). Die Teile lassen sich nur im Bestätigungsverkehr importieren, und
+  nur mit einer aktuellen Version des Werkzeugs: eine ältere Version könnte
+  einen einzelnen Teil als unvollständige Sicherung einspielen. Alle Teile
+  zusammen dürfen höchstens 12 Dateien, 480 MB und 1000000 Zeilen und
+  Versionen umfassen. Ist ein Log dafür zu groß, meldet das Werkzeug „Zu groß
+  für eine einzige Sicherung“ <strong>bevor</strong> etwas heruntergeladen wird: dann die
+  Logs einzeln sichern. Auch ein einzelner sehr langer Text (eine Notiz oder
+  ein Kommentar über 50 MB) wird dabei auf mehrere Teile verteilt und beim
+  Import wieder zusammengesetzt; fehlt ein Stück, wird nichts importiert.
+  Eine einzelne Datei darf höchstens 50 MB und 200000
+  Zeilen und Versionen enthalten.</li>
+<li>Es wird nie etwas Vorhandenes überschrieben. Ist die ID des Logs, einer
+  seiner Zeilen oder einer früheren Fassung schon gespeichert, kommt das Log
+  als Kopie mit neuen IDs und dem Zusatz „(Import)“ dazu. Andere Logs
+  behalten ID und Titel.</li>
+<li>Ältere Sicherungen lassen sich importieren. Fehlt etwas oder weicht etwas
+  ab, steht es als Hinweis unter „Hinweise zur Sicherung“. Es wird nichts
+  weggelassen; nötige Werte werden bei Bedarf ergänzt (z. B. der
+  Zähler für die nächste Nummer), und eine Zeile ohne lesbare Zeit
+  bekommt ihre Erstellungs- bzw. Exportzeit, mit Hinweis.</li>
+</ul>
+<p><strong>Ersatzspeicher.</strong> Steht in der Fußzeile „localStorage (Ersatzspeicher)“, war
+IndexedDB nicht verfügbar. Der Ersatzspeicher ist klein (rund 5 MB) und hat
+bei einer Adresse mit <code>http://</code> (statt HTTPS oder <code>localhost</code>) keine
+Sperre zwischen Tabs: zwei Tabs könnten dann gleichzeitig schreiben. Nur
+einen Tab pro Log verwenden und häufig sichern. Läuft das Werkzeug später
+wieder mit IndexedDB, bietet es an, die Datensätze aus dem Ersatzspeicher zu
+übernehmen („In IndexedDB übernehmen“). Das Angebot überschreibt nichts, was
+in IndexedDB steht; Datensätze, die sich nicht übernehmen lassen (zum
+Beispiel weil sie von den gespeicherten abweichen), bleiben im Ersatzspeicher
+und werden mit Grund aufgelistet; „Als JSON sichern“ lädt sie herunter.</p>
+<p><strong>Daten schützen.</strong> Die Daten liegen im Browser dieses Geräts und, als
+Sicherung, in Dateien, jeweils unverschlüsselt. Gerät und Benutzerkonto
+schützen (Festplattenverschlüsselung, Sperrbildschirm) und auf einem
+gemeinsam genutzten Rechner ein eigenes Browserprofil verwenden. Der Browser
+trennt die Daten nach Adresse (Rechnername und Port), nicht nach
+Verzeichnis: Andere Seiten derselben Adresse können sie lesen. Betreibt eine
+Organisation das Werkzeug selbst, sollte sie es auf einer eigenen Adresse
+bereitstellen. Die Offline-Datei und die Seite im Netz haben getrennte
+Speicher; zum Umziehen die Sicherung verwenden. Der Verlauf der Änderungen
+(frühere Fassungen) schützt vor Versehen, nicht vor Manipulation.</p>
+<h2 id="ein-log-anlegen">Ein Log anlegen</h2>
+<p><img alt="Neues Log" src="../img/confirm-log-neu.png"></p>
+<p>„+ Neues Log“ auf der Startseite:</p>
+<ul>
+<li><strong>Titel</strong>, z. B. „Rundspruch OE1 – Bestätigungsverkehr“.</li>
+<li><strong>Vorlage:</strong> welche Felder eine Zeile hat.</li>
+<li><em>Bestätigungsverkehr:</em> Rufzeichen und QTH / Standort.</li>
+<li><em>Rufzeichen + RST:</em> Name, RST gegeben (wie wir die Station hören) und erhalten (wie sie uns hört), QTH; „/“ im ersten RST-Feld springt ins zweite.</li>
+<li><em>Zivilschutz-Probealarm:</em> Standort mit PLZ, Hörbarkeit der Sirene
+    (Schulnote 1–5) innen bei geschlossenem und offenem Fenster und im
+    Freien, AT-Alert erhalten, sonst Handy und Version.</li>
+</ul>
+<p>„So sieht eine Logzeile mit dieser Vorlage aus“ zeigt ein Beispiel.
+- <strong>Betrieb</strong> (siehe unten). Ein neues Log übernimmt den Betrieb des
+  zuletzt angelegten.</p>
+<p>Mit <kbd>⇧</kbd>+<kbd>Enter</kbd> oder „Log anlegen“ geht es los.</p>
+<h2 id="betrieb">Betrieb</h2>
+<p><img alt="Betrieb" src="../img/confirm-kopfdaten.png"></p>
+<p>Der Betrieb steht aufklappbar über dem Eingabefeld und gilt für neue
+Zeilen. Gespeicherte Zeilen behalten Operator, Station, Frequenz und Relais
+vom Zeitpunkt des Eintrags.</p>
+<table>
+<thead>
+<tr>
+<th>Feld</th>
+<th>Bedeutung</th>
+<th>Beispiel</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Operator</td>
+<td>wer funkt</td>
+<td>OE1EBG</td>
+</tr>
+<tr>
+<td>Station (für)</td>
+<td>für welche Station (Klubstation, Sonderrufzeichen)</td>
+<td>OE1XKS</td>
+</tr>
+<tr>
+<td>Eigener QTH</td>
+<td>der eigene Standort, mit Ortssuche</td>
+<td>Wien 1220, Wagramer Straße</td>
+</tr>
+<tr>
+<td>Eigener Locator</td>
+<td>Maidenhead-Locator des eigenen Standorts</td>
+<td>JN88ef</td>
+</tr>
+<tr>
+<td>Betriebsart</td>
+<td>FM, DMR, C4FM, D-STAR, M17, TETRA, SSB …</td>
+<td>FM</td>
+</tr>
+<tr>
+<td>Verbindung</td>
+<td>direkt (Simplex) oder über Relais</td>
+<td>über Relais</td>
+</tr>
+<tr>
+<td>Frequenz MHz</td>
+<td>bei direkt</td>
+<td>145,500</td>
+</tr>
+<tr>
+<td>Relais</td>
+<td>Rufzeichen, Ort oder Frequenz (MHz) eines Relais aus der ÖVSV-Liste (das Feld zeigt dann sein Rufzeichen); setzt Ausgabe, Shift und Signalisierung</td>
+<td>OE1XUU</td>
+</tr>
+</tbody>
+</table>
+<p>Ein <strong>Wechsel von Operator oder Relais/Frequenz</strong> schreibt automatisch eine
+Markierung ins Log („OE1XYZ übernimmt von OE1ABC“, „OE1XUU → direkt“). Ihr
+Text lässt sich ergänzen.</p>
+<p>Bei geschlossenem Panel zeigt dessen Zeile alles, was eingestellt ist:
+Operator, Station, QTH und Locator, Betriebsart sowie direkte Frequenz oder
+Relais mit Shift und Signalisierung. In einem Feld setzt <kbd>Esc</kbd> den
+Wert zurück, den es vor dem Bearbeiten hatte. „Rückgängig“ stellt den Betrieb
+wieder her, wie er beim Öffnen des Panels war; automatische Markierungen, die
+diese Änderungen geschrieben haben, kommen in den Papierkorb, sofern ihr Text
+nicht bearbeitet wurde.</p>
+<h2 id="check-ins-aufnehmen">Check-ins aufnehmen</h2>
+<p><img alt="Eingabe mit Rufzeichenvorschlägen" src="../img/confirm-eingabe.png"></p>
+<ul>
+<li><strong>Rufzeichen</strong> (der Gegenstation) eintippen. Die Vorschläge kommen aus diesem und
+  früheren Logs und aus den Rufzeichenlisten (Name und Ort stehen darunter; stammt
+  ein Wert aus einer eigenen Liste, steht ihr Name dabei: „aus „meine““).
+  <kbd>↓</kbd> und <kbd>Enter</kbd> übernimmt einen Vorschlag. Ohne Markierung
+  übernimmt <kbd>Enter</kbd> nur einen Vorschlag, der das Getippte vervollständigt;
+  ein vollständig getipptes, unbekanntes Rufzeichen bleibt, wie es ist.</li>
+<li><strong>Zeit:</strong> leer = Zeitpunkt des Speicherns. Korrektur als <code>19:42</code> oder
+  <code>2026-10-08 19:42</code>, in der oben gewählten Zeitzone (UTC oder lokal).</li>
+<li><strong>QTH / Standort</strong> (siehe <a href="#standort">Standort</a>).</li>
+<li><strong>Relais:</strong> ist mit dem Relais aus dem Betrieb vorbelegt. Leer = die
+  Station kam direkt (ohne Relais; das leere Feld zeigt „direkt“). Für ein
+  anderes Relais dessen Rufzeichen, Ort oder Frequenz eintragen (dann orange
+  markiert); <kbd>Esc</kbd> stellt das Relais aus dem Betrieb wieder her.</li>
+<li><strong>Notiz:</strong> freier Text.</li>
+<li><kbd>⇧</kbd>+<kbd>Enter</kbd> speichert, aus jedem Feld. <kbd>Esc</kbd> verwirft die Zeile, mit
+  „Rückgängig“.</li>
+</ul>
+<p><strong>Wiederholte Check-ins.</strong> Meldet sich eine Station ein weiteres Mal, zeigt
+das Formular die früheren Check-ins und bietet „Werte vom letzten Check-in
+übernehmen“ an. Im Log steht die Anzahl neben dem Rufzeichen (2×).</p>
+<p><strong>Operator-Kommentare.</strong> Der Schalter <strong>Check-in | Kommentar</strong> über dem
+Formular stellt auf einen Kommentar statt eines Check-ins um: für einen
+Operatorwechsel, „Netz pausiert“, „Wechsel auf 145,500“. Schneller per
+Tastatur: die Eingabe im Rufzeichenfeld mit <strong><code>!</code></strong> beginnen („!Netz
+pausiert“). Eine halb getippte Zeile der anderen Art geht dabei nie
+verloren: erst speichern oder verwerfen. Eine Kategorie (Frequenzwechsel, Schichtwechsel /
+Übergabe, Unterbrechung, Technik, Sonstiges) wählt man mit den Ziffern
+<kbd>1</kbd>–<kbd>5</kbd>. Kommentare zählen nicht als Station und kommen nie ins ADIF.</p>
+<h3 id="eigene-rufzeichenlisten">Eigene Rufzeichenlisten</h3>
+<p>Neben der österreichischen Rufzeichenliste kann man eigene Listen verwenden, zum
+Beispiel die Mitglieder des Ortsverbands (Textdatei im Ham2K-PoLo-Format oder CSV
+mit Rufzeichen, Name, QTH). Unten auf der Seite: <strong>Rufzeichenlisten – verwalten…</strong>.
+Das Fenster sagt zuerst, dass die Listen <strong>gemeinsam für alle Tools</strong> auf diesem Gerät
+gelten (Bestätigungsverkehr, Notfunk-Meldebuch, Netlog). Dort lassen sich Listen
+hinzufügen, ansehen, ein- und ausschalten, in der Rangfolge verschieben, ersetzen und
+löschen, und im Feld „Rufzeichen suchen“ kann man ausprobieren, was die Tools für ein
+Rufzeichen sehen. Die oberste Liste mit einem Namen oder Ort gewinnt, die anderen
+ergänzen. Die Warnung „nicht in der Rufzeichenliste – Tippfehler?“ gilt weiterhin nur
+für die österreichische Liste (und entfällt, wenn sie ausgeschaltet ist). Der Ort aus
+einer eigenen Liste wird im Ortsfeld als „laut Liste „…““ angeboten. Die Listen sind in
+keiner Sicherung enthalten: die Originaldateien aufbewahren. Eine Änderung in einem
+anderen Tab oder Tool wird beim Zurückkehren ins Fenster übernommen.</p>
+<h2 id="das-log">Das Log</h2>
+<p><img alt="Log mit Check-ins und einem Kommentar" src="../img/confirm-log.png"></p>
+<p>Neueste Zeile oben. Oben stehen die Zahlen: Stationen und Check-ins.
+„Bearbeiten“ ändert eine Zeile (die vorige Fassung bleibt gespeichert), ✕
+löscht sie (wiederherstellbar unter „Gelöschte Zeilen und automatische
+Sicherungen“).</p>
+<p>Zusammengehöriges steht in einer Zelle, damit eine Zeile kurz bleibt: der
+Name unter dem Rufzeichen, der Rapport als „erhalten / gegeben“, beim
+Standort darunter klein PLZ, Locator und woher der Standort kommt: <em>Suche</em>
+(Ortssuche), <em>früher</em> (aus einem früheren Check-in), <em>Call</em> (Lizenzadresse
+aus der Rufzeichenliste); grau „nicht zugeordnet“ heißt, der Text wurde
+keinem Ort zugeordnet. Beim Zivilschutz-Probealarm zeigt <strong>Sirene</strong> die drei
+Schulnoten (zu · offen · außen, grün bis rot) und <strong>AT-Alert</strong> „✓ erhalten“
+oder „✕ fehlt“ mit Handy und Version. <strong>Relais</strong> zeigt in jeder Zeile
+das Relais, über das die Station kam, oder „direkt“; gestrichelt umrandet,
+wo die Zeile vom Betrieb abweicht (ein anderes Relais, direkt statt über das
+Relais oder umgekehrt). Der <strong>Operator</strong> steht nur in einer abweichenden
+Zeile, am Anfang der Notiz („Op OE1ABC“). Die Spaltennamen sind kurz; mit der Maus darüber steht die
+Erklärung.</p>
+<p>Am Handy ist jede Zeile eine Karte: oben Zeit, Nummer, Rufzeichen und die
+Knöpfe, darunter die übrigen Spalten mit ihrem Namen (leere fehlen).</p>
+<h2 id="standort">Standort</h2>
+<p>Das Feld QTH / Standort und die Standortsuche (📍 Standort oben rechts)
+finden offline:</p>
+<ul>
+<li>Wiener Adressen, Straßenecken („Praterstern / Lassallestraße“), Plätze,
+  Haltestellen, Spitäler, Schulen und andere bekannte Orte, auch unter
+  umgangssprachlichen oder früheren Namen;</li>
+<li>Orte um Wien und für ganz Österreich Postleitzahlen, Gemeinden und
+  Bezirke;</li>
+<li>Koordinaten, Maidenhead-Locator und UTMREF (MGRS).</li>
+</ul>
+<p><img alt="Standortsuche" src="../img/confirm-standortsuche.png"></p>
+<p>Ein sicherer Treffer wird automatisch übernommen (✓ mit „exakt“ oder „hoch“),
+sonst wählt man aus den Vorschlägen. Was nicht zugeordnet werden kann, wird
+als Text gespeichert. In der Standortsuche lassen sich die Genauigkeit des
+Locators und des UTMREF und die Schwelle für die automatische Übernahme
+einstellen.</p>
+<h2 id="karte">Karte</h2>
+<p><img alt="Karte" src="../img/confirm-karte.png"></p>
+<p>„Karte“ zeigt alle Stationen mit Standort auf einer Wien-Karte, ohne
+Internet: Bezirke, Gewässer, Hauptstraßen und auf Wunsch das Locator-Gitter.
+Ein Stern ist der eigene Standort, eine Zahl am Punkt zeigt wiederholte
+Check-ins. Ein unsicherer Treffer ist ein hohler, gestrichelter Kreis.
+Stationen ohne Standort stehen unter der Karte.</p>
+<h2 id="export-und-sicherung">Export und Sicherung</h2>
+<p><img alt="Exportieren" src="../img/confirm-export.png"></p>
+<p>„Exportieren ▾“:</p>
+<table>
+<thead>
+<tr>
+<th>Export</th>
+<th>Inhalt</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CSV</td>
+<td>eine Zeile pro Check-in, für Excel; Trennzeichen <code>;</code> (deutsches Excel) oder <code>,</code>; optional mit Operator-Kommentaren. Werte, die mit <code>=</code>, <code>+</code>, <code>-</code> oder <code>@</code> beginnen (z. B. eine Notiz „- Akku leer“), bekommen ein <code>'</code> vorangestellt, damit Excel sie nicht als Formel ausführt; Zahlen wie <code>-10</code> bleiben unverändert</td>
+</tr>
+<tr>
+<td>ADIF (.adi)</td>
+<td>für Logbuchprogramme, ADIF 3.1.7; über Relais mit <code>PROP_MODE=RPT</code></td>
+</tr>
+<tr>
+<td>KML (Karte)</td>
+<td>Stationen mit Standort für Google Earth / Google My Maps</td>
+</tr>
+<tr>
+<td>Zusammenfassung</td>
+<td>Text: Rufzeichen, Statistik (beim Probealarm Sirenen-Noten und AT-Alert), Standorte, Kommentare und Operators</td>
+</tr>
+<tr>
+<td>Sichern (JSON)</td>
+<td>das ganze Log, auch gelöschte Zeilen; auf der Startseite mit „Wiederherstellen…“ wieder einspielen</td>
+</tr>
+<tr>
+<td>Drucken</td>
+<td>das ganze Log als PDF, A4 quer, in den Spalten des Logs am Bildschirm; die Zeilen stehen in zeitlicher Reihenfolge (älteste zuerst), anders als am Bildschirm (neueste zuerst), gelöschte Zeilen fehlen. Auf jeder Seite stehen der Titel, alle Angaben zum Betrieb (Operator, Station, QTH, Locator, Betriebsart, Relais, Frequenz, Signalisierung), der Zeitraum von der ersten bis zur letzten Zeile, die Zeitzone (UTC oder Ortszeit, wie am Bildschirm eingestellt), die Vorlage und der Druckzeitpunkt; unten „Seite x von y“. Der volle Text jeder Notiz steht da, umbrochen; eine lange Zeile läuft auf der nächsten Seite weiter. Kommentare und Marker sind eigene, getönte Zeilen über die ganze Breite; ein Relais, das vom Betrieb abweicht, ist gestrichelt umrandet und mit „abweichend“ beschriftet; Sirenennoten stehen als Zahl in einem Kästchen – so ist alles auch auf einem Schwarzweißdrucker lesbar. Das PDF öffnet sich in einem neuen Tab (sonst wird es heruntergeladen) und druckt in jedem Browser gleich; beim Drucken „Tatsächliche Größe“ bzw. 100 % wählen</td>
+</tr>
+<tr>
+<td>Leerformular (PDF)</td>
+<td>ein leeres Blatt mit 15 Zeilen in den Spalten dieses Logs, alles von Hand auszufüllen; im Voraus drucken, für ein Netz ohne Gerät oder wenn eines ausfällt. Ein PDF (A4 quer, eine Seite), das sich in einem neuen Tab öffnet (sonst wird es heruntergeladen) und in jedem Browser gleich druckt; beim Drucken „Tatsächliche Größe“ bzw. 100 % wählen. Auch auf der Startseite („Leerformular ▾“, für jede Vorlage)</td>
+</tr>
+</tbody>
+</table>
+<p>Ein Hinweis neben dem Titel erinnert an eine Sicherung, wenn seit dem letzten
+Export viele Zeilen dazugekommen sind. Auf der Startseite sichert „Alle
+sichern (JSON)“ alle Logs auf einmal.</p>
+<h2 id="zeit-utc-oder-lokal">Zeit: UTC oder lokal</h2>
+<p>Der Schalter <strong>UTC / Lokal</strong> oben rechts bestimmt, wie Zeiten angezeigt und
+eingegeben werden. Die lokale Wahl nennt die Zeitzone des Geräts mit ihrem
+Abstand zu UTC, etwa „Europe/Vienna (UTC+2)“. Gespeichert wird immer die genaue Zeit; CSV
+(<code>zeitstempel_utc</code>) und ADIF bleiben in UTC.</p>
+<h2 id="tastatur">Tastatur</h2>
+<p><img alt="Hilfe" src="../img/confirm-hilfe.png"></p>
+<table>
+<thead>
+<tr>
+<th>Taste</th>
+<th>Wirkung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><kbd>Tab</kbd> / <kbd>Enter</kbd></td>
+<td>nächstes Feld</td>
+</tr>
+<tr>
+<td><kbd>↓</kbd>, dann <kbd>Enter</kbd></td>
+<td>Vorschlag übernehmen (Rufzeichen, Standort, Relais)</td>
+</tr>
+<tr>
+<td><kbd>1</kbd> – <kbd>5</kbd>, <kbd>⌫</kbd></td>
+<td>Auswahlfelder (z. B. Sirene, Kategorie) setzen bzw. leeren</td>
+</tr>
+<tr>
+<td><kbd>⇧</kbd>+<kbd>Enter</kbd></td>
+<td>Zeile speichern, aus jedem Feld</td>
+</tr>
+<tr>
+<td><kbd>Esc</kbd></td>
+<td>Zeile verwerfen (mit „Rückgängig“)</td>
+</tr>
+<tr>
+<td><code>!</code> am Anfang des Rufzeichens</td>
+<td>Operator-Kommentar statt Check-in</td>
+</tr>
+<tr>
+<td><kbd>?</kbd></td>
+<td>Hilfe öffnen (außerhalb von Textfeldern); <kbd>Esc</kbd> schließt sie</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<p class="tool-actions"><a class="tool-launch" href="../confirm/index.html">Bestätigungsverkehr öffnen <span aria-hidden="true">→</span></a></p>
+<footer class="doc-footer">Quellcode: <a href="https://github.com/oe1ebg/tools">github.com/oe1ebg/tools</a> · Version v0.9.0 (commit <a href="https://github.com/oe1ebg/tools/commit/d9463c3e0770b57de240377d19ec6e9563b0cb9b">d9463c3</a>)</footer>
+</main>
+</body>
+</html>
