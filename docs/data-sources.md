@@ -54,8 +54,8 @@ from either service by the tool.
   [github.com/oevsv/repeater-db](https://github.com/oevsv/repeater-db))
 - **Refresh:** weekly build (7-day cache).
 - **Local corrections:** known wrong values are patched by
-  `scripts/data/repeater-overrides.json`, each with reason and date (e.g.
-  OE1XUF output and CTCSS).
+  `scripts/data/repeater-overrides.json`, each with reason and date; the
+  list is empty while upstream has no known errors.
 - **Attribution:** "ÖVSV Repeater-Datenbank, Stand ‹date›, ‹n› Sprach-Relais,
   ‹k› lokal korrigiert"
 

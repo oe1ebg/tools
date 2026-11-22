@@ -99,7 +99,9 @@ To add an entry:
 A malformed entry (unknown field, missing reason, non-ISO date) fails the
 build. Stale entries are logged as `WARNING` at every build: an entry that
 matches no repeater or several (not applied), and fields upstream already
-has corrected (remove them; the whole entry once all are).
+has corrected (remove them; the whole entry once all are). The list may
+be empty; the example above was removed on 2026-11-22 after upstream
+corrected OE1XUF.
 
 Formats are documented in `../confirm/AGENTS.md`. Load them with
 `loadDataFile('name.json')` and a string literal: the offline tools' build

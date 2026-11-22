@@ -126,6 +126,17 @@ def correct(reps: list[dict], overrides: list[dict]) -> tuple[int, list[str]]:
     return len(applied), warnings
 
 
+def document(reps: list[dict], corrections: int, t_time: float) -> dict:
+    """The content of repeaters-at.json: source (naming local corrections when
+    there are any), retrieval time in UTC, number of corrected repeaters."""
+    return {
+        "source": SOURCE + (" + lokale Korrekturen" if corrections else ""),
+        "retrieved": datetime.fromtimestamp(t_time, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "corrections": corrections,
+        "repeaters": reps,
+    }
+
+
 def main() -> None:
     try:
         trx, t_time = cached_get("trx")
@@ -138,14 +149,9 @@ def main() -> None:
     corrections, warnings = correct(reps, load_overrides(OVERRIDES_PATH))
     for w in warnings:
         log(f"WARNING: {OVERRIDES_PATH.name}: {w}")
-    iso = datetime.fromtimestamp(t_time, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT_PATH.write_text(json.dumps({
-        "source": SOURCE + (" + lokale Korrekturen" if corrections else ""),
-        "retrieved": iso,
-        "corrections": corrections,
-        "repeaters": reps,
-    }, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    OUTPUT_PATH.write_text(json.dumps(document(reps, corrections, t_time),
+                                      ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     log(f"wrote {len(reps)} voice repeaters ({sum(1 for r in reps if r['status'] == 'active')} active, "
         f"{corrections} locally corrected) -> {OUTPUT_PATH.relative_to(OE1EBG_DIR)} ({OUTPUT_PATH.stat().st_size / 1024:.0f} KiB)")
 

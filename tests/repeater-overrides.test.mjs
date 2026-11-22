@@ -90,6 +90,20 @@ print(json.dumps(out))`);
   assert.equal(r.partlyRep.ctcss, 162.2);
 });
 
+test('the output names local corrections in source and counts them', t => {
+  const r = py(`
+from fetch_repeaters import document, SOURCE
+t = 1763769600  # 2025-11-22T00:00:00Z
+print(json.dumps({'none': document([], 0, t), 'two': document([rec('OE1XUU', '70cm', 438.95, 431.35)], 2, t), 'SOURCE': SOURCE}))`);
+  if (!r) return t.skip('no Python');
+  assert.equal(r.none.source, r.SOURCE);
+  assert.equal(r.none.corrections, 0);
+  assert.equal(r.none.retrieved, '2025-11-22T00:00:00Z');
+  assert.equal(r.two.source, `${r.SOURCE} + lokale Korrekturen`);
+  assert.equal(r.two.corrections, 2);
+  assert.equal(r.two.repeaters.length, 1);
+});
+
 test('malformed overrides fail the build', t => {
   const r = py(`
 bad = [
@@ -115,7 +129,7 @@ print(json.dumps(errs))`);
 
 test('the committed override file is valid and documented per entry', t => {
   const file = JSON.parse(readFileSync(new URL('../scripts/data/repeater-overrides.json', import.meta.url), 'utf8'));
-  assert.ok(Array.isArray(file.overrides) && file.overrides.length > 0);
+  assert.ok(Array.isArray(file.overrides), 'an "overrides" list, empty when upstream has no known errors');
   for (const e of file.overrides) {
     assert.ok(e.match.call, 'keyed by callsign');
     assert.ok(e.reason.length > 10);

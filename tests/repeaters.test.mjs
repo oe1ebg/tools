@@ -17,6 +17,16 @@ const idx = buildRepeaterIndex({ retrieved: '2026-10-04', repeaters: [
 ]});
 const calls = (q, o) => searchRepeaters(idx, q, o).map(h => h.r.call);
 
+test('the index passes the number of local corrections on', () => {
+  const one = R('OE1XUU', 'Kahlenberg', 'Wien', 48.276, 16.333, '70cm', 438.95, 431.35, ['FM']);
+  const ri = buildRepeaterIndex({ source: 'ÖVSV + lokale Korrekturen', retrieved: '2026-11-22T00:00:00Z', corrections: 2, repeaters: [one] });
+  assert.equal(ri.corrections, 2);
+  assert.equal(ri.source, 'ÖVSV + lokale Korrekturen');
+  // data files from before the override mechanism have no field
+  assert.equal(buildRepeaterIndex({ repeaters: [one] }).corrections, 0);
+  assert.equal(buildRepeaterIndex({}), null);
+});
+
 test('search by callsign (full, prefix, suffix)', () => {
   assert.equal(calls('OE1XUU')[0], 'OE1XUU');
   assert.equal(calls('oe1xuu')[0], 'OE1XUU');
@@ -96,9 +106,12 @@ test('generated repeater list is plausible', { skip: skipWithout(existsSync(real
   const xuu = searchRepeaters(ri, 'OE1XUU')[0].r;
   assert.equal(xuu.out, 438.95);
   assert.equal(xuu.shift, -7.6);
-  // local correction (scripts/data/repeater-overrides.json, issue #180)
-  assert.ok(ri.corrections >= 1);
-  assert.match(ri.source, /\+ lokale Korrekturen$/);
+  // Local corrections (scripts/data/repeater-overrides.json, issue #180) come
+  // and go with upstream fixes: only their consistency is checked here; the
+  // mechanism has synthetic tests in repeater-overrides.test.mjs.
+  assert.ok(Number.isInteger(ri.corrections) && ri.corrections >= 0);
+  assert.equal(/ \+ lokale Korrekturen$/.test(ri.source), ri.corrections > 0, ri.source);
+  // OE1XUF 70cm: corrected upstream since the override of 2026-11-06
   const xuf = ri.list.find(r => r.call === 'OE1XUF' && r.band === '70cm');
   assert.equal(xuf.out, 438.3375);
   assert.equal(xuf.ctcss, 162.2);
