@@ -154,11 +154,12 @@ name, and a distribution list ("Verteiler").
   flagged; no schema change or migration, the backup format stays version 1
   (an older app restores a newer backup and ignores the field; a damaged,
   non-boolean value rejects the file like a damaged station code). While
-  set: "ÜBUNG" in the page header (a chip at a fixed place left of the
-  status chips; also "Übung" in the Einsatz summary), and under the Inhalt
-  the reminder "ÜBUNG: Vor und nach dem Spruch: „ACHTUNG ÜBUNG“" (words,
-  not colour alone; part of the Inhalt's `aria-describedby` only while
-  shown, no live region). The stored text stays verbatim: nothing is added
+  set: a calm yellow full-width bar "ÜBUNG" with the draft note at the
+  top (not dismissible, while the operation is open; also "Übung" in the
+  Einsatz summary), and above Von (the start of the Spruch, read before
+  it is spoken) the reminder "ÜBUNG: Vor und nach dem Spruch: „ACHTUNG
+  ÜBUNG“" (words, not colour alone; part of Von's and the Inhalt's
+  `aria-describedby` only while shown, no live region). The stored text stays verbatim: nothing is added
   to the Inhalt. The message PDF, the book PDF and a Vordruck printed for a
   flagged operation carry "ÜBUNG" framed in the head of every page (left
   of the number box, the title line shortened before it; after the
@@ -302,6 +303,94 @@ name, and a distribution list ("Verteiler").
   handover is recorded already), earlier versions, print, delete (soft; the
   number stays taken) and restore.
 
+## Winlink (Prototyp)
+
+Issue #179. A Meldung goes to another station over Winlink (Winlink Express,
+MacWinlink, Pat) as the form „OE1 Notfunk Meldung“ (`winlink/`, shipped as
+`downloads/oe1-notfunk-meldung-winlink.zip`), and a received one comes into the
+book without retyping. The book stays offline: files and copy/paste only, no
+connection to Pat's API. The exchange format is `winlink/FORMAT.md` (binding
+for the book and the form pack); the book's side is `js/winlink.js` (pure,
+`tests/notfunk-winlink-book.test.mjs`); the form pack is described in
+`winlink/README.md`. Manual: `docs/notfunk-anleitung/manual/winlink.de.md`
+(use) and `winlink-formular.de.md` (installing the form).
+
+**Exercise (Übung).** The operation's `exercise` flag (#186; missing =
+not flagged) is shown as a calm yellow full-width bar „ÜBUNG“ under the draft
+note at the top (not dismissible; only while an exercise is open). A Winlink export carries
+`exercise` in the payload and, for an exercise, `[ÜBUNG]` before the subject,
+the line `=== ACHTUNG ÜBUNG ===` as the first body line and with a blank
+line before and after the Spruch, and the banner „⚠ ACHTUNG ÜBUNG“ above the text in both forms. An
+import never takes marker lines into the Inhalt and keeps `source.exercise`
+(the review chip and the detail card say so). A payload without
+`exercise` (older exports) counts as an exercise.
+
+**Formats.**
+
+- *Payload* (`winlinkPayload()`): `{ format: "oe1ebg-notfunk-winlink",
+  version: 1, app, exported, exercise, station: { call, operation, prefix, operator },
+  message, revisions, ref }`. `message` is the stored record without
+  `eventId`/`replyTo`; `revisions` oldest first without local ids; `ref` =
+  the linked Bezug as `{ id, number, station, source }` (`source` = that
+  message's own origin when it was imported). Transported as compact JSON,
+  ASCII only (`winlinkJson()`: `\uXXXX` above U+007E, `< > &` and a `{` inside
+  strings escaped), as the form variable `meldung`.
+- *Export* „Für Winlink exportieren…“ (detail view): `<Nummer>.winlink.json`
+  for the form's „Aus Meldebuch laden“, or `<MID>.b2f` for Pat's `out/`
+  folder (`winlinkB2f()`): wl2k-go layout (Mid first, other headers sorted,
+  CRLF, subject Q-encoded ISO-8859-1, body ISO-8859-1 from the form's template
+  `winlink/OE1_Notfunk_Meldung.txt` with `?` outside Latin-1, lines over 998
+  bytes split) and the attachment `RMS_Express_Form_OE1_Notfunk_Meldung_Viewer.xml`
+  as Pat's `buildXML()` writes it (Go `encoding/xml` escaping, variables
+  sorted, CRLF as a browser posts it). Byte for byte equal to Pat v1.0.0's
+  output (`tests/fixtures/notfunk-winlink/pat/`). The status stays manual.
+- *Import* „Winlink-Nachricht importieren…“ (book toolbar): a file (picker
+  or dropped onto the book or the dialog) or pasted text, detected by content:
+  the payload JSON, an `RMS_Express_Form_*.xml` (ours: the payload from
+  `meldung`; ours filled in by hand: the flat fields; other forms such as
+  ICS-213 or IARU: subject, text, sender), a `.b2f` (headers, Latin-1 or
+  UTF-8 body, attachments; without a form: subject, body, `From`).
+
+**Import rules** (`winlinkImportPlan()`; nothing is written before the
+operator saves):
+
+- New: the form opens as a new **incoming** message on channel `winlink`
+  (time = receipt, read-back unset), prefilled with the sender's fields; the
+  sender's record goes with the draft and is saved as `message.source` =
+  `{ format_version, station, operation, operator, id, number, direction, ts,
+  status, attempts, revisions, updated, exported, exercise, mid? }` (flat imports:
+  `id: null`, `form`, `history`). Saved through `saveNewMessage()` as usual:
+  own number, status from „erfasst“.
+- Bezug: `ref.id` or `ref.source.id` equal to a live message's `id` or
+  `source.id` in the open operation → `replyTo` (the original is marked
+  „beantwortet“ in the same transaction); otherwise the text
+  `"<Nummer> (<Station>)"`.
+- Same `message.id` imported before (any operation): a newer
+  `message.updated` replaces only `source` (`replaceSource()`, CAS);
+  otherwise „Bereits übernommen“. Flat imports: the same `mid`, or the same
+  number + station of our form.
+- An id of this book (`message.id`, or `message.source.id` of a forwarded
+  copy): not imported, reported (the backup restores own data).
+- With unsaved input in the form, an import is refused (nothing lost).
+
+**Limits.** Import files over 1 MB (`WINLINK_INPUT_MAX_BYTES`), invalid
+payloads (`wlPayloadProblem()`: identity, times, status, fields through
+`validateMessage()` including `MESSAGE_TEXT_MAX`, revisions, ref) and newer
+`version`s are refused with a German message. Export: the whole message as
+sent over 120 KB (`WINLINK_MESSAGE_MAX_BYTES`, body + XML before compression)
+is refused before any download, nothing is shortened; a subject header over
+128 bytes (`WINLINK_SUBJECT_MAX_BYTES`, after Q-encoding) and characters
+outside Latin-1 are warnings.
+
+**Data model.** Channel `winlink` (last in `CHANNELS`, so the digit keys of
+the others stay; printed as „anders: Winlink“). `source` is optional and
+kept by `messageFields()` only when it is an object, so edits (whose form has
+no `source`) keep it and older records are unchanged; backups carry it as
+part of the record (`checkBackup()` drops a message with a malformed
+`source`, listed in `dropped`). No IndexedDB schema change. An older app
+version drops restored messages with channel `winlink` as „unbekannter
+Übermittlungsweg“ (listed, rest restored).
+
 ## Resource limits (issue #15)
 
 A backup import is refused as a whole, with a German message and nothing
@@ -342,6 +431,8 @@ The manifest has no `id` on purpose; see `../confirm/README.md`, "App identity" 
 - `js/db.js`: the storage schema (operations, messages, revisions,
   counters, drafts, stations).
 - `js/form.js`: the entry form as data <-> message fields (pure, tested).
+- `js/winlink.js`: the Winlink exchange (payload, .b2f, parsers, import
+  rules; pure, tested); the form pack in `winlink/`.
 - `js/print.js`: what the printouts show (pure, tested);
   `js/paperpdf.js` writes the filled form and the empty one (Vordruck) as
   PDFs, `js/bookpdf.js` the book (shared `pdf.js`).

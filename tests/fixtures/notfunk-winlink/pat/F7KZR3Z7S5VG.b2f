@@ -1,0 +1,86 @@
+Mid: F7KZR3Z7S5VG
+Body: 1125
+Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=ISO-8859-1
+Date: 2026/11/06 20:44
+File: 7189 RMS_Express_Form_OE1_Notfunk_Meldung_Viewer.xml
+From: OE1XYZ
+Mbo: OE1XYZ
+Subject: =?ISO-8859-1?q?[=DCBUNG]_Dringend_W1-007:_Nachschub_Notstrom_<dringend>_&_Treibstoff?=
+To: OE3ABC
+Type: Private
+
+=== ACHTUNG ÜBUNG ===
+NOTFUNK-MELDUNG W1-007
+========================================
+Nummer:        W1-007
+Dringlichkeit: Dringend
+Art:           Anforderung
+Zeit:          2026-11-06 17:42 UTC
+Von:           Einsatzleitung Übungsraum Nord / OE1XYZ
+An:            Bezirksstab Tulln / OE3ABC
+Betreff:       Nachschub Notstrom <dringend> & Treibstoff
+Bezug:         Antwort auf W1-003 (OE1XYZ)
+
+Inhalt:
+=== ACHTUNG ÜBUNG ===
+
+Benötigen 2× Notstromaggregat (? 5 kVA) für die Sammelstelle ?Schule Süd?.
+Kosten bis 1.500 ? freigegeben.
+
+  Eingerückt: Anfahrt über "Hauptstraße" ? Zufahrt 'Tor 3'.
+Test: <b>kein HTML</b> & {var nummer} & {MsgSender} ??
+
+=== ACHTUNG ÜBUNG ===
+
+Verlauf:
+2026-11-06 17:42 UTC zur Übertragung (OE1XYZ)
+2026-11-06 17:48 UTC Fehlversuch/Rückfrage: keine Antwort auf 145,500 (OE1XYZ)
+2026-11-06 17:55 UTC übertragen an OE3ABC: per Winlink (OE1XYZ)
+
+----------------------------------------
+Gesendet von OE1XYZ, Formular OE1 Notfunk Meldung 1.0.
+Die ganze Meldung mit Verlauf steht im Anhang (Formular
+"OE1 Notfunk Meldung"); das Notfunk-Meldebuch liest sie von dort ein.
+
+<?xml version="1.0" encoding="UTF-8"?>
+<RMS_Express_Form>
+    <form_parameters>
+        <xml_file_version>1.0</xml_file_version>
+        <rms_express_version>Pat v1.0.0 (2e6a8d1)</rms_express_version>
+        <submission_datetime>20261106204436</submission_datetime>
+        <senders_callsign>OE1XYZ</senders_callsign>
+        <grid_square>JN88</grid_square>
+        <display_form>OE1_Notfunk_Meldung_Viewer.html</display_form>
+        <reply_template></reply_template>
+    </form_parameters>
+    <variables>
+        <an>Bezirksstab Tulln / OE3ABC</an>
+        <art>Anforderung</art>
+        <betreff>Nachschub Notstrom &lt;dringend&gt; &amp; Treibstoff</betreff>
+        <bezug>Antwort auf W1-003 (OE1XYZ)</bezug>
+        <format_version>1</format_version>
+        <inhalt>BenÃ¶tigen 2Ã— Notstromaggregat (â‰¥ 5 kVA) fÃ¼r die Sammelstelle â€žSchule SÃ¼dâ€œ.&#xD;&#xA;Kosten bis 1.500 â‚¬ freigegeben.&#xD;&#xA;&#xD;&#xA;  EingerÃ¼ckt: Anfahrt Ã¼ber &#34;HauptstraÃŸe&#34; â€“ Zufahrt &#39;Tor 3&#39;.&#xD;&#xA;Test: &lt;b&gt;kein HTML&lt;/b&gt; &amp; {var nummer} &amp; {MsgSender} ðŸ“»âœ…</inhalt>
+        <kennung>[ÃœBUNG]</kennung>
+        <meldung>{&#34;format&#34;:&#34;oe1ebg-notfunk-winlink&#34;,&#34;version&#34;:1,&#34;app&#34;:&#34;0.9.0&#34;,&#34;exported&#34;:&#34;2026-11-06T18:05:12Z&#34;,&#34;exercise&#34;:true,&#34;station&#34;:{&#34;call&#34;:&#34;OE1XYZ&#34;,&#34;operation&#34;:&#34;\u00dcbung Donau 2026&#34;,&#34;prefix&#34;:&#34;W1&#34;,&#34;operator&#34;:&#34;OE1XYZ&#34;},&#34;message&#34;:{&#34;id&#34;:&#34;6f1c2a4e-8b3d-4c1a-9e2f-0a1b2c3d4e5f&#34;,&#34;number&#34;:&#34;W1-007&#34;,&#34;prefix&#34;:&#34;W1&#34;,&#34;seq&#34;:7,&#34;direction&#34;:&#34;out&#34;,&#34;ts&#34;:&#34;2026-11-06T17:42:00Z&#34;,&#34;channel&#34;:&#34;funk&#34;,&#34;radio&#34;:{&#34;freq&#34;:&#34;145.500&#34;,&#34;via&#34;:&#34;OE1XUU&#34;},&#34;peer&#34;:&#34;OE3ABC&#34;,&#34;type&#34;:&#34;anforderung&#34;,&#34;priority&#34;:&#34;priority&#34;,&#34;from&#34;:{&#34;name&#34;:&#34;Einsatzleitung \u00dcbungsraum Nord&#34;,&#34;call&#34;:&#34;OE1XYZ&#34;,&#34;contact&#34;:&#34;&#34;},&#34;to&#34;:{&#34;name&#34;:&#34;Bezirksstab Tulln&#34;,&#34;call&#34;:&#34;OE3ABC&#34;,&#34;contact&#34;:&#34;&#34;},&#34;distribution&#34;:[&#34;Lagezentrum&#34;,&#34;Sanit\u00e4t \u0026 Logistik&#34;],&#34;subject&#34;:&#34;Nachschub Notstrom \u003cdringend\u003e \u0026 Treibstoff&#34;,&#34;text&#34;:&#34;Ben\u00f6tigen 2\u00d7 Notstromaggregat (\u2265 5 kVA) f\u00fcr die Sammelstelle \u201eSchule S\u00fcd\u201c.\nKosten bis 1.500 \u20ac freigegeben.\n\n  Einger\u00fcckt: Anfahrt \u00fcber \&#34;Hauptstra\u00dfe\&#34; \u2013 Zufahrt &#39;Tor 3&#39;.\nTest: \u003cb\u003ekein HTML\u003c/b\u003e \u0026 \u007bvar nummer} \u0026 \u007bMsgSender} \ud83d\udcfb\u2705&#34;,&#34;stichzeit&#34;:null,&#34;origin&#34;:{&#34;station&#34;:&#34;OE1XYZ&#34;,&#34;place&#34;:&#34;Wien-Floridsdorf&#34;,&#34;filed&#34;:&#34;2026-11-06T17:38:00Z&#34;,&#34;placeLoc&#34;:null},&#34;readBack&#34;:true,&#34;location&#34;:null,&#34;locationText&#34;:&#34;Sammelstelle Schule S\u00fcd&#34;,&#34;refKind&#34;:&#34;antwort&#34;,&#34;refNumber&#34;:&#34;&#34;,&#34;staffRef&#34;:&#34;&#34;,&#34;remarks&#34;:&#34;R\u00fcckruf \u00fcber Kanal 2 m\u00f6glich.&#34;,&#34;operator&#34;:&#34;OE1XYZ&#34;,&#34;stationCall&#34;:&#34;OE1XYZ&#34;,&#34;status&#34;:[{&#34;state&#34;:&#34;logged&#34;,&#34;at&#34;:&#34;2026-11-06T17:42:00Z&#34;,&#34;by&#34;:&#34;OE1XYZ&#34;,&#34;note&#34;:&#34;&#34;},{&#34;state&#34;:&#34;forwarded&#34;,&#34;at&#34;:&#34;2026-11-06T17:55:00Z&#34;,&#34;recorded&#34;:&#34;2026-11-06T17:56:10Z&#34;,&#34;by&#34;:&#34;OE1XYZ&#34;,&#34;to&#34;:&#34;OE3ABC&#34;,&#34;who&#34;:&#34;&#34;,&#34;note&#34;:&#34;per Winlink&#34;}],&#34;attempts&#34;:[{&#34;at&#34;:&#34;2026-11-06T17:48:00Z&#34;,&#34;recorded&#34;:&#34;2026-11-06T17:48:30Z&#34;,&#34;by&#34;:&#34;OE1XYZ&#34;,&#34;note&#34;:&#34;keine Antwort auf 145,500&#34;}],&#34;created&#34;:&#34;2026-11-06T17:42:31Z&#34;,&#34;updated&#34;:&#34;2026-11-06T17:56:10Z&#34;,&#34;deleted&#34;:null,&#34;editedBy&#34;:&#34;OE1XYZ&#34;},&#34;revisions&#34;:[{&#34;at&#34;:&#34;2026-11-06T17:45:02Z&#34;,&#34;by&#34;:&#34;OE1XYZ&#34;,&#34;old&#34;:{&#34;id&#34;:&#34;6f1c2a4e-8b3d-4c1a-9e2f-0a1b2c3d4e5f&#34;,&#34;number&#34;:&#34;W1-007&#34;,&#34;prefix&#34;:&#34;W1&#34;,&#34;seq&#34;:7,&#34;direction&#34;:&#34;out&#34;,&#34;ts&#34;:&#34;2026-11-06T17:42:00Z&#34;,&#34;channel&#34;:&#34;funk&#34;,&#34;radio&#34;:{&#34;freq&#34;:&#34;145.500&#34;,&#34;via&#34;:&#34;OE1XUU&#34;},&#34;peer&#34;:&#34;OE3ABC&#34;,&#34;type&#34;:&#34;meldung&#34;,&#34;priority&#34;:&#34;routine&#34;,&#34;from&#34;:{&#34;name&#34;:&#34;Einsatzleitung \u00dcbungsraum Nord&#34;,&#34;call&#34;:&#34;OE1XYZ&#34;,&#34;contact&#34;:&#34;&#34;},&#34;to&#34;:{&#34;name&#34;:&#34;Bezirksstab Tulln&#34;,&#34;call&#34;:&#34;OE3ABC&#34;,&#34;contact&#34;:&#34;&#34;},&#34;distribution&#34;:[&#34;Lagezentrum&#34;],&#34;subject&#34;:&#34;Nachschub Notstrom&#34;,&#34;text&#34;:&#34;Ben\u00f6tigen 1\u00d7 Notstromaggregat f\u00fcr die Sammelstelle \u201eSchule S\u00fcd\u201c.&#34;,&#34;stichzeit&#34;:null,&#34;origin&#34;:{&#34;station&#34;:&#34;OE1XYZ&#34;,&#34;place&#34;:&#34;Wien-Floridsdorf&#34;,&#34;filed&#34;:&#34;2026-11-06T17:38:00Z&#34;,&#34;placeLoc&#34;:null},&#34;readBack&#34;:false,&#34;location&#34;:null,&#34;locationText&#34;:&#34;Sammelstelle Schule S\u00fcd&#34;,&#34;refKind&#34;:&#34;antwort&#34;,&#34;refNumber&#34;:&#34;&#34;,&#34;staffRef&#34;:&#34;&#34;,&#34;remarks&#34;:&#34;&#34;,&#34;operator&#34;:&#34;OE1XYZ&#34;,&#34;stationCall&#34;:&#34;OE1XYZ&#34;,&#34;status&#34;:[{&#34;state&#34;:&#34;logged&#34;,&#34;at&#34;:&#34;2026-11-06T17:42:00Z&#34;,&#34;by&#34;:&#34;OE1XYZ&#34;,&#34;note&#34;:&#34;&#34;}],&#34;attempts&#34;:[],&#34;created&#34;:&#34;2026-11-06T17:42:31Z&#34;,&#34;updated&#34;:&#34;2026-11-06T17:42:31Z&#34;,&#34;deleted&#34;:null}}],&#34;ref&#34;:{&#34;id&#34;:&#34;0d9e8f7a-6b5c-4d3e-8f1a-2b3c4d5e6f70&#34;,&#34;number&#34;:&#34;W1-003&#34;,&#34;station&#34;:&#34;OE1XYZ&#34;,&#34;source&#34;:{&#34;id&#34;:&#34;a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d&#34;,&#34;number&#34;:&#34;K-012&#34;,&#34;station&#34;:&#34;OE3ABC&#34;}}}</meldung>
+        <msgbody></msgbody>
+        <msgcc></msgcc>
+        <msgisacknowledgement>False</msgisacknowledgement>
+        <msgisforward>False</msgisforward>
+        <msgisreply>False</msgisreply>
+        <msgp2p></msgp2p>
+        <msgsender>OE1XYZ</msgsender>
+        <msgseqnum>0</msgseqnum>
+        <msgsubject></msgsubject>
+        <msgto>OE3ABC</msgto>
+        <nummer>W1-007</nummer>
+        <prioritaet>Dringend</prioritaet>
+        <station>OE1XYZ</station>
+        <templateversion>OE1 Notfunk Meldung 1.0</templateversion>
+        <txtstr></txtstr>
+        <uebung>=== ACHTUNG ÃœBUNG ===</uebung>
+        <verlauf>2026-11-06 17:42 UTC zur Ãœbertragung (OE1XYZ)&#xD;&#xA;2026-11-06 17:48 UTC Fehlversuch/RÃ¼ckfrage: keine Antwort auf 145,500 (OE1XYZ)&#xD;&#xA;2026-11-06 17:55 UTC Ã¼bertragen an OE3ABC: per Winlink (OE1XYZ)</verlauf>
+        <von>Einsatzleitung Ãœbungsraum Nord / OE1XYZ</von>
+        <zeit>2026-11-06 17:42 UTC</zeit>
+    </variables>
+</RMS_Express_Form>

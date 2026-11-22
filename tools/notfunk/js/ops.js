@@ -93,6 +93,14 @@ export function updateMessage(store, msg, change) {
   });
 }
 
+// A message taken over from Winlink was imported again with newer data of
+// the sender (winlink.js winlinkImportPlan(), kind 'update-source'): only
+// its `source` block is replaced; the receiver's own fields stay. A
+// compare-and-set like every change (ConflictError when it changed meanwhile).
+export function replaceSource(store, msg, source, now) {
+  return updateMessage(store, msg, cur => ({ next: { ...cur, source, updated: now } }));
+}
+
 // The fields of an edit that differ from base (the fields of the version the
 // user opened). Only these are sent as changes, so what another tab changed
 // in other fields is kept when the edit is applied to the current version.

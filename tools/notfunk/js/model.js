@@ -17,6 +17,8 @@ import { wallClock, isoInZone, laterIso } from '../../shared/js/time.js';
 export const DIRECTIONS = { in: 'Eingang', out: 'Ausgang' };
 export const CHANNELS = {
   funk: 'Funk', telefon: 'Telefon', muendlich: 'mündlich', melder: 'Melder', email: 'E-Mail', fax: 'Fax', anders: 'anders',
+  // last, so the digit keys of the other channels stay (issue #179)
+  winlink: 'Winlink',
 };
 export const MESSAGE_TYPES = {
   meldung: 'Meldung', auftrag: 'Auftrag', frage: 'Frage', anforderung: 'Anforderung', lagemeldung: 'Lagemeldung',
@@ -110,6 +112,10 @@ export function messageFields(f) {
     // once it is reported back; never the Notfunk number
     staffRef: trimmed(f.staffRef),
     remarks: trimmed(f.remarks),
+    // a message taken over from Winlink (winlink.js): the sender's record,
+    // read-only; only present on such messages, so an edit (whose form has
+    // no `source`) keeps it and older records stay as they are
+    ...(f.source && typeof f.source === 'object' && !Array.isArray(f.source) ? { source: f.source } : {}),
   };
 }
 

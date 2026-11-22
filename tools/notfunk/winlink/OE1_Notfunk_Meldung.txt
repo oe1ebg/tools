@@ -1,0 +1,30 @@
+Form: OE1_Notfunk_Meldung_Initial.html,OE1_Notfunk_Meldung_Viewer.html
+To: <var msgto>
+Subject: <var kennung> <var prioritaet> <var nummer>: <var betreff>
+Msg:
+<var uebung>
+NOTFUNK-MELDUNG <var nummer>
+========================================
+Nummer:        <var nummer>
+Dringlichkeit: <var prioritaet>
+Art:           <var art>
+Zeit:          <var zeit>
+Von:           <var von>
+An:            <var an>
+Betreff:       <var betreff>
+Bezug:         <var bezug>
+
+Inhalt:
+<var uebung>
+
+<var inhalt>
+
+<var uebung>
+
+Verlauf:
+<var verlauf>
+
+----------------------------------------
+Gesendet von <var station>, Formular <var templateversion>.
+Die ganze Meldung mit Verlauf steht im Anhang (Formular
+"OE1 Notfunk Meldung"); das Notfunk-Meldebuch liest sie von dort ein.

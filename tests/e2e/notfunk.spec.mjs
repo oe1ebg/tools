@@ -667,14 +667,14 @@ test('print: the empty form (Vordruck) opens a one-page A4 PDF', async ({ page }
   await expect(page.locator('#view-ops')).toBeVisible();
 });
 
-// #186: an Einsatz flagged "Übung": "ÜBUNG" in the page header, the reminder
-// under the Inhalt (also the Inhalt's description for screen readers), the
-// printouts and the CSV marked; the stored text stays as typed.
-test('Übung: header mark and reminder; printouts and CSV marked; the text verbatim; can be switched off', async ({ page }) => {
+// #186: an Einsatz flagged "Übung": the "ÜBUNG" bar at the top, the reminder
+// above Von, the start of the Spruch (also in the descriptions of Von and the
+// Inhalt for screen readers), the printouts and the CSV marked; the stored text stays as typed.
+test('Übung: bar at the top and reminder; printouts and CSV marked; the text verbatim; can be switched off', async ({ page }) => {
   await page.goto('tools/notfunk/');
   await expect.poll(() => page.evaluate(() => globalThis.NOTFUNK_READY === true)).toBe(true);
   await offlineSettled(page);
-  await expect(page.locator('#st-exercise')).toBeHidden();
+  await expect(page.locator('#exercise-bar')).toBeHidden();
   await page.getByRole('button', { name: '+ Neuer Einsatz' }).click();
   await page.locator('#n-name').fill('E2E Übungsflag');
   await page.locator('#n-prefix').fill('u1');
@@ -682,13 +682,17 @@ test('Übung: header mark and reminder; printouts and CSV marked; the text verba
   await page.getByRole('checkbox', { name: 'Übung' }).check();
   await page.getByRole('button', { name: 'Einsatz anlegen' }).click();
   await expect(page.locator('#view-book')).toBeVisible();
-  const mark = page.locator('#st-exercise'), hint = page.locator('#m-exercise'), text = page.locator('#m-text');
+  const mark = page.locator('#exercise-bar'), hint = page.locator('#m-exercise'), text = page.locator('#m-text');
   await expect(mark).toBeVisible();
   await expect(mark).toHaveText('ÜBUNG');
   await expect(hint).toBeVisible();
   await expect(hint).toHaveText('ÜBUNG: Vor und nach dem Spruch: „ACHTUNG ÜBUNG“');
   await expect(text).toHaveAccessibleDescription(/Vor und nach dem Spruch: „ACHTUNG ÜBUNG“/);
   await expect(text).toHaveAccessibleDescription(/Wer · Wann · Was · Wo · Wie/); // the 5 W hint stays
+  await expect(page.locator('#m-from')).toHaveAccessibleDescription(/ACHTUNG ÜBUNG/);
+  // above the start of the Spruch, before Von and Betreff
+  const y = async sel => (await page.locator(sel).boundingBox()).y;
+  expect(await y('#m-exercise')).toBeLessThan(await y('#m-from'));
   await expect(page.locator('#op-sum')).toContainText('Übung');
   // the text is stored as typed: nothing added
   await addMessage(page, 'Lichtinsel 3', 'Wasser', 'Kein Wasser im Haus.');
@@ -718,12 +722,13 @@ test('Übung: header mark and reminder; printouts and CSV marked; the text verba
   await expect(mark).toBeHidden();
   await expect(hint).toBeHidden();
   await expect(text).not.toHaveAccessibleDescription(/ACHTUNG/);
+  await expect(page.locator('#m-from')).not.toHaveAccessibleDescription(/ACHTUNG/);
   await expect(page.locator('#op-sum')).not.toContainText('Übung');
   // Rückgängig puts it back
   await page.locator('#btn-op-undo').click();
   await expect(page.locator('#e-exercise')).toBeChecked();
   await expect(mark).toBeVisible();
-  // the list of operations: no mark in the header
+  // the list of operations: no bar
   await page.getByRole('button', { name: '← Einsätze' }).click();
   await expect(mark).toBeHidden();
 });

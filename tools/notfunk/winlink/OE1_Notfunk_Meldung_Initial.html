@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="de-AT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OE1 Notfunk Meldung &ndash; erstellen</title>
+<!-- Winlink form "OE1 Notfunk Meldung" (input form), part of the Notfunk-Meldebuch
+     (oe1ebg tools, issue 179). Contract: FORMAT.md next to this file.
+     Pat and Winlink Express replace insertion tags in braces in this whole file
+     (also in the script below): never write one of their names in braces here,
+     except the intended ones in the form element and the station field. -->
+<style>
+:root{color-scheme:light;--bg:#fff;--raised:#f5f5f5;--line:#00000024;--line2:#00000061;--text:#000000de;--dim:#000000a3;--accent:#4560f0;--accent-t:#3f55d9;--accent-soft:#4560f01a;--warn:#8f5f00;--warn-soft:#f9a8251f;--err:#c62828;--err-soft:#c628281a;--on-err:#fff;--font:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;--mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 var(--font)}
+main{max-width:46rem;margin:0 auto;padding:16px 16px 40px}
+h1{font-size:1.45rem;margin:0}
+h2{font-size:1.05rem;margin:0 0 8px}
+.sub{color:var(--dim);margin:2px 0 16px;font-size:.9rem}
+.card{border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:0 0 14px;background:var(--bg);min-width:0}
+fieldset.card{padding-top:6px}
+legend{font-weight:600;font-size:1.05rem;padding:0 6px;margin-left:-6px}
+label,.lbl{display:block;font-weight:600;font-size:.9rem;margin:0 0 4px}
+.req::after{content:" *";color:var(--err)}
+input,select,textarea{font:inherit;color:inherit;background:var(--bg);border:1px solid var(--line2);border-radius:6px;padding:7px 9px;width:100%;min-height:40px}
+textarea{resize:vertical}
+input[type=file]{border-style:dashed;padding:8px}
+.mono{font-family:var(--mono)}
+.gap{margin-top:12px}
+.intro{margin:0 0 12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(12.5rem,1fr));gap:12px 16px}
+.wide{grid-column:1/-1}
+.hint{color:var(--dim);font-size:.88rem;overflow-wrap:anywhere;margin:4px 0 0}
+.err{color:var(--err);font-weight:600;font-size:.9rem;margin:6px 0 0}
+.err::before{content:"\26A0  "}
+[aria-invalid=true]{border-color:var(--err);box-shadow:0 0 0 1px var(--err)}
+.note{border-radius:8px;padding:10px 12px;margin:0 0 14px;border:1px solid var(--warn);background:var(--warn-soft)}
+button{font:inherit;font-weight:600;border-radius:6px;border:1px solid var(--line2);background:var(--raised);color:var(--text);padding:6px 14px;min-height:36px;cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff;min-height:46px;padding:8px 22px;font-size:1.05rem}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.row{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between}
+details{margin-top:10px}
+summary{cursor:pointer;color:var(--accent-t);font-weight:600;padding:4px 0}
+details[open] textarea{margin:4px 0 8px}
+.actions{margin-top:18px}
+.prio{display:inline-block;border:1px solid var(--line2);border-radius:4px;padding:1px 8px;font-weight:700;font-size:.85rem;color:var(--dim)}
+.prio.p-dringend{color:var(--warn);background:var(--warn-soft);border-color:var(--warn)}
+.prio.p-notfall{color:var(--on-err);background:var(--err);border-color:var(--err)}
+.pv-head{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:baseline}
+.pv-num{font-variant-numeric:tabular-nums;font-size:1.25rem;font-weight:700}
+.pv dl{display:grid;grid-template-columns:max-content 1fr;gap:4px 12px;margin:10px 0 0}
+.pv dt{color:var(--dim);font-size:.9rem}
+.pv dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.pv .lbl{margin-top:10px}
+.pv .text{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--raised);border-radius:6px;padding:8px 10px;margin:10px 0 0}
+.pv ul{margin:4px 0 0;padding-left:18px}
+/* exercise marker: text, border and weight, not colour alone */
+.ex{display:block;margin:10px 0 6px;padding:6px 10px;border:2px solid var(--warn);border-radius:6px;background:var(--warn-soft);color:var(--warn);font-weight:800;letter-spacing:.06em;text-align:center}
+.chk{display:flex;gap:8px;align-items:center;font-weight:600;min-height:24px}
+.chk input{width:1.2em;height:1.2em;min-height:0;margin:0}
+[hidden]{display:none!important}
+@media (max-width:30rem){main{padding:12px 10px 32px}.card{padding:12px}.pv dl{grid-template-columns:1fr}.pv dd{margin-bottom:4px}}
+@media (forced-colors:active){.prio,button,.note,.ex{border:1px solid CanvasText}}
+</style>
+</head>
+<body>
+<main>
+<h1>Notfunk-Meldung</h1>
+<p class="sub">Winlink-Formular &bdquo;OE1 Notfunk Meldung&ldquo; &middot; Version 1.0</p>
+<p id="outside" class="note" role="note" hidden>Dieses Formular ist nicht in einem Winlink-Programm ge&ouml;ffnet, darum fehlt der Knopf zum Erstellen der Nachricht. Senden geht nur aus Winlink Express oder Pat: dort eine neue Nachricht beginnen und das Formular &bdquo;OE1 Notfunk Meldung&ldquo; w&auml;hlen.</p>
+
+<form id="f" method="post" enctype="multipart/form-data" action="http://{FormServer}:{FormPort}" novalidate>
+<input type="hidden" name="format_version" value="1">
+<input type="hidden" name="templateversion" value="OE1 Notfunk Meldung 1.0">
+<input type="hidden" name="station" id="station" value="{MsgSender}">
+<input type="hidden" name="meldung" id="meldung" value="">
+<input type="hidden" name="verlauf" id="verlauf" value="">
+<input type="hidden" name="zeit" id="zeit" value="">
+<input type="hidden" name="kennung" id="kennung" value="">
+<input type="hidden" name="uebung" id="uebung" value="">
+
+<section class="card" aria-labelledby="msgto-l">
+<label for="msgto" id="msgto-l" class="req">Winlink-Adresse des Empf&auml;ngers</label>
+<input id="msgto" name="msgto" class="mono" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-describedby="msgto-h msgto-e">
+<p class="hint" id="msgto-h">Rufzeichen (z. B. OE3ABC) oder E-Mail-Adresse; mehrere durch Komma getrennt.</p>
+<p class="err" id="msgto-e" hidden></p>
+</section>
+
+<section class="card" id="load" aria-labelledby="load-h">
+<h2 id="load-h">Aus Meldebuch laden</h2>
+<p class="hint" id="file-h">Im Notfunk-Meldebuch die Meldung &bdquo;f&uuml;r Winlink exportieren&ldquo; und die Datei <span class="mono">&hellip;winlink.json</span> hier w&auml;hlen.</p>
+<label for="file" class="lbl gap">Exportdatei</label>
+<input type="file" id="file" accept=".json,application/json" aria-describedby="file-h load-e">
+<details id="paste-d">
+<summary>Oder den Inhalt der Datei einf&uuml;gen</summary>
+<label for="paste">Inhalt der Exportdatei</label>
+<textarea id="paste" rows="4" class="mono" spellcheck="false" aria-describedby="load-e"></textarea>
+<button type="button" id="paste-go">&Uuml;bernehmen</button>
+</details>
+<p class="err" id="load-e" role="alert" hidden></p>
+</section>
+
+<section class="card pv" id="loaded" aria-labelledby="loaded-h" hidden>
+<div class="row"><h2 id="loaded-h" tabindex="-1">Meldung aus dem Meldebuch</h2><button type="button" id="discard">Laden verwerfen</button></div>
+<div id="pv"></div>
+<p class="hint">Die Meldung wird so gesendet, wie sie hier steht. &Auml;nderungen bitte im Meldebuch machen und neu exportieren, damit dort der Verlauf stimmt.</p>
+</section>
+
+<fieldset class="card" id="manual">
+<legend>Meldung eingeben</legend>
+<p class="hint intro">F&uuml;r Stationen ohne Meldebuch. Pflichtfelder sind mit * markiert.</p>
+<div class="grid">
+<div><label for="nummer" class="req">Nummer</label><input id="nummer" name="nummer" class="mono" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-describedby="nummer-e"><p class="err" id="nummer-e" hidden></p></div>
+<div><label for="zeit-in" class="req">Zeit (UTC)</label><input id="zeit-in" class="mono" inputmode="numeric" autocomplete="off" spellcheck="false" aria-describedby="zeit-h zeit-in-e"><p class="hint" id="zeit-h">JJJJ-MM-TT HH:MM, in UTC</p><p class="err" id="zeit-in-e" hidden></p></div>
+<div><label for="prioritaet">Dringlichkeit</label><select id="prioritaet" name="prioritaet"><option>Routine</option><option>Dringend</option><option>Notfall</option></select></div>
+<div><label for="art">Art</label><select id="art" name="art"><option>Meldung</option><option>Auftrag</option><option>Frage</option><option>Anforderung</option><option>Lagemeldung</option></select></div>
+<div><label for="von">Von (Absender)</label><input id="von" name="von" autocomplete="off" aria-describedby="von-h"><p class="hint" id="von-h">Name / Rufzeichen</p></div>
+<div><label for="an">An (Adressat)</label><input id="an" name="an" autocomplete="off"></div>
+<div class="wide"><label for="betreff" class="req">Betreff</label><input id="betreff" name="betreff" autocomplete="off" aria-describedby="betreff-e betreff-w"><p class="err" id="betreff-e" hidden></p><p class="hint" id="betreff-w" hidden></p></div>
+<div class="wide"><label class="chk" for="ex-in"><input type="checkbox" id="ex-in" checked aria-describedby="ex-h"> &Uuml;bung</label><p class="hint" id="ex-h">Eine &Uuml;bung tr&auml;gt &bdquo;=== ACHTUNG &Uuml;BUNG ===&ldquo; als erste Zeile und vor und nach dem Inhalt und &bdquo;[&Uuml;BUNG]&ldquo; im Betreff. Nur f&uuml;r einen echten Einsatz abschalten.</p></div>
+<div class="wide"><label for="inhalt" class="req">Inhalt</label><p class="ex" id="ex-man"><span aria-hidden="true">&#9888;</span> ACHTUNG &Uuml;BUNG</p><textarea id="inhalt" name="inhalt" rows="7" aria-describedby="inhalt-e"></textarea><p class="err" id="inhalt-e" hidden></p></div>
+<div class="wide"><label for="bezug">Bezug</label><input id="bezug" name="bezug" autocomplete="off" aria-describedby="bezug-h"><p class="hint" id="bezug-h">z. B. Antwort auf W1-003 (OE1XYZ)</p></div>
+</div>
+</fieldset>
+
+<div class="actions" id="actions">
+<button type="submit" class="primary" id="send" aria-describedby="send-h">Nachricht erstellen</button>
+<p class="hint" id="send-h">&Uuml;bernimmt die Meldung in eine neue Winlink-Nachricht. In Pat danach im Nachrichtenfenster senden; &uuml;bertragen wird bei der n&auml;chsten Verbindung.</p>
+</div>
+</form>
+</main>
+<script>
+'use strict';
+(function () {
+  const $ = id => document.getElementById(id);
+  const FORMAT = 'oe1ebg-notfunk-winlink', VERSION = 1, MAX = 1000000;
+  const PRIO = { routine: 'Routine', priority: 'Dringend', emergency: 'Notfall' };
+  const TYPES = { meldung: 'Meldung', auftrag: 'Auftrag', frage: 'Frage', anforderung: 'Anforderung', lagemeldung: 'Lagemeldung' };
+  const REFK = { antwort: 'Antwort auf', korrektur: 'Korrektur zu', ergaenzung: 'Erg\u00e4nzung zu', weiterleitung: 'Weiterleitung von' };
+  const WORDS = {
+    in: { logged: 'erfasst', forwarded: '\u00fcbergeben', acknowledged: '\u00fcbernommen', answered: 'beantwortet' },
+    out: { logged: 'zur \u00dcbertragung', forwarded: '\u00fcbertragen', acknowledged: 'Empfang best\u00e4tigt', answered: 'beantwortet' },
+  };
+  const MANUAL = ['nummer', 'zeit-in', 'betreff', 'inhalt'];
+  const EX_TAG = '[\u00dcBUNG]', EX_LINE = '=== ACHTUNG \u00dcBUNG ===';
+  const FLAT = ['nummer', 'prioritaet', 'art', 'von', 'an', 'betreff', 'inhalt', 'bezug'];
+  const form = $('f');
+  // Not in a Winlink client: the station field still holds the unreplaced tag.
+  const outside = $('station').value.indexOf('{Ms' + 'g') === 0;
+  let loaded = null;
+
+  function utc(v) {
+    const d = v instanceof Date ? v : new Date(v);
+    if (!v || isNaN(d)) return v ? String(v) : '';
+    const s = d.toISOString();
+    return s.slice(0, 10) + ' ' + s.slice(11, 16) + ' UTC';
+  }
+  const party = p => p ? [p.name, p.call].filter(Boolean).join(' / ') : '';
+  function bezug(m, ref) {
+    const num = ref && ref.number ? ref.number + (ref.station ? ' (' + ref.station + ')' : '') : m.refNumber;
+    return num ? (REFK[m.refKind] || 'Bezug:') + ' ' + num : '';
+  }
+  // Status steps and failed attempts as text lines, oldest first (Latin-1
+  // only: the plain-text body is ISO-8859-1).
+  function history(m) {
+    const words = WORDS[m.direction] || WORDS.in;
+    const rows = (Array.isArray(m.status) ? m.status : []).map(s => [s.at, (words[s.state] || s.state)
+      + (s.to ? ' an ' + s.to : '') + (s.who ? ' von ' + s.who : '') + (s.readBack ? ', r\u00fcckgelesen' : '')
+      + (s.note ? ': ' + s.note : '') + (s.by ? ' (' + s.by + ')' : '')]);
+    for (const a of Array.isArray(m.attempts) ? m.attempts : []) {
+      rows.push([a.at, 'Fehlversuch/R\u00fcckfrage' + (a.note ? ': ' + a.note : '') + (a.by ? ' (' + a.by + ')' : '')]);
+    }
+    return rows.sort((a, b) => String(a[0]).localeCompare(String(b[0]))).map(r => utc(r[0]) + ' ' + r[1]);
+  }
+  // FORMAT.md: compact JSON, ASCII only, < > & as \u escapes. Braces inside
+  // strings are escaped too, so no text can look like a var slot of the viewer.
+  function ser(o) {
+    return JSON.stringify(o).replace(/[\u007f-\uffff<>&]|\{(?!["}])/g, c => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'));
+  }
+  function check(o) {
+    if (!o || typeof o !== 'object' || o.format !== FORMAT) return 'Das ist keine Exportdatei des Notfunk-Meldebuchs f\u00fcr Winlink (Kennung \u201e' + FORMAT + '\u201c fehlt).';
+    if (!Number.isInteger(o.version) || o.version < 1) return 'Die Format-Version der Datei ist ung\u00fcltig.';
+    if (o.version > VERSION) return 'Diese Meldung wurde mit einer neueren Version erstellt (Format-Version ' + o.version + '). Bitte das Formular \u201eOE1 Notfunk Meldung\u201c aktualisieren.';
+    const m = o.message;
+    if (!m || typeof m !== 'object' || typeof m.number !== 'string' || !m.number) return 'In der Datei fehlt die Meldung oder ihre Nummer.';
+    if ((m.status && !Array.isArray(m.status)) || (o.revisions && !Array.isArray(o.revisions))) return 'Die Datei ist besch\u00e4digt (Verlauf).';
+    return '';
+  }
+
+  function showErr(id, msg) {
+    const p = $(id + '-e'), input = $(id);
+    p.textContent = msg; p.hidden = !msg;
+    if (input) msg ? input.setAttribute('aria-invalid', 'true') : input.removeAttribute('aria-invalid');
+  }
+  function loadErr(msg) {
+    const p = $('load-e');
+    p.textContent = msg; p.hidden = !msg;
+  }
+
+  function el(tag, text, cls) {
+    const e = document.createElement(tag);
+    if (text != null) e.textContent = text;
+    if (cls) e.className = cls;
+    return e;
+  }
+  function prioBadge(word) {
+    return el('span', word, 'prio p-' + String(word).toLowerCase());
+  }
+  function preview(o) {
+    const m = o.message, box = $('pv');
+    box.textContent = '';
+    const head = el('div', null, 'pv-head');
+    head.append(el('span', m.number, 'pv-num'), prioBadge(PRIO[m.priority] || 'Routine'), el('span', TYPES[m.type] || m.type || ''));
+    box.append(head);
+    const dl = el('dl');
+    const add = (k, v) => { if (v) dl.append(el('dt', k), el('dd', v)); };
+    add('Zeit', utc(m.ts));
+    add('Von', party(m.from));
+    add('An', party(m.to));
+    add('Betreff', m.subject);
+    add('Bezug', bezug(m, o.ref));
+    add('Station', o.station ? [o.station.call, o.station.operation].filter(Boolean).join(', ') : '');
+    box.append(dl);
+    if (o.exercise !== false) box.append(el('p', '\u26a0 ACHTUNG \u00dcBUNG', 'ex'));
+    if (m.text) box.append(el('div', m.text, 'text'));
+    const h = history(m);
+    if (h.length) {
+      box.append(el('div', 'Verlauf', 'lbl'));
+      const ul = el('ul');
+      for (const line of h) ul.append(el('li', line));
+      box.append(ul);
+    }
+    if (m.deleted) box.append(el('p', 'Achtung: Diese Meldung ist im Meldebuch des Absenders als gel\u00f6scht markiert.', 'err'));
+    if (Array.isArray(o.revisions) && o.revisions.length) box.append(el('p', 'Mit ' + o.revisions.length + ' fr\u00fcheren Fassung(en); der Empf\u00e4nger sieht sie im Formular.', 'hint'));
+  }
+
+  // missing `exercise` (older export): unknown, so marked as exercise
+  function setExercise(on) {
+    $('kennung').value = on ? EX_TAG : '';
+    $('uebung').value = on ? EX_LINE : '';
+    $('ex-man').hidden = !on;
+    subjectLength();
+  }
+  function setRequired(on) {
+    for (const id of MANUAL) $(id).required = on;
+  }
+  function apply(o) {
+    const m = o.message;
+    loaded = o;
+    $('meldung').value = ser(o);
+    $('nummer').value = m.number;
+    $('prioritaet').value = PRIO[m.priority] || 'Routine';
+    $('art').value = TYPES[m.type] || 'Meldung';
+    $('von').value = party(m.from);
+    $('an').value = party(m.to);
+    $('betreff').value = m.subject || '';
+    $('inhalt').value = m.text || '';
+    $('bezug').value = bezug(m, o.ref);
+    $('zeit').value = utc(m.ts);
+    $('verlauf').value = history(m).join('\n');
+    $('ex-in').checked = o.exercise !== false;
+    setExercise(o.exercise !== false);
+    // an outgoing message's Funkstelle is the likely Winlink recipient
+    if (!$('msgto').value.trim() && m.direction === 'out' && /^[A-Z0-9]{1,3}[0-9][A-Z0-9]{0,4}(-\d{1,2})?$/.test(m.peer || '')) $('msgto').value = m.peer;
+    for (const id of MANUAL) showErr(id, '');
+    setRequired(false);
+    preview(o);
+    loadErr('');
+    $('load').hidden = true;
+    $('manual').hidden = true;
+    $('loaded').hidden = false;
+    $('loaded-h').focus();
+    subjectLength();
+  }
+  function discard() {
+    loaded = null;
+    for (const id of ['meldung', 'verlauf', 'zeit', 'paste', 'file', ...FLAT]) $(id).value = '';
+    $('prioritaet').value = 'Routine';
+    $('art').value = 'Meldung';
+    $('zeit-in').value = utc(new Date()).slice(0, 16);
+    $('ex-in').checked = true;
+    setExercise(true);
+    setRequired(true);
+    $('loaded').hidden = true;
+    $('load').hidden = false;
+    $('manual').hidden = false;
+    $('file').focus();
+    subjectLength();
+  }
+  function load(text) {
+    text = String(text).replace(/^\ufeff/, '').trim();
+    if (!text) return loadErr('Die Datei ist leer.');
+    if (text.length > MAX) return loadErr('Die Datei ist zu gro\u00df (\u00fcber 1 MB). Bitte die Meldung im Meldebuch neu exportieren.');
+    let o;
+    try { o = JSON.parse(text); } catch (e) {
+      return loadErr('Das ist kein g\u00fcltiger Meldebuch-Export (kein JSON). Bitte die Datei \u2026winlink.json aus dem Meldebuch w\u00e4hlen.');
+    }
+    const problem = check(o);
+    if (problem) return loadErr(problem);
+    apply(o);
+  }
+
+  // Subject = "[UEBUNG] <Dringlichkeit> <Nummer>: <Betreff>"; Winlink allows 128 bytes.
+  function subjectLength() {
+    const s = ($('kennung').value ? $('kennung').value + ' ' : '') + $('prioritaet').value + ' ' + $('nummer').value.trim() + ': ' + $('betreff').value.trim();
+    const w = $('betreff-w'), long = s.length > 128;
+    w.hidden = !long;
+    w.textContent = long ? 'Der Betreff der Nachricht wird ' + s.length + ' Zeichen lang; erlaubt sind 128. Bitte k\u00fcrzen.' : '';
+  }
+
+  function validate() {
+    let first = null;
+    const need = (id, ok, msg) => { showErr(id, ok ? '' : msg); if (!ok && !first) first = $(id); };
+    need('msgto', $('msgto').value.trim() !== '', 'Bitte die Winlink-Adresse des Empf\u00e4ngers eintragen.');
+    if (!loaded) {
+      need('nummer', $('nummer').value.trim() !== '', 'Bitte die Nummer der Meldung eintragen.');
+      const z = $('zeit-in').value.trim().replace(/\s*UTC$/i, '').replace('T', ' ');
+      const ok = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(z) && !isNaN(new Date(z.replace(' ', 'T') + ':00Z'));
+      need('zeit-in', ok, 'Zeit bitte als JJJJ-MM-TT HH:MM (UTC) eintragen, z. B. ' + utc(new Date()).slice(0, 16) + '.');
+      if (ok) $('zeit-in').value = z;
+      need('betreff', $('betreff').value.trim() !== '', 'Bitte einen Betreff eintragen.');
+      need('inhalt', $('inhalt').value.trim() !== '', 'Bitte den Inhalt der Meldung eintragen.');
+    }
+    return first;
+  }
+
+  if (outside) {
+    $('actions').hidden = true;
+    $('outside').hidden = false;
+  }
+  $('zeit-in').value = utc(new Date()).slice(0, 16);
+  setExercise($('ex-in').checked);
+  $('ex-in').addEventListener('change', () => setExercise($('ex-in').checked));
+  $('file').addEventListener('change', () => {
+    const f = $('file').files[0];
+    if (!f) return;
+    if (f.size > MAX) return loadErr('Die Datei ist zu gro\u00df (\u00fcber 1 MB). Bitte die Meldung im Meldebuch neu exportieren.');
+    const r = new FileReader();
+    r.onload = () => load(r.result);
+    r.onerror = () => loadErr('Die Datei konnte nicht gelesen werden.');
+    r.readAsText(f, 'utf-8');
+  });
+  $('paste-go').addEventListener('click', () => load($('paste').value));
+  $('discard').addEventListener('click', discard);
+  for (const id of ['nummer', 'betreff', 'prioritaet']) $(id).addEventListener('input', subjectLength);
+  for (const id of ['msgto', ...MANUAL]) $(id).addEventListener('input', () => { if ($(id).getAttribute('aria-invalid')) showErr(id, ''); });
+  form.addEventListener('submit', e => {
+    if (outside) { e.preventDefault(); return; }
+    const bad = validate();
+    if (bad) { e.preventDefault(); bad.focus(); return; }
+    if (!loaded) $('zeit').value = $('zeit-in').value.trim() + ' UTC';
+  });
+})();
+</script>
+</body>
+</html>

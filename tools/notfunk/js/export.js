@@ -134,6 +134,8 @@ function messageProblem(m) {
   if (m.replyTo != null && (typeof m.replyTo !== 'string' || !ID_RE.test(m.replyTo))) return 'ungültiger Bezug';
   if (m.stichzeit != null && !isIso(m.stichzeit)) return 'ungültige Stichzeit';
   if (m.origin.filed != null && !isIso(m.origin.filed)) return 'ungültige Aufgabezeit';
+  // a message taken over from Winlink keeps the sender's record (winlink.js)
+  if (m.source != null && (!isObj(m.source) || ['status', 'attempts', 'revisions'].some(k => m.source[k] != null && !Array.isArray(m.source[k])))) return 'ungültige Winlink-Herkunft';
   let errs;
   try {
     errs = validateMessage(messageFields(m), { lenient: true });
