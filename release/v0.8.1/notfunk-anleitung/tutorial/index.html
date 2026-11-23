@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tutorial: eine Notmeldung von der Lichtinsel zum Stab</title>
+<script src="../../shared/js/theme.js"></script>
+<link rel="stylesheet" href="../../shared/css/tools.css">
+<link rel="stylesheet" href="../../shared/css/docs.css">
+</head>
+<body>
+<main class="doc">
+<p class="doc-nav"><a href="../../">← Alle Tools</a></p>
+<h1 id="tutorial-eine-notmeldung-von-der-lichtinsel-zum-stab">Tutorial: eine Notmeldung von der Lichtinsel zum Stab</h1>
+<p class="doc-nav"><a href="../">← Notfunk-Anleitung</a> · <a href="../../notfunk/index.html">Notfunk-Meldebuch öffnen</a></p>
+<p>Das Beispiel: Übung „Blackout Wien“. Sie sind Funkamateur an der Lichtinsel
+Floridsdorf. Frau Huber, Pflegedienstleiterin eines Pflegeheims in der
+Brünner Straße 68, kommt zu Fuß: Das Notstromaggregat läuft nur bis etwa
+18 Uhr, und 6 beatmete Bewohner sind auf den Strom angewiesen. Das Heim
+braucht Diesel für das Aggregat. Rufzeichen und Namen im Beispiel sind frei
+erfunden.</p>
+<p>Zum Nachspielen gibt es eine fertige Datei:
+<a href="https://github.com/oe1ebg/tools/blob/main/examples/backups/notfunk-full.json">notfunk-full.json</a>
+(über „Wiederherstellen…“ einspielen). Für das Tutorial legen Sie lieber
+einen eigenen Einsatz an, dann sehen Sie jeden Schritt.</p>
+<h2 id="1-vorbereiten">1. Vorbereiten</h2>
+<ol>
+<li><a href="../../notfunk/index.html">Notfunk-Meldebuch öffnen</a>, einmal mit Internet, und
+   als App installieren; danach läuft es auch offline („offline bereit ✓“
+   oben rechts, <a href="../vorbereitung/">Vorbereitung</a>).</li>
+<li>
+<p><strong>„+ Neuer Einsatz“.</strong> Tragen Sie ein: Einsatz „Übung Blackout Wien“,
+   Stationskürzel <strong>W1</strong>, Ihr Stationsrufzeichen (hier OE1ABC), den Standort
+   („Lichtinsel 12 Floridsdorf“), Ihr Rufzeichen als Operator, „Für Stelle“
+   <strong>Stab</strong> und die Frequenz des lokalen Informationsnetzes.
+   Dann „Einsatz anlegen“.</p>
+<p><img alt="Neuer Einsatz" src="../../img/notfunk-einsatz-neu.png"></p>
+</li>
+</ol>
+<p>Das Stationskürzel steht vor jeder Nummer. Hat die Lichtinsel zwei
+   Geräte, bekommt jedes ein eigenes Kürzel (W1, W2), damit die Nummern nie
+   doppelt vorkommen.</p>
+<h2 id="2-die-meldung-aufnehmen">2. Die Meldung aufnehmen</h2>
+<p>Frau Huber schildert den Notfall. Sie nehmen im Formular oben auf. Weil Sie
+die Meldung <strong>weiterfunken</strong>, ist die Richtung <strong>Ausgang (↑)</strong>.</p>
+<ol>
+<li><strong>Richtung:</strong> Ausgang. <strong>Übermittlung:</strong> Funk. <strong>Funkstelle:</strong> das
+   Rufzeichen der Gegenstelle, an die Sie funken (hier OE1DEF, der
+   K-Vorsorgestandort); Frequenz und Relais sind vorbelegt.</li>
+<li><strong>Von:</strong> „Pflegeheim Brünner Straße 68, Frau Huber“. <strong>An:</strong> „Stab“.
+   Den Absender nennt die Person, nicht Sie.</li>
+<li><strong>Dringlichkeit:</strong> hier „Dringend“ (vor Routine zu übermitteln); „Notfall“
+   ist für Gefahr für Leib und Leben, die sofort droht
+   (<a href="../meldung/#dringlichkeit">Dringlichkeit</a>). Im Zweifel fragen Sie die Leitstelle.</li>
+<li><strong>Betreff:</strong> „Stromausfall Pflegeheim, Diesel benötigt“. <strong>Ort:</strong> die
+   Adresse; beim Tippen schlägt die Ortssuche Treffer vor (offline).</li>
+<li><strong>Inhalt – wörtlich:</strong> der Wortlaut, wie ihn Frau Huber nennt.</li>
+<li>
+<p><strong>Rücklesen</strong> (empfohlen, nicht zwingend): Lesen Sie die Meldung der
+   Person vor. Sagt sie „stimmt“,
+   setzen Sie das Häkchen (<kbd>Leertaste</kbd>).</p>
+<p><img alt="Formular „Neue Meldung“" src="../../img/notfunk-tutorial-meldung.png"></p>
+</li>
+<li>
+<p><strong>Speichern</strong> mit <kbd>⇧</kbd>+<kbd>Enter</kbd>. Erst jetzt wird die
+   Nummer vergeben, hier <strong>W1-001</strong>. Fehlt etwas, das nicht zwingend ist
+   (zum Beispiel die Funkstelle), fragt das Formular nach; mit
+   „Trotzdem speichern“ geht es weiter.</p>
+</li>
+</ol>
+<p>Die Meldung steht jetzt im Meldebuch mit dem Status <strong>zur Übertragung</strong>.</p>
+<h2 id="3-funken-und-ubertragung-festhalten">3. Funken und Übertragung festhalten</h2>
+<p>Sie rufen den K-Vorsorgestandort und lesen die Meldung vor. Der Empfänger
+liest zurück.</p>
+<ol>
+<li>Klicken Sie in der Zeile von W1-001 auf <strong>„übertragen“</strong>; es öffnet sich
+   ein kleines Fenster. <strong>Übertragen an:</strong> das Rufzeichen der Gegenstelle,
+   Zeitpunkt leer = jetzt; <kbd>Enter</kbd> trägt ein.</li>
+<li>Hat die Gegenstelle den Empfang bestätigt, tragen Sie
+   „<strong>Empfang bestätigt</strong>“ ein (durch wen, wann).</li>
+<li>
+<p>Nennt die Meldesammelstelle später eine <strong>Referenz</strong> (hier „GZ 0412“),
+   tragen Sie sie in der Meldung ein.</p>
+<p><img alt="Meldung im Detail mit Ablauf" src="../../img/notfunk-tutorial-ablauf.png"></p>
+</li>
+</ol>
+<p>Der <strong>Ablauf</strong> rechts in der Meldung zeigt jeden Schritt mit Uhrzeit und
+Operator. Hier endet Ihre Aufgabe für diese Meldung, bis die Antwort kommt.</p>
+<h2 id="4-die-antwort-entgegennehmen">4. Die Antwort entgegennehmen</h2>
+<p>Der Stab antwortet: „Tankwagen mit 200 Liter Diesel ist unterwegs, Ankunft
+ca. 15:30.“ Die Antwort geht über die Meldesammelstelle, die Funkstelle der ELS und den
+K-Vorsorgestandort an Sie.</p>
+<ol>
+<li>Öffnen Sie W1-001 und wählen Sie <strong>„Antwort erfassen“</strong>. Das Formular
+   kommt mit Richtung <strong>Eingang</strong>, vertauschtem Absender und Adressat und
+   gesetztem Bezug „Antwort auf W1-001“.</li>
+<li>Tragen Sie den <strong>Wortlaut</strong> der Antwort ein, lesen Sie zurück und
+   speichern Sie (<strong>W1-002</strong>).</li>
+<li>Die ursprüngliche Meldung W1-001 steht jetzt auf <strong>beantwortet</strong>.</li>
+<li>
+<p>Sagen Sie Frau Huber die Antwort, und halten Sie fest, dass Sie sie
+   weitergegeben haben („übergeben“ an Frau Huber).</p>
+<p><img alt="Das Meldebuch nach der Antwort" src="../../img/notfunk-tutorial-buch.png"></p>
+</li>
+</ol>
+<h2 id="5-am-ende">5. Am Ende</h2>
+<ul>
+<li><strong>Sichern:</strong> Der Sicherungsstand oben rechts zeigt, wie viele Meldungen
+  noch nicht gesichert sind; ein Klick lädt eine Sicherung (JSON) herunter
+  (<a href="../sicherung/">Exporte und Sicherung</a>). Legen Sie die Datei
+  an einen sicheren Ort.</li>
+<li><strong>Drucken:</strong> Das leere Formular für die Arbeit auf Papier: <a download="notfunk-vordruck.pdf" href="../../downloads/notfunk-vordruck.pdf">Leeres Formular (PDF) herunterladen</a>. Eine einzelne Meldung als Formular, das ganze Meldebuch oder
+  einen Zeitraum als PDF (<a href="../ausdruck/">Ausdruck und PDF</a>).</li>
+<li><strong>Schichtwechsel:</strong> den Operator im Feld „Einsatz“ ändern.</li>
+<li>Wenn etwas schiefgeht (anderer Tab, Update, voller Speicher), sagen die
+  Hinweise, was zu tun ist (<a href="../meldung/#speichern-hinweise-verwerfen">Speichern, Hinweise, Verwerfen</a>).</li>
+</ul>
+<p>Weiter: <a href="../vorbereitung/">Vorbereitung</a></p>
+<footer class="doc-footer">Quellcode: <a href="https://github.com/oe1ebg/tools">github.com/oe1ebg/tools</a> · Version v0.8.1 (commit <a href="https://github.com/oe1ebg/tools/commit/66c91843d4a80d1f389c04216023b4924eb1bf2a">66c9184</a>)</footer>
+</main>
+</body>
+</html>

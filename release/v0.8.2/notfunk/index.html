@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notfunk-Meldebuch</title>
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="Offline-Meldebuch für den Notfunk mit Ausdruck und Karte (Entwurf).">
+<!-- Link previews: a static card per tool (scripts/make_og_cards.py). Crawlers
+     want an absolute og:image URL; a host that embeds the bundle can set it. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="OE1EBG Tools">
+<meta property="og:title" content="Notfunk-Meldebuch">
+<meta property="og:description" content="Offline-Meldebuch für den Notfunk mit Ausdruck und Karte (Entwurf).">
+<meta property="og:image" content="og-card.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Notfunk-Meldebuch – OE1EBG Tools">
+<meta property="og:locale" content="de_AT">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#526cfe">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<!-- iOS ignores SVG and manifest icons for the home screen -->
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<!-- Theme first (sets data-theme before anything paints), then the styles.
+     Inlined into notfunk-offline.html and precached like the rest. -->
+<!-- NOTFUNK-VENDOR-BEGIN -->
+<script src="../shared/js/theme.js"></script>
+<link rel="stylesheet" href="../shared/css/tools.css">
+<link rel="stylesheet" href="../shared/css/forms.css">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="../shared/vendor/leaflet/leaflet.css">
+<script src="../shared/vendor/leaflet/leaflet.js"></script>
+<!-- NOTFUNK-VENDOR-END -->
+</head>
+<body>
+
+<header id="site-header" class="no-print">
+  <a id="home-link" href="../">← Alle Tools</a>
+  <h1 class="title">Notfunk-Meldebuch</h1>
+  <a id="manual-link" class="hdr-link" href="../notfunk-anleitung/" target="_blank" rel="noopener" title="Ausführliche Anleitung mit Bildern (online)">Anleitung</a>
+  <button id="btn-loc" type="button" aria-expanded="false" aria-controls="loc-panel" title="Offline-Standortsuche Wien: Adresse, Ort, PLZ, Koordinaten, Locator, UTMREF"><span aria-hidden="true">📍</span> Standort</button>
+  <div class="hdr-status">
+    <span id="st-offline" class="chip">offline: prüfe…</span>
+    <span id="st-storage" class="chip">Speicher: prüfe…</span>
+    <button type="button" id="st-backup" class="chip chip-btn" hidden title="Download der Sicherung (JSON) dieses Einsatzes jetzt starten; ob die Datei angekommen ist, meldet der Browser nicht"></button>
+    <button id="btn-update" type="button" class="primary" hidden title="Zur neuen Version wechseln, die schon geladen ist (die Seite lädt neu; gespeicherte Daten und die laufende Eingabe bleiben erhalten)">Neue Version verwenden</button>
+  </div>
+  <div class="hdr-controls">
+    <span id="clock" class="clock" role="timer" aria-label="Uhrzeit (Ortszeit)"><b id="clock-local">--:--</b></span>
+    <div id="theme-toggle" class="toggle" role="group" aria-label="Farbschema">
+      <button type="button" data-theme-choice="light" aria-pressed="false">hell</button>
+      <button type="button" data-theme-choice="auto" aria-pressed="false">auto</button>
+      <button type="button" data-theme-choice="dark" aria-pressed="false">dunkel</button>
+    </div>
+    <button id="btn-help" type="button" aria-haspopup="dialog" aria-controls="help-dlg" aria-keyshortcuts="F1 ?" title="Hilfe zur Meldeaufnahme (F1, oder ? außerhalb von Textfeldern)"><span aria-hidden="true">?</span> Hilfe</button>
+  </div>
+</header>
+
+<main>
+  <div id="banner" class="banner err no-print" role="alert" hidden></div>
+  <noscript><div class="banner err">Dieses Werkzeug benötigt JavaScript.</div></noscript>
+  <!-- Install from before the move to /tools/ (checkOldInstall in offline.js) -->
+  <div id="old-install" class="banner warn move no-print" role="status" hidden>
+    <p id="old-install-text">Diese App hat eine neue Adresse: <strong>oe1ebg.at/tools/notfunk/</strong>. Es geht nichts verloren, alle Einsätze und Meldungen sind auch hier da. Bitte die App von hier neu zum Startbildschirm hinzufügen und dann die alte Installation entfernen.</p>
+    <button type="button" id="btn-old-remove">Alte Installation entfernen</button>
+    <button type="button" id="btn-old-later">Später</button>
+  </div>
+  <!-- ✕ hides it until the next page load (js/app.js wire()) -->
+  <div id="draft-banner" class="banner draft no-print"><p><strong>Entwurf.</strong> Das Meldungsformat ist noch nicht mit dem Notfunkreferat Wien und dem Krisenstab abgestimmt; Felder und Bezeichnungen können sich ändern. Für Übungen gedacht.</p>
+    <button type="button" id="btn-draft-banner" class="banner-close" aria-label="Hinweis ausblenden" title="Hinweis ausblenden (bis zum nächsten Laden der Seite)">✕</button></div>
+
+  <!-- ===== Einsätze ===== -->
+  <!-- ===== Standortsuche (offline, Wien; shared js/locationui.js, as in Confirm) ===== -->
+  <section id="loc-panel" class="panel no-print" hidden>
+    <div class="toolbar tight">
+      <h2>Standortsuche Wien</h2>
+      <span id="loc-status" class="hint"></span>
+      <span class="spacer"></span>
+      <label class="check">Locator
+        <select id="loc-prec"><option value="4">4</option><option value="6">6</option><option value="8">8</option><option value="10">10</option></select> Zeichen
+      </label>
+      <label class="check" title="Genauigkeit der UTM-Gitterreferenz (UTMREF/MGRS) in der Anzeige; Exporte immer auf 1 m">UTMREF
+        <select id="loc-utm-prec"><option value="10">1 m</option><option value="8">10 m</option><option value="6">100 m</option></select>
+      </label>
+      <label class="check" title="UTMREF auch in der Info-Zeile der Ortsfelder zeigen (gilt auch im Bestätigungsverkehr)"><input type="checkbox" id="loc-utm-log"> UTMREF bei Orten zeigen</label>
+      <label class="check" title="Ab welcher Sicherheit ein Ortsfeld den besten Treffer selbst übernimmt (gilt auch im Bestätigungsverkehr)">Automatisch übernehmen ab
+        <select id="loc-auto"><option value="exact">exakt</option><option value="high">hoch</option><option value="likely">wahrscheinlich</option><option value="never">nie</option></select>
+      </label>
+      <button type="button" id="loc-close">schließen</button>
+    </div>
+    <input id="loc-q" type="search" aria-label="Standort suchen" placeholder="Adresse, Ort, PLZ, Koordinaten, Locator oder UTMREF" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search">
+    <div class="hint" id="loc-examples-wrap">Beispiele: <span id="loc-examples"></span></div>
+    <div id="loc-results"></div>
+  </section>
+
+  <section id="view-ops" class="no-print" aria-labelledby="ops-title">
+    <div class="toolbar">
+      <h2 id="ops-title">Einsätze</h2>
+      <div class="tabs" role="group" aria-label="Ansicht">
+        <button type="button" data-tab="active" aria-pressed="true">Aktiv</button>
+        <button type="button" data-tab="archived" aria-pressed="false">Archiv</button>
+        <button type="button" data-tab="deleted" aria-pressed="false">Papierkorb</button>
+      </div>
+      <span class="spacer"></span>
+      <button type="button" id="btn-new-op" class="primary" aria-expanded="false" aria-controls="new-op">+ Neuer Einsatz</button>
+      <button type="button" id="btn-import" title="Eine Sicherung (JSON) einlesen: Einsätze und Meldungen aus der Datei übernehmen">Wiederherstellen…</button>
+      <button type="button" id="btn-blank-form" title="Leeres Meldeaufnahmeformular als PDF (A4 hoch, in jedem Browser gleich), z. B. als Vorrat für die Arbeit ohne Gerät: öffnet sich in einem neuen Tab, die Anzahl wählt man beim Drucken dort">Leeres Formular (PDF)</button>
+      <input type="file" id="import-file" accept=".json,application/json" multiple hidden aria-label="Sicherung (JSON) wählen">
+    </div>
+
+    <div id="import-msg" class="banner warn" role="status" hidden></div>
+
+    <form id="new-op" class="panel" hidden autocomplete="off">
+      <div class="grid-form op-grid">
+        <label class="field span-2"><span>Einsatz / Übung</span>
+          <input id="n-name" required enterkeyhint="next" placeholder="z. B. Übung Blackout Wien"></label>
+        <label class="field"><span>Stationskürzel</span>
+          <input id="n-prefix" required maxlength="6" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" placeholder="W1" aria-describedby="n-prefix-help"></label>
+      </div>
+      <fieldset class="op-group">
+        <legend>Eigene Station</legend>
+        <div class="grid-form op-grid">
+          <div class="field"><label for="n-call">Stationsrufzeichen</label>
+            <div class="ac-wrap"><input id="n-call" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" placeholder="OE1XKS" aria-describedby="n-call-info" title="Rufzeichen der eigenen Funkstation, z. B. die Klubstation; kann vom Rufzeichen des Operators abweichen"><div id="n-call-pop" class="ac-pop"></div></div>
+            <div class="ac-hints"><div id="n-call-info" class="ac-info" aria-live="polite"></div></div></div>
+          <label class="field span-2"><span>Standort der Station (Adresse)</span>
+            <input id="n-station" enterkeyhint="next" placeholder="z. B. Lichtinsel 12, Brünner Straße 68" aria-describedby="n-station-help" title="Wo das eigene Funkgerät steht (steht oben im Ausdruck)"></label>
+          <label class="field"><span>Für Stelle</span>
+            <input id="n-home" enterkeyhint="next" placeholder="Stab" aria-describedby="n-home-help" title="Für wen die Station arbeitet, z. B. Stab: Vorgabe für An (Eingang) bzw. Von (Ausgang)"></label>
+          <label class="field"><span>Frequenz MHz</span>
+            <input id="n-freq" class="mono" inputmode="decimal" enterkeyhint="next" placeholder="145.500"></label>
+          <div class="field ac-field"><label for="n-via">Relais</label>
+            <div class="ac-wrap"><input id="n-via" class="mono call-input" placeholder="direkt" title="Relais-Rufzeichen; leer = direkt (ohne Relais)" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-describedby="n-via-info"><div id="n-via-pop" class="ac-pop"></div></div>
+            <div class="ac-hints"><div id="n-via-info" class="ac-info" aria-live="polite"></div></div></div>
+        </div>
+      </fieldset>
+      <fieldset class="op-group">
+        <legend>Am Gerät</legend>
+        <div class="grid-form op-grid">
+          <div class="field ac-field"><label for="n-operator">Operator</label>
+            <div class="ac-wrap"><input id="n-operator" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="done" aria-describedby="n-operator-info" title="Wer hier am Gerät aufnimmt; beim Schichtwechsel ändern"><div id="n-operator-pop" class="ac-pop"></div></div>
+            <div class="ac-hints"><div id="n-operator-info" class="ac-info" aria-live="polite"></div></div></div>
+        </div>
+      </fieldset>
+      <p class="hint" id="n-prefix-help">Das Kürzel steht vor jeder Nummer (W1-001, W1-002 …). Jedes Gerät bzw. jede Station eines Einsatzes bekommt ein eigenes Kürzel, dann lassen sich die Bücher ohne doppelte Nummern zusammenführen.</p>
+      <p class="hint" id="n-station-help">Stationsrufzeichen und Standort der Station (Adresse): die eigene Funkstation, z. B. OE1XKS in der Lichtinsel 12; das Rufzeichen kann vom Operator abweichen. Beides steht oben im Ausdruck.</p>
+      <p class="hint" id="n-home-help">Für Stelle: für wen die Station arbeitet, z. B. Stab. Steht bei neuen Meldungen als Adressat eingehender und Absender ausgehender Meldungen, solange nichts anderes eingetragen ist.</p>
+      <div class="toolbar form-foot">
+        <button type="submit" class="primary">Einsatz anlegen</button>
+        <button type="button" id="btn-cancel-op">Abbrechen (Esc)</button>
+        <span id="new-op-status" class="hint err-text" role="status"></span>
+      </div>
+    </form>
+
+    <ul id="op-list"></ul>
+
+    <!-- Hidden in the file:// bundle (it is the offline file). -->
+    <aside id="offline-card" class="offline-card" aria-labelledby="offline-card-title">
+      <span class="icon" aria-hidden="true">⬇</span>
+      <div class="txt">
+        <h2 id="offline-card-title">Ohne Internet arbeiten</h2>
+        <p>Das Meldebuch als eine HTML-Datei mit allen Daten, ~7 MB (Rufzeichen, Relais, Wiener Adressen, Karte), für USB-Stick oder Laptop: läuft ohne Server und ohne Internet. Vor dem Einsatz herunterladen (nur online möglich).</p>
+      </div>
+      <a class="btn" href="notfunk-offline.html" download="notfunk-meldebuch-offline.html">Offline-Datei herunterladen</a>
+    </aside>
+  </section>
+
+  <!-- ===== Meldebuch eines Einsatzes ===== -->
+  <section id="view-book" class="no-print" hidden aria-labelledby="book-title">
+    <div class="toolbar book-bar">
+      <button type="button" id="btn-back">← Einsätze</button>
+      <h2 id="book-title">Meldebuch</h2>
+      <span class="spacer"></span>
+      <button type="button" id="btn-csv" title="Geschäftsbuch-Spalten (SKKM / ÖBFV E-31) für Excel">Geschäftsbuch (CSV)</button>
+      <button type="button" id="btn-backup" title="Vollständige Sicherung dieses Einsatzes, auch gelöschte Meldungen und Fassungen">Sichern (JSON)</button>
+      <button type="button" id="btn-print-book" aria-expanded="false" aria-controls="print-range">Drucken / PDF…</button>
+    </div>
+
+    <form id="print-range" class="panel" hidden autocomplete="off">
+      <div class="grid-form">
+        <div class="field" role="group" aria-labelledby="pr-from-label"><span id="pr-from-label">Von</span>
+          <div class="dt-pair"><input id="pr-from-date" class="mono dt-date" inputmode="numeric" placeholder="JJJJ-MM-TT" maxlength="10" spellcheck="false" aria-label="Von: Datum" aria-describedby="pr-help"><input id="pr-from-time" class="mono dt-time" inputmode="numeric" placeholder="HH:MM" maxlength="5" spellcheck="false" aria-label="Von: Uhrzeit" aria-describedby="pr-help"></div></div>
+        <div class="field" role="group" aria-labelledby="pr-to-label"><span id="pr-to-label">Bis</span>
+          <div class="dt-pair"><input id="pr-to-date" class="mono dt-date" inputmode="numeric" placeholder="JJJJ-MM-TT" maxlength="10" spellcheck="false" aria-label="Bis: Datum" aria-describedby="pr-help"><input id="pr-to-time" class="mono dt-time" inputmode="numeric" placeholder="HH:MM" maxlength="5" spellcheck="false" aria-label="Bis: Uhrzeit" aria-describedby="pr-help"></div></div>
+      </div>
+      <p class="hint" id="pr-help">Zeitraum in Ortszeit: nur Datum = ganzer Tag, nur Uhrzeit = heute, leer = ganzer Einsatz. Das Meldebuch wird ein PDF (A4 quer) und öffnet sich in einem neuen Tab; Drucken und Kopien dort im Druckdialog des PDF-Betrachters. Leeres Formular (PDF): öffnet das Blatt ebenso, die Anzahl (Kopien) wählt man beim Drucken dort.</p>
+      <div class="toolbar form-foot">
+        <button type="submit" class="primary">Meldebuch als PDF</button>
+        <button type="button" id="btn-blank-form-book" title="Leeres Meldeaufnahmeformular als PDF mit dem Namen dieses Einsatzes; öffnet sich in einem neuen Tab, die Anzahl wählt man beim Drucken dort">Leeres Formular (PDF)</button>
+        <button type="button" id="btn-print-cancel">Schließen</button>
+        <span id="pr-status" class="hint err-text" role="status"></span>
+      </div>
+    </form>
+
+    <details class="hdr" id="op-panel">
+      <summary><b>Einsatz</b> <span class="hdr-sum" id="op-sum"></span></summary>
+      <div class="body">
+       <div id="op-form">
+        <div class="grid-form op-grid">
+          <label class="field span-2"><span>Einsatz / Übung</span>
+            <input id="e-name" enterkeyhint="next"></label>
+          <label class="field"><span>Stationskürzel</span>
+            <input id="e-prefix" maxlength="6" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-describedby="e-prefix-help"></label>
+        </div>
+        <fieldset class="op-group">
+          <legend>Eigene Station</legend>
+          <div class="grid-form op-grid">
+            <div class="field"><label for="e-call">Stationsrufzeichen</label>
+              <div class="ac-wrap"><input id="e-call" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-describedby="e-call-info" title="Rufzeichen der eigenen Funkstation, z. B. die Klubstation; kann vom Rufzeichen des Operators abweichen"><div id="e-call-pop" class="ac-pop"></div></div>
+              <div class="ac-hints"><div id="e-call-info" class="ac-info" aria-live="polite"></div></div></div>
+            <label class="field span-2"><span>Standort der Station (Adresse)</span>
+              <input id="e-station" enterkeyhint="next" title="Wo das eigene Funkgerät steht (steht oben im Ausdruck)"></label>
+            <label class="field"><span>Für Stelle</span>
+              <input id="e-home" enterkeyhint="next" title="Für wen die Station arbeitet, z. B. Stab: Vorgabe für An (Eingang) bzw. Von (Ausgang)"></label>
+            <label class="field"><span>Frequenz MHz</span>
+              <input id="e-freq" class="mono" inputmode="decimal" enterkeyhint="next"></label>
+            <div class="field ac-field"><label for="e-via">Relais</label>
+              <div class="ac-wrap"><input id="e-via" class="mono call-input" placeholder="direkt" title="Relais-Rufzeichen; leer = direkt (ohne Relais)" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-describedby="e-via-info"><div id="e-via-pop" class="ac-pop"></div></div>
+              <div class="ac-hints"><div id="e-via-info" class="ac-info" aria-live="polite"></div></div></div>
+          </div>
+        </fieldset>
+        <fieldset class="op-group">
+          <legend>Am Gerät</legend>
+          <div class="grid-form op-grid">
+            <div class="field ac-field"><label for="e-operator">Operator</label>
+              <div class="ac-wrap"><input id="e-operator" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="done" aria-describedby="e-operator-info" title="Wer hier am Gerät aufnimmt; beim Schichtwechsel ändern"><div id="e-operator-pop" class="ac-pop"></div></div>
+              <div class="ac-hints"><div id="e-operator-info" class="ac-info" aria-live="polite"></div></div></div>
+          </div>
+        </fieldset>
+       </div>
+        <!-- outside #op-form: Enter in the last field goes on to the message form, not to this button -->
+        <div class="hdr-actions"><button type="button" id="btn-op-undo" disabled title="Einsatz wie beim Öffnen von „Einsatz“">Rückgängig</button></div>
+        <p class="hint">Änderungen gelten für neue Meldungen; gespeicherte behalten Stationsrufzeichen, Operator, Frequenz und Nummer vom Zeitpunkt der Aufnahme. Ein Operatorwechsel (Schichtwechsel) wird hier eingetragen.<br>
+          Tastatur: Tab/Enter nächstes Feld · ↓ Vorschläge, Enter übernimmt · Esc stellt das Feld zurück</p>
+        <p class="hint" id="e-prefix-help">Das Stationskürzel lässt sich nur ändern, solange der Einsatz noch keine Meldung hat.</p>
+        <p id="op-status" class="form-status" role="status"></p>
+      </div>
+    </details>
+
+    <div id="lock-banner" class="banner warn" role="status" hidden></div>
+
+    <form id="msg-form" autocomplete="off" novalidate>
+      <div class="form-head">
+        <span id="form-title" class="form-title">Neue Meldung</span>
+        <span id="form-number" class="mono accent" title="Die Nummer wird erst beim Speichern vergeben"></span>
+        <button type="button" id="btn-form-op" class="link sub" title="Station und Operator (Schichtwechsel): im Feld „Einsatz“"><span id="form-station"></span>Aufnahme <b id="form-op" class="mono"></b></button>
+        <span id="form-reply" class="chip" hidden></span>
+        <span class="spacer"></span>
+        <span id="draft-status" class="draft-status" role="status"></span>
+      </div>
+
+      <div class="row-flow">
+        <div class="field"><span id="m-dir-label">Richtung</span>
+          <div id="m-dir" class="radio-group" role="radiogroup" aria-labelledby="m-dir-label"></div></div>
+        <div class="field time-field" role="group" aria-labelledby="m-time-label"><span id="m-time-label" class="req">Empfangen am</span>
+          <div class="dt-pair">
+            <span id="m-date-name" class="sr-only">Datum</span><span id="m-time-name" class="sr-only">Uhrzeit</span>
+            <input id="m-date" class="mono dt-date" inputmode="numeric" placeholder="JJJJ-MM-TT" maxlength="10" spellcheck="false" enterkeyhint="next" aria-labelledby="m-time-label m-date-name" aria-describedby="m-time-err m-time-warn" title="Datum als JJJJ-MM-TT (Ortszeit). Zeigt jetzt, bis die Meldung begonnen wird; leer = heute">
+            <input id="m-time" class="mono dt-time" inputmode="numeric" placeholder="HH:MM" maxlength="5" spellcheck="false" enterkeyhint="next" aria-labelledby="m-time-label m-time-name" aria-describedby="m-time-err m-time-warn" title="Uhrzeit als HH:MM, 24 Stunden (Ortszeit). Zeigt jetzt, bis die Meldung begonnen wird; Datum und Uhrzeit leer = Zeitpunkt des Speicherns">
+            <select id="m-zone" hidden aria-label="Uhrzeit in der Stunde der Zeitumstellung: erste (MESZ) oder zweite (MEZ)" title="Diese Uhrzeit gibt es wegen der Zeitumstellung zweimal: zuerst Sommerzeit (MESZ), eine Stunde später Winterzeit (MEZ)">
+              <option value="MESZ">1. Mal (MESZ)</option><option value="MEZ">2. Mal (MEZ)</option></select>
+          </div>
+          <span id="m-time-err" class="ferr" data-field="time"></span><span id="m-time-warn" class="fwarn" data-warn="time" aria-live="polite"></span></div>
+        <div class="field channel-field"><span id="m-channel-label">Übermittlung</span>
+          <div id="m-channel" class="radio-group" role="radiogroup" aria-labelledby="m-channel-label"></div></div>
+      </div>
+
+      <div class="row-flow radio-row radio-only" role="group" aria-label="Funkverbindung">
+        <div class="field ac-field call-field"><label for="m-peer" id="m-peer-label">Funkstelle</label>
+          <div class="ac-wrap"><input id="m-peer" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-describedby="m-peer-warn m-peer-info" title="Übermittelnde Funkstation (Eingang) bzw. empfangende Funkstation (Ausgang)"><div id="m-peer-pop" class="ac-pop"></div></div>
+          <div class="ac-hints"><div id="m-peer-warn" class="fwarn" data-warn="peer" aria-live="polite"></div><div id="m-peer-info" class="ac-info" aria-live="polite"></div></div></div>
+        <label class="field freq-field"><span>Frequenz MHz</span>
+          <input id="m-freq" class="mono" inputmode="decimal" enterkeyhint="next" title="Komma oder Punkt, z. B. 145,500"></label>
+        <div class="field ac-field call-field"><label for="m-via">Relais</label>
+          <div class="ac-wrap"><input id="m-via" class="mono call-input" placeholder="direkt" title="Relais-Rufzeichen; leer = direkt (ohne Relais)" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-describedby="m-via-info"><div id="m-via-pop" class="ac-pop"></div></div>
+          <div class="ac-hints"><div id="m-via-info" class="ac-info" aria-live="polite"></div></div></div>
+      </div>
+
+      <div class="grid-form msg-grid">
+        <div class="field span-2"><label for="m-from" class="req">Von (Absender)</label>
+          <input id="m-from" enterkeyhint="next" spellcheck="false" aria-describedby="m-from-err" title="Wer die Meldung aufgibt, z. B. FF Floridsdorf, Einsatzleiter">
+          <div id="m-from-err" class="ferr" data-field="from"></div></div>
+        <div class="field span-2"><label for="m-to" class="req">An (Adressat)</label>
+          <input id="m-to" enterkeyhint="next" spellcheck="false" aria-describedby="m-to-err" title="Für wen die Meldung bestimmt ist, z. B. Stab">
+          <div id="m-to-err" class="ferr" data-field="to"></div></div>
+      </div>
+
+      <div class="row-flow">
+        <label class="field"><span>Meldungsart</span><select id="m-type"></select></label>
+        <div class="field"><span id="m-prio-label">Dringlichkeit</span>
+          <div id="m-prio" class="radio-group prio" role="radiogroup" aria-labelledby="m-prio-label"></div></div>
+        <label class="field span-2 lage-only stich-field" hidden><span>Stichzeit</span>
+          <input id="m-stichzeit" class="mono dt-time" inputmode="numeric" placeholder="HH:MM" maxlength="5" spellcheck="false" enterkeyhint="next" aria-describedby="m-stichzeit-err" title="Uhrzeit, auf die sich die Lagemeldung bezieht (die letzte vor der Meldung, auch vom Vortag)">
+          <span id="m-stichzeit-err" class="ferr" data-field="stichzeit"></span></label>
+      </div>
+
+      <div class="grid-form msg-grid">
+        <label class="field span-3"><span class="req">Betreff</span><input id="m-subject" enterkeyhint="next" aria-describedby="m-subject-err">
+          <span id="m-subject-err" class="ferr" data-field="subject"></span></label>
+        <div class="field ac-field span-2"><label for="m-loc">Ort</label>
+          <div class="ac-wrap"><input id="m-loc" enterkeyhint="next" spellcheck="false" aria-describedby="m-loc-info" title="Wo das gemeldete Ereignis ist: Adresse, Ort, Locator oder UTMREF"><div id="m-loc-pop" class="ac-pop"></div></div>
+          <div class="ac-hints loc-hints"><div id="m-loc-info" class="ac-info" aria-live="polite"></div></div></div>
+        <label class="field wide"><span class="req">Inhalt – wörtlich</span>
+          <textarea id="m-text" rows="4" enterkeyhint="enter" aria-describedby="m-text-err" title="Wortlaut, wie übermittelt. Enter = neue Zeile"></textarea>
+          <span id="m-text-err" class="ferr" data-field="text"></span></label>
+      </div>
+      <label class="check readback-check"><input type="checkbox" id="m-readback"> <span id="m-readback-label">Rücklesen erfolgt und vom Absender als richtig bestätigt</span></label>
+
+      <details id="m-more" class="more">
+        <summary>Weitere Felder: Bezug, Verteiler, Ursprung, Anmerkungen</summary>
+        <div class="row-flow">
+          <div class="field ref-field"><span id="m-ref-label">Bezug</span>
+            <div class="ref-line">
+              <select id="m-ref-kind" aria-label="Art des Bezugs"></select>
+              <input id="m-ref" class="mono" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="W1-003" enterkeyhint="next" aria-labelledby="m-ref-label" aria-describedby="m-ref-info">
+            </div>
+            <div class="ac-hints"><div id="m-ref-info" class="ac-info" aria-live="polite"></div></div></div>
+          <label class="field dist-field"><span>Verteiler</span><input id="m-distribution" placeholder="z. B. S3, S4" enterkeyhint="next"></label>
+        </div>
+        <div class="row-flow" role="group" aria-label="Ursprung (bei weitergegebenen Meldungen)">
+          <div class="field ac-field call-field"><label for="m-orig-station">Ursprungsstation</label>
+            <div class="ac-wrap"><input id="m-orig-station" class="mono call-input" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="next" aria-describedby="m-orig-station-info" title="Station, bei der die Meldung ursprünglich aufgegeben wurde"><div id="m-orig-station-pop" class="ac-pop"></div></div>
+            <div class="ac-hints"><div id="m-orig-station-info" class="ac-info" aria-live="polite"></div></div></div>
+          <div class="field ac-field place-field"><label for="m-orig-place">Ursprungsort</label>
+            <div class="ac-wrap"><input id="m-orig-place" enterkeyhint="next" spellcheck="false" aria-describedby="m-orig-place-info" title="Ort, an dem die Meldung ursprünglich aufgegeben wurde"><div id="m-orig-place-pop" class="ac-pop"></div></div>
+            <div class="ac-hints loc-hints"><div id="m-orig-place-info" class="ac-info" aria-live="polite"></div></div></div>
+          <label class="field time-field"><span>Aufgabezeit</span><input id="m-orig-filed" class="mono dt-time" inputmode="numeric" placeholder="HH:MM" maxlength="5" spellcheck="false" enterkeyhint="next" aria-describedby="m-orig-filed-err" title="Uhrzeit, zu der die Meldung bei der Ursprungsstation aufgegeben wurde (die letzte vor der Meldung, auch vom Vortag)">
+            <span id="m-orig-filed-err" class="ferr" data-field="origFiled"></span></label>
+        </div>
+        <label class="field"><span>Anmerkungen / weitere Veranlassung</span><input id="m-remarks" enterkeyhint="done"></label>
+      </details>
+
+      <div class="form-actions over-suggestions">
+        <span class="hint kbd-hint"><kbd>⇧</kbd>+<kbd>Enter</kbd> oder <kbd>Strg</kbd>+<kbd>Enter</kbd> speichert</span>
+        <span class="spacer"></span>
+        <button type="button" id="btn-discard" aria-keyshortcuts="Escape">Verwerfen</button>
+        <button type="submit" id="btn-save" class="primary" aria-keyshortcuts="Shift+Enter Control+Enter">Speichern</button>
+      </div>
+      <div id="warn-bar" class="bar warn" role="alert" hidden>
+        <span><b>Vor dem Speichern prüfen:</b> <span id="warn-list"></span></span>
+        <span class="spacer"></span>
+        <button type="button" id="btn-save-anyway" class="primary">Trotzdem speichern <span aria-hidden="true">⇧⏎</span></button>
+        <button type="button" id="btn-warn-back">Zurück zum Formular</button>
+      </div>
+      <div id="discard-bar" class="bar err" role="alert" hidden>
+        <b>Eingabe verwerfen?</b>
+        <span class="spacer"></span>
+        <button type="button" id="btn-discard-yes">Verwerfen</button>
+        <button type="button" id="btn-discard-no" class="primary">Weiter erfassen (Esc)</button>
+      </div>
+      <div id="form-status" class="form-status" role="status"></div>
+    </form>
+
+    <div id="book-summary" class="summary" aria-live="polite"></div>
+
+    <div class="toolbar filter-bar">
+      <div class="tabs" role="group" aria-label="Filter">
+        <button type="button" data-filter="all" aria-pressed="true">alle</button>
+        <button type="button" data-filter="open" aria-pressed="false">offen</button>
+        <button type="button" data-filter="in" aria-pressed="false">↓ Eingang</button>
+        <button type="button" data-filter="out" aria-pressed="false">↑ Ausgang</button>
+        <button type="button" data-filter="urgent" aria-pressed="false">Notfall + Dringend</button>
+      </div>
+      <span class="spacer"></span>
+      <input id="book-search" type="search" placeholder="Suche: Nummer, Referenz, Betreff, Station …" aria-label="Meldungen durchsuchen">
+      <!-- the map opens right below, above the list; it shows the list's
+           selection (filter, search). The form stays on top. -->
+      <button type="button" id="btn-map" aria-pressed="false" aria-controls="map-panel" title="Karte der Meldungen mit Ort (offline; zeigt die Auswahl des Meldebuchs)">Karte</button>
+    </div>
+
+    <section id="map-panel" class="no-print" hidden>
+      <div id="map" role="region" aria-label="Karte der Meldungen"></div>
+      <div id="map-unplaced" class="hint"></div>
+    </section>
+
+    <div id="book-status" class="log-status" role="status" aria-live="polite"></div>
+    <div class="table-wrap sticky-head">
+      <table class="book row-marks">
+        <caption class="sr-only">Meldungen</caption>
+        <thead><tr><th scope="col" title="Nummer, Zeit (Ortszeit Wien, MESZ/MEZ), Referenz und Bezug">Nr. · Zeit</th><th scope="col" title="Die andere Stelle: ↓ von (Eingang), ↑ an (Ausgang); die eigene Stelle nur, wo sie abweicht">Gegenstelle</th><th scope="col" title="Meldungsart, Dringlichkeit (wenn nicht Routine), Betreff und Inhalt">Betreff · Inhalt</th><th scope="col" title="Stand der Meldung">Status</th><th scope="col" title="Zeit und Operator der letzten Statusänderung (Ortszeit Wien)"><span class="sr-only">Zeit und Operator des Status</span></th><th scope="col"><span class="sr-only">Aktion</span></th></tr></thead>
+        <tbody id="book-body"></tbody>
+      </table>
+    </div>
+
+    <details class="misc" id="trash-panel">
+      <summary>Gelöschte Meldungen (Nummer bleibt vergeben)</summary>
+      <ul id="trash-list"></ul>
+    </details>
+  </section>
+
+  <!-- ===== Einzelne Meldung ===== -->
+  <section id="view-msg" class="no-print" hidden aria-labelledby="msg-title">
+    <div class="toolbar">
+      <button type="button" id="btn-msg-back">← Meldebuch</button>
+      <h2 id="msg-title" class="msg-number mono">Meldung</h2>
+    </div>
+    <div id="msg-detail"></div>
+  </section>
+
+</main>
+
+<!-- Help: "? Hilfe" in the header, F1, or ? outside text fields (shared
+     js/helpdialog.js). Esc or "Schließen" closes it; the focus goes back. -->
+<dialog id="help-dlg" class="help-dlg" aria-labelledby="help-title">
+  <div class="help-head">
+    <h2 id="help-title">Hilfe zur Meldeaufnahme</h2>
+    <a id="help-manual" href="../notfunk-anleitung/" target="_blank" rel="noopener">Ausführliche Anleitung (online)</a>
+    <button type="button" id="help-close" class="primary">Schließen (Esc)</button>
+  </div>
+  <div class="help-body">
+    <nav class="help-nav" aria-label="Abschnitte der Hilfe">
+      <a href="#h-kb">Tastatur</a><a href="#h-flow">Ablauf</a><a href="#h-who">Wer ist wer</a><a href="#h-where">Orte</a>
+      <a href="#h-when">Zeiten</a><a href="#h-conf">Bestätigungen</a><a href="#h-num">Nummern</a><a href="#h-prio">Dringlichkeit</a>
+    </nav>
+    <div class="help-content">
+      <section id="h-kb" aria-labelledby="h-kb-t">
+        <h3 id="h-kb-t">Tastatur</h3>
+        <dl class="kb">
+          <dt><kbd>Tab</kbd> / <kbd>Enter</kbd></dt><dd>nächstes Feld; <kbd>⇧</kbd>+<kbd>Tab</kbd> zurück. Im Inhalt macht <kbd>Enter</kbd> eine neue Zeile.</dd>
+          <dt><kbd>1</kbd>–<kbd>7</kbd>, <kbd>←</kbd> <kbd>→</kbd></dt><dd>in Richtung, Übermittlung und Dringlichkeit: Ziffer wählt die n-te Möglichkeit, Pfeiltasten wechseln</dd>
+          <dt><kbd>↓</kbd> <kbd>↑</kbd>, <kbd>Enter</kbd></dt><dd>in Funkstelle, Relais, Ort, Ursprungsstation und Ursprungsort: Vorschläge durchgehen, <kbd>Enter</kbd> übernimmt den markierten. Ohne Markierung übernimmt <kbd>Enter</kbd> nur einen Vorschlag, der das Getippte vervollständigt; sonst bleibt der getippte Text.</dd>
+          <dt><kbd>Leertaste</kbd></dt><dd>Kästchen setzen oder löschen (Rücklesen)</dd>
+          <dt><kbd>⇧</kbd>+<kbd>Enter</kbd>, <kbd>Strg</kbd>+<kbd>Enter</kbd></dt><dd>speichern, aus jedem Feld (am Mac auch <kbd>⌘</kbd>+<kbd>Enter</kbd>). Fehlt etwas, steht der Hinweis direkt am Feld. Gibt es nur Hinweise (z. B. Funkstelle fehlt), fragt das Formular nach; noch einmal <kbd>⇧</kbd>+<kbd>Enter</kbd> speichert trotzdem.</dd>
+          <dt><kbd>Esc</kbd></dt><dd>schließt zuerst offene Vorschläge. Danach bei ausgefülltem Formular: fragt „Eingabe verwerfen?“; noch einmal <kbd>Esc</kbd> heißt weiter erfassen. Nach dem Verwerfen ist „Rückgängig“ möglich. In einem Feld von „Einsatz“: stellt den Wert zurück, den es vor dem Bearbeiten hatte. In dieser Hilfe: schließt die Hilfe.</dd>
+          <dt><kbd>F1</kbd>, <kbd>?</kbd></dt><dd>diese Hilfe öffnen (<kbd>?</kbd> nur außerhalb von Textfeldern). Die Eingabe bleibt, wie sie ist.</dd>
+        </dl>
+      </section>
+      <section id="h-flow" aria-labelledby="h-flow-t">
+        <h3 id="h-flow-t">Ablauf</h3>
+        <ol class="flow-list">
+          <li><b>Wortlaut aufnehmen:</b> Inhalt wörtlich, wie übermittelt.</li>
+          <li><b>Rücklesen bestätigen:</b> beim Eingang rücklesen, der Absender bestätigt; beim Ausgang liest die Funkstelle zurück.</li>
+          <li><b>Meldung sichern:</b> Speichern vergibt die Notfunk-Nummer.</li>
+          <li><b>Übergabe bzw. Übertragung dokumentieren:</b> bei der Meldung (Klick auf ihre Zeile im Meldebuch) „übergeben“ / „übertragen“ und die Bestätigung eintragen.</li>
+          <li><b>Externe Referenz ergänzen:</b> die Nummer, die die Meldesammelstelle zurückmeldet.</li>
+        </ol>
+        <p>Ein Ausgang zeigt im Meldebuch, ob er nur <i>zur Übertragung</i> vorliegt, <i>übertragen</i> wurde oder der <i>Empfang bestätigt</i> ist. „Übergeben“ oder „übertragen“ heißt nie, dass ein Auftrag im Inhalt erledigt ist.</p>
+        <p>Der halb ausgefüllte Entwurf wird laufend zwischengesichert („Entwurf gesichert“ oben im Formular) und kommt nach einem Neuladen zurück. Er ist keine gespeicherte Meldung und kann verloren gehen; steht dort „Entwurf nicht gesichert!“ oder ein Hinweis zum Entwurf, ist er gerade nicht im Speicher. Vor einem Update fertige Meldungen speichern und wichtige unfertige Eingaben außerhalb des Meldebuchs kopieren; scheitert das Sichern, wartet das Update („Update wartet: Eingabe klären“), bis die Eingabe geklärt ist.</p>
+      </section>
+      <section id="h-who" aria-labelledby="h-who-t">
+        <h3 id="h-who-t">Wer ist wer</h3>
+        <dl class="kb">
+          <dt>Von (Absender)</dt><dd>wer die Meldung fachlich aufgibt. <span class="ex">FF Floridsdorf, Einsatzleiter</span></dd>
+          <dt>An (Adressat)</dt><dd>für wen sie bestimmt ist. <span class="ex">Stab</span> <span class="ex">S4</span> Vorgabe: die „Für Stelle“ des Einsatzes.</dd>
+          <dt>Für Stelle</dt><dd>für wen die eigene Station arbeitet <span class="ex">Stab</span>; im Einsatz eingetragen. Steht bei Eingängen automatisch bei An, bei Ausgängen bei Von.</dd>
+          <dt>Funkstelle</dt><dd>die Funkstation, von der die Meldung gehört wurde (Eingang) bzw. an die sie gesendet wird (Ausgang). <span class="ex">OE1ABC</span> Unbekannte Stationen einfach eintippen.</dd>
+          <dt>Ursprungsstation</dt><dd>Station, bei der die Meldung ursprünglich aufgegeben wurde; bei Weitergaben oft nicht die Funkstelle.</dd>
+          <dt>Stationsrufzeichen</dt><dd>das Rufzeichen der eigenen Funkstation <span class="ex">OE1XKS</span>, z. B. einer Klubstation; im Einsatz eingetragen und bei jeder Meldung mitgespeichert. Kann vom Rufzeichen des Operators abweichen.</dd>
+          <dt>Operator</dt><dd>wer hier am Gerät aufnimmt („Aufnahme“ oben im Formular). Beim Schichtwechsel im Feld „Einsatz“ ändern; gespeicherte Meldungen behalten ihren Operator.</dd>
+        </dl>
+      </section>
+      <section id="h-where" aria-labelledby="h-where-t">
+        <h3 id="h-where-t">Orte</h3>
+        <dl class="kb">
+          <dt>Ort</dt><dd>wo das gemeldete Ereignis ist. <span class="ex">Brünner Straße 68</span> <span class="ex">JN88EG</span> Ein Vorschlag ergänzt Postleitzahl und Locator; der Inhalt der Meldung bleibt unverändert.</dd>
+          <dt>Ursprungsort</dt><dd>wo die Meldung ursprünglich aufgegeben wurde; kann vom Ereignisort abweichen.</dd>
+          <dt>📍 Standort</dt><dd>oben in der Kopfzeile: die Offline-Standortsuche Wien (Adresse, Ort, PLZ, Koordinaten, Locator, UTMREF), zum Prüfen oder Umrechnen einer Ortsangabe; das Formular bleibt, wie es ist.</dd>
+          <dt>Standort der Station (Adresse)</dt><dd>wo das eigene Funkgerät steht <span class="ex">Lichtinsel 12 Floridsdorf</span>; im Einsatz eingetragen, gilt für alle Meldungen.</dd>
+        </dl>
+      </section>
+      <section id="h-when" aria-labelledby="h-when-t">
+        <h3 id="h-when-t">Zeiten</h3>
+        <dl class="kb">
+          <dt>Empfangen am / Gesendet am</dt><dd>wann die Meldung übermittelt wurde, in Ortszeit: Datum als <span class="ex">2026-10-08</span>, Uhrzeit im 24-Stunden-Format als <span class="ex">14:05</span> (auch <span class="ex">20261008</span> und <span class="ex">1405</span>). Ein Klick ins Feld (oder 📅 / 🕒) öffnet einen Kalender bzw. eine Uhrzeit-Auswahl. Datum und Uhrzeit zeigen von Anfang an jetzt und laufen mit der Uhr mit (grau), bis die Meldung begonnen wird; dann bleiben sie stehen und sind korrigierbar. Bei Nachträgen vom Papier das tatsächliche Datum und die Uhrzeit eintragen. In der Nacht der Zeitumstellung im Oktober gibt es 02:00–02:59 zweimal: dann fragt das Formular, ob das 1. Mal (Sommerzeit) oder das 2. Mal (Winterzeit) gemeint ist.</dd>
+          <dt>Erfasst am</dt><dd>wann die Meldung hier gespeichert wurde; automatisch.</dd>
+          <dt>Aufgabezeit</dt><dd>wann die Meldung bei der Ursprungsstation aufgegeben wurde; nur die Uhrzeit (die letzte vor der Meldung, nach Mitternacht also vom Vortag).</dd>
+          <dt>Stichzeit</dt><dd>nur bei Lagemeldungen: auf welche Uhrzeit sich die Lage bezieht (wie die Aufgabezeit).</dd>
+        </dl>
+      </section>
+      <section id="h-conf" aria-labelledby="h-conf-t">
+        <h3 id="h-conf-t">Bestätigungen</h3>
+        <dl class="kb">
+          <dt>Rücklesen</dt><dd>der Wortlaut wurde zurückgelesen und als richtig bestätigt (Eingang: vom Absender, Ausgang: von der Funkstelle).</dd>
+          <dt>Empfang bestätigt</dt><dd>Ausgang: die Funkstelle hat den Empfang bestätigt.</dd>
+          <dt>Übergeben / übernommen</dt><dd>Eingang: an die Meldesammelstelle übergeben, von ihr übernommen (mit Name und Zeitpunkt).</dd>
+          <dt>Fehlversuch / Rückfrage</dt><dd>Ausgang: eine Übertragung hat nicht geklappt oder es gibt eine Rückfrage; wird mit Zeit vermerkt.</dd>
+        </dl>
+      </section>
+      <section id="h-num" aria-labelledby="h-num-t">
+        <h3 id="h-num-t">Nummern</h3>
+        <dl class="kb">
+          <dt>Notfunk-Nr.</dt><dd>unsere laufende Nummer, z. B. <span class="ex">W1-007</span>: lückenlos, wird nie doppelt vergeben, auch nicht nach Löschen.</dd>
+          <dt>Referenz Meldesammelstelle</dt><dd>die Nummer, unter der die Meldesammelstelle die Meldung führt (Geschäftsbuch). Wird bei der Meldung nachgetragen, wenn sie zurückgemeldet wird. Nicht mit der Notfunk-Nr. verwechseln.</dd>
+          <dt>Bezug</dt><dd>Antwort, Korrektur oder Ergänzung zu einer anderen Meldung: deren Nummer.</dd>
+        </dl>
+      </section>
+      <section id="h-prio" aria-labelledby="h-prio-t">
+        <h3 id="h-prio-t">Dringlichkeit</h3>
+        <dl class="kb">
+          <dt>Routine</dt><dd>alles, was in der normalen Reihenfolge bearbeitet wird.</dd>
+          <dt>Dringend</dt><dd>soll vor Routine-Meldungen übermittelt und bearbeitet werden.</dd>
+          <dt>Notfall</dt><dd>Gefahr für Leib und Leben oder unmittelbar drohender großer Schaden: sofort.</dd>
+        </dl>
+        <p class="hint">Vorläufig: die Stufen sind noch mit der Meldesammelstelle abzustimmen.</p>
+      </section>
+    </div>
+  </div>
+</dialog>
+
+<footer class="no-print">
+  Läuft vollständig offline im Browser; alle Daten bleiben auf diesem Gerät (<span id="st-backend">?</span>).
+  Regelmäßig sichern (JSON). · Version: <span id="st-version">dev</span>
+  <!-- Filled by js/app.js with the link to the source code (repoLink()). -->
+  <span id="st-source" class="online-only"></span>
+  <span id="offline-file-link"> · <a href="notfunk-offline.html" download="notfunk-meldebuch-offline.html">Offline-Datei</a></span>
+  <span class="lists-line"> · Rufzeichenlisten (gemeinsam für alle Tools): <button type="button" id="btn-lists-open" class="link" aria-haspopup="dialog">verwalten…</button> <span id="lists-summary"></span></span>
+  <details class="sources">
+    <summary>Datenquellen und Lizenzen (alle offline enthalten)</summary>
+    <dl>
+      <dt>Funk</dt>
+      <dd class="src-list"><span id="st-callbook">Rufzeichenliste wird geladen…</span><span id="st-repeaters">Relaisliste wird geladen…</span></dd>
+      <dt>Stadt Wien</dt>
+      <dd class="src-list"><span id="st-location-wien">Wien-Daten werden geladen…</span></dd>
+      <dt>Österreich</dt>
+      <dd class="src-list"><span id="st-location-at"></span></dd>
+      <dt>Orte</dt>
+      <dd class="src-list"><span id="st-location-osm"></span></dd>
+      <!-- Hidden in the file:// bundle, where it would not resolve. -->
+      <dt id="data-sources-term"></dt>
+      <dd id="data-sources-link"><a href="../data-sources/">Alle Datenquellen und Lizenzen</a> (online)</dd>
+    </dl>
+  </details>
+  <!-- NOTFUNK-LICENSES -->
+</footer>
+
+<script>
+  // If the app code fails to load (flaky connection on the very first
+  // visit, before it is cached), say so instead of showing a dead page.
+  function notfunkLoadFailed() {
+    if (window.NOTFUNK_STARTED) return;
+    var b = document.getElementById('banner');
+    b.textContent = 'Das Werkzeug konnte nicht vollständig geladen werden (Verbindung?). Bitte die Seite neu laden – danach ist es offline verfügbar.';
+    b.hidden = false;
+  }
+  setTimeout(notfunkLoadFailed, 8000);
+  window.addEventListener('error', function (e) {
+    if (e.target && e.target.tagName === 'SCRIPT') notfunkLoadFailed();
+  }, true);
+</script>
+<!-- NOTFUNK-SCRIPT-BEGIN -->
+<!-- build-info.js (generated by scripts/build_notfunk.py): commit + content
+     hash for the footer; missing on a dev server without a build = "dev". -->
+<script src="build-info.js"></script>
+<script type="module" src="js/app.js"></script>
+<!-- NOTFUNK-SCRIPT-END -->
+</body>
+</html>

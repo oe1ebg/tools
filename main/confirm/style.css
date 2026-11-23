@@ -1,0 +1,446 @@
+/* Confirmation log (Bestätigungsverkehr). Colour tokens, color-scheme,
+   [hidden] and .sr-only come from the shared tools.css. */
+
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-ui);
+  font-size:15px;
+  line-height:1.4;
+}
+table.log td .date{ font-size:12.5px; color:var(--text-dim); }
+
+main{ max-width:1200px; margin:0 auto; padding:1em; }
+/* view titles (Logs, Standortsuche) */
+.toolbar h2{ font-size:18px; margin:0; letter-spacing:.03em; }
+.toolbar.tight{ margin-bottom:.5em; }
+.toolbar.form-foot{ margin:1em 0 0; }
+.grow{ flex:1; min-width:16em; }
+.grow-sm{ flex:1; min-width:10em; }
+.grid-form.spaced{ margin-top:.6em; }
+
+.ac-info button.link{ font-size:13.5px; }
+.ac-info.prefilled{ color:var(--accent-text); font-style:italic; }
+/* fixed-height slot for the info lines in the entry form: appearing or
+   changing hints never move any input (full text in the title) */
+.ac-hints{ width:0; min-width:100%; height:calc(1.35 * 13.5px); overflow:hidden; font-size:13.5px; line-height:1.35; }
+.ac-hints .ac-info{ display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:1; overflow:hidden; overflow-wrap:anywhere; }
+/* wide screens: the place's line may run on under the fields next to it
+   (they have no hints), instead of being cut at the field's width */
+@media (min-width: 641px){
+  #entry-form .ac-field .ac-hints:has(.loc-chip){ overflow:visible; z-index:1; }
+  #entry-form .loc-chip{ display:block; white-space:nowrap; width:max-content; max-width:calc(100vw - 6em); overflow:hidden; text-overflow:ellipsis; }
+  #entry-form .loc-hints{ width:max-content; max-width:calc(100vw - 6em); }
+  #entry-form .loc-hints .loc-chip{ flex:0 1 auto; }
+}
+/* the PLZ note follows the location's line (js/app.js updatePlzNote) */
+#entry-form .loc-hints{ display:flex; gap:.6em; }
+/* (explicit widths: a line-clamped box counts as 0 wide in a flex row) */
+#entry-form .loc-hints .loc-chip{ min-width:0; flex:1 1 0; }
+#entry-form .loc-hints .plz-note{ display:block; flex:none; width:max-content; min-width:0; white-space:nowrap; }
+#entry-form .plz-note:empty{ display:none; }
+/* one line: a warning about the callsign wins over its info */
+.ac-hints:has(#call-warn:not(:empty)) #call-info{ display:none; }
+.ac-hints .ac-info:empty{ display:none; }
+#call-info, #call-warn{ -webkit-line-clamp:1; }
+
+
+/* ---------- events view ---------- */
+.tabs{ display:inline-flex; border:1px solid var(--line); border-radius:4px; overflow:hidden; }
+.tabs button{ border:none; border-radius:0; background:none; }
+.tabs button.active{ background:var(--accent-soft); color:var(--accent-text); }
+#event-list{ list-style:none; margin:0; padding:0; display:grid; gap:.6em; }
+.event-card{
+  border:1px solid var(--line); border-radius:6px; padding:.7em 1em;
+  display:flex; gap:1em; align-items:center; flex-wrap:wrap;
+  background:var(--bg-raised);
+}
+.event-card .info{ flex:1; min-width:16em; }
+.event-card.clickable{ cursor:pointer; }
+.event-card.clickable:hover, .event-card.clickable:focus-visible{ border-color:var(--accent); outline:none; }
+.event-card .t{ font-weight:600; font-size:17px; }
+.event-card .meta{ color:var(--text-dim); font-size:13.5px; }
+.event-card .actions{ display:flex; gap:.4em; flex-wrap:wrap; }
+.empty{ color:var(--text-dim); padding:2em; text-align:center; }
+.panel{
+  border:1px solid var(--line); border-radius:6px; padding:1em; margin-bottom:1em;
+  background:var(--bg-raised);
+}
+.grid-form{ display:flex; flex-wrap:wrap; gap:.6em 1em; align-items:flex-end; }
+/* Long option texts ("Vorlage") must not widen the page at phone widths. */
+.grid-form > .field{ max-width:100%; }
+.grid-form select{ max-width:100%; }
+/* Header forms: a grid of equal columns instead of free wrapping, so the
+   groups (Station / Betriebsart / Verbindung) line up. A column (13.5em)
+   holds a 20-character locator at the 15px field size; callsigns, MHz,
+   CTCSS/DCS take one, QTH, Relais
+   and Weg two (`span` in HEADER_FIELDS), headings and the mode chips the
+   whole row. Inputs fill their cell; the info line wraps to it. Top-aligned
+   like the entry form: hints never move inputs. */
+#log-header, #new-header{ display:grid; grid-template-columns:repeat(auto-fill, minmax(13.5em, 1fr)); align-items:start; }
+#log-header > *, #new-header > *{ min-width:0; }
+#log-header > .sub, #new-header > .sub, #log-header > .wide, #new-header > .wide{ grid-column:1 / -1; }
+#log-header > .span-2, #new-header > .span-2{ grid-column:span 2; }
+#log-header.route-rpt > .sig-start, #new-header.route-rpt > .sig-start{ grid-column-start:1; }
+#log-header input:not([type]), #new-header input:not([type]){ width:100%; box-sizing:border-box; }
+/* callsigns as wide as the longest: 12 characters ("PP/AA0BBB/SS"), a
+   repeater's 6 */
+#log-header input.call-input, #new-header input.call-input{ width:calc(12ch + 1em); max-width:100%; }
+#log-header input[data-hkey="repeaterCall"], #new-header input[data-hkey="repeaterCall"]{ width:calc(6ch + 1.6em); }
+/* phones: two columns; the locator gets a whole row (narrowSpan) */
+@media (max-width: 640px){
+  #log-header, #new-header{ grid-template-columns:repeat(2, minmax(0, 1fr)); }
+  #log-header > .nspan-2, #new-header > .nspan-2{ grid-column:span 2; }
+}
+/* "+ Neues Log": title and template side by side, stacked on phones */
+.grid-form.new-meta{ display:grid; grid-template-columns:minmax(0, 3fr) minmax(0, 2fr); }
+.new-meta > .field{ min-width:0; }
+.new-meta input, .new-meta select{ width:100%; box-sizing:border-box; }
+@media (max-width: 640px){ .grid-form.new-meta{ grid-template-columns:minmax(0, 1fr); } }
+/* "+ Neues Log": sample line of the chosen template, same columns as the log */
+.tpl-preview{ margin-top:.8em; border:1px dashed var(--line); border-radius:4px; padding:.5em .7em; background:var(--bg); }
+.tpl-preview > summary{ cursor:pointer; font-size:13.5px; color:var(--text-dim); }
+.tpl-preview[open] > summary{ margin-bottom:.4em; }
+.tpl-preview .scroll{ overflow-x:auto; }
+.tpl-preview table{ border-collapse:collapse; font-size:13.5px; }
+.tpl-preview th{ text-align:left; font-weight:500; font-size:12.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-dim); padding:.15em .8em .25em 0; white-space:nowrap; border-bottom:1px solid var(--line); }
+.tpl-preview td{ padding:.25em .8em .1em 0; white-space:nowrap; color:var(--text-dim); }
+.tpl-preview .tpl{ color:var(--accent-text); }
+.call-input, .grid-input{ font-family:var(--font-mono); }
+.grid-form .sub{ width:100%; font-size:12.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.06em; margin-top:.4em; }
+.grid-form .sub .sub-note{ text-transform:none; letter-spacing:0; }
+.grid-form .field.wide{ width:100%; }
+.hint.adif-mode{ font-family:var(--font-mono); font-size:12.5px; margin-top:.2em; text-transform:none; letter-spacing:0; min-height:1.35em; }
+
+/* ---------- log view ---------- */
+/* title row: the title takes the room the buttons used to take */
+#log-title{ font-size:18px; font-weight:600; border:1px solid transparent; background:none; min-width:10em; flex:1; text-overflow:ellipsis; }
+/* "Exportieren" menu */
+.menu{ position:relative; }
+.menu-list{ position:absolute; right:0; top:calc(100% + 4px); z-index:20; min-width:17em; display:flex; flex-direction:column; gap:1px;
+  padding:.35em; background:var(--bg); border:1px solid var(--line-strong); border-radius:6px; box-shadow:0 6px 18px #0003; }
+.menu-list > button{ text-align:left; border:none; background:none; padding:.45em .6em; }
+.menu-list > button:hover:not(:disabled), .menu-list > button:focus-visible{ background:var(--accent-soft); }
+.menu-list hr{ border:none; border-top:1px solid var(--line); margin:.25em 0; width:100%; }
+.menu-csv{ display:flex; flex-wrap:wrap; gap:.3em .8em; align-items:center; padding:.3em .3em .45em; border-bottom:1px solid var(--line); margin-bottom:.2em; }
+.menu-csv label.check{ font-size:13.5px; color:var(--text-dim); }
+#log-title:hover{ border-color:var(--line); }
+.stat{ font-family:var(--font-mono); font-size:14.5px; color:var(--text-dim); }
+.stat b{ color:var(--text); font-size:17px; }
+details.hdr{ margin-bottom:1em; border:1px solid var(--line); border-radius:6px; background:var(--bg-raised); }
+details.hdr > summary{ cursor:pointer; padding:.55em 1em; list-style:none; display:flex; gap:.6em; align-items:center; flex-wrap:wrap; }
+details.hdr > summary::-webkit-details-marker{ display:none; }
+details.hdr > summary::before{ content:"▸"; color:var(--text-dim); }
+details.hdr[open] > summary::before{ content:"▾"; }
+details.hdr .body{ padding:0 1em 1em; }
+.hdr-actions{ margin-top:1em; }
+.hdr-sum{ font-family:var(--font-mono); font-size:14.5px; }
+
+#entry-form{
+  border:2px solid var(--accent); border-radius:8px; padding:.6em .9em; margin-bottom:1em;
+  background:var(--bg-raised);
+  /* its layers (suggestions) stay below the page header (z-index 10), and
+     an open suggestion list lies over the log table below the form */
+  position:relative; z-index:3;
+}
+#entry-form.editing{ border-color:var(--warn); }
+/* top-aligned: every caption is one line, so the inputs line up. The hints
+   under a field (callsign, place) sit in the gap below it, which is one
+   hint line high between all rows: the rows are evenly spaced, and a hint
+   appearing never moves anything */
+#entry-form{ --hint-h:calc(1.35 * 13.5px); }
+#entry-form .row{ display:flex; flex-wrap:wrap; gap:calc(var(--hint-h) + .3em) .9em; align-items:flex-start; }
+#entry-form .field{ position:relative; }
+#entry-form .ac-hints{ position:absolute; top:100%; left:0; margin-top:.1em; }
+#entry-form .ac-hints[aria-hidden="true"]{ display:none; }
+#entry-form label.field, #entry-form div.field{ gap:.1em; }
+/* AT-Alert and the fields its answer shows (js/app.js placeChains()): the
+   block is as wide as AT-Alert; the fields under it end at its right edge
+   and reach left (.chain-more counts as 0 wide: contain) */
+#entry-form .field-chain{ display:flex; flex-direction:column; row-gap:calc(var(--hint-h) + .3em); }
+#entry-form .chain-more{ contain:inline-size; display:flex; justify-content:flex-end; gap:calc(var(--hint-h) + .3em) .9em; }
+#entry-form .chain-more > .field{ flex:none; width:max-content; }
+#entry-form #f-fields > .field-chain.chain-left{ flex:1 1 auto; }
+/* wide screens: the room the short fields (time, callsigns, RST) leave
+   goes to Name and the place (QTH / Standort) */
+@media (min-width: 641px){
+  #entry-form .row > #f-fields{ flex:1 1 24em; min-width:0; }
+  /* a few fields (Name, RST, QTH) stay on one line together: the note
+     wraps first. Many fields (Zivilschutz) may wrap. */
+  #entry-form #f-fields:not(:has(> :nth-child(5))){ flex-wrap:nowrap; min-width:min-content; }
+  #entry-form #f-fields > .field[data-field="name"]{ flex:1 1 9em; min-width:7em; }
+  #entry-form #f-fields > .field[data-field="name"] input{ width:100%; box-sizing:border-box; }
+  #entry-form #f-fields > .ac-field{ flex:2 1 14em; min-width:10em; }
+  #entry-form #f-fields > .ac-field .ac-wrap, #entry-form #f-fields > .ac-field input{ width:100%; box-sizing:border-box; }
+  /* the note: free text, a line of its own (readable) */
+  #entry-form .row > label.field:has(#f-note){ flex:1 1 100%; }
+  #f-note{ width:100%; box-sizing:border-box; }
+}
+#entry-form .chain-left .chain-more{ justify-content:flex-start; flex-wrap:wrap; }
+#entry-form .chain-left .chain-more > .field{ flex:0 1 auto; width:auto; }
+.entry-actions{ display:flex; flex-wrap:wrap; gap:.4em .6em; align-items:center; margin-top:.5em; padding-top:.6em; border-top:1px solid var(--line); }
+.entry-actions .kbd-hint{ flex:1 1 24em; margin:0; }
+.entry-actions #form-status{ margin:0; min-height:0; }
+.entry-actions #form-status:empty{ display:none; }
+kbd{ font:12.5px var(--font-mono); border:1px solid var(--line-strong); border-bottom-width:2px; border-radius:3px; padding:0 .3em; }
+/* last action ("gespeichert", "gelöscht" …), always in the same place above the log */
+.log-status{ min-height:1.7em; margin:0 0 .4em; font-size:14.5px; display:flex; flex-wrap:wrap; gap:.3em; align-items:center; }
+.log-status .ok-mark{ color:var(--ok); font-weight:700; }
+.log-status button.link{ font-size:14.5px; }
+/* the row just saved/restored, for a moment */
+table.log tr.fresh td{ background:var(--accent-soft); }
+table.log tr.fresh td:first-child{ box-shadow:inset 3px 0 0 var(--ok); }
+@media (prefers-reduced-motion: no-preference){ table.log tr td{ transition:background-color 1.2s; } }
+#entry-form .field > span, #entry-form div.field > label{ white-space:nowrap; }
+.form-actions .rpt-line-row{ gap:.6em; }
+/* operator comment mode ("!" in the callsign field): check-in fields hidden */
+#entry-form.comment-mode .ci-only, #entry-form:not(.comment-mode) .c-only{ display:none; }
+/* Check-in | Kommentar: a control of the form, larger than the header's */
+.toggle.entry-mode{ margin-bottom:.5em; vertical-align:middle; }
+.mode-warn{ color:var(--warn); }
+.toggle.entry-mode button{ font-size:14px; padding:.25em .9em; min-height:28px; }
+#entry-form.comment-mode:not(.editing){ border-style:dashed; }
+#f-ctext{ width:100%; font-size:16px; padding:.25em .4em; }
+.c-text{ flex:1; min-width:16em; }
+#f-call{
+  font-family:var(--font-mono); font-size:24px; font-weight:600;
+  /* the longest callsign: "PP/AA0BBB/SS", 12 characters */
+  text-transform:uppercase; width:calc(12ch + 1em); box-sizing:border-box; padding:.2em .4em;
+}
+#f-call::placeholder{ font-family:var(--font-ui); font-size:14.5px; font-weight:400; text-transform:none; color:var(--text-dim); }
+/* RST gegeben / erhalten: one group, two narrow fields (59, 599 for CW;
+   placeholder "geg" / "erh"; on phones wider, see below); "/" goes from the first to the second */
+.rst-inputs{ display:flex; gap:.4em; }
+.rst-inputs input{ width:calc(3ch + .8em); padding-left:.3em; padding-right:.3em; box-sizing:border-box; font-family:var(--font-mono); }
+.rst-inputs input::placeholder{ font-family:var(--font-ui); }
+/* "19:16:42 MESZ": the time and a zone of up to 4 letters (a typed date scrolls) */
+#f-time{ font-family:var(--font-mono); width:calc(13ch + 1.4em); box-sizing:border-box; }
+.clock{ font-family:var(--font-mono); font-size:13.5px; color:var(--text-dim); }
+.radio-group.grade label{ min-width:2.1em; text-align:center; font-family:var(--font-mono); font-weight:600; }
+/* a light tint for what an answer means, as in the log (green good, amber
+   middling, red bad); the chosen one keeps the accent outline and gets a
+   stronger tint. The text says it too (the number, the word). */
+.radio-group.grade label[data-value="1"], .radio-group.grade label[data-value="2"],
+.radio-group[data-key="atalert"] label[data-value="ja"]{ background:var(--ok-soft); }
+.radio-group.grade label[data-value="3"]{ background:var(--warn-soft); }
+/* the same marks as in the log, as shapes (not read out: the word says it) */
+.radio-group[data-key="atalert"] label[data-value="ja"] span::before{ content:"✓ "; content:"✓ " / ""; font-weight:700; }
+.radio-group[data-key="atalert"] label[data-value="nein"] span::before{ content:"✕ "; content:"✕ " / ""; font-weight:700; }
+.radio-group.grade label[data-value="4"], .radio-group.grade label[data-value="5"],
+.radio-group[data-key="atalert"] label[data-value="nein"]{ background:var(--err-soft); }
+.radio-group.grade label:has(input:checked), .radio-group[data-key="atalert"] label:has(input:checked){ box-shadow:inset 0 0 0 1px var(--accent); }
+.radio-group.grade label[data-value="1"]:has(input:checked), .radio-group.grade label[data-value="2"]:has(input:checked),
+.radio-group[data-key="atalert"] label[data-value="ja"]:has(input:checked){ background:#2e7d3240; }
+.radio-group.grade label[data-value="3"]:has(input:checked){ background:#f9a82550; }
+.radio-group.grade label[data-value="4"]:has(input:checked), .radio-group.grade label[data-value="5"]:has(input:checked),
+.radio-group[data-key="atalert"] label[data-value="nein"]:has(input:checked){ background:#c6282840; }
+#form-status{ font-size:14.5px; }
+#form-status.ok{ color:var(--ok); }
+#form-status.err{ color:var(--err); font-weight:600; }
+.cb-name{ font-family:var(--font-ui); font-weight:400; font-size:12.5px; color:var(--text-dim); white-space:normal; }
+#repeat-box{
+  margin-top:.7em; padding:.6em .8em; border-radius:6px;
+  border:2px solid var(--warn); background:var(--warn-soft);
+}
+#repeat-box .head{ font-weight:700; color:var(--warn); margin-bottom:.3em; }
+#repeat-box ul{ margin:.2em 0 .4em; padding-left:1.2em; font-size:14.5px; }
+.edit-tag{ font-weight:700; color:var(--warn); }
+
+.table-wrap{ overflow-x:auto; border:1px solid var(--line); border-radius:6px; position:relative; } /* positioned: hidden button texts (.sr-only) stay inside the scrolling */
+table.log{ width:100%; border-collapse:collapse; font-size:14.5px; }
+table.log th, table.log td{ padding:.35em .6em; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
+/* column names: .sticky-head (the shared stylesheet) */
+table.log th{ font-size:12.5px; text-transform:uppercase; letter-spacing:.05em; }
+table.log td.mono{ font-family:var(--font-mono); white-space:nowrap; }
+table.log td.call{ font-family:var(--font-mono); font-weight:600; font-size:14px; white-space:nowrap; }
+table.log tr.match td{ background:var(--warn-soft); }
+table.log td.act{ white-space:nowrap; text-align:right; }
+/* location source: own fixed-width column, so labels never shift the text */
+.src{ display:inline-block; min-width:3.8em; text-align:center; font-size:12.5px; line-height:1.5; padding:0 .3em; border-radius:3px; border:1px solid var(--line); color:var(--text-dim); white-space:nowrap; }
+.src.src-search{ color:var(--ok); border-color:currentColor; }
+.src.src-callbook{ color:var(--warn); border-color:currentColor; border-style:dashed; }
+.src.src-previous{ color:var(--accent-dim); border-color:currentColor; }
+table.log td.act button{ padding:.1em .45em; font-size:13.5px; }
+/* operator comments / log markers: full-width banner rows */
+table.log tr.marker td{
+  background:var(--accent-soft); padding:.35em .6em;
+}
+table.log tr.marker.row-editing td{ background:var(--warn-soft); }
+table.log tr.marker.row-editing .marker-row::before{ content:"✎"; content:"✎" / "wird bearbeitet"; color:var(--warn); font-weight:700; }
+.marker-row{ display:flex; flex-wrap:wrap; gap:.3em .9em; align-items:baseline; }
+.marker-time{ font-family:var(--font-mono); white-space:nowrap; }
+.marker-cat{ font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--accent-text);
+  border:1px solid var(--accent); border-radius:4px; padding:0 .4em; white-space:nowrap; }
+.marker-text{ flex:1; min-width:12em; font-weight:500; }
+.marker-op{ font-family:var(--font-mono); font-size:13.5px; color:var(--text-dim); white-space:nowrap; }
+.marker-row .act{ white-space:nowrap; }
+.marker-row .act button{ padding:.1em .45em; font-size:13.5px; }
+.badge{
+  display:inline-block; margin-left:.35em; padding:0 .4em; border-radius:999px;
+  font-size:12.5px; font-weight:700; background:var(--warn); color:var(--bg);
+}
+.rpt{ font-size:12.5px; color:var(--accent-text); }
+/* the log's compact cells (logColumns(), app.js columnCell()) */
+.op-name{ font-family:var(--font-ui); font-weight:400; font-size:14px; white-space:normal; }
+table.log td.col-rst{ white-space:nowrap; }
+.gchips{ display:inline-flex; gap:.25em; white-space:nowrap; }
+/* a school grade: the number always (not colour alone), green to red */
+.gchip{ display:inline-block; font-size:12.5px; line-height:1.5; padding:0 .4em; border-radius:3px; border:1px solid var(--line); color:var(--text-dim); white-space:nowrap; }
+.gchip b{ font-size:13.5px; color:var(--text); }
+.gchip.g1, .gchip.g2{ border-color:var(--ok); background:var(--ok-soft); }
+.gchip.g1 b, .gchip.g2 b{ color:var(--ok); }
+.gchip.g3{ border-color:var(--warn); background:var(--warn-soft); }
+.gchip.g3 b{ color:var(--warn); }
+.gchip.g4, .gchip.g5{ border-color:var(--err); background:var(--err-soft); }
+.gchip.g4 b, .gchip.g5 b{ color:var(--err); }
+.gchip.none{ border-style:dashed; opacity:.6; }
+/* yes / no: a shape (✓ / ✕), not only the colour (red and green look alike
+   to many) */
+.yes, .no{ white-space:nowrap; }
+.yes{ color:var(--ok); }
+.no{ color:var(--err); }
+.yes > .mark, .no > .mark{ font-weight:700; font-size:1.1em; }
+.chain-sub{ white-space:nowrap; }
+/* Column widths (every template): the short columns as wide as their
+   content (width:1% + nowrap), Standort and Notiz share the rest. Wide
+   screens only: phones show cards. */
+@media (min-width: 641px){
+  table.log :is(th, td):is(.col-nr, .col-time, .col-call, .col-rst, .col-rpt, .col-grades){ width:1%; white-space:nowrap; }
+  table.log :is(th, td).col-name{ width:1%; min-width:6em; max-width:12em; }
+  table.log :is(th, td).col-chain{ width:1%; }
+  table.log :is(th, td).col-location{ width:26%; min-width:12em; }
+  table.log :is(th, td).col-note{ min-width:14em; }
+}
+/* the Relais cell: the relay or "direkt" (dim); .dev where it differs */
+table.log td.col-rpt{ white-space:nowrap; }
+.route{ color:var(--text-dim); }
+.route.mono{ color:var(--text); }
+/* a check-in that differs from the log's Betrieb (relay, operator) */
+.dev{ display:inline-block; font-size:12.5px; line-height:1.5; padding:0 .4em; border-radius:3px; border:1px dashed var(--warn); color:var(--warn); white-space:nowrap; }
+
+/* ---------- location lookup ---------- */
+.hint.ok{ color:var(--ok); }
+.hint.err{ color:var(--err); font-weight:600; }
+/* the candidates and the search panel: shared forms.css */
+button.mini{ font-size:13.5px; padding:.15em .55em; }
+.map-links{ display:inline-flex; gap:.6em; align-items:center; font-size:13.5px; margin-left:.3em; }
+/* External map links lead nowhere offline: hidden (js/sources.js trackOnline()). */
+:root.offline .online-only{ display:none !important; }
+.rpt-line-row{ display:flex; gap:.4em; align-items:center; }
+/* a repeater callsign has at most 6 characters (a typed place or frequency scrolls) */
+#f-rpt-q{ font-family:var(--font-mono); text-transform:uppercase; width:calc(6ch + 1.2em); box-sizing:border-box; }
+/* empty = direkt: the placeholder in plain dim text, not like a callsign */
+#f-rpt-q::placeholder{ text-transform:none; font-family:var(--font-ui); color:var(--text-dim); }
+#f-rpt-q.override{ border-color:var(--warn); color:var(--warn); font-weight:600; }
+.rpt.override{ color:var(--warn); font-weight:600; }
+.ac-info.conf-exact, .ac-info.conf-high{ color:var(--ok); }
+.ac-info.conf-likely{ color:var(--accent-text); }
+.ac-info.conf-ambiguous, .ac-info.conf-low, .ac-info.unresolved{ color:var(--warn); }
+.loc-sub{ font-size:12.5px; color:var(--text-dim); }
+.loc-sub .src{ min-width:0; padding:0 .25em; line-height:1.35; }
+/* muted, not a warning: in many logs most places are typed text (#108 B5) */
+.loc-sub.unresolved{ color:var(--text-dim); font-style:italic; }
+details.misc{ margin-top:1.2em; }
+details.misc summary{ cursor:pointer; color:var(--text-dim); }
+details.misc ul{ font-size:14.5px; }
+
+dialog{ border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--text); max-width:min(48em, 95vw); width:100%; }
+dialog::backdrop{ background:#0006; }
+dialog h2{ margin-top:0; font-size:1.17em; }
+dialog .toolbar.form-foot{ margin-top:.8em; }
+dialog textarea{ width:100%; height:18em; font-family:var(--font-mono); font-size:13.5px; }
+
+footer{ max-width:1200px; margin:2em auto 1em; padding:0 1em; font-size:12.5px; color:var(--text-dim); }
+footer a{ color:inherit; }
+footer .sources{ margin-top:.5em; }
+footer .sources > summary{ cursor:pointer; width:max-content; max-width:100%; }
+footer .sources dl{ display:grid; grid-template-columns:max-content 1fr; gap:.3em 1em; margin:.5em 0 0; }
+footer .sources dt{ color:var(--text); white-space:nowrap; }
+footer .sources dd{ margin:0; }
+footer .src-list > span:not(:empty) ~ span:not(:empty)::before{ content:" · "; }
+@media (max-width: 640px){ footer .sources dl{ grid-template-columns:1fr; } footer .sources dd{ margin-bottom:.4em; } }
+/* "Ohne Internet arbeiten" on the log overview: about the tool, not a log,
+   so nothing like a log card (no grey card, no primary button): set off
+   from the list by a rule, dashed accent frame, tinted, download icon. */
+.offline-card{ display:flex; flex-wrap:wrap; gap:.6em 1em; align-items:center; margin-top:1.6em;
+  border:1px dashed var(--accent-dim); border-radius:6px; padding:.7em 1em; background:var(--accent-soft);
+  position:relative; }
+.offline-card::before{ content:""; position:absolute; left:0; right:0; top:calc(-.8em - 1px); border-top:1px solid var(--line); }
+.offline-card .icon{ flex:none; width:2em; height:2em; border-radius:50%; display:grid; place-items:center;
+  background:var(--accent); color:#fff; font-size:15px; }
+.offline-card .txt{ flex:1 1 20em; min-width:0; }
+.offline-card h2{ font-size:14px; margin:0 0 .15em; color:var(--accent-text); }
+.offline-card p{ margin:0; font-size:13.5px; color:var(--text-dim); }
+.offline-card .btn{ text-decoration:none; display:inline-flex; gap:.4em; align-items:center;
+  background:var(--bg); border-color:var(--accent-dim); color:var(--accent-text); }
+.offline-card .btn:hover{ border-color:var(--accent); }
+.source{ white-space:normal; }
+footer details.vendor-license{ margin-top:.4em; }
+footer details.vendor-license pre{ white-space:pre-wrap; }
+
+/* ---------- map: shared forms.css ---------- */
+.csv-group{ display:inline-flex; }
+.csv-group button{ border-top-right-radius:0; border-bottom-right-radius:0; }
+.csv-group select{ border-top-left-radius:0; border-bottom-left-radius:0; border-left:none; font-family:var(--font-mono); padding:.3em .3em; }
+
+/* iOS Safari zooms into focused fields with text under 16px. */
+@media (pointer: coarse){
+  /* :root for the specificity of input:not([type]) etc.; #f-call keeps its 24px */
+  :root input, :root select, :root textarea{ font-size:16px; }
+}
+
+@media (max-width: 640px){
+  main{ padding:.6em; }
+  #f-call{ width:100%; }
+  /* entry form: one field per row, full width (easy to hit, easy to read) */
+  #entry-form .row > .field, #entry-form #f-fields > .field, #entry-form #f-fields > .field-chain{ flex:1 1 100%; min-width:0; }
+  #entry-form .chain-more{ contain:none; flex-direction:column; }
+  #entry-form .chain-more > .field{ width:auto; }
+  /* narrow: the place's line ("✓ …, PLZ · locator (automatisch) ändern") gets two lines */
+  #entry-form .ac-field .ac-hints:has(.loc-chip){ height:calc(2 * var(--hint-h)); }
+  #entry-form .loc-chip{ -webkit-line-clamp:2; }
+  #entry-form .ac-field:has(.loc-chip){ margin-bottom:var(--hint-h); }
+  /* short fields and button groups keep their size (RST erh. and geg. side by side) */
+  #entry-form #f-fields > div.field:not(.ac-field), #entry-form #f-fields > .field[data-field="plz"],
+  #entry-form #f-fields > .field[data-field^="rst_"]{ flex:0 1 auto; }
+  #entry-form #f-fields > .field[data-field="plz"] input, #entry-form #f-fields > .field[data-field^="rst_"] input{ width:6em; }
+  #entry-form .row input:not([type=checkbox]):not([type=radio]){ width:100%; box-sizing:border-box; }
+  #entry-form .rpt-line-row .ac-wrap{ flex:1; }
+  #entry-form .row > #f-fields{ flex:1 1 100%; }
+  #entry-form .field .ac-wrap{ width:100%; }
+  /* the export menu opens to the right of its button (which wraps to the
+     left here) and never wider than the screen */
+  .menu-list{ left:0; right:auto; max-width:calc(100vw - 1.5em); box-sizing:border-box; }
+  /* the log as cards (#108 B1): time, number, callsign and the buttons on
+     the first line, the other columns flow below with their names (empty
+     ones left out). The column heads stay for screen readers (roles:
+     app.js). */
+  table.log, table.log tbody{ display:block; }
+  table.log thead{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+  table.log tr{ display:flex; flex-wrap:wrap; align-items:baseline; column-gap:.9em; row-gap:.1em; padding:.35em .5em; border-bottom:1px solid var(--line); }
+  table.log tr > td{ display:block; padding:0; border:none; min-width:0; order:2; }
+  table.log tr > td:nth-child(-n+3){ order:0; }
+  table.log tr > td.act{ order:1; margin-left:auto; align-self:center; }
+  table.log tr::after{ content:""; order:1; flex-basis:100%; } /* the details start on a new line */
+  table.log tr > td.empty, table.log tr.marker > td{ flex:1 1 100%; }
+  table.log tr.marker > td.marker-nr{ display:none; }
+  table.log tr.marker::after{ content:none; }
+  table.log tr > td:empty{ display:none; }
+  table.log td[data-label]::before{ content:attr(data-label) ": "; content:attr(data-label) ": " / ""; color:var(--text-dim); font-size:12.5px; }
+  table.log tr.fresh{ background:var(--accent-soft); box-shadow:inset 3px 0 0 var(--ok); }
+  table.log tr.match{ background:var(--warn-soft); }
+  table.log tr.row-editing{ background:var(--warn-soft); box-shadow:inset 4px 0 0 var(--warn), inset 0 0 0 2px var(--warn); }
+  table.log tbody tr.row-editing td{ border:none; } /* beats the shared .row-marks frame */
+  table.log tbody tr.row-editing > td:first-child{ box-shadow:none; }
+  table.log tr.marker{ padding:0; border-bottom:none; }
+}
+/* the log's own printout is a PDF (Drucken, logpdf.js); the browser's print
+   of the page just leaves out the controls */
+@media print{
+  #site-header, .toolbar button, #entry-form, details.hdr > summary::before, .no-print, footer, table.log td.act, table.log th.act, .marker-row .act{ display:none !important; }
+  details.hdr .body{ display:none; }
+  body{ background:#fff; color:#000; font-size:11px; }
+  .table-wrap{ border:none; }
+  .sticky-head th{ position:static; }
+}

@@ -1,0 +1,91 @@
+{
+  "entries": [
+    {
+      "kind": "data",
+      "name": "data-latest",
+      "published": "2026-11-23T14:51:05Z",
+      "sha": "d9463c3e0770b57de240377d19ec6e9563b0cb9b",
+      "sha256": "d2d63d252ec5db19f4acda11749758af61af51b3df98933fdf4caf6e7771ded5",
+      "title": "data-latest",
+      "tools": [
+        "netlog",
+        "wavelog-import"
+      ],
+      "updated": "2026-11-23T14:40:26Z",
+      "version": "v0.9.0"
+    },
+    {
+      "branch": "main",
+      "kind": "main",
+      "name": "main",
+      "published": "2026-11-22T23:11:10Z",
+      "sha": "b52b4d783866ddd42c7c125e8d87bdf8768185bd",
+      "title": "main",
+      "tools": [
+        "netlog",
+        "wavelog-import"
+      ],
+      "updated": "2026-11-22T23:09:53Z",
+      "version": "main"
+    },
+    {
+      "branch": "notfunk-winlink",
+      "kind": "pr",
+      "name": "189",
+      "published": "2026-11-22T23:12:20Z",
+      "sha": "5681761784a90c55b8c27a56013d8213a03fd6fb",
+      "title": "Notfunk: exchange messages via Winlink (prototype)",
+      "tools": [
+        "netlog",
+        "wavelog-import"
+      ],
+      "updated": "2026-11-22T23:11:08Z",
+      "version": "pr-189"
+    },
+    {
+      "kind": "release",
+      "name": "v0.8.1",
+      "published": "2026-10-22T19:30:14Z",
+      "sha": "66c91843d4a80d1f389c04216023b4924eb1bf2a",
+      "sha256": "087d6a539c2f996f777f06bdf6b6cb5067928945148d257e4ebe636316e641c3",
+      "title": "v0.8.1",
+      "tools": [
+        "netlog",
+        "wavelog-import"
+      ],
+      "updated": "2026-10-22T19:19:42Z",
+      "version": "v0.8.1"
+    },
+    {
+      "kind": "release",
+      "name": "v0.8.2",
+      "published": "2026-10-22T22:25:26Z",
+      "sha": "05c73fe7bf6602c82bfb2d192cd25c801673e923",
+      "sha256": "c4be0ca41c5d18edc61b66ee7447ab3e8e56aa20ac0e2dd941abba2f327f139e",
+      "title": "v0.8.2",
+      "tools": [
+        "netlog",
+        "wavelog-import"
+      ],
+      "updated": "2026-10-22T22:15:02Z",
+      "version": "v0.8.2"
+    },
+    {
+      "kind": "release",
+      "name": "v0.9.0",
+      "published": "2026-10-31T11:38:33Z",
+      "sha": "d9463c3e0770b57de240377d19ec6e9563b0cb9b",
+      "sha256": "b804fffef04bbbea6800e0dcc44ef6692476df15e5e60dc0ef5580cf989c9121",
+      "title": "v0.9.0",
+      "tools": [
+        "netlog",
+        "wavelog-import"
+      ],
+      "updated": "2026-10-31T11:27:34Z",
+      "version": "v0.9.0"
+    }
+  ],
+  "generated": "2026-11-23T14:51:05Z",
+  "repo": "oe1ebg/tools",
+  "schema": 1
+}
