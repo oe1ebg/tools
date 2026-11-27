@@ -13,7 +13,7 @@
 
 # Nu Html Checker; the project only publishes a rolling "latest" image, so
 # the digest is the pin (vnu --version is printed in the job log).
-FROM ghcr.io/validator/validator:latest@sha256:292cef9f3367a6d52447c617e65c94bca04cd3399abb37bd5d17c1c7d430525a AS vnu
+FROM ghcr.io/validator/validator:latest@sha256:8633e384994842b62d11b237d64cfdd8ecbc8d206c4eec7f1448cab479605296 AS vnu
 
 FROM mcr.microsoft.com/playwright:v1.65.1-noble@sha256:1507cbfc550a63a6b7396791ca4f00df17beb56342d2447b3f106c306f525579 AS playwright
 
